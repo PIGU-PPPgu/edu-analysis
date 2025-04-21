@@ -1,8 +1,14 @@
 
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 const Navbar: React.FC = () => {
+  const location = useLocation();
+  
+  const isActive = (path: string) => {
+    return location.pathname === path;
+  };
+
   return (
     <div className="flex w-full max-w-[1440px] items-center gap-[40px_100px] overflow-hidden justify-between flex-wrap px-[100px] max-md:max-w-full max-md:px-5 py-6 border-b">
       <div className="self-stretch flex gap-2.5 overflow-hidden w-[220px] my-auto py-2.5">
@@ -17,15 +23,21 @@ const Navbar: React.FC = () => {
       <div className="self-stretch flex min-w-60 items-center gap-10 text-xl text-black font-normal leading-[1.4] justify-center flex-wrap my-auto max-md:max-w-full">
         <Link
           to="/"
-          className="self-stretch my-auto hover:text-gray-600 transition-colors"
+          className={`self-stretch my-auto ${isActive('/') ? 'text-[#B9FF66] font-medium' : 'hover:text-gray-600 transition-colors'}`}
         >
           首页
         </Link>
         <Link
           to="/grade-analysis"
-          className="self-stretch my-auto text-[#B9FF66] font-medium"
+          className={`self-stretch my-auto ${isActive('/grade-analysis') ? 'text-[#B9FF66] font-medium' : 'hover:text-gray-600 transition-colors'}`}
         >
           成绩分析
+        </Link>
+        <Link
+          to="/student-profile"
+          className={`self-stretch my-auto ${isActive('/student-profile') ? 'text-[#B9FF66] font-medium' : 'hover:text-gray-600 transition-colors'}`}
+        >
+          学生画像
         </Link>
         <Link
           to="/student-management"
