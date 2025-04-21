@@ -32,7 +32,7 @@ const SubjectAverages: React.FC<Props> = ({ data }) => {
         <CardTitle>各科平均分对比</CardTitle>
         <CardDescription>各科目的平均得分情况</CardDescription>
       </CardHeader>
-      <CardContent className="h-80">
+      <CardContent className="h-[320px] flex items-center justify-center">
         <ChartContainer config={{
           average: { color: "#8884d8" }
         }}>
@@ -43,13 +43,13 @@ const SubjectAverages: React.FC<Props> = ({ data }) => {
               onMouseLeave={handleMouseLeave}
             >
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="subject" angle={-45} textAnchor="end" />
+              <XAxis dataKey="subject" angle={-45} textAnchor="end" interval={0} />
               <YAxis domain={[0, 100]} />
               <Tooltip 
                 formatter={(value) => [`${value} 分`, "平均分"]}
                 cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }}
               />
-              <Legend />
+              <Legend wrapperStyle={{ bottom: 0 }} />
               <Bar 
                 dataKey="average" 
                 name="平均分" 
