@@ -31,7 +31,7 @@ interface GradeData {
 }
 
 const GradeAnalysis: React.FC = () => {
-  const { toast } = useToast();
+  const { toast: uiToast } = useToast();
   const navigate = useNavigate();
   const [gradeData, setGradeData] = useState<GradeData[]>([]);
   const [isDataUploaded, setIsDataUploaded] = useState(false);
@@ -129,7 +129,7 @@ const GradeAnalysis: React.FC = () => {
   const handleAIConnect = (apiKey: string, provider: string, enabled: boolean) => {
     setIsAIEnabled(enabled);
     console.log(`AI已连接，使用${provider}，API密钥: ${apiKey.substring(0, 3)}...`);
-    toast({
+    uiToast({
       title: "AI服务已连接",
       description: `成功连接到${provider}服务`,
     });
@@ -152,7 +152,7 @@ const GradeAnalysis: React.FC = () => {
                 <Button 
                   className="bg-[#191A23] text-white hover:bg-[#2d2e3d]"
                   onClick={() => {
-                    toast({
+                    uiToast({
                       title: "数据已导出",
                       description: "分析报告已成功导出为PDF格式",
                     });
@@ -436,13 +436,13 @@ const GradeAnalysis: React.FC = () => {
                         variant="outline"
                         onClick={() => {
                           if (!isAIEnabled) {
-                            toast({
+                            uiToast({
                               title: "AI未启用",
                               description: "请先连接AI服务以使用智能分析功能",
                             });
                             return;
                           }
-                          toast.success("分析已启动", { 
+                          toast("分析已启动", { 
                             description: "正在生成全面分析报告，请稍候..." 
                           });
                         }}
@@ -455,13 +455,13 @@ const GradeAnalysis: React.FC = () => {
                         variant="outline"
                         onClick={() => {
                           if (!isAIEnabled) {
-                            toast({
+                            uiToast({
                               title: "AI未启用",
                               description: "请先连接AI服务以使用智能分析功能",
                             });
                             return;
                           }
-                          toast.success("已启动分析", { 
+                          toast("已启动分析", { 
                             description: "正在为每位学生生成个性化学习方案..." 
                           });
                         }}
@@ -474,13 +474,13 @@ const GradeAnalysis: React.FC = () => {
                         variant="outline"
                         onClick={() => {
                           if (!isAIEnabled) {
-                            toast({
+                            uiToast({
                               title: "AI未启用",
                               description: "请先连接AI服务以使用智能分析功能",
                             });
                             return;
                           }
-                          toast.success("已启动分析", { 
+                          toast("已启动分析", { 
                             description: "正在分析学生学习状况，生成教学建议..." 
                           });
                         }}

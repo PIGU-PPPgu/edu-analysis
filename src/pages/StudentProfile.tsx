@@ -57,7 +57,7 @@ const abilityRadarData = [
 ];
 
 const StudentProfile: React.FC = () => {
-  const { toast } = useToast();
+  const { toast: uiToast } = useToast();
   const { studentId } = useParams<{ studentId: string }>();
   const [student, setStudent] = useState<StudentData | null>(null);
   const [isAIEnabled, setIsAIEnabled] = useState(false);
@@ -77,7 +77,7 @@ const StudentProfile: React.FC = () => {
 
   const generateAIInsights = () => {
     if (!isAIEnabled) {
-      toast({
+      uiToast({
         title: "AI未启用",
         description: "请先在侧边栏连接AI服务",
         variant: "destructive",
@@ -160,7 +160,7 @@ const StudentProfile: React.FC = () => {
                     </div>
                     <Button 
                       className="bg-[#B9FF66] gap-2.5 text-black font-medium hover:bg-[#a8e85c] transition-colors" 
-                      onClick={() => toast({
+                      onClick={() => uiToast({
                         title: "成功生成报告",
                         description: "学生个人报告已成功生成并导出",
                       })}
@@ -416,7 +416,7 @@ const StudentProfile: React.FC = () => {
                         <Button 
                           variant="outline" 
                           size="sm"
-                          onClick={() => toast({
+                          onClick={() => uiToast({
                             title: "已保存",
                             description: "AI分析结果已保存到学生档案",
                           })}
@@ -434,7 +434,7 @@ const StudentProfile: React.FC = () => {
                   <CardTitle className="text-base">学习计划生成</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Button className="w-full" onClick={() => toast.info("学习计划生成功能即将推出")}>
+                  <Button className="w-full" onClick={() => toast("学习计划生成功能即将推出")}>
                     生成个性化学习计划
                   </Button>
                 </CardContent>
