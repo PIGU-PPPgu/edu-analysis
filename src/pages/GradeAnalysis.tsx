@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ScoreDistribution from "@/components/analysis/ScoreDistribution";
@@ -6,7 +7,10 @@ import ClassComparison from "@/components/analysis/ClassComparison";
 import StatisticsOverview from "@/components/analysis/StatisticsOverview";
 import StudentGradeTrend from "@/components/analysis/StudentGradeTrend";
 import StudentReportExport from "@/components/analysis/StudentReportExport";
+import HeatmapChart from "@/components/analysis/HeatmapChart";
+import ExamSelector from "@/components/analysis/ExamSelector";
 import Navbar from "@/components/analysis/Navbar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 // Mock data for testing
 const mockDistributionData = [
@@ -45,8 +49,19 @@ const mockStudentData = {
   ]
 };
 
+// Mock exam data for selection
+const mockExams = [
+  { id: "exam1", name: "期初测试", date: "2023-02-15" },
+  { id: "exam2", name: "第一次月考", date: "2023-03-20" },
+  { id: "exam3", name: "期中考试", date: "2023-04-25" },
+  { id: "exam4", name: "第二次月考", date: "2023-05-30" },
+  { id: "exam5", name: "期末考试", date: "2023-06-28" },
+  { id: "exam6", name: "高考模拟", date: "2023-12-15" }
+];
+
 const GradeAnalysis: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState("overview");
+  const [selectedExams, setSelectedExams] = useState<string[]>(["exam3", "exam4"]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -72,9 +87,22 @@ const GradeAnalysis: React.FC = () => {
               <ScoreDistribution data={mockDistributionData} />
               <SubjectAverages data={mockSubjectData} />
             </div>
+            <HeatmapChart />
           </TabsContent>
 
           <TabsContent value="individual" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>选择对比考试</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ExamSelector 
+                  exams={mockExams}
+                  selectedExams={selectedExams}
+                  onChange={setSelectedExams}
+                />
+              </CardContent>
+            </Card>
             <StudentGradeTrend 
               studentId={mockStudentData.studentId}
               studentName={mockStudentData.name}
@@ -82,6 +110,18 @@ const GradeAnalysis: React.FC = () => {
           </TabsContent>
 
           <TabsContent value="comparison" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>选择对比考试</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ExamSelector 
+                  exams={mockExams}
+                  selectedExams={selectedExams}
+                  onChange={setSelectedExams}
+                />
+              </CardContent>
+            </Card>
             <ClassComparison 
               studentId={mockStudentData.studentId}
               studentName={mockStudentData.name}

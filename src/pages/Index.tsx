@@ -15,6 +15,9 @@ const Index: React.FC = () => {
             <Link to="/student-management">学生管理</Link>
           </Button>
           <Button variant="outline" asChild>
+            <Link to="/class-management">班级管理</Link>
+          </Button>
+          <Button variant="outline" asChild>
             <Link to="/grade-analysis">成绩分析</Link>
           </Button>
         </nav>
@@ -55,6 +58,21 @@ const Index: React.FC = () => {
           <Card className="hover:shadow-lg transition-shadow">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                班级管理
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="mb-4">班级数据分析，班级对比与班级画像</p>
+              <Button className="w-full" asChild>
+                <Link to="/class-management">查看班级</Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
                 <UserCircle className="h-5 w-5" />
                 学生画像
               </CardTitle>
@@ -63,21 +81,6 @@ const Index: React.FC = () => {
               <p className="mb-4">深入了解学生学习状况，提供个性化建议</p>
               <Button className="w-full" asChild>
                 <Link to="/student-profile/2024001">查看画像</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                成绩报告
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="mb-4">生成详细的成绩报告和分析文档</p>
-              <Button className="w-full" variant="outline" asChild>
-                <Link to="/grade-analysis">生成报告</Link>
               </Button>
             </CardContent>
           </Card>

@@ -2,6 +2,10 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import StudentList from "@/components/analysis/StudentList";
+import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
+import { Users } from "lucide-react";
+import Navbar from "@/components/analysis/Navbar";
 
 // Mock student data
 const mockStudents = [
@@ -34,10 +38,21 @@ const mockStudents = [
 const StudentManagement: React.FC = () => {
   return (
     <div className="min-h-screen bg-background">
+      <Navbar />
       <div className="container mx-auto px-4 py-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">学生管理</h1>
+          <Button asChild>
+            <Link to="/class-management">
+              <Users className="mr-2 h-4 w-4" />
+              查看班级管理
+            </Link>
+          </Button>
+        </div>
+        
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>学生管理</CardTitle>
+            <CardTitle>学生列表</CardTitle>
           </CardHeader>
           <CardContent>
             <StudentList students={mockStudents} />
