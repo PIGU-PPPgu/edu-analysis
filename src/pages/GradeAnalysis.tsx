@@ -26,6 +26,15 @@ const mockSubjectData = [
   { subject: "化学", average: 83 }
 ];
 
+// Mock statistics data
+const mockStatisticsData = {
+  avg: 82.5,
+  max: 98,
+  min: 55,
+  passing: 42,
+  total: 50
+};
+
 const mockStudentData = {
   studentId: "2024001",
   name: "张三",
@@ -54,7 +63,13 @@ const GradeAnalysis: React.FC = () => {
 
           <TabsContent value="overview" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <StatisticsOverview />
+              <StatisticsOverview 
+                avg={mockStatisticsData.avg}
+                max={mockStatisticsData.max}
+                min={mockStatisticsData.min}
+                passing={mockStatisticsData.passing}
+                total={mockStatisticsData.total}
+              />
               <ScoreDistribution data={mockDistributionData} />
               <SubjectAverages data={mockSubjectData} />
             </div>
@@ -86,4 +101,3 @@ const GradeAnalysis: React.FC = () => {
 };
 
 export default GradeAnalysis;
-
