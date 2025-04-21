@@ -1,24 +1,18 @@
 
 import React, { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
-import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import Navbar from "../components/analysis/Navbar";
 import IntelligentFileParser from "../components/analysis/IntelligentFileParser";
 import AIConnector from "../components/analysis/AIConnector";
+import StatisticsOverview from "../components/analysis/StatisticsOverview";
+import ScoreDistribution from "../components/analysis/ScoreDistribution";
+import SubjectAverages from "../components/analysis/SubjectAverages";
+import StudentList from "../components/analysis/StudentList";
+import GradeTable from "../components/analysis/GradeTable";
 
 interface GradeData {
   studentId: string;
@@ -32,7 +26,6 @@ interface GradeData {
 
 const GradeAnalysis: React.FC = () => {
   const { toast: uiToast } = useToast();
-  const navigate = useNavigate();
   const [gradeData, setGradeData] = useState<GradeData[]>([]);
   const [isDataUploaded, setIsDataUploaded] = useState(false);
   const [isAIEnabled, setIsAIEnabled] = useState(false);
@@ -51,12 +44,9 @@ const GradeAnalysis: React.FC = () => {
 
     setGradeData(parsedData);
     setIsDataUploaded(true);
-    
-    // 重置文件输入以允许上传相同文件
     setFileInputKey(Date.now());
   };
 
-  // 计算基本统计数据
   const calculateStats = () => {
     if (gradeData.length === 0) return { avg: 0, max: 0, min: 0, passing: 0 };
     
@@ -69,9 +59,6 @@ const GradeAnalysis: React.FC = () => {
     return { avg, max, min, passing };
   };
 
-  const stats = calculateStats();
-
-  // 分数段分布数据
   const getScoreDistribution = () => {
     const distribution = [
       { range: '0-59', count: 0, color: '#FF5252' },
@@ -93,7 +80,6 @@ const GradeAnalysis: React.FC = () => {
     return distribution;
   };
 
-  // 按科目分组的平均分数据
   const getSubjectAverages = () => {
     const subjectMap = new Map<string, { total: number, count: number }>();
     
@@ -113,17 +99,25 @@ const GradeAnalysis: React.FC = () => {
     }));
   };
 
-  // 获取学生列表
   const getStudentList = () => {
     const uniqueStudents = new Map<string, GradeData>();
+    const studentScores = new Map<string, number[]>();
     
     gradeData.forEach(item => {
       if (!uniqueStudents.has(item.studentId)) {
         uniqueStudents.set(item.studentId, item);
       }
+      if (!studentScores.has(item.studentId)) {
+        studentScores.set(item.studentId, []);
+      }
+      studentScores.get(item.studentId)?.push(item.score);
     });
     
-    return Array.from(uniqueStudents.values());
+    return Array.from(uniqueStudents.values()).map(student => ({
+      ...student,
+      averageScore: studentScores.get(student.studentId)?.reduce((a, b) => a + b, 0) || 0 / 
+                    (studentScores.get(student.studentId)?.length || 1)
+    }));
   };
 
   const handleAIConnect = (apiKey: string, provider: string, enabled: boolean) => {
@@ -135,9 +129,7 @@ const GradeAnalysis: React.FC = () => {
     });
   };
 
-  const handleViewStudentProfile = (studentId: string) => {
-    navigate(`/student-profile/${studentId}`);
-  };
+  const stats = calculateStats();
 
   return (
     <div className="bg-white min-h-screen">
@@ -186,237 +178,34 @@ const GradeAnalysis: React.FC = () => {
                   </TabsList>
                   
                   <TabsContent value="overview">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm font-medium text-gray-500">平均分</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="text-2xl font-bold">{stats.avg.toFixed(2)}</div>
-                        </CardContent>
-                      </Card>
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm font-medium text-gray-500">最高分</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="text-2xl font-bold">{stats.max}</div>
-                        </CardContent>
-                      </Card>
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm font-medium text-gray-500">最低分</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="text-2xl font-bold">{stats.min}</div>
-                        </CardContent>
-                      </Card>
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm font-medium text-gray-500">及格率</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="text-2xl font-bold">
-                            {(stats.passing / gradeData.length * 100).toFixed(2)}%
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
+                    <StatisticsOverview 
+                      avg={stats.avg}
+                      max={stats.max}
+                      min={stats.min}
+                      passing={stats.passing}
+                      total={gradeData.length}
+                    />
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      <Card className="col-span-1">
-                        <CardHeader>
-                          <CardTitle>分数段分布</CardTitle>
-                          <CardDescription>各分数段学生人数</CardDescription>
-                        </CardHeader>
-                        <CardContent className="h-80">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie
-                                data={getScoreDistribution()}
-                                cx="50%"
-                                cy="50%"
-                                outerRadius={100}
-                                dataKey="count"
-                                nameKey="range"
-                                label={({ range, count }) => `${range}: ${count}人`}
-                              >
-                                {getScoreDistribution().map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={entry.color} />
-                                ))}
-                              </Pie>
-                              <Tooltip />
-                              <Legend />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        </CardContent>
-                      </Card>
-
-                      <Card className="col-span-1">
-                        <CardHeader>
-                          <CardTitle>各科平均分对比</CardTitle>
-                          <CardDescription>各科目的平均得分情况</CardDescription>
-                        </CardHeader>
-                        <CardContent className="h-80">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart
-                              data={getSubjectAverages()}
-                              margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-                            >
-                              <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis dataKey="subject" angle={-45} textAnchor="end" />
-                              <YAxis domain={[0, 100]} />
-                              <Tooltip />
-                              <Legend />
-                              <Bar dataKey="average" name="平均分" fill="#8884d8" />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </CardContent>
-                      </Card>
+                      <ScoreDistribution data={getScoreDistribution()} />
+                      <SubjectAverages data={getSubjectAverages()} />
                     </div>
                   </TabsContent>
 
                   <TabsContent value="distributions">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>详细分数分布</CardTitle>
-                        <CardDescription>学生成绩分数分布情况</CardDescription>
-                      </CardHeader>
-                      <CardContent className="h-96">
-                        <ChartContainer config={{
-                          score: { color: "#B9FF66" }
-                        }}>
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart
-                              data={gradeData.sort((a, b) => a.score - b.score)}
-                              margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-                            >
-                              <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis dataKey="name" tick={false} />
-                              <YAxis domain={[0, 100]} />
-                              <ChartTooltip />
-                              <Bar dataKey="score" name="分数" fill="#B9FF66" />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </ChartContainer>
-                      </CardContent>
-                    </Card>
+                    <ScoreDistribution data={getScoreDistribution()} />
                   </TabsContent>
 
                   <TabsContent value="subjects">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>科目详细分析</CardTitle>
-                        <CardDescription>各科目成绩对比及分析</CardDescription>
-                      </CardHeader>
-                      <CardContent className="h-96">
-                        <ChartContainer config={{
-                          score: { color: "#B9FF66" }
-                        }}>
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart
-                              data={getSubjectAverages()}
-                              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                            >
-                              <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis dataKey="subject" />
-                              <YAxis domain={[0, 100]} />
-                              <ChartTooltip />
-                              <Legend />
-                              <Bar dataKey="average" name="平均分" fill="#191A23" />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </ChartContainer>
-                      </CardContent>
-                    </Card>
+                    <SubjectAverages data={getSubjectAverages()} />
                   </TabsContent>
                   
                   <TabsContent value="students">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>学生列表</CardTitle>
-                        <CardDescription>查看学生详细信息和成绩画像</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="rounded-md border">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>学号</TableHead>
-                                <TableHead>姓名</TableHead>
-                                <TableHead>班级</TableHead>
-                                <TableHead>平均分</TableHead>
-                                <TableHead className="text-right">操作</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {getStudentList().map((student, index) => {
-                                // 计算该学生的平均分
-                                const studentScores = gradeData.filter(d => d.studentId === student.studentId);
-                                const avgScore = studentScores.length > 0 
-                                  ? studentScores.reduce((sum, item) => sum + item.score, 0) / studentScores.length
-                                  : 0;
-                                  
-                                return (
-                                  <TableRow key={index}>
-                                    <TableCell>{student.studentId}</TableCell>
-                                    <TableCell>{student.name}</TableCell>
-                                    <TableCell>{student.className || '-'}</TableCell>
-                                    <TableCell>{avgScore.toFixed(1)}</TableCell>
-                                    <TableCell className="text-right">
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm"
-                                        onClick={() => handleViewStudentProfile(student.studentId)}
-                                      >
-                                        查看画像
-                                      </Button>
-                                    </TableCell>
-                                  </TableRow>
-                                );
-                              })}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <StudentList students={getStudentList()} />
                   </TabsContent>
 
                   <TabsContent value="data">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>成绩数据表格</CardTitle>
-                        <CardDescription>全部学生成绩原始数据</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="rounded-md border">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>学号</TableHead>
-                                <TableHead>姓名</TableHead>
-                                <TableHead>科目</TableHead>
-                                <TableHead>分数</TableHead>
-                                <TableHead>考试日期</TableHead>
-                                <TableHead>考试类型</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {gradeData.map((item, index) => (
-                                <TableRow key={index}>
-                                  <TableCell>{item.studentId}</TableCell>
-                                  <TableCell>{item.name}</TableCell>
-                                  <TableCell>{item.subject}</TableCell>
-                                  <TableCell className="font-medium">{item.score}</TableCell>
-                                  <TableCell>{item.examDate || '-'}</TableCell>
-                                  <TableCell>{item.examType || '-'}</TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <GradeTable data={gradeData} />
                   </TabsContent>
                 </Tabs>
               </div>
@@ -424,93 +213,87 @@ const GradeAnalysis: React.FC = () => {
               <div>
                 <AIConnector onConnect={handleAIConnect} />
                 
-                <Card className="mt-6">
-                  <CardHeader>
-                    <CardTitle className="text-base">智能分析</CardTitle>
-                    <CardDescription>AI驱动的数据洞察</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <Button 
-                        className="w-full"
-                        variant="outline"
-                        onClick={() => {
-                          if (!isAIEnabled) {
-                            uiToast({
-                              title: "AI未启用",
-                              description: "请先连接AI服务以使用智能分析功能",
-                            });
-                            return;
-                          }
-                          toast("分析已启动", { 
-                            description: "正在生成全面分析报告，请稍候..." 
+                <div className="mt-6">
+                  <div className="space-y-4">
+                    <Button 
+                      className="w-full"
+                      variant="outline"
+                      onClick={() => {
+                        if (!isAIEnabled) {
+                          uiToast({
+                            title: "AI未启用",
+                            description: "请先连接AI服务以使用智能分析功能",
                           });
-                        }}
-                      >
-                        生成整体分析报告
-                      </Button>
-                      
-                      <Button 
-                        className="w-full"
-                        variant="outline"
-                        onClick={() => {
-                          if (!isAIEnabled) {
-                            uiToast({
-                              title: "AI未启用",
-                              description: "请先连接AI服务以使用智能分析功能",
-                            });
-                            return;
-                          }
-                          toast("已启动分析", { 
-                            description: "正在为每位学生生成个性化学习方案..." 
-                          });
-                        }}
-                      >
-                        生成学生学习方案
-                      </Button>
-                      
-                      <Button 
-                        className="w-full"
-                        variant="outline"
-                        onClick={() => {
-                          if (!isAIEnabled) {
-                            uiToast({
-                              title: "AI未启用",
-                              description: "请先连接AI服务以使用智能分析功能",
-                            });
-                            return;
-                          }
-                          toast("已启动分析", { 
-                            description: "正在分析学生学习状况，生成教学建议..." 
-                          });
-                        }}
-                      >
-                        生成教学建议
-                      </Button>
-                    </div>
+                          return;
+                        }
+                        toast("分析已启动", { 
+                          description: "正在生成全面分析报告，请稍候..." 
+                        });
+                      }}
+                    >
+                      生成整体分析报告
+                    </Button>
                     
-                    <div className="mt-4 pt-4 border-t">
-                      <h4 className="text-sm font-medium mb-2">重新导入数据</h4>
-                      <label className="w-full">
-                        <Button variant="outline" className="w-full">
-                          选择文件
-                        </Button>
-                        <Input
-                          type="file"
-                          key={fileInputKey}
-                          accept=".csv"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              setIsDataUploaded(false);
-                            }
-                          }}
-                        />
-                      </label>
-                    </div>
-                  </CardContent>
-                </Card>
+                    <Button 
+                      className="w-full"
+                      variant="outline"
+                      onClick={() => {
+                        if (!isAIEnabled) {
+                          uiToast({
+                            title: "AI未启用",
+                            description: "请先连接AI服务以使用智能分析功能",
+                          });
+                          return;
+                        }
+                        toast("已启动分析", { 
+                          description: "正在为每位学生生成个性化学习方案..." 
+                        });
+                      }}
+                    >
+                      生成学生学习方案
+                    </Button>
+                    
+                    <Button 
+                      className="w-full"
+                      variant="outline"
+                      onClick={() => {
+                        if (!isAIEnabled) {
+                          uiToast({
+                            title: "AI未启用",
+                            description: "请先连接AI服务以使用智能分析功能",
+                          });
+                          return;
+                        }
+                        toast("已启动分析", { 
+                          description: "正在分析学生学习状况，生成教学建议..." 
+                        });
+                      }}
+                    >
+                      生成教学建议
+                    </Button>
+                  </div>
+                  
+                  <div className="mt-4 pt-4 border-t">
+                    <h4 className="text-sm font-medium mb-2">重新导入数据</h4>
+                    <label className="w-full">
+                      <Button variant="outline" className="w-full">
+                        选择文件
+                      </Button>
+                      <Input
+                        type="file"
+                        key={fileInputKey}
+                        accept=".csv"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setIsDataUploaded(false);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -521,3 +304,4 @@ const GradeAnalysis: React.FC = () => {
 };
 
 export default GradeAnalysis;
+
