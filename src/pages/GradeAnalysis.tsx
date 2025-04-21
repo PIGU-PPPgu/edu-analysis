@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ScoreDistribution from "@/components/analysis/ScoreDistribution";
@@ -62,14 +61,14 @@ const GradeAnalysis: React.FC = () => {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <StatisticsOverview 
-                avg={mockStatisticsData.avg}
-                max={mockStatisticsData.max}
-                min={mockStatisticsData.min}
-                passing={mockStatisticsData.passing}
-                total={mockStatisticsData.total}
-              />
+            <StatisticsOverview 
+              avg={mockStatisticsData.avg}
+              max={mockStatisticsData.max}
+              min={mockStatisticsData.min}
+              passing={mockStatisticsData.passing}
+              total={mockStatisticsData.total}
+            />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <ScoreDistribution data={mockDistributionData} />
               <SubjectAverages data={mockSubjectData} />
             </div>
@@ -90,9 +89,7 @@ const GradeAnalysis: React.FC = () => {
           </TabsContent>
 
           <TabsContent value="reports" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <StudentReportExport student={mockStudentData} />
-            </div>
+            <StudentReportExport student={mockStudentData} />
           </TabsContent>
         </Tabs>
       </main>
