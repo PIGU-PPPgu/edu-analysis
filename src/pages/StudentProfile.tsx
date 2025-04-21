@@ -17,6 +17,9 @@ import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { toast } from "sonner";
 import Navbar from "../components/analysis/Navbar";
 import AIConnector from "../components/analysis/AIConnector";
+import StudentGradeTrend from "../components/analysis/StudentGradeTrend";
+import ClassComparison from "../components/analysis/ClassComparison";
+import StudentReportExport from "../components/analysis/StudentReportExport";
 
 interface StudentData {
   studentId: string;
@@ -158,15 +161,6 @@ const StudentProfile: React.FC = () => {
                         学号: {student.studentId} | 班级: {student.className} | 年龄: {student.age}岁
                       </CardDescription>
                     </div>
-                    <Button 
-                      className="bg-[#B9FF66] gap-2.5 text-black font-medium hover:bg-[#a8e85c] transition-colors" 
-                      onClick={() => uiToast({
-                        title: "成功生成报告",
-                        description: "学生个人报告已成功生成并导出",
-                      })}
-                    >
-                      导出学生报告
-                    </Button>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -176,6 +170,7 @@ const StudentProfile: React.FC = () => {
                       <TabsTrigger value="ability">能力评估</TabsTrigger>
                       <TabsTrigger value="trends">趋势分析</TabsTrigger>
                       <TabsTrigger value="details">详细数据</TabsTrigger>
+                      <TabsTrigger value="comparison">班级对比</TabsTrigger>
                     </TabsList>
                     
                     <TabsContent value="overview">
@@ -329,17 +324,11 @@ const StudentProfile: React.FC = () => {
                     </TabsContent>
                     
                     <TabsContent value="trends">
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-base">成绩趋势分析</CardTitle>
-                          <CardDescription>展示学生近期成绩变化趋势</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="flex items-center justify-center h-60">
-                            <p className="text-gray-500">尚无足够的历史数据，请导入更多考试成绩</p>
-                          </div>
-                        </CardContent>
-                      </Card>
+                      <StudentGradeTrend studentId={student.studentId} studentName={student.name} />
+                    </TabsContent>
+                    
+                    <TabsContent value="comparison">
+                      <ClassComparison studentId={student.studentId} studentName={student.name} />
                     </TabsContent>
                     
                     <TabsContent value="details">
@@ -429,16 +418,7 @@ const StudentProfile: React.FC = () => {
                 </CardContent>
               </Card>
               
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">学习计划生成</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Button className="w-full" onClick={() => toast("学习计划生成功能即将推出")}>
-                    生成个性化学习计划
-                  </Button>
-                </CardContent>
-              </Card>
+              <StudentReportExport student={student} />
             </div>
           </div>
         </div>
