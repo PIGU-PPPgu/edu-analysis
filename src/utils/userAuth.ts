@@ -1,3 +1,4 @@
+
 import { supabase } from './auth'
 import { validateData } from './validation'
 import { toast } from 'sonner'
@@ -15,26 +16,39 @@ export async function registerUser({
   try {
     await validateData.validateUserAuth({ phone, email, password });
     
-    const signUpData: Record<string, any> = { 
-      password,
-      email: email || undefined,
-      phone: phone || undefined,
-    };
-    
-    const { data, error } = await supabase.auth.signUp({
-      ...signUpData,
-      options: {
-        data: {
-          phone: phone || undefined,
-          user_type: 'student',
+    // 根据是用邮箱还是电话注册选择合适的参数
+    if (email) {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            phone: phone || undefined,
+            user_type: 'student',
+          }
         }
-      }
-    });
-    
-    if (error) throw error;
-    
-    toast.success("注册成功，请登录");
-    return data;
+      });
+      
+      if (error) throw error;
+      toast.success("注册成功，请登录");
+      return data;
+    } else if (phone) {
+      const { data, error } = await supabase.auth.signUp({
+        phone,
+        password,
+        options: {
+          data: {
+            user_type: 'student',
+          }
+        }
+      });
+      
+      if (error) throw error;
+      toast.success("注册成功，请登录");
+      return data;
+    } else {
+      throw new Error("请提供邮箱或手机号");
+    }
   } catch (error) {
     console.error('注册失败:', error);
     toast.error(`注册失败: ${error.message}`);
@@ -55,11 +69,15 @@ export async function loginUser({
   try {
     await validateData.validateUserAuth({ phone, email, password });
     
-    const credentials: Record<string, any> = { 
-      password,
-      email: email || undefined,
-      phone: phone || undefined,
-    };
+    // 根据是用邮箱还是电话登录选择合适的参数
+    let credentials;
+    if (email) {
+      credentials = { email, password };
+    } else if (phone) {
+      credentials = { phone, password };
+    } else {
+      throw new Error("请提供邮箱或手机号");
+    }
     
     const { data, error } = await supabase.auth.signInWithPassword(credentials);
     
