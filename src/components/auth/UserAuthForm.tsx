@@ -2,19 +2,16 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form } from '@/components/ui/form';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Phone, Lock } from 'lucide-react';
-import { loginUser, registerUser, sendPhoneOTP, verifyPhoneOTP } from '@/utils/userAuth';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { userAuthSchema } from '@/utils/validation';
-
-const authSchema = userAuthSchema;
-
-type AuthFormData = z.infer<typeof authSchema>;
+import { loginUser, registerUser, verifyPhoneOTP } from '@/utils/userAuth';
+import { AuthFormData } from './types';
+import PasswordLoginForm from './PasswordLoginForm';
+import OTPLoginForm from './OTPLoginForm';
+import RegisterForm from './RegisterForm';
 
 interface UserAuthFormProps {
   onSuccess?: () => void;
@@ -27,7 +24,7 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
   const [otpSent, setOtpSent] = useState(false);
 
   const form = useForm<AuthFormData>({
-    resolver: zodResolver(authSchema),
+    resolver: zodResolver(userAuthSchema),
     defaultValues: {
       phone: '',
       email: '',
@@ -35,24 +32,6 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
       otp: '',
     },
   });
-
-  const handleSendOTP = async () => {
-    const phoneValue = form.getValues('phone');
-    if (!phoneValue || !/^1[3-9]\d{9}$/.test(phoneValue)) {
-      form.setError('phone', { message: '请输入有效的手机号码' });
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      await sendPhoneOTP(phoneValue);
-      setOtpSent(true);
-    } catch (error) {
-      console.error('发送验证码失败:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const onSubmit = async (data: AuthFormData) => {
     setIsSubmitting(true);
@@ -62,171 +41,26 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
           await loginUser({
             phone: data.phone,
             email: data.email,
-            password: data.password || '',
+            password: data.password,
           });
-        } else if (loginMethod === 'otp' && otpSent && data.phone && data.otp) {
+        } else if (loginMethod === 'otp' && data.phone && data.otp) {
           await verifyPhoneOTP(data.phone, data.otp);
         }
       } else if (authType === 'register') {
         await registerUser({
           phone: data.phone,
           email: data.email,
-          password: data.password || '',
+          password: data.password,
         });
       }
       
       if (onSuccess) {
         onSuccess();
       }
-    } catch (error) {
-      console.error('操作失败:', error);
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  const renderPasswordLoginFields = () => (
-    <>
-      <FormField
-        control={form.control}
-        name={form.getValues('email') ? 'email' : 'phone'}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>{form.getValues('email') ? '邮箱' : '手机号'}</FormLabel>
-            <FormControl>
-              <div className="flex items-center border rounded-md">
-                <div className="px-3 py-2 text-gray-500">
-                  {form.getValues('email') ? <Mail className="h-5 w-5" /> : <Phone className="h-5 w-5" />}
-                </div>
-                <Input 
-                  {...field} 
-                  placeholder={form.getValues('email') ? "请输入邮箱" : "请输入手机号"}
-                  className="border-0 focus-visible:ring-0" 
-                />
-              </div>
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        control={form.control}
-        name="password"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>密码</FormLabel>
-            <FormControl>
-              <div className="flex items-center border rounded-md">
-                <div className="px-3 py-2 text-gray-500">
-                  <Lock className="h-5 w-5" />
-                </div>
-                <Input 
-                  {...field} 
-                  type="password" 
-                  placeholder="请输入密码" 
-                  className="border-0 focus-visible:ring-0" 
-                />
-              </div>
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <Button
-        type="submit"
-        className="w-full bg-[#B9FF66] text-black hover:bg-[#a8e85c]"
-        disabled={isSubmitting}
-      >
-        {authType === 'login' ? '登录' : '注册'}
-      </Button>
-
-      {authType === 'login' && (
-        <div className="text-center">
-          <Button 
-            variant="link" 
-            type="button" 
-            onClick={() => setLoginMethod('otp')}
-            className="text-sm"
-          >
-            使用短信验证码登录
-          </Button>
-        </div>
-      )}
-    </>
-  );
-
-  const renderOtpLoginFields = () => (
-    <>
-      <FormField
-        control={form.control}
-        name="phone"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>手机号</FormLabel>
-            <FormControl>
-              <div className="flex items-center border rounded-md">
-                <div className="px-3 py-2 text-gray-500">
-                  <Phone className="h-5 w-5" />
-                </div>
-                <Input 
-                  {...field} 
-                  placeholder="请输入手机号"
-                  className="border-0 focus-visible:ring-0" 
-                />
-              </div>
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <div className="flex items-center space-x-2">
-        <FormField
-          control={form.control}
-          name="otp"
-          render={({ field }) => (
-            <FormItem className="flex-1">
-              <FormLabel>验证码</FormLabel>
-              <FormControl>
-                <Input {...field} placeholder="请输入验证码" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <Button 
-          type="button" 
-          variant="outline" 
-          onClick={handleSendOTP}
-          disabled={isSubmitting || otpSent}
-          className="mt-8"
-        >
-          {otpSent ? '已发送' : '获取验证码'}
-        </Button>
-      </div>
-
-      <Button
-        type="submit"
-        className="w-full bg-[#B9FF66] text-black hover:bg-[#a8e85c]"
-        disabled={isSubmitting || !otpSent}
-      >
-        登录
-      </Button>
-
-      <div className="text-center">
-        <Button 
-          variant="link" 
-          type="button" 
-          onClick={() => setLoginMethod('password')}
-          className="text-sm"
-        >
-          使用密码登录
-        </Button>
-      </div>
-    </>
-  );
 
   return (
     <Card className="w-full max-w-md mx-auto">
@@ -248,87 +82,28 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <TabsContent value="login">
-                {loginMethod === 'password' ? renderPasswordLoginFields() : renderOtpLoginFields()}
+                {loginMethod === 'password' ? (
+                  <PasswordLoginForm
+                    form={form}
+                    isSubmitting={isSubmitting}
+                    onSwitchMethod={() => setLoginMethod('otp')}
+                  />
+                ) : (
+                  <OTPLoginForm
+                    form={form}
+                    isSubmitting={isSubmitting}
+                    otpSent={otpSent}
+                    onSendOTP={() => setOtpSent(true)}
+                    onSwitchMethod={() => setLoginMethod('password')}
+                  />
+                )}
               </TabsContent>
               
               <TabsContent value="register">
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>手机号</FormLabel>
-                      <FormControl>
-                        <div className="flex items-center border rounded-md">
-                          <div className="px-3 py-2 text-gray-500">
-                            <Phone className="h-5 w-5" />
-                          </div>
-                          <Input 
-                            {...field} 
-                            placeholder="请输入手机号"
-                            className="border-0 focus-visible:ring-0" 
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                <RegisterForm
+                  form={form}
+                  isSubmitting={isSubmitting}
                 />
-                
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>邮箱 (选填)</FormLabel>
-                      <FormControl>
-                        <div className="flex items-center border rounded-md">
-                          <div className="px-3 py-2 text-gray-500">
-                            <Mail className="h-5 w-5" />
-                          </div>
-                          <Input 
-                            {...field} 
-                            placeholder="请输入邮箱"
-                            className="border-0 focus-visible:ring-0" 
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>密码</FormLabel>
-                      <FormControl>
-                        <div className="flex items-center border rounded-md">
-                          <div className="px-3 py-2 text-gray-500">
-                            <Lock className="h-5 w-5" />
-                          </div>
-                          <Input 
-                            {...field} 
-                            type="password" 
-                            placeholder="请设置密码" 
-                            className="border-0 focus-visible:ring-0" 
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <Button
-                  type="submit"
-                  className="w-full bg-[#B9FF66] text-black hover:bg-[#a8e85c]"
-                  disabled={isSubmitting}
-                >
-                  注册
-                </Button>
               </TabsContent>
             </form>
           </Form>
