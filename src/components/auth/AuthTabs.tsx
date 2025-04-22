@@ -34,11 +34,7 @@ const AuthTabs: React.FC<AuthTabsProps> = ({
         });
         console.log('登录成功，执行成功回调', result);
         if (onSuccess) {
-          // 添加延迟确保状态更新完成
-          setTimeout(() => {
-            console.log('调用onSuccess回调函数');
-            onSuccess();
-          }, 100);
+          onSuccess();
         }
       } else if (authType === 'register') {
         console.log('开始注册:', data);

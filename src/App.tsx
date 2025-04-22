@@ -43,14 +43,14 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
         if (!session && !isPublicPage) {
           console.log('ProtectedRoute - 未登录，跳转到登录页');
           navigate('/login');
-        } else if (session && location.pathname === '/login') {
-          // 如果已登录但在登录页，则跳转到成绩分析页
-          console.log('ProtectedRoute - 已登录，但在登录页，跳转到成绩分析页');
-          navigate('/grade-analysis');
         }
+        // 注意：已登录时不再自动跳转，让用户自行决定去向
       } catch (error) {
         console.error('验证用户状态失败:', error);
-        navigate('/login');
+        // 验证失败时仍可访问公开页面
+        if (!['/', '/login'].includes(location.pathname)) {
+          navigate('/login');
+        }
       } finally {
         setIsCheckingAuth(false);
       }
@@ -67,12 +67,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       // 如果登出，跳转到首页
       if (event === 'SIGNED_OUT') {
         navigate('/');
-      }
-      
-      // 如果登录，跳转到成绩分析页
-      if (event === 'SIGNED_IN') {
-        console.log('用户刚刚登录，准备跳转到成绩分析页');
-        navigate('/grade-analysis');
       }
     });
     

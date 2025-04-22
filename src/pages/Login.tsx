@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import UserAuthForm from '@/components/auth/UserAuthForm';
 import { supabase } from '@/integrations/supabase/client';
 import { getSession } from '@/utils/auth';
+import { toast } from 'sonner';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -26,8 +27,12 @@ const Login = () => {
   // 登录成功后的回调
   const handleAuthSuccess = () => {
     console.log('登录成功，准备跳转到成绩分析页面');
-    // 使用普通导航而不是replace模式
-    navigate('/grade-analysis');
+    toast.success("登录成功");
+    
+    // 添加短延迟确保状态更新完成
+    setTimeout(() => {
+      navigate('/grade-analysis');
+    }, 500);
   };
 
   return (
