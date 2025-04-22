@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,23 +10,24 @@ import HeaderMappingDialog from './HeaderMappingDialog';
 import FileUploader from './FileUploader';
 import DataPreview from './DataPreview';
 import TemplateDownloader from './TemplateDownloader';
+import { ParsedData } from "./types";
 
-const IntelligentFileParser: React.FC = () => {
+const IntelligentFileParser = () => {
   const [isAIEnhanced, setIsAIEnhanced] = useState(true);
   const [showHeaderMapping, setShowHeaderMapping] = useState(false);
   const [headerMappings, setHeaderMappings] = useState<Record<string, string>>({});
-  const [detectedHeaders, setDetectedHeaders] = useState<string[]>([]);
-  const [rawData, setRawData] = useState<any[]>([]);
+  const [parsedData, setParsedData] = useState<ParsedData | null>(null);
   const [saveToDatabase, setSaveToDatabase] = useState(true);
 
-  const handleFileProcessed = (data: any[], headers: string[]) => {
-    setDetectedHeaders(headers);
-    setRawData(data);
+  const handleFileProcessed = (data: ParsedData) => {
+    setParsedData(data);
     setShowHeaderMapping(true);
   };
 
-  const processDataWithMappings = (data: any[], mappings: Record<string, string>) => {
-    const processedData = data.map(row => {
+  const processDataWithMappings = (mappings: Record<string, string>) => {
+    if (!parsedData) return;
+
+    const processedData = parsedData.data.map(row => {
       const newRow: Record<string, any> = {};
       Object.entries(mappings).forEach(([originalHeader, mappedField]) => {
         if (mappedField && mappedField !== 'ignore' && row[originalHeader] !== undefined) {
@@ -118,18 +118,18 @@ const IntelligentFileParser: React.FC = () => {
                 </span>
               </div>
 
-              {!rawData.length ? (
+              {!parsedData ? (
                 <FileUploader
                   onFileProcessed={handleFileProcessed}
                   isAIEnhanced={isAIEnhanced}
                 />
               ) : (
                 <DataPreview 
-                  data={rawData}
-                  headers={detectedHeaders}
+                  data={parsedData.data}
+                  headers={parsedData.headers}
                   mappings={headerMappings}
                   onShowMapping={() => setShowHeaderMapping(true)}
-                  onReupload={() => setRawData([])}
+                  onReupload={() => setParsedData(null)}
                 />
               )}
             </div>
@@ -162,7 +162,7 @@ const IntelligentFileParser: React.FC = () => {
       <HeaderMappingDialog
         open={showHeaderMapping}
         onOpenChange={setShowHeaderMapping}
-        headers={detectedHeaders}
+        headers={parsedData?.headers || []}
         mappings={headerMappings}
         onUpdateMapping={(header, value) => {
           setHeaderMappings(prev => ({
@@ -170,7 +170,7 @@ const IntelligentFileParser: React.FC = () => {
             [header]: value
           }));
         }}
-        onConfirm={() => processDataWithMappings(rawData, headerMappings)}
+        onConfirm={() => processDataWithMappings(headerMappings)}
       />
     </Card>
   );
