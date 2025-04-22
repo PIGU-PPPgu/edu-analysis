@@ -31,11 +31,9 @@ export async function registerUser({
     }
     
     console.log('注册成功:', data);
-    toast.success("注册成功，请登录");
     return data;
   } catch (error) {
     console.error('注册失败:', error);
-    toast.error(`注册失败: ${error.message}`);
     throw error;
   }
 }
@@ -62,12 +60,11 @@ export async function loginUser({
       throw error;
     }
     
-    console.log('登录成功:', data);
-    toast.success("登录成功");
+    console.log('登录成功，用户信息:', data.user);
+    console.log('登录成功，会话信息:', data.session);
     return data;
   } catch (error) {
     console.error('登录失败:', error);
-    toast.error(`登录失败: ${error.message}`);
     throw error;
   }
 }

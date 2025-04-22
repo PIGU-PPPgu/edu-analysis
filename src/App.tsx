@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -34,7 +35,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
         console.log('ProtectedRoute - 当前路径:', location.pathname);
         console.log('ProtectedRoute - 认证状态:', session ? '已登录' : '未登录');
         
-        // 公开���面列表
+        // 公开页面列表
         const publicPages = ['/', '/login'];
         const isPublicPage = publicPages.includes(location.pathname);
         
@@ -45,7 +46,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
         } else if (session && location.pathname === '/login') {
           // 如果已登录但在登录页，则跳转到成绩分析页
           console.log('ProtectedRoute - 已登录，但在登录页，跳转到成绩分析页');
-          navigate('/grade-analysis');
+          navigate('/grade-analysis', { replace: true });
         }
       } catch (error) {
         console.error('验证用户状态失败:', error);
@@ -71,7 +72,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       // 如果登录，跳转到成绩分析页
       if (event === 'SIGNED_IN') {
         console.log('用户刚刚登录，准备跳转到成绩分析页');
-        navigate('/grade-analysis');
+        navigate('/grade-analysis', { replace: true });
       }
     });
     

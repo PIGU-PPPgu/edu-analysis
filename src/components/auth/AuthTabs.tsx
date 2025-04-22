@@ -35,6 +35,7 @@ const AuthTabs: React.FC<AuthTabsProps> = ({
         console.log('登录成功，执行成功回调', result);
         toast.success('登录成功');
         if (onSuccess) {
+          console.log('调用onSuccess回调函数');
           onSuccess();
         }
       } else if (authType === 'register') {
