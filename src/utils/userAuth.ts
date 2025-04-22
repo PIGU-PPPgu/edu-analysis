@@ -1,4 +1,3 @@
-
 import { supabase } from './auth'
 import { validateData } from './validation'
 import { toast } from 'sonner'
@@ -14,7 +13,7 @@ export async function registerUser({ phone, email, password }: {
     await validateData.validateUserAuth({ phone, email, password });
     
     // 构建用户数据
-    let signUpData: any = { password };
+    const signUpData: Record<string, any> = { password };
     
     // 必须有一个标识符 (email或phone)
     if (email) {
@@ -25,7 +24,7 @@ export async function registerUser({ phone, email, password }: {
     
     // 使用Supabase创建用户
     const { data, error } = await supabase.auth.signUp({
-      ...signUpData,
+      ...signUpData as any,
       options: {
         data: {
           phone,
@@ -56,7 +55,7 @@ export async function loginUser({ phone, email, password }: {
     await validateData.validateUserAuth({ phone, email, password });
     
     // 构建登录凭证 - 必须提供email或phone其中之一
-    let credentials: any = { password };
+    const credentials: Record<string, any> = { password };
     if (email) {
       credentials.email = email;
     } else if (phone) {
@@ -64,7 +63,7 @@ export async function loginUser({ phone, email, password }: {
     }
     
     // 使用Supabase登录
-    const { data, error } = await supabase.auth.signInWithPassword(credentials);
+    const { data, error } = await supabase.auth.signInWithPassword(credentials as any);
     
     if (error) throw error;
     

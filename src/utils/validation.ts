@@ -1,12 +1,9 @@
-
 import { z } from "zod";
 
 // 用户认证验证schema
 export const userAuthSchema = z.object({
-  phone: z.string().optional().refine(val => !val || /^1[3-9]\d{9}$/.test(val), {
-    message: "请输入有效的手机号码",
-  }),
-  email: z.string().optional().email("请输入有效的邮箱地址"),
+  phone: z.string().optional(),
+  email: z.string().optional(),
   password: z.string().min(6, "密码至少需要6个字符"),
 }).refine(data => data.phone || data.email, {
   message: "手机号或邮箱至少提供一个",
@@ -21,7 +18,7 @@ export const studentSchema = z.object({
   admission_year: z.string().optional(),
   gender: z.enum(["男", "女", "其他"]).optional(),
   contact_phone: z.string().optional(),
-  contact_email: z.string().optional().email("请输入有效的邮箱地址"),
+  contact_email: z.string().optional(),
   user_id: z.string().optional(), // 关联到用户表的ID
 });
 
@@ -65,7 +62,7 @@ export const teacherSchema = z.object({
   department: z.string().optional(),
   title: z.string().optional(),
   contact_phone: z.string().optional(),
-  contact_email: z.string().optional().email("请输入有效的邮箱地址"),
+  contact_email: z.string().optional(),
   user_id: z.string().optional(), // 关联到用户表的ID
 });
 

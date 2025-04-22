@@ -13,7 +13,7 @@ import { Phone, Mail, Lock } from 'lucide-react';
 
 const authSchema = z.object({
   phone: z.string().optional(),
-  email: z.string().optional().email("请输入有效的邮箱地址"),
+  email: z.string().optional(),
   password: z.string().min(6, "密码至少需要6个字符"),
   otp: z.string().optional(),
 }).refine(data => data.phone || data.email, {
@@ -67,8 +67,8 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
       if (authType === 'login') {
         if (loginMethod === 'password') {
           await loginUser({
-            phone: data.phone || undefined,
-            email: data.email || undefined,
+            phone: data.phone,
+            email: data.email,
             password: data.password || '',
           });
         } else if (loginMethod === 'otp' && otpSent && data.phone && data.otp) {
@@ -76,8 +76,8 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
         }
       } else if (authType === 'register') {
         await registerUser({
-          phone: data.phone || undefined,
-          email: data.email || undefined,
+          phone: data.phone,
+          email: data.email,
           password: data.password || '',
         });
       }
