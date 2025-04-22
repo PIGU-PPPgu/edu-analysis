@@ -2,7 +2,7 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileExport, Download, Save } from "lucide-react";
+import { FileText, Download, Save } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from 'xlsx';
 
@@ -51,7 +51,7 @@ const DataExport: React.FC<Props> = ({ data }) => {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <FileExport className="h-5 w-5" />
+          <FileText className="h-5 w-5" />
           数据导出
         </CardTitle>
         <CardDescription>导出分析数据和报告</CardDescription>
