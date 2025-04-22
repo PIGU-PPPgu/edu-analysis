@@ -23,17 +23,14 @@ const ScoreBoxPlot: React.FC<ScoreBoxPlotProps> = ({
   description = "各科目成绩分布统计"
 }) => {
   return (
-    <Card>
+    <Card className="transition-all hover:shadow-md">
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
+        <CardTitle className="text-lg font-semibold">{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent className="h-[320px]">
-        <ChartContainer config={{
-          median: { color: "#8884d8" },
-          range: { color: "#B9FF66" }
-        }}>
-          <ResponsiveContainer width="100%" height="100%">
+      <CardContent className="min-h-[320px] pt-4">
+        <ChartContainer>
+          <ResponsiveContainer width="100%" height={320} minWidth={300}>
             <ComposedChart
               data={data}
               margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
@@ -44,11 +41,21 @@ const ScoreBoxPlot: React.FC<ScoreBoxPlotProps> = ({
                 angle={-45} 
                 textAnchor="end"
                 interval={0}
+                height={60}
+                tick={{ fontSize: 12 }}
               />
-              <YAxis domain={[0, 100]} />
+              <YAxis 
+                domain={[0, 100]}
+                tick={{ fontSize: 12 }}
+              />
               <Tooltip 
                 formatter={(value: number) => [`${value} 分`, ""]}
                 labelFormatter={(label: string) => `科目: ${label}`}
+                contentStyle={{
+                  backgroundColor: "hsl(var(--background))",
+                  borderColor: "hsl(var(--border))",
+                  borderRadius: "var(--radius)",
+                }}
               />
               
               {/* 箱体区域（Q1到Q3） */}
@@ -56,23 +63,23 @@ const ScoreBoxPlot: React.FC<ScoreBoxPlotProps> = ({
                 dataKey="q1" 
                 stackId="1" 
                 stroke="none" 
-                fill="#B9FF66" 
-                fillOpacity={0.6}
+                fill="hsl(var(--primary))" 
+                fillOpacity={0.2}
               />
               <Area 
                 dataKey="q3" 
                 stackId="1" 
                 stroke="none" 
-                fill="#B9FF66" 
+                fill="hsl(var(--primary))" 
                 fillOpacity={0} 
               />
               
               {/* 中位线 */}
               <Line 
                 dataKey="median" 
-                stroke="#8884d8" 
+                stroke="hsl(var(--primary))"
                 strokeWidth={2}
-                dot={{ fill: "#8884d8", r: 3 }}
+                dot={{ fill: "hsl(var(--primary))", r: 3 }}
               />
               
               {/* 最大值和最小值线 */}
@@ -83,16 +90,18 @@ const ScoreBoxPlot: React.FC<ScoreBoxPlotProps> = ({
                       { x: index, y: entry.min },
                       { x: index, y: entry.q1 }
                     ]} 
-                    stroke="#82ca9d" 
+                    stroke="hsl(var(--primary))"
                     strokeDasharray="3 3"
+                    strokeOpacity={0.5}
                   />
                   <ReferenceLine 
                     segment={[
                       { x: index, y: entry.q3 },
                       { x: index, y: entry.max }
                     ]} 
-                    stroke="#82ca9d" 
+                    stroke="hsl(var(--primary))"
                     strokeDasharray="3 3"
+                    strokeOpacity={0.5}
                   />
                 </React.Fragment>
               ))}

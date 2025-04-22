@@ -25,39 +25,52 @@ const CompetencyRadar: React.FC<CompetencyRadarProps> = ({
   className
 }) => {
   return (
-    <Card className={className}>
+    <Card className={cn("transition-all hover:shadow-md", className)}>
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
+        <CardTitle className="text-lg font-semibold">{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent className="h-[320px]">
-        <ChartContainer config={{
-          current: { color: "#8884d8" },
-          average: { color: "#82ca9d" }
-        }}>
-          <ResponsiveContainer width="100%" height="100%">
+      <CardContent className="min-h-[320px] pt-4">
+        <ChartContainer>
+          <ResponsiveContainer width="100%" height={320} minWidth={300}>
             <RadarChart cx="50%" cy="50%" outerRadius="80%" data={data}>
-              <PolarGrid />
-              <PolarAngleAxis dataKey="name" />
-              <PolarRadiusAxis angle={30} domain={[0, 100]} />
+              <PolarGrid stroke="hsl(var(--muted-foreground))" opacity={0.3} />
+              <PolarAngleAxis 
+                dataKey="name" 
+                tick={{ fill: "hsl(var(--foreground))", fontSize: 12 }}
+              />
+              <PolarRadiusAxis 
+                angle={30} 
+                domain={[0, 100]}
+                tick={{ fill: "hsl(var(--foreground))", fontSize: 12 }}
+              />
               <Radar
                 name="当前成绩"
                 dataKey="current"
-                stroke="#8884d8"
-                fill="#8884d8"
-                fillOpacity={0.6}
+                stroke="hsl(var(--primary))"
+                fill="hsl(var(--primary))"
+                fillOpacity={0.3}
               />
               <Radar
                 name="班级平均"
                 dataKey="average"
-                stroke="#82ca9d"
-                fill="#82ca9d"
-                fillOpacity={0.6}
+                stroke="hsl(var(--muted))"
+                fill="hsl(var(--muted))"
+                fillOpacity={0.3}
               />
               <Tooltip
                 formatter={(value) => [`${value}分`, ""]}
+                contentStyle={{
+                  backgroundColor: "hsl(var(--background))",
+                  borderColor: "hsl(var(--border))",
+                  borderRadius: "var(--radius)",
+                }}
               />
-              <Legend />
+              <Legend 
+                wrapperStyle={{
+                  fontSize: "12px",
+                }}
+              />
             </RadarChart>
           </ResponsiveContainer>
         </ChartContainer>
