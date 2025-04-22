@@ -1,4 +1,3 @@
-
 -- 创建用户资料触发器函数
 CREATE OR REPLACE FUNCTION create_user_profile_function()
 RETURNS FUNCTION AS $$
@@ -99,3 +98,106 @@ BEGIN
     WITH CHECK (true);
 END;
 $$ LANGUAGE plpgsql;
+
+-- 获取学生预警列表
+CREATE OR REPLACE FUNCTION get_student_warnings()
+RETURNS TABLE (
+  student_id TEXT,
+  name TEXT,
+  risk_level TEXT,
+  warning_subjects TEXT[],
+  trend TEXT,
+  last_update TIMESTAMP
+) LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  RETURN QUERY
+  WITH recent_grades AS (
+    SELECT 
+      g.student_id,
+      s.name,
+      g.subject,
+      g.score,
+      g.exam_date,
+      CASE
+        WHEN AVG(g.score) < 60 THEN 'high'
+        WHEN AVG(g.score) < 70 THEN 'medium'
+        ELSE 'low'
+      END as risk_level,
+      CASE
+        WHEN LAG(g.score) OVER (PARTITION BY g.student_id, g.subject ORDER BY g.exam_date) < g.score THEN 'up'
+        WHEN LAG(g.score) OVER (PARTITION BY g.student_id, g.subject ORDER BY g.exam_date) > g.score THEN 'down'
+        ELSE 'stable'
+      END as trend
+    FROM grades g
+    JOIN students s ON s.student_id = g.student_id
+    WHERE g.exam_date >= NOW() - INTERVAL '6 months'
+    GROUP BY g.student_id, s.name, g.subject, g.score, g.exam_date
+    HAVING AVG(g.score) < 75
+  )
+  SELECT DISTINCT ON (rg.student_id)
+    rg.student_id,
+    rg.name,
+    rg.risk_level,
+    ARRAY_AGG(DISTINCT rg.subject) as warning_subjects,
+    rg.trend,
+    MAX(rg.exam_date) as last_update
+  FROM recent_grades rg
+  GROUP BY rg.student_id, rg.name, rg.risk_level, rg.trend;
+END;
+$$;
+
+-- 获取预警统计信息
+CREATE OR REPLACE FUNCTION get_warning_statistics()
+RETURNS TABLE (
+  high_risk INTEGER,
+  medium_risk INTEGER,
+  low_risk INTEGER,
+  total INTEGER
+) LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  RETURN QUERY
+  WITH stats AS (
+    SELECT * FROM get_student_warnings()
+  )
+  SELECT
+    COUNT(*) FILTER (WHERE risk_level = 'high')::INTEGER as high_risk,
+    COUNT(*) FILTER (WHERE risk_level = 'medium')::INTEGER as medium_risk,
+    COUNT(*) FILTER (WHERE risk_level = 'low')::INTEGER as low_risk,
+    COUNT(*)::INTEGER as total
+  FROM stats;
+END;
+$$;
+
+-- 获取风险因素数据
+CREATE OR REPLACE FUNCTION get_risk_factors()
+RETURNS TABLE (
+  factor TEXT,
+  value NUMERIC
+) LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  RETURN QUERY
+  WITH recent_data AS (
+    SELECT
+      COUNT(DISTINCT student_id)::FLOAT as total_students,
+      COUNT(*) FILTER (WHERE score < 60)::FLOAT as failed_count,
+      COUNT(*) as total_exams
+    FROM grades
+    WHERE exam_date >= NOW() - INTERVAL '6 months'
+  )
+  SELECT unnest(ARRAY[
+    '出勤率',
+    '作业完成',
+    '考试成绩',
+    '课堂参与',
+    '学习态度'
+  ]) as factor,
+  unnest(ARRAY[
+    85, -- 模拟出勤率
+    75, -- 模拟作业完成率
+    (1 - (failed_count / NULLIF(total_exams, 0))) * 100, -- 及格率转换为分数
+    70, -- 模拟课堂参与度
+    80  -- 模拟学习态度分数
+  ])::NUMERIC as value
+  FROM recent_data;
+END;
+$$;

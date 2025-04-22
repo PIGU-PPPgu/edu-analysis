@@ -1,9 +1,29 @@
 
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, Bell, Signal } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { db } from "@/utils/auth";
+import { toast } from "sonner";
 
 const WarningStatistics = () => {
+  const { data: stats, isLoading, error } = useQuery({
+    queryKey: ['warningStats'],
+    queryFn: async () => {
+      const data = await db.getWarningStatistics();
+      return data;
+    }
+  });
+
+  if (error) {
+    toast.error("获取统计数据失败");
+    return null;
+  }
+
+  if (isLoading) {
+    return <div>加载中...</div>;
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -16,19 +36,19 @@ const WarningStatistics = () => {
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">高风险学生</p>
-            <p className="text-2xl font-bold text-red-500">5</p>
+            <p className="text-2xl font-bold text-red-500">{stats?.high_risk || 0}</p>
           </div>
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">中风险学生</p>
-            <p className="text-2xl font-bold text-yellow-500">12</p>
+            <p className="text-2xl font-bold text-yellow-500">{stats?.medium_risk || 0}</p>
           </div>
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">低风险学生</p>
-            <p className="text-2xl font-bold text-blue-500">24</p>
+            <p className="text-2xl font-bold text-blue-500">{stats?.low_risk || 0}</p>
           </div>
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">总预警数</p>
-            <p className="text-2xl font-bold">41</p>
+            <p className="text-2xl font-bold">{stats?.total || 0}</p>
           </div>
         </div>
       </CardContent>

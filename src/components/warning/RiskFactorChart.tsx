@@ -3,16 +3,28 @@ import React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar, Tooltip, Legend } from "recharts";
 import { ChartContainer } from "@/components/ui/chart";
-
-const riskFactors = [
-  { subject: "出勤率", value: 80, fullMark: 100 },
-  { subject: "作业完成", value: 65, fullMark: 100 },
-  { subject: "考试成绩", value: 45, fullMark: 100 },
-  { subject: "课堂参与", value: 70, fullMark: 100 },
-  { subject: "学习态度", value: 85, fullMark: 100 },
-];
+import { useQuery } from "@tanstack/react-query";
+import { db } from "@/utils/auth";
+import { toast } from "sonner";
 
 const RiskFactorChart = () => {
+  const { data: riskFactors, isLoading, error } = useQuery({
+    queryKey: ['riskFactors'],
+    queryFn: async () => {
+      const data = await db.getRiskFactors();
+      return data;
+    }
+  });
+
+  if (error) {
+    toast.error("获取风险因素数据失败");
+    return null;
+  }
+
+  if (isLoading) {
+    return <div>加载中...</div>;
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -24,7 +36,7 @@ const RiskFactorChart = () => {
           <ResponsiveContainer width="100%" height="100%">
             <RadarChart data={riskFactors}>
               <PolarGrid />
-              <PolarAngleAxis dataKey="subject" />
+              <PolarAngleAxis dataKey="factor" />
               <Radar
                 name="风险指数"
                 dataKey="value"

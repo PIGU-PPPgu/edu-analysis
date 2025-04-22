@@ -122,7 +122,7 @@ export const db = {
       if (error) throw error
       return data
     } catch (error) {
-      console.error('添加成���记录失败:', error);
+      console.error('添加成绩记录失败:', error);
       toast.error('操作失败: ' + error.message);
       throw error;
     }
@@ -273,5 +273,26 @@ export const db = {
     
     if (error) throw error
     return data
+  },
+
+  // 获取预警学生列表
+  async getStudentWarnings() {
+    const { data, error } = await supabase.rpc('get_student_warnings');
+    if (error) throw error;
+    return data;
+  },
+
+  // 获取预警统计信息
+  async getWarningStatistics() {
+    const { data, error } = await supabase.rpc('get_warning_statistics');
+    if (error) throw error;
+    return data;
+  },
+
+  // 获取风险因素数据
+  async getRiskFactors() {
+    const { data, error } = await supabase.rpc('get_risk_factors');
+    if (error) throw error;
+    return data;
   }
 }

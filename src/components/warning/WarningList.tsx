@@ -5,42 +5,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Signal, SignalHigh, SignalMedium, SignalLow } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
-interface WarningStudent {
-  id: string;
-  name: string;
-  riskLevel: "high" | "medium" | "low";
-  subjects: string[];
-  trend: "up" | "down" | "stable";
-  lastUpdate: string;
-}
-
-const mockWarningData: WarningStudent[] = [
-  {
-    id: "20230001",
-    name: "张三",
-    riskLevel: "high",
-    subjects: ["数学", "物理"],
-    trend: "down",
-    lastUpdate: "2024-04-22"
-  },
-  {
-    id: "20230015",
-    name: "李四",
-    riskLevel: "medium",
-    subjects: ["英语"],
-    trend: "stable",
-    lastUpdate: "2024-04-22"
-  },
-  {
-    id: "20230023",
-    name: "王五",
-    riskLevel: "low",
-    subjects: ["化学"],
-    trend: "up",
-    lastUpdate: "2024-04-22"
-  }
-];
+import { useQuery } from "@tanstack/react-query";
+import { db } from "@/utils/auth";
+import { toast } from "sonner";
 
 const getRiskIcon = (level: string) => {
   switch (level) {
@@ -70,6 +37,24 @@ const getRiskClass = (level: string) => {
 
 const WarningList = () => {
   const navigate = useNavigate();
+  
+  const { data: warningData, isLoading, error } = useQuery({
+    queryKey: ['warningStudents'],
+    queryFn: async () => {
+      // 通过 SQL 函数获取预警学生数据
+      const data = await db.getStudentWarnings();
+      return data;
+    }
+  });
+
+  if (error) {
+    toast.error("获取预警数据失败");
+    return null;
+  }
+
+  if (isLoading) {
+    return <div>加载中...</div>;
+  }
 
   return (
     <Card>
@@ -93,30 +78,30 @@ const WarningList = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {mockWarningData.map((student) => (
-              <TableRow key={student.id}>
+            {warningData?.map((student) => (
+              <TableRow key={student.student_id}>
                 <TableCell>
                   <div className="flex items-center gap-1">
-                    {getRiskIcon(student.riskLevel)}
-                    <span className={getRiskClass(student.riskLevel)}>
-                      {student.riskLevel === "high" ? "高风险" : 
-                       student.riskLevel === "medium" ? "中风险" : "低风险"}
+                    {getRiskIcon(student.risk_level)}
+                    <span className={getRiskClass(student.risk_level)}>
+                      {student.risk_level === "high" ? "高风险" : 
+                       student.risk_level === "medium" ? "中风险" : "低风险"}
                     </span>
                   </div>
                 </TableCell>
-                <TableCell>{student.id}</TableCell>
+                <TableCell>{student.student_id}</TableCell>
                 <TableCell>{student.name}</TableCell>
-                <TableCell>{student.subjects.join(", ")}</TableCell>
+                <TableCell>{student.warning_subjects.join(", ")}</TableCell>
                 <TableCell>
                   {student.trend === "up" ? "↗️" : 
                    student.trend === "down" ? "↘️" : "→"}
                 </TableCell>
-                <TableCell>{student.lastUpdate}</TableCell>
+                <TableCell>{new Date(student.last_update).toLocaleDateString()}</TableCell>
                 <TableCell className="text-right">
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => navigate(`/student-profile/${student.id}`)}
+                    onClick={() => navigate(`/student-profile/${student.student_id}`)}
                   >
                     查看详情
                   </Button>
