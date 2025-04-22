@@ -34,8 +34,8 @@ export const ChartContainer = ({
   );
 };
 
-// Adding the ChartTooltip component that was missing
-export const ChartTooltip = (props: Partial<TooltipProps>) => {
+// Adding the ChartTooltip component with proper generic type parameters
+export const ChartTooltip = <TValue, TName>(props: Partial<TooltipProps<TValue, TName>>) => {
   return (
     <Tooltip
       contentStyle={{
