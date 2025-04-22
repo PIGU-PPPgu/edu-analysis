@@ -1,14 +1,29 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import UserAuthForm from '@/components/auth/UserAuthForm';
 import { supabase } from '@/integrations/supabase/client';
+import { getSession } from '@/utils/auth';
 
 const Login = () => {
   const navigate = useNavigate();
 
+  // 检查用户是否已登录
+  useEffect(() => {
+    const checkAuth = async () => {
+      const session = await getSession();
+      if (session) {
+        console.log('Login页面 - 用户已登录，跳转到成绩分析页');
+        navigate('/grade-analysis');
+      }
+    };
+    
+    checkAuth();
+  }, [navigate]);
+
   // 登录成功后的回调
   const handleAuthSuccess = () => {
+    console.log('登录成功，准备跳转到成绩分析页面');
     navigate('/grade-analysis');
   };
 

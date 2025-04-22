@@ -42,6 +42,11 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
     // This function is kept for compatibility but has no actual functionality now
   };
 
+  const handleAuthTypeChange = (type: string) => {
+    console.log('切换认证类型:', type);
+    setAuthType(type as 'login' | 'register');
+  };
+
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
@@ -63,7 +68,7 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
           <AuthTabs 
             authType={authType} 
             loginMethod={loginMethod}
-            onAuthTypeChange={(v) => setAuthType(v as 'login' | 'register')}
+            onAuthTypeChange={handleAuthTypeChange}
             onSuccess={onSuccess}
           />
         </AuthProvider>
@@ -74,7 +79,7 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
           <Button 
             variant="link" 
             className="p-0" 
-            onClick={() => setAuthType(authType === 'login' ? 'register' : 'login')}
+            onClick={() => handleAuthTypeChange(authType === 'login' ? 'register' : 'login')}
           >
             {authType === 'login' ? '立即注册' : '立即登录'}
           </Button>

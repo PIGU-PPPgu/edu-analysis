@@ -27,12 +27,19 @@ const AuthTabs: React.FC<AuthTabsProps> = ({
     setIsSubmitting(true);
     try {
       if (authType === 'login') {
+        console.log('开始登录:', data);
         await loginUser({
           email: data.email,
           password: data.password,
         });
-        onSuccess?.();
+        console.log('登录成功，执行成功回调');
+        if (onSuccess) {
+          setTimeout(() => {
+            onSuccess();
+          }, 0);
+        }
       } else if (authType === 'register') {
+        console.log('开始注册:', data);
         await registerUser({
           email: data.email,
           password: data.password,
@@ -47,6 +54,8 @@ const AuthTabs: React.FC<AuthTabsProps> = ({
       setIsSubmitting(false);
     }
   };
+
+  console.log('当前认证类型:', authType);
 
   return (
     <Tabs defaultValue={authType} onValueChange={onAuthTypeChange}>

@@ -14,6 +14,7 @@ export async function registerUser({
   try {
     await validateData.validateUserAuth({ email, password });
     
+    console.log('开始注册用户:', email);
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -24,7 +25,12 @@ export async function registerUser({
       }
     });
     
-    if (error) throw error;
+    if (error) {
+      console.error('注册失败:', error);
+      throw error;
+    }
+    
+    console.log('注册成功:', data);
     toast.success("注册成功，请登录");
     return data;
   } catch (error) {
@@ -45,12 +51,18 @@ export async function loginUser({
   try {
     await validateData.validateUserAuth({ email, password });
     
+    console.log('开始登录用户:', email);
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password
     });
     
-    if (error) throw error;
+    if (error) {
+      console.error('登录失败:', error);
+      throw error;
+    }
+    
+    console.log('登录成功:', data);
     toast.success("登录成功");
     return data;
   } catch (error) {

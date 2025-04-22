@@ -1,9 +1,10 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import GradeAnalysis from "./pages/GradeAnalysis";
@@ -14,8 +15,9 @@ import AISettings from "./pages/AISettings";
 import WarningAnalysis from "./pages/WarningAnalysis";
 import NotFound from "./pages/NotFound";
 import { initializeDatabase, setupInitialData } from "./utils/dbSetup";
-import { getCurrentUser } from "./utils/auth";
+import { getCurrentUser, getSession } from "./utils/auth";
 import RoleGuard from "./components/auth/RoleGuard";
+import { supabase } from "./integrations/supabase/client";
 
 const queryClient = new QueryClient();
 
@@ -23,22 +25,56 @@ const queryClient = new QueryClient();
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const user = await getCurrentUser();
-        if (!user && !location.pathname.includes('/login') && !location.pathname.includes('/')) {
+        setIsCheckingAuth(true);
+        const session = await getSession();
+        console.log('ProtectedRoute - 当前路径:', location.pathname);
+        console.log('ProtectedRoute - 认证状态:', session ? '已登录' : '未登录');
+        
+        // 如果未登录且不在公开页面，则跳转到登录页
+        if (!session && !location.pathname.includes('/login') && !location.pathname === '/') {
+          console.log('ProtectedRoute - 未登录，跳转到登录页');
           navigate('/login');
         }
       } catch (error) {
         console.error('验证用户状态失败:', error);
         navigate('/login');
+      } finally {
+        setIsCheckingAuth(false);
       }
     };
     
     checkAuth();
-  }, [navigate, location]);
+  }, [navigate, location.pathname]);
+  
+  // 添加认证状态变化监听
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('认证状态变化:', event, session ? '已登录' : '未登录');
+      
+      // 如果登出，跳转到首页
+      if (event === 'SIGNED_OUT') {
+        navigate('/');
+      }
+      
+      // 如果登录，跳转到成绩分析页
+      if (event === 'SIGNED_IN') {
+        navigate('/grade-analysis');
+      }
+    });
+    
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [navigate]);
+  
+  if (isCheckingAuth) {
+    return <div className="flex items-center justify-center h-screen">正在加载...</div>;
+  }
   
   return <>{children}</>;
 };
