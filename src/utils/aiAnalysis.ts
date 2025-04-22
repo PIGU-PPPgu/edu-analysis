@@ -19,19 +19,24 @@ export const generateAnalysisPrompt = (data: any[], language: string = 'zh'): st
   const subjectScores: Record<string, number[]> = {};
   
   data.forEach(item => {
-    if (item.subject && typeof item.score === 'number') {
-      if (!subjectScores[item.subject]) {
-        subjectScores[item.subject] = [];
+    const subject = item.subject || '';
+    const score = parseFloat(String(item.score));
+    
+    if (subject && !isNaN(score)) {
+      if (!subjectScores[subject]) {
+        subjectScores[subject] = [];
       }
-      subjectScores[item.subject].push(item.score);
+      subjectScores[subject].push(score);
     }
   });
   
   // 计算每个学科的平均分
   const subjectAverages: Record<string, number> = {};
   Object.entries(subjectScores).forEach(([subject, scores]) => {
-    const sum = scores.reduce((acc, score) => acc + score, 0);
-    subjectAverages[subject] = sum / scores.length;
+    if (scores.length > 0) {
+      const sum = scores.reduce((acc, score) => acc + score, 0);
+      subjectAverages[subject] = sum / scores.length;
+    }
   });
   
   // 根据语言构建提示词
@@ -56,7 +61,18 @@ export const generateAnalysisPrompt = (data: any[], language: string = 'zh'): st
  * 发送AI分析请求
  */
 export const performAIAnalysis = async (request: AIAnalysisRequest): Promise<AIAnalysisResponse> => {
-  const { data, config, language = 'zh' } = request;
+  const { data, config = {}, language = 'zh' } = request;
+  
+  // 如果没有数据，返回默认结果
+  if (!data || data.length === 0) {
+    return {
+      overview: "没有足够的数据进行分析",
+      insights: ["需要提供学生成绩数据才能生成分析"],
+      recommendations: ["请导入或输入学生成绩数据"]
+    };
+  }
+  
+  // 生成提示词
   const prompt = request.prompt || generateAnalysisPrompt(data, language);
   
   try {
@@ -69,7 +85,24 @@ export const performAIAnalysis = async (request: AIAnalysisRequest): Promise<AIA
     
     if (error) {
       console.error("AI分析API调用失败:", error);
-      throw new Error(`AI分析失败: ${error.message}`);
+      
+      // 返回友好的错误信息，同时包含一些默认的分析结果
+      return {
+        overview: "AI分析服务暂时不可用，以下是基本统计分析",
+        insights: [
+          "当前共有 " + data.length + " 条成绩记录",
+          "成绩统计基于现有数据生成",
+          "建议配置AI服务获取更深入的分析",
+          "查看系统日志了解详细错误信息"
+        ],
+        recommendations: [
+          "检查AI服务配置和API密钥",
+          "确保网络连接正常",
+          "尝试使用不同的AI模型或提供商",
+          "手动分析数据表格和图表"
+        ],
+        error: error.message
+      };
     }
     
     console.log("AI分析响应:", responseData);
@@ -77,14 +110,22 @@ export const performAIAnalysis = async (request: AIAnalysisRequest): Promise<AIA
     return responseData as AIAnalysisResponse;
   } catch (error) {
     console.error("AI分析过程中出错:", error);
-    toast.error("AI分析失败", {
-      description: error instanceof Error ? error.message : "请检查网络连接或API配置"
-    });
     
+    // 返回更友好的错误信息和默认分析结果
     return {
-      overview: "分析失败，请重试",
-      insights: ["无法获取分析结果"],
-      recommendations: ["请检查API配置或网络连接"],
+      overview: "AI分析过程中出现问题，以下是基本统计信息",
+      insights: [
+        "成绩数据包含 " + data.length + " 条记录",
+        "请检查AI设置和网络连接",
+        "可以尝试使用其他AI模型",
+        "本地统计分析仍可用于决策参考"
+      ],
+      recommendations: [
+        "确保AI服务配置正确",
+        "重试分析或使用不同的API密钥",
+        "参考图表和表格数据进行手动分析",
+        "考虑升级到更稳定的AI服务提供商"
+      ],
       error: error instanceof Error ? error.message : "未知错误"
     };
   }

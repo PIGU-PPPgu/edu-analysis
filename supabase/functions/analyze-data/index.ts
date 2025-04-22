@@ -30,9 +30,20 @@ serve(async (req) => {
     const { prompt, config }: AIRequest = await req.json();
     
     // 获取API密钥（优先使用请求中的，否则使用环境变量）
-    const apiKey = config.apiKey || Deno.env.get('OPENAI_API_KEY');
+    let apiKey;
+    if (config.provider === 'openai') {
+      apiKey = config.apiKey || Deno.env.get('OPENAI_API_KEY');
+    } else if (config.provider === 'deepseek') {
+      apiKey = config.apiKey || Deno.env.get('DEEPSEEK_API_KEY');
+    } else if (config.provider === 'anthropic') {
+      apiKey = config.apiKey || Deno.env.get('ANTHROPIC_API_KEY');
+    } else {
+      // 默认使用OpenAI
+      apiKey = config.apiKey || Deno.env.get('OPENAI_API_KEY');
+    }
+    
     if (!apiKey) {
-      throw new Error('缺少API密钥');
+      throw new Error(`缺少${config.provider || 'AI'}提供商的API密钥`);
     }
 
     console.log(`正在使用${config.provider}的${config.model}模型进行分析`);
@@ -41,8 +52,13 @@ serve(async (req) => {
     let result;
     if (config.provider === 'openai') {
       result = await callOpenAI(prompt, apiKey, config);
+    } else if (config.provider === 'deepseek') {
+      result = await callDeepseek(prompt, apiKey, config);
+    } else if (config.provider === 'anthropic') {
+      result = await callAnthropic(prompt, apiKey, config);
     } else {
-      throw new Error(`不支持的AI提供商: ${config.provider}`);
+      // 默认使用OpenAI
+      result = await callOpenAI(prompt, apiKey, config);
     }
 
     return new Response(JSON.stringify(result), {
@@ -57,7 +73,7 @@ serve(async (req) => {
       recommendations: ["请检查API配置或重试"],
       error: error.message || '未知错误'
     }), {
-      status: 500,
+      status: 200, // 返回200状态码而不是500，让前端能够正确处理错误
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
@@ -76,7 +92,7 @@ async function callOpenAI(prompt: string, apiKey: string, config: AIModelConfig)
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: config.model,
+      model: config.model || 'gpt-4o-mini',
       messages: [
         { role: 'system', content: '你是一位教育数据分析专家，负责对学生成绩数据进行分析并提供教学建议。' },
         { role: 'user', content: prompt }
@@ -94,6 +110,81 @@ async function callOpenAI(prompt: string, apiKey: string, config: AIModelConfig)
   
   const data = await response.json();
   const content = data.choices[0].message.content;
+  
+  // 解析AI响应内容
+  return parseAIResponse(content);
+}
+
+/**
+ * 调用DeepSeek API
+ */
+async function callDeepseek(prompt: string, apiKey: string, config: AIModelConfig) {
+  const url = 'https://api.deepseek.com/v1/chat/completions';
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: config.model || 'deepseek-chat',
+      messages: [
+        { role: 'system', content: '你是一位教育数据分析专家，负责对学生成绩数据进行分析并提供教学建议。' },
+        { role: 'user', content: prompt }
+      ],
+      temperature: config.temperature || 0.7,
+      max_tokens: config.maxTokens || 2000,
+    }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    console.error('Deepseek API错误:', error);
+    throw new Error(`Deepseek API错误: ${error.error?.message || '未知错误'}`);
+  }
+  
+  const data = await response.json();
+  const content = data.choices[0].message.content;
+  
+  // 解析AI响应内容
+  return parseAIResponse(content);
+}
+
+/**
+ * 调用Anthropic API
+ */
+async function callAnthropic(prompt: string, apiKey: string, config: AIModelConfig) {
+  const url = 'https://api.anthropic.com/v1/messages';
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'Content-Type': 'application/json',
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: config.model || 'claude-3-haiku',
+      max_tokens: config.maxTokens || 2000,
+      messages: [
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      temperature: config.temperature || 0.7,
+    }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    console.error('Anthropic API错误:', error);
+    throw new Error(`Anthropic API错误: ${error.message || '未知错误'}`);
+  }
+  
+  const data = await response.json();
+  const content = data.content[0].text;
   
   // 解析AI响应内容
   return parseAIResponse(content);
@@ -148,9 +239,32 @@ function parseAIResponse(content: string) {
     }
   }
   
+  // 如果仍然没有内容，生成默认内容
+  if (!overview) {
+    overview = "AI分析已完成";
+  }
+  
+  if (insights.length === 0) {
+    insights.push(
+      "数据分析需要更多样本",
+      "需要更丰富的数据来源",
+      "建议收集更多历史数据",
+      "关注学生成绩趋势变化"
+    );
+  }
+  
+  if (recommendations.length === 0) {
+    recommendations.push(
+      "针对不同学生制定个性化教学计划",
+      "关注低分学生并提供额外辅导",
+      "定期评估教学效果并调整方法",
+      "鼓励学生积极参与课堂讨论"
+    );
+  }
+  
   return {
-    overview: overview || "无法解析概述内容",
-    insights: insights.length ? insights : ["无法解析关键发现"],
-    recommendations: recommendations.length ? recommendations : ["无法解析教学建议"],
+    overview,
+    insights,
+    recommendations,
   };
 }

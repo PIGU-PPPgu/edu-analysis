@@ -1,3 +1,4 @@
+
 export const standardFields = {
   studentId: ["学号", "id", "student_id", "studentid", "student id", "编号"],
   name: ["姓名", "name", "student_name", "studentname", "student name", "名字"],
@@ -65,15 +66,41 @@ export const generateInitialMappings = (headers: string[]): Record<string, strin
   const mappings: Record<string, string> = {};
   const matchedFields = new Set<string>();
   
+  // 先尝试完全匹配
   headers.forEach(header => {
     for (const [standardField, aliases] of Object.entries(standardFields)) {
+      // 检查完全匹配
+      if (aliases.includes(header.toLowerCase())) {
+        mappings[header] = standardField;
+        matchedFields.add(standardField);
+        return;
+      }
+    }
+  });
+  
+  // 再尝试部分匹配，但避免重复映射
+  headers.forEach(header => {
+    if (mappings[header]) return; // 已有映射，跳过
+    
+    for (const [standardField, aliases] of Object.entries(standardFields)) {
+      // 如果这个标准字段已经被映射，跳过
+      if (matchedFields.has(standardField)) continue;
+      
       if (aliases.some(alias => 
-        header.toLowerCase().includes(alias.toLowerCase())
+        header.toLowerCase().includes(alias.toLowerCase()) ||
+        alias.toLowerCase().includes(header.toLowerCase())
       )) {
         mappings[header] = standardField;
         matchedFields.add(standardField);
         break;
       }
+    }
+  });
+  
+  // 对于未匹配的字段，设置为ignore
+  headers.forEach(header => {
+    if (!mappings[header]) {
+      mappings[header] = "ignore";
     }
   });
   

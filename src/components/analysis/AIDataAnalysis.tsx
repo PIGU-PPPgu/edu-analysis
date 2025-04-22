@@ -22,12 +22,21 @@ const AIDataAnalysis: React.FC<AIDataAnalysisProps> = ({ data, charts }) => {
   } | null>(null);
 
   const [aiConfigured, setAiConfigured] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     const config = getUserAIConfig();
     const apiKey = getUserAPIKey();
     setAiConfigured(!!config && !!apiKey);
   }, []);
+
+  // 数据变更时自动进行分析
+  useEffect(() => {
+    if (data.length > 0 && aiConfigured && !analysis && !isAnalyzing) {
+      // 只有当数据不为空、AI已配置、还没有分析结果、且不在分析中时，自动开始分析
+      generateAnalysis();
+    }
+  }, [data, aiConfigured, analysis, isAnalyzing]);
 
   const generateAnalysis = async () => {
     if (data.length === 0) {
@@ -57,6 +66,7 @@ const AIDataAnalysis: React.FC<AIDataAnalysisProps> = ({ data, charts }) => {
         apiKey: apiKey
       };
       
+      // 使用数据中可能存在的subject和score字段数据
       const prompt =
         aiConfig.prompt ||
         generateAnalysisPrompt(data);
@@ -69,12 +79,14 @@ const AIDataAnalysis: React.FC<AIDataAnalysisProps> = ({ data, charts }) => {
       });
 
       if (result.error) {
+        // 如果出错但返回了分析结果，仍然显示结果，但提示出错
         setAnalysis({
           overview: result.overview,
           insights: result.insights,
           recommendations: result.recommendations,
         });
-        toast.error("AI分析失败", {
+        
+        toast.error("AI分析部分完成", {
           description: result.error
         });
       } else {
@@ -83,18 +95,51 @@ const AIDataAnalysis: React.FC<AIDataAnalysisProps> = ({ data, charts }) => {
           insights: result.insights,
           recommendations: result.recommendations,
         });
+        
         toast.success("AI分析完成", {
           description: `已生成基于${data.length}条记录的数据分析报告`
         });
       }
     } catch (error) {
       console.error("AI分析失败:", error);
+      
+      // 仍然设置一些默认分析结果，避免UI空白
+      setAnalysis({
+        overview: "分析生成遇到问题，以下是基本统计信息",
+        insights: [
+          `共有${data.length}条成绩记录`,
+          "系统无法连接到AI服务",
+          "请检查网络连接和API配置",
+          "可以尝试使用其他AI服务提供商"
+        ],
+        recommendations: [
+          "确保AI服务配置正确",
+          "检查API密钥是否有效",
+          "参考图表和表格数据进行手动分析",
+          "联系系统管理员获取支持"
+        ]
+      });
+      
       toast.error("分析生成失败", {
         description: error instanceof Error ? error.message : "请检查AI配置或重试"
       });
+      
+      // 如果失败次数少于3次，自动重试
+      if (retryCount < 3) {
+        setRetryCount(prev => prev + 1);
+        setTimeout(() => {
+          generateAnalysis();
+        }, 2000);
+      }
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleRetry = () => {
+    setAnalysis(null);
+    setRetryCount(0);
+    generateAnalysis();
   };
 
   return (
@@ -103,6 +148,7 @@ const AIDataAnalysis: React.FC<AIDataAnalysisProps> = ({ data, charts }) => {
         <CardTitle className="flex items-center gap-2">
           <ZapIcon className="h-5 w-5" />
           AI智能分析
+          {isAnalyzing && <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full animate-pulse">处理中</span>}
         </CardTitle>
         <CardDescription>
           基于导入的数据和生成的图表，提供智能分析和教学建议
@@ -116,7 +162,12 @@ const AIDataAnalysis: React.FC<AIDataAnalysisProps> = ({ data, charts }) => {
             onStart={generateAnalysis}
           />
         ) : (
-          <AIAnalysisTabs analysis={analysis} dataCount={data.length} />
+          <AIAnalysisTabs 
+            analysis={analysis} 
+            dataCount={data.length} 
+            onRetry={handleRetry}
+            isRetrying={isAnalyzing}
+          />
         )}
       </CardContent>
     </Card>
