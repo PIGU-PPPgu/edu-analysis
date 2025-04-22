@@ -36,7 +36,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
         console.log('ProtectedRoute - 认证状态:', session ? '已登录' : '未登录');
         
         // 如果未登录且不在公开页面，则跳转到登录页
-        if (!session && !location.pathname.includes('/login') && !location.pathname === '/') {
+        if (!session && !location.pathname.includes('/login') && location.pathname !== '/') {
           console.log('ProtectedRoute - 未登录，跳转到登录页');
           navigate('/login');
         }
