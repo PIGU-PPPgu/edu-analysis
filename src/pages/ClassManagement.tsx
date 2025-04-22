@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,6 +11,8 @@ import Navbar from "@/components/analysis/Navbar";
 import { Button } from "@/components/ui/button";
 import { FileText, Users } from "lucide-react";
 import { Link } from "react-router-dom";
+import ScoreBoxPlot from "@/components/analysis/ScoreBoxPlot";
+import ExamComparison from "@/components/analysis/ExamComparison";
 
 // Mock class data
 const mockClasses = [
@@ -134,7 +135,21 @@ const ClassManagement: React.FC = () => {
               ))}
             </div>
             
-            <HeatmapChart />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <HeatmapChart />
+              <ScoreBoxPlot 
+                data={[
+                  { subject: "语文", min: 65, q1: 75, median: 82, q3: 88, max: 95 },
+                  { subject: "数学", min: 60, q1: 72, median: 80, q3: 85, max: 98 },
+                  { subject: "英语", min: 62, q1: 73, median: 81, q3: 87, max: 96 },
+                  { subject: "物理", min: 58, q1: 70, median: 78, q3: 84, max: 93 },
+                  { subject: "化学", min: 63, q1: 74, median: 83, q3: 89, max: 97 },
+                  { subject: "生物", min: 67, q1: 76, median: 84, q3: 90, max: 99 }
+                ]}
+              />
+            </div>
+            
+            <ExamComparison />
             
             <div className="flex justify-end">
               <Button asChild>
@@ -207,6 +222,21 @@ const ClassManagement: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <ClassTrendChart className={selectedClass.className} />
                   <ClassWeaknessAnalysis className={selectedClass.className} />
+                </div>
+                <div className="grid grid-cols-1 gap-6">
+                  <ExamComparison />
+                  <ScoreBoxPlot 
+                    title={`${selectedClass.className}成绩分布`}
+                    description="各科目成绩四分位数分布"
+                    data={[
+                      { subject: "语文", min: 65, q1: 75, median: 82, q3: 88, max: 95 },
+                      { subject: "数学", min: 60, q1: 72, median: 80, q3: 85, max: 98 },
+                      { subject: "英语", min: 62, q1: 73, median: 81, q3: 87, max: 96 },
+                      { subject: "物理", min: 58, q1: 70, median: 78, q3: 84, max: 93 },
+                      { subject: "化学", min: 63, q1: 74, median: 83, q3: 89, max: 97 },
+                      { subject: "生物", min: 67, q1: 76, median: 84, q3: 90, max: 99 }
+                    ]}
+                  />
                 </div>
               </TabsContent>
               
