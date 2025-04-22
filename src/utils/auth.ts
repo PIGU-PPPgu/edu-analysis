@@ -1,4 +1,3 @@
-
 import { createClient, Provider } from '@supabase/supabase-js'
 
 // Supabase配置
@@ -44,4 +43,97 @@ export const getCurrentUser = async () => {
 export const getSession = async () => {
   const { data } = await supabase.auth.getSession()
   return data.session
+}
+
+// 数据库操作函数
+export const db = {
+  // 添加或更新学生信息
+  async upsertStudent(studentData: { 
+    student_id: string;
+    name: string;
+    class_name: string;
+  }) {
+    const { data, error } = await supabase
+      .from('students')
+      .upsert([studentData], {
+        onConflict: 'student_id'
+      })
+      .select()
+    
+    if (error) throw error
+    return data
+  },
+  
+  // 批量添加或更新学生信息
+  async upsertStudents(studentsData: Array<{
+    student_id: string;
+    name: string;
+    class_name: string;
+  }>) {
+    const { data, error } = await supabase
+      .from('students')
+      .upsert(studentsData, {
+        onConflict: 'student_id'
+      })
+      .select()
+    
+    if (error) throw error
+    return data
+  },
+  
+  // 添加成绩记录
+  async insertGrades(gradesData: Array<{
+    student_id: string;
+    subject: string;
+    score: number;
+    exam_date: string;
+    exam_type: string;
+    semester?: string;
+  }>) {
+    const { data, error } = await supabase
+      .from('grades')
+      .insert(gradesData)
+      .select()
+    
+    if (error) throw error
+    return data
+  },
+  
+  // 获取学生列表
+  async getStudents() {
+    const { data, error } = await supabase
+      .from('students')
+      .select('*')
+      .order('class_name', { ascending: true })
+    
+    if (error) throw error
+    return data
+  },
+  
+  // 获取特定学生的所有成绩
+  async getStudentGrades(studentId: string) {
+    const { data, error } = await supabase
+      .from('grades')
+      .select('*')
+      .eq('student_id', studentId)
+      .order('exam_date', { ascending: false })
+    
+    if (error) throw error
+    return data
+  },
+  
+  // 获取班级的平均成绩
+  async getClassAverages(className: string) {
+    const { data, error } = await supabase
+      .from('grades')
+      .select(`
+        subject,
+        score,
+        students!inner(class_name)
+      `)
+      .eq('students.class_name', className)
+    
+    if (error) throw error
+    return data
+  }
 }
