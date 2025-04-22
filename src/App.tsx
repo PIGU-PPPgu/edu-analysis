@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -72,12 +71,54 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<Login />} />
-              <Route path="/grade-analysis" element={<GradeAnalysis />} />
-              <Route path="/warning-analysis" element={<WarningAnalysis />} />
-              <Route path="/student-management" element={<StudentManagement />} />
-              <Route path="/class-management" element={<ClassManagement />} />
-              <Route path="/student-profile/:studentId" element={<StudentProfile />} />
-              <Route path="/ai-settings" element={<AISettings />} />
+              <Route 
+                path="/grade-analysis" 
+                element={
+                  <RoleGuard allowedRoles={['admin', 'teacher', 'student']}>
+                    <GradeAnalysis />
+                  </RoleGuard>
+                } 
+              />
+              <Route 
+                path="/warning-analysis" 
+                element={
+                  <RoleGuard allowedRoles={['admin', 'teacher']}>
+                    <WarningAnalysis />
+                  </RoleGuard>
+                } 
+              />
+              <Route 
+                path="/student-management" 
+                element={
+                  <RoleGuard allowedRoles={['admin', 'teacher']}>
+                    <StudentManagement />
+                  </RoleGuard>
+                } 
+              />
+              <Route 
+                path="/class-management" 
+                element={
+                  <RoleGuard allowedRoles={['admin', 'teacher']}>
+                    <ClassManagement />
+                  </RoleGuard>
+                } 
+              />
+              <Route 
+                path="/student-profile/:studentId" 
+                element={
+                  <RoleGuard allowedRoles={['admin', 'teacher', 'student']}>
+                    <StudentProfile />
+                  </RoleGuard>
+                } 
+              />
+              <Route 
+                path="/ai-settings" 
+                element={
+                  <RoleGuard allowedRoles={['admin']}>
+                    <AISettings />
+                  </RoleGuard>
+                } 
+              />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </ProtectedRoute>
