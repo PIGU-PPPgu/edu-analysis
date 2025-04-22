@@ -1,138 +1,99 @@
 
 import React, { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import ScoreDistribution from "@/components/analysis/ScoreDistribution";
-import SubjectAverages from "@/components/analysis/SubjectAverages";
-import ClassComparison from "@/components/analysis/ClassComparison";
-import StatisticsOverview from "@/components/analysis/StatisticsOverview";
-import StudentGradeTrend from "@/components/analysis/StudentGradeTrend";
-import StudentReportExport from "@/components/analysis/StudentReportExport";
-import HeatmapChart from "@/components/analysis/HeatmapChart";
-import ExamSelector from "@/components/analysis/ExamSelector";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import Navbar from "@/components/analysis/Navbar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import ScoreDistribution from "@/components/analysis/ScoreDistribution";
+import StatisticsOverview from "@/components/analysis/StatisticsOverview";
+import ScoreBoxPlot from "@/components/analysis/ScoreBoxPlot";
+import GradeTable from "@/components/analysis/GradeTable";
+import IntelligentFileParser from "@/components/analysis/IntelligentFileParser";
+import AIDataAnalysis from "@/components/analysis/AIDataAnalysis";
 
-// Mock data for testing
-const mockDistributionData = [
-  { range: "90-100", count: 5, color: "#B9FF66" },
-  { range: "80-89", count: 15, color: "#8884d8" },
-  { range: "70-79", count: 20, color: "#82ca9d" },
-  { range: "60-69", count: 8, color: "#ffc658" },
-  { range: "<60", count: 2, color: "#ff8042" }
+const scoreDistributionData = [
+  { range: "90-100分", count: 15, color: "#4CAF50" },
+  { range: "80-89分", count: 23, color: "#8BC34A" },
+  { range: "70-79分", count: 18, color: "#CDDC39" },
+  { range: "60-69分", count: 12, color: "#FFEB3B" },
+  { range: "60分以下", count: 7, color: "#F44336" },
 ];
 
-const mockSubjectData = [
-  { subject: "语文", average: 85 },
-  { subject: "数学", average: 82 },
-  { subject: "英语", average: 78 },
-  { subject: "物理", average: 80 },
-  { subject: "化学", average: 83 }
-];
-
-// Mock statistics data
-const mockStatisticsData = {
-  avg: 82.5,
-  max: 98,
-  min: 55,
-  passing: 42,
-  total: 50
-};
-
-const mockStudentData = {
-  studentId: "2024001",
-  name: "张三",
-  className: "高二(1)班",
-  scores: [
-    { subject: "语文", score: 88, examDate: "2024-03", examType: "月考" },
-    { subject: "数学", score: 92, examDate: "2024-03", examType: "月考" },
-    { subject: "英语", score: 85, examDate: "2024-03", examType: "月考" },
-  ]
-};
-
-// Mock exam data for selection
-const mockExams = [
-  { id: "exam1", name: "期初测试", date: "2023-02-15" },
-  { id: "exam2", name: "第一次月考", date: "2023-03-20" },
-  { id: "exam3", name: "期中考试", date: "2023-04-25" },
-  { id: "exam4", name: "第二次月考", date: "2023-05-30" },
-  { id: "exam5", name: "期末考试", date: "2023-06-28" },
-  { id: "exam6", name: "高考模拟", date: "2023-12-15" }
+const boxPlotData = [
+  { subject: "语文", min: 52, q1: 68, median: 78, q3: 88, max: 98 },
+  { subject: "数学", min: 45, q1: 62, median: 75, q3: 85, max: 97 },
+  { subject: "英语", min: 50, q1: 65, median: 76, q3: 86, max: 95 },
+  { subject: "物理", min: 48, q1: 60, median: 72, q3: 82, max: 94 },
+  { subject: "化学", min: 55, q1: 66, median: 77, q3: 87, max: 96 },
 ];
 
 const GradeAnalysis: React.FC = () => {
-  const [selectedTab, setSelectedTab] = useState("overview");
-  const [selectedExams, setSelectedExams] = useState<string[]>(["exam3", "exam4"]);
+  const [data, setData] = useState<any[]>([]);
+  const [showCharts, setShowCharts] = useState(false);
+
+  const handleDataParsed = (parsedData: any[]) => {
+    setData(parsedData);
+    setShowCharts(true);
+  };
+
+  // 模拟成绩数据
+  const mockGradeData = data.length > 0 ? data : [
+    { studentId: "2024001", name: "张三", subject: "语文", score: 92, examDate: "2023-09-01", examType: "期中考试" },
+    { studentId: "2024001", name: "张三", subject: "数学", score: 85, examDate: "2023-09-01", examType: "期中考试" },
+    { studentId: "2024001", name: "张三", subject: "英语", score: 78, examDate: "2023-09-01", examType: "期中考试" },
+    { studentId: "2024002", name: "李四", subject: "语文", score: 88, examDate: "2023-09-01", examType: "期中考试" },
+    { studentId: "2024002", name: "李四", subject: "数学", score: 95, examDate: "2023-09-01", examType: "期中考试" },
+    { studentId: "2024002", name: "李四", subject: "英语", score: 82, examDate: "2023-09-01", examType: "期中考试" },
+    { studentId: "2024003", name: "王五", subject: "语文", score: 75, examDate: "2023-09-01", examType: "期中考试" },
+    { studentId: "2024003", name: "王五", subject: "数学", score: 67, examDate: "2023-09-01", examType: "期中考试" },
+    { studentId: "2024003", name: "王五", subject: "英语", score: 85, examDate: "2023-09-01", examType: "期中考试" },
+  ];
+
+  // 统计数据
+  const scores = mockGradeData.map(item => item.score);
+  const statData = {
+    avg: scores.reduce((sum, score) => sum + score, 0) / scores.length,
+    max: Math.max(...scores),
+    min: Math.min(...scores),
+    passing: scores.filter(score => score >= 60).length,
+    total: scores.length,
+  };
+
+  // 生成的图表组件
+  const chartComponents = [
+    <ScoreDistribution key="distribution" data={scoreDistributionData} />,
+    <ScoreBoxPlot key="boxplot" data={boxPlotData} />
+  ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-white">
       <Navbar />
-      <main className="container mx-auto px-4 py-6">
-        <Tabs defaultValue="overview" className="space-y-6" value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 gap-4">
-            <TabsTrigger value="overview">总览分析</TabsTrigger>
-            <TabsTrigger value="individual">个人分析</TabsTrigger>
-            <TabsTrigger value="comparison">对比分析</TabsTrigger>
-            <TabsTrigger value="reports">报告导出</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="space-y-6">
-            <StatisticsOverview 
-              avg={mockStatisticsData.avg}
-              max={mockStatisticsData.max}
-              min={mockStatisticsData.min}
-              passing={mockStatisticsData.passing}
-              total={mockStatisticsData.total}
-            />
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <ScoreDistribution data={mockDistributionData} />
-              <SubjectAverages data={mockSubjectData} />
-            </div>
-            <HeatmapChart />
-          </TabsContent>
-
-          <TabsContent value="individual" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>选择对比考试</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ExamSelector 
-                  exams={mockExams}
-                  selectedExams={selectedExams}
-                  onChange={setSelectedExams}
-                />
-              </CardContent>
-            </Card>
-            <StudentGradeTrend 
-              studentId={mockStudentData.studentId}
-              studentName={mockStudentData.name}
-            />
-          </TabsContent>
-
-          <TabsContent value="comparison" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>选择对比考试</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ExamSelector 
-                  exams={mockExams}
-                  selectedExams={selectedExams}
-                  onChange={setSelectedExams}
-                />
-              </CardContent>
-            </Card>
-            <ClassComparison 
-              studentId={mockStudentData.studentId}
-              studentName={mockStudentData.name}
-            />
-          </TabsContent>
-
-          <TabsContent value="reports" className="space-y-6">
-            <StudentReportExport student={mockStudentData} />
-          </TabsContent>
-        </Tabs>
-      </main>
+      <div className="container mx-auto px-4 py-10">
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold">成绩分析</h1>
+            <p className="text-gray-500 mt-1">
+              导入和分析学生成绩数据，生成统计图表和报告
+            </p>
+          </div>
+          
+          <IntelligentFileParser onDataParsed={handleDataParsed} />
+          
+          {showCharts && (
+            <>
+              <StatisticsOverview {...statData} />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                <ScoreDistribution data={scoreDistributionData} />
+                <ScoreBoxPlot data={boxPlotData} />
+              </div>
+              
+              <GradeTable data={mockGradeData} />
+              
+              <AIDataAnalysis data={mockGradeData} charts={chartComponents} />
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

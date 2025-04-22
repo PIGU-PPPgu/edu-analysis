@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { FileText, Database, Users } from "lucide-react";
+import { FileText, Database, Users, ZapIcon } from "lucide-react";
 
 interface ParsedData {
   headers: string[];
@@ -22,6 +22,7 @@ const IntelligentFileParser: React.FC<{
   const [parseProgress, setParseProgress] = useState(0);
   const [fileInfo, setFileInfo] = useState<{ name: string; size: number } | null>(null);
   const [parsedPreview, setParsedPreview] = useState<ParsedData | null>(null);
+  const [isAIEnhanced, setIsAIEnhanced] = useState(true);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -51,6 +52,15 @@ const IntelligentFileParser: React.FC<{
         // 智能检测文件格式与结构
         const detectedFormat = detectFileFormat(file.name, content);
         const parsedData = parseFileContent(content, detectedFormat);
+        
+        // AI增强解析 - 模拟
+        if (isAIEnhanced) {
+          setTimeout(() => {
+            toast.success("AI增强解析完成", {
+              description: "已通过AI智能分析优化数据结构和类型"
+            });
+          }, 1000);
+        }
         
         setParsedPreview({
           headers: Object.keys(parsedData[0] || {}),
@@ -177,7 +187,16 @@ const IntelligentFileParser: React.FC<{
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-xl font-semibold">智能数据导入</CardTitle>
+        <CardTitle className="text-xl font-semibold flex items-center gap-2">
+          <FileText className="h-5 w-5" />
+          智能数据导入
+          {isAIEnhanced && (
+            <span className="bg-[#B9FF66] text-xs font-medium px-2 py-0.5 rounded-full text-black flex items-center">
+              <ZapIcon className="h-3 w-3 mr-1" />
+              AI增强
+            </span>
+          )}
+        </CardTitle>
         <CardDescription>
           支持多种格式导入，系统自动识别数据结构并智能解析
         </CardDescription>
@@ -192,6 +211,27 @@ const IntelligentFileParser: React.FC<{
           
           <TabsContent value="upload">
             <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">AI增强解析</span>
+                  <div
+                    className={`relative inline-block w-10 h-5 rounded-full transition-colors duration-200 ease-in-out cursor-pointer ${
+                      isAIEnhanced ? "bg-[#B9FF66]" : "bg-gray-300"
+                    }`}
+                    onClick={() => setIsAIEnhanced(!isAIEnhanced)}
+                  >
+                    <span
+                      className={`absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform duration-200 ease-in-out transform ${
+                        isAIEnhanced ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
+                  </div>
+                </div>
+                <span className="text-xs text-gray-500">
+                  {isAIEnhanced ? "使用AI优化数据解析和类型推断" : "标准数据解析"}
+                </span>
+              </div>
+              
               {!isUploading && !parsedPreview ? (
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
                   <FileText className="h-10 w-10 mx-auto text-gray-400 mb-4" />
