@@ -10,3 +10,20 @@ export interface CustomProvider {
   name: string;
   endpoint: string;
 }
+
+export interface ParsedData {
+  headers: string[];
+  data: any[];
+  detectedFormat: string;
+  confidence: number;
+  fieldMappings: Record<string, string>;
+}
+
+export interface FileProcessingProps {
+  onFileProcessed: (data: ParsedData) => void;
+  isAIEnhanced: boolean;
+}
+
+export interface IntelligentFileParserProps {
+  onDataParsed?: (data: any[]) => void;
+}
