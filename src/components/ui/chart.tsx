@@ -14,7 +14,7 @@ interface ChartContainerProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
 }
 
-export const ChartContainer = ({
+export const ChartContainer = React.memo(({
   children,
   config,
   className,
@@ -23,7 +23,7 @@ export const ChartContainer = ({
   return (
     <div
       className={cn(
-        "relative w-full rounded-xl border bg-card p-4 shadow-sm transition-all hover:shadow-md",
+        "relative w-full rounded-xl border bg-card p-4 shadow-sm transition-all duration-200 hover:shadow-md animate-fade-in",
         className
       )}
       {...props}
@@ -33,9 +33,10 @@ export const ChartContainer = ({
       </div>
     </div>
   );
-};
+});
 
-// Fixed ChartTooltip component with correct type constraints
+ChartContainer.displayName = "ChartContainer";
+
 export const ChartTooltip = (props: Partial<TooltipProps<ValueType, NameType>>) => {
   return (
     <Tooltip
@@ -43,12 +44,20 @@ export const ChartTooltip = (props: Partial<TooltipProps<ValueType, NameType>>) 
         backgroundColor: "hsl(var(--background))",
         borderColor: "hsl(var(--border))",
         borderRadius: "var(--radius)",
+        boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+        padding: "8px 12px",
       }}
       labelStyle={{
-        color: "hsl(var(--foreground))"
+        color: "hsl(var(--foreground))",
+        fontWeight: "500",
+        marginBottom: "4px"
       }}
       itemStyle={{
-        color: "hsl(var(--foreground))"
+        color: "hsl(var(--foreground))",
+        padding: "2px 0"
+      }}
+      wrapperStyle={{
+        outline: "none"
       }}
       {...props}
     />
