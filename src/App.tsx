@@ -9,6 +9,7 @@ import GradeAnalysis from "./pages/GradeAnalysis";
 import StudentProfile from "./pages/StudentProfile";
 import StudentManagement from "./pages/StudentManagement";
 import ClassManagement from "./pages/ClassManagement";
+import AISettings from "./pages/AISettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/student-management" element={<StudentManagement />} />
           <Route path="/class-management" element={<ClassManagement />} />
           <Route path="/student-profile/:studentId" element={<StudentProfile />} />
+          <Route path="/ai-settings" element={<AISettings />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 
@@ -61,6 +60,14 @@ const Navbar: React.FC = () => {
             }`}
           >
             班级管理
+          </Link>
+          <Link
+            to="/ai-settings"
+            className={`text-sm font-medium transition-colors hover:text-primary ${
+              isActive('/ai-settings') ? 'text-primary' : 'text-muted-foreground'
+            }`}
+          >
+            AI设置
           </Link>
           <button
             className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4"
