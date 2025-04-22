@@ -7,6 +7,7 @@ import PasswordLoginForm from './PasswordLoginForm';
 import RegisterForm from './RegisterForm';
 import { loginUser, registerUser } from '@/utils/userAuth';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AuthTabsProps {
   authType: 'login' | 'register';
@@ -32,16 +33,14 @@ const AuthTabs: React.FC<AuthTabsProps> = ({
           email: data.email,
           password: data.password,
         });
-        console.log('登录成功，执行成功回调', result);
         
+        console.log('登录成功:', result);
         toast.success('登录成功');
         
+        // 登录成功后由 onAuthStateChange 事件处理跳转
+        // 这里只需要调用 onSuccess 回调
         if (onSuccess) {
-          // 添加延迟确保状态更新完成
-          setTimeout(() => {
-            console.log('调用onSuccess回调函数');
-            onSuccess();
-          }, 500);
+          onSuccess();
         }
       } else if (authType === 'register') {
         console.log('开始注册:', data);
@@ -59,8 +58,6 @@ const AuthTabs: React.FC<AuthTabsProps> = ({
       setIsSubmitting(false);
     }
   };
-
-  console.log('当前认证类型:', authType);
 
   return (
     <Tabs defaultValue={authType} onValueChange={onAuthTypeChange}>

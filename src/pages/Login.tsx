@@ -32,16 +32,32 @@ const Login = () => {
     checkAuth();
   }, [navigate]);
 
-  // 登录成功后的回调
-  const handleAuthSuccess = () => {
-    console.log('登录成功，准备跳转到成绩分析页面');
-    toast.success("登录成功");
+  // 监听会话状态变化
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Login页面 - 认证状态变化:', event, session ? '已登录' : '未登录');
+      
+      if (event === 'SIGNED_IN' && session) {
+        console.log('Login页面 - 用户登录成功，准备跳转');
+        toast.success("登录成功");
+        
+        // 延迟跳转，确保状态完全更新
+        setTimeout(() => {
+          console.log('Login页面 - 执行跳转到成绩分析页面');
+          navigate('/grade-analysis');
+        }, 1500);
+      }
+    });
     
-    // 添加较长延迟确保状态完全更新
-    setTimeout(() => {
-      console.log('延迟后执行跳转到成绩分析页面');
-      navigate('/grade-analysis', { replace: true });
-    }, 1000);
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [navigate]);
+
+  // 登录成功后的回调 - 简化处理，避免重复跳转
+  const handleAuthSuccess = () => {
+    console.log('登录成功回调执行');
+    toast.success("登录成功");
   };
 
   if (isLoading) {
