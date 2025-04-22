@@ -19,12 +19,12 @@ const IntelligentFileParser: React.FC<IntelligentFileParserProps> = ({ onDataPar
   const [parsedData, setParsedData] = useState<ParsedData | null>(null);
   const [saveToDatabase, setSaveToDatabase] = useState(true);
 
-  const handleFileProcessed = (data: ParsedData) => {
+  const handleFileProcessed = async (data: ParsedData) => {
     setParsedData(data);
     setShowHeaderMapping(true);
   };
 
-  const processDataWithMappings = (mappings: Record<string, string>) => {
+  const processDataWithMappings = async (mappings: Record<string, string>) => {
     if (!parsedData) return;
 
     const processedData = parsedData.data.map(row => {
@@ -38,17 +38,21 @@ const IntelligentFileParser: React.FC<IntelligentFileParserProps> = ({ onDataPar
     });
 
     if (saveToDatabase) {
-      processAndSaveData(processedData).then(results => {
-        if (results.failed > 0) {
-          toast.warning(`部分数据导入失败`, {
-            description: `成功: ${results.success}条, 失败: ${results.failed}条`
-          });
-        } else {
-          toast.success(`数据导入成功`, {
-            description: `已导入${results.success}条记录`
-          });
-        }
-      });
+      const results = await processAndSaveData(processedData);
+      if (results.errors.length > 0) {
+        toast.error("部分数据处理失败", {
+          description: (
+            <div className="max-h-40 overflow-y-auto">
+              <ul className="list-disc list-inside">
+                {results.errors.map((error, index) => (
+                  <li key={index} className="text-sm">{error}</li>
+                ))}
+              </ul>
+            </div>
+          ),
+          duration: 5000
+        });
+      }
     }
 
     if (onDataParsed) {
@@ -56,7 +60,7 @@ const IntelligentFileParser: React.FC<IntelligentFileParserProps> = ({ onDataPar
     }
 
     setShowHeaderMapping(false);
-    toast.success("数据解析成功", {
+    toast.success("数据解析完成", {
       description: `已智能识别并解析 ${processedData.length} 条记录`
     });
   };

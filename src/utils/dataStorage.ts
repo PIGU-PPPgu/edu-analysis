@@ -1,6 +1,6 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { validateImportedData } from './gradeValidation';
 
 interface StudentData {
   student_id: string;
@@ -15,6 +15,13 @@ interface GradeData {
   score: number;
   exam_date?: string;
   exam_type?: string;
+}
+
+interface ProcessingResult {
+  success: number;
+  failed: number;
+  total: number;
+  errors: string[];
 }
 
 export async function saveClassData(className: string, grade: string) {
@@ -35,14 +42,12 @@ export async function saveClassData(className: string, grade: string) {
 
 export async function saveStudentData(student: StudentData) {
   try {
-    // 如果提供了班级信息，先保存或获取班级ID
     let classId = null;
     if (student.class_name && student.grade) {
       try {
         const classData = await saveClassData(student.class_name, student.grade);
         classId = classData.id;
       } catch (error) {
-        // 如果班级已存在，尝试获取已存在的班级ID
         const { data } = await supabase
           .from('classes')
           .select('id')
@@ -53,7 +58,6 @@ export async function saveStudentData(student: StudentData) {
       }
     }
 
-    // 保存学生信息
     const { data, error } = await supabase
       .from('students')
       .insert({
@@ -74,7 +78,6 @@ export async function saveStudentData(student: StudentData) {
 
 export async function saveGradeData(grade: GradeData) {
   try {
-    // 获取学生ID
     const { data: studentData } = await supabase
       .from('students')
       .select('id')
@@ -85,7 +88,6 @@ export async function saveGradeData(grade: GradeData) {
       throw new Error(`未找到学生信息: ${grade.student_id}`);
     }
 
-    // 保存成绩数据
     const { data, error } = await supabase
       .from('grades')
       .insert({
@@ -105,28 +107,40 @@ export async function saveGradeData(grade: GradeData) {
   }
 }
 
-export async function processAndSaveData(data: any[]) {
-  const results = {
+export async function processAndSaveData(data: any[]): Promise<ProcessingResult> {
+  const results: ProcessingResult = {
     success: 0,
     failed: 0,
     total: data.length,
-    errors: [] as string[]
+    errors: []
   };
 
-  // 批量处理前先提取所有唯一的班级信息
+  const { validData, errors } = validateImportedData(data);
+  
+  if (errors.length > 0) {
+    errors.forEach(error => {
+      results.errors.push(`第${error.row}行: ${error.errors.join(', ')}`);
+    });
+    results.failed += errors.length;
+    
+    if (validData.length === 0) {
+      toast.error("数据验证失败", {
+        description: "所有数据都未通过验证，请检查数据格式"
+      });
+      return results;
+    }
+  }
+
   const uniqueClasses = new Set<string>();
   const classGrades = new Map<string, string>();
   
-  data.forEach(record => {
-    const className = record.class_name || record.className || record.班级;
-    const grade = record.grade || record.年级;
-    if (className) {
-      uniqueClasses.add(className);
-      if (grade) classGrades.set(className, grade);
+  validData.forEach(record => {
+    if (record.class_name) {
+      uniqueClasses.add(record.class_name);
+      if (record.grade) classGrades.set(record.class_name, record.grade);
     }
   });
 
-  // 预先保存所有班级信息
   const classIds = new Map<string, string>();
   for (const className of uniqueClasses) {
     try {
@@ -140,45 +154,37 @@ export async function processAndSaveData(data: any[]) {
     }
   }
 
-  // 处理每条记录
-  for (const record of data) {
+  for (const record of validData) {
     try {
-      // 规范化学生信息
-      const studentData: StudentData = {
-        student_id: record.student_id || record.studentId || record.学号,
-        name: record.name || record.student_name || record.姓名,
-        class_name: record.class_name || record.className || record.班级,
-        grade: record.grade || record.年级
-      };
+      const savedStudent = await saveStudentData({
+        student_id: record.student_id,
+        name: record.name,
+        class_name: record.class_name,
+        grade: record.grade
+      });
 
-      // 保存学生信息
-      const savedStudent = await saveStudentData(studentData);
-      if (!savedStudent) continue;
-
-      // 保存成绩信息
-      const gradeData: GradeData = {
-        student_id: studentData.student_id,
-        subject: record.subject || record.科目,
-        score: Number(record.score || record.分数),
-        exam_date: record.exam_date || record.date || record.考试日期,
-        exam_type: record.exam_type || record.type || record.考试类型
-      };
-
-      await saveGradeData(gradeData);
-      results.success++;
+      if (savedStudent) {
+        await saveGradeData({
+          student_id: record.student_id,
+          subject: record.subject,
+          score: record.score,
+          exam_date: record.exam_date,
+          exam_type: record.exam_type
+        });
+        results.success++;
+      }
     } catch (error) {
-      console.error('处理数据记录失败:', error);
+      console.error('处理记录失败:', error);
       results.failed++;
-      results.errors.push(`记录 ${record.student_id || record.学号} 处理失败`);
+      results.errors.push(`记录 ${record.student_id} 处理失败`);
     }
   }
 
-  // 显示处理结果通知
   if (results.failed > 0) {
     toast.warning(`部分数据导入失败`, {
       description: `成功: ${results.success}条, 失败: ${results.failed}条`
     });
-  } else {
+  } else if (results.success > 0) {
     toast.success(`数据导入成功`, {
       description: `已导入${results.success}条记录`
     });
