@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ResponsiveContainer, BoxPlot, ComposedChart, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
+import { ResponsiveContainer, ComposedChart, XAxis, YAxis, Tooltip, CartesianGrid, Area, Line, ReferenceLine } from "recharts";
 import { ChartContainer } from "@/components/ui/chart";
 
 interface ScoreBoxPlotProps {
@@ -30,7 +30,8 @@ const ScoreBoxPlot: React.FC<ScoreBoxPlotProps> = ({
       </CardHeader>
       <CardContent className="h-[320px]">
         <ChartContainer config={{
-          boxPlot: { color: "#B9FF66" }
+          median: { color: "#8884d8" },
+          range: { color: "#B9FF66" }
         }}>
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
@@ -49,12 +50,52 @@ const ScoreBoxPlot: React.FC<ScoreBoxPlotProps> = ({
                 formatter={(value: number) => [`${value} 分`, ""]}
                 labelFormatter={(label: string) => `科目: ${label}`}
               />
-              <BoxPlot
-                dataKey={["min", "q1", "median", "q3", "max"]}
-                fill="#B9FF66"
-                stroke="#8884d8"
-                opacity={0.7}
+              
+              {/* 箱体区域（Q1到Q3） */}
+              <Area 
+                dataKey="q1" 
+                stackId="1" 
+                stroke="none" 
+                fill="#B9FF66" 
+                fillOpacity={0.6}
               />
+              <Area 
+                dataKey="q3" 
+                stackId="1" 
+                stroke="none" 
+                fill="#B9FF66" 
+                fillOpacity={0} 
+              />
+              
+              {/* 中位线 */}
+              <Line 
+                dataKey="median" 
+                stroke="#8884d8" 
+                strokeWidth={2}
+                dot={{ fill: "#8884d8", r: 3 }}
+              />
+              
+              {/* 最大值和最小值线 */}
+              {data.map((entry, index) => (
+                <React.Fragment key={index}>
+                  <ReferenceLine 
+                    segment={[
+                      { x: index, y: entry.min },
+                      { x: index, y: entry.q1 }
+                    ]} 
+                    stroke="#82ca9d" 
+                    strokeDasharray="3 3"
+                  />
+                  <ReferenceLine 
+                    segment={[
+                      { x: index, y: entry.q3 },
+                      { x: index, y: entry.max }
+                    ]} 
+                    stroke="#82ca9d" 
+                    strokeDasharray="3 3"
+                  />
+                </React.Fragment>
+              ))}
             </ComposedChart>
           </ResponsiveContainer>
         </ChartContainer>

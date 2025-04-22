@@ -9,12 +9,14 @@ import ClassReportGenerator from "@/components/analysis/ClassReportGenerator";
 import ClassStudentsList from "@/components/analysis/ClassStudentsList";
 import Navbar from "@/components/analysis/Navbar";
 import { Button } from "@/components/ui/button";
-import { FileText, Users } from "lucide-react";
+import { FileText, Users, ChartLine } from "lucide-react";
 import { Link } from "react-router-dom";
 import ScoreBoxPlot from "@/components/analysis/ScoreBoxPlot";
 import ExamComparison from "@/components/analysis/ExamComparison";
+import CompetencyRadar from "@/components/analysis/CompetencyRadar";
+import CorrelationBubble from "@/components/analysis/CorrelationBubble";
+import ScoreDistribution from "@/components/analysis/ScoreDistribution";
 
-// Mock class data
 const mockClasses = [
   {
     id: "class001",
@@ -68,6 +70,38 @@ const ClassManagement: React.FC = () => {
   const [selectedTab, setSelectedTab] = React.useState("overview");
   const [selectedClass, setSelectedClass] = React.useState(mockClasses[0]);
   const [detailTab, setDetailTab] = React.useState("analysis");
+
+  const competencyData = [
+    { name: "知识理解", current: 85, average: 78, fullScore: 100 },
+    { name: "应用能力", current: 76, average: 70, fullScore: 100 },
+    { name: "分析能力", current: 68, average: 65, fullScore: 100 },
+    { name: "创新思维", current: 72, average: 62, fullScore: 100 },
+    { name: "表达能力", current: 80, average: 75, fullScore: 100 },
+    { name: "合作学习", current: 88, average: 82, fullScore: 100 },
+  ];
+
+  const correlationData = [
+    { name: "学生A", xValue: 85, yValue: 90, zValue: 75, subject: "语文" },
+    { name: "学生B", xValue: 78, yValue: 82, zValue: 85, subject: "语文" },
+    { name: "学生C", xValue: 92, yValue: 85, zValue: 65, subject: "语文" },
+    { name: "学生D", xValue: 65, yValue: 75, zValue: 90, subject: "数学" },
+    { name: "学生E", xValue: 72, yValue: 68, zValue: 78, subject: "数学" },
+    { name: "学生F", xValue: 83, yValue: 77, zValue: 82, subject: "数学" },
+    { name: "学生G", xValue: 88, yValue: 83, zValue: 75, subject: "英语" },
+    { name: "学生H", xValue: 76, yValue: 79, zValue: 83, subject: "英语" },
+    { name: "学生I", xValue: 81, yValue: 76, zValue: 68, subject: "英语" },
+    { name: "学生J", xValue: 73, yValue: 68, zValue: 72, subject: "物理" },
+    { name: "学生K", xValue: 79, yValue: 74, zValue: 65, subject: "物理" },
+    { name: "学生L", xValue: 85, yValue: 80, zValue: 70, subject: "物理" },
+  ];
+
+  const scoreDistributionData = [
+    { range: "90-100分", count: 12, color: "#8884d8" },
+    { range: "80-89分", count: 18, color: "#82ca9d" },
+    { range: "70-79分", count: 15, color: "#ffc658" },
+    { range: "60-69分", count: 8, color: "#ff8042" },
+    { range: "60分以下", count: 3, color: "#ff6347" }
+  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -149,7 +183,22 @@ const ClassManagement: React.FC = () => {
               />
             </div>
             
-            <ExamComparison />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <ExamComparison />
+              <ScoreDistribution data={scoreDistributionData} />
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <CompetencyRadar data={competencyData} />
+              <CorrelationBubble 
+                data={correlationData} 
+                xName="课堂表现" 
+                yName="作业质量" 
+                zName="考试成绩"
+                title="学习表现关联分析"
+                description="课堂表现、作业质量与考试成绩的关联性"
+              />
+            </div>
             
             <div className="flex justify-end">
               <Button asChild>
@@ -191,7 +240,7 @@ const ClassManagement: React.FC = () => {
                 <CardContent>
                   <div className="bg-muted p-4 rounded-md">
                     <p className="text-sm text-muted-foreground">
-                      建议高二(1)班加强数学和物理教学，可以借鉴高二(2)班的教学方法；
+                      建议高二(1)班加强数学和物��教学，可以借鉴高二(2)班的教学方法；
                       高二(2)班需要提升语文和英语水平，可以通过阅读训练和口语练习来改善。
                       两个班级可以进行学习经验交流活动，取长补短。
                     </p>
@@ -204,6 +253,54 @@ const ClassManagement: React.FC = () => {
               <ClassTrendChart className="高二(1)班" />
               <ClassTrendChart className="高二(2)班" />
             </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <ScoreBoxPlot 
+                title="高二(1)班 成绩分布"
+                data={[
+                  { subject: "语文", min: 65, q1: 75, median: 82, q3: 88, max: 95 },
+                  { subject: "数学", min: 60, q1: 72, median: 80, q3: 85, max: 98 },
+                  { subject: "英语", min: 62, q1: 73, median: 81, q3: 87, max: 96 },
+                  { subject: "物理", min: 58, q1: 70, median: 78, q3: 84, max: 93 },
+                ]}
+              />
+              <ScoreBoxPlot 
+                title="高二(2)班 成绩分布"
+                data={[
+                  { subject: "语文", min: 60, q1: 70, median: 79, q3: 84, max: 92 },
+                  { subject: "数学", min: 65, q1: 75, median: 84, q3: 89, max: 99 },
+                  { subject: "英语", min: 58, q1: 69, median: 77, q3: 83, max: 90 },
+                  { subject: "物理", min: 63, q1: 73, median: 82, q3: 88, max: 95 },
+                ]}
+              />
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <CompetencyRadar 
+                data={[
+                  { name: "知识理解", current: 85, average: 78, fullScore: 100 },
+                  { name: "应用能力", current: 76, average: 70, fullScore: 100 },
+                  { name: "分析能力", current: 68, average: 65, fullScore: 100 },
+                  { name: "创新思维", current: 72, average: 62, fullScore: 100 },
+                  { name: "表达能力", current: 80, average: 75, fullScore: 100 },
+                  { name: "合作学习", current: 88, average: 82, fullScore: 100 },
+                ]}
+                title="高二(1)班 能力维度"
+                description="班级多维度能力评估"
+              />
+              <CompetencyRadar 
+                data={[
+                  { name: "知识理解", current: 82, average: 78, fullScore: 100 },
+                  { name: "应用能力", current: 80, average: 70, fullScore: 100 },
+                  { name: "分析能力", current: 72, average: 65, fullScore: 100 },
+                  { name: "创新思维", current: 68, average: 62, fullScore: 100 },
+                  { name: "表达能力", current: 75, average: 75, fullScore: 100 },
+                  { name: "合作学习", current: 83, average: 82, fullScore: 100 },
+                ]}
+                title="高二(2)班 能力维度"
+                description="班级多维度能力评估"
+              />
+            </div>
           </TabsContent>
 
           <TabsContent value="detail" className="space-y-6">
@@ -214,7 +311,7 @@ const ClassManagement: React.FC = () => {
             <Tabs value={detailTab} onValueChange={setDetailTab}>
               <TabsList className="w-full max-w-[400px] mb-6">
                 <TabsTrigger value="analysis">班级分析</TabsTrigger>
-                <TabsTrigger value="students">学生列表</TabsTrigger>
+                <TabsTrigger value="students">学��列表</TabsTrigger>
                 <TabsTrigger value="report">报告生成</TabsTrigger>
               </TabsList>
               
@@ -223,8 +320,13 @@ const ClassManagement: React.FC = () => {
                   <ClassTrendChart className={selectedClass.className} />
                   <ClassWeaknessAnalysis className={selectedClass.className} />
                 </div>
-                <div className="grid grid-cols-1 gap-6">
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <ExamComparison />
+                  <ScoreDistribution data={scoreDistributionData} />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <ScoreBoxPlot 
                     title={`${selectedClass.className}成绩分布`}
                     description="各科目成绩四分位数分布"
@@ -237,7 +339,22 @@ const ClassManagement: React.FC = () => {
                       { subject: "生物", min: 67, q1: 76, median: 84, q3: 90, max: 99 }
                     ]}
                   />
+                  <CompetencyRadar 
+                    data={competencyData}
+                    title={`${selectedClass.className}能力维度`}
+                    description="班级多维度能力评估"
+                  />
                 </div>
+                
+                <CorrelationBubble 
+                  data={correlationData} 
+                  xName="课堂表现" 
+                  yName="作业质量" 
+                  zName="考试成绩"
+                  title={`${selectedClass.className}学习表现关联分析`}
+                  description="课堂表现、作业质量与考试成绩的关联性"
+                  className="w-full"
+                />
               </TabsContent>
               
               <TabsContent value="students">
