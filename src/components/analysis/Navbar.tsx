@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 
@@ -5,7 +6,7 @@ const Navbar: React.FC = () => {
   const location = useLocation();
   
   const isActive = (path: string) => {
-    return location.pathname === path;
+    return location.pathname === path || location.pathname.startsWith(path + '/');
   };
 
   return (
@@ -38,7 +39,7 @@ const Navbar: React.FC = () => {
             成绩分析
           </Link>
           <Link
-            to="/student-profile"
+            to="/student-profile/20230001"
             className={`text-sm font-medium transition-colors hover:text-primary ${
               isActive('/student-profile') ? 'text-primary' : 'text-muted-foreground'
             }`}
