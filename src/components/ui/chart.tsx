@@ -1,4 +1,4 @@
-
+import React from 'react';
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipProps } from "recharts";
 import { ValueType, NameType } from "recharts/types/component/DefaultTooltipContent";
