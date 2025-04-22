@@ -1,4 +1,6 @@
 import { createClient, Provider } from '@supabase/supabase-js'
+import { validateData } from './validation'
+import { toast } from 'sonner'
 
 // Supabase配置
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co'
@@ -53,15 +55,24 @@ export const db = {
     name: string;
     class_name: string;
   }) {
-    const { data, error } = await supabase
-      .from('students')
-      .upsert([studentData], {
-        onConflict: 'student_id'
-      })
-      .select()
-    
-    if (error) throw error
-    return data
+    try {
+      // 验证数据
+      await validateData.validateStudent(studentData);
+      
+      const { data, error } = await supabase
+        .from('students')
+        .upsert([studentData], {
+          onConflict: 'student_id'
+        })
+        .select()
+      
+      if (error) throw error
+      return data
+    } catch (error) {
+      console.error('添加/更新学生信息失败:', error);
+      toast.error('操作失败: ' + error.message);
+      throw error;
+    }
   },
   
   // 批量添加或更新学生信息
@@ -70,15 +81,24 @@ export const db = {
     name: string;
     class_name: string;
   }>) {
-    const { data, error } = await supabase
-      .from('students')
-      .upsert(studentsData, {
-        onConflict: 'student_id'
-      })
-      .select()
-    
-    if (error) throw error
-    return data
+    try {
+      // 批量验证数据
+      await validateData.validateStudents(studentsData);
+      
+      const { data, error } = await supabase
+        .from('students')
+        .upsert(studentsData, {
+          onConflict: 'student_id'
+        })
+        .select()
+      
+      if (error) throw error
+      return data
+    } catch (error) {
+      console.error('批量添加/更新学生信息失败:', error);
+      toast.error('操作失败: ' + error.message);
+      throw error;
+    }
   },
   
   // 添加成绩记录
@@ -90,13 +110,22 @@ export const db = {
     exam_type: string;
     semester?: string;
   }>) {
-    const { data, error } = await supabase
-      .from('grades')
-      .insert(gradesData)
-      .select()
-    
-    if (error) throw error
-    return data
+    try {
+      // 批量验证成绩数据
+      await validateData.validateGrades(gradesData);
+      
+      const { data, error } = await supabase
+        .from('grades')
+        .insert(gradesData)
+        .select()
+      
+      if (error) throw error
+      return data
+    } catch (error) {
+      console.error('添加成���记录失败:', error);
+      toast.error('操作失败: ' + error.message);
+      throw error;
+    }
   },
   
   // 获取学生列表
