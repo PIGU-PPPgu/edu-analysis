@@ -44,3 +44,7 @@ export interface MappedField {
   mappedField: string;
   dataType: string;
 }
+
+export interface IntelligentFileParserProps {
+  onDataParsed?: (data: any[]) => void;
+}

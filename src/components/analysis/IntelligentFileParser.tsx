@@ -10,9 +10,9 @@ import HeaderMappingDialog from './HeaderMappingDialog';
 import FileUploader from './FileUploader';
 import DataPreview from './DataPreview';
 import TemplateDownloader from './TemplateDownloader';
-import { ParsedData } from "./types";
+import { ParsedData, IntelligentFileParserProps } from "./types";
 
-const IntelligentFileParser = () => {
+const IntelligentFileParser: React.FC<IntelligentFileParserProps> = ({ onDataParsed }) => {
   const [isAIEnhanced, setIsAIEnhanced] = useState(true);
   const [showHeaderMapping, setShowHeaderMapping] = useState(false);
   const [headerMappings, setHeaderMappings] = useState<Record<string, string>>({});
@@ -49,6 +49,10 @@ const IntelligentFileParser = () => {
           });
         }
       });
+    }
+
+    if (onDataParsed) {
+      onDataParsed(processedData);
     }
 
     setShowHeaderMapping(false);
