@@ -6,8 +6,8 @@ import AuthButtons from "../auth/AuthButtons";
 
 interface HeroProps {
   isLoggedIn: boolean;
-  onLogin: () => void;
-  onWechatLogin: () => void;
+  onLogin: () => Promise<void>;
+  onWechatLogin: () => Promise<void>;
 }
 
 const Hero = ({ isLoggedIn, onLogin, onWechatLogin }: HeroProps) => {
