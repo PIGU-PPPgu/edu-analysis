@@ -13,7 +13,9 @@ export async function initializeDatabase() {
     `;
     
     const result = await executeSql(checkTriggerSql);
-    const triggerExists = result?.[0]?.trigger_exists;
+    const triggerExists = Array.isArray(result) && result[0] && 'trigger_exists' in result[0] 
+      ? result[0].trigger_exists 
+      : false;
 
     // 如果触发器不存在，创建触发器函数和触发器
     if (!triggerExists) {
@@ -133,7 +135,9 @@ export async function setupInitialData() {
     // 检查是否已存在科目数据
     const subjectsCheckSql = `SELECT COUNT(*) as count FROM public.subjects LIMIT 1`;
     const subjectsResult = await executeSql(subjectsCheckSql);
-    const subjectsExist = subjectsResult?.[0]?.count > 0;
+    const subjectsExist = Array.isArray(subjectsResult) && subjectsResult[0] && 'count' in subjectsResult[0]
+      ? subjectsResult[0].count > 0
+      : false;
     
     // 如果没有科目数据，添加默认科目
     if (!subjectsExist) {
@@ -157,7 +161,9 @@ export async function setupInitialData() {
     // 检查是否已存在考试类型数据
     const examTypesCheckSql = `SELECT COUNT(*) as count FROM public.exam_types LIMIT 1`;
     const examTypesResult = await executeSql(examTypesCheckSql);
-    const examTypesExist = examTypesResult?.[0]?.count > 0;
+    const examTypesExist = Array.isArray(examTypesResult) && examTypesResult[0] && 'count' in examTypesResult[0]
+      ? examTypesResult[0].count > 0
+      : false;
     
     // 如果没有考试类型数据，添加默认考试类型
     if (!examTypesExist) {
@@ -177,7 +183,9 @@ export async function setupInitialData() {
     // 检查是否已存在学期数据
     const termsCheckSql = `SELECT COUNT(*) as count FROM public.academic_terms LIMIT 1`;
     const termsResult = await executeSql(termsCheckSql);
-    const termsExist = termsResult?.[0]?.count > 0;
+    const termsExist = Array.isArray(termsResult) && termsResult[0] && 'count' in termsResult[0]
+      ? termsResult[0].count > 0
+      : false;
     
     // 如果没有学期数据，添加当前学年的学期
     if (!termsExist) {
