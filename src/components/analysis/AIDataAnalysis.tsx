@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,7 @@ import { ChartContainer } from "@/components/ui/chart";
 import { toast } from "sonner";
 import { ZapIcon, FileTextIcon } from "lucide-react";
 import { getUserAIConfig, getUserAPIKey } from "@/utils/userAuth";
+import { performAIAnalysis, generateAnalysisPrompt } from "@/utils/aiAnalysis";
 
 interface AIDataAnalysisProps {
   data: any[];
@@ -127,35 +127,68 @@ const AIDataAnalysis: React.FC<AIDataAnalysisProps> = ({ data, charts }) => {
     };
   };
 
+  // --- 新增: 真实AI分析请求 ---
   const generateAnalysis = async () => {
     if (data.length === 0) {
       toast.error("没有足够的数据进行分析");
       return;
     }
-    
+
     const aiConfig = getUserAIConfig();
     const apiKey = getUserAPIKey();
-    
+
     if (!aiConfig || !apiKey) {
       toast.error("请先配置AI服务", {
         description: "前往AI设置页面配置大模型API"
       });
       return;
     }
-    
+
     setIsAnalyzing(true);
-    
+
     try {
-      const prompt = generateAnalysisPrompt(data);
-      console.log("生成的AI分析提示词:", prompt);
-      
-      // 生成分析结果
-      const result = await mockAiRequest(prompt);
-      
-      setAnalysis(result);
-      toast.success("AI分析完成", {
-        description: `已生成基于${data.length}条记录的数据分析报告`
+      // 准备请求参数
+      const language = aiConfig.language || "zh";
+      const config = {
+        provider: aiConfig.provider,
+        model: aiConfig.version,
+        temperature: aiConfig.temperature ?? 0.7,
+        maxTokens: aiConfig.maxTokens ?? 2000,
+        apiKey: apiKey
+      };
+      // 优先用用户自定义prompt
+      const prompt =
+        aiConfig.prompt ||
+        generateAnalysisPrompt(data, language);
+
+      // 调用Supabase Edge Function
+      const result = await performAIAnalysis({
+        data,
+        config,
+        prompt,
+        language
       });
+
+      // 错误处理和提示
+      if (result.error) {
+        setAnalysis({
+          overview: result.overview,
+          insights: result.insights,
+          recommendations: result.recommendations,
+        });
+        toast.error("AI分析失败", {
+          description: result.error
+        });
+      } else {
+        setAnalysis({
+          overview: result.overview,
+          insights: result.insights,
+          recommendations: result.recommendations,
+        });
+        toast.success("AI分析完成", {
+          description: `已生成基于${data.length}条记录的数据分析报告`
+        });
+      }
     } catch (error) {
       console.error("AI分析失败:", error);
       toast.error("分析生成失败", {
