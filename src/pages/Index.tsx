@@ -3,7 +3,17 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { BarChart2, Users, FileText, UserCircle, FileImport, Settings as SettingsIcon, LogIn as LogInIcon, Home as HomeIcon, MessageSquare as WechatIcon } from "lucide-react";
+import { 
+  BarChart2, 
+  Users, 
+  FileText, 
+  UserCircle, 
+  File as FileImport, // Changed from 'FileImport' to 'File'
+  Settings as SettingsIcon, 
+  LogIn as LogInIcon, 
+  Home as HomeIcon, 
+  MessageSquare as WechatIcon 
+} from "lucide-react";
 import { toast } from "sonner";
 
 const Index: React.FC = () => {
