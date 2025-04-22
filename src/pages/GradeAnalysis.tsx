@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,14 +11,14 @@ import GradeTable from "@/components/analysis/GradeTable";
 import IntelligentFileParser from "@/components/analysis/IntelligentFileParser";
 import AIDataAnalysis from "@/components/analysis/AIDataAnalysis";
 import { toast } from "sonner";
-import { FileChartBar, FileText, ChartBar, ChartLine } from "lucide-react";
+import { FileText, ChartBar, ChartLine } from "lucide-react";
 
 // 预设的图表分析类型
 const CHART_PRESETS = [
   { id: "distribution", name: "分数分布", icon: <ChartBar className="h-4 w-4" /> },
   { id: "subject", name: "学科对比", icon: <ChartBar className="h-4 w-4" /> },
   { id: "trend", name: "成绩趋势", icon: <ChartLine className="h-4 w-4" /> },
-  { id: "boxplot", name: "箱线图分析", icon: <FileChartBar className="h-4 w-4" /> },
+  { id: "boxplot", name: "箱线图分析", icon: <ChartBar className="h-4 w-4" /> },
   { id: "correlation", name: "相关性分析", icon: <ChartLine className="h-4 w-4" /> },
 ];
 
@@ -38,6 +37,16 @@ const boxPlotData = [
   { subject: "物理", min: 48, q1: 60, median: 72, q3: 82, max: 94 },
   { subject: "化学", min: 55, q1: 66, median: 77, q3: 87, max: 96 },
 ];
+
+interface SubjectScoreData {
+  total: number;
+  count: number;
+}
+
+interface ExamTypeScoreData {
+  total: number;
+  count: number;
+}
 
 const GradeAnalysis: React.FC = () => {
   const [data, setData] = useState<any[]>([]);
@@ -95,7 +104,7 @@ const GradeAnalysis: React.FC = () => {
     // 如果有分数和学科，生成学科成绩对比图
     if (scoreField && subjectField) {
       // 计算每个学科的平均分
-      const subjectScores = {};
+      const subjectScores: Record<string, SubjectScoreData> = {};
       parsedData.forEach(record => {
         const subject = record[subjectField];
         const score = parseFloat(record[scoreField]);
@@ -182,7 +191,7 @@ const GradeAnalysis: React.FC = () => {
     // 如果有分数和日期，生成成绩趋势图
     if (scoreField && dateField && subjectField) {
       // 按日期和学科分组，计算平均分趋势
-      const dateScores = {};
+      const dateScores: Record<string, Record<string, SubjectScoreData>> = {};
       
       parsedData.forEach(record => {
         const date = record[dateField];
@@ -242,7 +251,7 @@ const GradeAnalysis: React.FC = () => {
     // 如果有分数和考试类型，生成考试类型对比图
     if (scoreField && examTypeField) {
       // 计算每种考试类型的平均分
-      const examTypeScores = {};
+      const examTypeScores: Record<string, ExamTypeScoreData> = {};
       
       parsedData.forEach(record => {
         const examType = record[examTypeField];
@@ -335,7 +344,7 @@ const GradeAnalysis: React.FC = () => {
               <Tabs defaultValue="auto" className="mt-6">
                 <TabsList>
                   <TabsTrigger value="auto">
-                    <FileChartBar className="h-4 w-4 mr-2" />
+                    <ChartBar className="h-4 w-4 mr-2" />
                     自动分析
                   </TabsTrigger>
                   <TabsTrigger value="custom">
