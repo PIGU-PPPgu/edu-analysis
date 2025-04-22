@@ -27,13 +27,16 @@ export async function registerUser({
     
     if (error) {
       console.error('注册失败:', error);
+      toast.error(`注册失败: ${error.message || '未知错误'}`);
       throw error;
     }
     
     console.log('注册成功:', data);
+    toast.success("注册成功，请登录");
     return data;
   } catch (error) {
     console.error('注册失败:', error);
+    toast.error(`注册失败: ${error.message || '请检查您的输入'}`);
     throw error;
   }
 }
@@ -57,14 +60,17 @@ export async function loginUser({
     
     if (error) {
       console.error('登录失败:', error);
+      toast.error(`登录失败: ${error.message || '请检查您的邮箱和密码'}`);
       throw error;
     }
     
     console.log('登录成功，用户信息:', data.user);
     console.log('登录成功，会话信息:', data.session);
+    toast.success("登录成功");
     return data;
   } catch (error) {
     console.error('登录失败:', error);
+    toast.error(`登录失败: ${error.message || '请检查您的邮箱和密码'}`);
     throw error;
   }
 }

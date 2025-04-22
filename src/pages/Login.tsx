@@ -26,8 +26,8 @@ const Login = () => {
   // 登录成功后的回调
   const handleAuthSuccess = () => {
     console.log('登录成功，准备跳转到成绩分析页面');
-    // 强制导航到成绩分析页面
-    navigate('/grade-analysis', { replace: true });
+    // 使用普通导航而不是replace模式
+    navigate('/grade-analysis');
   };
 
   return (

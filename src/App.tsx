@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -46,7 +45,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
         } else if (session && location.pathname === '/login') {
           // 如果已登录但在登录页，则跳转到成绩分析页
           console.log('ProtectedRoute - 已登录，但在登录页，跳转到成绩分析页');
-          navigate('/grade-analysis', { replace: true });
+          navigate('/grade-analysis');
         }
       } catch (error) {
         console.error('验证用户状态失败:', error);
@@ -72,7 +71,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       // 如果登录，跳转到成绩分析页
       if (event === 'SIGNED_IN') {
         console.log('用户刚刚登录，准备跳转到成绩分析页');
-        navigate('/grade-analysis', { replace: true });
+        navigate('/grade-analysis');
       }
     });
     
@@ -96,7 +95,7 @@ const DatabaseInitializer = ({ children }: { children: React.ReactNode }) => {
         await initializeDatabase();
         await setupInitialData();
       } catch (error) {
-        console.error('数据库初始化失败:', error);
+        console.error('数��库初始化失败:', error);
       }
     };
     
