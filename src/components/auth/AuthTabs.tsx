@@ -28,15 +28,14 @@ const AuthTabs: React.FC<AuthTabsProps> = ({
     try {
       if (authType === 'login') {
         console.log('开始登录:', data);
-        await loginUser({
+        const result = await loginUser({
           email: data.email,
           password: data.password,
         });
-        console.log('登录成功，执行成功回调');
+        console.log('登录成功，执行成功回调', result);
+        toast.success('登录成功');
         if (onSuccess) {
-          setTimeout(() => {
-            onSuccess();
-          }, 0);
+          onSuccess();
         }
       } else if (authType === 'register') {
         console.log('开始注册:', data);

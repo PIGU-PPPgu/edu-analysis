@@ -15,6 +15,8 @@ const Login = () => {
       if (session) {
         console.log('Login页面 - 用户已登录，跳转到成绩分析页');
         navigate('/grade-analysis');
+      } else {
+        console.log('Login页面 - 用户未登录');
       }
     };
     
