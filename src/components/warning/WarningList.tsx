@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { AlertTriangle, Signal, SignalHigh, SignalMedium, SignalLow } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { db } from "@/utils/dbUtils";
 import { toast } from "sonner";
 
 type WarningStudent = {
@@ -47,10 +46,43 @@ const getRiskClass = (level: string) => {
 const WarningList = () => {
   const navigate = useNavigate();
   
+  // Use mock data instead of database query for now
+  const mockWarningData: WarningStudent[] = [
+    {
+      student_id: "S001",
+      name: "张三",
+      risk_level: "high",
+      warning_subjects: ["数学", "物理"],
+      trend: "down",
+      last_update: new Date().toISOString()
+    },
+    {
+      student_id: "S002",
+      name: "李四",
+      risk_level: "medium",
+      warning_subjects: ["英语"],
+      trend: "up",
+      last_update: new Date().toISOString()
+    },
+    {
+      student_id: "S003",
+      name: "王五",
+      risk_level: "low",
+      warning_subjects: ["化学"],
+      trend: "stable",
+      last_update: new Date().toISOString()
+    }
+  ];
+
   const { data: warningData, isLoading, error } = useQuery({
     queryKey: ['warningStudents'],
     queryFn: async () => {
-      return await db.getStudentWarnings();
+      // Simulate API call
+      return new Promise<WarningStudent[]>((resolve) => {
+        setTimeout(() => {
+          resolve(mockWarningData);
+        }, 500);
+      });
     }
   });
 
@@ -63,7 +95,7 @@ const WarningList = () => {
     return <div>加载中...</div>;
   }
 
-  const warningStudents = warningData as WarningStudent[];
+  const warningStudents = warningData || [];
 
   return (
     <Card>
@@ -87,7 +119,7 @@ const WarningList = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {warningStudents?.map((student) => (
+            {warningStudents.map((student) => (
               <TableRow key={student.student_id}>
                 <TableCell>
                   <div className="flex items-center gap-1">

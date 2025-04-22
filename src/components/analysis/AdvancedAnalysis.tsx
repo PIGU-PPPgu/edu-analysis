@@ -6,7 +6,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChartBar } from "lucide-react";
 import { AutoChart } from "@/components/ui/chart";
 import { toast } from "sonner";
-import { db } from "@/utils/dbUtils";
 
 interface Props {
   className?: string;
@@ -23,13 +22,37 @@ const AdvancedAnalysis: React.FC<Props> = ({ className, studentId }) => {
       try {
         setLoading(true);
         
-        if (studentId) {
-          const data = await db.getStudentPerformanceOverTime(studentId);
-          setPerformanceData(data);
-        } else {
-          const data = await db.getClassPerformanceBySubject(className || "");
-          setPerformanceData(data);
-        }
+        // Mock data for development
+        const mockData = studentId 
+          ? [
+              { exam_date: '2023-09-15', subject: '数学', score: 85 },
+              { exam_date: '2023-10-20', subject: '数学', score: 88 },
+              { exam_date: '2023-11-18', subject: '数学', score: 92 },
+              { exam_date: '2023-09-15', subject: '语文', score: 78 },
+              { exam_date: '2023-10-20', subject: '语文', score: 82 },
+              { exam_date: '2023-11-18', subject: '语文', score: 85 },
+              { exam_date: '2023-09-15', subject: '英语', score: 90 },
+              { exam_date: '2023-10-20', subject: '英语', score: 87 },
+              { exam_date: '2023-11-18', subject: '英语', score: 91 },
+            ]
+          : [
+              { subject: '数学', score: 82.5 },
+              { subject: '语文', score: 78.3 },
+              { subject: '英语', score: 85.7 },
+              { subject: '物理', score: 76.8 },
+              { subject: '化学', score: 79.2 },
+            ];
+            
+        setPerformanceData(mockData);
+        
+        // In production, use:
+        // if (studentId) {
+        //   const data = await db.getStudentPerformanceOverTime(studentId);
+        //   setPerformanceData(data);
+        // } else {
+        //   const data = await db.getClassPerformanceBySubject(className || "");
+        //   setPerformanceData(data);
+        // }
         
         toast.success("数据加载成功");
       } catch (error) {

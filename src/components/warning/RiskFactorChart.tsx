@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar, Tooltip, Legend } from "recharts";
 import { ChartContainer } from "@/components/ui/chart";
 import { useQuery } from "@tanstack/react-query";
-import { db } from "@/utils/dbUtils";
 import { toast } from "sonner";
 
 type RiskFactor = {
@@ -13,10 +12,24 @@ type RiskFactor = {
 };
 
 const RiskFactorChart = () => {
+  // Use mock data instead of database query for now
+  const mockRiskFactors: RiskFactor[] = [
+    { factor: "出勤率", value: 85 },
+    { factor: "作业完成", value: 75 },
+    { factor: "考试成绩", value: 65 },
+    { factor: "课堂参与", value: 70 },
+    { factor: "学习态度", value: 80 }
+  ];
+
   const { data: riskFactors, isLoading, error } = useQuery({
     queryKey: ['riskFactors'],
     queryFn: async () => {
-      return await db.getRiskFactors();
+      // Simulate API call
+      return new Promise<RiskFactor[]>((resolve) => {
+        setTimeout(() => {
+          resolve(mockRiskFactors);
+        }, 500);
+      });
     }
   });
 

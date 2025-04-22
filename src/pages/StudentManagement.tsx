@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Users } from "lucide-react";
 import Navbar from "@/components/analysis/Navbar";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface Student {
@@ -25,30 +24,31 @@ const StudentManagement: React.FC = () => {
       try {
         setLoading(true);
         
-        // 从Supabase获取学生数据
-        const { data, error } = await supabase
-          .from('students')
-          .select('*');
-          
-        if (error) {
-          throw error;
-        }
+        // Mock student data for development
+        const mockStudents: Student[] = [
+          { studentId: "S001", name: "张三", className: "高三一班", averageScore: 85.5 },
+          { studentId: "S002", name: "李四", className: "高三一班", averageScore: 92.0 },
+          { studentId: "S003", name: "王五", className: "高三二班", averageScore: 78.5 },
+          { studentId: "S004", name: "赵六", className: "高三二班", averageScore: 88.0 },
+          { studentId: "S005", name: "钱七", className: "高三三班", averageScore: 91.5 },
+        ];
         
-        if (data) {
-          // 转换为应用所需格式
-          const formattedData: Student[] = data.map((student: any) => ({
-            studentId: student.student_id || student.studentId,
-            name: student.name,
-            className: student.class_name || student.className,
-            averageScore: student.average_score || student.averageScore || 0,
-          }));
-          
-          setStudents(formattedData);
-        }
+        setStudents(mockStudents);
+        
+        // In production, this would use:
+        // const data = await db.getStudents();
+        // if (data) {
+        //   const formattedData = data.map((student) => ({
+        //     studentId: student.student_id,
+        //     name: student.name,
+        //     className: student.class_name,
+        //     averageScore: student.average_score || 0,
+        //   }));
+        //   setStudents(formattedData);
+        // }
       } catch (error) {
         console.error('获取学生数据失败:', error);
         toast.error('获取学生数据失败');
-        // 如果获取失败，使用空数组
         setStudents([]);
       } finally {
         setLoading(false);
@@ -83,7 +83,7 @@ const StudentManagement: React.FC = () => {
               <StudentList students={students} />
             ) : (
               <div className="text-center py-8 text-gray-500">
-                暂无学生数据。请先在Supabase中添加学生信息或导入Excel文件。
+                暂无学生数据。请先添加学生信息或导入Excel文件。
               </div>
             )}
           </CardContent>
