@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -95,7 +96,7 @@ const DatabaseInitializer = ({ children }: { children: React.ReactNode }) => {
         await initializeDatabase();
         await setupInitialData();
       } catch (error) {
-        console.error('数��库初始化失败:', error);
+        console.error('数据库初始化失败:', error);
       }
     };
     

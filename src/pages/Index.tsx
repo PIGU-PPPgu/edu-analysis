@@ -10,23 +10,30 @@ import { Button } from "@/components/ui/button";
 
 const Index = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     const checkUserSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      setIsLoggedIn(!!data.session);
+      try {
+        setIsLoading(true);
+        const { data } = await supabase.auth.getSession();
+        console.log("Index页面 - 会话状态:", data.session ? "已登录" : "未登录");
+        setIsLoggedIn(!!data.session);
+        
+        // 由于首页需要一直可见，此处不自动跳转
+      } catch (error) {
+        console.error("检查会话失败:", error);
+      } finally {
+        setIsLoading(false);
+      }
     };
     
     checkUserSession();
     
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Index页面 - 认证状态变化:", event, session ? "已登录" : "未登录");
       setIsLoggedIn(!!session);
-      
-      // 根据登录状态自动跳转
-      if (session) {
-        navigate('/grade-analysis');
-      }
     });
     
     return () => {
@@ -65,6 +72,10 @@ const Index = () => {
       }
     });
   };
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-screen">正在加载...</div>;
+  }
 
   return (
     <div className="relative min-h-screen">
