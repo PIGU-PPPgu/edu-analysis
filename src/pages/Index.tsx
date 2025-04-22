@@ -6,7 +6,6 @@ import Features from "@/components/home/Features";
 import AnimatedBackground from "@/components/home/AnimatedBackground";
 import { toast } from "sonner";
 import { supabase } from "@/utils/auth";
-import { loginUser } from "@/utils/userAuth";
 
 const Index = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -35,7 +34,6 @@ const Index = () => {
 
   const handleWechatLogin = async () => {
     try {
-      // Cast 'wechat' to any to avoid TypeScript errors with provider types
       await supabase.auth.signInWithOAuth({
         provider: 'wechat' as any,
         options: {
