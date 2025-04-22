@@ -3,6 +3,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getCurrentUserRoles, AppRole } from '@/utils/roleUtils';
+import { toast } from 'sonner';
 
 interface RoleGuardProps {
   children: React.ReactNode;
@@ -20,9 +21,11 @@ const RoleGuard: React.FC<RoleGuardProps> = ({
   const { data: userRoles, isLoading } = useQuery({
     queryKey: ['userRoles'],
     queryFn: getCurrentUserRoles,
-    onError: () => {
-      toast.error('无法验证用户权限');
-      navigate('/login');
+    onSettled: (data, error) => {
+      if (error) {
+        toast.error('无法验证用户权限');
+        navigate('/login');
+      }
     },
   });
 

@@ -15,6 +15,7 @@ import WarningAnalysis from "./pages/WarningAnalysis";
 import NotFound from "./pages/NotFound";
 import { initializeDatabase, setupInitialData } from "./utils/dbSetup";
 import { getCurrentUser } from "./utils/auth";
+import RoleGuard from "./components/auth/RoleGuard";
 
 const queryClient = new QueryClient();
 
