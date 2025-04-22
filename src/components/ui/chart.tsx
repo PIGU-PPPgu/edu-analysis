@@ -1,6 +1,7 @@
 
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipProps } from "recharts";
+import { ValueType, NameType } from "recharts/types/component/DefaultTooltipContent";
 
 interface ChartConfig {
   [key: string]: {
@@ -34,8 +35,8 @@ export const ChartContainer = ({
   );
 };
 
-// Adding the ChartTooltip component with proper generic type parameters
-export const ChartTooltip = <TValue, TName>(props: Partial<TooltipProps<TValue, TName>>) => {
+// Fixed ChartTooltip component with correct type constraints
+export const ChartTooltip = (props: Partial<TooltipProps<ValueType, NameType>>) => {
   return (
     <Tooltip
       contentStyle={{
