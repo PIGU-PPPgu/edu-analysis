@@ -33,8 +33,15 @@ const AuthTabs: React.FC<AuthTabsProps> = ({
           password: data.password,
         });
         console.log('登录成功，执行成功回调', result);
+        
+        toast.success('登录成功');
+        
         if (onSuccess) {
-          onSuccess();
+          // 添加延迟确保状态更新完成
+          setTimeout(() => {
+            console.log('调用onSuccess回调函数');
+            onSuccess();
+          }, 500);
         }
       } else if (authType === 'register') {
         console.log('开始注册:', data);

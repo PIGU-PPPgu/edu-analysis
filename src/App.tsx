@@ -26,25 +26,27 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [session, setSession] = useState(null);
   
   useEffect(() => {
     const checkAuth = async () => {
       try {
         setIsCheckingAuth(true);
-        const session = await getSession();
+        const sessionData = await getSession();
+        setSession(sessionData);
+        
         console.log('ProtectedRoute - 当前路径:', location.pathname);
-        console.log('ProtectedRoute - 认证状态:', session ? '已登录' : '未登录');
+        console.log('ProtectedRoute - 认证状态:', sessionData ? '已登录' : '未登录');
         
         // 公开页面列表
         const publicPages = ['/', '/login'];
         const isPublicPage = publicPages.includes(location.pathname);
         
         // 如果未登录且不在公开页面，则跳转到登录页
-        if (!session && !isPublicPage) {
+        if (!sessionData && !isPublicPage) {
           console.log('ProtectedRoute - 未登录，跳转到登录页');
           navigate('/login');
         }
-        // 注意：已登录时不再自动跳转，让用户自行决定去向
       } catch (error) {
         console.error('验证用户状态失败:', error);
         // 验证失败时仍可访问公开页面
@@ -63,6 +65,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('认证状态变化:', event, session ? '已登录' : '未登录');
+      setSession(session);
       
       // 如果登出，跳转到首页
       if (event === 'SIGNED_OUT') {
@@ -76,7 +79,14 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }, [navigate]);
   
   if (isCheckingAuth) {
-    return <div className="flex items-center justify-center h-screen">正在加载...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+          <p>正在加载...</p>
+        </div>
+      </div>
+    );
   }
   
   return <>{children}</>;
