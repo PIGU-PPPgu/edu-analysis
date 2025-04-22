@@ -84,11 +84,46 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				gradient: {
+					'0%, 100%': { backgroundPosition: '0% 50%' },
+					'50%': { backgroundPosition: '100% 50%' },
+				},
+				'float-1': {
+					'0%, 100%': { transform: 'translate(0, 0)' },
+					'50%': { transform: 'translate(20px, -20px)' },
+				},
+				'float-2': {
+					'0%, 100%': { transform: 'translate(0, 0)' },
+					'50%': { transform: 'translate(-20px, 20px)' },
+				},
+				'float-3': {
+					'0%, 100%': { transform: 'translate(0, 0)' },
+					'50%': { transform: 'translate(15px, 15px)' },
+				},
+				'float-4': {
+					'0%, 100%': { transform: 'translate(0, 0)' },
+					'50%': { transform: 'translate(-15px, -15px)' },
+				},
+				'float-5': {
+					'0%, 100%': { transform: 'translate(0, 0)' },
+					'50%': { transform: 'translate(10px, -10px)' },
+				},
+				'float-6': {
+					'0%, 100%': { transform: 'translate(0, 0)' },
+					'50%': { transform: 'translate(-10px, 10px)' },
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				gradient: 'gradient 15s ease infinite',
+				'float-1': 'float-1 20s ease-in-out infinite',
+				'float-2': 'float-2 25s ease-in-out infinite',
+				'float-3': 'float-3 30s ease-in-out infinite',
+				'float-4': 'float-4 35s ease-in-out infinite',
+				'float-5': 'float-5 40s ease-in-out infinite',
+				'float-6': 'float-6 45s ease-in-out infinite',
 			}
 		}
 	},

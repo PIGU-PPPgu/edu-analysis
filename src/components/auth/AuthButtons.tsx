@@ -6,9 +6,10 @@ import { LogIn, MessageSquare } from "lucide-react";
 interface AuthButtonsProps {
   onLogin: () => Promise<void>;
   onWechatLogin: () => Promise<void>;
+  onFreeLogin?: () => void;
 }
 
-const AuthButtons = ({ onLogin, onWechatLogin }: AuthButtonsProps) => {
+const AuthButtons = ({ onLogin, onWechatLogin, onFreeLogin }: AuthButtonsProps) => {
   return (
     <div className="flex gap-4">
       <Button 
@@ -25,6 +26,13 @@ const AuthButtons = ({ onLogin, onWechatLogin }: AuthButtonsProps) => {
       >
         <MessageSquare className="h-4 w-4 mr-2" />
         微信登录
+      </Button>
+      <Button
+        variant="ghost"
+        className="flex items-center hover:bg-gray-100"
+        onClick={() => onFreeLogin?.()}
+      >
+        免登录体验
       </Button>
     </div>
   );

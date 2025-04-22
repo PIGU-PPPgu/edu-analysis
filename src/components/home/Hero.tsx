@@ -8,21 +8,26 @@ interface HeroProps {
   isLoggedIn: boolean;
   onLogin: () => Promise<void>;
   onWechatLogin: () => Promise<void>;
+  onFreeLogin?: () => void;
 }
 
-const Hero = ({ isLoggedIn, onLogin, onWechatLogin }: HeroProps) => {
+const Hero = ({ isLoggedIn, onLogin, onWechatLogin, onFreeLogin }: HeroProps) => {
   return (
     <div className="flex flex-col md:flex-row gap-12 items-center py-16">
       <div className="md:w-1/2 space-y-6">
-        <h1 className="text-5xl font-bold leading-tight">
+        <h1 className="text-5xl font-bold leading-tight text-white">
           让教育数据分析更简单
         </h1>
-        <p className="text-xl text-gray-600">
+        <p className="text-xl text-gray-100">
           智能分析学生成绩数据，提供个性化教学建议，助力教育工作者提升教学效果
         </p>
         <div className="pt-4 space-x-4">
           {!isLoggedIn && (
-            <AuthButtons onLogin={onLogin} onWechatLogin={onWechatLogin} />
+            <AuthButtons 
+              onLogin={onLogin} 
+              onWechatLogin={onWechatLogin}
+              onFreeLogin={onFreeLogin}
+            />
           )}
           {isLoggedIn && (
             <Button 
@@ -35,13 +40,7 @@ const Hero = ({ isLoggedIn, onLogin, onWechatLogin }: HeroProps) => {
           )}
         </div>
       </div>
-      <div className="md:w-1/2">
-        <img 
-          src="https://i.imgur.com/7M0kBdg.png"
-          alt="数据分析平台界面" 
-          className="rounded-lg shadow-xl border border-gray-100"
-        />
-      </div>
+      {/* Remove static image section since we now have animated background */}
     </div>
   );
 };
