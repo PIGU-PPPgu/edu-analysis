@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChartBar } from "lucide-react";
 import { AutoChart } from "@/components/ui/chart";
 import { toast } from "sonner";
-import { db } from "@/utils/auth";
+import { db } from "@/utils/dbUtils";
 
 interface Props {
   className?: string;

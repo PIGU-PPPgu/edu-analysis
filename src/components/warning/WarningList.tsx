@@ -63,6 +63,8 @@ const WarningList = () => {
     return <div>加载中...</div>;
   }
 
+  const warningStudents = warningData as WarningStudent[];
+
   return (
     <Card>
       <CardHeader>
@@ -85,7 +87,7 @@ const WarningList = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(warningData as WarningStudent[])?.map((student) => (
+            {warningStudents?.map((student) => (
               <TableRow key={student.student_id}>
                 <TableCell>
                   <div className="flex items-center gap-1">

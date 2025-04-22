@@ -76,77 +76,113 @@ export const db = {
   
   // 获取学生列表
   async getStudents() {
-    const { data, error } = await supabase
-      .from('students')
-      .select('*')
-      .order('class_name', { ascending: true });
-    
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .order('class_name', { ascending: true });
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('获取学生列表失败:', error);
+      toast.error('获取学生列表失败');
+      return [];
+    }
   },
   
   // 获取特定学生的所有成绩
   async getStudentGrades(studentId: string) {
-    const { data, error } = await supabase
-      .from('grades')
-      .select('*')
-      .eq('student_id', studentId)
-      .order('exam_date', { ascending: false });
-    
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase
+        .from('grades')
+        .select('*')
+        .eq('student_id', studentId)
+        .order('exam_date', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('获取学生成绩失败:', error);
+      toast.error('获取学生成绩失败');
+      return [];
+    }
   },
   
   // 获取班级的平均成绩
   async getClassAverages(className: string) {
-    const { data, error } = await supabase
-      .from('grades')
-      .select(`
-        subject,
-        score,
-        students!inner(class_name)
-      `)
-      .eq('students.class_name', className);
-    
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase
+        .from('grades')
+        .select(`
+          subject,
+          score,
+          students!inner(class_name)
+        `)
+        .eq('students.class_name', className);
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('获取班级平均成绩失败:', error);
+      toast.error('获取班级平均成绩失败');
+      return [];
+    }
   },
 
   // 科目相关操作
   async getSubjects() {
-    const { data, error } = await supabase
-      .from('subjects')
-      .select('*')
-      .order('subject_name', { ascending: true });
-    
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase
+        .from('subjects')
+        .select('*')
+        .order('subject_name', { ascending: true });
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('获取科目列表失败:', error);
+      toast.error('获取科目列表失败');
+      return [];
+    }
   },
 
   async upsertSubject(subjectData: {
     subject_code: string;
     subject_name: string;
   }) {
-    const { data, error } = await supabase
-      .from('subjects')
-      .upsert([subjectData], {
-        onConflict: 'subject_code'
-      })
-      .select();
-    
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase
+        .from('subjects')
+        .upsert([subjectData], {
+          onConflict: 'subject_code'
+        })
+        .select();
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('添加/更新科目失败:', error);
+      toast.error('操作失败: ' + error.message);
+      throw error;
+    }
   },
 
   // 班级相关操作
   async getClassInfo() {
-    const { data, error } = await supabase
-      .from('class_info')
-      .select('*')
-      .order('grade_level', { ascending: true });
-    
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase
+        .from('class_info')
+        .select('*')
+        .order('grade_level', { ascending: true });
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('获取班级信息失败:', error);
+      toast.error('获取班级信息失败');
+      return [];
+    }
   },
 
   async upsertClassInfo(classData: {
@@ -155,70 +191,94 @@ export const db = {
     academic_year: string;
     homeroom_teacher?: string;
   }) {
-    const { data, error } = await supabase
-      .from('class_info')
-      .upsert([classData], {
-        onConflict: 'class_name'
-      })
-      .select();
-    
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase
+        .from('class_info')
+        .upsert([classData], {
+          onConflict: 'class_name'
+        })
+        .select();
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('添加/更新班级信息失败:', error);
+      toast.error('操作失败: ' + error.message);
+      throw error;
+    }
   },
 
   // 扩展的成绩分析功能
   async getStudentPerformanceOverTime(studentId: string) {
-    const { data, error } = await supabase
-      .from('grades')
-      .select(`
-        *,
-        students!inner(
-          name,
-          class_name
-        )
-      `)
-      .eq('student_id', studentId)
-      .order('exam_date', { ascending: true });
-    
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase
+        .from('grades')
+        .select(`
+          *,
+          students!inner(
+            name,
+            class_name
+          )
+        `)
+        .eq('student_id', studentId)
+        .order('exam_date', { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('获取学生成绩趋势失败:', error);
+      toast.error('获取学生成绩趋势失败');
+      return [];
+    }
   },
 
   async getClassPerformanceBySubject(className: string) {
-    const { data, error } = await supabase
-      .from('grades')
-      .select(`
-        subject,
-        score,
-        exam_date,
-        exam_type,
-        students!inner(
-          name,
-          class_name
-        )
-      `)
-      .eq('students.class_name', className)
-      .order('exam_date', { ascending: true });
-    
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase
+        .from('grades')
+        .select(`
+          subject,
+          score,
+          exam_date,
+          exam_type,
+          students!inner(
+            name,
+            class_name
+          )
+        `)
+        .eq('students.class_name', className)
+        .order('exam_date', { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('获取班级学科成绩失败:', error);
+      toast.error('获取班级学科成绩失败');
+      return [];
+    }
   },
 
   async getSubjectPerformanceStats(subjectCode: string) {
-    const { data, error } = await supabase
-      .from('grades')
-      .select(`
-        score,
-        exam_date,
-        exam_type,
-        students!inner(
-          class_name
-        )
-      `)
-      .eq('subject', subjectCode);
-    
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase
+        .from('grades')
+        .select(`
+          score,
+          exam_date,
+          exam_type,
+          students!inner(
+            class_name
+          )
+        `)
+        .eq('subject', subjectCode);
+      
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('获取学科统计数据失败:', error);
+      toast.error('获取学科统计数据失败');
+      return [];
+    }
   },
 
   // 获取预警学生列表 (模拟数据，实际项目应使用真实RPC函数)

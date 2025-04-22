@@ -1,5 +1,5 @@
 
-import { supabase } from './auth';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 // 初始化数据库配置

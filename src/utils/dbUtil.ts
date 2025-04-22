@@ -1,5 +1,5 @@
 
-import { supabase } from './auth';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 // 执行SQL查询的通用函数
