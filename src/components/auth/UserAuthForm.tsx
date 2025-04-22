@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Form } from '@/components/ui/form';
 import { 
   Card, 
   CardContent, 
@@ -11,7 +10,6 @@ import {
   CardHeader, 
   CardTitle 
 } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { userAuthSchema } from '@/utils/validation';
 import { AuthFormData } from './types';
@@ -39,7 +37,7 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
   });
 
   const handleSendOTP = () => {
-    setOtpSent(true);
+    // 注意: 实际的OTP发送逻辑已移至AuthTabs组件
   };
 
   const handleSwitchMethod = () => {
@@ -68,6 +66,7 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
             authType={authType} 
             loginMethod={loginMethod}
             onAuthTypeChange={(v) => setAuthType(v as 'login' | 'register')}
+            onSuccess={onSuccess}
           />
         </AuthProvider>
       </CardContent>

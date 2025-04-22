@@ -62,7 +62,7 @@ const OTPLoginForm = () => {
       <Button
         type="submit"
         className="w-full bg-[#B9FF66] text-black hover:bg-[#a8e85c]"
-        disabled={isSubmitting || !otpSent}
+        disabled={isSubmitting || !form.getValues('otp')}
       >
         登录
       </Button>
