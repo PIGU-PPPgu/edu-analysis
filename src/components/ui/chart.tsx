@@ -1,5 +1,6 @@
 
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipProps } from "recharts";
 
 interface ChartConfig {
   [key: string]: {
@@ -30,5 +31,25 @@ export const ChartContainer = ({
         {children}
       </div>
     </div>
+  );
+};
+
+// Adding the ChartTooltip component that was missing
+export const ChartTooltip = (props: Partial<TooltipProps>) => {
+  return (
+    <Tooltip
+      contentStyle={{
+        backgroundColor: "hsl(var(--background))",
+        borderColor: "hsl(var(--border))",
+        borderRadius: "var(--radius)",
+      }}
+      labelStyle={{
+        color: "hsl(var(--foreground))"
+      }}
+      itemStyle={{
+        color: "hsl(var(--foreground))"
+      }}
+      {...props}
+    />
   );
 };

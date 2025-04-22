@@ -3,6 +3,7 @@ import React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend, ResponsiveContainer, Tooltip } from "recharts";
 import { ChartContainer } from "@/components/ui/chart";
+import { cn } from "@/lib/utils";
 
 interface CompetencyData {
   name: string;
