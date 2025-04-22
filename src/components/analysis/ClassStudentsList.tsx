@@ -7,44 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Link } from "react-router-dom";
 import { ChevronDown, ChevronUp, Search, User } from "lucide-react";
 
-// 模拟班级学生数据
-const generateStudentData = (classId: string, className: string, count: number) => {
-  const students = [];
-  const subjects = ["语文", "数学", "英语", "物理", "化学", "生物"];
-  
-  for (let i = 1; i <= count; i++) {
-    const studentId = `${classId}-${i.toString().padStart(3, '0')}`;
-    const randomScore = () => Math.floor(70 + Math.random() * 30);
-    
-    // 为每个学生生成各科成绩
-    const subjectScores = {};
-    let totalScore = 0;
-    
-    subjects.forEach(subject => {
-      const score = randomScore();
-      subjectScores[subject] = score;
-      totalScore += score;
-    });
-    
-    // 计算平均分
-    const averageScore = (totalScore / subjects.length).toFixed(1);
-    
-    // 生成成绩变化趋势 (正数表示上升，负数表示下降)
-    const trend = (Math.random() * 10 - 5).toFixed(1);
-    
-    students.push({
-      studentId,
-      name: `学生${i}`,
-      className,
-      averageScore: parseFloat(averageScore),
-      subjectScores,
-      trend: parseFloat(trend)
-    });
-  }
-  
-  return students;
-};
-
 interface ClassStudentsListProps {
   classId: string;
   className: string;
@@ -60,9 +22,9 @@ const ClassStudentsList: React.FC<ClassStudentsListProps> = ({
   const [sortField, setSortField] = useState<"name" | "averageScore">("averageScore");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   
-  const students = generateStudentData(classId, className, studentCount);
+  // 空数组替代模拟数据
+  const students = [];
   
-  // 搜索和排序学生
   const filteredStudents = students
     .filter(student => 
       student.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -170,7 +132,7 @@ const ClassStudentsList: React.FC<ClassStudentsListProps> = ({
         
         {filteredStudents.length === 0 && (
           <div className="flex justify-center items-center h-24 text-muted-foreground">
-            未找到匹配的学生
+            暂无学生数据
           </div>
         )}
       </CardContent>
