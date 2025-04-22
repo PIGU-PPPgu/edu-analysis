@@ -9,17 +9,41 @@ import { Switch } from "@/components/ui/switch";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CloudUpload, Database, Settings } from "lucide-react";
+import { CloudUpload, Database, Settings, Plus, Check } from "lucide-react";
 import { saveUserAIConfig, getUserAIConfig, getUserAPIKey } from "@/utils/userAuth";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface AIConnectorProps {
   onConnect: (apiKey: string, provider: string, enabled: boolean) => void;
 }
 
+interface CustomProvider {
+  id: string;
+  name: string;
+  endpoint: string;
+}
+
+const predefinedProviders = [
+  { id: "openai", name: "OpenAI", versions: ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"] },
+  { id: "anthropic", name: "Anthropic", versions: ["claude-3-opus", "claude-3-sonnet", "claude-3-haiku"] },
+  { id: "deepseek", name: "DeepSeek", versions: ["deepseek-chat", "deepseek-coder", "deepseek-v2", "deepseek-v3"] },
+  { id: "baichuan", name: "百川大模型", versions: ["baichuan-v1", "baichuan-v2"] },
+  { id: "qwen", name: "通义千问", versions: ["qwen-max", "qwen-plus", "qwen-lite"] },
+  { id: "moonshot", name: "Moonshot AI", versions: ["moonshot-v1", "moonshot-pro"] },
+  { id: "zhipu", name: "智谱 AI", versions: ["glm-4", "glm-3-turbo"] },
+  { id: "minimax", name: "MiniMax", versions: ["abab5.5", "abab6"] },
+];
+
 const AIConnector: React.FC<AIConnectorProps> = ({ onConnect }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState("openai");
+  const [selectedVersion, setSelectedVersion] = useState("");
+  const [customProviders, setCustomProviders] = useState<CustomProvider[]>([]);
+  const [showAddCustomDialog, setShowAddCustomDialog] = useState(false);
+  const [newCustomProvider, setNewCustomProvider] = useState<CustomProvider>({ id: "", name: "", endpoint: "" });
   
   const form = useForm({
     defaultValues: {
@@ -36,7 +60,26 @@ const AIConnector: React.FC<AIConnectorProps> = ({ onConnect }) => {
     if (savedConfig && savedKey) {
       setIsConnected(true);
       setSelectedProvider(savedConfig.provider);
+      if (savedConfig.version) {
+        setSelectedVersion(savedConfig.version);
+      } else {
+        // 设置默认版本
+        const providerInfo = predefinedProviders.find(p => p.id === savedConfig.provider);
+        if (providerInfo && providerInfo.versions.length > 0) {
+          setSelectedVersion(providerInfo.versions[0]);
+        }
+      }
       form.setValue("enabled", savedConfig.enabled);
+      
+      // 加载自定义提供商
+      if (savedConfig.customProviders) {
+        try {
+          setCustomProviders(JSON.parse(savedConfig.customProviders));
+        } catch (e) {
+          console.error("解析自定义提供商数据失败", e);
+          setCustomProviders([]);
+        }
+      }
       
       // 通知父组件已连接
       onConnect(savedKey, savedConfig.provider, savedConfig.enabled);
@@ -80,14 +123,16 @@ const AIConnector: React.FC<AIConnectorProps> = ({ onConnect }) => {
       await saveUserAIConfig({
         apiKey: data.apiKey,
         provider: selectedProvider,
-        enabled: data.enabled
+        version: selectedVersion,
+        enabled: data.enabled,
+        customProviders: JSON.stringify(customProviders)
       });
       
       setIsConnected(true);
       onConnect(data.apiKey, selectedProvider, data.enabled);
       
       toast.success("AI连接成功", {
-        description: `已成功连接到${getProviderName(selectedProvider)}`,
+        description: `已成功连接到${getProviderName(selectedProvider)}${selectedVersion ? ` (${selectedVersion})` : ''}`,
       });
     } catch (error) {
       toast.error(`AI配置保存失败: ${error.message || '请重试'}`);
@@ -95,13 +140,36 @@ const AIConnector: React.FC<AIConnectorProps> = ({ onConnect }) => {
   };
 
   const getProviderName = (provider: string) => {
-    switch (provider) {
-      case "openai": return "OpenAI";
-      case "deepseek": return "DeepSeek";
-      case "baichuan": return "百川大模型";
-      case "qwen": return "通义千问";
-      default: return provider;
+    const predefined = predefinedProviders.find(p => p.id === provider);
+    if (predefined) return predefined.name;
+    
+    const custom = customProviders.find(p => p.id === provider);
+    if (custom) return custom.name;
+    
+    return provider;
+  };
+  
+  const handleAddCustomProvider = () => {
+    if (!newCustomProvider.id || !newCustomProvider.name || !newCustomProvider.endpoint) {
+      toast.error("请填写完整的自定义模型信息");
+      return;
     }
+    
+    // 检查ID是否已存在
+    if ([...predefinedProviders.map(p => p.id), ...customProviders.map(p => p.id)].includes(newCustomProvider.id)) {
+      toast.error("模型ID已存在，请使用其他标识符");
+      return;
+    }
+    
+    setCustomProviders([...customProviders, newCustomProvider]);
+    setNewCustomProvider({ id: "", name: "", endpoint: "" });
+    setShowAddCustomDialog(false);
+    toast.success("自定义模型已添加");
+  };
+  
+  const handleDeleteCustomProvider = (id: string) => {
+    setCustomProviders(customProviders.filter(p => p.id !== id));
+    toast.success("自定义模型已删除");
   };
 
   return (
@@ -119,75 +187,166 @@ const AIConnector: React.FC<AIConnectorProps> = ({ onConnect }) => {
         {!isConnected ? (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <Tabs defaultValue={selectedProvider} className="w-full" 
-                onValueChange={(value) => setSelectedProvider(value)}>
-                <TabsList className="grid grid-cols-4 mb-4">
-                  <TabsTrigger value="openai">OpenAI</TabsTrigger>
-                  <TabsTrigger value="deepseek">DeepSeek</TabsTrigger>
-                  <TabsTrigger value="baichuan">百川大模型</TabsTrigger>
-                  <TabsTrigger value="qwen">通义千问</TabsTrigger>
-                </TabsList>
+              <div className="flex justify-between items-center mb-2">
+                <div className="font-medium">选择大模型提供商</div>
+                <Dialog open={showAddCustomDialog} onOpenChange={setShowAddCustomDialog}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="flex items-center gap-1">
+                      <Plus className="h-4 w-4" /> 添加自定义模型
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>添加自定义AI模型</DialogTitle>
+                      <DialogDescription>
+                        添加您自己的API端点和配置，以连接其他大语言模型。
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="custom-id">模型标识符 (ID)</Label>
+                        <Input
+                          id="custom-id"
+                          placeholder="例如: my-model"
+                          value={newCustomProvider.id}
+                          onChange={(e) => setNewCustomProvider(prev => ({...prev, id: e.target.value}))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="custom-name">模型名称</Label>
+                        <Input
+                          id="custom-name"
+                          placeholder="例如: 我的自定义模型"
+                          value={newCustomProvider.name}
+                          onChange={(e) => setNewCustomProvider(prev => ({...prev, name: e.target.value}))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="custom-endpoint">API 端点</Label>
+                        <Input
+                          id="custom-endpoint"
+                          placeholder="例如: https://api.example.com/v1/chat"
+                          value={newCustomProvider.endpoint}
+                          onChange={(e) => setNewCustomProvider(prev => ({...prev, endpoint: e.target.value}))}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setShowAddCustomDialog(false)}>取消</Button>
+                      <Button onClick={handleAddCustomProvider}>添加</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                {predefinedProviders.map(provider => (
+                  <Card 
+                    key={provider.id}
+                    className={`cursor-pointer p-3 hover:border-primary ${selectedProvider === provider.id ? 'border-primary bg-primary/5' : ''}`}
+                    onClick={() => {
+                      setSelectedProvider(provider.id);
+                      if (provider.versions.length > 0) {
+                        setSelectedVersion(provider.versions[0]);
+                      }
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="font-medium text-sm">{provider.name}</div>
+                      {selectedProvider === provider.id && (
+                        <Check className="h-4 w-4 text-primary" />
+                      )}
+                    </div>
+                  </Card>
+                ))}
                 
-                <TabsContent value="openai" className="space-y-4">
+                {customProviders.map(provider => (
+                  <div key={provider.id} className="relative">
+                    <Card 
+                      className={`cursor-pointer p-3 hover:border-primary ${selectedProvider === provider.id ? 'border-primary bg-primary/5' : ''}`}
+                      onClick={() => setSelectedProvider(provider.id)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="font-medium text-sm">{provider.name}</div>
+                        {selectedProvider === provider.id && (
+                          <Check className="h-4 w-4 text-primary" />
+                        )}
+                      </div>
+                    </Card>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="absolute top-1 right-1 h-6 w-6 p-0">
+                          <Settings className="h-3 w-3" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem onClick={() => handleDeleteCustomProvider(provider.id)}>
+                          删除
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                ))}
+              </div>
+              
+              {selectedProvider && (
+                <div className="space-y-2">
+                  {(() => {
+                    const current = predefinedProviders.find(p => p.id === selectedProvider);
+                    if (current && current.versions.length > 0) {
+                      return (
+                        <div className="space-y-2">
+                          <Label htmlFor="model-version">选择模型版本</Label>
+                          <Select 
+                            value={selectedVersion} 
+                            onValueChange={setSelectedVersion}
+                          >
+                            <SelectTrigger id="model-version">
+                              <SelectValue placeholder="选择模型版本" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {current.versions.map(version => (
+                                <SelectItem key={version} value={version}>
+                                  {version}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                  
                   <div className="space-y-2">
-                    <Label htmlFor="openai-key">OpenAI API密钥</Label>
+                    <Label htmlFor={`${selectedProvider}-key`}>API密钥</Label>
                     <Input 
-                      id="openai-key" 
+                      id={`${selectedProvider}-key`} 
                       type="password" 
-                      placeholder="sk-..." 
+                      placeholder="输入API密钥..."
                       {...form.register("apiKey")}
                     />
                     <p className="text-xs text-gray-500">
-                      获取您的OpenAI API密钥，系统将使用GPT-4分析您的教学数据
+                      {(() => {
+                        switch (selectedProvider) {
+                          case 'openai': return "获取您的OpenAI API密钥，用于GPT模型的数据分析";
+                          case 'anthropic': return "Anthropic提供的Claude模型，适用于教育场景分析";
+                          case 'deepseek': return "DeepSeek提供先进的中文理解能力，适合教育场景的数据分析";
+                          case 'baichuan': return "国产大模型，提供专业的教育领域知识和分析能力";
+                          case 'qwen': return "阿里云提供的大语言模型，拥有丰富的知识库和分析能力";
+                          case 'moonshot': return "Moonshot AI提供的高性能大语言模型";
+                          case 'zhipu': return "智谱AI提供的通用大语言模型";
+                          case 'minimax': return "MiniMax提供的ABAB系列大语言模型";
+                          default: {
+                            const custom = customProviders.find(p => p.id === selectedProvider);
+                            return custom ? `连接到自定义API端点: ${custom.endpoint}` : "请输入API密钥完成连接";
+                          }
+                        }
+                      })()}
                     </p>
                   </div>
-                </TabsContent>
-                
-                <TabsContent value="deepseek" className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="deepseek-key">DeepSeek API密钥</Label>
-                    <Input 
-                      id="deepseek-key" 
-                      type="password" 
-                      placeholder="sk-..." 
-                      {...form.register("apiKey")}
-                    />
-                    <p className="text-xs text-gray-500">
-                      DeepSeek提供先进的中文理解能力，适合教育场景的数据分析
-                    </p>
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="baichuan" className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="baichuan-key">百川大模型API密钥</Label>
-                    <Input 
-                      id="baichuan-key" 
-                      type="password" 
-                      placeholder="..." 
-                      {...form.register("apiKey")}
-                    />
-                    <p className="text-xs text-gray-500">
-                      国产大模型，提供专业的教育领域知识和分析能力
-                    </p>
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="qwen" className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="qwen-key">通义千问API密钥</Label>
-                    <Input 
-                      id="qwen-key" 
-                      type="password" 
-                      placeholder="..." 
-                      {...form.register("apiKey")}
-                    />
-                    <p className="text-xs text-gray-500">
-                      阿里云提供的大语言模型，拥有丰富的知识库和分析能力
-                    </p>
-                  </div>
-                </TabsContent>
-              </Tabs>
+                </div>
+              )}
 
               <FormField
                 control={form.control}
@@ -224,10 +383,13 @@ const AIConnector: React.FC<AIConnectorProps> = ({ onConnect }) => {
             <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
               <div className="flex items-center gap-3">
                 <div className="h-8 w-8 rounded-full bg-green-500 flex items-center justify-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <Check className="text-white h-4 w-4" />
                 </div>
                 <div>
-                  <p className="font-medium">已连接 {getProviderName(selectedProvider)}</p>
+                  <p className="font-medium">
+                    已连接 {getProviderName(selectedProvider)}
+                    {selectedVersion && <span className="text-sm text-gray-600 ml-1">({selectedVersion})</span>}
+                  </p>
                   <p className="text-xs text-gray-500">API密钥已安全加密存储</p>
                 </div>
               </div>
@@ -275,3 +437,4 @@ const AIConnector: React.FC<AIConnectorProps> = ({ onConnect }) => {
 };
 
 export default AIConnector;
+

@@ -77,11 +77,15 @@ export async function loginUser({
 export async function saveUserAIConfig({ 
   apiKey, 
   provider, 
-  enabled 
+  enabled,
+  version = '',
+  customProviders = ''
 }: { 
   apiKey: string; 
   provider: string; 
-  enabled: boolean 
+  enabled: boolean;
+  version?: string;
+  customProviders?: string;
 }) {
   try {
     if (!apiKey) {
@@ -96,13 +100,15 @@ export async function saveUserAIConfig({
     
     // 加密处理API密钥 - 这里只是示意，实际应在服务端加密
     const maskedKey = apiKey.substring(0, 3) + "..." + apiKey.substring(apiKey.length - 3);
-    console.log(`保存用户AI配置: 提供商=${provider}, 密钥=${maskedKey}, 启用=${enabled}`);
+    console.log(`保存用户AI配置: 提供商=${provider}, 版本=${version}, 密钥=${maskedKey}, 启用=${enabled}`);
     
     // 在localStorage中保存配置信息
     localStorage.setItem('aiConfig', JSON.stringify({
       provider,
+      version,
       keyValid: true,
       enabled,
+      customProviders,
       lastUpdated: new Date().toISOString()
     }));
     
@@ -113,8 +119,10 @@ export async function saveUserAIConfig({
     return {
       success: true,
       provider,
+      version,
       keyValid: true,
-      enabled
+      enabled,
+      customProviders
     };
   } catch (error) {
     console.error('保存AI配置失败:', error);
@@ -149,3 +157,4 @@ export function getUserAPIKey() {
     return null;
   }
 }
+
