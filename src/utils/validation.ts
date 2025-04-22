@@ -1,19 +1,9 @@
-
 import { z } from "zod";
 
 // 用户认证验证schema
 export const userAuthSchema = z.object({
-  phone: z.string().optional().refine(val => !val || /^1[3-9]\d{9}$/.test(val), {
-    message: "请输入有效的手机号码",
-  }),
-  email: z.string().optional().refine(val => !val || z.string().email().safeParse(val).success, {
-    message: "请输入有效的邮箱地址",
-  }),
+  email: z.string().email("请输入有效的邮箱地址"),
   password: z.string().min(6, "密码至少需要6个字符"),
-  otp: z.string().optional(),
-}).refine(data => data.phone || data.email, {
-  message: "手机号或邮箱至少提供一个",
-  path: ["phone"],
 });
 
 // 学生数据验证schema

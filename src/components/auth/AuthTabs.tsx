@@ -1,16 +1,16 @@
-import React, { useEffect } from 'react';
+
+import React from 'react';
 import { Form } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuthContext } from './AuthContext';
 import PasswordLoginForm from './PasswordLoginForm';
-import OTPLoginForm from './OTPLoginForm';
 import RegisterForm from './RegisterForm';
-import { loginUser, registerUser, verifyPhoneOTP, sendPhoneOTP } from '@/utils/userAuth';
+import { loginUser, registerUser } from '@/utils/userAuth';
 import { toast } from 'sonner';
 
 interface AuthTabsProps {
   authType: 'login' | 'register';
-  loginMethod: 'password' | 'otp';
+  loginMethod: 'password';
   onAuthTypeChange: (value: string) => void;
   onSuccess?: () => void;
 }

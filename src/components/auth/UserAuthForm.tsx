@@ -22,26 +22,24 @@ interface UserAuthFormProps {
 
 const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
   const [authType, setAuthType] = useState<'login' | 'register'>('login');
-  const [loginMethod, setLoginMethod] = useState<'password' | 'otp'>('password');
+  const [loginMethod, setLoginMethod] = useState<'password'>('password');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
 
   const form = useForm<AuthFormData>({
     resolver: zodResolver(userAuthSchema),
     defaultValues: {
-      phone: '',
       email: '',
       password: '',
-      otp: '',
     },
   });
 
   const handleSendOTP = () => {
-    // 注意: 实际的OTP发送逻辑已移至AuthTabs组件
+    // This function is kept for compatibility but has no actual functionality now
   };
 
   const handleSwitchMethod = () => {
-    setLoginMethod(loginMethod === 'password' ? 'otp' : 'password');
+    // This function is kept for compatibility but has no actual functionality now
   };
 
   return (
@@ -51,7 +49,7 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
           {authType === 'login' ? '用户登录' : '用户注册'}
         </CardTitle>
         <CardDescription className="text-center">
-          {authType === 'login' ? '使用手机号或邮箱登录' : '创建新账户'}
+          {authType === 'login' ? '使用邮箱登录' : '创建新账户'}
         </CardDescription>
       </CardHeader>
       <CardContent>
