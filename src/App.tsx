@@ -10,6 +10,7 @@ import StudentProfile from "./pages/StudentProfile";
 import StudentManagement from "./pages/StudentManagement";
 import ClassManagement from "./pages/ClassManagement";
 import AISettings from "./pages/AISettings";
+import WarningAnalysis from "./pages/WarningAnalysis";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,6 +24,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/grade-analysis" element={<GradeAnalysis />} />
+          <Route path="/warning-analysis" element={<WarningAnalysis />} />
           <Route path="/student-management" element={<StudentManagement />} />
           <Route path="/class-management" element={<ClassManagement />} />
           <Route path="/student-profile/:studentId" element={<StudentProfile />} />

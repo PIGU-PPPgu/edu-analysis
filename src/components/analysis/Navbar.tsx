@@ -39,6 +39,14 @@ const Navbar: React.FC = () => {
             成绩分析
           </Link>
           <Link
+            to="/warning-analysis"
+            className={`text-sm font-medium transition-colors hover:text-primary ${
+              isActive('/warning-analysis') ? 'text-primary' : 'text-muted-foreground'
+            }`}
+          >
+            预警分析
+          </Link>
+          <Link
             to="/student-profile/20230001"
             className={`text-sm font-medium transition-colors hover:text-primary ${
               isActive('/student-profile') ? 'text-primary' : 'text-muted-foreground'
