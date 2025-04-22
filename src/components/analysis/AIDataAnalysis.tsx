@@ -21,7 +21,6 @@ const AIDataAnalysis: React.FC<AIDataAnalysisProps> = ({ data, charts }) => {
     recommendations: string[];
   } | null>(null);
 
-  // 检查AI配置是否已设置
   const [aiConfigured, setAiConfigured] = useState(false);
 
   useEffect(() => {
@@ -31,7 +30,6 @@ const AIDataAnalysis: React.FC<AIDataAnalysisProps> = ({ data, charts }) => {
   }, []);
 
   const generateAnalysisPrompt = (data: any[]) => {
-    // 准备数据摘要
     const subjectScores: Record<string, number[]> = {};
     
     data.forEach(item => {
@@ -43,14 +41,12 @@ const AIDataAnalysis: React.FC<AIDataAnalysisProps> = ({ data, charts }) => {
       }
     });
     
-    // 计算每个学科的平均分
     const subjectAverages: Record<string, number> = {};
     Object.entries(subjectScores).forEach(([subject, scores]) => {
       const sum = scores.reduce((acc, score) => acc + score, 0);
       subjectAverages[subject] = sum / scores.length;
     });
     
-    // 构建提示词
     let prompt = `基于以下数据，为教师生成详细的教学分析报告。\n\n`;
     prompt += `学生成绩数据摘要：\n`;
     
@@ -65,13 +61,10 @@ const AIDataAnalysis: React.FC<AIDataAnalysisProps> = ({ data, charts }) => {
   };
   
   const mockAiRequest = async (prompt: string) => {
-    // 模拟API调用延迟
     await new Promise(resolve => setTimeout(resolve, 2000));
     
-    // 从数据中提取不同学科
     const subjects = [...new Set(data.map(item => item.subject).filter(Boolean))];
     
-    // 生成一些不同的分析结果
     const randomInsight = () => {
       const insights = [
         "成绩分布呈现正态分布，大部分学生集中在中等水平",
@@ -89,7 +82,7 @@ const AIDataAnalysis: React.FC<AIDataAnalysisProps> = ({ data, charts }) => {
       const recommendations = [
         "建议对学习方法不稳定的学生提供个性化辅导",
         "可考虑增加小组学习活动，促进学生间互助",
-        "针对薄弱环节，设计专项提升训练",
+        "针对薄弱环节，设计专项训练",
         "加强基础知识巩固，提高学生学习自信心",
         "建议与家长加强沟通，形成教育合力",
         "可适当增加实践性教学，提高学生学习兴趣",
@@ -98,7 +91,6 @@ const AIDataAnalysis: React.FC<AIDataAnalysisProps> = ({ data, charts }) => {
       return recommendations[Math.floor(Math.random() * recommendations.length)];
     };
     
-    // 生成不同的学科相关内容
     const subjectSpecificInsights = subjects.map(subject => 
       `${subject}科目成绩分布${Math.random() > 0.5 ? '较为集中' : '较为分散'}，${Math.random() > 0.5 ? '大部分学生掌握良好' : '存在两级分化现象'}`
     );
@@ -107,7 +99,6 @@ const AIDataAnalysis: React.FC<AIDataAnalysisProps> = ({ data, charts }) => {
       `在${subject}教学中可${Math.random() > 0.5 ? '增加互动环节' : '加强基础训练'}，提高学生${Math.random() > 0.5 ? '学习兴趣' : '掌握程度'}`
     );
     
-    // 构建动态分析结果
     return {
       overview: `整体数据显示学生成绩${Math.random() > 0.5 ? '分布均衡' : '存在差异'}，${
         Math.random() > 0.5 ? '大部分学生成绩在良好范围内' : '不同学科表现各有特点'
@@ -127,7 +118,6 @@ const AIDataAnalysis: React.FC<AIDataAnalysisProps> = ({ data, charts }) => {
     };
   };
 
-  // --- 新增: 真实AI分析请求 ---
   const generateAnalysis = async () => {
     if (data.length === 0) {
       toast.error("没有足够的数据进行分析");
@@ -147,7 +137,6 @@ const AIDataAnalysis: React.FC<AIDataAnalysisProps> = ({ data, charts }) => {
     setIsAnalyzing(true);
 
     try {
-      // 准备请求参数
       const language = aiConfig.language || "zh";
       const config = {
         provider: aiConfig.provider,
@@ -156,12 +145,11 @@ const AIDataAnalysis: React.FC<AIDataAnalysisProps> = ({ data, charts }) => {
         maxTokens: aiConfig.maxTokens ?? 2000,
         apiKey: apiKey
       };
-      // 优先用用户自定义prompt
+      
       const prompt =
         aiConfig.prompt ||
-        generateAnalysisPrompt(data, language);
+        generateAnalysisPrompt(data);
 
-      // 调用Supabase Edge Function
       const result = await performAIAnalysis({
         data,
         config,
@@ -169,7 +157,6 @@ const AIDataAnalysis: React.FC<AIDataAnalysisProps> = ({ data, charts }) => {
         language
       });
 
-      // 错误处理和提示
       if (result.error) {
         setAnalysis({
           overview: result.overview,
