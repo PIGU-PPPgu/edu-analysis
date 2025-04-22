@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -24,7 +23,50 @@ const IntelligentFileParser: React.FC<{
   const [parsedPreview, setParsedPreview] = useState<ParsedData | null>(null);
   const [isAIEnhanced, setIsAIEnhanced] = useState(true);
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const extractStudentInfo = (content: string, format: string) => {
+    const namePattern = /[姓名|名字][:：]?\s*([^\s,，.。\t\n]+)/;
+    const classPattern = /[班级][:：]?\s*([^\s,，.。\t\n]+)/;
+    const idPattern = /[学号|编号][:：]?\s*([^\s,，.。\t\n]+)/;
+    
+    let studentInfo = {
+      name: '',
+      className: '',
+      studentId: '',
+    };
+
+    if (format === 'CSV') {
+      const lines = content.split('\n');
+      const headers = lines[0].toLowerCase();
+      
+      if (headers.includes('姓名') || headers.includes('名字')) {
+        const nameIdx = headers.split(',').findIndex(h => h.includes('姓名') || h.includes('名字'));
+        studentInfo.name = lines[1].split(',')[nameIdx]?.trim() || '';
+      }
+      
+      if (headers.includes('班级')) {
+        const classIdx = headers.split(',').findIndex(h => h.includes('班级'));
+        studentInfo.className = lines[1].split(',')[classIdx]?.trim() || '';
+      }
+      
+      if (headers.includes('学号')) {
+        const idIdx = headers.split(',').findIndex(h => h.includes('学号'));
+        studentInfo.studentId = lines[1].split(',')[idIdx]?.trim() || '';
+      }
+    } else {
+      // 尝试从文本中提取信息
+      const nameMatch = content.match(namePattern);
+      const classMatch = content.match(classPattern);
+      const idMatch = content.match(idPattern);
+      
+      studentInfo.name = nameMatch?.[1] || '';
+      studentInfo.className = classMatch?.[1] || '';
+      studentInfo.studentId = idMatch?.[1] || '';
+    }
+    
+    return studentInfo;
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -32,39 +74,23 @@ const IntelligentFileParser: React.FC<{
     setParseProgress(0);
     setFileInfo({ name: file.name, size: file.size });
 
-    // 模拟解析进度
-    const progressInterval = setInterval(() => {
-      setParseProgress((prev) => {
-        if (prev >= 90) {
-          clearInterval(progressInterval);
-          return prev;
-        }
-        return prev + 10;
-      });
-    }, 200);
-
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
-        clearInterval(progressInterval);
         const content = e.target?.result as string;
-        
-        // 智能检测文件格式与结构
         const detectedFormat = detectFileFormat(file.name, content);
+        const studentInfo = extractStudentInfo(content, detectedFormat);
         const parsedData = parseFileContent(content, detectedFormat);
         
-        // AI增强解析 - 模拟
-        if (isAIEnhanced) {
-          setTimeout(() => {
-            toast.success("AI增强解析完成", {
-              description: "已通过AI智能分析优化数据结构和类型"
-            });
-          }, 1000);
-        }
+        // 合并学生信息和成绩数据
+        const enrichedData = parsedData.map(record => ({
+          ...record,
+          ...studentInfo,
+        }));
         
         setParsedPreview({
-          headers: Object.keys(parsedData[0] || {}),
-          data: parsedData.slice(0, 5),
+          headers: Object.keys(enrichedData[0] || {}),
+          data: enrichedData.slice(0, 5),
           detectedFormat,
           confidence: 95
         });
@@ -72,13 +98,12 @@ const IntelligentFileParser: React.FC<{
         setParseProgress(100);
         setTimeout(() => {
           setIsUploading(false);
-          onDataParsed(parsedData);
+          onDataParsed(enrichedData);
           toast.success("数据解析成功", {
-            description: `成功解析 ${parsedData.length} 条记录`
+            description: `已智能识别学生信息并解析 ${enrichedData.length} 条记录`
           });
         }, 500);
       } catch (error) {
-        clearInterval(progressInterval);
         console.error("解析文件失败:", error);
         setIsUploading(false);
         setParseProgress(0);
@@ -91,7 +116,6 @@ const IntelligentFileParser: React.FC<{
     reader.readAsText(file);
   };
 
-  // 智能检测文件格式
   const detectFileFormat = (fileName: string, content: string): string => {
     if (fileName.endsWith('.csv')) return 'CSV';
     if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) return 'Excel';
@@ -104,7 +128,6 @@ const IntelligentFileParser: React.FC<{
     return 'Unknown';
   };
 
-  // 解析文件内容
   const parseFileContent = (content: string, format: string): any[] => {
     if (format === 'CSV') {
       return parseCSV(content);
@@ -120,7 +143,6 @@ const IntelligentFileParser: React.FC<{
     }
   };
 
-  // 解析CSV
   const parseCSV = (content: string): any[] => {
     const lines = content.split('\n');
     const headers = lines[0].split(',').map(h => h.trim());
@@ -155,7 +177,6 @@ const IntelligentFileParser: React.FC<{
     return result;
   };
 
-  // 智能检测数据类型
   const detectDataTypes = (sampleLines: string[], headers: string[]): string[] => {
     const dataTypes = headers.map(() => 'string');
     
