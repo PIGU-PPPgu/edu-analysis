@@ -4,15 +4,19 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar, Tooltip, Legend } from "recharts";
 import { ChartContainer } from "@/components/ui/chart";
 import { useQuery } from "@tanstack/react-query";
-import { db } from "@/utils/auth";
+import { db } from "@/utils/dbUtils";
 import { toast } from "sonner";
+
+type RiskFactor = {
+  factor: string;
+  value: number;
+};
 
 const RiskFactorChart = () => {
   const { data: riskFactors, isLoading, error } = useQuery({
     queryKey: ['riskFactors'],
     queryFn: async () => {
-      const data = await db.getRiskFactors();
-      return data;
+      return await db.getRiskFactors();
     }
   });
 
@@ -34,7 +38,7 @@ const RiskFactorChart = () => {
       <CardContent className="h-[300px]">
         <ChartContainer>
           <ResponsiveContainer width="100%" height="100%">
-            <RadarChart data={riskFactors}>
+            <RadarChart data={riskFactors as RiskFactor[]}>
               <PolarGrid />
               <PolarAngleAxis dataKey="factor" />
               <Radar

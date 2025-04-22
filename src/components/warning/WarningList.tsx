@@ -6,8 +6,17 @@ import { Button } from "@/components/ui/button";
 import { AlertTriangle, Signal, SignalHigh, SignalMedium, SignalLow } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { db } from "@/utils/auth";
+import { db } from "@/utils/dbUtils";
 import { toast } from "sonner";
+
+type WarningStudent = {
+  student_id: string;
+  name: string;
+  risk_level: string;
+  warning_subjects: string[];
+  trend: string;
+  last_update: string;
+};
 
 const getRiskIcon = (level: string) => {
   switch (level) {
@@ -41,9 +50,7 @@ const WarningList = () => {
   const { data: warningData, isLoading, error } = useQuery({
     queryKey: ['warningStudents'],
     queryFn: async () => {
-      // 通过 SQL 函数获取预警学生数据
-      const data = await db.getStudentWarnings();
-      return data;
+      return await db.getStudentWarnings();
     }
   });
 
@@ -78,7 +85,7 @@ const WarningList = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {warningData?.map((student) => (
+            {(warningData as WarningStudent[])?.map((student) => (
               <TableRow key={student.student_id}>
                 <TableCell>
                   <div className="flex items-center gap-1">

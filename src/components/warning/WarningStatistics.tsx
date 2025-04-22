@@ -3,15 +3,21 @@ import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { db } from "@/utils/auth";
+import { db } from "@/utils/dbUtils";
 import { toast } from "sonner";
+
+type WarningStats = {
+  high_risk: number;
+  medium_risk: number;
+  low_risk: number;
+  total: number;
+};
 
 const WarningStatistics = () => {
   const { data: stats, isLoading, error } = useQuery({
     queryKey: ['warningStats'],
     queryFn: async () => {
-      const data = await db.getWarningStatistics();
-      return data;
+      return await db.getWarningStatistics();
     }
   });
 
@@ -23,6 +29,8 @@ const WarningStatistics = () => {
   if (isLoading) {
     return <div>加载中...</div>;
   }
+
+  const warningStats = stats as WarningStats;
 
   return (
     <Card>
@@ -36,19 +44,19 @@ const WarningStatistics = () => {
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">高风险学生</p>
-            <p className="text-2xl font-bold text-red-500">{stats?.high_risk || 0}</p>
+            <p className="text-2xl font-bold text-red-500">{warningStats?.high_risk || 0}</p>
           </div>
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">中风险学生</p>
-            <p className="text-2xl font-bold text-yellow-500">{stats?.medium_risk || 0}</p>
+            <p className="text-2xl font-bold text-yellow-500">{warningStats?.medium_risk || 0}</p>
           </div>
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">低风险学生</p>
-            <p className="text-2xl font-bold text-blue-500">{stats?.low_risk || 0}</p>
+            <p className="text-2xl font-bold text-blue-500">{warningStats?.low_risk || 0}</p>
           </div>
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">总预警数</p>
-            <p className="text-2xl font-bold">{stats?.total || 0}</p>
+            <p className="text-2xl font-bold">{warningStats?.total || 0}</p>
           </div>
         </div>
       </CardContent>

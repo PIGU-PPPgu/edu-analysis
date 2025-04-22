@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Users } from "lucide-react";
 import Navbar from "@/components/analysis/Navbar";
-import { supabase } from "@/utils/auth";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface Student {
@@ -26,7 +26,6 @@ const StudentManagement: React.FC = () => {
         setLoading(true);
         
         // 从Supabase获取学生数据
-        // 注意：您需要在Supabase中创建相应的表和数据
         const { data, error } = await supabase
           .from('students')
           .select('*');
