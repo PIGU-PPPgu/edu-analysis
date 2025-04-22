@@ -16,7 +16,7 @@ const AuthButtons = ({ onLogin, onWechatLogin }: AuthButtonsProps) => {
         onClick={onLogin}
       >
         <LogIn className="h-4 w-4 mr-2" />
-        登录
+        账号登录
       </Button>
       <Button 
         variant="outline" 
