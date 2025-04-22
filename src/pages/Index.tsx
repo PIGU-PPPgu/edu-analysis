@@ -1,10 +1,12 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Hero from "@/components/home/Hero";
 import Features from "@/components/home/Features";
 import AnimatedBackground from "@/components/home/AnimatedBackground";
 import { toast } from "sonner";
-import { supabase, signInWithWechat } from "@/utils/auth";
+import { supabase } from "@/utils/auth";
+import { loginUser } from "@/utils/userAuth";
 
 const Index = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -28,11 +30,20 @@ const Index = () => {
   }, []);
 
   const handleLogin = async () => {
+    navigate('/login');
+  };
+
+  const handleWechatLogin = async () => {
     try {
-      await signInWithWechat();
+      await supabase.auth.signInWithOAuth({
+        provider: 'wechat',
+        options: {
+          redirectTo: window.location.origin + '/auth/callback'
+        }
+      });
     } catch (error) {
-      console.error('登录失败:', error);
-      toast.error("登录失败，请重试");
+      console.error('微信登录失败:', error);
+      toast.error("微信登录失败，请重试");
     }
   };
 
@@ -47,7 +58,7 @@ const Index = () => {
         <Hero 
           isLoggedIn={isLoggedIn} 
           onLogin={handleLogin} 
-          onWechatLogin={handleLogin}
+          onWechatLogin={handleWechatLogin}
           onFreeLogin={handleFreeLogin}
         />
         <Features />
