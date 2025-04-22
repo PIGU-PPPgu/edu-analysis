@@ -21,8 +21,8 @@ const RoleGuard: React.FC<RoleGuardProps> = ({
   const { data: userRoles, isLoading } = useQuery({
     queryKey: ['userRoles'],
     queryFn: getCurrentUserRoles,
-    onSettled: (data, error) => {
-      if (error) {
+    meta: {
+      onError: () => {
         toast.error('无法验证用户权限');
         navigate('/login');
       }
