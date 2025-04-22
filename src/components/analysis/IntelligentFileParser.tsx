@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { toast } from "sonner";
 import * as XLSX from 'xlsx';
@@ -52,18 +53,18 @@ const IntelligentFileParser: React.FC<{
 }> = ({ onDataParsed }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [parseProgress, setParseProgress] = useState(0);
-  const [fileInfo, setFileInfo<{ name: string; size: number } | null>(null);
-  const [parsedPreview, setParsedPreview<ParsedData | null>(null);
+  const [fileInfo, setFileInfo] = useState<{ name: string; size: number } | null>(null);
+  const [parsedPreview, setParsedPreview] = useState<ParsedData | null>(null);
   const [isAIEnhanced, setIsAIEnhanced] = useState(true);
   const [showFieldMapping, setShowFieldMapping] = useState(false);
-  const [customFields, setCustomFields<CustomField[]>([]);
-  const [availableFields, setAvailableFields<string[]>([]);
+  const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const [availableFields, setAvailableFields] = useState<string[]>([]);
   const [saveToDatabase, setSaveToDatabase] = useState(true);
 
   const [showHeaderMapping, setShowHeaderMapping] = useState(false);
-  const [headerMappings, setHeaderMappings<Record<string, string>>({});
-  const [detectedHeaders, setDetectedHeaders<string[]>([]);
-  const [rawData, setRawData<any[]>([]);
+  const [headerMappings, setHeaderMappings] = useState<Record<string, string>>({});
+  const [detectedHeaders, setDetectedHeaders] = useState<string[]>([]);
+  const [rawData, setRawData] = useState<any[]>([]);
 
   const isBinaryContent = (content: string): boolean => {
     const binarySignatures = [
@@ -349,44 +350,6 @@ const IntelligentFileParser: React.FC<{
     });
   };
 
-  const handleConfirmMapping = () => {
-    if (!rawData || !headerMappings) return;
-    processDataWithMappings(rawData, headerMappings);
-  };
-
-  const updateHeaderMapping = (originalHeader: string, standardField: string) => {
-    setHeaderMappings(prev => ({
-      ...prev,
-      [originalHeader]: standardField
-    }));
-  };
-
-  const calculateConfidence = (headers: string[], format: string): number => {
-    let confidence = 70; // 基础置信度
-    
-    const recognizedFields = Object.values(standardFields).flat().filter(field => 
-      headers.some(h => h.toLowerCase().includes(field.toLowerCase()))
-    );
-    
-    confidence += Math.min(recognizedFields.length * 5, 20);
-    
-    if (format === 'CSV') confidence += 5;
-    if (format === 'Excel') confidence += 5;
-    
-    return Math.min(confidence, 98);
-  }
-
-  const detectFileFormat = (fileName: string, content: string): string => {
-    if (fileName.endsWith('.csv')) return 'CSV';
-    if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) return 'Excel';
-    if (fileName.endsWith('.json')) return 'JSON';
-    
-    if (content.includes(',') && content.includes('\n')) return 'CSV';
-    if (content.startsWith('{') || content.startsWith('[')) return 'JSON';
-    
-    return 'Unknown';
-  };
-
   const saveToSupabase = async (data: any[]) => {
     try {
       toast.info("正在保存数据到数据库...");
@@ -434,45 +397,37 @@ const IntelligentFileParser: React.FC<{
     }
   };
 
-  const handleConfirmMapping = () => {
-    if (!parsedPreview) return;
+  const updateHeaderMapping = (originalHeader: string, standardField: string) => {
+    setHeaderMappings(prev => ({
+      ...prev,
+      [originalHeader]: standardField
+    }));
+  };
+
+  const calculateConfidence = (headers: string[], format: string): number => {
+    let confidence = 70; // 基础置信度
     
-    const mappedData = parsedPreview.data.map(record => {
-      const mappedRecord: Record<string, any> = {};
-      
-      customFields.forEach(field => {
-        if (record[field.originalField] !== undefined) {
-          let value = record[field.originalField];
-          
-          if (field.dataType === 'number') {
-            value = parseFloat(value);
-          } else if (field.dataType === 'date') {
-            // 保持日期格式不变
-          }
-          
-          mappedRecord[field.mappedField] = value;
-        }
-      });
-      
-      Object.keys(record).forEach(key => {
-        if (!customFields.some(f => f.originalField === key)) {
-          mappedRecord[key] = record[key];
-        }
-      });
-      
-      return mappedRecord;
-    });
+    const recognizedFields = Object.values(standardFields).flat().filter(field => 
+      headers.some(h => h.toLowerCase().includes(field.toLowerCase()))
+    );
     
-    setShowFieldMapping(false);
-    onDataParsed(mappedData);
+    confidence += Math.min(recognizedFields.length * 5, 20);
     
-    if (saveToDatabase) {
-      saveToSupabase(mappedData);
-    }
+    if (format === 'CSV') confidence += 5;
+    if (format === 'Excel') confidence += 5;
     
-    toast.success("数据映射完成", {
-      description: `根据您的映射规则处理了 ${mappedData.length} 条记录`
-    });
+    return Math.min(confidence, 98);
+  };
+
+  const detectFileFormat = (fileName: string, content: string): string => {
+    if (fileName.endsWith('.csv')) return 'CSV';
+    if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) return 'Excel';
+    if (fileName.endsWith('.json')) return 'JSON';
+    
+    if (content.includes(',') && content.includes('\n')) return 'CSV';
+    if (content.startsWith('{') || content.startsWith('[')) return 'JSON';
+    
+    return 'Unknown';
   };
 
   const addCustomField = () => {
@@ -560,13 +515,13 @@ const IntelligentFileParser: React.FC<{
                   <FileText className="h-10 w-10 mx-auto text-gray-400 mb-4" />
                   <p className="text-lg font-medium mb-2">拖拽文件到此处或点击上传</p>
                   <p className="text-sm text-gray-500 mb-4">
-                    支持 CSV 文本文件，系统将自动识别并解析
+                    支持 CSV、Excel文件，系统将自动识别并解析
                   </p>
                   <label className="bg-[#B9FF66] gap-2.5 text-black font-medium hover:bg-[#a8e85c] transition-colors cursor-pointer px-5 py-3 rounded-[14px] inline-block">
                     选择文件
                     <Input
                       type="file"
-                      accept=".csv,.txt"
+                      accept=".csv,.txt,.xls,.xlsx"
                       className="hidden"
                       onChange={handleFileUpload}
                     />
@@ -616,7 +571,7 @@ const IntelligentFileParser: React.FC<{
                         重新上传
                         <Input
                           type="file"
-                          accept=".csv,.txt"
+                          accept=".csv,.txt,.xls,.xlsx"
                           className="hidden"
                           onChange={handleFileUpload}
                         />
@@ -645,7 +600,7 @@ const IntelligentFileParser: React.FC<{
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {parsedPreview.data.map((row, i) => (
+                        {parsedPreview.data.slice(0, 5).map((row, i) => (
                           <tr key={i}>
                             {parsedPreview.headers.map((header, j) => (
                               <td key={j} className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
@@ -726,7 +681,7 @@ const IntelligentFileParser: React.FC<{
                   <li>数字类型字段请勿包含非数字字符</li>
                   <li>日期格式推荐使用 YYYY/MM/DD 或 YYYY-MM-DD</li>
                   <li>如有特殊格式数据，系统将尝试智能解析或提供手动映射</li>
-                  <li>请使用纯文本CSV格式，不要直接上传Excel文件</li>
+                  <li>支持CSV和Excel格式文件导入</li>
                 </ul>
               </div>
             </div>
@@ -780,7 +735,7 @@ const IntelligentFileParser: React.FC<{
                   <SelectContent>
                     {Object.entries(standardFields).map(([field, aliases]) => (
                       <SelectItem key={field} value={field}>
-                        {field} ({aliases.join(', ')})
+                        {field} ({aliases[0]})
                       </SelectItem>
                     ))}
                     <SelectItem value="">忽略该字段</SelectItem>
@@ -794,3 +749,20 @@ const IntelligentFileParser: React.FC<{
             <Button 
               variant="outline" 
               onClick={() => setShowHeaderMapping(false)}
+            >
+              取消
+            </Button>
+            <Button 
+              onClick={() => processDataWithMappings(rawData, headerMappings)}
+              className="bg-[#B9FF66] text-black hover:bg-[#a8e85c]"
+            >
+              确认并继续
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+};
+
+export default IntelligentFileParser;
