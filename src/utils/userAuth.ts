@@ -1,5 +1,5 @@
 
-import { supabase } from './auth'
+import { supabase } from '@/integrations/supabase/client'
 import { validateData } from './validation'
 import { toast } from 'sonner'
 

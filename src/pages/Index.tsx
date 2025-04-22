@@ -5,7 +5,7 @@ import Hero from "@/components/home/Hero";
 import Features from "@/components/home/Features";
 import AnimatedBackground from "@/components/home/AnimatedBackground";
 import { toast } from "sonner";
-import { supabase } from "@/utils/auth";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 
 const Index = () => {
