@@ -6,9 +6,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { FileText, FileInput, TableIcon } from "lucide-react";
-import { ParsedData } from './types';
-import { isBinaryContent, parseCSV, parseExcel, standardFields } from './utils/fileParsingUtils';
+import { processAndSaveData } from "@/utils/dataStorage";
 import HeaderMappingDialog from './HeaderMappingDialog';
+import { parseCSV, parseExcel, standardFields } from './utils/fileParsingUtils';
+import { ParsedData } from './types';
 import FilePreviewTable from './FilePreviewTable';
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -143,12 +144,37 @@ const IntelligentFileParser: React.FC<IntelligentFileParserProps> = ({ onDataPar
     onDataParsed(processedData);
     
     if (saveToDatabase) {
-      // saveToSupabase(processedData);
+      saveToSupabase(processedData);
     }
     
     toast.success("数据解析成功", {
       description: `已智能识别并解析 ${processedData.length} 条记录`
     });
+  };
+  
+  const saveToSupabase = async (data: any[]) => {
+    try {
+      // 保存数据到数据库
+      const results = await processAndSaveData(data);
+      
+      if (results.failed > 0) {
+        toast.warning(`部分数据导入失败`, {
+          description: `成功: ${results.success}条, 失败: ${results.failed}条`
+        });
+      } else {
+        toast.success(`数据导入成功`, {
+          description: `已导入${results.success}条记录`
+        });
+      }
+    } catch (error) {
+      console.error("保存数据失败:", error);
+      toast.error("保存数据失败", {
+        description: error instanceof Error ? error.message : "无法保存数据"
+      });
+    } finally {
+      setIsUploading(false);
+      setParseProgress(0);
+    }
   };
 
   return (
