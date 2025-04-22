@@ -109,33 +109,79 @@ export async function processAndSaveData(data: any[]) {
   const results = {
     success: 0,
     failed: 0,
-    total: data.length
+    total: data.length,
+    errors: [] as string[]
   };
 
+  // 批量处理前先提取所有唯一的班级信息
+  const uniqueClasses = new Set<string>();
+  const classGrades = new Map<string, string>();
+  
+  data.forEach(record => {
+    const className = record.class_name || record.className || record.班级;
+    const grade = record.grade || record.年级;
+    if (className) {
+      uniqueClasses.add(className);
+      if (grade) classGrades.set(className, grade);
+    }
+  });
+
+  // 预先保存所有班级信息
+  const classIds = new Map<string, string>();
+  for (const className of uniqueClasses) {
+    try {
+      const classData = await saveClassData(className, classGrades.get(className) || '');
+      if (classData?.id) {
+        classIds.set(className, classData.id);
+      }
+    } catch (error) {
+      console.error('保存班级数据失败:', error);
+      results.errors.push(`班级 ${className} 保存失败`);
+    }
+  }
+
+  // 处理每条记录
   for (const record of data) {
     try {
-      // 尝试保存学生信息
-      await saveStudentData({
+      // 规范化学生信息
+      const studentData: StudentData = {
         student_id: record.student_id || record.studentId || record.学号,
         name: record.name || record.student_name || record.姓名,
         class_name: record.class_name || record.className || record.班级,
         grade: record.grade || record.年级
-      });
+      };
+
+      // 保存学生信息
+      const savedStudent = await saveStudentData(studentData);
+      if (!savedStudent) continue;
 
       // 保存成绩信息
-      await saveGradeData({
-        student_id: record.student_id || record.studentId || record.学号,
+      const gradeData: GradeData = {
+        student_id: studentData.student_id,
         subject: record.subject || record.科目,
         score: Number(record.score || record.分数),
         exam_date: record.exam_date || record.date || record.考试日期,
         exam_type: record.exam_type || record.type || record.考试类型
-      });
+      };
 
+      await saveGradeData(gradeData);
       results.success++;
     } catch (error) {
       console.error('处理数据记录失败:', error);
       results.failed++;
+      results.errors.push(`记录 ${record.student_id || record.学号} 处理失败`);
     }
+  }
+
+  // 显示处理结果通知
+  if (results.failed > 0) {
+    toast.warning(`部分数据导入失败`, {
+      description: `成功: ${results.success}条, 失败: ${results.failed}条`
+    });
+  } else {
+    toast.success(`数据导入成功`, {
+      description: `已导入${results.success}条记录`
+    });
   }
 
   return results;

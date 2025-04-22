@@ -1,48 +1,52 @@
 
-import React from 'react';
-import { Badge } from "@/components/ui/badge";
-import { standardFields } from './utils/fileParsingUtils';
-import { ParsedData } from './types';
+import React from "react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface FilePreviewTableProps {
-  parsedPreview: ParsedData;
+  data: any[];
+  headers: string[];
+  mappings: Record<string, string>;
 }
 
-const FilePreviewTable: React.FC<FilePreviewTableProps> = ({ parsedPreview }) => {
+const FilePreviewTable: React.FC<FilePreviewTableProps> = ({ data, headers, mappings }) => {
+  const previewData = data.slice(0, 5);
+
   return (
-    <div className="overflow-x-auto border rounded-lg">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            {parsedPreview.headers.map((header, i) => (
-              <th key={i} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                {header}
-                <div className="mt-1">
-                  {Object.entries(standardFields).map(([key, aliases]) => 
-                    aliases.some(alias => header.toLowerCase().includes(alias.toLowerCase())) && (
-                      <Badge key={key} variant="outline" className="text-[10px] mr-1" title={`已识别为${key}`}>
-                        {key}
-                      </Badge>
-                    )
-                  )}
-                </div>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {parsedPreview.data.slice(0, 5).map((row, i) => (
-            <tr key={i}>
-              {parsedPreview.headers.map((header, j) => (
-                <td key={j} className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                  {String(row[header] !== undefined ? row[header] : '')}
-                </td>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">数据预览</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {headers.map((header) => (
+                  <TableHead key={header}>
+                    {header}
+                    {mappings[header] && (
+                      <span className="block text-xs text-gray-500">
+                        映射为: {mappings[header]}
+                      </span>
+                    )}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {previewData.map((row, index) => (
+                <TableRow key={index}>
+                  {headers.map((header) => (
+                    <TableCell key={header}>{row[header]}</TableCell>
+                  ))}
+                </TableRow>
               ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 

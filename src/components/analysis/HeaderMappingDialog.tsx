@@ -1,9 +1,9 @@
 
-import React from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import React from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { standardFields } from './utils/fileParsingUtils';
 
 interface HeaderMappingDialogProps {
   open: boolean;
@@ -14,67 +14,77 @@ interface HeaderMappingDialogProps {
   onConfirm: () => void;
 }
 
+const standardFields = {
+  studentId: ["学号", "id", "student_id", "studentid", "student id"],
+  name: ["姓名", "name", "student_name"],
+  className: ["班级", "class", "class_name"],
+  grade: ["年级", "grade", "grade_level"],
+  subject: ["科目", "subject", "course"],
+  score: ["分数", "成绩", "score"],
+  examDate: ["考试日期", "日期", "date", "exam_date"],
+  examType: ["考试类型", "类型", "type", "exam_type"]
+};
+
 const HeaderMappingDialog: React.FC<HeaderMappingDialogProps> = ({
   open,
   onOpenChange,
   headers,
   mappings,
   onUpdateMapping,
-  onConfirm,
+  onConfirm
 }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>确认字段映射</DialogTitle>
-          <DialogDescription>
-            请确认检测到的字段与系统字段的对应关系
-          </DialogDescription>
+          <DialogTitle>字段映射</DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-          <div className="grid grid-cols-2 gap-4 font-medium text-sm bg-gray-50 p-2 rounded">
-            <div>原始字段</div>
-            <div>系统字段</div>
-          </div>
-          
-          {headers.map((header) => (
-            <div key={header} className="grid grid-cols-2 gap-4 items-center">
-              <div className="font-medium">{header}</div>
-              <Select
-                value={mappings[header] || ''}
-                onValueChange={(value) => onUpdateMapping(header, value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="选择对应的系统字段" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(standardFields).map(([field, aliases]) => (
-                    <SelectItem key={field} value={field}>
-                      {field} ({aliases[0]})
-                    </SelectItem>
-                  ))}
-                  <SelectItem key="ignore-field" value="ignore">忽略该字段</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          ))}
+        <div className="max-h-[60vh] overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>文件中的字段名</TableHead>
+                <TableHead>映射到系统字段</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {headers.map((header) => (
+                <TableRow key={header}>
+                  <TableCell>{header}</TableCell>
+                  <TableCell>
+                    <Select
+                      value={mappings[header] || ""}
+                      onValueChange={(value) => onUpdateMapping(header, value)}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="选择对应字段" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="studentId">学号</SelectItem>
+                        <SelectItem value="name">姓名</SelectItem>
+                        <SelectItem value="className">班级</SelectItem>
+                        <SelectItem value="grade">年级</SelectItem>
+                        <SelectItem value="subject">科目</SelectItem>
+                        <SelectItem value="score">分数</SelectItem>
+                        <SelectItem value="examDate">考试日期</SelectItem>
+                        <SelectItem value="examType">考试类型</SelectItem>
+                        <SelectItem value="ignore">忽略此字段</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
         
-        <DialogFooter>
-          <Button 
-            variant="outline" 
-            onClick={() => onOpenChange(false)}
-          >
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             取消
           </Button>
-          <Button 
-            onClick={onConfirm}
-            className="bg-[#B9FF66] text-black hover:bg-[#a8e85c]"
-          >
-            确认并继续
-          </Button>
-        </DialogFooter>
+          <Button onClick={onConfirm}>确认映射</Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
