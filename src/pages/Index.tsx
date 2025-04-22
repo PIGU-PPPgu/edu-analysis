@@ -6,6 +6,7 @@ import Features from "@/components/home/Features";
 import AnimatedBackground from "@/components/home/AnimatedBackground";
 import { toast } from "sonner";
 import { supabase } from "@/utils/auth";
+import { Button } from "@/components/ui/button";
 
 const Index = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -21,12 +22,17 @@ const Index = () => {
     
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       setIsLoggedIn(!!session);
+      
+      // 根据登录状态自动跳转
+      if (session) {
+        navigate('/grade-analysis');
+      }
     });
     
     return () => {
       data.subscription.unsubscribe();
     };
-  }, []);
+  }, [navigate]);
 
   const handleLogin = async () => {
     navigate('/login');
@@ -47,7 +53,17 @@ const Index = () => {
   };
 
   const handleFreeLogin = () => {
-    navigate('/grade-analysis');
+    // 添加游客模式，可能是使用匿名登录或预设测试账号
+    supabase.auth.signInWithPassword({
+      email: 'demo@edu-analysis.com',
+      password: 'DemoUser2024!'
+    }).then(({ data, error }) => {
+      if (error) {
+        toast.error('游客登录失败');
+      } else {
+        navigate('/grade-analysis');
+      }
+    });
   };
 
   return (
