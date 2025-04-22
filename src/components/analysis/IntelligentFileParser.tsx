@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { toast } from "sonner";
+import * as XLSX from 'xlsx';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -51,13 +52,18 @@ const IntelligentFileParser: React.FC<{
 }> = ({ onDataParsed }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [parseProgress, setParseProgress] = useState(0);
-  const [fileInfo, setFileInfo] = useState<{ name: string; size: number } | null>(null);
-  const [parsedPreview, setParsedPreview] = useState<ParsedData | null>(null);
+  const [fileInfo, setFileInfo<{ name: string; size: number } | null>(null);
+  const [parsedPreview, setParsedPreview<ParsedData | null>(null);
   const [isAIEnhanced, setIsAIEnhanced] = useState(true);
   const [showFieldMapping, setShowFieldMapping] = useState(false);
-  const [customFields, setCustomFields] = useState<CustomField[]>([]);
-  const [availableFields, setAvailableFields] = useState<string[]>([]);
+  const [customFields, setCustomFields<CustomField[]>([]);
+  const [availableFields, setAvailableFields<string[]>([]);
   const [saveToDatabase, setSaveToDatabase] = useState(true);
+
+  const [showHeaderMapping, setShowHeaderMapping] = useState(false);
+  const [headerMappings, setHeaderMappings<Record<string, string>>({});
+  const [detectedHeaders, setDetectedHeaders<string[]>([]);
+  const [rawData, setRawData<any[]>([]);
 
   const isBinaryContent = (content: string): boolean => {
     const binarySignatures = [
@@ -203,13 +209,18 @@ const IntelligentFileParser: React.FC<{
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const allowedTypes = ['text/csv', 'application/vnd.ms-excel', 'application/json', 'text/plain'];
+    const allowedTypes = [
+      'text/csv',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/plain'
+    ];
     const fileExtension = file.name.split('.').pop()?.toLowerCase();
     
     if (!allowedTypes.includes(file.type) && 
-        !['csv', 'xls', 'xlsx', 'json', 'txt'].includes(fileExtension || '')) {
+        !['csv', 'xls', 'xlsx', 'txt'].includes(fileExtension || '')) {
       toast.error("不支持的文件格式", {
-        description: "请上传CSV、Excel导出的CSV或JSON文件"
+        description: "请上传CSV、Excel(xls/xlsx)或文本文件"
       });
       return;
     }
@@ -218,95 +229,136 @@ const IntelligentFileParser: React.FC<{
     setParseProgress(0);
     setFileInfo({ name: file.name, size: file.size });
 
-    const reader = new FileReader();
-    
-    reader.onload = async (e) => {
-      try {
-        const content = e.target?.result as string;
-        
-        if (isBinaryContent(content)) {
-          throw new Error("检测到二进制文件内容，请上传文本格式的CSV文件");
-        }
-        
-        setParseProgress(30);
-        
-        const detectedFormat = detectFileFormat(file.name, content);
-        const { headers, data } = parseFileContent(content, detectedFormat);
-        
-        setParseProgress(60);
-        
-        const fieldMappings = extractStudentInfo(content, detectedFormat, headers);
-        
-        const enrichedData = data.map(record => {
-          const enriched: Record<string, any> = {};
-          
-          Object.keys(record).forEach(key => {
-            enriched[key] = record[key];
-          });
-          
-          for (const [key, index] of Object.entries(fieldMappings)) {
-            if (typeof index === 'number') {
-              enriched[key] = record[headers[index]];
-            }
-          }
-          
-          return enriched;
-        });
-        
-        setParseProgress(90);
-        
-        setParsedPreview({
-          headers,
-          data: enrichedData.slice(0, 5),
-          detectedFormat,
-          confidence: 95,
-        });
-        
-        setParseProgress(100);
-        
-        setTimeout(() => {
-          setIsUploading(false);
-          onDataParsed(enrichedData);
-          
-          if (saveToDatabase) {
-            saveToSupabase(enrichedData);
-          }
-          
-          toast.success("数据解析成功", {
-            description: `已智能识别并解析 ${enrichedData.length} 条记录`
-          });
-        }, 500);
-        
-      } catch (error) {
-        console.error("解析文件失败:", error);
-        setIsUploading(false);
-        setParseProgress(0);
-        toast.error("数据解析失败", {
-          description: error.message || "无法识别文件格式或内容不符合要求"
-        });
-      }
-    };
+    try {
+      let data: any[];
+      let headers: string[];
 
-    if (['csv', 'txt', 'json'].includes(fileExtension || '')) {
-      reader.readAsText(file);
-    } else {
-      const bufferReader = new FileReader();
-      bufferReader.onload = (bufferEvent) => {
-        const arrayBuffer = bufferEvent.target?.result as ArrayBuffer;
-        const bytes = new Uint8Array(arrayBuffer);
-        
-        if (bytes[0] === 0x50 && bytes[1] === 0x4B) {
-          toast.error("请上传文本格式的CSV文件", { 
-            description: "检测到二进制Excel文件，请先在Excel中另存为CSV格式" 
-          });
-          setIsUploading(false);
-          return;
+      if (fileExtension === 'csv' || fileExtension === 'txt') {
+        const content = await readFileAsText(file);
+        const { headers: csvHeaders, data: csvData } = parseCSV(content);
+        headers = csvHeaders;
+        data = csvData;
+      } else {
+        const buffer = await readFileAsArrayBuffer(file);
+        const { headers: excelHeaders, data: excelData } = await parseExcel(buffer);
+        headers = excelHeaders;
+        data = excelData;
+      }
+
+      setParseProgress(50);
+      setDetectedHeaders(headers);
+      setRawData(data);
+
+      // 检查标准字段与检测到的字段的匹配度
+      const initialMappings: Record<string, string> = {};
+      const matchedFields = new Set<string>();
+      
+      headers.forEach(header => {
+        for (const [standardField, aliases] of Object.entries(standardFields)) {
+          if (aliases.some(alias => 
+            header.toLowerCase().includes(alias.toLowerCase())
+          )) {
+            initialMappings[header] = standardField;
+            matchedFields.add(standardField);
+            break;
+          }
         }
-        
-        reader.readAsText(file);
-      };
-      bufferReader.readAsArrayBuffer(file.slice(0, 8));
+      });
+
+      // 如果有未匹配的标准字段或不确定的字段，显示映射对话框
+      if (matchedFields.size < Object.keys(standardFields).length || 
+          headers.some(h => !initialMappings[h])) {
+        setHeaderMappings(initialMappings);
+        setShowHeaderMapping(true);
+      } else {
+        // 所有字段都已正确匹配，直接处理数据
+        processDataWithMappings(data, initialMappings);
+      }
+
+      setParseProgress(100);
+      
+    } catch (error) {
+      console.error("解析文件失败:", error);
+      toast.error("文件解析失败", {
+        description: error instanceof Error ? error.message : "无法解析文件内容"
+      });
+      setIsUploading(false);
+      setParseProgress(0);
     }
+  };
+
+  const readFileAsText = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target?.result as string);
+      reader.onerror = reject;
+      reader.readAsText(file);
+    });
+  };
+
+  const readFileAsArrayBuffer = (file: File): Promise<ArrayBuffer> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target?.result as ArrayBuffer);
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(file);
+    });
+  };
+
+  const parseExcel = async (buffer: ArrayBuffer) => {
+    const workbook = XLSX.read(buffer, { type: 'array' });
+    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+    
+    if (data.length < 2) {
+      throw new Error("Excel文件为空或格式不正确");
+    }
+
+    const headers = data[0] as string[];
+    const rows = data.slice(1).map(row => {
+      const obj: Record<string, any> = {};
+      (row as any[]).forEach((cell, index) => {
+        obj[headers[index]] = cell;
+      });
+      return obj;
+    });
+
+    return { headers, data: rows };
+  };
+
+  const processDataWithMappings = (data: any[], mappings: Record<string, string>) => {
+    const processedData = data.map(row => {
+      const newRow: Record<string, any> = {};
+      Object.entries(mappings).forEach(([originalHeader, mappedField]) => {
+        if (mappedField && row[originalHeader] !== undefined) {
+          newRow[mappedField] = row[originalHeader];
+        }
+      });
+      return newRow;
+    });
+
+    setShowHeaderMapping(false);
+    onDataParsed(processedData);
+    
+    if (saveToDatabase) {
+      saveToSupabase(processedData);
+    }
+    
+    toast.success("数据解析成功", {
+      description: `已智能识别并解析 ${processedData.length} 条记录`
+    });
+  };
+
+  const handleConfirmMapping = () => {
+    if (!rawData || !headerMappings) return;
+    processDataWithMappings(rawData, headerMappings);
+  };
+
+  const updateHeaderMapping = (originalHeader: string, standardField: string) => {
+    setHeaderMappings(prev => ({
+      ...prev,
+      [originalHeader]: standardField
+    }));
   };
 
   const calculateConfidence = (headers: string[], format: string): number => {
@@ -700,103 +752,45 @@ const IntelligentFileParser: React.FC<{
         </Tabs>
       </CardContent>
 
-      <Dialog open={showFieldMapping} onOpenChange={setShowFieldMapping}>
+      <Dialog open={showHeaderMapping} onOpenChange={setShowHeaderMapping}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>自定义字段映射</DialogTitle>
+            <DialogTitle>确认字段映射</DialogTitle>
             <DialogDescription>
-              您可以自定义数据字段与系统字段的映射关系
+              请确认检测到的字段与系统字段的对应关系
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-            <div className="grid grid-cols-12 gap-2 font-medium text-sm bg-gray-50 p-2 rounded">
-              <div className="col-span-5">原始字段</div>
-              <div className="col-span-5">映射字段</div>
-              <div className="col-span-2">数据类型</div>
+            <div className="grid grid-cols-2 gap-4 font-medium text-sm bg-gray-50 p-2 rounded">
+              <div>原始字段</div>
+              <div>系统字段</div>
             </div>
             
-            {customFields.map((field, index) => (
-              <div key={index} className="grid grid-cols-12 gap-2 items-center">
-                <div className="col-span-5">
-                  <Select 
-                    value={field.originalField}
-                    onValueChange={(value) => updateCustomField(index, { originalField: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="选择原始字段" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableFields.map((f) => (
-                        <SelectItem key={f} value={f}>{f}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="col-span-5">
-                  <Input 
-                    value={field.mappedField}
-                    onChange={(e) => updateCustomField(index, { mappedField: e.target.value })}
-                    placeholder="映射为系统字段"
-                  />
-                </div>
-                <div className="col-span-1">
-                  <Select 
-                    value={field.dataType}
-                    onValueChange={(value) => updateCustomField(index, { dataType: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {fieldTypes.map((type) => (
-                        <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="col-span-1 text-right">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => removeCustomField(index)}
-                    className="h-8 w-8 p-0"
-                  >
-                    ✕
-                  </Button>
-                </div>
+            {detectedHeaders.map((header) => (
+              <div key={header} className="grid grid-cols-2 gap-4 items-center">
+                <div className="font-medium">{header}</div>
+                <Select
+                  value={headerMappings[header] || ''}
+                  onValueChange={(value) => updateHeaderMapping(header, value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="选择对应的系统字段" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(standardFields).map(([field, aliases]) => (
+                      <SelectItem key={field} value={field}>
+                        {field} ({aliases.join(', ')})
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="">忽略该字段</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             ))}
-            
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={addCustomField} 
-              className="w-full"
-            >
-              添加字段映射
-            </Button>
           </div>
           
           <DialogFooter>
             <Button 
               variant="outline" 
-              onClick={() => setShowFieldMapping(false)}
-            >
-              取消
-            </Button>
-            <Button 
-              className="bg-[#B9FF66] text-black hover:bg-[#a8e85c]"
-              onClick={handleConfirmMapping}
-              disabled={customFields.some(f => !f.mappedField || !f.originalField)}
-            >
-              确认映射
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </Card>
-  );
-};
-
-export default IntelligentFileParser;
+              onClick={() => setShowHeaderMapping(false)}
