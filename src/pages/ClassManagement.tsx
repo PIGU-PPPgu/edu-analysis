@@ -4,6 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ClassProfileCard from "@/components/analysis/ClassProfileCard";
 import HeatmapChart from "@/components/analysis/HeatmapChart";
+import ClassTrendChart from "@/components/analysis/ClassTrendChart";
+import ClassWeaknessAnalysis from "@/components/analysis/ClassWeaknessAnalysis";
+import ClassReportGenerator from "@/components/analysis/ClassReportGenerator";
+import ClassStudentsList from "@/components/analysis/ClassStudentsList";
 import Navbar from "@/components/analysis/Navbar";
 import { Button } from "@/components/ui/button";
 import { FileText, Users } from "lucide-react";
@@ -61,17 +65,36 @@ const mockClasses = [
 
 const ClassManagement: React.FC = () => {
   const [selectedTab, setSelectedTab] = React.useState("overview");
+  const [selectedClass, setSelectedClass] = React.useState(mockClasses[0]);
+  const [detailTab, setDetailTab] = React.useState("analysis");
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className="container mx-auto px-4 py-6">
         <Tabs defaultValue="overview" className="space-y-6" value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-3 gap-4">
-            <TabsTrigger value="overview">班级总览</TabsTrigger>
-            <TabsTrigger value="comparison">班级对比</TabsTrigger>
-            <TabsTrigger value="detail">班级详情</TabsTrigger>
-          </TabsList>
+          <div className="flex justify-between items-center mb-2">
+            <TabsList className="grid w-full max-w-[600px] grid-cols-3 gap-4">
+              <TabsTrigger value="overview">班级总览</TabsTrigger>
+              <TabsTrigger value="comparison">班级对比</TabsTrigger>
+              <TabsTrigger value="detail">班级详情</TabsTrigger>
+            </TabsList>
+
+            {selectedTab === "detail" && (
+              <div className="flex gap-2">
+                {mockClasses.map((classData) => (
+                  <Button 
+                    key={classData.id} 
+                    variant={selectedClass.id === classData.id ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedClass(classData)}
+                  >
+                    {classData.className}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </div>
 
           <TabsContent value="overview" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -99,7 +122,10 @@ const ClassManagement: React.FC = () => {
                       </div>
                     </div>
                     <Button variant="outline" className="w-full mt-4" size="sm" asChild>
-                      <Link to={`#${classData.id}`} onClick={() => setSelectedTab("detail")}>
+                      <Link to={`#${classData.id}`} onClick={() => {
+                        setSelectedTab("detail");
+                        setSelectedClass(classData);
+                      }}>
                         查看详情
                       </Link>
                     </Button>
@@ -114,7 +140,7 @@ const ClassManagement: React.FC = () => {
               <Button asChild>
                 <Link to="/student-management">
                   <FileText className="mr-2 h-4 w-4" />
-                  生成班级报告
+                  查看学生管理
                 </Link>
               </Button>
             </div>
@@ -126,12 +152,12 @@ const ClassManagement: React.FC = () => {
               description="各班级在不同维度上的表现对比" 
             />
 
-            <Card>
-              <CardHeader>
-                <CardTitle>班级间学生表现对比</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>班级间学生表现对比</CardTitle>
+                </CardHeader>
+                <CardContent>
                   <div className="bg-muted p-4 rounded-md">
                     <h3 className="font-medium mb-2">高二(1)班 vs 高二(2)班</h3>
                     <p className="text-sm text-muted-foreground">
@@ -140,25 +166,62 @@ const ClassManagement: React.FC = () => {
                       两个班级的整体平均分相差2.5分，高二(1)班略高。
                     </p>
                   </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>教学建议</CardTitle>
+                </CardHeader>
+                <CardContent>
                   <div className="bg-muted p-4 rounded-md">
-                    <h3 className="font-medium mb-2">教学建议</h3>
                     <p className="text-sm text-muted-foreground">
                       建议高二(1)班加强数学和物理教学，可以借鉴高二(2)班的教学方法；
                       高二(2)班需要提升语文和英语水平，可以通过阅读训练和口语练习来改善。
                       两个班级可以进行学习经验交流活动，取长补短。
                     </p>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <ClassTrendChart className="高二(1)班" />
+              <ClassTrendChart className="高二(2)班" />
+            </div>
           </TabsContent>
 
           <TabsContent value="detail" className="space-y-6">
-            {mockClasses.map((classData) => (
-              <div key={classData.id} id={classData.id}>
-                <ClassProfileCard classData={classData} />
-              </div>
-            ))}
+            <div id={selectedClass.id}>
+              <ClassProfileCard classData={selectedClass} />
+            </div>
+            
+            <Tabs value={detailTab} onValueChange={setDetailTab}>
+              <TabsList className="w-full max-w-[400px] mb-6">
+                <TabsTrigger value="analysis">班级分析</TabsTrigger>
+                <TabsTrigger value="students">学生列表</TabsTrigger>
+                <TabsTrigger value="report">报告生成</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="analysis" className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <ClassTrendChart className={selectedClass.className} />
+                  <ClassWeaknessAnalysis className={selectedClass.className} />
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="students">
+                <ClassStudentsList 
+                  classId={selectedClass.id}
+                  className={selectedClass.className}
+                  studentCount={selectedClass.studentCount}
+                />
+              </TabsContent>
+              
+              <TabsContent value="report">
+                <ClassReportGenerator className={selectedClass.className} />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
         </Tabs>
       </main>
