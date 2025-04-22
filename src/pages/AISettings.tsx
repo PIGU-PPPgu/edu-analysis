@@ -1,16 +1,37 @@
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
 import AIConnector from "@/components/analysis/AIConnector";
 import Navbar from "@/components/analysis/Navbar";
+import { getUserAIConfig } from "@/utils/userAuth";
 
 const AISettings: React.FC = () => {
+  const [aiConfig, setAiConfig] = useState<any>(null);
+  
+  useEffect(() => {
+    // 获取保存的AI配置
+    const savedConfig = getUserAIConfig();
+    setAiConfig(savedConfig);
+  }, []);
+
   const handleAIConnect = (apiKey: string, provider: string, enabled: boolean) => {
     console.log(`AI配置已更新：${provider}`);
+    setAiConfig({ provider, enabled, lastUpdated: new Date().toISOString() });
+    
     toast.success("AI配置已保存", {
-      description: `已成功连接到${provider}`,
+      description: `已成功连接到${getProviderName(provider)}`,
     });
+  };
+  
+  const getProviderName = (provider: string) => {
+    switch (provider) {
+      case "openai": return "OpenAI";
+      case "deepseek": return "DeepSeek";
+      case "baichuan": return "百川大模型";
+      case "qwen": return "通义千问";
+      default: return provider;
+    }
   };
 
   return (
@@ -66,6 +87,17 @@ const AISettings: React.FC = () => {
                   </ul>
                 </Card>
               </div>
+              
+              {aiConfig && (
+                <div className="p-4 bg-gray-50 border rounded-lg mt-4">
+                  <p className="text-sm font-medium">当前AI配置信息</p>
+                  <div className="mt-2 text-sm text-gray-600">
+                    <p>• 使用模型: {getProviderName(aiConfig.provider)}</p>
+                    <p>• 分析状态: {aiConfig.enabled ? '已启用' : '已禁用'}</p>
+                    <p>• 更新时间: {new Date(aiConfig.lastUpdated).toLocaleString()}</p>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

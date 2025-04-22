@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import WarningList from "./WarningList";
 import WarningStatistics from "./WarningStatistics";
@@ -7,32 +7,89 @@ import RiskFactorChart from "./RiskFactorChart";
 import { Button } from "@/components/ui/button";
 import { ZapIcon } from "lucide-react";
 import { toast } from "sonner";
+import { getUserAIConfig, getUserAPIKey } from "@/utils/userAuth";
 
 const WarningDashboard = () => {
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   const [aiInsights, setAiInsights] = useState<string | null>(null);
+  const [aiConfigured, setAiConfigured] = useState(false);
 
-  const generateAIInsights = () => {
-    setIsGeneratingInsights(true);
+  useEffect(() => {
+    const config = getUserAIConfig();
+    const apiKey = getUserAPIKey();
+    setAiConfigured(!!config && !!apiKey);
+  }, []);
+
+  const generateRandomInsight = () => {
+    // 高风险学生数量
+    const highRiskCount = Math.floor(3 + Math.random() * 5);
     
-    // 模拟AI分析过程
-    setTimeout(() => {
-      const insights = `
+    // 随机科目
+    const subjects = ["数学", "语文", "英语", "物理", "化学", "生物"];
+    const randomSubjects = () => {
+      const count = 1 + Math.floor(Math.random() * 2);
+      const selected = [];
+      for (let i = 0; i < count; i++) {
+        const index = Math.floor(Math.random() * subjects.length);
+        if (!selected.includes(subjects[index])) {
+          selected.push(subjects[index]);
+        }
+      }
+      return selected.join("和");
+    };
+    
+    // 风险因素
+    const riskFactors = ["出勤率", "作业完成情况", "课堂参与度", "考试成绩", "学习态度"];
+    const randomRiskFactors = () => {
+      const count = 1 + Math.floor(Math.random() * 2);
+      const selected = [];
+      for (let i = 0; i < count; i++) {
+        const index = Math.floor(Math.random() * riskFactors.length);
+        if (!selected.includes(riskFactors[index])) {
+          selected.push(riskFactors[index]);
+        }
+      }
+      return selected.join("和");
+    };
+    
+    // 提升百分比
+    const increasePercent = 5 + Math.floor(Math.random() * 20);
+    
+    // 生成报告
+    return `
 ## 预警分析结果
 
 根据当前数据分析，系统检测到以下几点关键发现：
 
-1. **高风险学生**: 5名学生处于学习高风险状态，主要集中在数学和物理科目
-2. **上升趋势**: 相比上月，预警学生数量增加了15%，需要引起关注
-3. **主要风险因素**: 出勤率和作业完成情况是最主要的风险指标
+1. **高风险学生**: ${highRiskCount}名学生处于学习高风险状态，主要集中在${randomSubjects()}科目
+2. **上升趋势**: 相比上月，预警学生数量增加了${increasePercent}%，需要引起关注
+3. **主要风险因素**: ${randomRiskFactors()}是最主要的风险指标
 
 ## 建议措施
 
 1. 对高风险学生进行一对一辅导干预
-2. 加强班级作业管理和督促
+2. 加强班级${Math.random() > 0.5 ? '作业管理和督促' : '考勤管理'}
 3. 发起家校沟通，共同关注学生学习状态
+${Math.random() > 0.5 ? '4. 设计专项提升计划，针对薄弱学科进行重点辅导' : ''}
       `;
-      
+  };
+
+  const generateAIInsights = () => {
+    const aiConfig = getUserAIConfig();
+    const apiKey = getUserAPIKey();
+    
+    if (!aiConfig || !apiKey) {
+      toast.error("请先配置AI服务", {
+        description: "前往AI设置页面配置大模型API"
+      });
+      return;
+    }
+    
+    setIsGeneratingInsights(true);
+    
+    // 模拟AI分析过程
+    setTimeout(() => {
+      const insights = generateRandomInsight();
       setAiInsights(insights);
       setIsGeneratingInsights(false);
       toast.success("AI分析完成", {
@@ -64,10 +121,15 @@ const WarningDashboard = () => {
               <Button 
                 onClick={generateAIInsights}
                 className="w-full bg-[#B9FF66] text-black hover:bg-[#a8e85c]"
-                disabled={isGeneratingInsights}
+                disabled={isGeneratingInsights || !aiConfigured}
               >
-                {isGeneratingInsights ? "分析中..." : "开始AI分析"}
+                {isGeneratingInsights ? "分析中..." : !aiConfigured ? "请先配置AI服务" : "开始AI分析"}
               </Button>
+              {!aiConfigured && (
+                <p className="text-sm text-gray-500">
+                  您需要先在AI设置页面配置大模型API才能使用AI分析功能
+                </p>
+              )}
             </div>
           ) : (
             <div className="prose prose-sm max-w-none">

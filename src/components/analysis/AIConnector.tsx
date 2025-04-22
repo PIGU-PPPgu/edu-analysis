@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel } fr
 import { useForm } from "react-hook-form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CloudUpload, Database, Settings } from "lucide-react";
+import { saveUserAIConfig, getUserAIConfig, getUserAPIKey } from "@/utils/userAuth";
 
 interface AIConnectorProps {
   onConnect: (apiKey: string, provider: string, enabled: boolean) => void;
@@ -17,6 +18,7 @@ interface AIConnectorProps {
 
 const AIConnector: React.FC<AIConnectorProps> = ({ onConnect }) => {
   const [isConnected, setIsConnected] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState("openai");
   
   const form = useForm({
@@ -26,17 +28,70 @@ const AIConnector: React.FC<AIConnectorProps> = ({ onConnect }) => {
     },
   });
 
-  const onSubmit = (data: { apiKey: string; enabled: boolean }) => {
+  // 检查是否已有保存的配置
+  useEffect(() => {
+    const savedConfig = getUserAIConfig();
+    const savedKey = getUserAPIKey();
+    
+    if (savedConfig && savedKey) {
+      setIsConnected(true);
+      setSelectedProvider(savedConfig.provider);
+      form.setValue("enabled", savedConfig.enabled);
+      
+      // 通知父组件已连接
+      onConnect(savedKey, savedConfig.provider, savedConfig.enabled);
+    }
+  }, []);
+
+  const validateApiKey = async (apiKey: string, provider: string): Promise<boolean> => {
+    setIsValidating(true);
+    // 实际环境中应该验证API密钥有效性
+    try {
+      // 模拟API验证延迟
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // 这里应该实际验证API密钥，简化处理为长度检查
+      const isValid = apiKey.length > 8;
+      
+      if (!isValid) {
+        toast.error("API密钥无效，请检查后重试");
+      }
+      
+      return isValid;
+    } catch (error) {
+      toast.error(`验证API密钥失败: ${error.message}`);
+      return false;
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  const onSubmit = async (data: { apiKey: string; enabled: boolean }) => {
     if (!data.apiKey) {
       toast.error("请输入API密钥");
       return;
     }
     
-    setIsConnected(true);
-    onConnect(data.apiKey, selectedProvider, data.enabled);
-    toast.success("AI连接成功", {
-      description: `已成功连接到${getProviderName(selectedProvider)}`,
-    });
+    const isValid = await validateApiKey(data.apiKey, selectedProvider);
+    if (!isValid) return;
+    
+    try {
+      // 保存配置
+      await saveUserAIConfig({
+        apiKey: data.apiKey,
+        provider: selectedProvider,
+        enabled: data.enabled
+      });
+      
+      setIsConnected(true);
+      onConnect(data.apiKey, selectedProvider, data.enabled);
+      
+      toast.success("AI连接成功", {
+        description: `已成功连接到${getProviderName(selectedProvider)}`,
+      });
+    } catch (error) {
+      toast.error(`AI配置保存失败: ${error.message || '请重试'}`);
+    }
   };
 
   const getProviderName = (provider: string) => {
@@ -64,7 +119,7 @@ const AIConnector: React.FC<AIConnectorProps> = ({ onConnect }) => {
         {!isConnected ? (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <Tabs defaultValue="openai" className="w-full" 
+              <Tabs defaultValue={selectedProvider} className="w-full" 
                 onValueChange={(value) => setSelectedProvider(value)}>
                 <TabsList className="grid grid-cols-4 mb-4">
                   <TabsTrigger value="openai">OpenAI</TabsTrigger>
@@ -155,8 +210,12 @@ const AIConnector: React.FC<AIConnectorProps> = ({ onConnect }) => {
                 )}
               />
 
-              <Button type="submit" className="w-full bg-[#B9FF66] text-black hover:bg-[#a8e85c]">
-                连接AI服务
+              <Button 
+                type="submit" 
+                className="w-full bg-[#B9FF66] text-black hover:bg-[#a8e85c]"
+                disabled={isValidating}
+              >
+                {isValidating ? "验证中..." : "连接AI服务"}
               </Button>
             </form>
           </Form>
