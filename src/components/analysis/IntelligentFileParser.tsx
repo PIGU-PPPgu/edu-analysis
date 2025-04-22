@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -28,7 +27,6 @@ interface CustomField {
   dataType: string;
 }
 
-// 标准字段定义
 const standardFields = {
   studentId: ["学号", "id", "student_id", "studentid", "student id", "编号"],
   name: ["姓名", "name", "student_name", "studentname", "student name", "名字"],
@@ -62,44 +60,122 @@ const IntelligentFileParser: React.FC<{
   const [saveToDatabase, setSaveToDatabase] = useState(true);
 
   const extractStudentInfo = (content: string, format: string, headers: string[]) => {
-    // 智能识别学生信息字段
     const studentInfo: Record<string, any> = {};
     
-    if (format === 'CSV' || format === 'Excel') {
-      const lines = content.split('\n');
-      
-      // 智能匹配标准字段
-      for (const [fieldKey, fieldAliases] of Object.entries(standardFields)) {
-        const matchedHeaderIndex = headers.findIndex(header => 
-          fieldAliases.some(alias => header.toLowerCase().includes(alias.toLowerCase()))
-        );
-        
-        if (matchedHeaderIndex !== -1) {
-          // 找到匹配字段，在数据的第一行获取对应值
-          if (lines.length > 1) {
-            const values = lines[1].split(',');
-            if (values.length > matchedHeaderIndex) {
-              studentInfo[fieldKey] = values[matchedHeaderIndex]?.trim() || '';
-            }
-          }
+    const fieldPatterns = {
+      studentId: /学号|学生号|id|student[-_]?id/i,
+      name: /姓名|名字|student[-_]?name/i,
+      className: /班级|class/i,
+      subject: /科目|学科|subject/i,
+      score: /分数|成绩|得分|score|grade|mark/i,
+      examDate: /考试日期|考试时间|exam[-_]?date/i,
+      examType: /考试类型|exam[-_]?type/i
+    };
+    
+    headers.forEach((header, index) => {
+      for (const [fieldKey, pattern] of Object.entries(fieldPatterns)) {
+        if (pattern.test(header)) {
+          studentInfo[fieldKey] = index;
+          break;
         }
       }
-    } else {
-      // 文本模式下尝试提取信息
-      const namePattern = /[姓名|名字][:：]?\s*([^\s,，.。\t\n]+)/;
-      const classPattern = /[班级][:：]?\s*([^\s,，.。\t\n]+)/;
-      const idPattern = /[学号|编号][:：]?\s*([^\s,，.。\t\n]+)/;
-      
-      const nameMatch = content.match(namePattern);
-      const classMatch = content.match(classPattern);
-      const idMatch = content.match(idPattern);
-      
-      if (nameMatch) studentInfo.name = nameMatch[1];
-      if (classMatch) studentInfo.className = classMatch[1];
-      if (idMatch) studentInfo.studentId = idMatch[1];
-    }
+    });
     
     return studentInfo;
+  };
+
+  const detectDataTypes = (sampleLines: string[], headers: string[]): string[] => {
+    const dataTypes = headers.map(() => ({ 
+      type: 'string',
+      confidence: 0
+    }));
+    
+    sampleLines.forEach(line => {
+      const values = line.split(',');
+      
+      values.forEach((value, index) => {
+        if (index >= dataTypes.length) return;
+        
+        const trimmedValue = value.trim();
+        
+        if (!isNaN(parseFloat(trimmedValue)) && isFinite(Number(trimmedValue))) {
+          dataTypes[index].confidence += 1;
+          if (dataTypes[index].type !== 'number') {
+            dataTypes[index].type = 'number';
+          }
+        }
+        
+        const datePatterns = [
+          /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/,
+          /^\d{1,2}[-/]\d{1,2}[-/]\d{4}$/,
+          /^\d{4}年\d{1,2}月\d{1,2}日$/
+        ];
+        
+        if (datePatterns.some(pattern => pattern.test(trimmedValue))) {
+          dataTypes[index].confidence += 1;
+          dataTypes[index].type = 'date';
+        }
+      });
+    });
+    
+    return dataTypes.map(dt => dt.type);
+  };
+
+  const parseFileContent = (content: string, format: string): { headers: string[], data: any[] } => {
+    if (format === 'CSV') {
+      return parseCSV(content);
+    } else if (format === 'JSON') {
+      try {
+        const jsonData = JSON.parse(content);
+        const arrayData = Array.isArray(jsonData) ? jsonData : [jsonData];
+        const headers = arrayData.length > 0 ? Object.keys(arrayData[0]) : [];
+        return { headers, data: arrayData };
+      } catch (e) {
+        toast.error("无法解析JSON数据");
+        throw new Error("无法解析JSON数据");
+      }
+    } else {
+      try {
+        return parseCSV(content);
+      } catch {
+        toast.error("无法识别文件格式");
+        throw new Error("无法解析文件内容");
+      }
+    }
+  };
+
+  const parseCSV = (content: string): { headers: string[], data: any[] } => {
+    const lines = content.split('\n').filter(line => line.trim() !== '');
+    if (lines.length === 0) throw new Error("文件为空");
+    
+    const headers = lines[0].split(',').map(h => h.trim());
+    
+    const dataTypes = detectDataTypes(lines.slice(1, Math.min(10, lines.length)), headers);
+    
+    const result = [];
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      
+      const values = line.split(',');
+      const obj: Record<string, any> = {};
+      
+      headers.forEach((header, index) => {
+        let value = values[index]?.trim() || '';
+        
+        if (dataTypes[index] === 'number') {
+          obj[header] = isNaN(parseFloat(value)) ? value : parseFloat(value);
+        } else if (dataTypes[index] === 'date') {
+          obj[header] = value;
+        } else {
+          obj[header] = value;
+        }
+      });
+      
+      result.push(obj);
+    }
+    
+    return { headers, data: result };
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -116,73 +192,50 @@ const IntelligentFileParser: React.FC<{
         const content = e.target?.result as string;
         const detectedFormat = detectFileFormat(file.name, content);
         
-        // 解析文件内容和表头
+        setParseProgress(30);
+        
         const { headers, data } = parseFileContent(content, detectedFormat);
-        setAvailableFields(headers);
         
-        // 提取学生信息
-        const studentInfo = extractStudentInfo(content, detectedFormat, headers);
+        setParseProgress(60);
         
-        // 检查是否需要手动映射字段
-        const needMapping = !Object.keys(standardFields).every(field => 
-          headers.some(header => 
-            standardFields[field as keyof typeof standardFields].some(alias => 
-              header.toLowerCase().includes(alias.toLowerCase())
-            )
-          )
-        );
+        const fieldMappings = extractStudentInfo(content, detectedFormat, headers);
         
-        if (needMapping && headers.length > 0) {
-          // 预先进行自动映射
-          const initialMappings: CustomField[] = [];
+        const enrichedData = data.map(record => {
+          const enriched: Record<string, any> = {};
           
-          for (const [fieldKey, fieldAliases] of Object.entries(standardFields)) {
-            const matchedHeader = headers.find(header => 
-              fieldAliases.some(alias => header.toLowerCase().includes(alias.toLowerCase()))
-            );
-            
-            if (matchedHeader) {
-              initialMappings.push({
-                originalField: matchedHeader,
-                mappedField: fieldKey,
-                dataType: fieldKey === 'score' ? 'number' : fieldKey.includes('Date') ? 'date' : 'text'
-              });
+          for (const [key, index] of Object.entries(fieldMappings)) {
+            if (typeof index === 'number') {
+              enriched[key] = record[headers[index]];
             }
           }
           
-          setCustomFields(initialMappings);
-          setShowFieldMapping(true);
-        }
+          return enriched;
+        });
         
-        // 合并学生信息和成绩数据
-        const enrichedData = data.map(record => ({
-          ...record,
-          ...studentInfo,
-        }));
+        setParseProgress(90);
         
         setParsedPreview({
           headers,
           data: enrichedData.slice(0, 5),
           detectedFormat,
-          confidence: calculateConfidence(headers, detectedFormat),
+          confidence: 95,
         });
         
         setParseProgress(100);
         
-        if (!needMapping) {
-          setTimeout(() => {
-            setIsUploading(false);
-            onDataParsed(enrichedData);
-            if (saveToDatabase) {
-              saveToSupabase(enrichedData);
-            }
-            toast.success("数据解析成功", {
-              description: `已智能识别学生信息并解析 ${enrichedData.length} 条记录`
-            });
-          }, 500);
-        } else {
+        setTimeout(() => {
           setIsUploading(false);
-        }
+          onDataParsed(enrichedData);
+          
+          if (saveToDatabase) {
+            saveToSupabase(enrichedData);
+          }
+          
+          toast.success("数据解析成功", {
+            description: `已智能识别并解析 ${enrichedData.length} 条记录`
+          });
+        }, 500);
+        
       } catch (error) {
         console.error("解析文件失败:", error);
         setIsUploading(false);
@@ -197,17 +250,14 @@ const IntelligentFileParser: React.FC<{
   };
 
   const calculateConfidence = (headers: string[], format: string): number => {
-    // 计算识别置信度
     let confidence = 70; // 基础置信度
     
-    // 根据识别到的标准字段数量增加置信度
     const recognizedFields = Object.values(standardFields).flat().filter(field => 
       headers.some(h => h.toLowerCase().includes(field.toLowerCase()))
     );
     
     confidence += Math.min(recognizedFields.length * 5, 20);
     
-    // 根据格式类型调整置信度
     if (format === 'CSV') confidence += 5;
     if (format === 'Excel') confidence += 5;
     
@@ -219,104 +269,16 @@ const IntelligentFileParser: React.FC<{
     if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) return 'Excel';
     if (fileName.endsWith('.json')) return 'JSON';
     
-    // 内容分析
     if (content.includes(',') && content.includes('\n')) return 'CSV';
     if (content.startsWith('{') || content.startsWith('[')) return 'JSON';
     
     return 'Unknown';
   };
 
-  const parseFileContent = (content: string, format: string): { headers: string[], data: any[] } => {
-    if (format === 'CSV') {
-      return parseCSV(content);
-    } else if (format === 'JSON') {
-      try {
-        const jsonData = JSON.parse(content);
-        const arrayData = Array.isArray(jsonData) ? jsonData : [jsonData];
-        const headers = arrayData.length > 0 ? Object.keys(arrayData[0]) : [];
-        return { headers, data: arrayData };
-      } catch (e) {
-        throw new Error("无法解析JSON数据");
-      }
-    } else {
-      // 尝试智能解析
-      try {
-        return parseCSV(content);
-      } catch {
-        throw new Error("无法解析文件内容");
-      }
-    }
-  };
-
-  const parseCSV = (content: string): { headers: string[], data: any[] } => {
-    const lines = content.split('\n').filter(line => line.trim() !== '');
-    if (lines.length === 0) throw new Error("文件为空");
-    
-    const headers = lines[0].split(',').map(h => h.trim());
-    
-    // 智能检测数据类型
-    const dataTypes = detectDataTypes(lines.slice(1, Math.min(10, lines.length)), headers);
-    
-    const result = [];
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-      
-      const values = line.split(',');
-      const obj: Record<string, any> = {};
-      
-      headers.forEach((header, index) => {
-        let value = values[index]?.trim() || '';
-        
-        // 根据检测的数据类型转换
-        if (dataTypes[index] === 'number') {
-          obj[header] = isNaN(parseFloat(value)) ? value : parseFloat(value);
-        } else if (dataTypes[index] === 'date') {
-          obj[header] = value; // 保留原始日期字符串
-        } else {
-          obj[header] = value;
-        }
-      });
-      
-      result.push(obj);
-    }
-    
-    return { headers, data: result };
-  };
-
-  const detectDataTypes = (sampleLines: string[], headers: string[]): string[] => {
-    const dataTypes = headers.map(() => 'string');
-    
-    sampleLines.forEach(line => {
-      const values = line.split(',');
-      
-      values.forEach((value, index) => {
-        if (index >= dataTypes.length) return;
-        
-        const trimmedValue = value.trim();
-        
-        // 数字检测
-        if (!isNaN(parseFloat(trimmedValue)) && isFinite(Number(trimmedValue))) {
-          if (dataTypes[index] === 'string') {
-            dataTypes[index] = 'number';
-          }
-        }
-        
-        // 日期检测 (简单版)
-        if (/\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(trimmedValue)) {
-          dataTypes[index] = 'date';
-        }
-      });
-    });
-    
-    return dataTypes;
-  };
-
   const saveToSupabase = async (data: any[]) => {
     try {
       toast.info("正在保存数据到数据库...");
       
-      // 1. 保存学生信息
       const studentsToSave = Array.from(new Set(data.map(item => item.studentId)))
         .map(studentId => {
           const studentRecord = data.find(item => item.studentId === studentId);
@@ -327,7 +289,6 @@ const IntelligentFileParser: React.FC<{
           };
         });
         
-      // 2. 保存成绩数据
       const gradesData = data.map(item => ({
         student_id: item.studentId,
         subject: item.subject || '',
@@ -336,7 +297,6 @@ const IntelligentFileParser: React.FC<{
         exam_type: item.examType || '未知',
       }));
       
-      // 批量upsert学生数据
       if (studentsToSave.length > 0) {
         const { error: studentsError } = await supabase
           .from('students')
@@ -345,7 +305,6 @@ const IntelligentFileParser: React.FC<{
         if (studentsError) throw studentsError;
       }
       
-      // 批量插入成绩数据
       if (gradesData.length > 0) {
         const { error: gradesError } = await supabase
           .from('grades')
@@ -366,16 +325,13 @@ const IntelligentFileParser: React.FC<{
   const handleConfirmMapping = () => {
     if (!parsedPreview) return;
     
-    // 应用字段映射
     const mappedData = parsedPreview.data.map(record => {
       const mappedRecord: Record<string, any> = {};
       
-      // 应用自定义字段映射
       customFields.forEach(field => {
         if (record[field.originalField] !== undefined) {
           let value = record[field.originalField];
           
-          // 根据数据类型转换
           if (field.dataType === 'number') {
             value = parseFloat(value);
           } else if (field.dataType === 'date') {
@@ -386,7 +342,6 @@ const IntelligentFileParser: React.FC<{
         }
       });
       
-      // 保留未映射的字段
       Object.keys(record).forEach(key => {
         if (!customFields.some(f => f.originalField === key)) {
           mappedRecord[key] = record[key];
@@ -684,7 +639,6 @@ const IntelligentFileParser: React.FC<{
         </Tabs>
       </CardContent>
 
-      {/* 字段映射对话框 */}
       <Dialog open={showFieldMapping} onOpenChange={setShowFieldMapping}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
