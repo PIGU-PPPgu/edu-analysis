@@ -1,35 +1,17 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
-import { toast } from "sonner";
 import Navbar from "../components/analysis/Navbar";
 import StudentGradeTrend from "../components/analysis/StudentGradeTrend";
 import ClassComparison from "../components/analysis/ClassComparison";
-
-interface StudentData {
-  studentId: string;
-  name: string;
-  className?: string;
-  age?: number;
-  scores: {
-    subject: string;
-    score: number;
-    examDate?: string;
-    examType?: string;
-  }[];
-}
+import ScoreSummary from "../components/profile/ScoreSummary";
+import ScoreChart from "../components/profile/ScoreChart";
+import AbilityRadar from "../components/profile/AbilityRadar";
+import { StudentData } from "../components/profile/types";
+import { Check } from "lucide-react";
 
 const mockStudentData: StudentData = {
   studentId: "20230001",
@@ -46,22 +28,11 @@ const mockStudentData: StudentData = {
   ]
 };
 
-// 能力维度评估数据
-const abilityRadarData = [
-  { ability: "阅读理解", value: 85 },
-  { ability: "数学运算", value: 90 },
-  { ability: "逻辑思维", value: 75 },
-  { ability: "记忆能力", value: 95 },
-  { ability: "创新思维", value: 65 },
-  { ability: "沟通表达", value: 80 },
-];
-
 const StudentProfile: React.FC = () => {
   const { studentId } = useParams<{ studentId: string }>();
   const [student, setStudent] = useState<StudentData | null>(null);
 
   useEffect(() => {
-    // 在实际应用中，这里应该从API获取学生数据
     setStudent(mockStudentData);
   }, [studentId]);
 
@@ -119,105 +90,14 @@ const StudentProfile: React.FC = () => {
                 
                 <TabsContent value="overview">
                   <div className="space-y-6">
-                    <div className="grid grid-cols-4 gap-4">
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm font-medium text-gray-500">平均分</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="text-2xl font-bold">
-                            {(student.scores.reduce((sum, score) => sum + score.score, 0) / student.scores.length).toFixed(1)}
-                          </div>
-                        </CardContent>
-                      </Card>
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm font-medium text-gray-500">最高分</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="text-2xl font-bold">
-                            {Math.max(...student.scores.map(s => s.score))}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {student.scores.find(s => s.score === Math.max(...student.scores.map(s => s.score)))?.subject}
-                          </div>
-                        </CardContent>
-                      </Card>
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm font-medium text-gray-500">最低分</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="text-2xl font-bold">
-                            {Math.min(...student.scores.map(s => s.score))}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {student.scores.find(s => s.score === Math.min(...student.scores.map(s => s.score)))?.subject}
-                          </div>
-                        </CardContent>
-                      </Card>
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm font-medium text-gray-500">班级排名</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="text-2xl font-bold">5</div>
-                          <div className="text-xs text-gray-500">超过90%同学</div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                    
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-base">各科目成绩</CardTitle>
-                        <CardDescription>该学生在各学科的得分情况</CardDescription>
-                      </CardHeader>
-                      <CardContent className="h-72">
-                        <ChartContainer config={{
-                          score: { color: "#B9FF66" }
-                        }}>
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart
-                              data={student.scores}
-                              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                            >
-                              <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis dataKey="subject" />
-                              <YAxis domain={[0, 100]} />
-                              <ChartTooltip />
-                              <Legend />
-                              <Bar dataKey="score" name="分数" fill="#B9FF66" />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </ChartContainer>
-                      </CardContent>
-                    </Card>
+                    <ScoreSummary student={student} />
+                    <ScoreChart student={student} />
                   </div>
                 </TabsContent>
                 
                 <TabsContent value="ability">
                   <div className="space-y-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-base">学习能力雷达图</CardTitle>
-                        <CardDescription>多维度评估学生各方面能力</CardDescription>
-                      </CardHeader>
-                      <CardContent className="h-80">
-                        <ChartContainer config={{
-                          score: { color: "#8884d8" }
-                        }}>
-                          <ResponsiveContainer width="100%" height="100%">
-                            <RadarChart cx="50%" cy="50%" outerRadius="80%" data={abilityRadarData}>
-                              <PolarGrid />
-                              <PolarAngleAxis dataKey="ability" />
-                              <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                              <Radar name="能力值" dataKey="value" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
-                              <Tooltip />
-                            </RadarChart>
-                          </ResponsiveContainer>
-                        </ChartContainer>
-                      </CardContent>
-                    </Card>
+                    <AbilityRadar />
                     
                     <div className="grid grid-cols-2 gap-4">
                       <Card>
