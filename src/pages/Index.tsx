@@ -1,22 +1,36 @@
 
-import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Hero from "@/components/home/Hero";
 import Features from "@/components/home/Features";
 import { toast } from "sonner";
+import { supabase, signInWithWechat, signOut } from "@/utils/auth";
 
 const Index = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  const handleLogin = () => {
-    setIsLoggedIn(true);
-    toast.success("登录成功");
+  useEffect(() => {
+    supabase.auth.onAuthStateChange((event, session) => {
+      setIsLoggedIn(!!session);
+    });
+  }, []);
+
+  const handleLogin = async () => {
+    try {
+      await signInWithWechat();
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error("登录失败，请重试");
+    }
   };
 
-  const handleWechatLogin = () => {
-    setIsLoggedIn(true);
-    toast.success("微信登录成功");
+  const handleWechatLogin = async () => {
+    try {
+      await signInWithWechat();
+    } catch (error) {
+      console.error('WeChat login error:', error);
+      toast.error("微信登录失败，请重试");
+    }
   };
 
   return (
@@ -31,5 +45,4 @@ const Index = () => {
   );
 };
 
-// Add default export
 export default Index;

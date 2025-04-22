@@ -2,11 +2,10 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { LogIn, MessageSquare } from "lucide-react";
-import { toast } from "sonner";
 
 interface AuthButtonsProps {
-  onLogin: () => void;
-  onWechatLogin: () => void;
+  onLogin: () => Promise<void>;
+  onWechatLogin: () => Promise<void>;
 }
 
 const AuthButtons = ({ onLogin, onWechatLogin }: AuthButtonsProps) => {
