@@ -35,8 +35,9 @@ const Index = () => {
 
   const handleWechatLogin = async () => {
     try {
+      // Cast 'wechat' to any to avoid TypeScript errors with provider types
       await supabase.auth.signInWithOAuth({
-        provider: 'wechat',
+        provider: 'wechat' as any,
         options: {
           redirectTo: window.location.origin + '/auth/callback'
         }

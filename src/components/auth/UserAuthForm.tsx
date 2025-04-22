@@ -9,15 +9,16 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { z } from 'zod';
 import { loginUser, registerUser, sendPhoneOTP, verifyPhoneOTP } from '@/utils/userAuth';
-import { Phone, Mail, User, Lock } from 'lucide-react';
+import { Phone, Mail, Lock } from 'lucide-react';
 
 const authSchema = z.object({
-  phone: z.string().optional().refine(val => !val || /^1[3-9]\d{9}$/.test(val), {
-    message: "请输入有效的手机号码",
-  }),
+  phone: z.string().optional(),
   email: z.string().optional().email("请输入有效的邮箱地址"),
   password: z.string().min(6, "密码至少需要6个字符"),
   otp: z.string().optional(),
+}).refine(data => data.phone || data.email, {
+  message: "手机号或邮箱至少提供一个",
+  path: ["phone"],
 });
 
 type AuthFormData = z.infer<typeof authSchema>;
@@ -66,18 +67,18 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
       if (authType === 'login') {
         if (loginMethod === 'password') {
           await loginUser({
-            phone: data.phone,
-            email: data.email,
-            password: data.password,
+            phone: data.phone || undefined,
+            email: data.email || undefined,
+            password: data.password || '',
           });
-        } else if (loginMethod === 'otp' && otpSent) {
-          await verifyPhoneOTP(data.phone!, data.otp!);
+        } else if (loginMethod === 'otp' && otpSent && data.phone && data.otp) {
+          await verifyPhoneOTP(data.phone, data.otp);
         }
       } else if (authType === 'register') {
         await registerUser({
-          phone: data.phone,
-          email: data.email,
-          password: data.password,
+          phone: data.phone || undefined,
+          email: data.email || undefined,
+          password: data.password || '',
         });
       }
       
