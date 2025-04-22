@@ -1,12 +1,36 @@
-
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
+import { FileText } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import DataExport from "./DataExport";
 
 const Navbar: React.FC = () => {
   const location = useLocation();
   
   const isActive = (path: string) => {
     return location.pathname === path || location.pathname.startsWith(path + '/');
+  };
+
+  // Sample data structure for export
+  const exportData = {
+    students: [
+      { id: "2024001", name: "张三", class: "高一(1)班" },
+      { id: "2024002", name: "李四", class: "高一(1)班" },
+    ],
+    grades: [
+      { studentId: "2024001", subject: "数学", score: 85 },
+      { studentId: "2024002", subject: "数学", score: 92 },
+    ],
+    classInfo: [
+      { className: "高一(1)班", avgScore: 88.5, studentCount: 45 },
+      { className: "高一(2)班", avgScore: 86.3, studentCount: 42 },
+    ],
   };
 
   return (
@@ -78,12 +102,24 @@ const Navbar: React.FC = () => {
           >
             AI设置
           </Link>
-          <button
-            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4"
-            onClick={() => console.log("用户点击了导出数据")}
-          >
-            导出数据
-          </button>
+          <Sheet>
+            <SheetTrigger asChild>
+              <button
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                导出数据
+              </button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[400px] sm:w-[540px]">
+              <SheetHeader>
+                <SheetTitle>数据导出</SheetTitle>
+              </SheetHeader>
+              <div className="mt-4">
+                <DataExport data={exportData} />
+              </div>
+            </SheetContent>
+          </Sheet>
         </nav>
       </div>
     </div>
