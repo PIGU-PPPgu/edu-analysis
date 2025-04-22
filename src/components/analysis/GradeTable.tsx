@@ -17,6 +17,18 @@ interface Props {
 }
 
 const GradeTable: React.FC<Props> = ({ data }) => {
+  // Safely handle data display, preventing any binary or non-text content
+  const sanitizeData = (value: any): string => {
+    if (value === null || value === undefined) return '-';
+    
+    // Check if value is a string and contains binary data markers
+    if (typeof value === 'string' && (value.includes('PK') || /[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(value))) {
+      return '[二进制数据]';
+    }
+    
+    return String(value);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -37,16 +49,24 @@ const GradeTable: React.FC<Props> = ({ data }) => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.map((item, index) => (
-                <TableRow key={index}>
-                  <TableCell>{item.studentId}</TableCell>
-                  <TableCell>{item.name}</TableCell>
-                  <TableCell>{item.subject}</TableCell>
-                  <TableCell className="font-medium">{item.score}</TableCell>
-                  <TableCell>{item.examDate || '-'}</TableCell>
-                  <TableCell>{item.examType || '-'}</TableCell>
+              {data && data.length > 0 ? (
+                data.map((item, index) => (
+                  <TableRow key={index}>
+                    <TableCell>{sanitizeData(item.studentId)}</TableCell>
+                    <TableCell>{sanitizeData(item.name)}</TableCell>
+                    <TableCell>{sanitizeData(item.subject)}</TableCell>
+                    <TableCell className="font-medium">{sanitizeData(item.score)}</TableCell>
+                    <TableCell>{item.examDate ? sanitizeData(item.examDate) : '-'}</TableCell>
+                    <TableCell>{item.examType ? sanitizeData(item.examType) : '-'}</TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-4 text-gray-500">
+                    暂无数据
+                  </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </div>

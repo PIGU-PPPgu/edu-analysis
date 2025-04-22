@@ -13,7 +13,6 @@ import AIDataAnalysis from "@/components/analysis/AIDataAnalysis";
 import { toast } from "sonner";
 import { FileText, ChartBar, ChartLine } from "lucide-react";
 
-// 预设的图表分析类型
 const CHART_PRESETS = [
   { id: "distribution", name: "分数分布", icon: <ChartBar className="h-4 w-4" /> },
   { id: "subject", name: "学科对比", icon: <ChartBar className="h-4 w-4" /> },
@@ -53,40 +52,52 @@ const GradeAnalysis: React.FC = () => {
   const [showCharts, setShowCharts] = useState(false);
   const [selectedCharts, setSelectedCharts] = useState<string[]>(["distribution", "subject"]);
   const [customCharts, setCustomCharts] = useState<any[]>([]);
+  const [parsingError, setParsingError] = useState<string | null>(null);
 
   const handleDataParsed = (parsedData: any[]) => {
-    setData(parsedData);
-    setShowCharts(true);
-    
-    // 自动生成基于数据的图表
-    generateCustomCharts(parsedData);
+    try {
+      if (!Array.isArray(parsedData) || parsedData.length === 0) {
+        toast.error("解析数据无效", {
+          description: "数据格式不正确或为空"
+        });
+        setParsingError("数据格式无效");
+        return;
+      }
+      
+      setData(parsedData);
+      setShowCharts(true);
+      setParsingError(null);
+      
+      generateCustomCharts(parsedData);
+    } catch (error) {
+      console.error("处理数据时出错:", error);
+      toast.error("处理数据失败", {
+        description: "数据格式可能不符合要求"
+      });
+      setParsingError(error.message || "未知错误");
+    }
   };
 
-  // 根据导入的数据智能生成图表
   const generateCustomCharts = (parsedData: any[]) => {
     if (parsedData.length === 0) return;
     
     const generatedCharts = [];
     
-    // 检查数据结构，识别可能的图表类型
     const firstRecord = parsedData[0];
     const fields = Object.keys(firstRecord);
     
-    // 检查是否包含分数字段
     const scoreField = fields.find(f => 
       f.toLowerCase().includes('score') || 
       f.toLowerCase().includes('分数') || 
       f.toLowerCase().includes('成绩')
     );
     
-    // 检查是否包含学科字段
     const subjectField = fields.find(f => 
       f.toLowerCase().includes('subject') || 
       f.toLowerCase().includes('科目') || 
       f.toLowerCase().includes('学科')
     );
     
-    // 检查是否包含日期字段
     const dateField = fields.find(f => 
       f.toLowerCase().includes('date') || 
       f.toLowerCase().includes('日期') || 
@@ -94,16 +105,13 @@ const GradeAnalysis: React.FC = () => {
       f.toLowerCase().includes('时间')
     );
     
-    // 检查是否包含考试类型字段
     const examTypeField = fields.find(f => 
       f.toLowerCase().includes('type') || 
       f.toLowerCase().includes('类型') || 
       f.toLowerCase().includes('exam')
     );
     
-    // 如果有分数和学科，生成学科成绩对比图
     if (scoreField && subjectField) {
-      // 计算每个学科的平均分
       const subjectScores: Record<string, SubjectScoreData> = {};
       parsedData.forEach(record => {
         const subject = record[subjectField];
@@ -142,9 +150,7 @@ const GradeAnalysis: React.FC = () => {
       }
     }
     
-    // 如果有分数，生成分数分布图
     if (scoreField) {
-      // 计算分数分布
       const scoreRanges = {
         "0-59": 0,
         "60-69": 0,
@@ -188,9 +194,7 @@ const GradeAnalysis: React.FC = () => {
       }
     }
     
-    // 如果有分数和日期，生成成绩趋势图
     if (scoreField && dateField && subjectField) {
-      // 按日期和学科分组，计算平均分趋势
       const dateScores: Record<string, Record<string, SubjectScoreData>> = {};
       
       parsedData.forEach(record => {
@@ -212,10 +216,8 @@ const GradeAnalysis: React.FC = () => {
         }
       });
       
-      // 提取唯一的学科
       const subjects = Array.from(new Set(parsedData.map(r => r[subjectField])));
       
-      // 创建趋势数据
       const trendData = Object.entries(dateScores).map(([date, subjectData]) => {
         const result: any = { date };
         
@@ -223,7 +225,7 @@ const GradeAnalysis: React.FC = () => {
           if (subjectData[subject]) {
             result[subject] = Math.round((subjectData[subject].total / subjectData[subject].count) * 10) / 10;
           } else {
-            result[subject] = null; // 缺失数据
+            result[subject] = null;
           }
         });
         
@@ -248,9 +250,7 @@ const GradeAnalysis: React.FC = () => {
       }
     }
     
-    // 如果有分数和考试类型，生成考试类型对比图
     if (scoreField && examTypeField) {
-      // 计算每种考试类型的平均分
       const examTypeScores: Record<string, ExamTypeScoreData> = {};
       
       parsedData.forEach(record => {
@@ -294,8 +294,7 @@ const GradeAnalysis: React.FC = () => {
     setCustomCharts(generatedCharts);
   };
 
-  // 模拟成绩数据
-  const mockGradeData = data.length > 0 ? data : [
+  const gradeData = data.length > 0 ? data : [
     { studentId: "2024001", name: "张三", subject: "语文", score: 92, examDate: "2023-09-01", examType: "期中考试" },
     { studentId: "2024001", name: "张三", subject: "数学", score: 85, examDate: "2023-09-01", examType: "期中考试" },
     { studentId: "2024001", name: "张三", subject: "英语", score: 78, examDate: "2023-09-01", examType: "期中考试" },
@@ -307,17 +306,19 @@ const GradeAnalysis: React.FC = () => {
     { studentId: "2024003", name: "王五", subject: "英语", score: 85, examDate: "2023-09-01", examType: "期中考试" },
   ];
 
-  // 统计数据
-  const scores = mockGradeData.map(item => item.score);
+  const scores = gradeData.map(item => {
+    const score = typeof item.score === 'number' ? item.score : parseFloat(item.score);
+    return isNaN(score) ? 0 : score;
+  }).filter(score => score > 0);
+
   const statData = {
-    avg: scores.reduce((sum, score) => sum + score, 0) / scores.length,
-    max: Math.max(...scores),
-    min: Math.min(...scores),
+    avg: scores.length > 0 ? scores.reduce((sum, score) => sum + score, 0) / scores.length : 0,
+    max: scores.length > 0 ? Math.max(...scores) : 0,
+    min: scores.length > 0 ? Math.min(...scores) : 0,
     passing: scores.filter(score => score >= 60).length,
     total: scores.length,
   };
 
-  // 生成的图表组件
   const chartComponents = [
     <ScoreDistribution key="distribution" data={scoreDistributionData} />,
     <ScoreBoxPlot key="boxplot" data={boxPlotData} />
@@ -336,6 +337,18 @@ const GradeAnalysis: React.FC = () => {
           </div>
           
           <IntelligentFileParser onDataParsed={handleDataParsed} />
+          
+          {parsingError && (
+            <Card className="mt-4 border-red-300">
+              <CardContent className="p-4">
+                <p className="text-red-500 font-medium">解析错误: {parsingError}</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  请检查您的数据格式，确保是纯文本CSV文件，而不是二进制Excel文件。
+                  如果您有Excel文件，请先在Excel中"另存为" CSV格式。
+                </p>
+              </CardContent>
+            </Card>
+          )}
           
           {showCharts && (
             <>
@@ -379,7 +392,7 @@ const GradeAnalysis: React.FC = () => {
                     </div>
                   )}
                   
-                  <AIDataAnalysis data={mockGradeData} charts={chartComponents} />
+                  <AIDataAnalysis data={gradeData} charts={chartComponents} />
                 </TabsContent>
                 
                 <TabsContent value="custom" className="mt-4">
@@ -422,7 +435,6 @@ const GradeAnalysis: React.FC = () => {
                             {selectedCharts.includes('boxplot') && (
                               <ScoreBoxPlot data={boxPlotData} />
                             )}
-                            {/* 其他图表类型可以在这里添加 */}
                           </div>
                         )}
                       </div>
@@ -431,7 +443,7 @@ const GradeAnalysis: React.FC = () => {
                 </TabsContent>
                 
                 <TabsContent value="data" className="mt-4">
-                  <GradeTable data={mockGradeData} />
+                  <GradeTable data={gradeData} />
                 </TabsContent>
               </Tabs>
             </>

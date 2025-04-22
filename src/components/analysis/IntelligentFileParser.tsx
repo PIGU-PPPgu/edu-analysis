@@ -59,6 +59,23 @@ const IntelligentFileParser: React.FC<{
   const [availableFields, setAvailableFields] = useState<string[]>([]);
   const [saveToDatabase, setSaveToDatabase] = useState(true);
 
+  const isBinaryContent = (content: string): boolean => {
+    const binarySignatures = [
+      'PK\x03\x04',
+      '\x25\x50\x44\x46',
+      '\xFF\xD8\xFF',
+      '\x89\x50\x4E\x47'
+    ];
+    
+    const hasBinaryChars = /[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(content.slice(0, 500));
+    
+    const hasSignature = binarySignatures.some(sig => 
+      content.slice(0, 20).includes(sig)
+    );
+    
+    return hasBinaryChars || hasSignature;
+  };
+
   const extractStudentInfo = (content: string, format: string, headers: string[]) => {
     const studentInfo: Record<string, any> = {};
     
@@ -122,6 +139,10 @@ const IntelligentFileParser: React.FC<{
   };
 
   const parseFileContent = (content: string, format: string): { headers: string[], data: any[] } => {
+    if (isBinaryContent(content)) {
+      throw new Error("检测到二进制文件内容，请上传文本格式文件如CSV或Excel导出的文本文件");
+    }
+    
     if (format === 'CSV') {
       return parseCSV(content);
     } else if (format === 'JSON') {
@@ -182,18 +203,34 @@ const IntelligentFileParser: React.FC<{
     const file = event.target.files?.[0];
     if (!file) return;
 
+    const allowedTypes = ['text/csv', 'application/vnd.ms-excel', 'application/json', 'text/plain'];
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    
+    if (!allowedTypes.includes(file.type) && 
+        !['csv', 'xls', 'xlsx', 'json', 'txt'].includes(fileExtension || '')) {
+      toast.error("不支持的文件格式", {
+        description: "请上传CSV、Excel导出的CSV或JSON文件"
+      });
+      return;
+    }
+
     setIsUploading(true);
     setParseProgress(0);
     setFileInfo({ name: file.name, size: file.size });
 
     const reader = new FileReader();
+    
     reader.onload = async (e) => {
       try {
         const content = e.target?.result as string;
-        const detectedFormat = detectFileFormat(file.name, content);
+        
+        if (isBinaryContent(content)) {
+          throw new Error("检测到二进制文件内容，请上传文本格式的CSV文件");
+        }
         
         setParseProgress(30);
         
+        const detectedFormat = detectFileFormat(file.name, content);
         const { headers, data } = parseFileContent(content, detectedFormat);
         
         setParseProgress(60);
@@ -202,6 +239,10 @@ const IntelligentFileParser: React.FC<{
         
         const enrichedData = data.map(record => {
           const enriched: Record<string, any> = {};
+          
+          Object.keys(record).forEach(key => {
+            enriched[key] = record[key];
+          });
           
           for (const [key, index] of Object.entries(fieldMappings)) {
             if (typeof index === 'number') {
@@ -241,12 +282,31 @@ const IntelligentFileParser: React.FC<{
         setIsUploading(false);
         setParseProgress(0);
         toast.error("数据解析失败", {
-          description: "无法识别文件格式或内容不符合要求"
+          description: error.message || "无法识别文件格式或内容不符合要求"
         });
       }
     };
 
-    reader.readAsText(file);
+    if (['csv', 'txt', 'json'].includes(fileExtension || '')) {
+      reader.readAsText(file);
+    } else {
+      const bufferReader = new FileReader();
+      bufferReader.onload = (bufferEvent) => {
+        const arrayBuffer = bufferEvent.target?.result as ArrayBuffer;
+        const bytes = new Uint8Array(arrayBuffer);
+        
+        if (bytes[0] === 0x50 && bytes[1] === 0x4B) {
+          toast.error("请上传文本格式的CSV文件", { 
+            description: "检测到二进制Excel文件，请先在Excel中另存为CSV格式" 
+          });
+          setIsUploading(false);
+          return;
+        }
+        
+        reader.readAsText(file);
+      };
+      bufferReader.readAsArrayBuffer(file.slice(0, 8));
+    }
   };
 
   const calculateConfidence = (headers: string[], format: string): number => {
@@ -448,13 +508,13 @@ const IntelligentFileParser: React.FC<{
                   <FileText className="h-10 w-10 mx-auto text-gray-400 mb-4" />
                   <p className="text-lg font-medium mb-2">拖拽文件到此处或点击上传</p>
                   <p className="text-sm text-gray-500 mb-4">
-                    支持 CSV, Excel, JSON 等多种格式，系统将自动识别并解析
+                    支持 CSV 文本文件，系统将自动识别并解析
                   </p>
                   <label className="bg-[#B9FF66] gap-2.5 text-black font-medium hover:bg-[#a8e85c] transition-colors cursor-pointer px-5 py-3 rounded-[14px] inline-block">
                     选择文件
                     <Input
                       type="file"
-                      accept=".csv,.xlsx,.xls,.json,.txt"
+                      accept=".csv,.txt"
                       className="hidden"
                       onChange={handleFileUpload}
                     />
@@ -504,7 +564,7 @@ const IntelligentFileParser: React.FC<{
                         重新上传
                         <Input
                           type="file"
-                          accept=".csv,.xlsx,.xls,.json,.txt"
+                          accept=".csv,.txt"
                           className="hidden"
                           onChange={handleFileUpload}
                         />
@@ -537,7 +597,7 @@ const IntelligentFileParser: React.FC<{
                           <tr key={i}>
                             {parsedPreview.headers.map((header, j) => (
                               <td key={j} className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                                {row[header]}
+                                {String(row[header] !== undefined ? row[header] : '')}
                               </td>
                             ))}
                           </tr>
@@ -614,6 +674,7 @@ const IntelligentFileParser: React.FC<{
                   <li>数字类型字段请勿包含非数字字符</li>
                   <li>日期格式推荐使用 YYYY/MM/DD 或 YYYY-MM-DD</li>
                   <li>如有特殊格式数据，系统将尝试智能解析或提供手动映射</li>
+                  <li>请使用纯文本CSV格式，不要直接上传Excel文件</li>
                 </ul>
               </div>
             </div>
