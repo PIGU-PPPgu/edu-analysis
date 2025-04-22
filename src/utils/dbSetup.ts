@@ -1,12 +1,11 @@
 
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { executeSql } from './dbUtil';
 
 // 初始化数据库配置
 export async function initializeDatabase() {
   try {
-    // 检查是否已存在user_profiles表的触发器 - 使用executeSql替代直接查询
+    // 检查是否已存在user_profiles表的触发器
     const checkTriggerSql = `
       SELECT EXISTS (
         SELECT 1 FROM pg_trigger WHERE tgname = 'on_auth_user_created'
@@ -18,7 +17,7 @@ export async function initializeDatabase() {
 
     // 如果触发器不存在，创建触发器函数和触发器
     if (!triggerExists) {
-      // 执行SQL文件中的函数创建触发器函数和触发器
+      // 执行SQL创建触发器函数和触发器
       try {
         await executeSql(`
           -- 创建触发器函数
