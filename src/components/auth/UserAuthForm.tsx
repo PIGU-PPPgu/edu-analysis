@@ -3,15 +3,20 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form } from '@/components/ui/form';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { userAuthSchema } from '@/utils/validation';
-import { loginUser, registerUser, verifyPhoneOTP } from '@/utils/userAuth';
 import { AuthFormData } from './types';
-import PasswordLoginForm from './PasswordLoginForm';
-import OTPLoginForm from './OTPLoginForm';
-import RegisterForm from './RegisterForm';
+import { AuthProvider } from './AuthContext';
+import AuthTabs from './AuthTabs';
 
 interface UserAuthFormProps {
   onSuccess?: () => void;
@@ -33,33 +38,12 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
     },
   });
 
-  const onSubmit = async (data: AuthFormData) => {
-    setIsSubmitting(true);
-    try {
-      if (authType === 'login') {
-        if (loginMethod === 'password') {
-          await loginUser({
-            phone: data.phone,
-            email: data.email,
-            password: data.password,
-          });
-        } else if (loginMethod === 'otp' && data.phone && data.otp) {
-          await verifyPhoneOTP(data.phone, data.otp);
-        }
-      } else if (authType === 'register') {
-        await registerUser({
-          phone: data.phone,
-          email: data.email,
-          password: data.password,
-        });
-      }
-      
-      if (onSuccess) {
-        onSuccess();
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleSendOTP = () => {
+    setOtpSent(true);
+  };
+
+  const handleSwitchMethod = () => {
+    setLoginMethod(loginMethod === 'password' ? 'otp' : 'password');
   };
 
   return (
@@ -73,47 +57,23 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="login" onValueChange={(v) => setAuthType(v as 'login' | 'register')}>
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="login">登录</TabsTrigger>
-            <TabsTrigger value="register">注册</TabsTrigger>
-          </TabsList>
-          
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <TabsContent value="login">
-                {loginMethod === 'password' ? (
-                  <PasswordLoginForm
-                    form={form}
-                    isSubmitting={isSubmitting}
-                    onSwitchMethod={() => setLoginMethod('otp')}
-                  />
-                ) : (
-                  <OTPLoginForm
-                    form={form}
-                    isSubmitting={isSubmitting}
-                    otpSent={otpSent}
-                    onSendOTP={() => setOtpSent(true)}
-                    onSwitchMethod={() => setLoginMethod('password')}
-                  />
-                )}
-              </TabsContent>
-              
-              <TabsContent value="register">
-                <RegisterForm
-                  form={form}
-                  isSubmitting={isSubmitting}
-                />
-              </TabsContent>
-            </form>
-          </Form>
-        </Tabs>
+        <AuthProvider value={{ 
+          form, 
+          isSubmitting, 
+          otpSent, 
+          onSendOTP: handleSendOTP, 
+          onSwitchMethod: handleSwitchMethod 
+        }}>
+          <AuthTabs 
+            authType={authType} 
+            loginMethod={loginMethod}
+            onAuthTypeChange={(v) => setAuthType(v as 'login' | 'register')}
+          />
+        </AuthProvider>
       </CardContent>
       <CardFooter className="flex justify-center">
         <p className="text-sm text-gray-500">
-          {authType === 'login' 
-            ? '没有账号? ' 
-            : '已有账号? '}
+          {authType === 'login' ? '没有账号? ' : '已有账号? '}
           <Button 
             variant="link" 
             className="p-0" 

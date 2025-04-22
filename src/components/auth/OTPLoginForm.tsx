@@ -1,21 +1,14 @@
 
 import React from 'react';
-import { UseFormReturn } from 'react-hook-form';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Phone } from 'lucide-react';
-import { AuthFormData } from './types';
+import { useAuthContext } from './AuthContext';
 
-interface OTPLoginFormProps {
-  form: UseFormReturn<AuthFormData>;
-  isSubmitting: boolean;
-  otpSent: boolean;
-  onSendOTP: () => void;
-  onSwitchMethod: () => void;
-}
+const OTPLoginForm = () => {
+  const { form, isSubmitting, otpSent, onSendOTP, onSwitchMethod } = useAuthContext();
 
-const OTPLoginForm = ({ form, isSubmitting, otpSent, onSendOTP, onSwitchMethod }: OTPLoginFormProps) => {
   return (
     <div className="space-y-4">
       <FormField

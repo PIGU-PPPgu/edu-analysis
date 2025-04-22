@@ -1,19 +1,14 @@
 
 import React from 'react';
-import { UseFormReturn } from 'react-hook-form';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Mail, Phone, Lock } from 'lucide-react';
-import { AuthFormData } from './types';
+import { useAuthContext } from './AuthContext';
 
-interface PasswordLoginFormProps {
-  form: UseFormReturn<AuthFormData>;
-  isSubmitting: boolean;
-  onSwitchMethod: () => void;
-}
+const PasswordLoginForm = () => {
+  const { form, isSubmitting, onSwitchMethod } = useAuthContext();
 
-const PasswordLoginForm = ({ form, isSubmitting, onSwitchMethod }: PasswordLoginFormProps) => {
   return (
     <div className="space-y-4">
       <FormField

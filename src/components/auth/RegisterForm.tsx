@@ -1,18 +1,14 @@
 
 import React from 'react';
-import { UseFormReturn } from 'react-hook-form';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Phone, Mail, Lock } from 'lucide-react';
-import { AuthFormData } from './types';
+import { useAuthContext } from './AuthContext';
 
-interface RegisterFormProps {
-  form: UseFormReturn<AuthFormData>;
-  isSubmitting: boolean;
-}
+const RegisterForm = () => {
+  const { form, isSubmitting } = useAuthContext();
 
-const RegisterForm = ({ form, isSubmitting }: RegisterFormProps) => {
   return (
     <div className="space-y-4">
       <FormField
