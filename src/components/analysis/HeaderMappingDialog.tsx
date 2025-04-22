@@ -54,7 +54,7 @@ const HeaderMappingDialog: React.FC<HeaderMappingDialogProps> = ({
                       {field} ({aliases[0]})
                     </SelectItem>
                   ))}
-                  <SelectItem value="">忽略该字段</SelectItem>
+                  <SelectItem key="ignore-field" value="ignore">忽略该字段</SelectItem>
                 </SelectContent>
               </Select>
             </div>
