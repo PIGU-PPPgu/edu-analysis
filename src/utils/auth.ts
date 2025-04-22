@@ -1,5 +1,5 @@
 
-import { createClient } from '@supabase/supabase-js'
+import { createClient, Provider } from '@supabase/supabase-js'
 
 // 替换为你的实际Supabase和微信配置
 const supabaseUrl = 'https://your-project.supabase.co'
@@ -9,7 +9,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export const signInWithWechat = async () => {
   const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'wechat',
+    provider: 'wechat' as Provider, // Type assertion to tell TypeScript this is a valid provider
     options: {
       redirectTo: `https://yourdomain.com/auth/callback`
     }
