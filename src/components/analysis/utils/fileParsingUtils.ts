@@ -1,4 +1,3 @@
-
 import * as XLSX from 'xlsx';
 
 export const standardFields = {
@@ -32,6 +31,37 @@ export const isBinaryContent = (content: string): boolean => {
   const hasSignature = binarySignatures.some(sig => content.slice(0, 20).includes(sig));
   
   return hasBinaryChars || hasSignature;
+};
+
+/**
+ * 根据表头，自动完成与系统字段的初步匹配（AI别名/模糊搜索）。
+ */
+export const generateInitialMappings = (headers: string[]): Record<string, string> => {
+  const mappings: Record<string, string> = {};
+  const normalized = (str: string) => str.toLowerCase().replace(/[_\s\-]/g, '');
+
+  headers.forEach(header => {
+    let matched = false;
+    for (const [standardField, aliases] of Object.entries(standardFields)) {
+      // 别名模糊匹配
+      if (
+        aliases.some(alias =>
+          normalized(header).includes(normalized(alias)) ||
+          // 也允许别名包含header
+          normalized(alias).includes(normalized(header))
+        )
+      ) {
+        mappings[header] = standardField;
+        matched = true;
+        break;
+      }
+    }
+    // 如无法识别，留空（后续弹窗手动映射）
+    if (!matched) {
+      mappings[header] = '';
+    }
+  });
+  return mappings;
 };
 
 export const parseCSV = (content: string): { headers: string[], data: any[] } => {

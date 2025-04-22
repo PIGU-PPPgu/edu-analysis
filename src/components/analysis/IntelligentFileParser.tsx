@@ -1,3 +1,5 @@
+
+
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,6 +13,7 @@ import FileUploader from './FileUploader';
 import DataPreview from './DataPreview';
 import TemplateDownloader from './TemplateDownloader';
 import { ParsedData, IntelligentFileParserProps } from "./types";
+import { generateInitialMappings } from "./utils/fileParsingUtils";
 
 const IntelligentFileParser: React.FC<IntelligentFileParserProps> = ({ onDataParsed }) => {
   const [isAIEnhanced, setIsAIEnhanced] = useState(true);
@@ -19,9 +22,30 @@ const IntelligentFileParser: React.FC<IntelligentFileParserProps> = ({ onDataPar
   const [parsedData, setParsedData] = useState<ParsedData | null>(null);
   const [saveToDatabase, setSaveToDatabase] = useState(true);
 
+  // 检查自动映射是否存在未识别字段或重复映射
+  const needHeaderMapping = (mappings: Record<string, string>) => {
+    const used = new Set<string>();
+    for (const [header, mapped] of Object.entries(mappings)) {
+      if (!mapped || mapped === '') return true;
+      // 不允许同一系统字段映射多次（如2列都被识别成score）
+      if (mapped !== 'ignore' && used.has(mapped)) return true;
+      if (mapped !== 'ignore') used.add(mapped);
+    }
+    return false;
+  };
+
   const handleFileProcessed = async (data: ParsedData) => {
-    setParsedData(data);
-    setShowHeaderMapping(true);
+    // 用AI别名策略自动完成初步字段映射
+    const autoMappings = generateInitialMappings(data.headers);
+    setHeaderMappings(autoMappings);
+    setParsedData({ ...data, fieldMappings: autoMappings });
+
+    // 如果存在未识别或重复映射，则需要手动修正，否则自动进入下一步
+    if (needHeaderMapping(autoMappings)) {
+      setShowHeaderMapping(true);
+    } else {
+      await processDataWithMappings(autoMappings);
+    }
   };
 
   const processDataWithMappings = async (mappings: Record<string, string>) => {
@@ -185,3 +209,4 @@ const IntelligentFileParser: React.FC<IntelligentFileParserProps> = ({ onDataPar
 };
 
 export default IntelligentFileParser;
+
