@@ -56,4 +56,3 @@ const GradeTable: React.FC<Props> = ({ data }) => {
 };
 
 export default GradeTable;
-
