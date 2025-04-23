@@ -24,6 +24,15 @@ const boxPlotData = [
   { subject: "化学", min: 55, q1: 66, median: 77, q3: 87, max: 96 }
 ];
 
+// Helper function to ensure we have safe data for charts
+const getChartData = (chart: any) => {
+  // Check if we have valid data
+  if (!chart.data || !Array.isArray(chart.data) || chart.data.length === 0) {
+    return [{ value: 0 }]; // Return safe default data
+  }
+  return chart.data;
+};
+
 const CustomChartsSection: React.FC<Props> = ({ customCharts }) => {
   if (customCharts.length > 0) {
     // 渲染自动生成的图表
@@ -50,7 +59,7 @@ const CustomChartsSection: React.FC<Props> = ({ customCharts }) => {
             <CardContent>
               {chart.id === "subjectAverages" ? (
                 <AutoChart 
-                  data={chart.data}
+                  data={getChartData(chart)}
                   xKey="subject"
                   yKeys={["averageScore"]}
                   colors={["#B9FF66"]}
@@ -59,7 +68,7 @@ const CustomChartsSection: React.FC<Props> = ({ customCharts }) => {
                 />
               ) : chart.id === "scoreDistribution" ? (
                 <AutoChart 
-                  data={chart.data}
+                  data={getChartData(chart)}
                   xKey="range"
                   yKeys={["count"]}
                   colors={["#B9FF66"]}
@@ -68,15 +77,15 @@ const CustomChartsSection: React.FC<Props> = ({ customCharts }) => {
                 />
               ) : chart.id === "scoreTrend" ? (
                 <AutoChart 
-                  data={chart.data}
+                  data={getChartData(chart)}
                   xKey="date"
-                  yKeys={Object.keys(chart.data?.[0] || {}).filter(k => k !== "date")}
+                  yKeys={Object.keys(getChartData(chart)[0] || {}).filter(k => k !== "date")}
                   chartType="line"
                   height={300}
                 />
               ) : chart.id === "examTypeComparison" ? (
                 <AutoChart 
-                  data={chart.data}
+                  data={getChartData(chart)}
                   xKey="examType"
                   yKeys={["averageScore"]}
                   colors={["#B9FF66"]}
