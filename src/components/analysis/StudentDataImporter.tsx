@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,6 +20,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ParsedData } from './types';
+import { Download } from 'lucide-react';
 
 // 学生信息验证schema
 const studentSchema = z.object({
@@ -55,6 +55,17 @@ const StudentDataImporter: React.FC<StudentDataImporterProps> = ({ onDataImporte
       contact_email: '',
     },
   });
+
+  const downloadTemplate = () => {
+    const csvContent = "学号,姓名,班级,入学年份,性别,联系电话,电子邮箱\n20230001,张三,高一1班,2023,男,13812345678,zhangsan@example.com\n20230002,李四,高一2班,2023,女,13987654321,lisi@example.com\n20230003,王五,高一3班,2023,男,13712345678,wangwu@example.com";
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "学生信息模板.csv";
+    link.click();
+    toast.success("模板下载成功");
+  };
 
   const handleSubmit = async (values: StudentFormValues) => {
     setIsSubmitting(true);
@@ -214,6 +225,7 @@ const StudentDataImporter: React.FC<StudentDataImporterProps> = ({ onDataImporte
       <TabsList className="mb-6">
         <TabsTrigger value="single">单个添加</TabsTrigger>
         <TabsTrigger value="batch">批量导入</TabsTrigger>
+        <TabsTrigger value="template">下载模板</TabsTrigger>
       </TabsList>
       
       <TabsContent value="single">
@@ -361,12 +373,59 @@ const StudentDataImporter: React.FC<StudentDataImporterProps> = ({ onDataImporte
                 <li>班级 (class_name): 学生所在班级</li>
               </ul>
             </div>
+            <Button 
+              variant="outline" 
+              onClick={downloadTemplate}
+              className="mb-4 flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              下载学生信息模板
+            </Button>
           </div>
           
           <FileUploader 
             onFileProcessed={handleFileProcessed}
             isAIEnhanced={true}
           />
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="template">
+        <Card className="border p-6">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xl">学生信息模板</CardTitle>
+            <CardDescription>
+              下载学生信息导入模板，包含基本字段和示例数据
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <h3 className="font-medium mb-2">学生信息模板包含以下字段：</h3>
+                <ul className="list-disc list-inside space-y-1 text-gray-600">
+                  <li>学号（必填）：学生唯一标识</li>
+                  <li>姓名（必填）：学生姓名</li>
+                  <li>班级（必填）：学生所在班级</li>
+                  <li>入学年份：学生入学年份，例如"2023"</li>
+                  <li>性别：学生性别，可填"男"、"女"或"其他"</li>
+                  <li>联系电话：学生或家长联系电话</li>
+                  <li>电子邮箱：学生或家长电子邮箱地址</li>
+                </ul>
+              </div>
+              
+              <Button 
+                onClick={downloadTemplate} 
+                className="w-full bg-[#B9FF66] text-black hover:bg-[#a8e85c] flex items-center justify-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                下载学生信息模板
+              </Button>
+              
+              <div className="text-sm text-gray-500">
+                <p>提示：下载后可使用Excel或其他电子表格软件编辑，完成后保存为CSV格式上传</p>
+              </div>
+            </div>
+          </CardContent>
         </Card>
       </TabsContent>
     </Tabs>

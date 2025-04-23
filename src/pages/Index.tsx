@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import IntelligentFileParser from "@/components/analysis/IntelligentFileParser";
 import StudentDataImporter from "@/components/analysis/StudentDataImporter";
+import { FileText, Users } from "lucide-react";
 
 const Index = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -72,19 +73,29 @@ const Index = () => {
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Navbar />
       <div className="container mx-auto py-8 px-4">
-        <h1 className="text-3xl font-bold mb-8">数据导入中心</h1>
+        <h1 className="text-3xl font-bold mb-2">数据导入中心</h1>
+        <p className="text-gray-500 mb-8">导入和管理学生信息与成绩数据</p>
         
         <Tabs defaultValue="students" className="w-full">
-          <TabsList className="mb-6">
-            <TabsTrigger value="students">学生信息导入</TabsTrigger>
-            <TabsTrigger value="grades">成绩数据导入</TabsTrigger>
+          <TabsList className="mb-6 bg-white border shadow-sm">
+            <TabsTrigger value="students" className="gap-2 data-[state=active]:bg-[#F2FCE2]">
+              <Users className="h-4 w-4" />
+              学生信息导入
+            </TabsTrigger>
+            <TabsTrigger value="grades" className="gap-2 data-[state=active]:bg-[#E5DEFF]">
+              <FileText className="h-4 w-4" />
+              成绩数据导入
+            </TabsTrigger>
           </TabsList>
           
           <TabsContent value="students">
             <div className="grid gap-6">
-              <Card>
+              <Card className="border-t-4 border-t-green-400">
                 <CardHeader>
-                  <CardTitle>学生信息导入</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    学生信息导入
+                  </CardTitle>
                   <CardDescription>
                     导入学生基本信息，包括学号、姓名、班级等必填信息及其他选填信息
                   </CardDescription>
@@ -98,9 +109,12 @@ const Index = () => {
           
           <TabsContent value="grades">
             <div className="grid gap-6">
-              <Card>
+              <Card className="border-t-4 border-t-purple-400">
                 <CardHeader>
-                  <CardTitle>成绩数据导入</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    成绩数据导入
+                  </CardTitle>
                   <CardDescription>
                     通过学号或姓名关联学生，导入各科目成绩数据
                   </CardDescription>
@@ -118,4 +132,3 @@ const Index = () => {
 };
 
 export default Index;
-

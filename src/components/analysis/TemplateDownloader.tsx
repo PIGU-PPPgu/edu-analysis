@@ -3,32 +3,29 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { Download } from "lucide-react";
 
 const TemplateDownloader: React.FC = () => {
-  const downloadTemplate = (type: 'basic' | 'detailed' | 'students') => {
+  const downloadTemplate = (type: 'basic' | 'detailed') => {
     let csvContent = '';
     
     if (type === 'basic') {
       csvContent = "学号,姓名,分数,科目\n20230001,张三,92,语文\n20230002,李四,85,语文\n20230003,王五,78,语文";
     } else if (type === 'detailed') {
       csvContent = "学号,姓名,班级,科目,分数,考试日期,考试类型,教师\n20230001,张三,一年级1班,语文,92,2023/09/01,期中考试,李老师\n20230001,张三,一年级1班,数学,85,2023/09/01,期中考试,王老师\n20230001,张三,一年级1班,英语,78,2023/09/01,期中考试,赵老师";
-    } else if (type === 'students') {
-      csvContent = "学号,姓名,班级,入学年份,性别,联系电话,电子邮箱\n20230001,张三,高一1班,2023,男,13812345678,zhangsan@example.com\n20230002,李四,高一2班,2023,女,13987654321,lisi@example.com\n20230003,王五,高一3班,2023,男,13712345678,wangwu@example.com";
     }
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = type === 'basic' ? "成绩基础模板.csv" : 
-                    type === 'detailed' ? "成绩详细模板.csv" : 
-                    "学生信息模板.csv";
+    link.download = type === 'basic' ? "成绩基础模板.csv" : "成绩详细模板.csv";
     link.click();
     toast.success("模板下载成功");
   };
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">基础成绩模板</CardTitle>
@@ -37,9 +34,10 @@ const TemplateDownloader: React.FC = () => {
           <CardContent>
             <Button 
               variant="outline" 
-              className="w-full"
+              className="w-full flex items-center justify-center gap-2"
               onClick={() => downloadTemplate('basic')}
             >
+              <Download className="h-4 w-4" />
               下载模板
             </Button>
           </CardContent>
@@ -53,25 +51,10 @@ const TemplateDownloader: React.FC = () => {
           <CardContent>
             <Button 
               variant="outline" 
-              className="w-full"
+              className="w-full flex items-center justify-center gap-2"
               onClick={() => downloadTemplate('detailed')}
             >
-              下载模板
-            </Button>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">学生信息模板</CardTitle>
-            <CardDescription>包含学生基本信息和联系方式</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button 
-              variant="outline" 
-              className="w-full"
-              onClick={() => downloadTemplate('students')}
-            >
+              <Download className="h-4 w-4" />
               下载模板
             </Button>
           </CardContent>
@@ -94,4 +77,3 @@ const TemplateDownloader: React.FC = () => {
 };
 
 export default TemplateDownloader;
-
