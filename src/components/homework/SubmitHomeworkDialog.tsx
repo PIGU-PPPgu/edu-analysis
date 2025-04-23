@@ -11,7 +11,10 @@ import { toast } from "sonner";
 interface SubmitHomeworkDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  homework: any;
+  homework: {
+    id: string;
+    title: string;
+  };
   onSubmitted: () => void;
 }
 

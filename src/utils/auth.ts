@@ -2,6 +2,7 @@
 import { supabase } from '@/integrations/supabase/client'
 import { validateData } from './validation'
 import { toast } from 'sonner'
+import { getCurrentUserRoles } from './roleUtils'
 
 // 登出
 export const signOut = async () => {
@@ -33,4 +34,14 @@ export const getSession = async () => {
   }
   console.log('当前会话状态:', data.session ? '已登录' : '未登录')
   return data.session
+}
+
+// 获取用户角色
+export const getUserRoles = async () => {
+  try {
+    return await getCurrentUserRoles();
+  } catch (error) {
+    console.error('获取用户角色失败:', error);
+    return null;
+  }
 }

@@ -17,6 +17,7 @@ import { initializeDatabase, setupInitialData } from "./utils/dbSetup";
 import { getCurrentUser, getSession } from "./utils/auth";
 import RoleGuard from "./components/auth/RoleGuard";
 import { supabase } from "./integrations/supabase/client";
+import HomeworkManagement from "./pages/HomeworkManagement";
 
 const queryClient = new QueryClient();
 
