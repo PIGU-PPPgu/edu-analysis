@@ -17,8 +17,10 @@ const exportChartAsImage = (svgNode?: SVGElement) => {
   const img = new window.Image();
   img.onload = () => {
     const canvas = document.createElement('canvas');
-    canvas.width = svgNode.width.baseVal.value || 600;
-    canvas.height = svgNode.height.baseVal.value || 400;
+    // Use getBoundingClientRect to get width and height from SVG element
+    const svgRect = svgNode.getBoundingClientRect();
+    canvas.width = svgRect.width || 600;
+    canvas.height = svgRect.height || 400;
     const ctx = canvas.getContext('2d');
     if (ctx) {
       ctx.fillStyle = "#fff";

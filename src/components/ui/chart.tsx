@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useRef, useState, useMemo } from 'react';
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipProps, Bar, BarChart, Area, AreaChart, CartesianGrid, Line, LineChart, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import { ValueType, NameType } from "recharts/types/component/DefaultTooltipContent";
