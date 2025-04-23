@@ -7,7 +7,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { FileUp } from "lucide-react";
 import { toast } from "sonner";
-import { Json } from "@/integrations/supabase/types";
 
 interface SubmitHomeworkDialogProps {
   open: boolean;
@@ -19,8 +18,8 @@ interface SubmitHomeworkDialogProps {
   onSubmitted: () => void;
 }
 
-// Define the structure for uploaded files separately to avoid recursive type issues
-interface UploadedFile {
+// Define a simple type for uploaded files
+interface UploadedFileInfo {
   name: string;
   path: string;
   type: string;
@@ -59,7 +58,7 @@ const SubmitHomeworkDialog: React.FC<SubmitHomeworkDialogProps> = ({
       if (studentError) throw studentError;
 
       // Upload files
-      const uploadedFiles: UploadedFile[] = [];
+      const uploadedFiles: UploadedFileInfo[] = [];
       for (const file of files) {
         const fileExt = file.name.split('.').pop();
         const fileName = `${homework.id}/${userData.user?.id}/${Date.now()}.${fileExt}`;
@@ -78,13 +77,13 @@ const SubmitHomeworkDialog: React.FC<SubmitHomeworkDialogProps> = ({
         });
       }
 
-      // Fix: Create submission record as a single object, not an array
+      // Create submission record as a single object
       const { error: submissionError } = await supabase
         .from('homework_submissions')
         .insert({
           homework_id: homework.id,
           student_id: studentData.student_id,
-          files: uploadedFiles as unknown as Json, // Cast to Json type since files is of JsonB type in the database
+          files: uploadedFiles, // The type is now simplified
           notes: notes.trim() ? notes : null,
           status: 'submitted'
         });
