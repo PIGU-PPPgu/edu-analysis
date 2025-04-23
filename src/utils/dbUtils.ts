@@ -1,5 +1,7 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { WarningCondition, WarningRule } from '@/components/analysis/types';
 
 // 数据库操作函数
 export const db = {
@@ -474,7 +476,9 @@ export const warningSystem = {
             let allConditionsMet = true;
             
             // 逐一检查每个条件
-            for (const condition of rule.conditions) {
+            for (const conditionJson of rule.conditions) {
+              // 将JSON对象转换为WarningCondition类型
+              const condition = conditionJson as unknown as WarningCondition;
               let conditionMet = false;
               
               switch (condition.type) {
@@ -539,7 +543,11 @@ export const warningSystem = {
             }
           } else {
             // 处理旧版格式的条件（保持向后兼容）
-            const conditions = rule.conditions;
+            // 将 conditions 转换为有类型的对象
+            const conditions = rule.conditions as unknown as {
+              operator: 'less_than' | 'greater_than' | 'equal_to';
+              threshold: number;
+            };
             
             // 检查规则条件
             const isTriggered = this.evaluateCondition(avgScore, conditions.operator, conditions.threshold);
