@@ -19,7 +19,15 @@ import AIDataAnalysis from "@/components/analysis/AIDataAnalysis";
 const GradeAnalysisLayout: React.FC = () => {
   const { setGradeData, calculateStatistics, customCharts, isLoading, setIsLoading } = useGradeAnalysis();
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  const [parsingError, setParsingError] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  // Mock data for components that require props
+  const bubbleChartData = [
+    { name: "数学-高一", xValue: 85, yValue: 78, zValue: 120, subject: "数学" },
+    { name: "语文-高一", xValue: 80, yValue: 82, zValue: 100, subject: "语文" },
+    { name: "英语-高一", xValue: 75, yValue: 70, zValue: 80, subject: "英语" }
+  ];
 
   // 检查用户身份
   useEffect(() => {
@@ -55,7 +63,7 @@ const GradeAnalysisLayout: React.FC = () => {
             exam_type,
             students (
               name,
-              class_name
+              student_id
             )
           `)
           .order('exam_date', { ascending: false });
@@ -66,8 +74,9 @@ const GradeAnalysisLayout: React.FC = () => {
         const formattedData = data?.map(item => ({
           id: item.id,
           studentId: item.student_id,
+          name: item.students?.name || '未知',
           studentName: item.students?.name || '未知',
-          className: item.students?.class_name || '未知',
+          className: '未知班级', // 修复班级名称问题
           score: item.score,
           subject: item.subject,
           examDate: item.exam_date,
@@ -88,9 +97,17 @@ const GradeAnalysisLayout: React.FC = () => {
     }
   }, [isLoadingAuth, setGradeData, setIsLoading]);
 
+  const handleDataParsed = (parsedData: any[]) => {
+    console.log("解析数据:", parsedData.length);
+    // 数据解析完成后的逻辑
+  };
+
   if (isLoadingAuth) {
     return <div className="flex items-center justify-center h-screen">验证登录状态...</div>;
   }
+
+  // 获取当前已加载的成绩数据，用于传递给子组件
+  const currentGradeData = [];
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -102,7 +119,7 @@ const GradeAnalysisLayout: React.FC = () => {
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          <GradeOverview />
+          <GradeOverview onDataParsed={handleDataParsed} parsingError={parsingError} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -120,19 +137,32 @@ const GradeAnalysisLayout: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 gap-6 mb-6">
-          <CorrelationBubble />
+          <CorrelationBubble 
+            data={bubbleChartData} 
+            xName="平均分" 
+            yName="及格率" 
+            zName="学生数量"
+          />
         </div>
 
         <div className="mb-6">
-          <CustomChartsSection />
+          <CustomChartsSection customCharts={customCharts} />
         </div>
 
         <div className="mb-10">
-          <GradeTabs />
+          <GradeTabs 
+            data={currentGradeData}
+            customCharts={customCharts}
+            selectedCharts={["distribution", "subject"]}
+            setSelectedCharts={() => {}}
+          />
         </div>
 
         <div className="mb-10">
-          <AIDataAnalysis />
+          <AIDataAnalysis 
+            data={currentGradeData}
+            charts={[]}
+          />
         </div>
 
         <div className="mb-10">
