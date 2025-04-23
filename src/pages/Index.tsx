@@ -46,7 +46,12 @@ const Index = () => {
               : "border-muted-foreground/25"
           }`}
         >
-          <FileUploader setDragActive={setDragActive} dragActive={dragActive} />
+          <FileUploader 
+            setDragActive={setDragActive} 
+            dragActive={dragActive}
+            onFileProcessed={() => {}} 
+            isAIEnhanced={false}
+          />
         </div>
         
         <div className="mt-12">
