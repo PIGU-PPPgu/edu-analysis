@@ -3,6 +3,7 @@ import React from "react";
 import Navbar from "@/components/analysis/Navbar";
 import WarningDashboard from "@/components/warning/WarningDashboard";
 import WarningRules from "@/components/warning/WarningRules";
+import WarningList from "@/components/warning/WarningList";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Settings } from "lucide-react";
@@ -29,6 +30,7 @@ const WarningAnalysis = () => {
         
         <div className="space-y-6">
           <WarningDashboard />
+          <WarningList />
           <WarningRules />
         </div>
       </div>

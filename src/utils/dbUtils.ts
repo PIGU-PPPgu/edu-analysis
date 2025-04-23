@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -397,6 +398,98 @@ export const warningSystem = {
       console.error('更新预警规则失败:', error);
       toast.error('更新预警规则失败');
       return null;
+    }
+  },
+
+  // 评估预警规则并创建预警记录
+  async evaluateWarningRules() {
+    try {
+      // 1. 获取所有活跃的预警规则
+      const { data: rules, error: rulesError } = await supabase
+        .from('warning_rules')
+        .select('*')
+        .eq('is_active', true);
+      
+      if (rulesError) throw rulesError;
+      if (!rules || rules.length === 0) {
+        toast.info('没有可评估的规则');
+        return;
+      }
+
+      // 2. 获取所有学生成绩数据
+      const { data: students, error: studentsError } = await supabase
+        .from('students')
+        .select(`
+          id,
+          student_id,
+          name,
+          grades (
+            subject,
+            score,
+            exam_date
+          )
+        `);
+      
+      if (studentsError) throw studentsError;
+      if (!students || students.length === 0) {
+        toast.info('没有学生数据可供评估');
+        return;
+      }
+
+      // 3. 为每个学生评估每条规则
+      let warningCount = 0;
+      for (const student of students) {
+        if (!student.grades || student.grades.length === 0) continue;
+
+        const studentGrades = student.grades;
+        
+        // 获取该学生的平均分
+        const avgScore = studentGrades.reduce((sum, grade) => sum + grade.score, 0) / studentGrades.length;
+        
+        // 针对每个规则进行评估
+        for (const rule of rules) {
+          const conditions = rule.conditions;
+          let isTriggered = false;
+
+          // 检查规则条件
+          if (conditions.operator === 'less_than' && avgScore < conditions.threshold) {
+            isTriggered = true;
+          } else if (conditions.operator === 'greater_than' && avgScore > conditions.threshold) {
+            isTriggered = true;
+          } else if (conditions.operator === 'equal_to' && avgScore === conditions.threshold) {
+            isTriggered = true;
+          }
+
+          // 如果规则被触发，则创建预警记录
+          if (isTriggered) {
+            const { error: recordError } = await supabase
+              .from('warning_records')
+              .insert([{
+                student_id: student.student_id,
+                rule_id: rule.id,
+                details: {
+                  avg_score: avgScore,
+                  threshold: conditions.threshold,
+                  operator: conditions.operator,
+                  subjects: studentGrades.map(g => g.subject)
+                },
+                status: 'active'
+              }]);
+            
+            if (!recordError) {
+              warningCount++;
+            } else {
+              console.error('创建预警记录失败:', recordError);
+            }
+          }
+        }
+      }
+
+      return { success: true, count: warningCount };
+    } catch (error) {
+      console.error('评估预警规则失败:', error);
+      toast.error('评估预警规则失败');
+      throw error;
     }
   },
 
