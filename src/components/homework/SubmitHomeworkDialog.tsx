@@ -7,10 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { FileUp } from "lucide-react";
 import { toast } from "sonner";
-import { Json } from "@/integrations/supabase/types";
 
-// Define a simplified file object type that matches the Json type
-type SimpleFileObject = {
+// Simple file object type without complex type references
+type FileObject = {
   name: string;
   path: string;
   type: string;
@@ -58,9 +57,20 @@ const SubmitHomeworkDialog: React.FC<SubmitHomeworkDialogProps> = ({
 
       if (studentError) throw studentError;
 
-      // Create an array of simple file objects
-      const uploadedFiles: SimpleFileObject[] = [];
+      // Create an array of simple file objects without explicit typing to Json
+      const uploadedFiles = files.map(file => {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${homework.id}/${userData.user?.id}/${Date.now()}.${fileExt}`;
+        
+        return {
+          name: file.name,
+          path: fileName,
+          type: file.type,
+          size: file.size
+        };
+      });
       
+      // Upload each file
       for (const file of files) {
         const fileExt = file.name.split('.').pop();
         const fileName = `${homework.id}/${userData.user?.id}/${Date.now()}.${fileExt}`;
@@ -70,22 +80,15 @@ const SubmitHomeworkDialog: React.FC<SubmitHomeworkDialogProps> = ({
           .upload(fileName, file);
 
         if (uploadError) throw uploadError;
-
-        uploadedFiles.push({
-          name: file.name,
-          path: fileName,
-          type: file.type,
-          size: file.size
-        });
       }
 
-      // Create submission record with properly typed JSON data
+      // Create submission record with files data
       const { error: submissionError } = await supabase
         .from('homework_submissions')
         .insert({
           homework_id: homework.id,
           student_id: studentData.student_id,
-          files: uploadedFiles as unknown as Json, // Type assertion to Json
+          files: uploadedFiles, // TypeScript will infer this correctly
           notes: notes.trim() ? notes : null,
           status: 'submitted'
         });
