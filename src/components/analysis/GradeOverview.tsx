@@ -8,8 +8,9 @@ import { calculateStatistics } from "@/utils/chartGenerationUtils";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
-  onDataParsed: (parsedData: any[]) => void;
-  parsingError: string | null;
+  // Make these props optional by adding ? to their types
+  onDataParsed?: (parsedData: any[]) => void;
+  parsingError?: string | null;
 }
 
 const GradeOverview: React.FC<Props> = ({ onDataParsed, parsingError }) => {
@@ -78,7 +79,10 @@ const GradeOverview: React.FC<Props> = ({ onDataParsed, parsingError }) => {
           导入和分析学生成绩数据，生成统计图表和报告
         </p>
       </div>
-      <IntelligentFileParser onDataParsed={onDataParsed} />
+      {/* Only show IntelligentFileParser if onDataParsed prop is provided */}
+      {onDataParsed && (
+        <IntelligentFileParser onDataParsed={onDataParsed} />
+      )}
       {parsingError && (
         <Card className="mt-4 border-red-300">
           <CardContent className="p-4">
