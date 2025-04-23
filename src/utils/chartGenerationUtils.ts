@@ -1,182 +1,196 @@
 
-import { GradeRecord, ChartData } from "../contexts/GradeAnalysisContext";
+import { ChartData } from "@/contexts/GradeAnalysisContext";
 
-// Generate charts based on the parsed data
-export const generateCustomCharts = (parsedData: GradeRecord[]): ChartData[] => {
-  if (parsedData.length === 0) return [];
-  
-  const generatedCharts: ChartData[] = [];
-  const firstRecord = parsedData[0];
-  const fields = Object.keys(firstRecord);
-
-  const scoreField = fields.find(f => 
-    f.toLowerCase().includes('score') || 
-    f.toLowerCase().includes('分数') || 
-    f.toLowerCase().includes('成绩')
-  ) || 'score';
-  
-  const subjectField = fields.find(f => 
-    f.toLowerCase().includes('subject') || 
-    f.toLowerCase().includes('科目') || 
-    f.toLowerCase().includes('学科')
-  ) || 'subject';
-  
-  const dateField = fields.find(f => 
-    f.toLowerCase().includes('date') || 
-    f.toLowerCase().includes('日期') || 
-    f.toLowerCase().includes('time') || 
-    f.toLowerCase().includes('时间')
-  ) || 'examDate';
-  
-  const examTypeField = fields.find(f => 
-    f.toLowerCase().includes('type') || 
-    f.toLowerCase().includes('类型') || 
-    f.toLowerCase().includes('exam')
-  ) || 'examType';
-
-  // 生成各科目均分
-  if (scoreField && subjectField) {
-    const subjectScores: Record<string, { total: number; count: number }> = {};
-    parsedData.forEach(record => {
-      const subject = record[subjectField];
-      const score = parseFloat(String(record[scoreField]));
-      if (!isNaN(score)) {
-        if (!subjectScores[subject]) {
-          subjectScores[subject] = { total: score, count: 1 };
-        } else {
-          subjectScores[subject].total += score;
-          subjectScores[subject].count += 1;
-        }
-      }
-    });
-    
-    const subjectAverages = Object.entries(subjectScores).map(([subject, data]) => ({
-      subject,
-      averageScore: Math.round((data.total / data.count) * 10) / 10
-    }));
-    
-    if (subjectAverages.length > 0) {
-      generatedCharts.push({ id: "subjectAverages", data: subjectAverages });
-    }
-  }
-
-  // 分数段分布
-  if (scoreField) {
-    const scoreRanges = {
-      "0-59": 0,
-      "60-69": 0,
-      "70-79": 0,
-      "80-89": 0,
-      "90-100": 0
+/**
+ * 计算成绩统计信息
+ * @param {Array} data 成绩数据
+ * @returns {Object} 统计信息
+ */
+export const calculateStatistics = (data) => {
+  if (!Array.isArray(data) || data.length === 0) {
+    return {
+      avg: 0,
+      max: 0,
+      min: 0,
+      passing: 0,
+      total: 0
     };
-    
-    parsedData.forEach(record => {
-      const score = parseFloat(String(record[scoreField]));
-      if (!isNaN(score)) {
-        if (score < 60) scoreRanges["0-59"]++;
-        else if (score < 70) scoreRanges["60-69"]++;
-        else if (score < 80) scoreRanges["70-79"]++;
-        else if (score < 90) scoreRanges["80-89"]++;
-        else scoreRanges["90-100"]++;
-      }
-    });
-    
-    const scoreDistribution = Object.entries(scoreRanges).map(([range, count]) => ({
-      range, count
-    }));
-    
-    if (scoreDistribution.some(item => item.count > 0)) {
-      generatedCharts.push({ id: "scoreDistribution", data: scoreDistribution });
-    }
   }
 
-  // 趋势图
-  if (scoreField && dateField && subjectField) {
-    const dateScores: Record<string, Record<string, { total: number; count: number }>> = {};
-    parsedData.forEach(record => {
-      const date = record[dateField];
-      const subject = record[subjectField];
-      const score = parseFloat(String(record[scoreField]));
-      
-      if (!isNaN(score) && date) {
-        if (!dateScores[date]) dateScores[date] = {};
-        if (!dateScores[date][subject]) dateScores[date][subject] = { total: score, count: 1 };
-        else {
-          dateScores[date][subject].total += score;
-          dateScores[date][subject].count += 1;
-        }
+  const scores = data.map(item => Number(item.score)).filter(score => !isNaN(score));
+  const total = scores.length;
+  
+  if (total === 0) {
+    return {
+      avg: 0,
+      max: 0,
+      min: 0,
+      passing: 0,
+      total: 0
+    };
+  }
+
+  const sum = scores.reduce((acc, score) => acc + score, 0);
+  const avg = sum / total;
+  const max = Math.max(...scores);
+  const min = Math.min(...scores);
+  const passing = scores.filter(score => score >= 60).length;
+
+  return {
+    avg,
+    max,
+    min,
+    passing,
+    total
+  };
+};
+
+/**
+ * 生成基于数据的图表配置
+ * @param {Array} data 成绩数据
+ * @returns {Array} 图表配置
+ */
+export const generateCustomCharts = (data) => {
+  if (!Array.isArray(data) || data.length === 0) {
+    return [];
+  }
+
+  const charts = [];
+
+  try {
+    // 图表1: 学科平均分
+    const subjectScores = {};
+    data.forEach(item => {
+      if (!subjectScores[item.subject]) {
+        subjectScores[item.subject] = [];
+      }
+      subjectScores[item.subject].push(Number(item.score));
+    });
+
+    const subjectAverages = Object.entries(subjectScores).map(([subject, scores]) => ({
+      subject,
+      averageScore: scores.reduce((acc, score) => acc + score, 0) / scores.length
+    }));
+
+    charts.push({
+      id: "subjectAverages",
+      data: subjectAverages
+    });
+
+    // 图表2: 分数段分布
+    const scoreRanges = {
+      "90-100分": 0,
+      "80-89分": 0,
+      "70-79分": 0,
+      "60-69分": 0,
+      "60分以下": 0
+    };
+
+    data.forEach(item => {
+      const score = Number(item.score);
+      if (score >= 90) {
+        scoreRanges["90-100分"]++;
+      } else if (score >= 80) {
+        scoreRanges["80-89分"]++;
+      } else if (score >= 70) {
+        scoreRanges["70-79分"]++;
+      } else if (score >= 60) {
+        scoreRanges["60-69分"]++;
+      } else {
+        scoreRanges["60分以下"]++;
       }
     });
-    
-    const subjects = Array.from(new Set(parsedData.map(r => r[subjectField])));
-    const trendData = Object.entries(dateScores).map(([date, subjectData]) => {
-      const result: any = { date };
-      subjects.forEach(subject => {
-        if (subjectData[subject]) {
-          result[subject] = Math.round((subjectData[subject].total / subjectData[subject].count) * 10) / 10;
-        } else {
-          result[subject] = null;
+
+    const scoreDistribution = Object.entries(scoreRanges).map(([range, count]) => ({
+      range,
+      count
+    }));
+
+    charts.push({
+      id: "scoreDistribution",
+      data: scoreDistribution
+    });
+
+    // 图表3: 考试类型比较
+    if (data.some(item => item.examType)) {
+      const examTypeScores = {};
+      data.forEach(item => {
+        if (item.examType) {
+          if (!examTypeScores[item.examType]) {
+            examTypeScores[item.examType] = [];
+          }
+          examTypeScores[item.examType].push(Number(item.score));
         }
       });
-      return result;
-    }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    
-    if (trendData.length > 1) {
-      generatedCharts.push({ id: "scoreTrend", data: trendData });
-    }
-  }
 
-  // 考试类型
-  if (scoreField && examTypeField) {
-    const examTypeScores: Record<string, { total: number; count: number }> = {};
-    parsedData.forEach(record => {
-      const examType = record[examTypeField];
-      const score = parseFloat(String(record[scoreField]));
-      
-      if (!isNaN(score) && examType) {
-        if (!examTypeScores[examType]) {
-          examTypeScores[examType] = { total: score, count: 1 };
-        } else {
-          examTypeScores[examType].total += score;
-          examTypeScores[examType].count += 1;
-        }
+      const examTypeAverages = Object.entries(examTypeScores).map(([examType, scores]) => ({
+        examType,
+        averageScore: scores.reduce((acc, score) => acc + score, 0) / scores.length
+      }));
+
+      if (examTypeAverages.length > 0) {
+        charts.push({
+          id: "examTypeComparison",
+          data: examTypeAverages
+        });
       }
-    });
-    
-    const examTypeComparison = Object.entries(examTypeScores).map(([type, data]) => ({
-      examType: type,
-      averageScore: Math.round((data.total / data.count) * 10) / 10
-    }));
-    
-    if (examTypeComparison.length > 1) {
-      generatedCharts.push({ id: "examTypeComparison", data: examTypeComparison });
     }
+
+    // 图表4: 成绩趋势 (如果有日期)
+    if (data.some(item => item.examDate)) {
+      const dateSubjectScores = {};
+      
+      // 按日期和科目分组
+      data.forEach(item => {
+        if (item.examDate && item.subject) {
+          const date = item.examDate; // 使用原始日期格式
+          if (!dateSubjectScores[date]) {
+            dateSubjectScores[date] = {};
+          }
+          if (!dateSubjectScores[date][item.subject]) {
+            dateSubjectScores[date][item.subject] = [];
+          }
+          dateSubjectScores[date][item.subject].push(Number(item.score));
+        }
+      });
+
+      // 计算每个日期每个科目的平均分
+      const trendData = Object.entries(dateSubjectScores).map(([date, subjects]) => {
+        const entry = { date };
+        
+        Object.entries(subjects).forEach(([subject, scores]) => {
+          entry[subject] = scores.reduce((acc, score) => acc + score, 0) / scores.length;
+        });
+        
+        return entry;
+      });
+
+      // 按日期排序
+      trendData.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      if (trendData.length > 0) {
+        charts.push({
+          id: "scoreTrend",
+          data: trendData
+        });
+      }
+    }
+
+  } catch (error) {
+    console.error("生成图表时出错:", error);
   }
 
-  return generatedCharts;
+  return charts;
 };
 
-// Helper function to calculate statistics from grade data
-export const calculateStatistics = (data: GradeRecord[]) => {
-  const scores = data.map(item => {
-    const score = typeof item.score === "number" ? item.score : parseFloat(String(item.score));
-    return isNaN(score) ? 0 : score;
-  }).filter(score => score > 0);
-
-  const avg = scores.length > 0 ? scores.reduce((sum, score) => sum + score, 0) / scores.length : 0;
-  const max = scores.length > 0 ? Math.max(...scores) : 0;
-  const min = scores.length > 0 ? Math.min(...scores) : 0;
-  const passing = scores.filter(score => score >= 60).length;
-  const total = scores.length;
-
-  return { avg, max, min, passing, total };
-};
-
-// Helper function to ensure safe data for charts
-export const getChartData = (chart: ChartData | undefined) => {
-  // Check if we have valid data
-  if (!chart || !chart.data || !Array.isArray(chart.data) || chart.data.length === 0) {
-    return [{ value: 0 }]; // Return safe default data
+/**
+ * 获取图表数据
+ * @param {ChartData} chart 图表配置
+ * @returns {Array} 图表数据
+ */
+export const getChartData = (chart) => {
+  if (!chart || !chart.data) {
+    return [];
   }
   return chart.data;
 };

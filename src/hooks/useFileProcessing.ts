@@ -1,9 +1,13 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { parseCSV, parseExcel, isBinaryContent } from '@/components/analysis/utils/fileParsingUtils';
+import { parseCSV, parseExcel, isBinaryContent } from '@/utils/fileParsingUtils';
 import { ParsedData } from '@/components/analysis/types';
+import { supabase } from '@/integrations/supabase/client';
 
+/**
+ * 文件处理 Hook
+ */
 export const useFileProcessing = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -82,8 +86,8 @@ export const useFileProcessing = () => {
         throw new Error("解析后未发现有效数据记录");
       }
 
-      // 数据清洗和转换
-      setProgress(60);
+      // 数据清洗和增强
+      setProgress(50);
       
       // 标准化数据 - 移除空行和处理特殊字符
       data = data.filter(row => {
@@ -92,9 +96,56 @@ export const useFileProcessing = () => {
           val !== undefined && val !== null && val !== '');
       });
       
+      // 调用 Supabase Edge 函数进行额外的数据增强（如果需要）
+      // 这里可以根据实际需求添加对 Edge 函数的调用
+      setProgress(70);
+      
+      // 智能类型转换 - 判断考试日期、成绩等
+      data = data.map(row => {
+        const processedRow = { ...row };
+        
+        // 处理数值类型
+        Object.keys(processedRow).forEach(key => {
+          // 分数应该是数字
+          if (key.toLowerCase().includes('score') || 
+              key.toLowerCase().includes('分数') || 
+              key.toLowerCase().includes('成绩')) {
+            const numValue = parseFloat(processedRow[key]);
+            if (!isNaN(numValue)) {
+              processedRow[key] = numValue;
+            }
+          }
+          
+          // 日期格式处理
+          if (key.toLowerCase().includes('date') || 
+              key.toLowerCase().includes('日期')) {
+            // 尝试转换为标准日期格式
+            const dateValue = processedRow[key];
+            if (typeof dateValue === 'string') {
+              // 处理中文日期格式 (如 "2023年5月1日")
+              const zhMatch = dateValue.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
+              if (zhMatch) {
+                const [_, year, month, day] = zhMatch;
+                processedRow[key] = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+              }
+              
+              // 处理斜杠日期格式 (如 "2023/5/1")
+              const slashMatch = dateValue.match(/(\d{4})\/(\d{1,2})\/(\d{1,2})/);
+              if (slashMatch) {
+                const [_, year, month, day] = slashMatch;
+                processedRow[key] = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+              }
+            }
+          }
+        });
+        
+        return processedRow;
+      });
+      
       // 最终处理
       setProgress(100);
       
+      // 返回解析结果
       return {
         headers,
         data,
@@ -118,6 +169,9 @@ export const useFileProcessing = () => {
     }
   };
 
+  /**
+   * 读取文件为文本
+   */
   const readFileAsText = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -130,6 +184,9 @@ export const useFileProcessing = () => {
     });
   };
 
+  /**
+   * 读取文件为 ArrayBuffer
+   */
   const readFileAsArrayBuffer = (file: File): Promise<ArrayBuffer> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();

@@ -1,34 +1,127 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { ChartContainer } from "@/components/ui/chart";
 import ExamSelector from "./ExamSelector";
+import { supabase } from "@/integrations/supabase/client";
 
-// 模拟考试数据
-const mockExams = [
-  { id: "exam1", name: "期中考试", date: "2024-10-15" },
-  { id: "exam2", name: "月考一", date: "2024-11-20" },
-  { id: "exam3", name: "期末考试", date: "2025-01-15" },
-  { id: "exam4", name: "模拟考试一", date: "2025-02-20" },
-  { id: "exam5", name: "模拟考试二", date: "2025-03-15" },
-];
-
-// 生成模拟成绩数据
-const generateScoreData = (examIds: string[]) => {
-  const subjects = ["语文", "数学", "英语", "物理", "化学", "生物"];
-  return subjects.map(subject => {
-    const data: { subject: string; [key: string]: number | string } = { subject };
-    examIds.forEach(examId => {
-      data[examId] = Math.floor(70 + Math.random() * 30);
-    });
-    return data;
-  });
-};
+interface Exam {
+  id: string;
+  name: string;
+  date: string;
+}
 
 const ExamComparison: React.FC = () => {
   const [selectedExams, setSelectedExams] = useState<string[]>([]);
-  const scoreData = generateScoreData(selectedExams);
+  const [examList, setExamList] = useState<Exam[]>([]);
+  const [scoreData, setScoreData] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // 获取所有考试类型
+  useEffect(() => {
+    const fetchExamTypes = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('grades')
+          .select('exam_type, exam_date')
+          .not('exam_type', 'is', null)
+          .order('exam_date', { ascending: false });
+        
+        if (error) throw error;
+        
+        // 处理和去重考试类型
+        const uniqueExams = new Map<string, Exam>();
+        data?.forEach(item => {
+          if (item.exam_type && item.exam_date) {
+            const key = `${item.exam_type}-${item.exam_date}`;
+            if (!uniqueExams.has(key)) {
+              uniqueExams.set(key, {
+                id: key,
+                name: item.exam_type,
+                date: item.exam_date
+              });
+            }
+          }
+        });
+        
+        setExamList(Array.from(uniqueExams.values()));
+      } catch (error) {
+        console.error("获取考试类型失败:", error);
+      }
+    };
+    
+    fetchExamTypes();
+  }, []);
+
+  // 当选择的考试变化时，获取相应的成绩数据
+  useEffect(() => {
+    const fetchScoreData = async () => {
+      if (selectedExams.length === 0) {
+        setScoreData([]);
+        return;
+      }
+      
+      setIsLoading(true);
+      
+      try {
+        // 解析选中的考试ID并提取考试类型和日期
+        const examDetails = selectedExams.map(id => {
+          const [examType, examDate] = id.split('-');
+          return { examType, examDate };
+        });
+        
+        // 构建查询条件
+        const queries = examDetails.map(async ({ examType, examDate }) => {
+          const { data, error } = await supabase
+            .from('grades')
+            .select('subject, score')
+            .eq('exam_type', examType)
+            .eq('exam_date', examDate);
+          
+          if (error) throw error;
+          
+          // 按科目计算平均分
+          const subjectAverages: Record<string, number> = {};
+          data?.forEach(item => {
+            if (!subjectAverages[item.subject]) {
+              subjectAverages[item.subject] = { total: 0, count: 0 };
+            }
+            subjectAverages[item.subject].total += item.score;
+            subjectAverages[item.subject].count += 1;
+          });
+          
+          return Object.entries(subjectAverages).map(([subject, { total, count }]) => ({
+            subject,
+            [examType]: total / count,
+            examId: `${examType}-${examDate}`
+          }));
+        });
+        
+        const results = await Promise.all(queries);
+        const flatResults = results.flat();
+        
+        // 按科目合并所有考试的成绩
+        const subjectMap: Record<string, any> = {};
+        flatResults.forEach(item => {
+          if (!subjectMap[item.subject]) {
+            subjectMap[item.subject] = { subject: item.subject };
+          }
+          
+          const examType = item.examId.split('-')[0];
+          subjectMap[item.subject][examType] = item[examType];
+        });
+        
+        setScoreData(Object.values(subjectMap));
+      } catch (error) {
+        console.error("获取成绩数据失败:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchScoreData();
+  }, [selectedExams]);
 
   const colors = ["#B9FF66", "#8884d8", "#82ca9d", "#ffc658"];
 
@@ -38,14 +131,18 @@ const ExamComparison: React.FC = () => {
         <CardTitle>考试成绩对比分析</CardTitle>
         <CardDescription>选择考试进行成绩趋势对比</CardDescription>
         <ExamSelector
-          exams={mockExams}
+          exams={examList}
           selectedExams={selectedExams}
           onChange={setSelectedExams}
           maxSelections={4}
         />
       </CardHeader>
       <CardContent className="h-[320px]">
-        {selectedExams.length > 0 ? (
+        {isLoading ? (
+          <div className="h-full flex items-center justify-center">
+            <p className="text-gray-500">加载中...</p>
+          </div>
+        ) : selectedExams.length > 0 && scoreData.length > 0 ? (
           <ChartContainer config={{
             exam: { color: "#B9FF66" }
           }}>
@@ -68,14 +165,14 @@ const ExamComparison: React.FC = () => {
                 />
                 <Legend />
                 {selectedExams.map((examId, index) => {
-                  const exam = mockExams.find(e => e.id === examId);
+                  const examType = examId.split('-')[0];
                   return (
                     <Line
                       key={examId}
                       type="monotone"
-                      dataKey={examId}
-                      name={exam?.name}
-                      stroke={colors[index]}
+                      dataKey={examType}
+                      name={examType}
+                      stroke={colors[index % colors.length]}
                       strokeWidth={2}
                       dot={{ r: 4 }}
                       activeDot={{ r: 6 }}
@@ -87,7 +184,7 @@ const ExamComparison: React.FC = () => {
           </ChartContainer>
         ) : (
           <div className="h-full flex items-center justify-center text-muted-foreground">
-            请选择要对比的考试
+            {selectedExams.length === 0 ? "请选择要对比的考试" : "暂无数据"}
           </div>
         )}
       </CardContent>

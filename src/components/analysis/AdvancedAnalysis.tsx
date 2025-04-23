@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChartBar } from "lucide-react";
 import { AutoChart } from "@/components/ui/chart";
 import { toast } from "sonner";
-import { db } from "@/utils/dbUtils";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   className?: string;
@@ -24,12 +24,40 @@ const AdvancedAnalysis: React.FC<Props> = ({ className, studentId }) => {
 
         let data = [];
         if (studentId) {
-          data = await db.getStudentPerformanceOverTime(studentId);
-        } else {
-          data = await db.getClassPerformanceBySubject("");
-        }
-        setPerformanceData(data);
+          // 获取特定学生的成绩数据
+          const { data: studentScores, error } = await supabase
+            .from('grades')
+            .select('subject, score, exam_date')
+            .eq('student_id', studentId)
+            .order('exam_date', { ascending: true });
 
+          if (error) throw error;
+          data = studentScores || [];
+        } else {
+          // 获取所有科目的平均分
+          const { data: subjectAverages, error } = await supabase
+            .from('grades')
+            .select('subject, score')
+            .order('subject');
+
+          if (error) throw error;
+          
+          // 计算每个科目的平均分
+          const subjectGroups: Record<string, number[]> = {};
+          subjectAverages?.forEach(item => {
+            if (!subjectGroups[item.subject]) {
+              subjectGroups[item.subject] = [];
+            }
+            subjectGroups[item.subject].push(item.score);
+          });
+          
+          data = Object.entries(subjectGroups).map(([subject, scores]) => ({
+            subject,
+            score: scores.reduce((sum, score) => sum + score, 0) / scores.length
+          }));
+        }
+        
+        setPerformanceData(data);
         toast.success("数据加载成功");
       } catch (error) {
         console.error("数据加载失败:", error);
@@ -38,6 +66,7 @@ const AdvancedAnalysis: React.FC<Props> = ({ className, studentId }) => {
         setLoading(false);
       }
     };
+    
     fetchData();
   }, [studentId, className]);
 
@@ -52,7 +81,7 @@ const AdvancedAnalysis: React.FC<Props> = ({ className, studentId }) => {
           <div className="flex items-center justify-center h-full">
             加载中...
           </div>
-        ) : (
+        ) : performanceData.length > 0 ? (
           <AutoChart
             data={performanceData}
             xKey={studentId ? "exam_date" : "subject"}
@@ -60,6 +89,10 @@ const AdvancedAnalysis: React.FC<Props> = ({ className, studentId }) => {
             chartType={studentId ? "line" : "bar"}
             height={350}
           />
+        ) : (
+          <div className="flex items-center justify-center h-full text-gray-500">
+            暂无数据
+          </div>
         )}
       </CardContent>
     </Card>
@@ -76,7 +109,7 @@ const AdvancedAnalysis: React.FC<Props> = ({ className, studentId }) => {
           <div className="flex items-center justify-center h-full">
             加载中...
           </div>
-        ) : (
+        ) : performanceData.length > 0 ? (
           <AutoChart
             data={performanceData}
             xKey={studentId ? "subject" : "subject"}
@@ -84,6 +117,10 @@ const AdvancedAnalysis: React.FC<Props> = ({ className, studentId }) => {
             chartType="bar"
             height={350}
           />
+        ) : (
+          <div className="flex items-center justify-center h-full text-gray-500">
+            暂无数据
+          </div>
         )}
       </CardContent>
     </Card>
@@ -116,4 +153,3 @@ const AdvancedAnalysis: React.FC<Props> = ({ className, studentId }) => {
 };
 
 export default AdvancedAnalysis;
-
