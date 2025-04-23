@@ -95,48 +95,54 @@ const DatabaseInitializer = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <DatabaseInitializer>
-        <BrowserRouter>
-          <ProtectedRoute>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/login" element={<Login />} />
-              <Route 
-                path="/grade-analysis" 
-                element={<GradeAnalysis />} 
-              />
-              <Route 
-                path="/warning-analysis" 
-                element={<WarningAnalysis />} 
-              />
-              <Route 
-                path="/student-management" 
-                element={<StudentManagement />} 
-              />
-              <Route 
-                path="/class-management" 
-                element={<ClassManagement />} 
-              />
-              <Route 
-                path="/student-profile/:studentId" 
-                element={<StudentProfile />} 
-              />
-              <Route 
-                path="/ai-settings" 
-                element={<AISettings />} 
-              />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </ProtectedRoute>
-        </BrowserRouter>
-      </DatabaseInitializer>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <DatabaseInitializer>
+          <BrowserRouter>
+            <ProtectedRoute>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/login" element={<Login />} />
+                <Route 
+                  path="/grade-analysis" 
+                  element={<GradeAnalysis />} 
+                />
+                <Route 
+                  path="/warning-analysis" 
+                  element={<WarningAnalysis />} 
+                />
+                <Route 
+                  path="/student-management" 
+                  element={<StudentManagement />} 
+                />
+                <Route 
+                  path="/class-management" 
+                  element={<ClassManagement />} 
+                />
+                <Route 
+                  path="/student-profile/:studentId" 
+                  element={<StudentProfile />} 
+                />
+                <Route 
+                  path="/ai-settings" 
+                  element={<AISettings />} 
+                />
+                <Route 
+                  path="/homework" 
+                  element={<HomeworkManagement />} 
+                />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </ProtectedRoute>
+          </BrowserRouter>
+        </DatabaseInitializer>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+}
 
 export default App;

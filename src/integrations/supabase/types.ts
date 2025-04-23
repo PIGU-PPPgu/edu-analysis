@@ -68,6 +68,175 @@ export type Database = {
           },
         ]
       }
+      grading_criteria: {
+        Row: {
+          created_at: string
+          description: string | null
+          homework_id: string
+          id: string
+          name: string
+          weight: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          homework_id: string
+          id?: string
+          name: string
+          weight?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          homework_id?: string
+          id?: string
+          name?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grading_criteria_homework_id_fkey"
+            columns: ["homework_id"]
+            isOneToOne: false
+            referencedRelation: "homework"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      homework: {
+        Row: {
+          class_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          title: string
+        }
+        Insert: {
+          class_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          title: string
+        }
+        Update: {
+          class_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "homework_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      homework_submissions: {
+        Row: {
+          ai_analysis: Json | null
+          feedback: string | null
+          files: Json | null
+          grade: string | null
+          homework_id: string
+          id: string
+          score: number | null
+          status: string
+          student_id: string
+          submitted_at: string
+          updated_at: string
+        }
+        Insert: {
+          ai_analysis?: Json | null
+          feedback?: string | null
+          files?: Json | null
+          grade?: string | null
+          homework_id: string
+          id?: string
+          score?: number | null
+          status?: string
+          student_id: string
+          submitted_at?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_analysis?: Json | null
+          feedback?: string | null
+          files?: Json | null
+          grade?: string | null
+          homework_id?: string
+          id?: string
+          score?: number | null
+          status?: string
+          student_id?: string
+          submitted_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "homework_submissions_homework_id_fkey"
+            columns: ["homework_id"]
+            isOneToOne: false
+            referencedRelation: "homework"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "homework_submissions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "active_warnings_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "homework_submissions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
+      knowledge_points: {
+        Row: {
+          created_at: string
+          description: string | null
+          homework_id: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          homework_id: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          homework_id?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_points_homework_id_fkey"
+            columns: ["homework_id"]
+            isOneToOne: false
+            referencedRelation: "homework"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       students: {
         Row: {
           class_id: string | null
@@ -96,6 +265,51 @@ export type Database = {
             columns: ["class_id"]
             isOneToOne: false
             referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      submission_knowledge_points: {
+        Row: {
+          ai_confidence: number | null
+          created_at: string
+          id: string
+          knowledge_point_id: string
+          mastery_level: number
+          notes: string | null
+          submission_id: string
+        }
+        Insert: {
+          ai_confidence?: number | null
+          created_at?: string
+          id?: string
+          knowledge_point_id: string
+          mastery_level?: number
+          notes?: string | null
+          submission_id: string
+        }
+        Update: {
+          ai_confidence?: number | null
+          created_at?: string
+          id?: string
+          knowledge_point_id?: string
+          mastery_level?: number
+          notes?: string | null
+          submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "submission_knowledge_points_knowledge_point_id_fkey"
+            columns: ["knowledge_point_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_points"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "submission_knowledge_points_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "homework_submissions"
             referencedColumns: ["id"]
           },
         ]
