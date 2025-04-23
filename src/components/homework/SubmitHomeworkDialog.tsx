@@ -8,6 +8,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { FileUp } from "lucide-react";
 import { toast } from "sonner";
 
+// Define a simple type for file info that won't cause recursive type issues
+type FileInfo = {
+  name: string;
+  path: string;
+  type: string;
+  size: number;
+};
+
 interface SubmitHomeworkDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -49,13 +57,15 @@ const SubmitHomeworkDialog: React.FC<SubmitHomeworkDialogProps> = ({
 
       if (studentError) throw studentError;
 
-      // For each file, create a storage path and upload it
-      const uploadedFileInfo = [];
+      // Create an array to store uploaded file info
+      const uploadedFileInfo: FileInfo[] = [];
       
+      // Process each file
       for (const file of files) {
-        const fileExt = file.name.split('.').pop();
+        const fileExt = file.name.split('.').pop() || '';
         const fileName = `${homework.id}/${userData.user?.id}/${Date.now()}.${fileExt}`;
         
+        // Upload the file to storage
         const { error: uploadError } = await supabase.storage
           .from('homework_files')
           .upload(fileName, file);
