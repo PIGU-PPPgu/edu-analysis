@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -270,37 +269,38 @@ export const db = {
       for (const item of data) {
         try {
           // 1. 检查/创建学生记录
-          let studentId;
+          let dbStudentId = null;
+          // 查询是否已存在该student_id
           const { data: existingStudent, error: studentError } = await supabase
             .from('students')
-            .select('id')
+            .select('id, student_id')
             .eq('student_id', item.studentId)
             .maybeSingle();
           
           if (studentError) throw studentError;
           
           if (existingStudent) {
-            studentId = existingStudent.id;
+            dbStudentId = existingStudent.id; // Use the DB's record UUID, not student_id string!
           } else {
-            // 创建新学生
+            // 创建新学生，student_id由数据库生成（如果不传则自动生成、如果传会尝试使用该编号）
             const { data: newStudent, error: createError } = await supabase
               .from('students')
               .insert({
-                student_id: item.studentId,
+                // student_id: item.studentId, // 如果需要数据库自动生成而不是用户自定义，则注释此行
                 name: item.name
               })
-              .select('id')
+              .select('id, student_id')
               .single();
             
             if (createError) throw createError;
-            studentId = newStudent.id;
+            dbStudentId = newStudent.id;
           }
           
           // 2. 创建成绩记录
           const { error: gradeError } = await supabase
             .from('grades')
             .insert({
-              student_id: studentId,
+              student_id: dbStudentId,
               subject: item.subject,
               score: item.score,
               exam_date: item.examDate || null,
