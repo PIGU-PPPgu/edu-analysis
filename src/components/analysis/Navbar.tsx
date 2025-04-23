@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { FileText, Import } from "lucide-react";
@@ -85,7 +84,7 @@ const Navbar: React.FC = () => {
               isActive('/student-management') ? 'text-primary' : 'text-muted-foreground'
             }`}
           >
-            学生管理
+            班级管理
           </Link>
           <Link
             to="/class-management"
@@ -93,7 +92,7 @@ const Navbar: React.FC = () => {
               isActive('/class-management') ? 'text-primary' : 'text-muted-foreground'
             }`}
           >
-            班级管理
+            班级画像
           </Link>
           <Link
             to="/ai-settings"
