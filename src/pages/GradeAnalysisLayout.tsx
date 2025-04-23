@@ -14,6 +14,7 @@ import { BarChartBig, ChevronLeft, LineChart, PieChart, Users } from "lucide-rea
 import { Button } from "@/components/ui/button";
 import ClassStudentsList from "@/components/analysis/ClassStudentsList";
 
+// Updated to match what Supabase actually returns
 interface StudentGrade {
   id: string;
   student_id: string;
@@ -22,8 +23,8 @@ interface StudentGrade {
   exam_date: string | null;
   exam_type: string | null;
   students?: {
-    name: string;
-    class_name: string;
+    name?: string;
+    student_id?: string;
   };
 }
 
@@ -32,6 +33,7 @@ const GradeAnalysisLayout = () => {
   const [boxPlotData, setBoxPlotData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // 获取成绩数据
   useEffect(() => {
@@ -51,7 +53,7 @@ const GradeAnalysisLayout = () => {
             subject,
             exam_date,
             exam_type,
-            students ( name, class_name )
+            students ( name, student_id )
           `)
           .order('created_at', { ascending: false });
         
@@ -59,7 +61,7 @@ const GradeAnalysisLayout = () => {
         
         if (data && data.length > 0) {
           // 格式化数据
-          const formattedData = data.map((item: StudentGrade) => ({
+          const formattedData = data.map((item: any) => ({
             id: item.id,
             studentId: item.student_id,
             name: item.students?.name || '未知学生',
@@ -67,7 +69,7 @@ const GradeAnalysisLayout = () => {
             score: item.score,
             examDate: item.exam_date,
             examType: item.exam_type || '未知考试',
-            className: item.students?.class_name || '未知班级'
+            className: '未知班级' // Since class_name isn't available, we set a default
           }));
           
           setGradeData(formattedData);
@@ -123,6 +125,26 @@ const GradeAnalysisLayout = () => {
       setBoxPlotData(boxPlotDataArray);
     }
   }, [gradeData]);
+
+  // Handler for AI Analysis start
+  const handleStartAnalysis = async (config: {
+    provider: string;
+    model: string;
+    temperature: number;
+    language: string;
+  }) => {
+    setIsAnalyzing(true);
+    try {
+      // Placeholder for actual analysis logic
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      toast.success("分析完成");
+    } catch (error) {
+      toast.error("分析失败");
+      console.error("AI分析失败:", error);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -214,7 +236,10 @@ const GradeAnalysisLayout = () => {
           
           <TabsContent value="ai">
             {isDataLoaded ? (
-              <AIAnalysisController />
+              <AIAnalysisController 
+                onStartAnalysis={handleStartAnalysis}
+                isAnalyzing={isAnalyzing}
+              />
             ) : (
               <div className="text-center py-12 bg-white rounded-lg shadow">
                 <p className="text-xl text-gray-600">智能分析需要数据</p>

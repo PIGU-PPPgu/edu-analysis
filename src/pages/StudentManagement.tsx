@@ -50,12 +50,13 @@ const StudentManagement: React.FC = () => {
         if (error) throw error;
         
         if (data && data.length > 0) {
-          // TypeScript guard to ensure data is of the expected type
-          const formattedStudents = data.map((student: StudentData) => {
+          // Format the student data safely
+          const formattedStudents = data.map((student: any) => {
             // Calculate average score if grades exist
             let avgScore = 0;
-            if (student.grades && student.grades.length > 0) {
-              const sum = student.grades.reduce((acc, grade) => acc + grade.score, 0);
+            if (student.grades && Array.isArray(student.grades) && student.grades.length > 0) {
+              const sum = student.grades.reduce((acc: number, grade: any) => 
+                acc + (typeof grade.score === 'number' ? grade.score : 0), 0);
               avgScore = Math.round((sum / student.grades.length) * 10) / 10;
             }
             
