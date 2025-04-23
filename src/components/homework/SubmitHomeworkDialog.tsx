@@ -18,13 +18,13 @@ interface SubmitHomeworkDialogProps {
   onSubmitted: () => void;
 }
 
-// Define uploaded file info as a concrete type, not tied to Json
-type UploadedFileInfo = {
+// Define a simple interface for uploaded files
+interface UploadedFile {
   name: string;
   path: string;
   type: string;
   size: number;
-};
+}
 
 const SubmitHomeworkDialog: React.FC<SubmitHomeworkDialogProps> = ({
   open,
@@ -57,14 +57,8 @@ const SubmitHomeworkDialog: React.FC<SubmitHomeworkDialogProps> = ({
 
       if (studentError) throw studentError;
 
-      // Upload files
-      // Define as a plain array of objects, avoiding complex type references
-      const uploadedFiles = [] as Array<{
-        name: string;
-        path: string;
-        type: string;
-        size: number;
-      }>;
+      // Create a simple array for uploaded files
+      const uploadedFiles: UploadedFile[] = [];
       
       for (const file of files) {
         const fileExt = file.name.split('.').pop();
@@ -90,7 +84,7 @@ const SubmitHomeworkDialog: React.FC<SubmitHomeworkDialogProps> = ({
         .insert({
           homework_id: homework.id,
           student_id: studentData.student_id,
-          files: uploadedFiles, // Use directly without type assertions
+          files: uploadedFiles,
           notes: notes.trim() ? notes : null,
           status: 'submitted'
         });
