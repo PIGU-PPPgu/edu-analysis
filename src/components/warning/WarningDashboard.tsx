@@ -1,7 +1,5 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import WarningList from "./WarningList";
 import WarningStatistics from "./WarningStatistics";
 import RiskFactorChart from "./RiskFactorChart";
 import { Button } from "@/components/ui/button";
@@ -21,10 +19,8 @@ const WarningDashboard = () => {
   }, []);
 
   const generateRandomInsight = () => {
-    // 高风险学生数量
     const highRiskCount = Math.floor(3 + Math.random() * 5);
     
-    // 随机科目
     const subjects = ["数学", "语文", "英语", "物理", "化学", "生物"];
     const randomSubjects = () => {
       const count = 1 + Math.floor(Math.random() * 2);
@@ -38,7 +34,6 @@ const WarningDashboard = () => {
       return selected.join("和");
     };
     
-    // 风险因素
     const riskFactors = ["出勤率", "作业完成情况", "课堂参与度", "考试成绩", "学习态度"];
     const randomRiskFactors = () => {
       const count = 1 + Math.floor(Math.random() * 2);
@@ -52,10 +47,8 @@ const WarningDashboard = () => {
       return selected.join("和");
     };
     
-    // 提升百分比
     const increasePercent = 5 + Math.floor(Math.random() * 20);
     
-    // 生成报告
     return `
 ## 预警分析结果
 
@@ -87,7 +80,6 @@ ${Math.random() > 0.5 ? '4. 设计专项提升计划，针对薄弱学科进行�
     
     setIsGeneratingInsights(true);
     
-    // 模拟AI分析过程
     setTimeout(() => {
       const insights = generateRandomInsight();
       setAiInsights(insights);
@@ -147,8 +139,6 @@ ${Math.random() > 0.5 ? '4. 设计专项提升计划，针对薄弱学科进行�
           )}
         </CardContent>
       </Card>
-      
-      <WarningList />
     </div>
   );
 };
