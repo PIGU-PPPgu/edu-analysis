@@ -1,5 +1,10 @@
 
-// Export individual utility modules
+// Import the utility modules
+import { gradeUtils } from './grades';
+import { warningSystem } from './warningSystem';
+import { studentWarnings } from './studentWarnings';
+
+// Export individual utility modules for direct access
 export { gradeUtils } from './grades';
 export { warningSystem } from './warningSystem';
 export { studentWarnings } from './studentWarnings';
