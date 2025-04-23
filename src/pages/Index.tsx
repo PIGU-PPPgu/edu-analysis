@@ -1,9 +1,10 @@
+
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/analysis/Navbar";
-import { FileUploader } from "@/components/analysis/FileUploader";
+import FileUploader from "@/components/analysis/FileUploader";
 import { Button } from "@/components/ui/button";
-import { IntelligentFileParser } from "@/components/analysis/IntelligentFileParser";
+import IntelligentFileParser from "@/components/analysis/IntelligentFileParser";
 import { AlertTriangle, ChartBar } from "lucide-react";
 
 const Index = () => {
