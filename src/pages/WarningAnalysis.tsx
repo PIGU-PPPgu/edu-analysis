@@ -4,7 +4,7 @@ import Navbar from "@/components/analysis/Navbar";
 import WarningDashboard from "@/components/warning/WarningDashboard";
 import WarningRules from "@/components/warning/WarningRules";
 import WarningList from "@/components/warning/WarningList";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { Settings, AlertTriangle, Users, School } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";

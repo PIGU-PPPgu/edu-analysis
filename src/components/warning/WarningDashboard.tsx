@@ -163,6 +163,21 @@ ${Math.random() > 0.5 ? '4. 设计专项提升计划，针对薄弱学科进行�
           )}
         </CardContent>
       </Card>
+
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <h3 className="font-semibold text-amber-800 mb-2">学生与班级管理提示</h3>
+        <p className="text-sm text-amber-700 mb-3">
+          我们已经将学生管理和班级管理功能整合在一起，您可以通过上方的快捷按钮或侧边导航进入。
+          针对学生数量较多的情况，系统已经优化了以下功能：
+        </p>
+        <div className="flex flex-wrap gap-2 mb-2">
+          <Badge variant="outline" className="bg-white text-amber-700 border-amber-300">分页导航</Badge>
+          <Badge variant="outline" className="bg-white text-amber-700 border-amber-300">高级搜索</Badge>
+          <Badge variant="outline" className="bg-white text-amber-700 border-amber-300">批量操作</Badge>
+          <Badge variant="outline" className="bg-white text-amber-700 border-amber-300">数据过滤</Badge>
+          <Badge variant="outline" className="bg-white text-amber-700 border-amber-300">表格视图</Badge>
+        </div>
+      </div>
     </div>
   );
 };
