@@ -5,6 +5,7 @@ import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar, Tool
 import { ChartContainer } from "@/components/ui/chart";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { db } from "@/utils/dbUtils";
 
 type RiskFactor = {
   factor: string;
@@ -12,24 +13,11 @@ type RiskFactor = {
 };
 
 const RiskFactorChart = () => {
-  // Use mock data instead of database query for now
-  const mockRiskFactors: RiskFactor[] = [
-    { factor: "出勤率", value: 85 },
-    { factor: "作业完成", value: 75 },
-    { factor: "考试成绩", value: 65 },
-    { factor: "课堂参与", value: 70 },
-    { factor: "学习态度", value: 80 }
-  ];
-
   const { data: riskFactors, isLoading, error } = useQuery({
     queryKey: ['riskFactors'],
     queryFn: async () => {
-      // Simulate API call
-      return new Promise<RiskFactor[]>((resolve) => {
-        setTimeout(() => {
-          resolve(mockRiskFactors);
-        }, 500);
-      });
+      const result = await db.getRiskFactors();
+      return result;
     }
   });
 
@@ -72,3 +60,4 @@ const RiskFactorChart = () => {
 };
 
 export default RiskFactorChart;
+

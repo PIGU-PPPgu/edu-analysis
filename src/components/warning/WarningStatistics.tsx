@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { db } from "@/utils/dbUtils";
 
 type WarningStats = {
   high_risk: number;
@@ -13,24 +14,12 @@ type WarningStats = {
 };
 
 const WarningStatistics = () => {
-  // Use mock data instead of database query for now
-  const mockWarningStats: WarningStats = {
-    high_risk: 5,
-    medium_risk: 12,
-    low_risk: 24,
-    total: 41
-  };
-
   const { data: stats, isLoading, error } = useQuery({
     queryKey: ['warningStats'],
     queryFn: async () => {
-      // Simulate API call
-      return new Promise<WarningStats>((resolve) => {
-        setTimeout(() => {
-          resolve(mockWarningStats);
-        }, 500);
-      });
-    }
+      const result = await db.getWarningStatistics();
+      return result;
+    },
   });
 
   if (error) {
@@ -77,3 +66,4 @@ const WarningStatistics = () => {
 };
 
 export default WarningStatistics;
+
