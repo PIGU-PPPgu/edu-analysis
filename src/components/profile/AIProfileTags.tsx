@@ -32,12 +32,25 @@ const AIProfileTags: React.FC<Props> = ({ student }) => {
     setIsAnalyzing(true);
     
     try {
+      const config = getUserAIConfig();
+      const apiKey = getUserAPIKey();
+      
+      if (!config || !apiKey) {
+        throw new Error("请先在AI设置中配置大模型API");
+      }
+      
       // Call the Supabase edge function for AI analysis
       const { data, error } = await supabase.functions.invoke('generate-student-profile', {
         body: JSON.stringify({
           studentName: student.name,
           studentId: student.studentId,
-          scores: student.scores
+          scores: student.scores,
+          aiConfig: {
+            provider: config.provider,
+            version: config.version,
+            apiKey: apiKey,
+            customProviders: config.customProviders
+          }
         })
       });
 
@@ -61,7 +74,7 @@ const AIProfileTags: React.FC<Props> = ({ student }) => {
     } catch (error) {
       console.error("AI分析失败:", error);
       toast.error("AI分析失败", {
-        description: "无法生成学生画像标签，请稍后重试"
+        description: error.message || "无法生成学生画像标签，请稍后重试"
       });
     } finally {
       setIsAnalyzing(false);
