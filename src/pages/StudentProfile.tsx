@@ -11,7 +11,7 @@ import ScoreSummary from "../components/profile/ScoreSummary";
 import ScoreChart from "../components/profile/ScoreChart";
 import AbilityRadar from "../components/profile/AbilityRadar";
 import { StudentData } from "../components/profile/types";
-import { Check } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 const mockStudentData: StudentData = {
   studentId: "20230001",
@@ -58,7 +58,10 @@ const StudentProfile: React.FC = () => {
             <div>
               <div className="flex items-center gap-3">
                 <Button variant="outline" size="sm" asChild>
-                  <Link to="/grade-analysis">返回成绩分析</Link>
+                  <Link to="/student-management">
+                    <ArrowLeft className="h-4 w-4 mr-1" />
+                    返回学生管理
+                  </Link>
                 </Button>
                 <h1 className="text-3xl font-bold">学生画像分析</h1>
               </div>

@@ -1,13 +1,15 @@
 
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import StudentList from "@/components/analysis/StudentList";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "react-router-dom";
-import { Users } from "lucide-react";
+import { Users, School } from "lucide-react";
 import Navbar from "@/components/analysis/Navbar";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import ClassProfilesList from "@/components/analysis/ClassProfilesList";
 
 interface Student {
   studentId: string;
@@ -27,6 +29,7 @@ interface StudentData {
 const StudentManagement: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("students");
 
   useEffect(() => {
     const fetchStudents = async () => {
@@ -88,32 +91,54 @@ const StudentManagement: React.FC = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="container mx-auto px-4 py-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">学生管理</h1>
-          <Button asChild>
-            <Link to="/class-management">
-              <Users className="mr-2 h-4 w-4" />
-              查看班级管理
-            </Link>
-          </Button>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold">学生与班级管理</h1>
+          <p className="text-gray-500">管理学生和班级信息，查看学生成绩和班级统计数据</p>
         </div>
         
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>学生列表</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="flex justify-center py-8">正在加载学生数据...</div>
-            ) : students.length > 0 ? (
-              <StudentList students={students} />
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                暂无学生数据。请先添加学生信息或导入Excel文件。
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+          <TabsList className="grid w-full max-w-[400px] grid-cols-2">
+            <TabsTrigger value="students">
+              <Users className="mr-2 h-4 w-4" />
+              学生管理
+            </TabsTrigger>
+            <TabsTrigger value="classes">
+              <School className="mr-2 h-4 w-4" />
+              班级管理
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="students" className="mt-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>学生列表</CardTitle>
+                  <CardDescription>管理所有学生信息和成绩</CardDescription>
+                </div>
+                <Button asChild>
+                  <Link to="/warning-analysis">
+                    查看预警分析
+                  </Link>
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="flex justify-center py-8">正在加载学生数据...</div>
+                ) : students.length > 0 ? (
+                  <StudentList students={students} />
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    暂无学生数据。请先添加学生信息或导入Excel文件。
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="classes" className="mt-6">
+            <ClassProfilesList />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
