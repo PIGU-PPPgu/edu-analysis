@@ -6,7 +6,7 @@ import { ChartData } from "@/contexts/GradeAnalysisContext";
  * @param {Array} data 成绩数据
  * @returns {Object} 统计信息
  */
-export const calculateStatistics = (data) => {
+export const calculateStatistics = (data: any[]) => {
   if (!Array.isArray(data) || data.length === 0) {
     return {
       avg: 0,
@@ -50,7 +50,7 @@ export const calculateStatistics = (data) => {
  * @param {Array} data 成绩数据
  * @returns {Array} 图表配置
  */
-export const generateCustomCharts = (data) => {
+export const generateCustomCharts = (data: any[]) => {
   if (!Array.isArray(data) || data.length === 0) {
     return [];
   }
@@ -59,7 +59,7 @@ export const generateCustomCharts = (data) => {
 
   try {
     // 图表1: 学科平均分
-    const subjectScores = {};
+    const subjectScores: Record<string, number[]> = {};
     data.forEach(item => {
       if (!subjectScores[item.subject]) {
         subjectScores[item.subject] = [];
@@ -113,7 +113,7 @@ export const generateCustomCharts = (data) => {
 
     // 图表3: 考试类型比较
     if (data.some(item => item.examType)) {
-      const examTypeScores = {};
+      const examTypeScores: Record<string, number[]> = {};
       data.forEach(item => {
         if (item.examType) {
           if (!examTypeScores[item.examType]) {
@@ -138,7 +138,7 @@ export const generateCustomCharts = (data) => {
 
     // 图表4: 成绩趋势 (如果有日期)
     if (data.some(item => item.examDate)) {
-      const dateSubjectScores = {};
+      const dateSubjectScores: Record<string, Record<string, number[]>> = {};
       
       // 按日期和科目分组
       data.forEach(item => {
@@ -156,7 +156,7 @@ export const generateCustomCharts = (data) => {
 
       // 计算每个日期每个科目的平均分
       const trendData = Object.entries(dateSubjectScores).map(([date, subjects]) => {
-        const entry = { date };
+        const entry: Record<string, any> = { date };
         
         Object.entries(subjects).forEach(([subject, scores]) => {
           entry[subject] = scores.reduce((acc, score) => acc + score, 0) / scores.length;
@@ -166,7 +166,7 @@ export const generateCustomCharts = (data) => {
       });
 
       // 按日期排序
-      trendData.sort((a, b) => new Date(a.date) - new Date(b.date));
+      trendData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
       if (trendData.length > 0) {
         charts.push({
@@ -188,7 +188,7 @@ export const generateCustomCharts = (data) => {
  * @param {ChartData} chart 图表配置
  * @returns {Array} 图表数据
  */
-export const getChartData = (chart) => {
+export const getChartData = (chart: ChartData) => {
   if (!chart || !chart.data) {
     return [];
   }

@@ -153,7 +153,7 @@ export const db = {
   },
   
   // 获取学生成绩趋势
-  async getStudentPerformanceOverTime(studentId) {
+  async getStudentPerformanceOverTime(studentId: string) {
     try {
       const { data, error } = await supabase
         .from('grades')
@@ -172,7 +172,7 @@ export const db = {
   },
 
   // 获取班级学科成绩
-  async getClassPerformanceBySubject(className) {
+  async getClassPerformanceBySubject(className?: string) {
     try {
       if (!className) {
         // 获取所有成绩按学科分组
@@ -183,7 +183,7 @@ export const db = {
         if (error) throw error;
         
         // 按科目计算平均分
-        const subjectGroups = {};
+        const subjectGroups: Record<string, number[]> = {};
         data?.forEach(item => {
           if (!subjectGroups[item.subject]) {
             subjectGroups[item.subject] = [];
@@ -227,7 +227,7 @@ export const db = {
         if (gradesError) throw gradesError;
         
         // 按科目计算平均分
-        const subjectGroups = {};
+        const subjectGroups: Record<string, number[]> = {};
         gradesData?.forEach(item => {
           if (!subjectGroups[item.subject]) {
             subjectGroups[item.subject] = [];
@@ -248,7 +248,7 @@ export const db = {
   },
   
   // 保存导入的成绩数据
-  async saveGradeData(data) {
+  async saveGradeData(data: any[]) {
     try {
       // 检查数据必需的字段
       const requiredFields = ['studentId', 'name', 'subject', 'score'];
@@ -263,7 +263,7 @@ export const db = {
       // 处理结果统计
       const results = {
         success: 0,
-        errors: []
+        errors: [] as string[]
       };
       
       // 批量处理数据
@@ -310,14 +310,14 @@ export const db = {
           if (gradeError) throw gradeError;
           
           results.success++;
-        } catch (error) {
+        } catch (error: any) {
           console.error(`处理记录失败:`, item, error);
           results.errors.push(`学生 ${item.name}(${item.studentId}) 的 ${item.subject} 成绩保存失败: ${error.message}`);
         }
       }
       
       return results;
-    } catch (error) {
+    } catch (error: any) {
       console.error('保存成绩数据失败:', error);
       toast.error('保存成绩数据失败');
       throw error;

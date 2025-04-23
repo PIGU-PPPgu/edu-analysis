@@ -12,6 +12,11 @@ interface Exam {
   date: string;
 }
 
+interface SubjectScore {
+  total: number;
+  count: number;
+}
+
 const ExamComparison: React.FC = () => {
   const [selectedExams, setSelectedExams] = useState<string[]>([]);
   const [examList, setExamList] = useState<Exam[]>([]);
@@ -82,7 +87,7 @@ const ExamComparison: React.FC = () => {
           if (error) throw error;
           
           // 按科目计算平均分
-          const subjectAverages: Record<string, number> = {};
+          const subjectAverages: Record<string, SubjectScore> = {};
           data?.forEach(item => {
             if (!subjectAverages[item.subject]) {
               subjectAverages[item.subject] = { total: 0, count: 0 };
@@ -91,9 +96,9 @@ const ExamComparison: React.FC = () => {
             subjectAverages[item.subject].count += 1;
           });
           
-          return Object.entries(subjectAverages).map(([subject, { total, count }]) => ({
+          return Object.entries(subjectAverages).map(([subject, scores]) => ({
             subject,
-            [examType]: total / count,
+            [examType]: scores.total / scores.count,
             examId: `${examType}-${examDate}`
           }));
         });
