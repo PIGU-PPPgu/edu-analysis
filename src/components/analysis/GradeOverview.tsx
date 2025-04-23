@@ -3,6 +3,8 @@ import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import IntelligentFileParser from "@/components/analysis/IntelligentFileParser";
 import StatisticsOverview from "@/components/analysis/StatisticsOverview";
+import { useGradeAnalysis } from "@/contexts/GradeAnalysisContext";
+import { calculateStatistics } from "@/utils/chartGenerationUtils";
 
 interface Props {
   onDataParsed: (parsedData: any[]) => void;
@@ -22,20 +24,11 @@ const MOCK_GRADE_DATA = [
 ];
 
 const GradeOverview: React.FC<Props> = ({ onDataParsed, parsingError }) => {
-  // 默认数据/统计逻辑
-  const gradeData = MOCK_GRADE_DATA;
-  const scores = gradeData.map(item => {
-    const score = typeof item.score === "number" ? item.score : parseFloat(item.score);
-    return isNaN(score) ? 0 : score;
-  }).filter(score => score > 0);
-
-  const statData = {
-    avg: scores.length > 0 ? scores.reduce((sum, score) => sum + score, 0) / scores.length : 0,
-    max: scores.length > 0 ? Math.max(...scores) : 0,
-    min: scores.length > 0 ? Math.min(...scores) : 0,
-    passing: scores.filter(score => score >= 60).length,
-    total: scores.length
-  };
+  const { gradeData, isDataLoaded } = useGradeAnalysis();
+  
+  // Use actual data or fall back to mock data for statistics
+  const dataToUse = isDataLoaded ? gradeData : MOCK_GRADE_DATA;
+  const statData = calculateStatistics(dataToUse);
 
   return (
     <>
@@ -61,4 +54,5 @@ const GradeOverview: React.FC<Props> = ({ onDataParsed, parsingError }) => {
     </>
   );
 };
+
 export default GradeOverview;

@@ -4,9 +4,11 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { AutoChart } from "@/components/ui/chart";
 import ScoreDistribution from "@/components/analysis/ScoreDistribution";
 import ScoreBoxPlot from "@/components/analysis/ScoreBoxPlot";
+import { getChartData } from "@/utils/chartGenerationUtils";
+import { ChartData } from "@/contexts/GradeAnalysisContext";
 
 interface Props {
-  customCharts: any[];
+  customCharts: ChartData[];
 }
 
 const scoreDistributionData = [
@@ -16,6 +18,7 @@ const scoreDistributionData = [
   { range: "60-69分", count: 12, color: "#FFEB3B" },
   { range: "60分以下", count: 7, color: "#F44336" }
 ];
+
 const boxPlotData = [
   { subject: "语文", min: 52, q1: 68, median: 78, q3: 88, max: 98 },
   { subject: "数学", min: 45, q1: 62, median: 75, q3: 85, max: 97 },
@@ -23,15 +26,6 @@ const boxPlotData = [
   { subject: "物理", min: 48, q1: 60, median: 72, q3: 82, max: 94 },
   { subject: "化学", min: 55, q1: 66, median: 77, q3: 87, max: 96 }
 ];
-
-// Helper function to ensure we have safe data for charts
-const getChartData = (chart: any) => {
-  // Check if we have valid data
-  if (!chart.data || !Array.isArray(chart.data) || chart.data.length === 0) {
-    return [{ value: 0 }]; // Return safe default data
-  }
-  return chart.data;
-};
 
 const CustomChartsSection: React.FC<Props> = ({ customCharts }) => {
   if (customCharts.length > 0) {
