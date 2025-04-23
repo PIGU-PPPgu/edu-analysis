@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -282,12 +283,12 @@ export const db = {
           if (existingStudent) {
             dbStudentId = existingStudent.id; // Use the DB's record UUID, not student_id string!
           } else {
-            // 创建新学生，student_id由数据库生成（如果不传则自动生成、如果传会尝试使用该编号）
+            // 创建新学生，student_id由数据库自动生成或使用提供的值
             const { data: newStudent, error: createError } = await supabase
               .from('students')
               .insert({
-                // student_id: item.studentId, // 如果需要数据库自动生成而不是用户自定义，则注释此行
-                name: item.name
+                name: item.name,
+                student_id: item.studentId // 保留student_id字段，以确保类型兼容
               })
               .select('id, student_id')
               .single();
