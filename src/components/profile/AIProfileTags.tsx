@@ -6,6 +6,7 @@ import { Brain, Loader2, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { getUserAIConfig, getUserAPIKey } from "@/utils/userAuth";
 import { StudentData } from "./types";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   student: StudentData;
@@ -27,40 +28,44 @@ const AIProfileTags: React.FC<Props> = ({ student }) => {
     setAiConfigured(!!config && !!apiKey);
   }, []);
 
-  const generateProfileTags = () => {
+  const generateProfileTags = async () => {
     setIsAnalyzing(true);
     
-    // Mock AI analysis generation for demonstration
-    setTimeout(() => {
-      const mockTags = {
-        learningStyle: [
-          `${Math.random() > 0.5 ? '视觉学习者' : '听觉学习者'}`,
-          `${Math.random() > 0.5 ? '自主学习' : '小组协作'}`,
-          `${Math.random() > 0.5 ? '发散思维' : '逻辑思维'}`
-        ],
-        strengths: [
-          `${Math.random() > 0.5 ? '语言表达能力' : '数学计算能力'}`,
-          `${Math.random() > 0.5 ? '细节关注' : '创意思考'}`,
-          `${Math.random() > 0.5 ? '记忆力强' : '理解力好'}`
-        ],
-        improvements: [
-          `${Math.random() > 0.5 ? '时间管理' : '专注力'}`,
-          `${Math.random() > 0.5 ? '书面表达' : '口头表达'}`,
-          `${Math.random() > 0.5 ? '抽象思维' : '实践应用'}`
-        ],
-        personalityTraits: [
-          `${Math.random() > 0.5 ? '积极主动' : '认真踏实'}`,
-          `${Math.random() > 0.5 ? '善于合作' : '独立自主'}`,
-          `${Math.random() > 0.5 ? '好奇心强' : '责任感强'}`
-        ]
-      };
-      
-      setProfileTags(mockTags);
-      setIsAnalyzing(false);
-      toast.success("学生画像分析完成", {
-        description: "AI已生成学生画像标签"
+    try {
+      // Call the Supabase edge function for AI analysis
+      const { data, error } = await supabase.functions.invoke('generate-student-profile', {
+        body: JSON.stringify({
+          studentName: student.name,
+          studentId: student.studentId,
+          scores: student.scores
+        })
       });
-    }, 1500);
+
+      if (error) {
+        throw error;
+      }
+
+      // Parse the AI-generated tags
+      const aiTags = data?.tags || {
+        learningStyle: [],
+        strengths: [],
+        improvements: [],
+        personalityTraits: []
+      };
+
+      setProfileTags(aiTags);
+      
+      toast.success("学生画像分析完成", {
+        description: "AI已生成个性化学生画像标签"
+      });
+    } catch (error) {
+      console.error("AI分析失败:", error);
+      toast.error("AI分析失败", {
+        description: "无法生成学生画像标签，请稍后重试"
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const renderTagSection = (title: string, tags: string[] | undefined, color: string) => {
