@@ -23,11 +23,14 @@ import { Plus } from "lucide-react";
 import { warningSystem } from "@/utils/dbUtils";
 import { toast } from "sonner";
 
+// Define the severity type to match what's expected in the warning system
+type SeverityType = "low" | "medium" | "high";
+
 const WarningRules = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [severity, setSeverity] = useState<string>("medium");
+  const [severity, setSeverity] = useState<SeverityType>("medium");
 
   const { data: rules = [], refetch } = useQuery({
     queryKey: ['warning-rules'],
@@ -99,7 +102,7 @@ const WarningRules = () => {
                   <Label htmlFor="severity">风险等级</Label>
                   <Select
                     value={severity}
-                    onValueChange={setSeverity}
+                    onValueChange={(value: SeverityType) => setSeverity(value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="选择风险等级" />
