@@ -18,6 +18,13 @@ interface SubmitHomeworkDialogProps {
   onSubmitted: () => void;
 }
 
+interface UploadedFile {
+  name: string;
+  path: string;
+  type: string;
+  size: number;
+}
+
 const SubmitHomeworkDialog: React.FC<SubmitHomeworkDialogProps> = ({
   open,
   onOpenChange,
@@ -50,7 +57,7 @@ const SubmitHomeworkDialog: React.FC<SubmitHomeworkDialogProps> = ({
       if (studentError) throw studentError;
 
       // Upload files
-      const uploadedFiles = [];
+      const uploadedFiles: UploadedFile[] = [];
       for (const file of files) {
         const fileExt = file.name.split('.').pop();
         const fileName = `${homework.id}/${userData.user?.id}/${Date.now()}.${fileExt}`;
