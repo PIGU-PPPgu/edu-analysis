@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, Cell, CartesianGrid, PieChart, Pie } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -139,10 +139,10 @@ const ScoreDistribution: React.FC<Props> = ({ data: initialData }) => {
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            // 保留饼图视图作为备选
+            // 饼图视图的实现（目前只作为备选）
             <ResponsiveContainer width="100%" height="100%">
               <PieChart margin={{ top: 10, right: 10, bottom: 30, left: 10 }}>
-                {/* Pie chart implementation */}
+                {/* 饼图实现将在未来添加 */}
               </PieChart>
             </ResponsiveContainer>
           )

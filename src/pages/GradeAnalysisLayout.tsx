@@ -14,6 +14,19 @@ import { BarChartBig, ChevronLeft, LineChart, PieChart, Users } from "lucide-rea
 import { Button } from "@/components/ui/button";
 import ClassStudentsList from "@/components/analysis/ClassStudentsList";
 
+interface StudentGrade {
+  id: string;
+  student_id: string;
+  score: number;
+  subject: string;
+  exam_date: string | null;
+  exam_type: string | null;
+  students?: {
+    name: string;
+    class_name: string;
+  };
+}
+
 const GradeAnalysisLayout = () => {
   const { gradeData, isDataLoaded, calculateStatistics, setGradeData } = useGradeAnalysis();
   const [boxPlotData, setBoxPlotData] = useState<any[]>([]);
@@ -46,7 +59,7 @@ const GradeAnalysisLayout = () => {
         
         if (data && data.length > 0) {
           // 格式化数据
-          const formattedData = data.map(item => ({
+          const formattedData = data.map((item: StudentGrade) => ({
             id: item.id,
             studentId: item.student_id,
             name: item.students?.name || '未知学生',
@@ -201,7 +214,7 @@ const GradeAnalysisLayout = () => {
           
           <TabsContent value="ai">
             {isDataLoaded ? (
-              <AIAnalysisController data={gradeData} />
+              <AIAnalysisController />
             ) : (
               <div className="text-center py-12 bg-white rounded-lg shadow">
                 <p className="text-xl text-gray-600">智能分析需要数据</p>

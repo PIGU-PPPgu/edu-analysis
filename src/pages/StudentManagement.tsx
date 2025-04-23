@@ -16,6 +16,14 @@ interface Student {
   averageScore: number;
 }
 
+interface StudentData {
+  id: string;
+  student_id: string;
+  name: string;
+  class_name?: string;
+  grades?: Array<{ score: number }>;
+}
+
 const StudentManagement: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +50,8 @@ const StudentManagement: React.FC = () => {
         if (error) throw error;
         
         if (data && data.length > 0) {
-          const formattedStudents = data.map(student => {
+          // TypeScript guard to ensure data is of the expected type
+          const formattedStudents = data.map((student: StudentData) => {
             // Calculate average score if grades exist
             let avgScore = 0;
             if (student.grades && student.grades.length > 0) {
