@@ -33,7 +33,7 @@ const CustomChartsSection: React.FC<Props> = ({ customCharts }) => {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {customCharts.map((chart, index) => (
-          <Card key={index}>
+          <Card key={index} className="relative overflow-visible animate-fade-in">
             <CardHeader>
               <CardTitle>
                 {chart.id === "subjectAverages" ? "各科目平均分" :
@@ -51,50 +51,53 @@ const CustomChartsSection: React.FC<Props> = ({ customCharts }) => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {chart.id === "subjectAverages" ? (
-                <AutoChart 
-                  data={getChartData(chart)}
-                  xKey="subject"
-                  yKeys={["averageScore"]}
-                  colors={["#B9FF66"]}
-                  chartType="bar"
-                  height={300}
-                />
-              ) : chart.id === "scoreDistribution" ? (
-                <AutoChart 
-                  data={getChartData(chart)}
-                  xKey="range"
-                  yKeys={["count"]}
-                  colors={["#B9FF66"]}
-                  chartType="bar"
-                  height={300}
-                />
-              ) : chart.id === "scoreTrend" ? (
-                <AutoChart 
-                  data={getChartData(chart)}
-                  xKey="date"
-                  yKeys={Object.keys(getChartData(chart)[0] || {}).filter(k => k !== "date")}
-                  chartType="line"
-                  height={300}
-                />
-              ) : chart.id === "examTypeComparison" ? (
-                <AutoChart 
-                  data={getChartData(chart)}
-                  xKey="examType"
-                  yKeys={["averageScore"]}
-                  colors={["#B9FF66"]}
-                  chartType="bar"
-                  height={300}
-                />
-              ) : (
-                <AutoChart 
-                  data={[{ value: 0 }]}
-                  xKey="value"
-                  yKeys={["value"]}
-                  chartType="bar"
-                  height={300}
-                />
-              )}
+              {/* 增强用户体验与动效 */}
+              <div className="relative">
+                {chart.id === "subjectAverages" ? (
+                  <AutoChart 
+                    data={getChartData(chart)}
+                    xKey="subject"
+                    yKeys={["averageScore"]}
+                    colors={["#B9FF66"]}
+                    chartType="bar"
+                    height={300}
+                  />
+                ) : chart.id === "scoreDistribution" ? (
+                  <AutoChart 
+                    data={getChartData(chart)}
+                    xKey="range"
+                    yKeys={["count"]}
+                    colors={["#B9FF66"]}
+                    chartType="bar"
+                    height={300}
+                  />
+                ) : chart.id === "scoreTrend" ? (
+                  <AutoChart 
+                    data={getChartData(chart)}
+                    xKey="date"
+                    yKeys={Object.keys(getChartData(chart)[0] || {}).filter(k => k !== "date")}
+                    chartType="line"
+                    height={300}
+                  />
+                ) : chart.id === "examTypeComparison" ? (
+                  <AutoChart 
+                    data={getChartData(chart)}
+                    xKey="examType"
+                    yKeys={["averageScore"]}
+                    colors={["#B9FF66"]}
+                    chartType="bar"
+                    height={300}
+                  />
+                ) : (
+                  <AutoChart 
+                    data={[{ value: 0 }]}
+                    xKey="value"
+                    yKeys={["value"]}
+                    chartType="bar"
+                    height={300}
+                  />
+                )}
+              </div>
             </CardContent>
           </Card>
         ))}
