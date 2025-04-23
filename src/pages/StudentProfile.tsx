@@ -10,6 +10,7 @@ import ClassComparison from "../components/analysis/ClassComparison";
 import ScoreSummary from "../components/profile/ScoreSummary";
 import ScoreChart from "../components/profile/ScoreChart";
 import AbilityRadar from "../components/profile/AbilityRadar";
+import AIProfileTags from "../components/profile/AIProfileTags";
 import { StudentData } from "../components/profile/types";
 import { ArrowLeft } from "lucide-react";
 
@@ -87,6 +88,7 @@ const StudentProfile: React.FC = () => {
                 <TabsList className="mb-6">
                   <TabsTrigger value="overview">成绩概览</TabsTrigger>
                   <TabsTrigger value="ability">能力评估</TabsTrigger>
+                  <TabsTrigger value="profile">学生画像</TabsTrigger>
                   <TabsTrigger value="trends">趋势分析</TabsTrigger>
                   <TabsTrigger value="comparison">班级对比</TabsTrigger>
                 </TabsList>
@@ -144,6 +146,62 @@ const StudentProfile: React.FC = () => {
                               <span className="font-medium text-orange-500">80</span>
                             </li>
                           </ul>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="profile">
+                  <div className="space-y-6">
+                    <AIProfileTags student={student} />
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-base">学习习惯分析</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm">专注度</span>
+                              <span className="text-sm font-medium">85%</span>
+                            </div>
+                            <div className="h-2 bg-gray-200 rounded-full">
+                              <div className="h-full bg-blue-500 rounded-full" style={{ width: "85%" }}></div>
+                            </div>
+                          </div>
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm">作业完成质量</span>
+                              <span className="text-sm font-medium">78%</span>
+                            </div>
+                            <div className="h-2 bg-gray-200 rounded-full">
+                              <div className="h-full bg-blue-500 rounded-full" style={{ width: "78%" }}></div>
+                            </div>
+                          </div>
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm">课堂参与度</span>
+                              <span className="text-sm font-medium">92%</span>
+                            </div>
+                            <div className="h-2 bg-gray-200 rounded-full">
+                              <div className="h-full bg-blue-500 rounded-full" style={{ width: "92%" }}></div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-base">教师评价摘要</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-sm">
+                            学生课堂表现积极，能够主动参与讨论，回答问题。作业完成认真，但有时粗心导致错误。
+                            阅读能力强，善于理解文本内容。在数学计算方面表现出色，但在解决复杂问题时需要提升
+                            思考能力。建议鼓励其培养更全面的学习方法和习惯。
+                          </p>
                         </CardContent>
                       </Card>
                     </div>

@@ -167,6 +167,13 @@ export type Database = {
             foreignKeyName: "warning_records_student_id_fkey"
             columns: ["student_id"]
             isOneToOne: false
+            referencedRelation: "active_warnings_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "warning_records_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
             referencedRelation: "students"
             referencedColumns: ["student_id"]
           },
@@ -222,15 +229,7 @@ export type Database = {
           student_id: string | null
           student_name: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "warning_records_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
-            referencedColumns: ["student_id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Functions: {

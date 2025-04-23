@@ -11,6 +11,7 @@ import ScoreDistribution from "@/components/analysis/ScoreDistribution";
 import ScoreBoxPlot from "@/components/analysis/ScoreBoxPlot";
 import CompetencyRadar from "@/components/analysis/CompetencyRadar";
 import CorrelationBubble from "@/components/analysis/CorrelationBubble";
+import AIDataAnalysis from "@/components/analysis/AIDataAnalysis";
 
 interface Props {
   selectedClass: any;
@@ -26,6 +27,17 @@ const DetailTab: React.FC<Props> = ({
   scoreDistributionData
 }) => {
   const [detailTab, setDetailTab] = React.useState("analysis");
+
+  // Generate mock charts for AI analysis
+  const mockCharts = [
+    <ScoreDistribution key="chart-1" data={scoreDistributionData} />,
+    <CompetencyRadar 
+      key="chart-2"
+      data={competencyData}
+      title={`${selectedClass.className}能力维度`}
+      description="班级多维度能力评估"
+    />
+  ];
 
   return (
     <div className="space-y-6">
@@ -79,6 +91,20 @@ const DetailTab: React.FC<Props> = ({
             title={`${selectedClass.className}学习表现关联分析`}
             description="课堂表现、作业质量与考试成绩的关联性"
             className="w-full"
+          />
+          
+          <AIDataAnalysis 
+            data={[
+              ...scoreDistributionData,
+              ...competencyData.map(item => ({ subject: item.name, value: item.current })),
+              ...correlationData.map(item => ({ 
+                课堂表现: item.x, 
+                作业质量: item.y, 
+                考试成绩: item.z,
+                学生: item.name
+              }))
+            ]}
+            charts={mockCharts}
           />
         </TabsContent>
         
