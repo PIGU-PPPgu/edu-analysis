@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { FileText, Import } from "lucide-react";
+import { FileText, Import, AlertTriangle, ChartBar } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -65,10 +65,11 @@ const Navbar: React.FC = () => {
           </Link>
           <Link
             to="/warning-analysis"
-            className={`text-sm font-medium transition-colors hover:text-primary ${
+            className={`text-sm font-medium transition-colors hover:text-primary flex items-center gap-1 ${
               isActive('/warning-analysis') ? 'text-primary' : 'text-muted-foreground'
             }`}
           >
+            <AlertTriangle className="h-3.5 w-3.5" />
             预警分析
           </Link>
           <Link
