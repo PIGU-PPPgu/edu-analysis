@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowUpDown, Search } from "lucide-react";
+import { ArrowUpDown, Search, UserCircle, AlertTriangle } from "lucide-react";
 import { 
   Pagination, 
   PaginationContent, 
@@ -138,13 +138,24 @@ const StudentList: React.FC<Props> = ({ students }) => {
                   <TableCell>{student.name}</TableCell>
                   <TableCell>{student.className || '-'}</TableCell>
                   <TableCell>{student.averageScore.toFixed(1)}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right space-x-2">
                     <Button 
-                      variant="outline" 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => navigate(`/warning-analysis/${student.studentId}`)}
+                      className="text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
+                    >
+                      <AlertTriangle className="h-4 w-4 mr-1" />
+                      预警分析
+                    </Button>
+                    <Button 
+                      variant="ghost" 
                       size="sm"
                       onClick={() => navigate(`/student-profile/${student.studentId}`)}
+                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                     >
-                      查看画像
+                      <UserCircle className="h-4 w-4 mr-1" />
+                      学生画像
                     </Button>
                   </TableCell>
                 </TableRow>

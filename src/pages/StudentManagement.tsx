@@ -5,7 +5,7 @@ import StudentList from "@/components/analysis/StudentList";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "react-router-dom";
-import { Users, School } from "lucide-react";
+import { Users, School, FileUp, UserPlus } from "lucide-react";
 import Navbar from "@/components/analysis/Navbar";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -110,16 +110,11 @@ const StudentManagement: React.FC = () => {
           
           <TabsContent value="students" className="mt-6">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader>
                 <div>
                   <CardTitle>学生列表</CardTitle>
                   <CardDescription>管理所有学生信息和成绩</CardDescription>
                 </div>
-                <Button asChild>
-                  <Link to="/warning-analysis">
-                    查看预警分析
-                  </Link>
-                </Button>
               </CardHeader>
               <CardContent>
                 {loading ? (
@@ -127,8 +122,24 @@ const StudentManagement: React.FC = () => {
                 ) : students.length > 0 ? (
                   <StudentList students={students} />
                 ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    暂无学生数据。请先添加学生信息或导入Excel文件。
+                  <div className="flex flex-col items-center gap-4 py-8">
+                    <p className="text-gray-500 mb-4">
+                      暂无学生数据，请选择以下方式添加学生信息：
+                    </p>
+                    <div className="flex gap-4">
+                      <Button asChild>
+                        <Link to="/" className="flex items-center gap-2">
+                          <FileUp className="h-4 w-4" />
+                          批量导入学生
+                        </Link>
+                      </Button>
+                      <Button variant="outline" asChild>
+                        <Link to="/student-management/add" className="flex items-center gap-2">
+                          <UserPlus className="h-4 w-4" />
+                          添加单个学生
+                        </Link>
+                      </Button>
+                    </div>
                   </div>
                 )}
               </CardContent>
