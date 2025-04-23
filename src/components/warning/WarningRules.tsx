@@ -102,7 +102,7 @@ const WarningRules = () => {
                   <Label htmlFor="severity">风险等级</Label>
                   <Select
                     value={severity}
-                    onValueChange={(value: SeverityType) => setSeverity(value)}
+                    onValueChange={(value: any) => setSeverity(value as SeverityType)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="选择风险等级" />
