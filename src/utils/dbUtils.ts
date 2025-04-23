@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -443,43 +442,129 @@ export const warningSystem = {
 
         const studentGrades = student.grades;
         
-        // 获取该学生的平均分
-        const avgScore = studentGrades.reduce((sum, grade) => sum + grade.score, 0) / studentGrades.length;
+        // 获取该学生的各科目平均分
+        const subjectAvgScores: { [subject: string]: number } = {};
+        const allSubjectsScores: number[] = [];
+        
+        studentGrades.forEach(grade => {
+          if (!subjectAvgScores[grade.subject]) {
+            subjectAvgScores[grade.subject] = grade.score;
+          } else {
+            // 简单平均
+            subjectAvgScores[grade.subject] = (subjectAvgScores[grade.subject] + grade.score) / 2;
+          }
+          allSubjectsScores.push(grade.score);
+        });
+        
+        // 计算总平均分
+        const avgScore = allSubjectsScores.reduce((sum, score) => sum + score, 0) / allSubjectsScores.length;
+        
+        // 计算成绩趋势（如果有多次考试）
+        const trendPercentage = this.calculateTrendPercentage(studentGrades);
+        
+        // 模拟其他指标数据（在实际中，这些应该从专门的表中获取）
+        const attendanceRate = Math.min(100, avgScore + (Math.random() * 20 - 10)); // 模拟出勤率，基于平均分略有波动
+        const homeworkRate = Math.min(100, avgScore + (Math.random() * 15 - 7.5)); // 模拟作业完成率
+        const participationRate = Math.min(100, avgScore + (Math.random() * 25 - 12.5)); // 模拟课堂参与度
         
         // 针对每个规则进行评估
-        for (const rule of rules) {
-          const conditions = rule.conditions;
-          let isTriggered = false;
-
-          // 检查规则条件
-          if (conditions.operator === 'less_than' && avgScore < conditions.threshold) {
-            isTriggered = true;
-          } else if (conditions.operator === 'greater_than' && avgScore > conditions.threshold) {
-            isTriggered = true;
-          } else if (conditions.operator === 'equal_to' && avgScore === conditions.threshold) {
-            isTriggered = true;
-          }
-
-          // 如果规则被触发，则创建预警记录
-          if (isTriggered) {
-            const { error: recordError } = await supabase
-              .from('warning_records')
-              .insert([{
+        rulesLoop: for (const rule of rules) {
+          // 检查规则是否有新格式的条件数组
+          if (Array.isArray(rule.conditions)) {
+            let allConditionsMet = true;
+            
+            // 逐一检查每个条件
+            for (const condition of rule.conditions) {
+              let conditionMet = false;
+              
+              switch (condition.type) {
+                case 'score':
+                  if (condition.subject) {
+                    // 检查特定科目
+                    const subjectScore = subjectAvgScores[condition.subject];
+                    if (!subjectScore) continue; // 如果没有该科目的成绩，跳过这个条件
+                    
+                    conditionMet = this.evaluateCondition(subjectScore, condition.operator, condition.threshold);
+                  } else {
+                    // 检查总平均分
+                    conditionMet = this.evaluateCondition(avgScore, condition.operator, condition.threshold);
+                  }
+                  break;
+                  
+                case 'attendance':
+                  conditionMet = this.evaluateCondition(attendanceRate, condition.operator, condition.threshold);
+                  break;
+                  
+                case 'homework':
+                  conditionMet = this.evaluateCondition(homeworkRate, condition.operator, condition.threshold);
+                  break;
+                  
+                case 'participation':
+                  conditionMet = this.evaluateCondition(participationRate, condition.operator, condition.threshold);
+                  break;
+                  
+                case 'trend':
+                  conditionMet = this.evaluateCondition(trendPercentage, condition.operator, condition.threshold);
+                  break;
+                  
+                default:
+                  console.warn(`未知条件类型: ${condition.type}`);
+              }
+              
+              // 如果任一条件不满足，则整个规则不触发
+              if (!conditionMet) {
+                allConditionsMet = false;
+                break;
+              }
+            }
+            
+            // 如果所有条件都满足，创建预警记录
+            if (allConditionsMet) {
+              await this.createWarningRecord({
                 student_id: student.student_id,
                 rule_id: rule.id,
                 details: {
                   avg_score: avgScore,
-                  threshold: conditions.threshold,
-                  operator: conditions.operator,
-                  subjects: studentGrades.map(g => g.subject)
+                  subject_scores: subjectAvgScores,
+                  attendance_rate: attendanceRate,
+                  homework_rate: homeworkRate,
+                  participation_rate: participationRate,
+                  trend_percentage: trendPercentage,
+                  conditions: rule.conditions,
+                  subjects: Object.keys(subjectAvgScores)
                 },
                 status: 'active'
-              }]);
-            
-            if (!recordError) {
+              });
               warningCount++;
-            } else {
-              console.error('创建预警记录失败:', recordError);
+            }
+          } else {
+            // 处理旧版格式的条件（保持向后兼容）
+            const conditions = rule.conditions;
+            
+            // 检查规则条件
+            const isTriggered = this.evaluateCondition(avgScore, conditions.operator, conditions.threshold);
+
+            // 如果规则被触发，则创建预警记录
+            if (isTriggered) {
+              const { error: recordError } = await supabase
+                .from('warning_records')
+                .insert([{
+                  student_id: student.student_id,
+                  rule_id: rule.id,
+                  details: {
+                    avg_score: avgScore,
+                    threshold: conditions.threshold,
+                    operator: conditions.operator,
+                    subjects: studentGrades.map(g => g.subject)
+                  },
+                  status: 'active'
+                }]);
+              
+              if (!recordError) {
+                warningCount++;
+              } else {
+                console.error('创建预警记录失败:', recordError);
+              }
             }
           }
         }
@@ -491,6 +576,38 @@ export const warningSystem = {
       toast.error('评估预警规则失败');
       throw error;
     }
+  },
+
+  // 评估单个条件
+  evaluateCondition(value: number, operator: string, threshold: number): boolean {
+    switch (operator) {
+      case 'less_than':
+        return value < threshold;
+      case 'greater_than':
+        return value > threshold;
+      case 'equal_to':
+        return value === threshold;
+      default:
+        return false;
+    }
+  },
+
+  // 计算成绩趋势百分比变化
+  calculateTrendPercentage(grades: any[]): number {
+    if (!grades || grades.length < 2) return 0;
+    
+    // 按日期排序
+    const sortedGrades = [...grades].sort((a, b) => 
+      new Date(a.exam_date).getTime() - new Date(b.exam_date).getTime()
+    );
+    
+    const firstExam = sortedGrades[0];
+    const lastExam = sortedGrades[sortedGrades.length - 1];
+    
+    if (!firstExam.score || !lastExam.score) return 0;
+    
+    // 计算变化百分比
+    return ((lastExam.score - firstExam.score) / firstExam.score) * 100;
   },
 
   // 获取预警记录
@@ -531,11 +648,15 @@ export const warningSystem = {
     student_id: string;
     rule_id: string;
     details: any;
+    status?: string;
   }) {
     try {
       const { data, error } = await supabase
         .from('warning_records')
-        .insert([record])
+        .insert([{
+          ...record,
+          status: record.status || 'active'
+        }])
         .select()
         .single();
 

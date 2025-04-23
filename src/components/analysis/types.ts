@@ -1,4 +1,3 @@
-
 export interface PredefinedProvider {
   id: string;
   name: string;
@@ -58,4 +57,22 @@ export interface ChartGenerationConfig {
     groupBy?: string;
   };
   options?: Record<string, any>;
+}
+
+export interface WarningCondition {
+  type: 'score' | 'attendance' | 'homework' | 'participation' | 'trend';
+  subject?: string;
+  operator: 'less_than' | 'greater_than' | 'equal_to';
+  threshold: number;
+  description: string;
+}
+
+export interface WarningRule {
+  id?: string;
+  name: string;
+  description?: string;
+  conditions: WarningCondition[];
+  severity: 'low' | 'medium' | 'high';
+  is_system?: boolean;
+  is_active?: boolean;
 }
