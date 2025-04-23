@@ -17,7 +17,12 @@ export const calculateStatistics = (data: any[]) => {
     };
   }
 
-  const scores = data.map(item => Number(item.score)).filter(score => !isNaN(score));
+  // 确保从数据库或不同来源的数据都能正确处理
+  const scores = data.map(item => {
+    const score = typeof item.score === 'number' ? item.score : Number(item.score);
+    return isNaN(score) ? null : score;
+  }).filter(score => score !== null) as number[];
+  
   const total = scores.length;
   
   if (total === 0) {
@@ -61,10 +66,16 @@ export const generateCustomCharts = (data: any[]) => {
     // 图表1: 学科平均分
     const subjectScores: Record<string, number[]> = {};
     data.forEach(item => {
-      if (!subjectScores[item.subject]) {
-        subjectScores[item.subject] = [];
+      const subject = item.subject;
+      if (subject) {
+        if (!subjectScores[subject]) {
+          subjectScores[subject] = [];
+        }
+        const score = typeof item.score === 'number' ? item.score : Number(item.score);
+        if (!isNaN(score)) {
+          subjectScores[subject].push(score);
+        }
       }
-      subjectScores[item.subject].push(Number(item.score));
     });
 
     const subjectAverages = Object.entries(subjectScores).map(([subject, scores]) => ({
@@ -87,17 +98,19 @@ export const generateCustomCharts = (data: any[]) => {
     };
 
     data.forEach(item => {
-      const score = Number(item.score);
-      if (score >= 90) {
-        scoreRanges["90-100分"]++;
-      } else if (score >= 80) {
-        scoreRanges["80-89分"]++;
-      } else if (score >= 70) {
-        scoreRanges["70-79分"]++;
-      } else if (score >= 60) {
-        scoreRanges["60-69分"]++;
-      } else {
-        scoreRanges["60分以下"]++;
+      const score = typeof item.score === 'number' ? item.score : Number(item.score);
+      if (!isNaN(score)) {
+        if (score >= 90) {
+          scoreRanges["90-100分"]++;
+        } else if (score >= 80) {
+          scoreRanges["80-89分"]++;
+        } else if (score >= 70) {
+          scoreRanges["70-79分"]++;
+        } else if (score >= 60) {
+          scoreRanges["60-69分"]++;
+        } else {
+          scoreRanges["60分以下"]++;
+        }
       }
     });
 
@@ -112,14 +125,18 @@ export const generateCustomCharts = (data: any[]) => {
     });
 
     // 图表3: 考试类型比较
-    if (data.some(item => item.examType)) {
+    if (data.some(item => item.examType || item.exam_type)) {
       const examTypeScores: Record<string, number[]> = {};
       data.forEach(item => {
-        if (item.examType) {
-          if (!examTypeScores[item.examType]) {
-            examTypeScores[item.examType] = [];
+        const examType = item.examType || item.exam_type;
+        if (examType) {
+          if (!examTypeScores[examType]) {
+            examTypeScores[examType] = [];
           }
-          examTypeScores[item.examType].push(Number(item.score));
+          const score = typeof item.score === 'number' ? item.score : Number(item.score);
+          if (!isNaN(score)) {
+            examTypeScores[examType].push(score);
+          }
         }
       });
 
@@ -137,20 +154,24 @@ export const generateCustomCharts = (data: any[]) => {
     }
 
     // 图表4: 成绩趋势 (如果有日期)
-    if (data.some(item => item.examDate)) {
+    if (data.some(item => item.examDate || item.exam_date)) {
       const dateSubjectScores: Record<string, Record<string, number[]>> = {};
       
       // 按日期和科目分组
       data.forEach(item => {
-        if (item.examDate && item.subject) {
-          const date = item.examDate; // 使用原始日期格式
+        const date = item.examDate || item.exam_date;
+        const subject = item.subject;
+        if (date && subject) {
           if (!dateSubjectScores[date]) {
             dateSubjectScores[date] = {};
           }
-          if (!dateSubjectScores[date][item.subject]) {
-            dateSubjectScores[date][item.subject] = [];
+          if (!dateSubjectScores[date][subject]) {
+            dateSubjectScores[date][subject] = [];
           }
-          dateSubjectScores[date][item.subject].push(Number(item.score));
+          const score = typeof item.score === 'number' ? item.score : Number(item.score);
+          if (!isNaN(score)) {
+            dateSubjectScores[date][subject].push(score);
+          }
         }
       });
 

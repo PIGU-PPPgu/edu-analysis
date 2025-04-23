@@ -1,6 +1,7 @@
+
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { FileText } from "lucide-react";
+import { FileText, Import } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -52,7 +53,7 @@ const Navbar: React.FC = () => {
               isActive('/') ? 'text-primary' : 'text-muted-foreground'
             }`}
           >
-            首页
+            数据导入
           </Link>
           <Link
             to="/grade-analysis"

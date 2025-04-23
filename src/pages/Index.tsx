@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Hero from "@/components/home/Hero";
-import Features from "@/components/home/Features";
-import AnimatedBackground from "@/components/home/AnimatedBackground";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
+import Navbar from "@/components/analysis/Navbar";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import IntelligentFileParser from "@/components/analysis/IntelligentFileParser";
+import StudentDataImporter from "@/components/analysis/StudentDataImporter";
 
 const Index = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -18,10 +19,13 @@ const Index = () => {
       try {
         setIsLoading(true);
         const { data } = await supabase.auth.getSession();
-        console.log("Index页面 - 会话状态:", data.session ? "已登录" : "未登录");
+        console.log("数据导入页面 - 会话状态:", data.session ? "已登录" : "未登录");
         setIsLoggedIn(!!data.session);
         
-        // 由于首页需要一直可见，此处不自动跳转
+        // 如果未登录，重定向到登录页面
+        if (!data.session) {
+          navigate('/login');
+        }
       } catch (error) {
         console.error("检查会话失败:", error);
       } finally {
@@ -32,8 +36,12 @@ const Index = () => {
     checkUserSession();
     
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("Index页面 - 认证状态变化:", event, session ? "已登录" : "未登录");
+      console.log("数据导入页面 - 认证状态变化:", event, session ? "已登录" : "未登录");
       setIsLoggedIn(!!session);
+      
+      if (!session) {
+        navigate('/login');
+      }
     });
     
     return () => {
@@ -41,35 +49,9 @@ const Index = () => {
     };
   }, [navigate]);
 
-  const handleLogin = async () => {
-    navigate('/login');
-  };
-
-  const handleWechatLogin = async () => {
-    try {
-      await supabase.auth.signInWithOAuth({
-        provider: 'wechat' as any,
-        options: {
-          redirectTo: window.location.origin + '/auth/callback'
-        }
-      });
-    } catch (error) {
-      console.error('微信登录失败:', error);
-      toast.error("微信登录失败，请重试");
-    }
-  };
-
-  const handleFreeLogin = () => {
-    // 添加游客模式，可能是使用匿名登录或预设测试账号
-    supabase.auth.signInWithPassword({
-      email: 'demo@edu-analysis.com',
-      password: 'DemoUser2024!'
-    }).then(({ data, error }) => {
-      if (error) {
-        toast.error('游客登录失败');
-      } else {
-        navigate('/grade-analysis');
-      }
+  const handleDataImported = (data: any[]) => {
+    toast.success("数据导入成功", {
+      description: `已成功导入 ${data.length} 条记录`
     });
   };
 
@@ -78,16 +60,49 @@ const Index = () => {
   }
 
   return (
-    <div className="relative min-h-screen">
-      <AnimatedBackground />
-      <div className="container mx-auto px-4 py-12 relative">
-        <Hero 
-          isLoggedIn={isLoggedIn} 
-          onLogin={handleLogin} 
-          onWechatLogin={handleWechatLogin}
-          onFreeLogin={handleFreeLogin}
-        />
-        <Features />
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      <Navbar />
+      <div className="container mx-auto py-8 px-4">
+        <h1 className="text-3xl font-bold mb-8">数据导入中心</h1>
+        
+        <Tabs defaultValue="students" className="w-full">
+          <TabsList className="mb-6">
+            <TabsTrigger value="students">学生信息导入</TabsTrigger>
+            <TabsTrigger value="grades">成绩数据导入</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="students">
+            <div className="grid gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>学生信息导入</CardTitle>
+                  <CardDescription>
+                    导入学生基本信息，包括学号、姓名、班级等必填信息及其他选填信息
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <StudentDataImporter onDataImported={handleDataImported} />
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="grades">
+            <div className="grid gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>成绩数据导入</CardTitle>
+                  <CardDescription>
+                    通过学号或姓名关联学生，导入各科目成绩数据
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <IntelligentFileParser onDataParsed={handleDataImported} />
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
