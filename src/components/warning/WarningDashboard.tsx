@@ -15,13 +15,9 @@ const WarningDashboard = () => {
   const [aiConfigured, setAiConfigured] = useState(false);
 
   useEffect(() => {
-    // Check if AI settings are configured
     const config = getUserAIConfig();
     const apiKey = getUserAPIKey();
     setAiConfigured(!!config && !!apiKey);
-    
-    // Log to check if the component is mounted
-    console.log("WarningDashboard mounted");
   }, []);
 
   const generateRandomInsight = () => {

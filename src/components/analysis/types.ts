@@ -20,10 +20,8 @@ export interface ParsedData {
 }
 
 export interface FileProcessingProps {
-  onFileProcessed?: (data: ParsedData) => void;
-  isAIEnhanced?: boolean;
-  dragActive?: boolean;
-  setDragActive?: React.Dispatch<React.SetStateAction<boolean>>;
+  onFileProcessed: (data: ParsedData) => void;
+  isAIEnhanced: boolean;
 }
 
 export interface IntelligentFileParserProps {
