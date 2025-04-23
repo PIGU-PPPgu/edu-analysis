@@ -1,5 +1,4 @@
 
-
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,7 +12,8 @@ import FileUploader from './FileUploader';
 import DataPreview from './DataPreview';
 import TemplateDownloader from './TemplateDownloader';
 import { ParsedData, IntelligentFileParserProps } from "./types";
-import { generateInitialMappings } from "./utils/fileParsingUtils";
+import { generateInitialMappings } from "@/utils/fileParsingUtils";
+import TextDataImporter from "./TextDataImporter";
 
 const IntelligentFileParser: React.FC<IntelligentFileParserProps> = ({ onDataParsed }) => {
   const [isAIEnhanced, setIsAIEnhanced] = useState(true);
@@ -48,6 +48,10 @@ const IntelligentFileParser: React.FC<IntelligentFileParserProps> = ({ onDataPar
     }
   };
 
+  const handleTextDataImported = (data: ParsedData) => {
+    handleFileProcessed(data);
+  };
+
   const processDataWithMappings = async (mappings: Record<string, string>) => {
     if (!parsedData) return;
 
@@ -62,19 +66,26 @@ const IntelligentFileParser: React.FC<IntelligentFileParserProps> = ({ onDataPar
     });
 
     if (saveToDatabase) {
-      const results = await processAndSaveData(processedData);
-      if (results.errors.length > 0) {
-        toast.error("部分数据处理失败", {
-          description: (
-            <div className="max-h-40 overflow-y-auto">
-              <ul className="list-disc list-inside">
-                {results.errors.map((error, index) => (
-                  <li key={index} className="text-sm">{error}</li>
-                ))}
-              </ul>
-            </div>
-          ),
-          duration: 5000
+      try {
+        const results = await processAndSaveData(processedData);
+        if (results.errors.length > 0) {
+          toast.error("部分数据处理失败", {
+            description: (
+              <div className="max-h-40 overflow-y-auto">
+                <ul className="list-disc list-inside">
+                  {results.errors.map((error, index) => (
+                    <li key={index} className="text-sm">{error}</li>
+                  ))}
+                </ul>
+              </div>
+            ),
+            duration: 5000
+          });
+        }
+      } catch (error) {
+        console.error("保存数据失败:", error);
+        toast.error("数据保存失败", {
+          description: "保存到数据库时发生错误"
         });
       }
     }
@@ -172,21 +183,10 @@ const IntelligentFileParser: React.FC<IntelligentFileParserProps> = ({ onDataPar
           </TabsContent>
           
           <TabsContent value="paste">
-            <div className="flex flex-col gap-4">
-              <textarea 
-                className="w-full h-40 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#B9FF66]"
-                placeholder="粘贴数据，每行一条记录，字段之间用逗号分隔..."
-              ></textarea>
-              
-              <div className="flex justify-end">
-                <button 
-                  className="bg-[#B9FF66] text-black hover:bg-[#a8e85c] px-4 py-2 rounded-lg"
-                  onClick={() => toast.info("粘贴解析功能即将推出")}
-                >
-                  解析数据
-                </button>
-              </div>
-            </div>
+            <TextDataImporter 
+              onDataImported={handleTextDataImported}
+              isAIEnhanced={isAIEnhanced}
+            />
           </TabsContent>
         </Tabs>
       </CardContent>
@@ -209,4 +209,3 @@ const IntelligentFileParser: React.FC<IntelligentFileParserProps> = ({ onDataPar
 };
 
 export default IntelligentFileParser;
-

@@ -4,6 +4,9 @@ import Navbar from "@/components/analysis/Navbar";
 import { toast } from "sonner";
 import GradeOverview from "@/components/analysis/GradeOverview";
 import GradeTabs from "@/components/analysis/GradeTabs";
+import ExamComparison from "@/components/analysis/ExamComparison";
+import AIAnalysis from "@/components/analysis/AIAnalysis";
+import GradeExport from "@/components/analysis/GradeExport";
 import { useGradeAnalysis } from "@/contexts/GradeAnalysisContext";
 import { generateCustomCharts } from "@/utils/chartGenerationUtils";
 
@@ -55,13 +58,28 @@ const GradeAnalysisLayout: React.FC = () => {
             onDataParsed={handleDataParsed}
             parsingError={parsingError}
           />
+          
           {isDataLoaded && (
-            <GradeTabs
-              data={gradeData}
-              customCharts={customCharts}
-              selectedCharts={selectedCharts}
-              setSelectedCharts={setSelectedCharts}
-            />
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+                <div className="md:col-span-2">
+                  <GradeTabs
+                    data={gradeData}
+                    customCharts={customCharts}
+                    selectedCharts={selectedCharts}
+                    setSelectedCharts={setSelectedCharts}
+                  />
+                </div>
+                <div className="space-y-6">
+                  <GradeExport />
+                  <AIAnalysis />
+                </div>
+              </div>
+              
+              <div className="mt-8">
+                <ExamComparison />
+              </div>
+            </>
           )}
         </div>
       </div>
