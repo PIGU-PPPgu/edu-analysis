@@ -97,10 +97,7 @@ const GradeAnalysisLayout: React.FC = () => {
     }
   }, [isLoadingAuth, setGradeData, setIsLoading]);
 
-  const handleDataParsed = (parsedData: any[]) => {
-    console.log("解析数据:", parsedData.length);
-    // 数据解析完成后的逻辑
-  };
+  // 删除handleDataParsed与parsingError的使用
 
   if (isLoadingAuth) {
     return <div className="flex items-center justify-center h-screen">验证登录状态...</div>;
@@ -118,8 +115,9 @@ const GradeAnalysisLayout: React.FC = () => {
           全面分析学生成绩数据，获取教学洞察
         </p>
 
+        {/* 移除智能导入入口，只显示分析概览 */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          <GradeOverview onDataParsed={handleDataParsed} parsingError={parsingError} />
+          <GradeOverview />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -174,3 +172,4 @@ const GradeAnalysisLayout: React.FC = () => {
 };
 
 export default GradeAnalysisLayout;
+

@@ -49,7 +49,16 @@ const Index = () => {
     };
   }, [navigate]);
 
-  const handleDataImported = (data: any[]) => {
+  // 新增，导入成绩后自动跳转
+  const handleGradeDataImported = (data: any[]) => {
+    toast.success("数据导入成功", {
+      description: `已成功导入 ${data.length} 条记录`
+    });
+    // 跳转到成绩分析页面
+    navigate("/grade-analysis");
+  };
+
+  const handleStudentDataImported = (data: any[]) => {
     toast.success("数据导入成功", {
       description: `已成功导入 ${data.length} 条记录`
     });
@@ -81,7 +90,7 @@ const Index = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <StudentDataImporter onDataImported={handleDataImported} />
+                  <StudentDataImporter onDataImported={handleStudentDataImported} />
                 </CardContent>
               </Card>
             </div>
@@ -97,7 +106,7 @@ const Index = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <IntelligentFileParser onDataParsed={handleDataImported} />
+                  <IntelligentFileParser onDataParsed={handleGradeDataImported} />
                 </CardContent>
               </Card>
             </div>
@@ -109,3 +118,4 @@ const Index = () => {
 };
 
 export default Index;
+
