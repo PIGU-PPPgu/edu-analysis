@@ -48,19 +48,50 @@ const CustomChartsSection: React.FC<Props> = ({ customCharts }) => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <AutoChart
-                {...(
-                  chart.id === "subjectAverages"
-                    ? { data: chart.data, xKey: "subject", yKeys: ["averageScore"], colors: ["#B9FF66"], chartType: "bar", height: 300 }
-                  : chart.id === "scoreDistribution"
-                    ? { data: chart.data, xKey: "range", yKeys: ["count"], colors: ["#B9FF66"], chartType: "bar", height: 300 }
-                  : chart.id === "scoreTrend"
-                    ? { data: chart.data, xKey: "date", yKeys: Object.keys(chart.data?.[0] || {}).filter(k => k !== "date"), chartType: "line", height: 300 }
-                  : chart.id === "examTypeComparison"
-                    ? { data: chart.data, xKey: "examType", yKeys: ["averageScore"], colors: ["#B9FF66"], chartType: "bar", height: 300 }
-                  : {}
-                )}
-              />
+              {chart.id === "subjectAverages" ? (
+                <AutoChart 
+                  data={chart.data}
+                  xKey="subject"
+                  yKeys={["averageScore"]}
+                  colors={["#B9FF66"]}
+                  chartType="bar"
+                  height={300}
+                />
+              ) : chart.id === "scoreDistribution" ? (
+                <AutoChart 
+                  data={chart.data}
+                  xKey="range"
+                  yKeys={["count"]}
+                  colors={["#B9FF66"]}
+                  chartType="bar"
+                  height={300}
+                />
+              ) : chart.id === "scoreTrend" ? (
+                <AutoChart 
+                  data={chart.data}
+                  xKey="date"
+                  yKeys={Object.keys(chart.data?.[0] || {}).filter(k => k !== "date")}
+                  chartType="line"
+                  height={300}
+                />
+              ) : chart.id === "examTypeComparison" ? (
+                <AutoChart 
+                  data={chart.data}
+                  xKey="examType"
+                  yKeys={["averageScore"]}
+                  colors={["#B9FF66"]}
+                  chartType="bar"
+                  height={300}
+                />
+              ) : (
+                <AutoChart 
+                  data={[{ value: 0 }]}
+                  xKey="value"
+                  yKeys={["value"]}
+                  chartType="bar"
+                  height={300}
+                />
+              )}
             </CardContent>
           </Card>
         ))}
