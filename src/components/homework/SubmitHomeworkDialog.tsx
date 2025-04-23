@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { Upload } from "lucide-react";
+import { Upload, FileUp } from "lucide-react";
 import { toast } from "sonner";
 
 interface SubmitHomeworkDialogProps {
@@ -18,7 +18,8 @@ interface SubmitHomeworkDialogProps {
   onSubmitted: () => void;
 }
 
-interface UploadedFile {
+// Define the structure for uploaded files
+type UploadedFile = {
   name: string;
   path: string;
   type: string;
@@ -76,23 +77,24 @@ const SubmitHomeworkDialog: React.FC<SubmitHomeworkDialogProps> = ({
         });
       }
 
-      // Create submission record
+      // Create submission record - Fix the insertion by providing a single object, not an array
       const { error: submissionError } = await supabase
         .from('homework_submissions')
-        .insert([
-          {
-            homework_id: homework.id,
-            student_id: studentData.student_id,
-            files: uploadedFiles,
-            status: 'submitted'
-          }
-        ]);
+        .insert({
+          homework_id: homework.id,
+          student_id: studentData.student_id,
+          files: uploadedFiles, // This will be automatically converted to JSON
+          notes: notes.trim() ? notes : null,
+          status: 'submitted'
+        });
 
       if (submissionError) throw submissionError;
 
       toast.success('作业提交成功');
       onSubmitted();
       onOpenChange(false);
+      setFiles([]);
+      setNotes('');
     } catch (error) {
       console.error('提交作业失败:', error);
       toast.error('提交作业失败');
@@ -120,7 +122,7 @@ const SubmitHomeworkDialog: React.FC<SubmitHomeworkDialogProps> = ({
                 className="hidden"
               />
               <Label htmlFor="files" className="cursor-pointer">
-                <Upload className="mx-auto h-8 w-8 text-gray-400" />
+                <FileUp className="mx-auto h-8 w-8 text-gray-400" />
                 <span className="mt-2 block text-sm text-gray-600">
                   点击或拖拽文件上传
                 </span>
