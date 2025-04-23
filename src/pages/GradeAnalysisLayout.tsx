@@ -1,175 +1,218 @@
 
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import Navbar from "@/components/analysis/Navbar";
-import GradeOverview from "@/components/analysis/GradeOverview";
-import GradeTabs from "@/components/analysis/GradeTabs";
-import { Card } from "@/components/ui/card";
 import { useGradeAnalysis } from "@/contexts/GradeAnalysisContext";
-import ExamComparison from "@/components/analysis/ExamComparison";
-import HeatmapChart from "@/components/analysis/HeatmapChart";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import GradeOverview from "@/components/analysis/GradeOverview";
 import ScoreDistribution from "@/components/analysis/ScoreDistribution";
-import SubjectAverages from "@/components/analysis/SubjectAverages";
-import CorrelationBubble from "@/components/analysis/CorrelationBubble";
-import CustomChartsSection from "@/components/analysis/CustomChartsSection";
-import AdvancedAnalysis from "@/components/analysis/AdvancedAnalysis";
-import AIDataAnalysis from "@/components/analysis/AIDataAnalysis";
+import ScoreBoxPlot from "@/components/analysis/ScoreBoxPlot";
+import Navbar from "@/components/analysis/Navbar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useNavigate } from "react-router-dom";
+import { AIAnalysisController } from "@/components/analysis/AIAnalysisController";
+import { BarChartBig, ChevronLeft, LineChart, PieChart, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import ClassStudentsList from "@/components/analysis/ClassStudentsList";
 
-const GradeAnalysisLayout: React.FC = () => {
-  const { setGradeData, calculateStatistics, customCharts, isLoading, setIsLoading } = useGradeAnalysis();
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const [parsingError, setParsingError] = useState<string | null>(null);
+const GradeAnalysisLayout = () => {
+  const { gradeData, isDataLoaded, calculateStatistics, setGradeData } = useGradeAnalysis();
+  const [boxPlotData, setBoxPlotData] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Mock data for components that require props
-  const bubbleChartData = [
-    { name: "数学-高一", xValue: 85, yValue: 78, zValue: 120, subject: "数学" },
-    { name: "语文-高一", xValue: 80, yValue: 82, zValue: 100, subject: "语文" },
-    { name: "英语-高一", xValue: 75, yValue: 70, zValue: 80, subject: "英语" }
-  ];
-
-  // 检查用户身份
-  useEffect(() => {
-    const checkUserSession = async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        if (!data.session) {
-          navigate('/login');
-        }
-      } catch (error) {
-        console.error("验证会话失败:", error);
-      } finally {
-        setIsLoadingAuth(false);
-      }
-    };
-    
-    checkUserSession();
-  }, [navigate]);
-
-  // 从数据库加载成绩数据
+  // 获取成绩数据
   useEffect(() => {
     const fetchGradeData = async () => {
-      setIsLoading(true);
+      if (isDataLoaded) return;
+      
       try {
+        setIsLoading(true);
+        
+        // 从数据库加载成绩数据
         const { data, error } = await supabase
           .from('grades')
           .select(`
-            id,
+            id, 
             student_id,
             score,
             subject,
             exam_date,
             exam_type,
-            students (
-              name,
-              student_id
-            )
+            students ( name, class_name )
           `)
-          .order('exam_date', { ascending: false });
+          .order('created_at', { ascending: false });
         
         if (error) throw error;
         
-        // 转换数据格式以适应组件需求
-        const formattedData = data?.map(item => ({
-          id: item.id,
-          studentId: item.student_id,
-          name: item.students?.name || '未知',
-          studentName: item.students?.name || '未知',
-          className: '未知班级', // 修复班级名称问题
-          score: item.score,
-          subject: item.subject,
-          examDate: item.exam_date,
-          examType: item.exam_type || '普通考试'
-        })) || [];
-        
-        console.log("从数据库获取成绩数据:", formattedData.length);
-        setGradeData(formattedData);
+        if (data && data.length > 0) {
+          // 格式化数据
+          const formattedData = data.map(item => ({
+            id: item.id,
+            studentId: item.student_id,
+            name: item.students?.name || '未知学生',
+            subject: item.subject,
+            score: item.score,
+            examDate: item.exam_date,
+            examType: item.exam_type || '未知考试',
+            className: item.students?.class_name || '未知班级'
+          }));
+          
+          setGradeData(formattedData);
+        }
       } catch (error) {
         console.error("加载成绩数据失败:", error);
+        toast.error("加载成绩数据失败", {
+          description: error instanceof Error ? error.message : "未知错误"
+        });
       } finally {
         setIsLoading(false);
       }
     };
     
-    if (!isLoadingAuth) {
-      fetchGradeData();
+    fetchGradeData();
+  }, [isDataLoaded, setGradeData]);
+
+  // 计算箱线图数据
+  useEffect(() => {
+    if (gradeData.length > 0) {
+      // 按学科分组
+      const subjectGroups: Record<string, number[]> = {};
+      
+      gradeData.forEach(item => {
+        if (!subjectGroups[item.subject]) {
+          subjectGroups[item.subject] = [];
+        }
+        subjectGroups[item.subject].push(item.score);
+      });
+      
+      // 计算每个学科的箱线图数据
+      const boxPlotDataArray = Object.entries(subjectGroups).map(([subject, scores]) => {
+        // 排序分数
+        scores.sort((a, b) => a - b);
+        
+        // 计算统计值
+        const min = Math.min(...scores);
+        const max = Math.max(...scores);
+        const q1 = scores[Math.floor(scores.length * 0.25)];
+        const median = scores[Math.floor(scores.length * 0.5)];
+        const q3 = scores[Math.floor(scores.length * 0.75)];
+        
+        return {
+          subject,
+          min,
+          q1,
+          median,
+          q3,
+          max
+        };
+      });
+      
+      setBoxPlotData(boxPlotDataArray);
     }
-  }, [isLoadingAuth, setGradeData, setIsLoading]);
-
-  // 删除handleDataParsed与parsingError的使用
-
-  if (isLoadingAuth) {
-    return <div className="flex items-center justify-center h-screen">验证登录状态...</div>;
-  }
-
-  // 获取当前已加载的成绩数据，用于传递给子组件
-  const currentGradeData = [];
+  }, [gradeData]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <div className="container mx-auto py-8 px-4">
-        <h1 className="text-3xl font-bold mb-4">成绩分析</h1>
-        <p className="text-gray-500 mb-8">
-          全面分析学生成绩数据，获取教学洞察
-        </p>
-
-        {/* 移除智能导入入口，只显示分析概览 */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          <GradeOverview />
+      
+      <div className="container mx-auto py-6 px-4">
+        <div className="flex items-center gap-2 mb-6">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="hidden md:flex" 
+            onClick={() => navigate("/")}
+          >
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            返回
+          </Button>
+          <h1 className="text-2xl font-bold">成绩分析</h1>
         </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <Card className="p-4">
-            <SubjectAverages />
-          </Card>
-          <Card className="p-4">
-            <ScoreDistribution />
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 mb-6">
-          <ExamComparison />
-          <HeatmapChart />
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 mb-6">
-          <CorrelationBubble 
-            data={bubbleChartData} 
-            xName="平均分" 
-            yName="及格率" 
-            zName="学生数量"
-          />
-        </div>
-
-        <div className="mb-6">
-          <CustomChartsSection customCharts={customCharts} />
-        </div>
-
-        <div className="mb-10">
-          <GradeTabs 
-            data={currentGradeData}
-            customCharts={customCharts}
-            selectedCharts={["distribution", "subject"]}
-            setSelectedCharts={() => {}}
-          />
-        </div>
-
-        <div className="mb-10">
-          <AIDataAnalysis 
-            data={currentGradeData}
-            charts={[]}
-          />
-        </div>
-
-        <div className="mb-10">
-          <AdvancedAnalysis />
-        </div>
+        
+        <Tabs defaultValue="dashboard" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="dashboard" className="gap-1.5">
+              <BarChartBig className="h-4 w-4" />
+              数据看板
+            </TabsTrigger>
+            <TabsTrigger value="classes" className="gap-1.5">
+              <Users className="h-4 w-4" />
+              班级分析
+            </TabsTrigger>
+            <TabsTrigger value="ai" className="gap-1.5">
+              <PieChart className="h-4 w-4" />
+              智能分析
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="dashboard" className="space-y-6">
+            <GradeOverview />
+            
+            {isDataLoaded && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <ScoreDistribution />
+                
+                {boxPlotData.length > 0 && (
+                  <ScoreBoxPlot data={boxPlotData} />
+                )}
+              </div>
+            )}
+            
+            {!isDataLoaded && !isLoading && (
+              <div className="text-center py-12 bg-white rounded-lg shadow">
+                <p className="text-xl text-gray-600">暂无成绩数据</p>
+                <p className="text-gray-500 mt-2">请先导入学生成绩数据</p>
+                <Button 
+                  className="mt-4" 
+                  onClick={() => navigate("/")}
+                >
+                  前往导入数据
+                </Button>
+              </div>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="classes">
+            {isDataLoaded ? (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <ClassStudentsList 
+                  classId="1"
+                  className="高一1班"
+                  studentCount={15} 
+                />
+                <ClassStudentsList 
+                  classId="2"
+                  className="高一2班"
+                  studentCount={18} 
+                />
+                <ClassStudentsList 
+                  classId="3"
+                  className="高一3班"
+                  studentCount={17} 
+                />
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-white rounded-lg shadow">
+                <p className="text-xl text-gray-600">暂无班级数据</p>
+                <p className="text-gray-500 mt-2">请先导入学生和成绩数据</p>
+              </div>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="ai">
+            {isDataLoaded ? (
+              <AIAnalysisController data={gradeData} />
+            ) : (
+              <div className="text-center py-12 bg-white rounded-lg shadow">
+                <p className="text-xl text-gray-600">智能分析需要数据</p>
+                <p className="text-gray-500 mt-2">请先导入学生成绩数据</p>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
 };
 
 export default GradeAnalysisLayout;
-

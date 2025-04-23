@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -8,6 +9,7 @@ import FileUploader from './FileUploader';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useNavigate } from 'react-router-dom';
 import {
   Form,
   FormControl,
@@ -41,6 +43,7 @@ interface StudentDataImporterProps {
 
 const StudentDataImporter: React.FC<StudentDataImporterProps> = ({ onDataImported }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
   
   // 单个学生表单
   const form = useForm<StudentFormValues>({
@@ -93,7 +96,7 @@ const StudentDataImporter: React.FC<StudentDataImporterProps> = ({ onDataImporte
         .insert({
           student_id: values.student_id,
           name: values.name,
-          class_id: null, // 后续可关联班级表
+          class_name: values.class_name,
           ...values
         })
         .select();
@@ -117,6 +120,8 @@ const StudentDataImporter: React.FC<StudentDataImporterProps> = ({ onDataImporte
       
       if (data) {
         onDataImported(data);
+        // 导航到学生管理页面
+        navigate("/student-management");
       }
     } catch (error) {
       console.error("添加学生失败:", error);
@@ -193,6 +198,9 @@ const StudentDataImporter: React.FC<StudentDataImporterProps> = ({ onDataImporte
           description: `成功导入 ${successCount} 条学生信息`
         });
         onDataImported(data.data.slice(0, successCount));
+        
+        // 导入成功后导航到学生管理页面
+        navigate("/student-management");
       }
       
       if (errorCount > 0) {

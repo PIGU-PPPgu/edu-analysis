@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import { Users } from "lucide-react";
 import Navbar from "@/components/analysis/Navbar";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Student {
   studentId: string;
@@ -24,28 +25,43 @@ const StudentManagement: React.FC = () => {
       try {
         setLoading(true);
         
-        // Mock student data for development
-        const mockStudents: Student[] = [
-          { studentId: "S001", name: "张三", className: "高三一班", averageScore: 85.5 },
-          { studentId: "S002", name: "李四", className: "高三一班", averageScore: 92.0 },
-          { studentId: "S003", name: "王五", className: "高三二班", averageScore: 78.5 },
-          { studentId: "S004", name: "赵六", className: "高三二班", averageScore: 88.0 },
-          { studentId: "S005", name: "钱七", className: "高三三班", averageScore: 91.5 },
-        ];
+        // Fetch actual student data from Supabase
+        const { data, error } = await supabase
+          .from('students')
+          .select(`
+            id,
+            student_id,
+            name,
+            class_name,
+            grades (
+              score
+            )
+          `)
+          .order('name');
         
-        setStudents(mockStudents);
+        if (error) throw error;
         
-        // In production, this would use:
-        // const data = await db.getStudents();
-        // if (data) {
-        //   const formattedData = data.map((student) => ({
-        //     studentId: student.student_id,
-        //     name: student.name,
-        //     className: student.class_name,
-        //     averageScore: student.average_score || 0,
-        //   }));
-        //   setStudents(formattedData);
-        // }
+        if (data && data.length > 0) {
+          const formattedStudents = data.map(student => {
+            // Calculate average score if grades exist
+            let avgScore = 0;
+            if (student.grades && student.grades.length > 0) {
+              const sum = student.grades.reduce((acc, grade) => acc + grade.score, 0);
+              avgScore = Math.round((sum / student.grades.length) * 10) / 10;
+            }
+            
+            return {
+              studentId: student.student_id,
+              name: student.name,
+              className: student.class_name || '未分配',
+              averageScore: avgScore
+            };
+          });
+          
+          setStudents(formattedStudents);
+        } else {
+          setStudents([]);
+        }
       } catch (error) {
         console.error('获取学生数据失败:', error);
         toast.error('获取学生数据失败');

@@ -63,6 +63,7 @@ const Index = () => {
     toast.success("数据导入成功", {
       description: `已成功导入 ${data.length} 条记录`
     });
+    // 不再需要直接跳转，因为StudentDataImporter组件内部已经处理了导航
   };
 
   if (isLoading) {
