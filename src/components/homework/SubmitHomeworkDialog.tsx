@@ -8,14 +8,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { FileUp } from "lucide-react";
 import { toast } from "sonner";
 
-// Simple file object type without complex type references
-type FileObject = {
-  name: string;
-  path: string;
-  type: string;
-  size: number;
-}
-
 interface SubmitHomeworkDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -57,20 +49,9 @@ const SubmitHomeworkDialog: React.FC<SubmitHomeworkDialogProps> = ({
 
       if (studentError) throw studentError;
 
-      // Create an array of simple file objects without explicit typing to Json
-      const uploadedFiles = files.map(file => {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${homework.id}/${userData.user?.id}/${Date.now()}.${fileExt}`;
-        
-        return {
-          name: file.name,
-          path: fileName,
-          type: file.type,
-          size: file.size
-        };
-      });
+      // For each file, create a storage path and upload it
+      const uploadedFileInfo = [];
       
-      // Upload each file
       for (const file of files) {
         const fileExt = file.name.split('.').pop();
         const fileName = `${homework.id}/${userData.user?.id}/${Date.now()}.${fileExt}`;
@@ -80,6 +61,14 @@ const SubmitHomeworkDialog: React.FC<SubmitHomeworkDialogProps> = ({
           .upload(fileName, file);
 
         if (uploadError) throw uploadError;
+        
+        // Add file info to our array after successful upload
+        uploadedFileInfo.push({
+          name: file.name,
+          path: fileName,
+          type: file.type,
+          size: file.size
+        });
       }
 
       // Create submission record with files data
@@ -88,7 +77,7 @@ const SubmitHomeworkDialog: React.FC<SubmitHomeworkDialogProps> = ({
         .insert({
           homework_id: homework.id,
           student_id: studentData.student_id,
-          files: uploadedFiles, // TypeScript will infer this correctly
+          files: uploadedFileInfo,
           notes: notes.trim() ? notes : null,
           status: 'submitted'
         });
