@@ -1,4 +1,3 @@
-
 import { toast } from 'sonner';
 import { executeSql } from './dbUtil';
 
@@ -48,6 +47,9 @@ export async function initializeDatabase() {
 
     // 确保RLS策略已启用
     await setupRLS();
+
+    // 创建用户角色相关的RPC函数
+    await setupRoleFunctions();
 
     toast.success('数据库配置已完成');
     return true;
@@ -125,6 +127,85 @@ async function setupRLS() {
     return true;
   } catch (error) {
     console.error('设置RLS策略失败:', error);
+    return false;
+  }
+}
+
+// 设置用户角色相关的RPC函数
+async function setupRoleFunctions() {
+  try {
+    // 创建获取用户角色的函数
+    await executeSql(`
+      -- 获取当前用户角色
+      CREATE OR REPLACE FUNCTION get_user_roles()
+      RETURNS SETOF text
+      LANGUAGE plpgsql SECURITY DEFINER AS $$
+      DECLARE
+        user_id uuid;
+      BEGIN
+        -- 获取当前用户ID
+        user_id := auth.uid();
+        
+        -- 如果用户未登录，返回空结果
+        IF user_id IS NULL THEN
+          RETURN;
+        END IF;
+        
+        -- 返回用户角色
+        RETURN QUERY
+        SELECT role FROM public.user_roles WHERE user_id = auth.uid()
+        UNION
+        SELECT 'student' WHERE EXISTS (
+          SELECT 1 FROM public.students WHERE user_id = auth.uid()
+        );
+      END;
+      $$;
+
+      -- 检查用户是否为管理员
+      CREATE OR REPLACE FUNCTION is_admin()
+      RETURNS boolean
+      LANGUAGE plpgsql SECURITY DEFINER AS $$
+      DECLARE
+        is_admin boolean;
+      BEGIN
+        SELECT EXISTS(
+          SELECT 1 FROM public.user_roles 
+          WHERE user_id = auth.uid() AND role = 'admin'
+        ) INTO is_admin;
+        
+        RETURN is_admin;
+      END;
+      $$;
+    `);
+
+    // 确保存在user_roles表
+    await executeSql(`
+      -- 如果不存在user_roles表则创建
+      CREATE TABLE IF NOT EXISTS public.user_roles (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        user_id UUID NOT NULL REFERENCES auth.users(id),
+        role TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+        UNIQUE(user_id, role)
+      );
+
+      -- 启用RLS
+      ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
+
+      -- 创建策略
+      DROP POLICY IF EXISTS "Admin users can manage roles" ON public.user_roles;
+      CREATE POLICY "Admin users can manage roles"
+        ON public.user_roles
+        USING (
+          auth.uid() = user_id OR 
+          EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'admin')
+        );
+    `);
+
+    console.log('用户角色RPC函数设置成功');
+    return true;
+  } catch (error) {
+    console.error('设置用户角色RPC函数失败:', error);
     return false;
   }
 }

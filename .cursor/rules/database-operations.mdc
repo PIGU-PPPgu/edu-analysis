@@ -1,0 +1,198 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# 数据库操作
+
+本应用使用Supabase作为后端数据库，以下是常见数据库操作的模式和最佳实践。
+
+## Supabase客户端设置
+
+所有数据库操作都通过Supabase客户端进行。客户端在以下文件中配置：
+
+[src/integrations/supabase/client.ts](mdc:src/integrations/supabase/client.ts)
+
+```typescript
+import { createClient } from '@supabase/supabase-js';
+import type { Database } from './types';
+
+const SUPABASE_URL = "your-supabase-url";
+const SUPABASE_PUBLISHABLE_KEY = "your-supabase-key";
+
+// 导入方式：
+// import { supabase } from "@/integrations/supabase/client";
+
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+```
+
+## 常见数据操作
+
+### 查询数据
+
+```typescript
+// 获取所有学生
+const { data, error } = await supabase
+  .from('students')
+  .select('*');
+
+// 获取特定班级的学生
+const { data, error } = await supabase
+  .from('students')
+  .select('*')
+  .eq('class_name', '高三一班');
+
+// 关联查询（获取学生及其成绩）
+const { data, error } = await supabase
+  .from('students')
+  .select(`
+    student_id,
+    name,
+    class_name,
+    grades (
+      subject,
+      score,
+      exam_date
+    )
+  `)
+  .eq('student_id', 'S001');
+```
+
+### 插入数据
+
+```typescript
+// 插入新学生
+const { data, error } = await supabase
+  .from('students')
+  .insert([
+    { 
+      student_id: 'S099', 
+      name: '张三', 
+      class_name: '高一二班',
+      gender: '男',
+      admission_year: '2023'
+    }
+  ]);
+```
+
+### 更新数据
+
+```typescript
+// 更新学生信息
+const { data, error } = await supabase
+  .from('students')
+  .update({ contact_phone: '13800138000' })
+  .eq('student_id', 'S001');
+```
+
+### 删除数据
+
+```typescript
+// 删除学生
+const { data, error } = await supabase
+  .from('students')
+  .delete()
+  .eq('student_id', 'S001');
+```
+
+## React Query集成
+
+本项目使用React Query进行服务器状态管理。下面是标准的查询模式：
+
+```typescript
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+
+// 查询钩子
+export function useStudents() {
+  return useQuery({
+    queryKey: ['students'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('students')
+        .select('*');
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+}
+
+// 变更钩子
+export function useAddStudent() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (newStudent) => {
+      const { data, error } = await supabase
+        .from('students')
+        .insert([newStudent]);
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      // 成功后使缓存失效，触发重新加载
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+    }
+  });
+}
+```
+
+## 错误处理
+
+所有数据库操作都应该包含错误处理：
+
+```typescript
+try {
+  const { data, error } = await supabase
+    .from('students')
+    .select('*');
+  
+  if (error) {
+    throw error;
+  }
+  
+  // 处理数据...
+} catch (error) {
+  console.error('数据获取错误:', error);
+  // 显示错误通知或处理错误
+}
+```
+
+## 实时数据订阅
+
+Supabase支持实时数据变更订阅：
+
+```typescript
+// 设置实时订阅
+const subscription = supabase
+  .channel('table-db-changes')
+  .on(
+    'postgres_changes',
+    {
+      event: '*', // 监听所有事件（insert、update、delete）
+      schema: 'public',
+      table: 'students'
+    },
+    (payload) => {
+      console.log('数据变更:', payload);
+      // 处理变更...
+    }
+  )
+  .subscribe();
+
+// 组件卸载时清理
+useEffect(() => {
+  return () => {
+    subscription.unsubscribe();
+  };
+}, []);
+```
+
+## 开发者须知
+
+1. 始终检查API请求的错误
+2. 使用React Query进行服务器状态管理
+3. 用TypeScript类型确保数据类型安全
+4. 考虑使用Supabase RLS（行级安全）控制数据访问权限

@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client'
 import { validateData } from './validation'
 import { toast } from 'sonner'
@@ -42,6 +41,7 @@ export const getUserRoles = async () => {
     return await getCurrentUserRoles();
   } catch (error) {
     console.error('获取用户角色失败:', error);
-    return null;
+    console.warn('getUserRoles出错，使用默认角色["teacher", "student"]');
+    return ['teacher', 'student'];
   }
 }

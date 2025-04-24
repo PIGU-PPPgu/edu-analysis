@@ -201,3 +201,44 @@ BEGIN
   FROM recent_data;
 END;
 $$;
+
+-- 获取当前用户角色
+CREATE OR REPLACE FUNCTION get_user_roles()
+RETURNS SETOF text
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  user_id uuid;
+BEGIN
+  -- 获取当前用户ID
+  user_id := auth.uid();
+  
+  -- 如果用户未登录，返回空结果
+  IF user_id IS NULL THEN
+    RETURN;
+  END IF;
+  
+  -- 返回用户角色
+  RETURN QUERY
+  SELECT role FROM public.user_roles WHERE user_id = auth.uid()
+  UNION
+  SELECT 'student' WHERE EXISTS (
+    SELECT 1 FROM public.students WHERE user_id = auth.uid()
+  );
+END;
+$$;
+
+-- 检查用户是否为管理员
+CREATE OR REPLACE FUNCTION is_admin()
+RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  is_admin boolean;
+BEGIN
+  SELECT EXISTS(
+    SELECT 1 FROM public.user_roles 
+    WHERE user_id = auth.uid() AND role = 'admin'
+  ) INTO is_admin;
+  
+  RETURN is_admin;
+END;
+$$;

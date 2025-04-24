@@ -18,6 +18,7 @@ import { getCurrentUser, getSession } from "./utils/auth";
 import RoleGuard from "./components/auth/RoleGuard";
 import { supabase } from "./integrations/supabase/client";
 import HomeworkManagement from "./pages/HomeworkManagement";
+import HomeworkDetailPage from "./pages/HomeworkDetail";
 
 const queryClient = new QueryClient();
 
@@ -135,6 +136,14 @@ function App() {
                 <Route 
                   path="/homework" 
                   element={<HomeworkManagement />} 
+                />
+                <Route 
+                  path="/homework/:homeworkId" 
+                  element={<HomeworkDetailPage />} 
+                />
+                <Route 
+                  path="/student-homework" 
+                  element={<StudentManagement />} 
                 />
                 <Route path="*" element={<NotFound />} />
               </Routes>

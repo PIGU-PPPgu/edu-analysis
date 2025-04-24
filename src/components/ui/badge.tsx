@@ -1,4 +1,3 @@
-
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 
@@ -26,7 +25,9 @@ const badgeVariants = cva(
 
 export interface BadgeProps
   extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof badgeVariants> {}
+    VariantProps<typeof badgeVariants> {
+  // key属性已经存在于React.HTMLAttributes中，不需要明确定义
+}
 
 function Badge({ className, variant, ...props }: BadgeProps) {
   return (
