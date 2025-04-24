@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,7 @@ import { FileUp } from "lucide-react";
 import { toast } from "sonner";
 import { Json } from "@/integrations/supabase/types";
 
-interface FileInfo {
+interface FileUploadInfo {
   name: string;
   path: string;
   type: string;
@@ -56,30 +57,31 @@ const SubmitHomeworkDialog: React.FC<SubmitHomeworkDialogProps> = ({
 
       if (studentError) throw studentError;
 
-      // 准备文件元数据
-      const fileInfos: Json = files.map(file => ({
+      // Prepare file metadata
+      const fileInfos: FileUploadInfo[] = files.map(file => ({
         name: file.name,
         path: `${homework.id}/${userData.user?.id}/${Date.now()}.${file.name.split('.').pop() || ''}`,
         type: file.type,
         size: file.size
       }));
       
-      // 处理每个文件的上传
+      // Handle file uploads
       for (const fileInfo of fileInfos) {
+        const fileToUpload = files[fileInfos.indexOf(fileInfo)];
         const { error: uploadError } = await supabase.storage
           .from('homework_files')
-          .upload(fileInfo.path, files[fileInfos.indexOf(fileInfo)]);
+          .upload(fileInfo.path, fileToUpload);
 
         if (uploadError) throw uploadError;
       }
 
-      // 创建提交记录
+      // Create submission record
       const { error: submissionError } = await supabase
         .from('homework_submissions')
         .insert({
           homework_id: homework.id,
           student_id: studentData.student_id,
-          files: fileInfos,
+          files: fileInfos as unknown as Json,
           notes: notes.trim() ? notes : null,
           status: 'submitted'
         });
