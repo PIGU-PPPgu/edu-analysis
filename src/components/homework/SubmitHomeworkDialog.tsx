@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,14 +6,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { FileUp } from "lucide-react";
 import { toast } from "sonner";
+import { Json } from "@/integrations/supabase/types";
 
-// Simple file type that avoids complex type nesting
-type FileInfo = {
+interface FileInfo {
   name: string;
   path: string;
   type: string;
   size: number;
-};
+}
 
 interface SubmitHomeworkDialogProps {
   open: boolean;
@@ -57,31 +56,24 @@ const SubmitHomeworkDialog: React.FC<SubmitHomeworkDialogProps> = ({
 
       if (studentError) throw studentError;
 
-      // Prepare file metadata for storage
-      const fileInfos: FileInfo[] = [];
+      // 准备文件元数据
+      const fileInfos: Json = files.map(file => ({
+        name: file.name,
+        path: `${homework.id}/${userData.user?.id}/${Date.now()}.${file.name.split('.').pop() || ''}`,
+        type: file.type,
+        size: file.size
+      }));
       
-      // Process each file
-      for (const file of files) {
-        const fileExt = file.name.split('.').pop() || '';
-        const fileName = `${homework.id}/${userData.user?.id}/${Date.now()}.${fileExt}`;
-        
-        // Upload the file to storage
+      // 处理每个文件的上传
+      for (const fileInfo of fileInfos) {
         const { error: uploadError } = await supabase.storage
           .from('homework_files')
-          .upload(fileName, file);
+          .upload(fileInfo.path, files[fileInfos.indexOf(fileInfo)]);
 
         if (uploadError) throw uploadError;
-        
-        // Add file info to our array
-        fileInfos.push({
-          name: file.name,
-          path: fileName,
-          type: file.type,
-          size: file.size
-        });
       }
 
-      // Create submission record
+      // 创建提交记录
       const { error: submissionError } = await supabase
         .from('homework_submissions')
         .insert({
