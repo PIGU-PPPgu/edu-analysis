@@ -66,14 +66,17 @@ const SubmitHomeworkDialog: React.FC<SubmitHomeworkDialogProps> = ({
       }));
       
       // Handle file uploads
-      for (const fileInfo of fileInfos) {
-        const fileToUpload = files[fileInfos.indexOf(fileInfo)];
+      const uploadPromises = fileInfos.map(async (fileInfo, index) => {
+        const fileToUpload = files[index];
         const { error: uploadError } = await supabase.storage
           .from('homework_files')
           .upload(fileInfo.path, fileToUpload);
 
         if (uploadError) throw uploadError;
-      }
+        return fileInfo;
+      });
+
+      const uploadedFiles = await Promise.all(uploadPromises);
 
       // Create submission record
       const { error: submissionError } = await supabase
@@ -81,7 +84,7 @@ const SubmitHomeworkDialog: React.FC<SubmitHomeworkDialogProps> = ({
         .insert({
           homework_id: homework.id,
           student_id: studentData.student_id,
-          files: fileInfos as unknown as Json,
+          files: uploadedFiles as unknown as Json,
           notes: notes.trim() ? notes : null,
           status: 'submitted'
         });
