@@ -7,8 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { FileUp } from "lucide-react";
 import { toast } from "sonner";
+import { Json } from "@/integrations/supabase/types";
 
-// Define a simple interface for file upload metadata
+// Define a file info interface that matches the Json type
 interface UploadedFileInfo {
   name: string;
   path: string;
@@ -58,7 +59,7 @@ const SubmitHomeworkDialog: React.FC<SubmitHomeworkDialogProps> = ({
       if (studentError) throw studentError;
 
       // Create an array to store uploaded file info
-      const uploadedFileInfo: UploadedFileInfo[] = [];
+      const uploadedFiles: UploadedFileInfo[] = [];
       
       // Process each file
       for (const file of files) {
@@ -73,7 +74,7 @@ const SubmitHomeworkDialog: React.FC<SubmitHomeworkDialogProps> = ({
         if (uploadError) throw uploadError;
         
         // Add file info to our array after successful upload
-        uploadedFileInfo.push({
+        uploadedFiles.push({
           name: file.name,
           path: fileName,
           type: file.type,
@@ -82,12 +83,13 @@ const SubmitHomeworkDialog: React.FC<SubmitHomeworkDialogProps> = ({
       }
 
       // Create submission record with files data
+      // Convert the files array to Json compatible format
       const { error: submissionError } = await supabase
         .from('homework_submissions')
         .insert({
           homework_id: homework.id,
           student_id: studentData.student_id,
-          files: uploadedFileInfo,
+          files: uploadedFiles as unknown as Json,
           notes: notes.trim() ? notes : null,
           status: 'submitted'
         });
