@@ -57,11 +57,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Checkbox,
-  Label,
-} from "@/components/ui/checkbox";
-import { exportToExcel } from "@/lib/export";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { exportToExcel } from "@/utils/export";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 // 导入模拟数据
@@ -71,6 +69,30 @@ const statusMap = {
   pending: { label: "待完成", icon: Clock, color: "bg-yellow-100 text-yellow-800" },
   submitted: { label: "已提交", icon: CheckCircle, color: "bg-blue-100 text-blue-800" },
   graded: { label: "已批改", icon: Award, color: "bg-green-100 text-green-800" },
+};
+
+// 状态配置
+const statusConfig = {
+  graded: { label: "已批改", icon: Award, color: "bg-green-100 text-green-800" },
+  submitted: { label: "已提交", icon: CheckCircle, color: "bg-blue-100 text-blue-800" },
+  not_submitted: { label: "未提交", icon: Clock, color: "bg-red-100 text-red-800" },
+  late: { label: "逾期提交", icon: Clock, color: "bg-orange-100 text-orange-800" },
+  pending: { label: "待完成", icon: Clock, color: "bg-yellow-100 text-yellow-800" },
+  absent: { label: "缺席", icon: Clock, color: "bg-gray-100 text-gray-800" },
+};
+
+// 根据状态返回徽章变体
+const getBadgeVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
+  switch (status) {
+    case "graded":
+      return "default";
+    case "submitted":
+      return "secondary";
+    case "pending":
+      return "outline";
+    default:
+      return "destructive";
+  }
 };
 
 // 视图模式类型
