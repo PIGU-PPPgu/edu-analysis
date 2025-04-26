@@ -6,6 +6,21 @@ import { AlertTriangle, RefreshCw, Settings, Sliders } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/analysis/Navbar";
 import GradingSettingsDialog from "@/components/homework/GradingSettingsDialog";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { HomeworkTable } from "@/components/homework/HomeworkTable";
+import { 
+  PlusCircle, 
+  FileText, 
+  Search, 
+  BarChart3
+} from "lucide-react";
+import { HomeworkAnalysisDashboard } from "@/components/analysis";
 
 // 导入模拟数据
 import { getUserRoles } from "@/data/mockData";
@@ -15,6 +30,26 @@ const HomeworkManagement = () => {
   const [error, setError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = useState("");
+  
+  // 模拟的状态选项
+  const statusOptions = [
+    {
+      label: "已发布",
+      value: "published",
+      icon: FileText,
+    },
+    {
+      label: "草稿",
+      value: "draft",
+      icon: FileText,
+    },
+    {
+      label: "已归档",
+      value: "archived",
+      icon: FileText,
+    },
+  ];
 
   useEffect(() => {
     const checkRoles = async () => {
@@ -81,7 +116,48 @@ const HomeworkManagement = () => {
         )}
         
         {isTeacher ? (
-          <TeacherHomeworkList />
+          <Tabs defaultValue="list" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="list">作业列表</TabsTrigger>
+              <TabsTrigger value="analysis">数据分析</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="list" className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="flex-1 flex items-center gap-2">
+                  <Input
+                    placeholder="搜索作业..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="max-w-xs"
+                  />
+                  <Search className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm">
+                    <FileText className="mr-2 h-4 w-4" />
+                    全部
+                  </Button>
+                </div>
+              </div>
+              
+              <HomeworkTable searchTerm={searchTerm} />
+            </TabsContent>
+            
+            <TabsContent value="analysis">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-medium">作业数据分析</h2>
+                  <Button variant="outline" size="sm">
+                    <BarChart3 className="mr-2 h-4 w-4" />
+                    导出报告
+                  </Button>
+                </div>
+                
+                <HomeworkAnalysisDashboard />
+              </div>
+            </TabsContent>
+          </Tabs>
         ) : (
           <div className="text-center py-12 border rounded-lg bg-gray-50">
             <AlertTriangle className="h-12 w-12 mx-auto text-yellow-500 mb-4" />
