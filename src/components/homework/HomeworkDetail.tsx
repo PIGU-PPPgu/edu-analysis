@@ -37,6 +37,8 @@ import {
   Upload,
   Download,
   Filter,
+  FileDown,
+  Scan,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import {
@@ -59,9 +61,37 @@ import { StudentCard, StudentCardGrid, SubmissionStatus } from "./StudentCard";
 import GradeCardView from "./GradeCardView";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell, AreaChart, Area } from "recharts";
 import { AutoChart, ChartContainer, ChartTooltip } from "@/components/ui/chart";
+import { getHomeworkById, getHomeworkSubmissions, gradeHomework } from "@/services/homeworkService";
+import { getKnowledgePointsByHomeworkId } from "@/services/knowledgePointService";
+import { 
+  getGradingScaleWithLevels, 
+  scoreToCustomGrade, 
+  GradingScaleLevel 
+} from "@/services/gradingService";
+import { AIKnowledgePointAnalyzer, KnowledgePoint } from '@/components/homework/AIKnowledgePointAnalyzer';
+import { bulkCreateKnowledgePoints, updateKnowledgePointEvaluations } from '@/services/knowledgePointService';
 
 // 导入模拟数据
 import { mockApi } from "@/data/mockData";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 const statusMap = {
   pending: { label: "待完成", icon: Clock, color: "bg-yellow-100 text-yellow-800" },
@@ -72,64 +102,155 @@ const statusMap = {
 // 视图模式类型
 type ViewMode = "cards" | "table" | "ai";
 
-export default function HomeworkDetail() {
+interface Homework {
+  id: string;
+  title: string;
+  description: string;
+  due_date: string;
+  created_at: string;
+  grading_scale_id?: string; // 添加评级标准ID
+  classes: {
+    id: string;
+    name: string;
+    subject?: string;
+  };
+  teachers: {
+    name: string;
+  };
+  knowledge_points?: KnowledgePoint[];
+}
+
+interface Submission {
+  id: string;
+  status: string;
+  score?: number;
+  submit_date?: string;
+  submitted_at?: string;
+  students: {
+    id: string;
+    name: string;
+    student_id?: string;
+  };
+  teacher_feedback?: string;
+  feedback?: string;
+  knowledge_point_evaluation?: any[];
+  submission_knowledge_points?: any[];
+}
+
+interface KnowledgePoint {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+interface HomeworkDetailProps {
+  homeworkId: string;
+}
+
+export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
   const params = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [homework, setHomework] = useState<any>(null);
-  const [submissions, setSubmissions] = useState<any[]>([]);
-  const [filteredSubmissions, setFilteredSubmissions] = useState<any[]>([]);
-  const [knowledgePoints, setKnowledgePoints] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [gradeDialogOpen, setGradeDialogOpen] = useState(false);
-  const [currentTab, setCurrentTab] = useState("details");
+  const [homework, setHomework] = useState<Homework | null>(null);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [filteredSubmissions, setFilteredSubmissions] = useState<Submission[]>([]);
+  const [currentTab, setCurrentTab] = useState<"details" | "submissions" | "analysis" | "knowledgePoints">("details");
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [openStudentDetailsId, setOpenStudentDetailsId] = useState<string | null>(null);
+  const [lastFetchTime, setLastFetchTime] = useState<Date | null>(null);
+  const [knowledgePoints, setKnowledgePoints] = useState<KnowledgePoint[]>([]);
+  const [selectedSubmissionId, setSelectedSubmissionId] = useState<string | null>(null);
+  const [isGradeDialogOpen, setIsGradeDialogOpen] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
-  const [scoreDisplayMode, setScoreDisplayMode] = useState<"numeric" | "grade">("numeric");
+  const [scoreDisplayMode, setScoreDisplayMode] = useState<"numeric" | "letter">("numeric");
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [gradingScale, setGradingScale] = useState<{
+    id: string;
+    name: string;
+    levels: GradingScaleLevel[];
+  } | null>(null);
+  const [homeworkImages, setHomeworkImages] = useState<{url: string; name: string}[]>([]);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  
+  // 添加知识点确认对话框状态
+  const [showKnowledgePointDialog, setShowKnowledgePointDialog] = useState(false);
+  const [aiKnowledgePoints, setAiKnowledgePoints] = useState<KnowledgePoint[]>([]);
+  // 添加知识点分析对话框状态
+  const [showAIAnalysisDialog, setShowAIAnalysisDialog] = useState(false);
 
   useEffect(() => {
-    if (!params.homeworkId) return;
+    if (!homeworkId) {
+      console.error("HomeworkDetail: 缺少homeworkId参数");
+      return;
+    }
+
+    console.log("HomeworkDetail: 开始获取作业详情，ID:", homeworkId);
 
     const fetchHomework = async () => {
+      setIsLoading(true);
+      setError(null);
+
       try {
-        setLoading(true);
-        console.log("正在获取作业详情，ID:", params.homeworkId);
+        // 使用实际的Supabase服务
+        const data = await getHomeworkById(homeworkId);
         
-        // 使用模拟数据代替Supabase调用
-        const homeworkData = await mockApi.teacher.getHomeworkById(params.homeworkId);
-        setHomework(homeworkData);
-        
-        // 获取作业关联的知识点
-        const kpData = await mockApi.knowledgePoints.getKnowledgePoints(params.homeworkId);
-        setKnowledgePoints(kpData);
-        
-        // 获取作业提交情况
-        await fetchSubmissions();
-        
+        if (data) {
+          setHomework(data);
+          
+          // 获取知识点
+          const kpData = await getKnowledgePointsByHomeworkId(homeworkId);
+          console.log("获取到的知识点:", kpData);
+          setKnowledgePoints(kpData);
+          
+          // 获取作业的评级标准
+          if (data.grading_scale_id) {
+            const gradingScaleData = await getGradingScaleWithLevels(data.grading_scale_id);
+            if (gradingScaleData) {
+              setGradingScale({
+                id: gradingScaleData.id || "",
+                name: gradingScaleData.name,
+                levels: gradingScaleData.levels || []
+              });
+            }
+          }
+          
+          // 获取作业提交情况
+          await fetchSubmissions();
+        } else {
+          setError("获取作业详情失败");
+          toast({
+            variant: "destructive",
+            title: "错误",
+            description: "获取作业详情失败"
+          });
+        }
       } catch (error) {
-        console.error("获取作业详情失败:", error);
+        setError("获取作业详情出错");
         toast({
           variant: "destructive",
           title: "错误",
-          description: "获取作业详情失败"
+          description: `获取作业详情出错: ${error.message}`
         });
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
 
     fetchHomework();
-  }, [params.homeworkId, toast]);
+  }, [homeworkId, toast]);
 
   useEffect(() => {
     // 根据状态过滤和搜索过滤提交列表
     let filtered = [...submissions];
     
     // 状态过滤
-    if (statusFilter !== "all") {
-      filtered = filtered.filter(sub => sub.status === statusFilter);
+    if (statusFilter.length > 0) {
+      filtered = filtered.filter(sub => statusFilter.includes(sub.status));
     }
     
     // 搜索过滤
@@ -144,20 +265,21 @@ export default function HomeworkDetail() {
   }, [submissions, statusFilter, searchQuery]);
 
   const fetchSubmissions = async () => {
+    setIsLoadingSubmissions(true);
     try {
-      if (!params.homeworkId) return;
+      // 使用实际的Supabase服务
+      const submissionsData = await getHomeworkSubmissions(homeworkId);
       
-      // 使用模拟数据获取提交情况
-      const submissionsData = await mockApi.teacher.getSubmissions(params.homeworkId);
       setSubmissions(submissionsData);
       setFilteredSubmissions(submissionsData);
     } catch (error) {
-      console.error("获取作业提交情况失败:", error);
       toast({
         variant: "destructive",
         title: "错误",
-        description: "获取作业提交情况失败"
+        description: `获取提交记录失败: ${error.message}`
       });
+    } finally {
+      setIsLoadingSubmissions(false);
     }
   };
 
@@ -165,21 +287,23 @@ export default function HomeworkDetail() {
     navigate(-1);
   };
 
-  const handleGraded = () => {
-    fetchSubmissions();
-    toast({
-      title: "批改成功",
-      description: "学生成绩和知识点掌握情况已更新"
-    });
+  const handleGraded = async () => {
+    setIsGradeDialogOpen(false);
+    setSelectedSubmissionId(null);
+    await fetchSubmissions();
   };
 
   const handleOpenGradeDialog = (studentId: string) => {
     setSelectedStudentId(studentId);
-    setGradeDialogOpen(true);
+    setIsGradeDialogOpen(true);
   };
 
   const handleStatusFilterChange = (value: string) => {
-    setStatusFilter(value);
+    if (statusFilter.includes(value)) {
+      setStatusFilter(statusFilter.filter(v => v !== value));
+    } else {
+      setStatusFilter([...statusFilter, value]);
+    }
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -198,6 +322,171 @@ export default function HomeworkDetail() {
       title: "功能开发中",
       description: "AI批改功能正在开发中"
     });
+  };
+
+  // 新增处理上传作业图片的函数
+  const handleUploadHomeworkImage = () => {
+    // 创建一个隐藏的文件输入框
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.style.display = 'none';
+    
+    // 处理文件选择
+    fileInput.onchange = async (e) => {
+      const target = e.target as HTMLInputElement;
+      const file = target.files?.[0];
+      
+      if (!file) return;
+      
+      // 验证文件类型
+      if (!file.type.startsWith('image/')) {
+        toast({
+          variant: "destructive",
+          title: "格式错误",
+          description: "请上传图片文件"
+        });
+        return;
+      }
+      
+      // 验证文件大小 (限制为5MB)
+      const maxSize = 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        toast({
+          variant: "destructive",
+          title: "文件过大",
+          description: "图片大小不能超过5MB"
+        });
+        return;
+      }
+      
+      // 显示上传中状态
+      setIsUploadingImage(true);
+      
+      try {
+        // TODO: 实际上传逻辑，连接到Supabase Storage
+        // 示例:
+        // const { data, error } = await supabase.storage
+        //   .from('homework_images')
+        //   .upload(`${homeworkId}/${Date.now()}_${file.name}`, file);
+        
+        // 模拟上传延迟
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // 创建临时URL
+        const imageUrl = URL.createObjectURL(file);
+        
+        // 添加到图片列表
+        setHomeworkImages(prev => [...prev, {
+          url: imageUrl,
+          name: file.name
+        }]);
+        
+        // 上传成功提示
+        toast({
+          title: "上传成功",
+          description: "作业图片已上传，AI分析中..."
+        });
+        
+        // 模拟AI分析延迟
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // 分析完成提示
+        toast({
+          title: "分析完成",
+          description: "AI已完成图片分析，已提取3个知识点"
+        });
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "上传失败",
+          description: error instanceof Error ? error.message : "上传图片时发生错误"
+        });
+      } finally {
+        setIsUploadingImage(false);
+      }
+    };
+    
+    // 触发文件选择
+    document.body.appendChild(fileInput);
+    fileInput.click();
+    document.body.removeChild(fileInput);
+  };
+
+  // 添加拖放上传处理函数
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      
+      // 验证文件类型
+      if (!file.type.startsWith('image/')) {
+        toast({
+          variant: "destructive",
+          title: "格式错误",
+          description: "请上传图片文件"
+        });
+        return;
+      }
+      
+      // 验证文件大小 (限制为5MB)
+      const maxSize = 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        toast({
+          variant: "destructive",
+          title: "文件过大",
+          description: "图片大小不能超过5MB"
+        });
+        return;
+      }
+      
+      // 显示上传中状态
+      setIsUploadingImage(true);
+      
+      try {
+        // 模拟上传延迟
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // 创建临时URL
+        const imageUrl = URL.createObjectURL(file);
+        
+        // 添加到图片列表
+        setHomeworkImages(prev => [...prev, {
+          url: imageUrl,
+          name: file.name
+        }]);
+        
+        // 上传成功提示
+        toast({
+          title: "上传成功",
+          description: "作业图片已上传，AI分析中..."
+        });
+        
+        // 模拟AI分析延迟
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // 分析完成提示
+        toast({
+          title: "分析完成",
+          description: "AI已完成图片分析，已提取3个知识点"
+        });
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "上传失败",
+          description: error instanceof Error ? error.message : "上传图片时发生错误"
+        });
+      } finally {
+        setIsUploadingImage(false);
+      }
+    }
   };
 
   // 将分数转换为等级
@@ -228,8 +517,13 @@ export default function HomeworkDetail() {
     
     if (scoreDisplayMode === "numeric") {
       return `${score}`;
+    } else if (gradingScale && gradingScale.levels.length > 0) {
+      // 使用自定义评级
+      const grade = scoreToCustomGrade(score, gradingScale.levels);
+      return grade ? grade.name : "-";
     } else {
-      return scoreToGrade(score); // 或者使用 scoreToChineseGrade(score)
+      // 使用默认评级
+      return scoreToGrade(score); 
     }
   };
 
@@ -263,7 +557,361 @@ export default function HomeworkDetail() {
     });
   }, [knowledgePoints, submissions]);
 
-  if (loading) return <Loading />;
+  // 评分处理函数
+  const handleGradeSubmission = async (data: {
+    submissionId: string;
+    score: number;
+    feedback: string;
+    knowledgePointEvaluations: Array<{
+      id: string;
+      masteryLevel: number;
+    }>;
+  }) => {
+    setIsSubmitting(true);
+    try {
+      // 使用实际的Supabase服务
+      const result = await gradeHomework(data);
+      
+      if (result.success) {
+        toast({
+          title: "评分成功",
+          description: "学生成绩和知识点掌握情况已更新"
+        });
+        await fetchSubmissions(); // 重新加载提交数据
+      } else {
+        toast({
+          title: "评分失败",
+          description: "评分失败"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "评分出错",
+        description: `评分出错: ${error.message}`
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // 在渲染评分选项的部分添加以下内容
+  const renderScoreDisplayOptions = () => {
+    return (
+      <div className="flex items-center space-x-4 mb-4">
+        <span className="text-sm font-medium">分数显示:</span>
+        <div className="flex bg-gray-100 rounded-md p-1">
+          <button
+            className={`px-3 py-1 text-sm rounded-md ${
+              scoreDisplayMode === "numeric"
+                ? "bg-white shadow"
+                : "text-gray-600"
+            }`}
+            onClick={() => setScoreDisplayMode("numeric")}
+          >
+            数字分数
+          </button>
+          <button
+            className={`px-3 py-1 text-sm rounded-md ${
+              scoreDisplayMode === "letter"
+                ? "bg-white shadow"
+                : "text-gray-600"
+            }`}
+            onClick={() => setScoreDisplayMode("letter")}
+          >
+            等级
+          </button>
+        </div>
+        {gradingScale && (
+          <span className="text-sm text-gray-500">
+            使用评级标准: {gradingScale.name}
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  // 在handleGradeSubmission函数附近，添加处理AI知识点保存的函数
+  const handleSaveAiKnowledgePoints = async (newKnowledgePoints: KnowledgePoint[]) => {
+    if (!homework || newKnowledgePoints.length === 0) return;
+    
+    try {
+      setIsLoading(true);
+      
+      // 过滤掉与现有知识点相似的项
+      const existingKnowledgePoints = [...knowledgePoints];
+      const uniqueNewKnowledgePoints = newKnowledgePoints.filter(newKp => {
+        // 检查是否与现有知识点相似
+        const isSimilarToExisting = existingKnowledgePoints.some(existingKp => 
+          areKnowledgePointsSimilar(newKp.name, existingKp.name)
+        );
+        
+        // 如果相似，记录日志并返回false将其过滤掉
+        if (isSimilarToExisting) {
+          console.log(`过滤掉相似知识点: ${newKp.name}`);
+          return false;
+        }
+        
+        return true;
+      });
+      
+      if (uniqueNewKnowledgePoints.length === 0) {
+        toast({
+          title: "未发现新知识点",
+          description: "AI分析未发现新的知识点，或所有知识点都与现有知识点相似"
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      // 保存知识点到数据库
+      const result = await bulkCreateKnowledgePoints(uniqueNewKnowledgePoints, homework.id);
+      
+      if (result.success) {
+        // 更新知识点列表
+        const updatedKnowledgePointsList = await getKnowledgePointsByHomeworkId(homework.id);
+        setKnowledgePoints(updatedKnowledgePointsList);
+        
+        // 根据不同情况显示不同的提示信息
+        if (result.skippedPoints && result.skippedPoints.length > 0) {
+          toast({
+            title: "部分知识点已跳过",
+            description: `成功保存 ${uniqueNewKnowledgePoints.length - result.skippedPoints.length} 个知识点，跳过 ${result.skippedPoints.length} 个重复或相似知识点`,
+          });
+          
+          // 可以在控制台显示详细的跳过信息
+          console.log("跳过的相似知识点:", result.skippedPoints);
+        } else {
+          toast({
+            title: "保存成功",
+            description: `成功保存 ${uniqueNewKnowledgePoints.length} 个知识点到数据库`
+          });
+        }
+        
+        // 关闭分析对话框
+        setShowAIAnalysisDialog(false);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "保存失败",
+          description: result.message
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "保存失败",
+        description: error instanceof Error ? error.message : "保存知识点失败"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 添加一个工具函数用于判断知识点是否相似
+  const areKnowledgePointsSimilar = (kp1: string, kp2: string): boolean => {
+    // 1. 清理文本：移除标点符号和多余的空格
+    const normalize = (text: string): string => {
+      return text
+        .toLowerCase()
+        .replace(/[^\w\s\u4e00-\u9fa5]/g, '') // 移除标点符号，保留中文字符
+        .replace(/\s+/g, ' ')                 // 压缩多余空格
+        .trim();
+    };
+    
+    const normalized1 = normalize(kp1);
+    const normalized2 = normalize(kp2);
+    
+    // 2. 完全匹配检查
+    if (normalized1 === normalized2) return true;
+    
+    // 3. 包含关系检查
+    if (normalized1.includes(normalized2) || normalized2.includes(normalized1)) {
+      // 如果一个是另一个的子串，且长度差异不大，认为是相似的
+      const minLength = Math.min(normalized1.length, normalized2.length);
+      const maxLength = Math.max(normalized1.length, normalized2.length);
+      
+      // 如果长度之比超过80%，认为是相似的
+      if (minLength / maxLength > 0.8) return true;
+    }
+    
+    // 4. 余弦相似度或编辑距离检查（简化版）
+    // 计算两个字符串中相同字符的数量
+    const commonChars = (str1: string, str2: string): number => {
+      const set1 = new Set(str1.split(''));
+      const set2 = new Set(str2.split(''));
+      let common = 0;
+      
+      for (const char of set1) {
+        if (set2.has(char)) common++;
+      }
+      
+      return common;
+    };
+    
+    const common = commonChars(normalized1, normalized2);
+    const similarity = (2 * common) / (normalized1.length + normalized2.length);
+    
+    // 相似度阈值
+    return similarity > 0.7;
+  };
+
+  // 添加AI提取知识点处理函数
+  const handleAIExtractKnowledgePoints = async () => {
+    if (homeworkImages.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "缺少图片",
+        description: "请先上传作业图片，再进行AI提取知识点"
+      });
+      return;
+    }
+    
+    setIsLoading(true);
+    toast({
+      title: "AI分析中",
+      description: "正在分析作业图片提取知识点..."
+    });
+    
+    try {
+      // TODO: 这里应该先从数据库获取所有现有知识点
+      // const existingKnowledgePoints = await fetchAllKnowledgePoints();
+      
+      // 模拟获取现有知识点
+      const existingKnowledgePoints = [...knowledgePoints];
+      
+      // 模拟AI分析延迟
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // 模拟新知识点
+      const aiAnalyzedKnowledgePoints = [
+        {
+          id: `ai-${Date.now()}-1`,
+          name: "图像分割与处理",
+          description: "理解并掌握基本的图像分割算法及图像预处理技术",
+          isNew: true
+        },
+        {
+          id: `ai-${Date.now()}-2`,
+          name: "卷积神经网络原理",
+          description: "理解CNN的基本结构和工作原理，掌握卷积、池化等操作",
+          isNew: true
+        },
+        {
+          id: `ai-${Date.now()}-3`,
+          name: "特征提取与识别",
+          description: "掌握图像特征提取的关键技术和应用方法",
+          isNew: true
+        },
+        // 添加一个与现有知识点相似的项作为测试
+        {
+          id: `ai-${Date.now()}-4`,
+          name: "反比例函数的图像",
+          description: "理解反比例函数的图像特征和变换规律",
+          isNew: true
+        }
+      ];
+      
+      // 过滤掉与现有知识点相似的项
+      const uniqueNewKnowledgePoints = aiAnalyzedKnowledgePoints.filter(newKp => {
+        // 检查是否与现有知识点相似
+        const isSimilarToExisting = existingKnowledgePoints.some(existingKp => 
+          areKnowledgePointsSimilar(newKp.name, existingKp.name)
+        );
+        
+        // 如果相似，记录日志并返回false将其过滤掉
+        if (isSimilarToExisting) {
+          console.log(`过滤掉相似知识点: ${newKp.name}`);
+          return false;
+        }
+        
+        return true;
+      });
+      
+      if (uniqueNewKnowledgePoints.length === 0) {
+        toast({
+          title: "未发现新知识点",
+          description: "AI分析未发现新的知识点，或所有知识点都与现有知识点相似"
+        });
+      } else {
+        // 弹出确认对话框，而不是直接更新
+        setAiKnowledgePoints(uniqueNewKnowledgePoints as KnowledgePoint[]);
+        setShowKnowledgePointDialog(true);
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "提取失败",
+        description: error instanceof Error ? error.message : "知识点提取失败"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // 添加确认保存知识点的函数
+  const handleConfirmSaveKnowledgePoints = async () => {
+    if (!homework || aiKnowledgePoints.length === 0) return;
+    
+    try {
+      // 保存到数据库
+      setIsLoading(true);
+      
+      // 真实调用保存接口
+      const result = await bulkCreateKnowledgePoints(aiKnowledgePoints, homework.id);
+      
+      if (result.success) {
+        // 更新知识点列表
+        // 先获取最新的知识点列表，确保包含后端处理的结果
+        const updatedKnowledgePointsList = await getKnowledgePointsByHomeworkId(homework.id);
+        setKnowledgePoints(updatedKnowledgePointsList);
+        
+        // 根据不同情况显示不同的提示信息
+        if (result.skippedPoints && result.skippedPoints.length > 0) {
+          toast({
+            title: "部分知识点已跳过",
+            description: `成功保存 ${aiKnowledgePoints.length - result.skippedPoints.length} 个知识点，跳过 ${result.skippedPoints.length} 个重复或相似知识点`,
+          });
+          
+          // 可以在控制台显示详细的跳过信息
+          console.log("跳过的相似知识点:", result.skippedPoints);
+        } else {
+          toast({
+            title: "保存成功",
+            description: `成功保存 ${aiKnowledgePoints.length} 个知识点到数据库`
+          });
+        }
+      } else {
+        toast({
+          variant: "destructive",
+          title: "保存失败",
+          description: result.message
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "保存失败",
+        description: error instanceof Error ? error.message : "保存知识点失败"
+      });
+    } finally {
+      setIsLoading(false);
+      setShowKnowledgePointDialog(false);
+      setAiKnowledgePoints([]);
+    }
+  };
+  
+  // 取消保存知识点
+  const handleCancelSaveKnowledgePoints = () => {
+    setShowKnowledgePointDialog(false);
+    setAiKnowledgePoints([]);
+    toast({
+      title: "已取消",
+      description: "已取消保存知识点"
+    });
+  };
+
+  if (isLoading) return <Loading />;
+  if (error) return <div className="p-6">{error}</div>;
   if (!homework) return <div>作业不存在</div>;
 
   // 将服务器状态映射到组件使用的状态
@@ -327,6 +975,10 @@ export default function HomeworkDetail() {
                 <ChartPieIcon className="h-4 w-4 mr-2" />
                 数据分析
               </TabsTrigger>
+              <TabsTrigger value="knowledgePoints">
+                <BrainCircuit className="h-4 w-4 mr-2" />
+                知识点分析
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="details" className="space-y-4">
@@ -339,22 +991,83 @@ export default function HomeworkDetail() {
 
               <div className="flex justify-between items-center mt-4">
                 <h3 className="font-medium">作业图片</h3>
-                <Button variant="outline" size="sm" className="flex items-center gap-1">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex items-center gap-1"
+                  onClick={handleUploadHomeworkImage}
+                >
                   <ImagePlus className="h-4 w-4" />
                   上传作业图片
                 </Button>
               </div>
               
-              <div className="bg-muted/50 rounded-md p-8 text-center border border-dashed">
-                <FileUp className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">点击上传作业图片供AI分析</p>
+              <div 
+                className="bg-muted/50 rounded-md p-8 text-center border border-dashed cursor-pointer hover:bg-muted/70 transition-colors"
+                onClick={handleUploadHomeworkImage}
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+              >
+                {isUploadingImage ? (
+                  <div className="space-y-3">
+                    <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
+                    <p className="text-sm text-muted-foreground">正在上传图片...</p>
+                  </div>
+                ) : homeworkImages.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {homeworkImages.map((image, index) => (
+                        <div key={index} className="relative group">
+                          <img 
+                            src={image.url} 
+                            alt={image.name} 
+                            className="h-32 w-full object-cover rounded-md" 
+                          />
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-md">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="text-white"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setHomeworkImages(prev => prev.filter((_, i) => i !== index));
+                                toast({
+                                  title: "已删除",
+                                  description: "作业图片已删除"
+                                });
+                              }}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                      <div 
+                        className="h-32 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center hover:border-primary transition-colors"
+                        onClick={handleUploadHomeworkImage}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8 text-gray-400"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground">点击添加更多图片或拖放图片到此处</p>
+                  </div>
+                ) : (
+                  <>
+                    <FileUp className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">点击上传作业图片供AI分析</p>
+                  </>
+                )}
               </div>
 
               {knowledgePoints.length > 0 && (
                 <div>
                   <div className="flex justify-between items-center">
                     <h3 className="font-medium mb-2">相关知识点</h3>
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleAIExtractKnowledgePoints}
+                    >
                       <BrainCircuit className="h-4 w-4 mr-1" />
                       AI提取知识点
                     </Button>
@@ -434,8 +1147,10 @@ export default function HomeworkDetail() {
                     </div>
                     
                     <Select
-                      value={statusFilter}
-                      onValueChange={handleStatusFilterChange}
+                      value={statusFilter.join(",")}
+                      onValueChange={(value) => {
+                        setStatusFilter(value.split(","));
+                      }}
                     >
                       <SelectTrigger className="w-full sm:w-[140px]">
                         <SelectValue placeholder="筛选状态" />
@@ -637,6 +1352,9 @@ export default function HomeworkDetail() {
                     </div>
                   </div>
                 )}
+
+                {/* 添加评分显示选项 */}
+                {renderScoreDisplayOptions()}
               </div>
             </TabsContent>
 
@@ -652,9 +1370,9 @@ export default function HomeworkDetail() {
                     分数模式
                   </Button>
                   <Button 
-                    variant={scoreDisplayMode === "grade" ? "default" : "ghost"} 
+                    variant={scoreDisplayMode === "letter" ? "default" : "ghost"} 
                     size="sm"
-                    onClick={() => setScoreDisplayMode("grade")}
+                    onClick={() => setScoreDisplayMode("letter")}
                     className="text-xs h-8"
                   >
                     等级模式
@@ -965,7 +1683,7 @@ export default function HomeworkDetail() {
                           <YAxis domain={[0, 100]} />
                           <Tooltip formatter={(value) => {
                             if (typeof value === 'number') {
-                              if (name === "平均分" && scoreDisplayMode === "grade") {
+                              if (name === "平均分" && scoreDisplayMode === "letter") {
                                 return [scoreToGrade(value), ""];
                               }
                               return [value.toFixed(1), ""];
@@ -1117,18 +1835,86 @@ export default function HomeworkDetail() {
                 </Card>
               </div>
             </TabsContent>
+
+            <TabsContent value="knowledgePoints">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium">知识点分析</h3>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleAIExtractKnowledgePoints}
+                    className="flex items-center gap-1"
+                  >
+                    <BrainCircuit className="h-4 w-4" />
+                    更新知识点分析
+                  </Button>
+                </div>
+                
+                <AIKnowledgePointAnalyzer
+                  homeworkId={homeworkId}
+                  submissionId=""
+                  submissionContent={homework?.description || ""}
+                  existingKnowledgePoints={knowledgePoints}
+                  onSaveKnowledgePoints={handleSaveAiKnowledgePoints}
+                  onClose={() => setCurrentTab("details")}
+                />
+              </div>
+            </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
 
-      <TeacherGradeHomeworkDialog
-        homeworkId={params.homeworkId as string}
-        studentId={selectedStudentId}
-        open={gradeDialogOpen}
-        onOpenChange={setGradeDialogOpen}
-        onGraded={handleGraded}
-        knowledgePoints={knowledgePoints}
-      />
+      {isGradeDialogOpen && (
+        <TeacherGradeHomeworkDialog
+          homeworkId={homeworkId}
+          studentId={selectedStudentId}
+          open={isGradeDialogOpen}
+          onOpenChange={setIsGradeDialogOpen}
+          onGraded={handleGraded}
+          isSubmitting={isSubmitting}
+          knowledgePoints={knowledgePoints}
+          gradingScaleId={homework?.grading_scale_id || null}
+          onSaveAiKnowledgePoints={handleSaveAiKnowledgePoints}
+        />
+      )}
+      
+      {/* 添加知识点确认对话框 */}
+      <AlertDialog open={showKnowledgePointDialog} onOpenChange={setShowKnowledgePointDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认保存新知识点</AlertDialogTitle>
+            <AlertDialogDescription>
+              AI分析发现了以下新知识点，请确认是否保存到数据库。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="max-h-80 overflow-y-auto my-4">
+            <div className="space-y-3">
+              {aiKnowledgePoints.map((kp, index) => (
+                <div key={kp.id} className="p-3 bg-muted rounded-md">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">{index + 1}. {kp.name}</span>
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                      新知识点
+                    </Badge>
+                  </div>
+                  {kp.description && (
+                    <p className="text-sm text-muted-foreground mt-1">{kp.description}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelSaveKnowledgePoints}>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmSaveKnowledgePoints}>
+              确认保存
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 } 

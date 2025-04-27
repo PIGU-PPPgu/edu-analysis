@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from "react";
-import TeacherHomeworkList from "@/components/homework/TeacherHomeworkList";
 import { useNavigate } from "react-router-dom";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle, RefreshCw, Settings, Sliders } from "lucide-react";
+import { AlertTriangle, RefreshCw, Settings, Sliders, BookOpen, Clock, BarChart, ChevronRight, FileCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import Navbar from "@/components/analysis/Navbar";
+import Navbar from "@/components/shared/Navbar";
 import GradingSettingsDialog from "@/components/homework/GradingSettingsDialog";
 import {
   Tabs,
@@ -21,6 +20,9 @@ import {
   BarChart3
 } from "lucide-react";
 import { HomeworkAnalysisDashboard } from "@/components/analysis";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { getAllHomeworks, getHomeworkSubmissions } from "@/services/homeworkService";
+import { getAllClasses } from "@/services/classService";
 
 // 导入模拟数据
 import { getUserRoles } from "@/data/mockData";
@@ -29,8 +31,18 @@ const HomeworkManagement = () => {
   const [userRoles, setUserRoles] = useState<string[]>(['teacher']); // 默认只有教师角色
   const [error, setError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const navigate = useNavigate();
+
+  // 统计数据
+  const [stats, setStats] = useState({
+    totalHomeworks: 0,
+    pendingGrading: 0,
+    totalClasses: 0,
+    overdueHomeworks: 0
+  });
+  
+  const [loading, setLoading] = useState(true);
   
   // 模拟的状态选项
   const statusOptions = [
@@ -72,6 +84,49 @@ const HomeworkManagement = () => {
     };
     
     checkRoles();
+  }, []);
+
+  // 获取统计数据
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoading(true);
+        
+        // 获取所有作业
+        const homeworks = await getAllHomeworks();
+        
+        // 获取所有班级
+        const classes = await getAllClasses();
+        
+        // 统计逾期作业数量
+        const now = new Date();
+        const overdueCount = homeworks.filter(hw => {
+          if (!hw.due_date) return false;
+          return new Date(hw.due_date) < now;
+        }).length;
+        
+        // 计算待批改的作业数量 - 这里需要额外请求各作业的提交情况
+        let pendingCount = 0;
+        for (const homework of homeworks) {
+          const submissions = await getHomeworkSubmissions(homework.id);
+          pendingCount += submissions.filter(sub => sub.status === 'submitted').length;
+        }
+        
+        setStats({
+          totalHomeworks: homeworks.length,
+          pendingGrading: pendingCount,
+          totalClasses: classes.length,
+          overdueHomeworks: overdueCount
+        });
+        
+      } catch (error) {
+        console.error("获取统计数据失败:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchStats();
   }, []);
 
   const isTeacher = userRoles.includes('teacher');
@@ -116,48 +171,107 @@ const HomeworkManagement = () => {
         )}
         
         {isTeacher ? (
-          <Tabs defaultValue="list" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="list">作业列表</TabsTrigger>
-              <TabsTrigger value="analysis">数据分析</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="list" className="space-y-4">
-              <div className="flex items-center gap-2">
-                <div className="flex-1 flex items-center gap-2">
-                  <Input
-                    placeholder="搜索作业..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="max-w-xs"
-                  />
-                  <Search className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
-                    <FileText className="mr-2 h-4 w-4" />
-                    全部
-                  </Button>
-                </div>
-              </div>
+          <>
+            {/* 统计卡片 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    总作业数
+                  </CardTitle>
+                  <BookOpen className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{loading ? '...' : stats.totalHomeworks}</div>
+                  <p className="text-xs text-muted-foreground">
+                    已发布的作业数量
+                  </p>
+                </CardContent>
+              </Card>
               
-              <HomeworkTable searchTerm={searchTerm} />
-            </TabsContent>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    待批改
+                  </CardTitle>
+                  <FileCheck className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{loading ? '...' : stats.pendingGrading}</div>
+                  <p className="text-xs text-muted-foreground">
+                    待批改的提交数量
+                  </p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    关联班级
+                  </CardTitle>
+                  <BarChart className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{loading ? '...' : stats.totalClasses}</div>
+                  <p className="text-xs text-muted-foreground">
+                    关联的班级数量
+                  </p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    已截止作业
+                  </CardTitle>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{loading ? '...' : stats.overdueHomeworks}</div>
+                  <p className="text-xs text-muted-foreground">
+                    已截止的作业数量
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
             
-            <TabsContent value="analysis">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-medium">作业数据分析</h2>
-                  <Button variant="outline" size="sm">
-                    <BarChart3 className="mr-2 h-4 w-4" />
-                    导出报告
-                  </Button>
+            <Tabs defaultValue="list" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="list">作业列表</TabsTrigger>
+                <TabsTrigger value="analysis">数据分析</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="list" className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 flex items-center gap-2">
+                    <Input
+                      placeholder="搜索作业..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="max-w-xs"
+                    />
+                    <Search className="h-4 w-4 text-muted-foreground" />
+                  </div>
                 </div>
                 
-                <HomeworkAnalysisDashboard />
-              </div>
-            </TabsContent>
-          </Tabs>
+                <HomeworkTable searchTerm={searchTerm} />
+              </TabsContent>
+              
+              <TabsContent value="analysis">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-medium">作业数据分析</h2>
+                    <Button variant="outline" size="sm">
+                      <BarChart3 className="mr-2 h-4 w-4" />
+                      导出报告
+                    </Button>
+                  </div>
+                  
+                  <HomeworkAnalysisDashboard />
+                </div>
+              </TabsContent>
+            </Tabs>
+          </>
         ) : (
           <div className="text-center py-12 border rounded-lg bg-gray-50">
             <AlertTriangle className="h-12 w-12 mx-auto text-yellow-500 mb-4" />
@@ -166,7 +280,7 @@ const HomeworkManagement = () => {
             <Button onClick={() => navigate('/')}>返回首页</Button>
           </div>
         )}
-
+        
         {/* 批改设置对话框 */}
         <GradingSettingsDialog 
           open={settingsOpen}

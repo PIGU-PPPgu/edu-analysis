@@ -71,3 +71,51 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+## AI知识点分析功能
+
+系统集成了AI分析功能，能够自动从作业中提取知识点并进行分析。
+
+### 主要功能
+
+1. **AI密钥管理**
+   - 用户可上传自己的AI API密钥（如OpenAI、Anthropic等）
+   - 密钥安全加密存储在Supabase数据库中
+   - 支持多种AI提供商和模型选择
+
+2. **知识点提取**
+   - 从作业内容中自动识别相关知识点
+   - 为每个知识点提供描述和重要性评级
+   - 自动过滤与已有知识点相似的内容
+
+3. **知识点评估**
+   - 评估学生对各知识点的掌握程度
+   - 生成掌握程度可视化报告
+   - 为教师提供针对性教学建议
+
+### 使用方法
+
+1. 在"AI设置"页面配置您的AI服务：
+   - 选择AI提供商（OpenAI、Anthropic等）
+   - 输入您的API密钥
+   - 选择合适的模型版本
+   - 启用AI分析功能
+
+2. 在作业详情页面，使用"AI分析"功能：
+   - 上传作业内容或学生答案
+   - 系统自动提取相关知识点
+   - 检查并确认提取的知识点
+   - 保存到知识库
+
+3. 在评分页面，使用知识点评估：
+   - 为每个知识点设置掌握程度
+   - 生成基于知识点的反馈
+   - 查看班级整体知识点掌握情况
+
+### 技术说明
+
+- AI配置信息和密钥安全存储在Supabase数据库的`user_ai_configs`表中
+- API密钥经过加密后存储，确保安全性
+- 使用行级安全(RLS)策略确保用户只能访问自己的AI配置
+- 通过Supabase Edge Functions验证API密钥有效性
+- 支持离线模式，在AI服务不可用时使用模拟数据

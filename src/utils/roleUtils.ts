@@ -16,8 +16,8 @@ export const getCurrentUserRoles = async (): Promise<AppRole[]> => {
     console.log("调用getCurrentUserRoles...");
     
     // 先尝试从RPC获取角色
-    try {
-      const { data, error } = await supabase.rpc('get_user_roles');
+  try {
+    const { data, error } = await supabase.rpc('get_user_roles');
       
       if (error) {
         console.error('通过RPC获取用户角色失败:', error);

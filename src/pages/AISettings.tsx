@@ -1,9 +1,8 @@
-
 import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
 import AIConnector from "@/components/analysis/AIConnector";
-import Navbar from "@/components/analysis/Navbar";
+import Navbar from "@/components/shared/Navbar";
 import { getUserAIConfig } from "@/utils/userAuth";
 import { Link } from "react-router-dom";
 
@@ -154,7 +153,7 @@ const AISettings: React.FC = () => {
                 <Card className="p-4">
                   <h3 className="font-semibold mb-2">DeepSeek</h3>
                   <p className="text-sm text-gray-600 mb-2">强大的中文理解能力，适合教育文本分析和理解。</p>
-                  <div className="text-xs text-gray-500">支持版本: deepseek-chat, deepseek-coder, deepseek-v2, deepseek-v3</div>
+                  <div className="text-xs text-gray-500">支持版本: deepseek-chat (DeepSeek-V3), deepseek-reasoner (DeepSeek-R1), deepseek-coder</div>
                 </Card>
                 
                 <Card className="p-4">

@@ -1,6 +1,5 @@
-
 import React from "react";
-import Navbar from "@/components/analysis/Navbar";
+import Navbar from "@/components/shared/Navbar";
 import WarningDashboard from "@/components/warning/WarningDashboard";
 import WarningRules from "@/components/warning/WarningRules";
 import WarningList from "@/components/warning/WarningList";

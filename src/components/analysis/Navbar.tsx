@@ -55,6 +55,14 @@ const Navbar: React.FC = () => {
             数据导入
           </Link>
           <Link
+            to="/homework"
+            className={`text-sm font-medium transition-colors hover:text-primary ${
+              isActive('/homework') ? 'text-primary' : 'text-muted-foreground'
+            }`}
+          >
+            作业管理
+          </Link>
+          <Link
             to="/grade-analysis"
             className={`text-sm font-medium transition-colors hover:text-primary ${
               isActive('/grade-analysis') ? 'text-primary' : 'text-muted-foreground'
@@ -79,28 +87,12 @@ const Navbar: React.FC = () => {
             学生画像
           </Link>
           <Link
-            to="/student-management"
-            className={`text-sm font-medium transition-colors hover:text-primary ${
-              isActive('/student-management') ? 'text-primary' : 'text-muted-foreground'
-            }`}
-          >
-            班级管理
-          </Link>
-          <Link
-            to="/homework"
-            className={`text-sm font-medium transition-colors hover:text-primary ${
-              isActive('/homework') ? 'text-primary' : 'text-muted-foreground'
-            }`}
-          >
-            作业管理
-          </Link>
-          <Link
             to="/class-management"
             className={`text-sm font-medium transition-colors hover:text-primary ${
               isActive('/class-management') ? 'text-primary' : 'text-muted-foreground'
             }`}
           >
-            班级画像
+            班级管理
           </Link>
           <Link
             to="/ai-settings"

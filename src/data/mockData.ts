@@ -427,4 +427,83 @@ export const mockApi = {
       return knowledgePointsMap[homeworkId] || [];
     }
   }
-}; 
+};
+
+// AI知识点分析模拟函数
+export async function mockAiAnalysis(content: string, existingKnowledgePoints: any[]) {
+  // 模拟网络请求延迟
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  
+  // 预设的知识点库 - 在实际应用中会从后端获取或通过真实AI服务生成
+  const knowledgePointsLibrary = [
+    { name: "方程式解法", description: "使用代数方法解一元或多元方程式" },
+    { name: "分数运算", description: "进行分数的加减乘除运算" },
+    { name: "因式分解", description: "将代数式分解为若干因式的乘积" },
+    { name: "函数图像", description: "了解函数图像的绘制和性质分析" },
+    { name: "集合论基础", description: "理解集合的概念和基本运算" },
+    { name: "数列求和", description: "求解等差、等比或其他类型数列的和" },
+    { name: "坐标系应用", description: "利用坐标系解决几何问题" },
+    { name: "三角函数", description: "应用三角函数解决问题" },
+    { name: "概率计算", description: "计算简单随机事件的概率" },
+    { name: "逻辑推理", description: "使用逻辑方法推理解决问题" },
+    { name: "数学建模", description: "将实际问题抽象为数学模型" },
+    { name: "向量运算", description: "进行向量的加减乘除和叉乘点乘" },
+    { name: "数据分析", description: "统计和分析数据，计算平均值、方差等" },
+    { name: "参数方程", description: "使用参数方程表示曲线" },
+    { name: "极限计算", description: "计算函数或数列的极限" }
+  ];
+  
+  // 分析文本，提取关键词模拟AI处理
+  const keywords = content.toLowerCase().split(/\s+|,|\.|\?|!|;|:|-|\(|\)|\[|\]|\{|\}|"|'|`/);
+  
+  // 根据内容长度确定要返回的知识点数量，但至少返回1个
+  const contentLength = content.length;
+  const numberOfPointsToReturn = Math.max(1, Math.min(5, Math.floor(contentLength / 100)));
+  
+  // 准备结果
+  let result: { knowledgePoints: any[] } = {
+    knowledgePoints: []
+  };
+  
+  // 首先添加已有的知识点（如果在内容中找到相关关键词）
+  const existingKnowledgePointsMatched = existingKnowledgePoints
+    .filter(kp => {
+      const name = kp.name.toLowerCase();
+      return keywords.some(keyword => keyword.includes(name) || name.includes(keyword));
+    })
+    .map(kp => ({
+      ...kp,
+      confidence: Math.floor(Math.random() * 30) + 70, // 70-99的置信度
+      masteryLevel: Math.floor(Math.random() * 60) + 40, // 40-99的掌握度
+      isNew: false
+    }));
+  
+  result.knowledgePoints = [...existingKnowledgePointsMatched];
+  
+  // 如果已匹配的知识点不够，则从知识点库添加更多
+  if (result.knowledgePoints.length < numberOfPointsToReturn) {
+    // 过滤掉已添加的知识点
+    const existingNames = new Set(result.knowledgePoints.map(kp => kp.name));
+    const remainingKnowledgePoints = knowledgePointsLibrary.filter(kp => !existingNames.has(kp.name));
+    
+    // 随机选择剩余所需数量的知识点
+    const additionalNeeded = numberOfPointsToReturn - result.knowledgePoints.length;
+    const shuffled = remainingKnowledgePoints.sort(() => 0.5 - Math.random());
+    const selected = shuffled.slice(0, additionalNeeded).map(kp => ({
+      ...kp,
+      id: `new-${Math.random().toString(36).substr(2, 9)}`, // 生成临时ID
+      confidence: Math.floor(Math.random() * 30) + 60, // 60-89的置信度
+      masteryLevel: Math.floor(Math.random() * 60) + 20, // 20-79的掌握度
+      isNew: true
+    }));
+    
+    result.knowledgePoints = [...result.knowledgePoints, ...selected];
+  }
+  
+  // 模拟错误场景 (随机概率为5%)
+  if (Math.random() < 0.05) {
+    throw new Error("模拟的AI服务暂时不可用");
+  }
+  
+  return result;
+} 

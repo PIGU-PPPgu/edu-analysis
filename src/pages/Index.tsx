@@ -1,54 +1,25 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import Navbar from "@/components/analysis/Navbar";
+import { useAuthContext } from "@/contexts/AuthContext";
+import { Navbar } from "@/components/shared";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import IntelligentFileParser from "@/components/analysis/IntelligentFileParser";
 import StudentDataImporter from "@/components/analysis/StudentDataImporter";
-import { FileText, Users } from "lucide-react";
+import { FileText, Users, Loader2 } from "lucide-react";
 
 const Index = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const { user, isAuthReady } = useAuthContext();
 
   useEffect(() => {
-    const checkUserSession = async () => {
-      try {
-        setIsLoading(true);
-        const { data } = await supabase.auth.getSession();
-        console.log("数据导入页面 - 会话状态:", data.session ? "已登录" : "未登录");
-        setIsLoggedIn(!!data.session);
-        
-        // 如果未登录，重定向到登录页面
-        if (!data.session) {
-          navigate('/login');
-        }
-      } catch (error) {
-        console.error("检查会话失败:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    checkUserSession();
-    
-    const { data } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("数据导入页面 - 认证状态变化:", event, session ? "已登录" : "未登录");
-      setIsLoggedIn(!!session);
-      
-      if (!session) {
-        navigate('/login');
-      }
-    });
-    
-    return () => {
-      data.subscription.unsubscribe();
-    };
-  }, [navigate]);
+    // 用AuthContext统一处理认证状态，避免重复逻辑
+    if (isAuthReady) {
+      setIsLoading(false);
+    }
+  }, [isAuthReady]);
 
   // 新增，导入成绩后自动跳转
   const handleGradeDataImported = (data: any[]) => {
@@ -67,7 +38,12 @@ const Index = () => {
   };
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-screen">正在加载...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+        <span>正在加载...</span>
+      </div>
+    );
   }
 
   return (

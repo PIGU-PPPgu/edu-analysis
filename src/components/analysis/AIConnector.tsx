@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
-import { saveUserAIConfig, getUserAIConfig, getUserAPIKey } from "@/utils/userAuth";
+import { saveUserAIConfig, getUserAIConfig, getUserAPIKey, saveUserAPIKey } from "@/utils/userAuth";
 import { AIProviderSelector } from "./AIProviderSelector";
 import { AIModelVersionSelector } from "./AIModelVersionSelector";
 import { AICustomModelDialog } from "./AICustomModelDialog";
@@ -13,6 +12,9 @@ import { AIKeyInput } from "./AIKeyInput";
 import { AIAnalysisOptions } from "./AIAnalysisOptions";
 import { Check } from "lucide-react";
 import { PredefinedProvider, CustomProvider } from "./types";
+import { supabase } from "@/lib/supabase";
+import SimplifiedAIClient from "@/lib/GenericAIClient";
+import { getProviderEndpoint } from '@/services/aiProviderManager';
 
 interface AIConnectorProps {
   onConnect: (apiKey: string, provider: string, enabled: boolean) => void;
@@ -21,7 +23,30 @@ interface AIConnectorProps {
 const predefinedProviders: PredefinedProvider[] = [
   { id: "openai", name: "OpenAI", versions: ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"] },
   { id: "anthropic", name: "Anthropic", versions: ["claude-3-opus", "claude-3-sonnet", "claude-3-haiku"] },
-  { id: "deepseek", name: "DeepSeek", versions: ["deepseek-chat", "deepseek-coder", "deepseek-v2", "deepseek-v3"] },
+  { 
+    id: "deepseek", 
+    name: "DeepSeek", 
+    versions: [
+      "deepseek-chat", 
+      "deepseek-coder", 
+      "deepseek-reasoner", 
+      "deepseek-llm-67b-chat", 
+      "deepseek-coder-33b-instruct",
+      "deepseek-math-7b-rl"
+    ] 
+  },
+  { 
+    id: "sbjt", 
+    name: "硅基流动", 
+    versions: [
+      "sbjt-base", 
+      "sbjt-edu", 
+      "sbjt-code", 
+      "sbjt-knowledge",
+      "Pro/deepseek-ai/DeepSeek-V3",
+      "deepseek-ai/DeepSeek-R1"
+    ] 
+  },
   { id: "baichuan", name: "百川大模型", versions: ["baichuan-v1", "baichuan-v2"] },
   { id: "qwen", name: "通义千问", versions: ["qwen-max", "qwen-plus", "qwen-lite"] },
   { id: "moonshot", name: "Moonshot AI", versions: ["moonshot-v1", "moonshot-pro"] },
@@ -38,6 +63,10 @@ const AIConnector: React.FC<AIConnectorProps> = ({ onConnect }) => {
   const [showAddCustomDialog, setShowAddCustomDialog] = useState(false);
   const [newCustomProvider, setNewCustomProvider] = useState<CustomProvider>({ id: "", name: "", endpoint: "" });
   const [apiKey, setApiKey] = useState("");
+  const [apiKeyValidation, setApiKeyValidation] = useState<{
+    status: 'none' | 'success' | 'error' | 'validating';
+    message: string;
+  }>({ status: 'none', message: '' });
 
   const form = useForm({
     defaultValues: {
@@ -48,24 +77,39 @@ const AIConnector: React.FC<AIConnectorProps> = ({ onConnect }) => {
 
   // 从本地恢复配置
   useEffect(() => {
-    const savedConfig = getUserAIConfig();
-    const savedKey = getUserAPIKey();
-    if (savedConfig && savedKey) {
-      setIsConnected(true);
-      setSelectedProvider(savedConfig.provider);
-      setSelectedVersion(savedConfig.version ?? predefinedProviders[0].versions[0]);
-      form.setValue("enabled", savedConfig.enabled);
-      setApiKey(savedKey);
-
-      if (savedConfig.customProviders) {
-        try {
-          setCustomProviders(JSON.parse(savedConfig.customProviders));
-        } catch (e) {
-          setCustomProviders([]);
+    const loadSavedConfig = async () => {
+      const savedConfig = await getUserAIConfig();
+      const savedKey = await getUserAPIKey();
+      if (savedConfig && savedKey) {
+        setIsConnected(true);
+        setSelectedProvider(savedConfig.provider);
+        
+        // 验证模型版本是否有效
+        const provider = predefinedProviders.find(p => p.id === savedConfig.provider);
+        let version = savedConfig.version ?? predefinedProviders[0].versions[0];
+        
+        // 如果有提供商信息且版本无效，使用第一个有效版本
+        if (provider && !provider.versions.includes(version)) {
+          console.log(`保存的模型版本 ${version} 不再可用，切换到 ${provider.versions[0]}`);
+          version = provider.versions[0];
         }
+        
+        setSelectedVersion(version);
+        form.setValue("enabled", savedConfig.enabled);
+        setApiKey(savedKey);
+
+        if (savedConfig.customProviders) {
+          try {
+            setCustomProviders(JSON.parse(savedConfig.customProviders));
+          } catch (e) {
+            setCustomProviders([]);
+          }
+        }
+        onConnect(savedKey, savedConfig.provider, savedConfig.enabled);
       }
-      onConnect(savedKey, savedConfig.provider, savedConfig.enabled);
-    }
+    };
+    
+    loadSavedConfig();
   }, []);
 
   // 新增自定义模型
@@ -79,7 +123,19 @@ const AIConnector: React.FC<AIConnectorProps> = ({ onConnect }) => {
       toast.error("模型ID已存在，请使用其他标识符");
       return;
     }
-    setCustomProviders([...customProviders, newCustomProvider]);
+    
+    // 确保ID以custom-开头
+    let customId = newCustomProvider.id;
+    if (!customId.startsWith('custom-')) {
+      customId = `custom-${customId}`;
+    }
+    
+    const customProvider = {
+      ...newCustomProvider,
+      id: customId
+    };
+    
+    setCustomProviders([...customProviders, customProvider]);
     setNewCustomProvider({ id: "", name: "", endpoint: "" });
     setShowAddCustomDialog(false);
     toast.success("自定义模型已添加");
@@ -90,19 +146,230 @@ const AIConnector: React.FC<AIConnectorProps> = ({ onConnect }) => {
     toast.success("自定义模型已删除");
   };
 
-  const validateApiKey = async (inputApiKey: string, provider: string): Promise<boolean> => {
-    setIsValidating(true);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      const isValid = inputApiKey.length > 8;
-      if (!isValid) toast.error("API密钥无效，请检查后重试");
-      return isValid;
-    } catch (error) {
-      toast.error("验证API密钥失败");
-      return false;
-    } finally {
-      setIsValidating(false);
+  // 获取提供商的API端点URL
+  const getProviderBaseUrl = (providerId: string, customProviders: CustomProvider[]): string => {
+    // 对于自定义提供商，从自定义配置中获取
+    if (providerId.startsWith('custom-')) {
+      const customProvider = customProviders.find(p => p.id === providerId);
+      if (customProvider) {
+        return customProvider.endpoint;
+      }
     }
+    
+    // 对于预定义提供商，返回默认URL
+    switch (providerId) {
+      case 'openai':
+        return 'https://api.openai.com/v1';
+      case 'anthropic':
+        return 'https://api.anthropic.com/v1';
+      case 'deepseek':
+        return 'https://api.deepseek.com/v1';
+      case 'sbjt': // 硅基流动使用的是DeepSeek的API
+        return 'https://api.deepseek.com/v1';
+      case 'baichuan':
+        return 'https://api.baichuan-ai.com/v1';
+      case 'qwen':
+        return 'https://dashscope.aliyuncs.com/api/v1';
+      case 'moonshot':
+        return 'https://api.moonshot.cn/v1';
+      case 'zhipu':
+        return 'https://open.bigmodel.cn/api/paas/v3';
+      case 'minimax':
+        return 'https://api.minimax.chat/v1';
+      default:
+        return 'https://api.openai.com/v1';
+    }
+  };
+
+  const validateApiKey = async (): Promise<boolean> => {
+    if (!apiKey) {
+      setApiKeyValidation({ status: 'error', message: '请输入API密钥' });
+      return false;
+    }
+
+    setApiKeyValidation({ status: 'validating', message: '正在验证API密钥...' });
+    setIsValidating(true);
+
+    try {
+      let isValid = false;
+
+      // 根据提供商选择验证方法
+      if (selectedProvider === 'openai') {
+        // 对于OpenAI，使用基本格式验证，避免CORS问题
+        isValid = apiKey.startsWith('sk-') && apiKey.length > 20;
+        
+        // 可选地，如果环境允许，尝试使用Edge Function
+        try {
+          const { data } = await supabase.functions.invoke('validate-api-key', {
+            body: { 
+              provider: 'openai',
+              apiKey 
+            }
+          });
+          if (data?.isValid === true) {
+            isValid = true;
+          }
+        } catch (e) {
+          console.log('Edge Function调用失败，使用基本验证', e);
+          // 继续使用基本验证结果
+        }
+      } else if (selectedProvider === 'anthropic') {
+        // 对于Anthropic，直接使用格式验证
+        isValid = apiKey.startsWith('sk-ant-') && apiKey.length > 20;
+      } else if (selectedProvider === 'deepseek' || selectedProvider === 'sbjt') {
+        // 对于DeepSeek和硅基流动，前端验证格式
+        if (apiKey.startsWith('sk-')) {
+          // 标准DeepSeek密钥格式验证
+          isValid = apiKey.length >= 20;
+        } else if (apiKey.startsWith('sbjt_') || apiKey.startsWith('jgt_')) {
+          // 硅基流动公司格式密钥验证
+          isValid = apiKey.length >= 20;
+        } else {
+          // 使用API直接验证（避免CORS问题，改为客户端验证）
+          try {
+            // 获取基础URL和完整API端点
+            const baseUrl = getProviderBaseUrl(selectedProvider, customProviders);
+            const apiEndpoint = getProviderEndpoint(selectedProvider, baseUrl);
+            
+            // 使用SimplifiedAIClient尝试一个简单请求
+            const client = new SimplifiedAIClient({
+              apiKey,
+              baseURL: apiEndpoint,
+              model: selectedProvider === 'sbjt' 
+                ? (selectedVersion.includes('DeepSeek') 
+                   ? selectedVersion // 使用Pro/deepseek-ai系列模型名称
+                   : 'sbjt-base') // 默认使用sbjt-base
+                : 'deepseek-chat' // DeepSeek默认模型
+            });
+            
+            const response = await client.sendRequest({
+              messages: [{ role: 'user', content: 'Hello' }],
+              temperature: 0.7,
+              max_tokens: 5
+            });
+            
+            isValid = !!response;
+            console.log(`${selectedProvider} API密钥验证响应:`, response ? "成功" : "失败");
+          } catch (err) {
+            console.error(`${selectedProvider} API密钥验证错误:`, err);
+            isValid = false;
+          }
+        }
+      } else if (selectedProvider.startsWith('custom-')) {
+        // 对于自定义模型，直接使用API调用验证
+        try {
+          // 获取自定义模型的API端点
+          const customProvider = customProviders.find(p => p.id === selectedProvider);
+          if (!customProvider) {
+            setApiKeyValidation({ 
+              status: 'error', 
+              message: `未找到自定义提供商: ${selectedProvider}` 
+            });
+            setIsValidating(false);
+            return false;
+          }
+          
+          // 直接构建一个客户端实例来测试API调用
+          const client = new SimplifiedAIClient({
+            apiKey,
+            baseURL: customProvider.endpoint, // 直接使用自定义端点
+            model: 'default-model'
+          });
+          
+          const response = await client.sendRequest({
+            messages: [{ role: 'user', content: 'Hello' }],
+            temperature: 0.7,
+            max_tokens: 5
+          });
+          
+          isValid = !!response;
+          console.log("自定义API密钥验证响应:", response ? "成功" : "失败");
+        } catch (err) {
+          console.error("自定义API密钥验证错误:", err);
+          setApiKeyValidation({ 
+            status: 'error', 
+            message: `验证失败: ${err.message || '请检查API密钥和网络'}` 
+          });
+          setIsValidating(false);
+          return false;
+        }
+      } else {
+        // 对于其他预定义提供商
+        // 检查当前选择的版本是否存在于提供商的版本列表中
+        const provider = predefinedProviders.find(p => p.id === selectedProvider);
+        let versionToUse = selectedVersion;
+        
+        if (provider && provider.versions && provider.versions.length > 0) {
+          // 如果当前选择的版本不在提供商的版本列表中，使用第一个版本
+          if (!provider.versions.includes(selectedVersion)) {
+            console.log(`选择的版本 ${selectedVersion} 不可用，使用默认版本 ${provider.versions[0]}`);
+            versionToUse = provider.versions[0];
+            // 更新选中的版本
+            setSelectedVersion(versionToUse);
+          }
+        }
+        
+        try {
+          // 获取基础URL和完整API端点
+          const baseUrl = getProviderBaseUrl(selectedProvider, customProviders);
+          const apiEndpoint = getProviderEndpoint(selectedProvider, baseUrl);
+          
+          // 使用SimplifiedAIClient发送测试请求
+          const client = new SimplifiedAIClient({
+            apiKey,
+            baseURL: apiEndpoint,
+            model: versionToUse
+          });
+          
+          const response = await client.sendRequest({
+            messages: [{ role: 'user', content: 'Hello' }],
+            temperature: 0.7,
+            max_tokens: 5
+          });
+          
+          isValid = !!response;
+          console.log("API密钥验证响应:", response ? "成功" : "失败");
+        } catch (err) {
+          console.error("API密钥验证错误:", err);
+          setApiKeyValidation({ 
+            status: 'error', 
+            message: `验证失败: ${err.message || '请检查API密钥和网络'}` 
+          });
+          setIsValidating(false);
+          return false;
+        }
+      }
+
+      if (isValid) {
+        setApiKeyValidation({ status: 'success', message: 'API密钥有效' });
+        setIsValidating(false);
+        return true;
+      } else {
+        setApiKeyValidation({ status: 'error', message: 'API密钥无效' });
+        setIsValidating(false);
+        return false;
+      }
+    } catch (error) {
+      console.error("验证API密钥时出错:", error);
+      setApiKeyValidation({ 
+        status: 'error', 
+        message: `验证过程中出错: ${error.message || '请重试'}` 
+      });
+      setIsValidating(false);
+      return false;
+    }
+  };
+  
+  // 验证OpenAI API密钥 - 简化版，不再使用
+  const validateOpenAIKey = async (apiKey: string): Promise<boolean> => {
+    // 简单格式验证，避免CORS问题
+    return apiKey.startsWith('sk-') && apiKey.length > 20;
+  };
+  
+  // 验证Anthropic API密钥 - 简化版，不再使用
+  const validateAnthropicKey = async (apiKey: string): Promise<boolean> => {
+    // 简单格式验证，避免CORS问题
+    return apiKey.startsWith('sk-ant-') && apiKey.length > 20;
   };
 
   const onSubmit = async (data: { apiKey: string; enabled: boolean }) => {
@@ -110,22 +377,59 @@ const AIConnector: React.FC<AIConnectorProps> = ({ onConnect }) => {
       toast.error("请输入API密钥");
       return;
     }
-    const isValid = await validateApiKey(apiKey, selectedProvider);
-    if (!isValid) return;
+    
+    // 如果没有进行验证或验证失败，要求先验证
+    if (apiKeyValidation.status !== 'success') {
+      const isValid = await validateApiKey();
+      if (!isValid) return;
+    }
+    
     try {
+      console.log("保存最终配置...");
+      // 保存API密钥
+      await saveUserAPIKey(apiKey);
+      
+      // 保存AI配置 - 特殊处理硅基流动的DeepSeek系列模型
+      let configProvider = selectedProvider;
+      let configVersion = selectedVersion;
+      
+      // 硅基流动使用DeepSeek的API，但需要记录完整的模型名称
+      if (selectedProvider === 'sbjt' && selectedVersion.includes('DeepSeek')) {
+        console.log(`使用硅基流动的DeepSeek模型: ${selectedVersion}`);
+      }
+      
       await saveUserAIConfig({
-        apiKey: apiKey,
-        provider: selectedProvider,
-        version: selectedVersion,
+        provider: configProvider,
+        version: configVersion,
         enabled: data.enabled,
-        customProviders: JSON.stringify(customProviders)
+        customProviders: JSON.stringify(customProviders),
+        lastUpdated: new Date().toISOString()
       });
+      
+      console.log("配置保存成功:", {
+        provider: configProvider,
+        version: configVersion,
+        enabled: data.enabled
+      });
+      
       setIsConnected(true);
-      onConnect(apiKey, selectedProvider, data.enabled);
+      onConnect(apiKey, configProvider, data.enabled);
+      
+      // 获取友好的模型名称显示
+      let modelDisplay = selectedVersion;
+      if (selectedProvider === 'sbjt') {
+        if (selectedVersion === 'Pro/deepseek-ai/DeepSeek-V3') {
+          modelDisplay = 'DeepSeek-V3 (硅基流动专业版)';
+        } else if (selectedVersion === 'deepseek-ai/DeepSeek-R1') {
+          modelDisplay = 'DeepSeek-R1 (硅基流动版)';
+        }
+      }
+      
       toast.success("AI连接成功", {
-        description: `已成功连接到${getProviderName(selectedProvider)}${selectedVersion ? ` (${selectedVersion})` : ''}`,
+        description: `已成功连接到${getProviderName(selectedProvider)}${modelDisplay ? ` (${modelDisplay})` : ''}`,
       });
     } catch (error) {
+      console.error("保存配置失败:", error);
       toast.error(`AI配置保存失败: ${error.message || '请重试'}`);
     }
   };
@@ -183,7 +487,14 @@ const AIConnector: React.FC<AIConnectorProps> = ({ onConnect }) => {
                   selectedProvider={selectedProvider}
                   customProviders={customProviders}
                   value={apiKey}
-                  onChange={e => setApiKey(e.target.value)}
+                  onChange={e => {
+                    setApiKey(e.target.value);
+                    setApiKeyValidation({ status: 'none', message: '' });
+                  }}
+                  onValidate={() => validateApiKey()}
+                  isValidating={isValidating}
+                  validationStatus={apiKeyValidation.status}
+                  validationMessage={apiKeyValidation.message}
                 />
                 <FormField
                   control={form.control}

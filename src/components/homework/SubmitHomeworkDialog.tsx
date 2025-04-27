@@ -6,6 +6,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { FileUp, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertTitle } from "@/components/ui/alert";
+import { filesize } from "filesize";
+
+// 导入Supabase服务
+import { submitHomework, uploadHomeworkFile } from "@/services/submissionService";
+import { supabase } from "@/integrations/supabase/client";
 
 // Define simple types
 type FileInfo = {
@@ -54,38 +59,57 @@ const SubmitHomeworkDialog: React.FC<SubmitHomeworkDialogProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!content.trim() && files.length === 0) {
-      setError("请填写作业内容或上传文件");
+      toast("请提供作业内容或上传文件");
       return;
     }
-    
-    setError(null);
-    setIsSubmitting(true);
 
     try {
-      // 模拟文件上传
-      const fileInfos: FileInfo[] = files.map(file => ({
-        name: file.name,
-        path: `homework/${homework.id}/${Date.now()}_${file.name}`,
-        type: file.type,
-        size: file.size
-      }));
+      setIsSubmitting(true);
       
-      // 提交作业内容
-      await new Promise(resolve => setTimeout(resolve, 1000)); // 模拟延迟
+      // 获取当前用户
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error("未登录");
+      }
       
-      // 调用回调函数
-      onSubmitted(content);
+      // 上传文件（如果有）
+      let uploadedFiles = [];
+      if (files.length > 0) {
+        for (const file of files) {
+          const uploadResult = await uploadHomeworkFile(file, homework.id, user.id);
+          if (uploadResult) {
+            uploadedFiles.push(uploadResult);
+          }
+        }
+      }
       
-      toast.success('作业提交成功');
-      // 不在这里关闭对话框，由父组件控制
-      setFiles([]);
-      setContent('');
-    } catch (error: any) {
-      console.error('提交作业失败:', error);
-      setError(error.message || '提交作业失败，请重试');
-      toast.error('提交作业失败');
+      // 提交作业
+      const submissionData = {
+        homework_id: homework.id,
+        student_id: user.id, // 使用实际用户ID
+        files: uploadedFiles.length > 0 ? uploadedFiles : null,
+        content: content.trim() || null
+      };
+      
+      const result = await submitHomework(submissionData);
+      
+      if (result) {
+        // 调用回调
+        if (onSubmitted) {
+          onSubmitted(content);
+        }
+        
+        // 清空表单
+        setContent("");
+        setFiles([]);
+        
+        // 关闭对话框
+        onOpenChange(false);
+      }
+    } catch (error) {
+      console.error("提交作业失败:", error);
+      toast.error(`提交作业失败: ${error.message || "未知错误"}`);
     } finally {
       setIsSubmitting(false);
     }

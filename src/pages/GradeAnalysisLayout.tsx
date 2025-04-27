@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useGradeAnalysis } from "@/contexts/GradeAnalysisContext";
 import { toast } from "sonner";
@@ -6,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import GradeOverview from "@/components/analysis/GradeOverview";
 import ScoreDistribution from "@/components/analysis/ScoreDistribution";
 import ScoreBoxPlot from "@/components/analysis/ScoreBoxPlot";
-import Navbar from "@/components/analysis/Navbar";
+import Navbar from "@/components/shared/Navbar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
 import { AIAnalysisController } from "@/components/analysis/AIAnalysisController";

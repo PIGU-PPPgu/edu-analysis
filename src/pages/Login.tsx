@@ -1,66 +1,30 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import UserAuthForm from '@/components/auth/UserAuthForm';
-import { supabase } from '@/integrations/supabase/client';
-import { getSession } from '@/utils/auth';
-import { toast } from 'sonner';
+import { useAuthContext } from '@/contexts/AuthContext';
+import { Navbar } from '@/components/shared';
 
 const Login = () => {
   const navigate = useNavigate();
+  const { user, isAuthReady } = useAuthContext();
   const [isLoading, setIsLoading] = useState(true);
 
-  // 检查用户是否已登录
+  // 如果用户已登录，重定向到首页
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        setIsLoading(true);
-        const session = await getSession();
-        if (session) {
-          console.log('Login页面 - 用户已登录，跳转到成绩分析页');
-          navigate('/grade-analysis');
-        } else {
-          console.log('Login页面 - 用户未登录');
-        }
-      } catch (error) {
-        console.error('检查登录状态失败:', error);
-      } finally {
-        setIsLoading(false);
+    if (isAuthReady) {
+      setIsLoading(false);
+      if (user) {
+        navigate('/grade-analysis');
       }
-    };
-    
-    checkAuth();
-  }, [navigate]);
+    }
+  }, [user, isAuthReady, navigate]);
 
-  // 监听会话状态变化
-  useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Login页面 - 认证状态变化:', event, session ? '已登录' : '未登录');
-      
-      if (event === 'SIGNED_IN' && session) {
-        console.log('Login页面 - 用户登录成功，准备跳转');
-        toast.success("登录成功");
-        
-        // 延迟跳转，确保状态完全更新
-        setTimeout(() => {
-          console.log('Login页面 - 执行跳转到成绩分析页面');
-          navigate('/grade-analysis');
-        }, 1500);
-      }
-    });
-    
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, [navigate]);
-
-  // 登录成功后的回调 - 简化处理，避免重复跳转
+  // 登录成功后的回调
   const handleAuthSuccess = () => {
-    console.log('登录成功回调执行');
-    toast.success("登录成功");
+    navigate('/grade-analysis');
   };
 
-  if (isLoading) {
+  if (isLoading && !isAuthReady) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
@@ -72,21 +36,27 @@ const Login = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
-      <div className="mb-8 text-center">
-        <h1 className="text-3xl font-bold">学生成绩分析系统</h1>
-        <p className="text-gray-500 mt-2">登录账户以管理和分析学生成绩</p>
-      </div>
+    <div className="min-h-screen flex flex-col">
+      <Navbar showMainNav={false} />
       
-      <UserAuthForm onSuccess={handleAuthSuccess} />
-      
-      <div className="mt-8 text-center">
-        <p className="text-sm text-gray-500">
-          登录即表示您同意我们的
-          <a href="#" className="text-blue-600 hover:underline">服务条款</a>
-          和
-          <a href="#" className="text-blue-600 hover:underline">隐私政策</a>
-        </p>
+      <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-4">
+        <div className="w-full max-w-md">
+          <div className="mb-8 text-center">
+            <h1 className="text-3xl font-bold">学生成绩分析系统</h1>
+            <p className="text-gray-500 mt-2">登录账户以管理和分析学生成绩</p>
+          </div>
+          
+          <UserAuthForm onSuccess={handleAuthSuccess} />
+          
+          <div className="mt-8 text-center">
+            <p className="text-sm text-gray-500">
+              登录即表示您同意我们的
+              <a href="#" className="text-blue-600 hover:underline mx-1">服务条款</a>
+              和
+              <a href="#" className="text-blue-600 hover:underline mx-1">隐私政策</a>
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

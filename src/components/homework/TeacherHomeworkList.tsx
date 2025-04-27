@@ -78,7 +78,12 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { formatDate } from "@/lib/utils";
 
-// 导入模拟数据和API
+// 导入Supabase服务
+import { getAllHomeworks } from "@/services/homeworkService";
+import { getKnowledgePointsByHomeworkId, createKnowledgePoints } from "@/services/knowledgePointService";
+import { supabase } from "@/integrations/supabase/client";
+
+// 临时导入模拟数据（后续完全替换）
 import { mockApi, knowledgePoints } from "@/data/mockData";
 
 const homeworkSchema = z.object({
@@ -127,8 +132,8 @@ export default function TeacherHomeworkList() {
         console.log("班级数据:", classesData);
         setClasses(classesData);
         
-        // 获取作业数据（使用模拟API）
-        const homeworksData = await mockApi.teacher.getHomeworks();
+        // 获取作业数据（使用Supabase服务）
+        const homeworksData = await getAllHomeworks();
         console.log("作业数据:", homeworksData);
         setHomeworks(homeworksData);
         setFilteredHomeworks(homeworksData);
@@ -192,17 +197,40 @@ export default function TeacherHomeworkList() {
 
   const onSubmit = useCallback(async (values: z.infer<typeof homeworkSchema>) => {
     try {
-      // 创建作业（使用模拟API）
-      const homeworkData = {
-        title: values.title,
-        description: values.description,
-        class_id: values.classId,
-        due_date: values.dueDate,
-        teacher_id: "teacher1", // 模拟教师ID
-        knowledgePointIds: selectedKnowledgePoints
-      };
+      // 获取当前用户ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error("未登录");
+      }
       
-      const newHomework = await mockApi.teacher.createHomework(homeworkData);
+      // 使用Supabase创建作业
+      const { data: newHomework, error } = await supabase
+        .from('homework')
+        .insert({
+          title: values.title,
+          description: values.description,
+          class_id: values.classId,
+          due_date: values.dueDate,
+          created_by: user.id
+        })
+        .select()
+        .single();
+        
+      if (error) {
+        throw error;
+      }
+      
+      // 如果选择了知识点，为作业创建知识点
+      if (selectedKnowledgePoints.length > 0) {
+        // 处理选择的知识点 (这里假设selectedKnowledgePoints包含知识点名称)
+        const knowledgePointsToCreate = selectedKnowledgePoints.map(name => ({
+          name,
+          description: null
+        }));
+        
+        // 创建知识点
+        await createKnowledgePoints(newHomework.id, knowledgePointsToCreate);
+      }
       
       toast({
         title: "创建成功",
@@ -228,8 +256,15 @@ export default function TeacherHomeworkList() {
 
   const handleDeleteHomework = useCallback(async (id: string) => {
     try {
-      // 删除作业（使用模拟API）
-      await mockApi.teacher.deleteHomework(id);
+      // 使用Supabase删除作业
+      const { error } = await supabase
+        .from('homework')
+        .delete()
+        .eq('id', id);
+        
+      if (error) {
+        throw error;
+      }
 
       // 从列表中移除
       setHomeworks((prev) => prev.filter((hw) => hw.id !== id));
@@ -652,17 +687,28 @@ export default function TeacherHomeworkList() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>操作</DropdownMenuLabel>
                       <DropdownMenuItem
-                        onClick={() =>
-                          navigate(`/homework/${homework.id}`)
-                        }
+                        onClick={(e) => {
+                          try {
+                            console.log("点击查看详情按钮，作业ID:", homework.id);
+                            const url = `/homework/${homework.id}`;
+                            console.log("将导航到:", url);
+                            
+                            // 使用两种方式尝试导航
+                            window.location.href = url;
+                          } catch (error) {
+                            console.error("导航失败:", error);
+                            alert("导航失败，请手动前往作业详情页");
+                          }
+                        }}
                       >
                         <Info className="h-4 w-4 mr-2" />
                         查看详情
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() =>
-                          navigate(`/homework/edit/${homework.id}`)
-                        }
+                        onClick={() => {
+                          console.log("点击编辑作业按钮，作业ID:", homework.id);
+                          navigate(`/homework/edit/${homework.id}`);
+                        }}
                       >
                         <FileEdit className="h-4 w-4 mr-2" />
                         编辑作业

@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -6,8 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getGradingScales } from "@/services/gradingService";
+import { getAllClasses } from "@/services/classService";
+import { createHomework } from "@/services/homeworkService";
+import { useAuthContext } from "@/contexts/AuthContext";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 interface CreateHomeworkDialogProps {
   open: boolean;
@@ -20,61 +24,82 @@ const CreateHomeworkDialog: React.FC<CreateHomeworkDialogProps> = ({
   onOpenChange,
   onHomeworkCreated
 }) => {
+  const { user, refreshSession } = useAuthContext();
   const [classes, setClasses] = React.useState<any[]>([]);
+  const [gradingScales, setGradingScales] = React.useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [authError, setAuthError] = React.useState<string | null>(null);
 
   const [formData, setFormData] = React.useState({
     title: '',
     description: '',
     classId: '',
-    dueDate: ''
+    dueDate: '',
+    gradingScaleId: ''
   });
 
   React.useEffect(() => {
-    const fetchClasses = async () => {
+    const fetchData = async () => {
       try {
-        const { data, error } = await supabase
-          .from('classes')
-          .select('*')
-          .order('name');
+        // 检查用户认证状态
+        if (!user) {
+          setAuthError("请先登录后再创建作业");
+          return;
+        } else {
+          setAuthError(null);
+        }
 
-        if (error) throw error;
-        setClasses(data || []);
+        // 获取班级列表
+        const classesData = await getAllClasses();
+        setClasses(classesData || []);
+
+        // 获取评级标准列表
+        const gradingScalesData = await getGradingScales();
+        setGradingScales(gradingScalesData || []);
       } catch (error) {
-        console.error('获取班级列表失败:', error);
+        console.error('获取数据失败:', error);
+        toast.error('获取数据失败');
       }
     };
 
-    fetchClasses();
-  }, []);
+    fetchData();
+  }, [open, user]); // 当对话框打开时或用户变化时刷新数据
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      const { data: userData } = await supabase.auth.getUser();
+      // 首先刷新会话，确保认证有效
+      await refreshSession();
+
+      // 检查用户是否已登录
+      if (!user || !user.id) {
+        setAuthError("用户身份验证失败，请重新登录");
+        setIsSubmitting(false);
+        return;
+      }
       
-      const { error } = await supabase
-        .from('homework')
-        .insert([
-          {
-            title: formData.title,
-            description: formData.description,
-            class_id: formData.classId,
-            due_date: formData.dueDate || null,
-            created_by: userData.user?.id
-          }
-        ]);
+      console.log("正在创建作业，用户ID:", user.id);
+      
+      // 使用homeworkService中的createHomework函数
+      const result = await createHomework({
+        title: formData.title,
+        description: formData.description,
+        class_id: formData.classId,
+        due_date: formData.dueDate || null,
+        grading_scale_id: formData.gradingScaleId === "default" ? null : formData.gradingScaleId || null,
+        created_by: user.id
+      });
 
-      if (error) throw error;
-
-      toast.success('作业创建成功');
-      onHomeworkCreated();
-      onOpenChange(false);
-    } catch (error) {
+      // 检查是否创建成功
+      if (result.success) {
+        onHomeworkCreated();
+        onOpenChange(false);
+      }
+    } catch (error: any) {
       console.error('创建作业失败:', error);
-      toast.error('创建作业失败');
+      toast.error(`创建作业失败: ${error.message || '未知错误'}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -87,6 +112,14 @@ const CreateHomeworkDialog: React.FC<CreateHomeworkDialogProps> = ({
           <DialogTitle>布置新作业</DialogTitle>
         </DialogHeader>
 
+        {authError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>认证错误</AlertTitle>
+            <AlertDescription>{authError}</AlertDescription>
+          </Alert>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="title">作业标题</Label>
@@ -95,6 +128,7 @@ const CreateHomeworkDialog: React.FC<CreateHomeworkDialogProps> = ({
               value={formData.title}
               onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
               required
+              disabled={!!authError}
             />
           </div>
 
@@ -104,6 +138,7 @@ const CreateHomeworkDialog: React.FC<CreateHomeworkDialogProps> = ({
               id="description"
               value={formData.description}
               onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              disabled={!!authError}
             />
           </div>
 
@@ -112,6 +147,7 @@ const CreateHomeworkDialog: React.FC<CreateHomeworkDialogProps> = ({
             <Select
               value={formData.classId}
               onValueChange={value => setFormData(prev => ({ ...prev, classId: value }))}
+              disabled={!!authError}
             >
               <SelectTrigger>
                 <SelectValue placeholder="选择班级" />
@@ -133,10 +169,37 @@ const CreateHomeworkDialog: React.FC<CreateHomeworkDialogProps> = ({
               type="date"
               value={formData.dueDate}
               onChange={e => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
+              disabled={!!authError}
             />
           </div>
 
-          <Button type="submit" disabled={isSubmitting} className="w-full">
+          <div className="space-y-2">
+            <Label htmlFor="gradingScale">评级标准</Label>
+            <Select
+              value={formData.gradingScaleId}
+              onValueChange={value => setFormData(prev => ({ ...prev, gradingScaleId: value }))}
+              disabled={!!authError}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="选择评级标准" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">默认评级</SelectItem>
+                {gradingScales
+                  .filter(scale => scale.id && scale.id.trim() !== '')
+                  .map(scale => (
+                  <SelectItem key={scale.id} value={scale.id}>
+                    {scale.name} {scale.is_default ? '(默认)' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-gray-500 mt-1">
+              选择评级标准将决定分数如何转换为等级。如不选择，将使用系统默认评级。
+            </p>
+          </div>
+
+          <Button type="submit" disabled={isSubmitting || !!authError} className="w-full">
             {isSubmitting ? '创建中...' : '创建作业'}
           </Button>
         </form>

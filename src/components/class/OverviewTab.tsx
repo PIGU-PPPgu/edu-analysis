@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Card } from "@/components/ui/card";
 import { Link } from "react-router-dom";
@@ -11,8 +10,15 @@ import ScoreDistribution from "@/components/analysis/ScoreDistribution";
 import CompetencyRadar from "@/components/analysis/CompetencyRadar";
 import CorrelationBubble from "@/components/analysis/CorrelationBubble";
 
+interface Class {
+  id: string;
+  name: string;
+  grade: string;
+  created_at?: string;
+}
+
 interface Props {
-  mockClasses: any[];
+  mockClasses: Class[];
 }
 
 const OverviewTab: React.FC<Props> = ({ mockClasses }) => {
@@ -49,20 +55,16 @@ const OverviewTab: React.FC<Props> = ({ mockClasses }) => {
           <Card key={classData.id} className="hover:shadow-md transition-shadow">
             <div className="p-6">
               <div className="flex items-center gap-2 text-base font-semibold mb-4">
-                {classData.className}
+                {classData.name}
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">学生人数:</span>
-                  <span className="font-medium">{classData.studentCount}人</span>
+                  <span className="text-muted-foreground">年级:</span>
+                  <span className="font-medium">{classData.grade}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">平均分:</span>
-                  <span className="font-medium">{classData.avgScore}分</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">及格率:</span>
-                  <span className="font-medium">{classData.passRate}%</span>
+                  <span className="text-muted-foreground">创建时间:</span>
+                  <span className="font-medium">{new Date(classData.created_at || Date.now()).toLocaleDateString()}</span>
                 </div>
               </div>
               <Button variant="outline" className="w-full mt-4" size="sm" asChild>

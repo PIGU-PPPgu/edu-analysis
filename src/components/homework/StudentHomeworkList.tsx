@@ -5,8 +5,13 @@ import SubmitHomeworkDialog from "./SubmitHomeworkDialog";
 import { AlertTriangle, BookOpen, Clock, CheckCircle, Award } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
+import { toast } from "sonner";
 
-// 导入模拟数据和API
+// 导入Supabase服务
+import { getStudentHomeworkSubmissions } from "@/services/homeworkService";
+import { supabase } from "@/integrations/supabase/client";
+
+// 导入模拟数据和API (临时保留，稍后会完全替换)
 import { mockApi } from "@/data/mockData";
 
 const StudentHomeworkList = () => {
@@ -15,6 +20,24 @@ const StudentHomeworkList = () => {
   const [showSubmitDialog, setShowSubmitDialog] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [currentStudentId, setCurrentStudentId] = React.useState<string | null>(null);
+
+  // 获取当前用户信息
+  React.useEffect(() => {
+    const getCurrentUser = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // 这里应该根据实际用户ID获取，暂时使用模拟ID
+          setCurrentStudentId('student1');
+        }
+      } catch (error) {
+        console.error('获取用户信息失败:', error);
+      }
+    };
+
+    getCurrentUser();
+  }, []);
 
   const fetchHomeworks = async () => {
     try {
@@ -23,10 +46,29 @@ const StudentHomeworkList = () => {
       
       console.log("开始获取学生作业数据...");
       
-      // 使用模拟API获取学生作业
-      const homeworksData = await mockApi.student.getHomeworks('student1'); // 使用默认学生ID
+      // 使用Supabase服务获取学生作业
+      if (!currentStudentId) {
+        throw new Error("未获取到学生ID");
+      }
+      
+      const homeworksData = await getStudentHomeworkSubmissions(currentStudentId);
       console.log("获取到的作业:", homeworksData);
-      setHomeworks(homeworksData);
+      
+      // 格式化数据，匹配组件期望的结构
+      const formattedData = homeworksData.map(submission => ({
+        ...submission.homework,
+        homework_submissions: [
+          {
+            id: submission.id,
+            status: submission.status,
+            score: submission.score,
+            feedback: submission.feedback,
+            submitted_at: submission.submitted_at,
+          }
+        ]
+      }));
+      
+      setHomeworks(formattedData);
     } catch (error: any) {
       console.error('获取作业列表失败:', error);
       setError(error.message || "获取作业列表失败");
@@ -36,26 +78,32 @@ const StudentHomeworkList = () => {
   };
 
   React.useEffect(() => {
+    if (currentStudentId) {
     fetchHomeworks();
-  }, []);
+    }
+  }, [currentStudentId]);
 
   const handleSubmitHomework = async (homeworkId: string, content: string) => {
     try {
+      // 暂时使用模拟数据，提交作业应该调用Supabase服务
       const submissionData = {
         homework_id: homeworkId,
-        student_id: 'student1', // 使用默认学生ID
+        student_id: currentStudentId, 
         content,
         submitted_at: new Date().toISOString()
       };
       
+      // 创建新提交记录（临时使用模拟API，后续替换为Supabase）
       await mockApi.student.submitHomework(submissionData);
+      
+      toast.success("作业提交成功");
       await fetchHomeworks(); // 重新加载数据
       setSelectedHomework(null);
       setShowSubmitDialog(false);
       
     } catch (error: any) {
       console.error('提交作业失败:', error);
-      setError(error.message || "提交作业失败");
+      toast.error('提交作业失败: ' + (error.message || "未知错误"));
     }
   };
 
@@ -82,7 +130,7 @@ const StudentHomeworkList = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold">我的作业</h2>
+      <h2 className="text-xl font-semibold">我的作业</h2>
         <Badge variant="outline" className="px-2 py-1">
           <Clock className="h-3 w-3 mr-1" />
           学生视图
@@ -96,18 +144,18 @@ const StudentHomeworkList = () => {
           <p className="text-muted-foreground">您目前没有需要完成的作业</p>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {homeworks.map((homework) => {
-            const submission = homework.homework_submissions?.[0];
-            const isSubmitted = !!submission;
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {homeworks.map((homework) => {
+          const submission = homework.homework_submissions?.[0];
+          const isSubmitted = !!submission;
             const dueDate = new Date(homework.due_date);
             const isOverdue = dueDate < new Date() && (!isSubmitted || submission.status === "pending");
-            
-            return (
+
+          return (
               <Card key={homework.id} className={isOverdue ? "border-red-200" : ""}>
                 <CardHeader className={isOverdue ? "bg-red-50" : ""}>
                   <div className="flex justify-between items-start">
-                    <CardTitle className="text-lg">{homework.title}</CardTitle>
+                <CardTitle className="text-lg">{homework.title}</CardTitle>
                     {isSubmitted ? (
                       <Badge 
                         variant={submission.status === "graded" ? "default" : "secondary"}
@@ -135,19 +183,19 @@ const StudentHomeworkList = () => {
                       </Badge>
                     )}
                   </div>
-                </CardHeader>
-                <CardContent>
+              </CardHeader>
+              <CardContent>
                   <div className="space-y-3">
                     <p className="text-sm text-gray-500 line-clamp-2">{homework.description}</p>
                     
-                    <div className="space-y-2 text-sm">
+                <div className="space-y-2 text-sm">
                       <p><span className="font-medium">班级：</span>{homework.classes?.name || '未知班级'}</p>
                       <p>
                         <span className="font-medium">截止日期：</span>
                         <span className={isOverdue ? "text-red-600 font-medium" : ""}>
                           {formatDate(homework.due_date)}
                         </span>
-                      </p>
+                  </p>
                       {isSubmitted && submission.status === "graded" && (
                         <p><span className="font-medium">得分：</span>
                           <span className="font-medium text-green-600">{submission.score}</span>
@@ -163,23 +211,23 @@ const StudentHomeworkList = () => {
                     </div>
                     
                     {!isSubmitted && (
-                      <Button
-                        onClick={() => {
-                          setSelectedHomework(homework);
-                          setShowSubmitDialog(true);
-                        }}
+                    <Button
+                      onClick={() => {
+                        setSelectedHomework(homework);
+                        setShowSubmitDialog(true);
+                      }}
                         className="w-full mt-4"
                         variant={isOverdue ? "destructive" : "default"}
-                      >
+                    >
                         {isOverdue ? "逾期提交" : "提交作业"}
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
       )}
 
       {selectedHomework && (

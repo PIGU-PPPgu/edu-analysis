@@ -1,10 +1,14 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import HomeworkDetailComponent from "@/components/homework/HomeworkDetail";
-import Navbar from "@/components/analysis/Navbar";
+import Navbar from "@/components/shared/Navbar";
 
 const HomeworkDetailPage = () => {
   const { homeworkId } = useParams<{ homeworkId: string }>();
+
+  useEffect(() => {
+    console.log("HomeworkDetailPage 加载 - homeworkId:", homeworkId);
+  }, [homeworkId]);
 
   if (!homeworkId) {
     return (
@@ -23,7 +27,7 @@ const HomeworkDetailPage = () => {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <div className="container py-6">
-        <HomeworkDetailComponent />
+        <HomeworkDetailComponent homeworkId={homeworkId} />
       </div>
     </div>
   );

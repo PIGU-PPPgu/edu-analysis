@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import Navbar from "../components/analysis/Navbar";
+import Navbar from "@/components/shared/Navbar";
 import StudentGradeTrend from "../components/analysis/StudentGradeTrend";
 import ClassComparison from "../components/analysis/ClassComparison";
 import ScoreSummary from "../components/profile/ScoreSummary";
