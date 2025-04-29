@@ -177,12 +177,27 @@ export async function testProviderConnection(
  * 获取提供商完整API端点
  * @param providerId 提供商ID
  * @param baseUrl 基础URL
+ * @param modelId 模型ID
  * @returns 完整的API端点URL
  */
-export function getProviderEndpoint(providerId: string, baseUrl: string): string {
+export function getProviderEndpoint(providerId: string, baseUrl: string, modelId?: string): string {
   // 确保baseUrl不为空
   if (!baseUrl) {
     throw new Error(`提供商 ${providerId} 的baseUrl为空`);
+  }
+  
+  // 尝试获取模型特定的端点路径
+  const providerConfig = getProviderConfig(providerId);
+  const modelInfo = providerConfig?.models.find(m => m.id === modelId);
+  if (modelInfo?.endpointPath) {
+    // 如果模型有特定路径，则使用它
+    return `${baseUrl}${modelInfo.endpointPath}`;
+  }
+  
+  // --- 保留之前的逻辑作为备选 --- 
+  // 硅基流动特殊处理 (如果硅基流动的模型没有 endpointPath)
+  if (providerId.toLowerCase() === 'sbjt') {
+    return 'https://api.siliconflow.cn/v1/chat/completions';
   }
   
   // 如果baseUrl已经包含完整路径，直接返回
@@ -191,7 +206,7 @@ export function getProviderEndpoint(providerId: string, baseUrl: string): string
     return baseUrl;
   }
   
-  // 补全各提供商的端点
+  // 补全各提供商的端点 (如果模型没有 endpointPath)
   switch (providerId.toLowerCase()) {
     case 'openai':
       return baseUrl.endsWith('/v1') 
@@ -209,6 +224,8 @@ export function getProviderEndpoint(providerId: string, baseUrl: string): string
       return baseUrl.endsWith('/v1') 
         ? `${baseUrl}/services/aigc/text-generation/generation` 
         : `${baseUrl}/api/v1/services/aigc/text-generation/generation`;
+    case 'doubao':
+      return `${baseUrl}/chat/completions`;
     default:
       // 默认尝试补全为OpenAI格式
       return baseUrl.endsWith('/v1') 

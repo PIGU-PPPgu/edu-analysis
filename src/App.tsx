@@ -20,6 +20,7 @@ import HomeworkManagement from "./pages/HomeworkManagement";
 import HomeworkDetailPage from "./pages/HomeworkDetail";
 import ProfilePage from "./pages/ProfilePage";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
+import CascadeAnalysisTestPage from "./pages/test/CascadeAnalysisTest";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +55,7 @@ function App() {
                 {/* 公开路由 - 无需身份验证 */}
                 <Route path="/login" element={<Login />} />
                 <Route path="/unauthorized" element={<UnauthorizedPage />} />
+                <Route path="/test/cascade-analysis" element={<CascadeAnalysisTestPage />} />
                 
                 {/* 需要认证的路由 */}
                 <Route element={<ProtectedRoute />}>

@@ -63,12 +63,14 @@ export interface ProviderConfig {
   baseUrl: string;                 // API基础URL
   authType?: 'bearer' | 'header' | 'param'; // 认证类型
   authKey?: string;                // 认证键名
-  models: {
-    id: string;                    // 模型ID
-    name: string;                  // 模型名称
-    maxTokens: number;             // 最大token数
-    supportStream: boolean;        // 是否支持流式输出
-  }[];
+  models: Array<{
+    id: string;
+    name: string;
+    maxTokens?: number;
+    contextWindow?: number;
+    supportStream?: boolean;
+    endpointPath?: string; // 添加可选的特定端点路径
+  }>;
   // 请求格式化函数
   requestFormat: (params: any, model: string) => any;
   // 响应格式化函数

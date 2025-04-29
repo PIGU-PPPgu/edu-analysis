@@ -9,26 +9,52 @@ import { AIProviderConfig, AIRequestOptions } from '../types/ai';
 import { getProviderById, getModelInfo, getModelsByProviderId } from './providers';
 import { AIAnalysisResult } from '../types/analysis';
 import { logError, logInfo } from '../utils/logger';
+import { supabase } from '@/integrations/supabase/client';
 
 // 根据环境变量决定是否使用模拟AI
 const USE_MOCK_AI = env.NEXT_PUBLIC_USE_MOCK_AI === 'true';
 
-// 通用AI客户端类
-export class GenericAIClient {
+// 使用Supabase代理请求的开关
+const USE_SUPABASE_PROXY = false; // 设置为false直接发送请求，设置为true通过Supabase代理
+
+// 使用硅基流动API，添加硬编码的API密钥（通常应该通过环境变量或安全方式存储）
+const SBJT_API_KEY = 'sk-kpibphayuoyyzkkrhnljayyjbrgkazwfrzonqxegfghntxzb';
+// 直接使用硅基流动
+const FORCE_USE_SBJT = false;
+
+/**
+ * 多模态消息内容项类型 (Consider moving to types.ts)
+ */
+interface ContentItem extends LocalContentItem {}
+
+/**
+ * 消息类型，可以是字符串或内容项数组 (Consider moving to types.ts)
+ */
+interface Message extends LocalMessage {}
+
+// 通用AI客户端类 - 移除了OpenAI & Doubao 特定逻辑
+export class GenericAIClient implements LocalIAiClient { // Implement the shared interface
   private baseUrl: string;
   private apiKey: string;
   private modelId: string;
   private providerId: string;
+  private providerConfig: AIProviderConfig; // Store the full config
 
-  constructor(config: AIProviderConfig) {
+  constructor(config: AIProviderConfig & { apiKey: string }) { // Ensure apiKey is always passed
+    // Validate required config properties
+    if (!config.providerId || !config.modelId || !config.apiKey) {
+       throw new Error(`GenericAIClient requires providerId, modelId, and apiKey.`);
+     }
+    this.providerConfig = config;
     this.baseUrl = config.baseUrl || '';
-    this.apiKey = config.apiKey || '';
-    this.modelId = config.modelId || '';
-    this.providerId = config.providerId || '';
+    this.apiKey = config.apiKey; // Use passed apiKey
+    this.modelId = config.modelId;
+    this.providerId = config.providerId;
+    logInfo('GenericAIClient initialized', { providerId: this.providerId, modelId: this.modelId, baseUrl: this.baseUrl || 'N/A' });
   }
 
-  // 格式化请求，根据不同提供商调整
-  private formatRequestByProvider(messages: any[], options: AIRequestOptions = {}) {
+  // 格式化请求，根据不同提供商调整 - 移除了 OpenAI & Doubao case
+  private formatRequestByProvider(messages: Message[], options: AIRequestOptions = {}) {
     const provider = getProviderById(this.providerId);
     if (!provider) {
       throw new Error(`未找到提供商: ${this.providerId}`);
@@ -48,358 +74,413 @@ export class GenericAIClient {
       frequencyPenalty: 0,
       presencePenalty: 0
     };
-
-    // 合并默认选项和传入的选项
     const mergedOptions = { ...defaultOptions, ...options };
+
+    const hasMultimodalContent = messages.some(msg =>
+      typeof msg.content !== 'string' && Array.isArray(msg.content)
+    );
+    if (hasMultimodalContent) {
+      logInfo('发送包含多模态内容的消息', { providerId: this.providerId, modelId: this.modelId });
+    }
 
     // 根据提供商格式化请求
     switch (this.providerId) {
-      case 'openai':
-        return {
-          model: this.modelId,
-          messages,
-          temperature: mergedOptions.temperature,
-          max_tokens: mergedOptions.maxTokens,
-          stream: mergedOptions.stream,
-          top_p: mergedOptions.topP,
-          frequency_penalty: mergedOptions.frequencyPenalty,
-          presence_penalty: mergedOptions.presencePenalty
-        };
+      case 'sbjt':
+        logInfo('使用硅基流动API格式化请求', {
+          modelId: this.modelId,
+          hasMultimodal: hasMultimodalContent
+        });
+        const isVisionModel = this.modelId.includes('VL') ||
+                              this.modelId.includes('vl') ||
+                              this.modelId.includes('deepseek-vl');
+        if (isVisionModel) {
+          logInfo('使用硅基流动视觉模型', { modelId: this.modelId });
+          return { model: this.modelId, messages, stream: Boolean(mergedOptions.stream), max_tokens: mergedOptions.maxTokens || 512, temperature: mergedOptions.temperature || 0.7, top_p: 0.7, top_k: 50, frequency_penalty: 0.5, n: 1 };
+        } else {
+          return { model: this.modelId, messages, stream: Boolean(mergedOptions.stream), max_tokens: mergedOptions.maxTokens || 512, temperature: mergedOptions.temperature || 0.7, top_p: 0.7, top_k: 50, frequency_penalty: 0.5, n: 1, stop: [] };
+        }
       case 'deepseek':
-        return {
-          model: this.modelId,
-          messages,
-          temperature: mergedOptions.temperature,
-          max_tokens: mergedOptions.maxTokens,
-          stream: mergedOptions.stream,
-          top_p: mergedOptions.topP
-        };
+        return { model: this.modelId, messages, temperature: mergedOptions.temperature, max_tokens: mergedOptions.maxTokens, stream: mergedOptions.stream, top_p: mergedOptions.topP };
       case 'baichuan':
-        return {
-          model: this.modelId,
-          messages,
-          temperature: mergedOptions.temperature,
-          max_tokens: mergedOptions.maxTokens,
-          stream: mergedOptions.stream,
-          top_p: mergedOptions.topP
-        };
+        if (hasMultimodalContent) throw new Error('百川API不支持多模态内容');
+        return { model: this.modelId, messages, temperature: mergedOptions.temperature, max_tokens: mergedOptions.maxTokens, stream: mergedOptions.stream, top_p: mergedOptions.topP };
       case 'qwen':
-        return {
-          model: this.modelId,
-          input: {
-            messages
-          },
-          parameters: {
-            temperature: mergedOptions.temperature,
-            max_tokens: mergedOptions.maxTokens,
-            top_p: mergedOptions.topP,
-            result_format: 'message'
-          }
-        };
+        if (hasMultimodalContent) throw new Error('千问API需要特殊格式处理多模态内容，当前未实现');
+        return { model: this.modelId, input: { messages }, parameters: { temperature: mergedOptions.temperature, max_tokens: mergedOptions.maxTokens, top_p: mergedOptions.topP, result_format: 'message' } };
       default:
-        // 默认尝试OpenAI格式
-        return {
-          model: this.modelId,
-          messages,
-          temperature: mergedOptions.temperature,
-          max_tokens: mergedOptions.maxTokens,
-          stream: mergedOptions.stream
-        };
+        logError('Unsupported provider in GenericAIClient formatRequestByProvider', { providerId: this.providerId });
+        console.warn(`Provider ${this.providerId} not explicitly handled in formatRequestByProvider. Using basic structure.`);
+         return {
+           model: this.modelId,
+           messages,
+           temperature: mergedOptions.temperature,
+           max_tokens: mergedOptions.maxTokens,
+           stream: mergedOptions.stream,
+         };
     }
   }
 
-  // 将各种API响应格式转换为OpenAI兼容格式
+  // 将各种API响应格式转换为OpenAI兼容格式 - 移除了 OpenAI & Doubao case
   private formatResponseToOpenAI(response: any) {
     try {
-      // 记录原始API响应以便调试
       logInfo('原始API响应:', JSON.stringify(response.data, null, 2));
-
-      // 根据提供商格式化响应
       switch (this.providerId) {
-        case 'openai':
-          return response.data;
+        case 'sbjt':
+          if (response.data && response.data.choices) { return response.data; }
+          else if (response.data && response.data.response) { return { choices: [{ message: { content: response.data.response, role: 'assistant' }, finish_reason: 'stop' }] }; }
+          throw new Error('无效的硅基流动API响应格式');
         case 'deepseek':
           return response.data;
         case 'baichuan':
-          if (response.data && response.data.choices && response.data.choices[0]) {
-            return response.data;
-          }
+          if (response.data && response.data.choices && response.data.choices[0]) { return response.data; }
           throw new Error('无效的百川API响应格式');
         case 'qwen':
           if (response.data && response.data.output && response.data.output.choices) {
-            // 将千问响应格式转换为OpenAI格式
-            return {
-              choices: [{
-                message: response.data.output.choices[0].message,
-                finish_reason: response.data.output.choices[0].finish_reason
-              }]
-            };
+            return { ...response.data, choices: response.data.output.choices };
           }
           throw new Error('无效的千问API响应格式');
         default:
-          // 尝试从多种可能的响应格式中提取内容
-          if (response.data && response.data.choices && response.data.choices[0]) {
+          logError('Unsupported provider in formatResponseToOpenAI', { providerId: this.providerId });
+          if (response.data && response.data.choices) {
+            console.warn(`Provider ${this.providerId} not explicitly handled in formatResponseToOpenAI. Passing through response data.`);
             return response.data;
-          } else if (response.data && response.data.output) {
-            return {
-              choices: [{
-                message: { content: response.data.output },
-                finish_reason: 'stop'
-              }]
-            };
-          } else if (response.data && response.data.response) {
-            return {
-              choices: [{
-                message: { content: response.data.response },
-                finish_reason: 'stop'
-              }]
-            };
           }
-          throw new Error('无法识别的API响应格式');
+          throw new Error(`无法格式化未知提供商 ${this.providerId} 的响应`);
       }
-    } catch (error) {
-      logError('格式化API响应出错:', error);
-      // 返回标准格式，表示格式化失败
-      return {
-        choices: [{
-          message: { content: '处理API响应时出错' },
-          finish_reason: 'error'
-        }]
-      };
+    } catch (error: any) {
+      logError('格式化API响应时出错', { providerId: this.providerId, error: error.message });
+      throw error;
     }
   }
 
-  // 发送请求到AI服务
-  async sendRequest(messages: any[], options: AIRequestOptions = {}) {
+  // 发送通用请求 - 无需修改，因为它依赖于 formatRequest 和 formatResponse
+  async sendRequest(messages: Message[], options: AIRequestOptions = {}): Promise<any> {
+    const endpoint = getProviderEndpoint(this.providerId, this.baseUrl);
+    if (!endpoint) {
+      throw new Error(`无法确定提供商 ${this.providerId} 的 API 端点`);
+    }
+
+    const requestData = this.formatRequestByProvider(messages, options);
+
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.apiKey}`
+    };
+
+    if (this.providerId === 'sbjt') {
+       headers['Authorization'] = `Bearer ${SBJT_API_KEY}`;
+       logInfo('Using hardcoded SBJT API Key for request.');
+     }
+
+    const config: AxiosRequestConfig = {
+      method: 'post',
+      url: endpoint,
+      headers: headers,
+      data: requestData,
+    };
+
+    logInfo('发送通用 API 请求', { endpoint, providerId: this.providerId, modelId: this.modelId });
+
     try {
-      const requestData = this.formatRequestByProvider(messages, options);
-      
-      const axiosConfig: AxiosRequestConfig = {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`
-        }
-      };
-
-      // 根据千问的特殊需求调整授权头
-      if (this.providerId === 'qwen') {
-        axiosConfig.headers = {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`
-        };
-      }
-
-      logInfo(`发送请求到 ${this.providerId} API:`, {
-        baseUrl: this.baseUrl,
-        providerId: this.providerId,
-        modelId: this.modelId
-      });
-      
-      const response = await axios.post(this.baseUrl, requestData, axiosConfig);
-      
+      const response = await axios(config);
+      logInfo('收到通用 API 响应', { providerId: this.providerId, status: response.status });
       return this.formatResponseToOpenAI(response);
     } catch (error: any) {
-      logError(`${this.providerId} API 请求错误:`, error);
-      
-      // 提取并记录详细错误信息
-      if (error.response) {
-        logError('API错误响应:', {
-          status: error.response.status,
-          data: error.response.data
-        });
-      }
-      
-      throw new Error(`AI请求失败: ${error.message}`);
+      logError('通用 API 请求失败', {
+        providerId: this.providerId,
+        modelId: this.modelId,
+        endpoint: endpoint,
+        status: error.response?.status,
+        error: error.message,
+        responseData: error.response?.data
+      });
+      const errorMsg = error.response?.data?.error?.message || error.message || '未知 API 错误';
+       const statusCode = error.response?.status;
+       throw new Error(`API 请求失败 (${this.providerId} - ${statusCode || 'N/A'}): ${errorMsg}`);
     }
+  }
+
+   // Analyze content using the generic sendRequest method
+   async analyzeContent(content: string, existingPoints?: KnowledgePoint[]): Promise<AIAnalysisResult> {
+     logInfo(`Starting generic content analysis with ${this.providerId}`, { model: this.modelId });
+     const systemPrompt = `Analyze the provided content and identify key knowledge points. Output JSON: { "knowledgePoints": [{ "name": "...", "description": "..." }], "analysisTime": "...", "confidence": "..." }`;
+     const userMessages: Message[] = [{
+       role: 'user',
+       content: [{ type: 'text', text: `Content to analyze: ${content}` }]
+     }];
+      const messages: Message[] = [
+        { role: 'system', content: systemPrompt },
+        ...userMessages
+      ];
+
+     if (content.startsWith('data:image') || content.startsWith('http')) {
+        logInfo('Image content detected for generic analysis.', { providerId: this.providerId });
+         messages[1] = {
+             role: 'user',
+             content: [
+                 { type: 'image_url', image_url: { url: content } },
+                 { type: 'text', text: 'Analyze the key knowledge points in this image.' }
+             ]
+         };
+         logInfo('Formatted generic request for potential vision analysis.', { providerId: this.providerId });
+     }
+
+     try {
+       const response = await this.sendRequest(messages, { maxTokens: 1500 });
+       const analysisResultText = response.choices?.[0]?.message?.content;
+       if (!analysisResultText) {
+         throw new Error(`Generic AI response for ${this.providerId} did not contain expected content.`);
+       }
+       logInfo(`Received raw analysis from ${this.providerId}`, { text: analysisResultText });
+       try {
+         const parsedResult = JSON.parse(analysisResultText);
+         if (!parsedResult.knowledgePoints || !Array.isArray(parsedResult.knowledgePoints)) {
+           throw new Error("Invalid JSON structure: missing 'knowledgePoints' array.");
+         }
+         const finalResult: AIAnalysisResult = {
+           knowledgePoints: parsedResult.knowledgePoints.map((kp: any) => ({
+             name: kp.name || 'Unknown Point',
+             description: kp.description || 'No description provided.'
+           })),
+           analysisTime: parsedResult.analysisTime || new Date().toISOString(),
+           confidence: parsedResult.confidence || 'medium',
+         };
+         logInfo(`Successfully parsed ${this.providerId} analysis result`, { finalResult });
+         return finalResult;
+       } catch (parseError: any) {
+         logError(`Failed to parse JSON response from ${this.providerId}`, { error: parseError.message, rawResponse: analysisResultText });
+         return {
+           knowledgePoints: [{ name: "Parsing Error", description: `Could not parse response: ${analysisResultText}` }],
+           analysisTime: new Date().toISOString(),
+           confidence: 'low',
+         };
+       }
+     } catch (error: any) {
+       logError(`Error during generic content analysis with ${this.providerId}`, { error: error.message });
+       return {
+         knowledgePoints: [],
+         analysisTime: new Date().toISOString(),
+         confidence: 'low',
+         error: `Analysis failed: ${error.message}`,
+       };
+     }
+   }
+
+   // Placeholder for chat method if needed in generic client
+    async chat?(messages: Message[], options?: AIRequestOptions): Promise<string> {
+        logInfo(`GenericAIClient chat called for ${this.providerId}`);
+         const response = await this.sendRequest(messages, options);
+         const content = response.choices?.[0]?.message?.content;
+         if (typeof content !== 'string') {
+             throw new Error('Expected string content from chat response');
+         }
+         return content;
+     }
+}
+
+// Updated getAIClient function
+export async function getAIClient(provider?: string, modelId?: string, debugMode = false): Promise<LocalIAiClient> {
+  logInfo('Getting AI Client...', { provider, modelId, debugMode });
+
+  const aiConfig = await getUserAIConfig();
+  const effectiveProviderId = provider || aiConfig?.provider || 'openai';
+  const effectiveModelId = modelId || aiConfig?.version || getDefaultModelForProvider(effectiveProviderId);
+
+  logInfo('Effective AI Client params', { effectiveProviderId, effectiveModelId });
+
+
+  if (!aiConfig?.enabled && !debugMode) {
+    logError('AI Service is not enabled and not in debug mode.', { provider: effectiveProviderId });
+    throw new Error('AI 服务未启用。请在设置中启用。');
+  }
+
+   const apiKey = await getUserAPIKey(effectiveProviderId);
+   if (!apiKey && effectiveProviderId !== 'sbjt') {
+       logError('API key not found for provider', { provider: effectiveProviderId });
+       throw new Error(`未找到 ${effectiveProviderId} 的 API 密钥。请先配置。`);
+     }
+
+   const providerConfig = getProviderConfig(effectiveProviderId);
+   if (!providerConfig) {
+       logError('Could not find provider configuration', { providerId: effectiveProviderId });
+       throw new Error(`未找到提供商 ${effectiveProviderId} 的配置信息。`);
+     }
+
+
+  // --- Refactoring Step: Use specific client factories ---
+  if (effectiveProviderId === 'openai') {
+    logInfo('Creating OpenAIClient via factory');
+    try {
+         return await createOpenAIClient(effectiveModelId, providerConfig.baseUrl);
+    } catch (error) {
+         logError('Failed to create OpenAIClient', { error });
+         throw error;
+       }
+  }
+  else if (effectiveProviderId === 'doubao') { // Added Doubao check
+     logInfo('Creating DoubaoClient via factory');
+     try {
+       // Doubao factory only needs modelId, baseUrl comes from its own config lookup
+       return await createDoubaoClient(effectiveModelId);
+     } catch (error) {
+       logError('Failed to create DoubaoClient', { error });
+       throw error;
+     }
+   }
+  // --- End Refactoring Step ---
+
+  // For other providers, use GenericAIClient
+  logInfo(`Creating GenericAIClient for provider: ${effectiveProviderId}`);
+   if (!apiKey) {
+       throw new Error(`API key for ${effectiveProviderId} is missing for GenericAIClient initialization.`);
+   }
+  const clientConfig: AIProviderConfig & { apiKey: string } = {
+    ...providerConfig,
+    providerId: effectiveProviderId,
+    modelId: effectiveModelId,
+    apiKey: apiKey,
+  };
+
+  try {
+     const genericClient = new GenericAIClient(clientConfig);
+     return genericClient;
+  } catch (error: any) {
+     logError('Failed to create GenericAIClient', { provider: effectiveProviderId, error: error.message });
+     throw new Error(`创建 ${effectiveProviderId} 客户端时出错: ${error.message}`);
+   }
+}
+
+// Helper to get a default model if none is specified
+function getDefaultModelForProvider(providerId: string): string {
+    const models = getModelsByProviderId(providerId);
+    // Prefer vision models if available, otherwise take the first one
+    const visionModel = models.find(m => m.id.includes('vision') || m.id.includes('vl') || m.id.includes('gpt-4o'));
+    if (visionModel) return visionModel.id;
+    return models[0]?.id || 'default-model'; // Fallback
+}
+
+/**
+ * 检查内容是否为图片URL或base64图片
+ * @param content 要检查的内容
+ * @returns 是否为图片URL或base64图片
+ */
+function isImageUrl(content: string): boolean {
+  // 检查是否为URL格式且包含常见图片扩展名
+  const isHttpUrl = /^https?:\/\/.*\.(jpg|jpeg|png|gif|webp|bmp)(\?.*)?$/i.test(content);
+  
+  // 检查是否为base64编码的图片
+  const isBase64Image = content.startsWith('data:image/');
+  
+  return isHttpUrl || isBase64Image;
+}
+
+/**
+ * 使用指定模型分析作业内容
+ * @param providerId 提供商ID
+ * @param modelId 模型ID
+ * @param content 作业内容
+ * @param existingPoints 已有知识点
+ * @returns 分析结果
+ */
+export async function analyzeWithModel(
+  providerId: string,
+  modelId: string,
+  content: string,
+  existingPoints: KnowledgePoint[] = []
+): Promise<AIAnalysisResult> {
+  logInfo('Initiating single model analysis', { providerId, modelId });
+
+  // Validate if provider and model exist (optional, getAIClient might handle this)
+   const providerInfo = getProviderById(providerId);
+   const modelInfo = getModelInfo(providerId, modelId);
+   if (!providerInfo || !modelInfo) {
+     logError('Invalid provider or model ID for analysis', { providerId, modelId });
+     throw new Error(`无效的提供商 (${providerId}) 或模型 (${modelId})`);
+   }
+
+  try {
+    // Get the appropriate client (OpenAIClient or GenericAIClient)
+    const client = await getAIClient(providerId, modelId, true); // Use debugMode=true if needed for testing
+
+    // Call the analyzeContent method on the client instance
+    // This method is now part of the IAiClient interface
+    const result = await client.analyzeContent(content, existingPoints);
+
+    logInfo('Analysis completed successfully', { providerId, modelId });
+    return result;
+
+  } catch (error: any) {
+    logError('Analysis with model failed', {
+      providerId,
+      modelId,
+      error: error.message,
+      // stack: error.stack // Optional: include stack trace for debugging
+    });
+    // Return a structured error response
+    return {
+      knowledgePoints: [],
+      analysisTime: new Date().toISOString(),
+      confidence: 'low',
+      error: `模型分析失败 (${providerId} - ${modelId}): ${error.message}`,
+    };
   }
 }
 
 /**
- * 获取AI客户端
- * @param provider 提供商ID (可选)
- * @param modelId 模型ID (可选)
- * @param debugMode 是否启用调试模式
- * @returns API客户端或null
+ * 级联分析作业内容，先用千问处理图片，再用DeepSeek深入分析
+ * @param content 作业内容
+ * @param existingPoints 已有知识点
+ * @returns 分析结果
  */
-export async function getAIClient(provider?: string, modelId?: string, debugMode = false) {
+export async function cascadeAnalyzeContent(
+  content: string,
+  existingPoints: KnowledgePoint[] = []
+): Promise<AIAnalysisResult> {
   try {
-    // 获取用户配置和API密钥
-    const aiConfig = await getUserAIConfig();
-    const apiKey = await getUserAPIKey();
-    
-    // 日志输出配置信息
-    logInfo('AI配置:', JSON.stringify({
-      configExists: !!aiConfig,
-      configEnabled: aiConfig?.enabled,
-      provider: provider || aiConfig?.provider,
-      apiKeyExists: !!apiKey,
-      apiKeyLength: apiKey ? apiKey.length : 0,
-      debugMode: debugMode || aiConfig?.customSettings?.debugMode
-    }));
-    
-    // 如果没有API密钥，返回null
-    if (!apiKey || apiKey.trim() === '') {
-      logError('AI服务缺少API密钥，无法初始化客户端', {
-        aiConfig: JSON.stringify(aiConfig),
-        storedApiKey: apiKey ? '已设置(长度: ' + apiKey.length + ')' : '未设置'
-      });
-      return null;
+    // 检查内容是否为图片
+    const isImage = isImageUrl(content);
+    if (!isImage) {
+      // 如果不是图片，直接使用DeepSeek分析
+      logInfo('内容非图片，直接使用DeepSeek分析');
+      return analyzeWithModel('Pro/deepseek-ai/DeepSeek-V3', 'deepseek-ai/DeepSeek-V3', content, existingPoints);
     }
+    
+    // 使用模拟AI时直接返回模拟结果
+    if (USE_MOCK_AI) {
+      logInfo('使用模拟AI分析');
+      return getMockAnalysisResult(content, existingPoints);
+    }
+    
+    // 第一步：使用千问分析图片
+    logInfo('开始第一步：使用千问模型处理图片内容');
+    const qwenResult = await analyzeWithModel('Qwen/Qwen2.5-VL-72B-Instruct', 'Qwen/Qwen2.5-VL-72B-Instruct', content, existingPoints);
+    
+    // 提取千问的分析结果
+    const extractedText = qwenResult.knowledgePoints
+      .map(kp => `- ${kp.name}：${kp.description}（重要性：${kp.importance}，掌握程度：${kp.masteryLevel}）`)
+      .join('\n');
+    
+    // 第二步：将千问结果传给DeepSeek进行深入分析
+    logInfo('开始第二步：将千问结果传递给DeepSeek进行深入分析');
+    const deepseekPrompt = `
+千问模型从图片中提取的信息：
 
-    // 如果AI未启用，返回null
-    if (aiConfig && aiConfig.enabled === false) {
-      logError('AI服务已被用户禁用，使用模拟数据');
-      return null;
-    }
+${extractedText}
+
+请基于上述千问模型提取的信息，进行更深入的知识点分析，补充完善知识点描述，并对重要性和掌握程度进行更准确的评估。
+`;
     
-    // 使用指定提供商或配置中的提供商，默认为'openai'
-    const providerId = provider || (aiConfig?.provider || 'openai');
-    const selectedModelId = modelId || aiConfig?.version;
-    
-    // 使用用户设置的调试模式，如果没有指定参数
-    const useDebugMode = debugMode || (aiConfig?.customSettings?.debugMode || false);
-    
-    // 获取提供商配置
-    let providerConfig;
-    
-    // 处理硅基流动提供商 (使用DeepSeek的API)
-    if (providerId === 'sbjt') {
-      providerConfig = getProviderConfig('deepseek');
-      if (!providerConfig) {
-        logError('硅基流动依赖DeepSeek提供商配置，但无法找到', {
-          providerId: 'sbjt',
-          baseProvider: 'deepseek'
-        });
-        // 使用DeepSeek的配置
-        providerConfig = {
-          id: 'deepseek',
-          name: 'DeepSeek',
-          baseUrl: 'https://api.deepseek.com/v1',
-          models: [{ id: selectedModelId || 'deepseek-chat' }]
-        };
-      }
-      
-      logInfo('使用硅基流动模型 (通过DeepSeek API):', {
-        providerId: 'sbjt',
-        modelId: selectedModelId,
-        baseProvider: 'deepseek'
-      });
-    }
-    // 处理自定义提供商
-    else if (providerId.startsWith('custom-')) {
-      // 从用户配置中查找自定义提供商
-      const customProviders = aiConfig?.customProviders
-        ? JSON.parse(aiConfig.customProviders)
-        : [];
-      
-      const customProvider = customProviders.find((p: any) => p.id === providerId);
-      if (!customProvider) {
-        logError(`未找到自定义提供商配置: ${providerId}`);
-        throw new Error(`未找到自定义提供商配置: ${providerId}`);
-      }
-      
-      // 创建提供商配置
-      providerConfig = {
-        id: providerId,
-        name: customProvider.name,
-        baseUrl: customProvider.endpoint,
-        models: [{ id: 'default-model' }]
-      };
-      
-      logInfo('使用自定义提供商:', {
-        providerId,
-        endpoint: customProvider.endpoint
-      });
-    }
-    // 常规提供商
-    else {
-      providerConfig = getProviderConfig(providerId);
-      if (!providerConfig) {
-        logError(`不支持的AI提供商: ${providerId}`, {
-          availableProviders: Object.keys(getAllProviders())
-        });
-        throw new Error(`不支持的AI提供商: ${providerId}`);
-      }
-    }
-    
-    // 获取基础URL
-    const baseUrl = providerConfig.baseUrl;
-    
-    logInfo('使用AI提供商:', {
-      providerId,
-      baseUrl,
-      selectedModelId
-    });
-    
-    // 对于OpenAI使用原生客户端
-    if (providerId.toLowerCase() === 'openai') {
-      logInfo('使用OpenAI原生客户端');
-      const client = new OpenAI({
-        apiKey: apiKey,
-        baseURL: baseUrl || 'https://api.openai.com/v1'
-      });
-      
-      // 测试连接是否可用
-      try {
-        // 非常简短的测试请求
-        const testResponse = await client.chat.completions.create({
-          model: selectedModelId || 'gpt-3.5-turbo',
-          messages: [{ role: 'system', content: 'Hello' }],
-          max_tokens: 5
-        });
-        
-        if (testResponse) {
-          logInfo('OpenAI连接测试成功');
-        }
-      } catch (testError) {
-        logError('OpenAI连接测试失败:', testError);
-        // 不抛出错误，继续使用此客户端
-      }
-      
-      return client;
-    }
-    
-    // 对于其他提供商，使用通用客户端
-    // 使用getProviderEndpoint获取完整的API端点
-    const apiEndpoint = getProviderEndpoint(
-      // 对于硅基流动，使用deepseek端点处理
-      providerId === 'sbjt' ? 'deepseek' : providerId, 
-      baseUrl
-    );
-    logInfo(`${providerId} API endpoint: ${apiEndpoint}`);
-    
-    // 获取模型ID
-    let modelToUse;
-    if (providerId === 'sbjt') {
-      // 硅基流动模型使用原始模型ID
-      modelToUse = selectedModelId || 'sbjt-base';
-    } else if (providerId.startsWith('custom-')) {
-      // 自定义模型使用默认模型
-      modelToUse = selectedModelId || 'default-model';
-    } else {
-      // 常规模型
-      modelToUse = selectedModelId || providerConfig.models[0]?.id || '';
-    }
-    
-    if (!modelToUse) {
-      logError(`提供商 ${providerId} 没有可用的模型`);
-      throw new Error(`提供商 ${providerId} 没有可用的模型`);
-    }
-    
-    logInfo(`创建通用AI客户端: ${providerId}, 模型: ${modelToUse}, URL: ${apiEndpoint}`);
-    
-    const client = new GenericAIClient({
-      providerId: providerId,
-      apiKey: apiKey,
-      modelId: modelToUse,
-      baseUrl: apiEndpoint
-    });
-    
-    logInfo('成功创建AI客户端');
-    return client;
+    return analyzeWithModel('Pro/deepseek-ai/DeepSeek-V3', 'Pro/deepseek-ai/DeepSeek-V3', deepseekPrompt, existingPoints);
   } catch (error) {
-    logError('获取AI客户端出错:', error);
-    throw new Error(`无法获取AI客户端: ${error instanceof Error ? error.message : '未知错误'}`);
+    logError('级联分析过程出错:', error);
+    
+    // 如果是开发环境，返回模拟数据
+    if (process.env.NODE_ENV === 'development') {
+      logInfo('级联分析错误，返回模拟结果');
+      return getMockAnalysisResult(content, existingPoints);
+    }
+    
+    throw error;
   }
 }
 
@@ -414,180 +495,15 @@ export async function analyzeHomeworkContent(
   existingPoints: KnowledgePoint[] = []
 ): Promise<AIAnalysisResult> {
   try {
-    // 记录函数开始调用
-    logInfo('开始分析作业内容，长度:', content.length);
-    logInfo('已有知识点数量:', existingPoints.length);
-    
-    // 如果开启了模拟AI，返回模拟数据
+    // 使用模拟AI时直接返回模拟结果
     if (USE_MOCK_AI) {
       logInfo('使用模拟AI分析');
       return getMockAnalysisResult(content, existingPoints);
     }
     
-    // 获取AI客户端
-    let client;
-    try {
-      client = await getAIClient();
-    } catch (error) {
-      logError('获取AI客户端失败:', error);
-      throw new Error('无法获取AI客户端，请检查API密钥和AI配置');
-    }
-    
-    if (!client) {
-      logError('无法获取AI客户端，请检查API密钥和AI配置');
-      // 在开发环境中返回模拟数据，生产环境抛出错误
-      if (process.env.NODE_ENV === 'development') {
-        logInfo('开发环境：返回模拟分析结果');
-        return getMockAnalysisResult(content, existingPoints);
-      }
-      throw new Error('无法获取AI客户端，请检查API密钥和AI配置');
-    }
-    
-    // 准备提示词
-    const existingPointsText = existingPoints.length > 0
-      ? existingPoints.map(p => `- ${p.name}`).join('\n')
-      : '(无)';
-    
-    // 构造AI提示词
-    const prompt = `
-分析以下作业内容，识别出其中包含的知识点，并评估学生对这些知识点的掌握程度。
-
-已知知识点列表（如果有）：
-${existingPointsText}
-
-作业内容：
-${content}
-
-请以JSON格式返回分析结果，包含以下字段：
-- knowledgePoints: 知识点数组，每个知识点包含：
-  - name: 知识点名称
-  - description: 知识点描述（简要解释该知识点）
-  - importance: 重要性(1-5，5表示最重要)
-  - masteryLevel: 掌握程度(1-5，5表示完全掌握)
-  - confidence: 识别置信度(0-100)
-  - isNew: 是否为新发现的知识点(相对于已知知识点)
-
-请对importance和masteryLevel使用1-5的评分标准：
-1 = 非常低/基础/不熟练
-2 = 低/初级/了解基础
-3 = 中等/必要/基本掌握
-4 = 高/重要/熟练
-5 = 非常高/核心/精通
-
-响应格式示例：
-{
-  "knowledgePoints": [
-    {
-      "name": "知识点名称",
-      "description": "知识点描述",
-      "importance": 4,
-      "masteryLevel": 3,
-      "confidence": 95,
-      "isNew": false
-    }
-  ]
-}
-    `;
-    
-    // 记录开始时间
-    const startTime = Date.now();
-    logInfo('开始发送AI请求...');
-    
-    // 发送请求给AI
-    let response: any;
-    
-    try {
-      if ('sendRequest' in client) {
-        // 使用GenericAIClient
-        const messages = [
-          { role: 'system', content: '你是一个教育内容分析助手，擅长识别学习内容中的知识点并评估掌握情况。' },
-          { role: 'user', content: prompt }
-        ];
-        response = await client.sendRequest(messages, {
-          temperature: 0.5,
-          maxTokens: 1500
-        });
-      } else {
-        // 使用OpenAI客户端
-        response = await client.chat.completions.create({
-          model: 'gpt-3.5-turbo',
-          messages: [
-            { role: 'system', content: '你是一个教育内容分析助手，擅长识别学习内容中的知识点并评估掌握情况。' },
-            { role: 'user', content: prompt }
-          ],
-          temperature: 0.5,
-          max_tokens: 1500
-        });
-      }
-      
-      logInfo('AI响应成功，开始解析结果');
-    } catch (error) {
-      logError('AI请求失败:', error);
-      throw new Error(`AI分析请求失败: ${error instanceof Error ? error.message : '未知错误'}`);
-    }
-    
-    // 计算分析时间
-    const analysisTime = Date.now() - startTime;
-    
-    // 解析AI响应
-    const responseText = response.choices[0]?.message?.content || '';
-    
-    try {
-      // 提取JSON部分
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        logError('无法从AI响应中提取JSON:', responseText);
-        throw new Error('AI返回的结果格式无效（无法提取JSON）');
-      }
-      
-      const jsonStr = jsonMatch[0];
-      let parsed;
-      try {
-        parsed = JSON.parse(jsonStr);
-      } catch (jsonError) {
-        logError('JSON解析失败:', jsonError);
-        logError('原始JSON字符串:', jsonStr);
-        throw new Error('无法解析AI返回的JSON数据');
-      }
-      
-      // 验证并处理结果
-      if (!parsed.knowledgePoints || !Array.isArray(parsed.knowledgePoints)) {
-        logError('AI返回的结果格式无效，没有包含知识点数组:', parsed);
-        throw new Error('AI返回的结果格式无效（缺少知识点数组）');
-      }
-      
-      // 构建结果
-      const result = {
-        knowledgePoints: parsed.knowledgePoints.map((kp: any) => ({
-          name: kp.name,
-          description: kp.description || '',
-          importance: typeof kp.importance === 'number' ? kp.importance : 3,
-          masteryLevel: typeof kp.masteryLevel === 'number' ? kp.masteryLevel : 3,
-          confidence: typeof kp.confidence === 'number' ? kp.confidence : 90,
-          isNew: kp.isNew === true
-        })),
-        analysisTime,
-        confidence: 85,
-        providerInfo: ('getProviderInfo' in client) ? client.getProviderInfo() : {
-          provider: 'openai',
-          model: 'gpt-3.5-turbo'
-        }
-      };
-      
-      logInfo('分析完成，识别到知识点数量:', result.knowledgePoints.length);
-      return result;
-      
-    } catch (error) {
-      logError('解析AI响应出错:', error);
-      logError('原始响应:', responseText);
-      
-      // 开发环境下返回模拟数据，生产环境抛出错误
-      if (process.env.NODE_ENV === 'development') {
-        logInfo('解析错误，返回模拟分析结果');
-        return getMockAnalysisResult(content, existingPoints);
-      }
-      throw new Error(`解析AI响应失败: ${error instanceof Error ? error.message : '未知错误'}`);
-    }
+    // 使用级联分析方法
+    logInfo('使用级联分析方法');
+    return cascadeAnalyzeContent(content, existingPoints);
   } catch (error) {
     logError('知识点分析出错:', error);
     
