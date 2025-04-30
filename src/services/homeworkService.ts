@@ -89,11 +89,12 @@ export async function getHomeworkById(homeworkId: string) {
  */
 export async function getHomeworkSubmissions(homeworkId: string) {
   try {
+    // 从数据库获取作业提交数据
     const { data, error } = await supabase
       .from('homework_submissions')
       .select(`
         *,
-        students (id, name, student_id),
+        students (id, name, student_id, class_id),
         submission_knowledge_points (
           id,
           knowledge_point_id,
@@ -107,6 +108,51 @@ export async function getHomeworkSubmissions(homeworkId: string) {
       console.error('获取作业提交列表失败:', error);
       toast.error(`获取作业提交列表失败: ${error.message}`);
       return [];
+    }
+
+    // 如果没有提交记录，检查班级并为所有学生创建空的提交记录
+    if (!data || data.length === 0) {
+      try {
+        // 获取作业信息以确定班级
+        const { data: homeworkData, error: homeworkError } = await supabase
+          .from('homework')
+          .select('class_id')
+          .eq('id', homeworkId)
+          .single();
+
+        if (homeworkError || !homeworkData) {
+          console.error('获取作业班级信息失败:', homeworkError);
+          return [];
+        }
+
+        const classId = homeworkData.class_id;
+        
+        // 获取该班级的所有学生
+        const { data: studentsData, error: studentsError } = await supabase
+          .from('students')
+          .select('id, name, student_id, class_id')
+          .eq('class_id', classId);
+
+        if (studentsError || !studentsData) {
+          console.error('获取班级学生列表失败:', studentsError);
+          return [];
+        }
+
+        // 为每个学生创建空的提交记录对象
+        return studentsData.map(student => ({
+          id: `temp-${student.id}`, // 临时ID
+          homework_id: homeworkId,
+          student_id: student.id,
+          status: 'pending',
+          score: null,
+          feedback: null,
+          students: student,
+          submission_knowledge_points: []
+        }));
+      } catch (error) {
+        console.error('创建临时学生提交记录失败:', error);
+        return [];
+      }
     }
 
     return data || [];

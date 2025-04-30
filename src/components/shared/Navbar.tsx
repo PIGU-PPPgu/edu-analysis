@@ -163,7 +163,7 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true }) => {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/ai-settings')}>
                   <Settings className="mr-2 h-4 w-4" />
-                  <span>设置</span>
+                  <span>AI模型设置</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut}>

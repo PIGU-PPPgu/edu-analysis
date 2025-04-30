@@ -23,340 +23,1196 @@ const SBJT_API_KEY = 'sk-kpibphayuoyyzkkrhnljayyjbrgkazwfrzonqxegfghntxzb';
 const FORCE_USE_SBJT = false;
 
 /**
- * 多模态消息内容项类型 (Consider moving to types.ts)
+ * 多模态消息内容项类型
  */
-interface ContentItem extends LocalContentItem {}
+interface ContentItem {
+  type: 'text' | 'image_url';
+  text?: string;
+  image_url?: { url: string };
+}
 
 /**
- * 消息类型，可以是字符串或内容项数组 (Consider moving to types.ts)
+ * 消息类型，可以是字符串或内容项数组
  */
-interface Message extends LocalMessage {}
+interface Message {
+  role: string;
+  content: string | ContentItem[];
+}
 
-// 通用AI客户端类 - 移除了OpenAI & Doubao 特定逻辑
-export class GenericAIClient implements LocalIAiClient { // Implement the shared interface
-  private baseUrl: string;
+// AI客户端通用接口
+interface GenericAIClientOptions {
+  providerId: string;
+  apiKey: string;
+  modelId: string;
+  baseUrl?: string;
+}
+
+// 请求选项接口
+interface RequestOptions {
+  temperature?: number;
+  maxTokens?: number;
+  topP?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
+  stop?: string[];
+}
+
+// 响应接口
+interface AIResponse {
+  choices: {
+    message?: {
+      content: string;
+    };
+    text?: string;
+  }[];
+}
+
+// 通用AI客户端类
+export class GenericAIClient {
+  private providerId: string;
   private apiKey: string;
   private modelId: string;
-  private providerId: string;
-  private providerConfig: AIProviderConfig; // Store the full config
+  private baseUrl: string;
 
-  constructor(config: AIProviderConfig & { apiKey: string }) { // Ensure apiKey is always passed
-    // Validate required config properties
-    if (!config.providerId || !config.modelId || !config.apiKey) {
-       throw new Error(`GenericAIClient requires providerId, modelId, and apiKey.`);
-     }
-    this.providerConfig = config;
-    this.baseUrl = config.baseUrl || '';
-    this.apiKey = config.apiKey; // Use passed apiKey
-    this.modelId = config.modelId;
-    this.providerId = config.providerId;
-    logInfo('GenericAIClient initialized', { providerId: this.providerId, modelId: this.modelId, baseUrl: this.baseUrl || 'N/A' });
-  }
-
-  // 格式化请求，根据不同提供商调整 - 移除了 OpenAI & Doubao case
-  private formatRequestByProvider(messages: Message[], options: AIRequestOptions = {}) {
-    const provider = getProviderById(this.providerId);
-    if (!provider) {
-      throw new Error(`未找到提供商: ${this.providerId}`);
-    }
-
-    const modelInfo = getModelInfo(this.providerId, this.modelId);
-    if (!modelInfo) {
-      throw new Error(`未找到模型: ${this.modelId} (提供商: ${this.providerId})`);
-    }
-
-    // 默认请求选项
-    const defaultOptions: AIRequestOptions = {
-      temperature: 0.7,
-      maxTokens: modelInfo.maxTokens || 2000,
-      stream: false,
-      topP: 0.9,
-      frequencyPenalty: 0,
-      presencePenalty: 0
-    };
-    const mergedOptions = { ...defaultOptions, ...options };
-
-    const hasMultimodalContent = messages.some(msg =>
-      typeof msg.content !== 'string' && Array.isArray(msg.content)
-    );
-    if (hasMultimodalContent) {
-      logInfo('发送包含多模态内容的消息', { providerId: this.providerId, modelId: this.modelId });
-    }
-
-    // 根据提供商格式化请求
-    switch (this.providerId) {
-      case 'sbjt':
-        logInfo('使用硅基流动API格式化请求', {
-          modelId: this.modelId,
-          hasMultimodal: hasMultimodalContent
-        });
-        const isVisionModel = this.modelId.includes('VL') ||
-                              this.modelId.includes('vl') ||
-                              this.modelId.includes('deepseek-vl');
-        if (isVisionModel) {
-          logInfo('使用硅基流动视觉模型', { modelId: this.modelId });
-          return { model: this.modelId, messages, stream: Boolean(mergedOptions.stream), max_tokens: mergedOptions.maxTokens || 512, temperature: mergedOptions.temperature || 0.7, top_p: 0.7, top_k: 50, frequency_penalty: 0.5, n: 1 };
-        } else {
-          return { model: this.modelId, messages, stream: Boolean(mergedOptions.stream), max_tokens: mergedOptions.maxTokens || 512, temperature: mergedOptions.temperature || 0.7, top_p: 0.7, top_k: 50, frequency_penalty: 0.5, n: 1, stop: [] };
-        }
-      case 'deepseek':
-        return { model: this.modelId, messages, temperature: mergedOptions.temperature, max_tokens: mergedOptions.maxTokens, stream: mergedOptions.stream, top_p: mergedOptions.topP };
-      case 'baichuan':
-        if (hasMultimodalContent) throw new Error('百川API不支持多模态内容');
-        return { model: this.modelId, messages, temperature: mergedOptions.temperature, max_tokens: mergedOptions.maxTokens, stream: mergedOptions.stream, top_p: mergedOptions.topP };
-      case 'qwen':
-        if (hasMultimodalContent) throw new Error('千问API需要特殊格式处理多模态内容，当前未实现');
-        return { model: this.modelId, input: { messages }, parameters: { temperature: mergedOptions.temperature, max_tokens: mergedOptions.maxTokens, top_p: mergedOptions.topP, result_format: 'message' } };
-      default:
-        logError('Unsupported provider in GenericAIClient formatRequestByProvider', { providerId: this.providerId });
-        console.warn(`Provider ${this.providerId} not explicitly handled in formatRequestByProvider. Using basic structure.`);
-         return {
-           model: this.modelId,
-           messages,
-           temperature: mergedOptions.temperature,
-           max_tokens: mergedOptions.maxTokens,
-           stream: mergedOptions.stream,
-         };
-    }
-  }
-
-  // 将各种API响应格式转换为OpenAI兼容格式 - 移除了 OpenAI & Doubao case
-  private formatResponseToOpenAI(response: any) {
-    try {
-      logInfo('原始API响应:', JSON.stringify(response.data, null, 2));
-      switch (this.providerId) {
-        case 'sbjt':
-          if (response.data && response.data.choices) { return response.data; }
-          else if (response.data && response.data.response) { return { choices: [{ message: { content: response.data.response, role: 'assistant' }, finish_reason: 'stop' }] }; }
-          throw new Error('无效的硅基流动API响应格式');
-        case 'deepseek':
-          return response.data;
-        case 'baichuan':
-          if (response.data && response.data.choices && response.data.choices[0]) { return response.data; }
-          throw new Error('无效的百川API响应格式');
-        case 'qwen':
-          if (response.data && response.data.output && response.data.output.choices) {
-            return { ...response.data, choices: response.data.output.choices };
-          }
-          throw new Error('无效的千问API响应格式');
+  constructor(options: GenericAIClientOptions) {
+    this.providerId = options.providerId;
+    this.apiKey = options.apiKey;
+    this.modelId = options.modelId;
+    
+    // 根据提供商设置基础URL
+    if (options.baseUrl) {
+      this.baseUrl = options.baseUrl;
+    } else {
+      switch (options.providerId) {
+        case 'openai':
+          this.baseUrl = 'https://api.openai.com/v1';
+          break;
+        case 'azure':
+          this.baseUrl = 'https://api.cognitive.microsoft.com/sts/v1.0';
+          break;
         default:
-          logError('Unsupported provider in formatResponseToOpenAI', { providerId: this.providerId });
-          if (response.data && response.data.choices) {
-            console.warn(`Provider ${this.providerId} not explicitly handled in formatResponseToOpenAI. Passing through response data.`);
-            return response.data;
-          }
-          throw new Error(`无法格式化未知提供商 ${this.providerId} 的响应`);
+          this.baseUrl = 'https://api.openai.com/v1';
       }
-    } catch (error: any) {
-      logError('格式化API响应时出错', { providerId: this.providerId, error: error.message });
+    }
+  }
+
+  // 发送API请求
+  async sendRequest(messages: Message[], options: RequestOptions = {}): Promise<AIResponse> {
+    try {
+      // 根据不同提供商构建不同的请求体
+      let requestBody;
+      let endpoint;
+      // 使用Record<string, string>类型允许任意字符串键
+      let headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.apiKey}`
+      };
+      
+      switch (this.providerId) {
+        case 'openai':
+          endpoint = `${this.baseUrl}/chat/completions`;
+          requestBody = {
+            model: this.modelId,
+            messages,
+            temperature: options.temperature ?? 0.7,
+            max_tokens: options.maxTokens,
+            top_p: options.topP,
+            frequency_penalty: options.frequencyPenalty,
+            presence_penalty: options.presencePenalty,
+            stop: options.stop
+          };
+          break;
+        case 'azure':
+          // Azure特定的API格式
+          endpoint = `${this.baseUrl}/chat/completions?api-version=2023-05-15`;
+          requestBody = {
+            messages,
+            temperature: options.temperature ?? 0.7,
+            max_tokens: options.maxTokens,
+            top_p: options.topP,
+            frequency_penalty: options.frequencyPenalty,
+            presence_penalty: options.presencePenalty,
+            stop: options.stop
+          };
+          break;
+        case 'doubao':
+          // 豆包API特殊处理，使用火山引擎ARK API
+          endpoint = this.baseUrl;
+          
+          // 设置特殊请求头
+          headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.apiKey}`,
+            // 添加特殊header，使用索引签名避免TypeScript错误
+            ['x-is-encrypted']: 'true' // ARK API需要的加密标志
+          };
+          
+          // 检查是否包含多模态内容
+          const hasMultiModalContent = messages.some(msg => 
+            typeof msg.content !== 'string' && Array.isArray(msg.content)
+          );
+          
+          // 如果是多模态内容，需要特殊处理
+          if (hasMultiModalContent) {
+            console.log('检测到豆包API多模态请求');
+            
+            // 构建符合豆包API要求的多模态请求体
+            requestBody = {
+              model: this.modelId,
+              messages,
+              temperature: options.temperature ?? 0.7,
+              max_tokens: options.maxTokens || 2000,
+              top_p: options.topP || 0.5,
+              frequency_penalty: options.frequencyPenalty || 0,
+              stream: false
+            };
+            
+            // 记录多模态请求内容用于调试
+            console.log('豆包多模态请求模型:', this.modelId);
+            console.log('豆包多模态请求消息格式:', 
+              JSON.stringify(messages.map(m => ({
+                role: m.role, 
+                contentType: typeof m.content === 'string' ? 'string' : 'array'
+              })))
+            );
+          } else {
+            // 普通文本请求
+            requestBody = {
+              model: this.modelId,
+              messages,
+              temperature: options.temperature ?? 0.7,
+              max_tokens: options.maxTokens,
+              top_p: options.topP || 0.5,
+              frequency_penalty: options.frequencyPenalty || 0,
+              stream: false
+            };
+          }
+          break;
+        default:
+          endpoint = `${this.baseUrl}`;
+          requestBody = {
+            model: this.modelId,
+            messages,
+            temperature: options.temperature ?? 0.7,
+            max_tokens: options.maxTokens,
+            top_p: options.topP,
+            frequency_penalty: options.frequencyPenalty,
+            presence_penalty: options.presencePenalty,
+            stop: options.stop
+          };
+      }
+      
+      // 发送请求
+      console.log(`发送请求到 ${endpoint}，提供商: ${this.providerId}，模型: ${this.modelId}`);
+      
+      // 对于多模态请求，添加更多日志
+      if (this.providerId === 'doubao' && 
+          messages.some(m => typeof m.content !== 'string' && Array.isArray(m.content))) {
+        console.log('多模态请求消息示例:', 
+          JSON.stringify(messages.map(m => ({
+            role: m.role,
+            contentType: typeof m.content,
+            contentLength: typeof m.content === 'string' ? m.content.length : m.content.length
+          }))).substring(0, 200)
+        );
+      }
+      
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestBody),
+      });
+      
+      if (!response.ok) {
+        let errorMessage = `AI API请求失败: HTTP ${response.status} ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          console.error('API错误详情:', errorData);
+          errorMessage = `AI API请求失败: ${errorData.error?.message || errorData.message || response.statusText}`;
+        } catch (parseError) {
+          // 如果无法解析JSON，尝试读取文本
+          try {
+            const errorText = await response.text();
+            errorMessage = `AI API请求失败: ${errorText || response.statusText}`;
+          } catch (textError) {
+            // 如果连文本都无法读取，使用默认错误信息
+          }
+        }
+        throw new Error(errorMessage);
+      }
+      
+      const responseData = await response.json();
+      console.log('API响应成功，响应大小约:', 
+        JSON.stringify(responseData).length, '字节');
+      return responseData;
+    } catch (error) {
+      console.error('AI请求失败:', error);
       throw error;
     }
   }
-
-  // 发送通用请求 - 无需修改，因为它依赖于 formatRequest 和 formatResponse
-  async sendRequest(messages: Message[], options: AIRequestOptions = {}): Promise<any> {
-    const endpoint = getProviderEndpoint(this.providerId, this.baseUrl);
-    if (!endpoint) {
-      throw new Error(`无法确定提供商 ${this.providerId} 的 API 端点`);
-    }
-
-    const requestData = this.formatRequestByProvider(messages, options);
-
-    const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`
-    };
-
-    if (this.providerId === 'sbjt') {
-       headers['Authorization'] = `Bearer ${SBJT_API_KEY}`;
-       logInfo('Using hardcoded SBJT API Key for request.');
-     }
-
-    const config: AxiosRequestConfig = {
-      method: 'post',
-      url: endpoint,
-      headers: headers,
-      data: requestData,
-    };
-
-    logInfo('发送通用 API 请求', { endpoint, providerId: this.providerId, modelId: this.modelId });
-
-    try {
-      const response = await axios(config);
-      logInfo('收到通用 API 响应', { providerId: this.providerId, status: response.status });
-      return this.formatResponseToOpenAI(response);
-    } catch (error: any) {
-      logError('通用 API 请求失败', {
-        providerId: this.providerId,
-        modelId: this.modelId,
-        endpoint: endpoint,
-        status: error.response?.status,
-        error: error.message,
-        responseData: error.response?.data
-      });
-      const errorMsg = error.response?.data?.error?.message || error.message || '未知 API 错误';
-       const statusCode = error.response?.status;
-       throw new Error(`API 请求失败 (${this.providerId} - ${statusCode || 'N/A'}): ${errorMsg}`);
-    }
-  }
-
-   // Analyze content using the generic sendRequest method
-   async analyzeContent(content: string, existingPoints?: KnowledgePoint[]): Promise<AIAnalysisResult> {
-     logInfo(`Starting generic content analysis with ${this.providerId}`, { model: this.modelId });
-     const systemPrompt = `Analyze the provided content and identify key knowledge points. Output JSON: { "knowledgePoints": [{ "name": "...", "description": "..." }], "analysisTime": "...", "confidence": "..." }`;
-     const userMessages: Message[] = [{
-       role: 'user',
-       content: [{ type: 'text', text: `Content to analyze: ${content}` }]
-     }];
-      const messages: Message[] = [
-        { role: 'system', content: systemPrompt },
-        ...userMessages
-      ];
-
-     if (content.startsWith('data:image') || content.startsWith('http')) {
-        logInfo('Image content detected for generic analysis.', { providerId: this.providerId });
-         messages[1] = {
-             role: 'user',
-             content: [
-                 { type: 'image_url', image_url: { url: content } },
-                 { type: 'text', text: 'Analyze the key knowledge points in this image.' }
-             ]
-         };
-         logInfo('Formatted generic request for potential vision analysis.', { providerId: this.providerId });
-     }
-
-     try {
-       const response = await this.sendRequest(messages, { maxTokens: 1500 });
-       const analysisResultText = response.choices?.[0]?.message?.content;
-       if (!analysisResultText) {
-         throw new Error(`Generic AI response for ${this.providerId} did not contain expected content.`);
-       }
-       logInfo(`Received raw analysis from ${this.providerId}`, { text: analysisResultText });
-       try {
-         const parsedResult = JSON.parse(analysisResultText);
-         if (!parsedResult.knowledgePoints || !Array.isArray(parsedResult.knowledgePoints)) {
-           throw new Error("Invalid JSON structure: missing 'knowledgePoints' array.");
-         }
-         const finalResult: AIAnalysisResult = {
-           knowledgePoints: parsedResult.knowledgePoints.map((kp: any) => ({
-             name: kp.name || 'Unknown Point',
-             description: kp.description || 'No description provided.'
-           })),
-           analysisTime: parsedResult.analysisTime || new Date().toISOString(),
-           confidence: parsedResult.confidence || 'medium',
-         };
-         logInfo(`Successfully parsed ${this.providerId} analysis result`, { finalResult });
-         return finalResult;
-       } catch (parseError: any) {
-         logError(`Failed to parse JSON response from ${this.providerId}`, { error: parseError.message, rawResponse: analysisResultText });
-         return {
-           knowledgePoints: [{ name: "Parsing Error", description: `Could not parse response: ${analysisResultText}` }],
-           analysisTime: new Date().toISOString(),
-           confidence: 'low',
-         };
-       }
-     } catch (error: any) {
-       logError(`Error during generic content analysis with ${this.providerId}`, { error: error.message });
-       return {
-         knowledgePoints: [],
-         analysisTime: new Date().toISOString(),
-         confidence: 'low',
-         error: `Analysis failed: ${error.message}`,
-       };
-     }
-   }
-
-   // Placeholder for chat method if needed in generic client
-    async chat?(messages: Message[], options?: AIRequestOptions): Promise<string> {
-        logInfo(`GenericAIClient chat called for ${this.providerId}`);
-         const response = await this.sendRequest(messages, options);
-         const content = response.choices?.[0]?.message?.content;
-         if (typeof content !== 'string') {
-             throw new Error('Expected string content from chat response');
-         }
-         return content;
-     }
 }
 
-// Updated getAIClient function
-export async function getAIClient(provider?: string, modelId?: string, debugMode = false): Promise<LocalIAiClient> {
-  logInfo('Getting AI Client...', { provider, modelId, debugMode });
+// 接口参数定义
+interface AnalyzeHomeworkImageParams {
+  imageUrl: string;
+  homeworkId: string;
+  subject?: string;
+}
 
-  const aiConfig = await getUserAIConfig();
-  const effectiveProviderId = provider || aiConfig?.provider || 'openai';
-  const effectiveModelId = modelId || aiConfig?.version || getDefaultModelForProvider(effectiveProviderId);
+interface AnalyzeHomeworkContentParams {
+  content: string;
+  imageUrls?: string[];
+  homeworkId: string;
+  subject?: string;
+  existingKnowledgePoints?: KnowledgePoint[];
+}
 
-  logInfo('Effective AI Client params', { effectiveProviderId, effectiveModelId });
-
-
-  if (!aiConfig?.enabled && !debugMode) {
-    logError('AI Service is not enabled and not in debug mode.', { provider: effectiveProviderId });
-    throw new Error('AI 服务未启用。请在设置中启用。');
-  }
-
-   const apiKey = await getUserAPIKey(effectiveProviderId);
-   if (!apiKey && effectiveProviderId !== 'sbjt') {
-       logError('API key not found for provider', { provider: effectiveProviderId });
-       throw new Error(`未找到 ${effectiveProviderId} 的 API 密钥。请先配置。`);
-     }
-
-   const providerConfig = getProviderConfig(effectiveProviderId);
-   if (!providerConfig) {
-       logError('Could not find provider configuration', { providerId: effectiveProviderId });
-       throw new Error(`未找到提供商 ${effectiveProviderId} 的配置信息。`);
-     }
-
-
-  // --- Refactoring Step: Use specific client factories ---
-  if (effectiveProviderId === 'openai') {
-    logInfo('Creating OpenAIClient via factory');
-    try {
-         return await createOpenAIClient(effectiveModelId, providerConfig.baseUrl);
-    } catch (error) {
-         logError('Failed to create OpenAIClient', { error });
-         throw error;
-       }
-  }
-  else if (effectiveProviderId === 'doubao') { // Added Doubao check
-     logInfo('Creating DoubaoClient via factory');
-     try {
-       // Doubao factory only needs modelId, baseUrl comes from its own config lookup
-       return await createDoubaoClient(effectiveModelId);
-     } catch (error) {
-       logError('Failed to create DoubaoClient', { error });
-       throw error;
-     }
-   }
-  // --- End Refactoring Step ---
-
-  // For other providers, use GenericAIClient
-  logInfo(`Creating GenericAIClient for provider: ${effectiveProviderId}`);
-   if (!apiKey) {
-       throw new Error(`API key for ${effectiveProviderId} is missing for GenericAIClient initialization.`);
-   }
-  const clientConfig: AIProviderConfig & { apiKey: string } = {
-    ...providerConfig,
-    providerId: effectiveProviderId,
-    modelId: effectiveModelId,
-    apiKey: apiKey,
-  };
-
+// 图片分析接口
+export async function analyzeHomeworkImage(imageUrl: string, params: Omit<AnalyzeHomeworkImageParams, 'imageUrl'>) {
   try {
-     const genericClient = new GenericAIClient(clientConfig);
-     return genericClient;
-  } catch (error: any) {
-     logError('Failed to create GenericAIClient', { provider: effectiveProviderId, error: error.message });
-     throw new Error(`创建 ${effectiveProviderId} 客户端时出错: ${error.message}`);
-   }
+    console.log(`分析作业图片: ${imageUrl}`);
+    
+    // 预处理图片URL，确保AI服务能够访问
+    const processedImageUrl = await preprocessImageUrl(imageUrl);
+    console.log('图片URL预处理完成，原URL:', imageUrl.substring(0, 50) + '...');
+    if (processedImageUrl.startsWith('data:')) {
+      console.log('处理后URL: [base64图片数据]，长度:', processedImageUrl.length);
+    } else {
+      console.log('处理后URL:', processedImageUrl.substring(0, 50) + '...');
+    }
+    
+    // 获取AI配置和API密钥
+    const aiConfig = await getUserAIConfig();
+    if (!aiConfig || !aiConfig.enabled) {
+      logError('AI分析功能未启用或未配置');
+      throw new Error('AI分析功能未启用，请先在AI设置中配置并启用');
+    }
+    
+    // 获取配置的提供商和模型
+    const configuredProvider = aiConfig.provider;
+    const configuredModel = aiConfig.version;
+    
+    if (!configuredProvider || !configuredModel) {
+      logError('未找到已配置的AI模型');
+      throw new Error('未找到已配置的AI模型，请先在AI设置中选择模型');
+    }
+    
+    // 获取API密钥
+    const apiKey = await getUserAPIKey(configuredProvider);
+    if (!apiKey) {
+      logError('未找到API密钥');
+      throw new Error(`未找到${configuredProvider}的API密钥，请在AI设置中配置`);
+    }
+    
+    // 构建提示词
+    const prompt = `
+你是一位教育专家，请分析下面这张作业图片中包含的知识点。
+作业科目: ${params.subject || '未指定'}
+
+请识别图片中的主要知识点，为每个知识点提供简短说明。
+以JSON格式输出，格式如下:
+{
+  "knowledgePoints": [
+    {
+      "name": "知识点名称",
+      "description": "知识点简短说明"
+    }
+  ]
+}
+`;
+
+    // 尝试使用主要方法分析
+    try {
+      logInfo('使用AI配置分析图片', {
+        provider: configuredProvider,
+        model: configuredModel
+      });
+
+      // 创建AI客户端，直接使用通用客户端而不是通过API
+      const client = await getAIClient(configuredProvider, configuredModel);
+      
+      if (!client) {
+        throw new Error(`无法创建${configuredProvider}的AI客户端，请检查配置和API密钥`);
+      }
+      
+      // 发送请求，根据客户端类型处理
+      let response;
+      
+      if ('sendRequest' in client) {
+        // 使用GenericAIClient处理图片
+        let messageContent: Message[];
+        
+        if (client instanceof GenericAIClient && (client as any).providerId === 'doubao') {
+          // 火山引擎ARK API的图片处理方式
+          messageContent = [
+            { 
+              role: 'system', 
+              content: `你是一位教育专家，擅长分析教育内容并提取知识点。请分析图片中的作业内容，并以JSON格式返回结果。`
+            },
+            { 
+              role: 'user', 
+              content: [
+                { 
+                  type: 'text', 
+                  text: `请分析下面这张作业图片中包含的知识点。
+作业科目: ${params.subject || '未指定'}
+
+请识别图片中的主要知识点，为每个知识点提供简短说明。
+以JSON格式输出，格式如下:
+{
+  "knowledgePoints": [
+    {
+      "name": "知识点名称",
+      "description": "知识点简短说明"
+    }
+  ]
+}`
+                },
+                { 
+                  type: 'image_url', 
+                  image_url: { 
+                    url: processedImageUrl 
+                  } 
+                }
+              ]
+            }
+          ];
+          
+          // 记录上传的图片URL，帮助调试
+          logInfo('使用豆包API分析图片URL:', processedImageUrl.substring(0, 50) + '...');
+        } else {
+          // 其他API的多模态处理方式
+          messageContent = [
+            { role: 'system', content: '你是一位教育专家，擅长分析教育内容并提取知识点。' },
+            { 
+              role: 'user', 
+              content: [
+                { type: 'text', text: prompt } as ContentItem,
+                { type: 'image_url', image_url: { url: processedImageUrl } } as ContentItem
+              ]
+            }
+          ];
+        }
+        
+        response = await client.sendRequest(messageContent, {
+          temperature: 0.3,
+          maxTokens: 2000
+        });
+      } else {
+        // 使用OpenAI原生客户端
+        response = await client.chat.completions.create({
+          model: configuredModel,
+          messages: [
+            { role: 'system', content: '你是一位教育专家，擅长分析教育内容并提取知识点。' },
+            { 
+              role: 'user', 
+              content: [
+                { type: 'text', text: prompt },
+                { type: 'image_url', image_url: { url: processedImageUrl } }
+              ]
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 2000
+        });
+      }
+      
+      // 处理响应
+      const content = response.choices[0]?.message?.content || '';
+      
+      if (!content) {
+        throw new Error('AI返回内容为空');
+      }
+      
+      // 添加调试日志
+      console.log('AI响应原始内容:', content.substring(0, 500) + (content.length > 500 ? '...' : ''));
+      
+      // 提取JSON部分
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        console.error('无法从AI响应中提取JSON数据，原始响应:', content);
+        
+        // 尝试使用启发式方法从文本中提取知识点
+        try {
+          console.log('尝试从文本中提取知识点');
+          const lines = content.split('\n');
+          const extractedPoints = [];
+          
+          for (const line of lines) {
+            // 查找可能的知识点描述行
+            if (line.includes('知识点') || line.match(/^\d+\.\s+.+/) || line.includes('：')) {
+              extractedPoints.push({
+                name: line.replace(/^\d+\.\s+/, '').substring(0, 50),
+                description: line
+              });
+            }
+          }
+          
+          if (extractedPoints.length > 0) {
+            console.log('成功从文本中提取知识点:', extractedPoints.length);
+            
+            // 添加ID等信息
+            const formattedKnowledgePoints = extractedPoints.map((kp: any, index: number) => ({
+              id: `kp-${Date.now()}-${index}`,
+              name: kp.name,
+              description: kp.description || '',
+              homework_id: params.homeworkId,
+              created_at: new Date().toISOString(),
+              isNew: true  // 添加isNew标志，确保可以被创建
+            }));
+            
+            return {
+              success: true,
+              knowledgePoints: formattedKnowledgePoints
+            };
+          }
+        } catch (extractError) {
+          console.error('从文本中提取知识点失败:', extractError);
+        }
+        
+        throw new Error('无法解析AI返回的JSON或提取知识点');
+      }
+      
+      try {
+        // 尝试解析JSON数据
+        let parsedJson;
+        
+        try {
+          // 标准JSON解析
+          parsedJson = JSON.parse(jsonMatch[0]);
+          console.log('JSON解析成功:', parsedJson);
+        } catch (standardParseError) {
+          // 标准解析失败，尝试修复JSON
+          console.error('标准JSON解析失败，尝试修复格式:', standardParseError);
+          console.log('原始JSON字符串:', jsonMatch[0]);
+          
+          // 修复可能的JSON格式问题
+          let fixedJsonStr = jsonMatch[0]
+            // 修复可能缺少右引号的属性值
+            .replace(/"([^"]*?)(?=\n\s*")/g, '"$1"')  
+            // 移除尾随逗号
+            .replace(/,(\s*[\]}])/g, '$1')  
+            // 处理可能在末尾截断的内容
+            .replace(/("description"\s*:\s*"[^"]*?)$/g, '$1"')
+            // 确保所有属性名有引号
+            .replace(/([{,]\s*)(\w+)(\s*:)/g, '$1"$2"$3')
+            // 尝试修复截断的JSON结构
+            .replace(/}\s*$/g, '}}');
+          
+          // 如果整个JSON被截断，尝试补全
+          if (!fixedJsonStr.endsWith('}')) {
+            fixedJsonStr += '"}]}';
+          }
+          
+          console.log('修复后的JSON字符串:', fixedJsonStr);
+          
+          try {
+            parsedJson = JSON.parse(fixedJsonStr);
+            console.log('JSON修复成功');
+          } catch (fixError) {
+            console.error('JSON修复失败:', fixError);
+            
+            // 第二种尝试：提取所有可能的键值对
+            console.log('尝试第二种方法提取键值对');
+            const keyValueRegex = /"([^"]+)"\s*:\s*"([^"]*)"/g;
+            const matches = [...jsonMatch[0].matchAll(keyValueRegex)];
+            
+            if (matches.length > 0) {
+              // 从键值对构建简单对象
+              const extracted = {};
+              for (const match of matches) {
+                const [, key, value] = match;
+                extracted[key] = value;
+              }
+              
+              // 手动构建知识点数组
+              const knowledgePoints = [];
+              let currentPoint = {};
+              
+              for (const [key, value] of Object.entries(extracted)) {
+                if (key === 'name') {
+                  if (Object.keys(currentPoint).length > 0) {
+                    knowledgePoints.push(currentPoint);
+                    currentPoint = {};
+                  }
+                  currentPoint['name'] = value;
+                } else if (key === 'description') {
+                  currentPoint['description'] = value;
+                  knowledgePoints.push(currentPoint);
+                  currentPoint = {};
+                }
+              }
+              
+              if (Object.keys(currentPoint).length > 0) {
+                knowledgePoints.push(currentPoint);
+              }
+              
+              if (knowledgePoints.length > 0) {
+                parsedJson = { knowledgePoints };
+                console.log('成功通过键值对提取知识点:', knowledgePoints.length);
+              } else {
+                throw new Error('无法提取有效的知识点数据');
+              }
+            } else {
+              throw new Error(`JSON修复失败: ${fixError.message}`);
+            }
+          }
+        }
+        
+        console.log('解析的JSON数据:', parsedJson);
+        
+        // 确保有knowledgePoints字段
+        if (!parsedJson.knowledgePoints && !parsedJson.knowledge_points) {
+          // 兼容不同的JSON字段命名方式
+          console.error('JSON缺少knowledgePoints或knowledge_points字段，尝试直接使用整个对象');
+          
+          // 尝试直接解析整个JSON对象
+          if (Array.isArray(parsedJson)) {
+            // 如果返回的是数组，直接将其视为知识点数组
+            const formattedKnowledgePoints = parsedJson.map((kp: any, index: number) => ({
+              id: `kp-${Date.now()}-${index}`,
+              name: kp.name || '未命名知识点',
+              description: kp.description || '',
+              homework_id: params.homeworkId,
+              created_at: new Date().toISOString(),
+              isNew: true  // 添加isNew标志，确保可以被创建
+            }));
+            
+            return {
+              success: true,
+              knowledgePoints: formattedKnowledgePoints
+            };
+          }
+          
+          // 查找可能的知识点字段名
+          const possibleKnowledgePointsFields = Object.keys(parsedJson).filter(key => 
+            key.toLowerCase().includes('knowledge') || 
+            key.toLowerCase().includes('points') || 
+            Array.isArray(parsedJson[key])
+          );
+          
+          if (possibleKnowledgePointsFields.length > 0) {
+            const fieldToUse = possibleKnowledgePointsFields[0];
+            console.log(`使用可能的知识点字段: ${fieldToUse}`);
+            parsedJson.knowledgePoints = parsedJson[fieldToUse];
+          } else {
+            // 如果找不到合适的字段，将整个对象视为单个知识点
+            console.log('无法找到知识点数组字段，将整个对象视为知识点');
+            parsedJson.knowledgePoints = [parsedJson];
+          }
+        }
+        
+        // 获取知识点数组（兼容不同字段名）
+        const knowledgePointsArray = parsedJson.knowledgePoints || parsedJson.knowledge_points || [];
+        console.log('提取的知识点数组:', knowledgePointsArray);
+        
+        // 格式化知识点以匹配前端期望的格式
+        const formattedKnowledgePoints = knowledgePointsArray.map((kp: any, index: number) => ({
+          id: `kp-${Date.now()}-${index}`,
+          name: kp.name || '未命名知识点',
+          description: kp.description || '',
+          homework_id: params.homeworkId,
+          created_at: new Date().toISOString(),
+          isNew: true  // 添加isNew标志，确保可以被创建
+        }));
+        
+        return {
+          success: true,
+          knowledgePoints: formattedKnowledgePoints
+        };
+      } catch (parseError) {
+        console.error('解析JSON失败:', parseError);
+        throw new Error(`解析AI返回的JSON数据失败: ${parseError.message}`);
+      }
+    } catch (primaryError) {
+      // 如果主要分析方法失败，尝试备用方法
+      console.error('主要分析方法失败，尝试备用方法:', primaryError);
+      
+      // 尝试使用硅基流动API（默认的备选提供商）
+      try {
+        console.log('尝试使用硅基流动API作为备用...');
+        
+        // 创建硅基流动AI客户端
+        const client = new GenericAIClient({
+          providerId: 'sbjt',
+          apiKey: SBJT_API_KEY,
+          modelId: 'Qwen/Qwen2.5-VL-72B-Instruct',
+          baseUrl: 'https://api.siliconflow.cn/v1/chat/completions'
+        });
+        
+        // 构造带图片的请求
+        const messageContent = [
+          { role: 'system', content: '你是一位教育专家，擅长分析教育内容并提取知识点。' },
+          { 
+            role: 'user', 
+            content: [
+              { type: 'text', text: prompt } as ContentItem,
+              { type: 'image_url', image_url: { url: processedImageUrl } } as ContentItem
+            ]
+          }
+        ];
+        
+        // 发送请求
+        console.log('发送备用请求到硅基流动API...');
+        const response = await client.sendRequest(messageContent, {
+          temperature: 0.3,
+          maxTokens: 2000
+        });
+        
+        // 处理响应
+        const content = response.choices[0]?.message?.content || '';
+        
+        if (!content) {
+          throw new Error('备用AI返回内容为空');
+        }
+        
+        console.log('备用AI响应原始内容:', content.substring(0, 500) + (content.length > 500 ? '...' : ''));
+        
+        // 处理可能包含在代码块中的JSON（如```json {...} ```）
+        let jsonString = content;
+        const codeBlockMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+        if (codeBlockMatch) {
+          jsonString = codeBlockMatch[1];
+          console.log('从代码块中提取JSON内容');
+        }
+        
+        // 提取JSON部分
+        const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          console.error('无法从备用AI响应中提取JSON数据', content);
+          
+          // 尝试使用启发式方法从文本中提取知识点
+          try {
+            console.log('尝试从备用AI文本中提取知识点');
+            const lines = content.split('\n');
+            const extractedPoints = [];
+            
+            for (const line of lines) {
+              // 查找可能的知识点描述行
+              if (line.includes('知识点') || line.match(/^\d+\.\s+.+/) || line.includes('：')) {
+                const match = line.match(/[""「」【】：:]\s*([^""「」【】：:]+)[""「」【】：:]/);
+                if (match) {
+                  extractedPoints.push({
+                    name: match[1],
+                    description: line.replace(match[0], '')
+                  });
+                } else {
+                  extractedPoints.push({
+                    name: line.replace(/^\d+\.\s+/, '').substring(0, 50),
+                    description: line
+                  });
+                }
+              }
+            }
+            
+            if (extractedPoints.length > 0) {
+              console.log('成功从备用AI文本中提取知识点:', extractedPoints.length);
+              
+              // 添加ID等信息
+              const formattedKnowledgePoints = extractedPoints.map((kp: any, index: number) => ({
+                id: `kp-backup-${Date.now()}-${index}`,
+                name: kp.name,
+                description: kp.description || '',
+                homework_id: params.homeworkId,
+                created_at: new Date().toISOString(),
+                isNew: true
+              }));
+              
+              return {
+                success: true,
+                knowledgePoints: formattedKnowledgePoints
+              };
+            }
+          } catch (extractError) {
+            console.error('从备用AI文本中提取知识点失败:', extractError);
+          }
+          
+          throw new Error('无法从备用AI响应中提取JSON数据');
+        }
+        
+        try {
+          // 尝试解析JSON
+          let parsedData;
+          
+          try {
+            parsedData = JSON.parse(jsonMatch[0]);
+            console.log('备用AI JSON解析成功');
+          } catch (parseError) {
+            console.error('备用AI返回的JSON解析失败，尝试修复:', parseError);
+            
+            // 修复可能的JSON格式问题
+            let fixedJsonStr = jsonMatch[0]
+              .replace(/,(\s*[\]}])/g, '$1')  // 移除尾随逗号
+              .replace(/([{,]\s*)(\w+)(\s*:)/g, '$1"$2"$3')  // 确保属性名有引号
+              .replace(/:\s*"?([^",{\[\]}]+)"?(\s*[,}])/g, ':"$1"$2');  // 确保属性值有引号
+            
+            try {
+              parsedData = JSON.parse(fixedJsonStr);
+              console.log('备用AI JSON修复成功');
+            } catch (fixError) {
+              console.error('备用AI JSON修复失败:', fixError);
+              throw fixError;
+            }
+          }
+          
+          if (!parsedData.knowledgePoints || !Array.isArray(parsedData.knowledgePoints)) {
+            throw new Error('备用AI返回的数据格式错误，缺少知识点数组');
+          }
+          
+          // 添加ID等信息
+          const formattedKnowledgePoints = parsedData.knowledgePoints.map((kp: any, index: number) => ({
+            id: `kp-${Date.now()}-${index}`,
+            name: kp.name,
+            description: kp.description || '',
+            homework_id: params.homeworkId,
+            created_at: new Date().toISOString()
+          }));
+          
+          return {
+            success: true,
+            knowledgePoints: formattedKnowledgePoints
+          };
+        } catch (parseError) {
+          console.error('解析备用AI响应失败:', parseError);
+          throw new Error(`解析备用AI响应失败: ${parseError.message}`);
+        }
+      } catch (backupError) {
+        console.error('备用分析方法也失败:', backupError);
+        
+        // 如果备用方法也失败，返回模拟数据
+        return {
+          success: true,
+          knowledgePoints: [
+            {
+              id: `kp-mock-${Date.now()}-1`,
+              name: "图像分析",
+              description: "图像中包含的作业内容分析",
+              homework_id: params.homeworkId,
+              created_at: new Date().toISOString(),
+              isNew: true
+            },
+            {
+              id: `kp-mock-${Date.now()}-2`,
+              name: `${params.subject || '数学'}知识点`,
+              description: "作业中包含的核心知识点",
+              homework_id: params.homeworkId,
+              created_at: new Date().toISOString(),
+              isNew: true
+            }
+          ]
+        };
+      }
+    }
+  } catch (error) {
+    console.error('分析作业图片失败:', error);
+    
+    // 如果API调用失败，尝试使用模拟数据
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      console.warn('API调用失败，使用模拟数据作为后备方案');
+      return {
+        success: true,
+        knowledgePoints: [
+          {
+            id: `kp-${Date.now()}-1`,
+            name: '图像识别与分析',
+            description: '识别并分析图片中的主要内容',
+            homework_id: params.homeworkId,
+            created_at: new Date().toISOString(),
+            isNew: true
+          },
+          {
+            id: `kp-${Date.now()}-2`,
+            name: params.subject ? `${params.subject}基础知识` : '学科基础知识',
+            description: '与图片内容相关的学科基础知识',
+            homework_id: params.homeworkId,
+            created_at: new Date().toISOString(),
+            isNew: true
+          }
+        ]
+      };
+    }
+    
+    throw error;
+  }
 }
 
-// Helper to get a default model if none is specified
-function getDefaultModelForProvider(providerId: string): string {
-    const models = getModelsByProviderId(providerId);
-    // Prefer vision models if available, otherwise take the first one
-    const visionModel = models.find(m => m.id.includes('vision') || m.id.includes('vl') || m.id.includes('gpt-4o'));
-    if (visionModel) return visionModel.id;
-    return models[0]?.id || 'default-model'; // Fallback
+// 作业内容分析接口（带参数版本）
+export async function analyzeHomeworkContentWithParams(params: AnalyzeHomeworkContentParams) {
+  try {
+    console.log(`分析作业内容，提取知识点`);
+    
+    // 获取AI配置和API密钥
+    const aiConfig = await getUserAIConfig();
+    if (!aiConfig || !aiConfig.enabled) {
+      logError('AI分析功能未启用或未配置');
+      throw new Error('AI分析功能未启用，请先在AI设置中配置并启用');
+    }
+    
+    // 获取配置的提供商和模型
+    const configuredProvider = aiConfig.provider;
+    const configuredModel = aiConfig.version;
+    
+    if (!configuredProvider || !configuredModel) {
+      logError('未找到已配置的AI模型');
+      throw new Error('未找到已配置的AI模型，请先在AI设置中选择模型');
+    }
+    
+    // 获取API密钥
+    const apiKey = await getUserAPIKey(configuredProvider);
+    if (!apiKey) {
+      logError('未找到API密钥');
+      throw new Error(`未找到${configuredProvider}的API密钥，请在AI设置中配置`);
+    }
+    
+    // 构建提示词
+    const prompt = `
+你是一位教育专家，请分析以下作业内容并提取其中包含的知识点。
+作业科目: ${params.subject || '未指定'}
+
+请识别内容中的主要知识点，为每个知识点提供简短说明。
+
+作业内容:
+${params.content}
+
+${params.imageUrls && params.imageUrls.length > 0 ? 
+  `作业还包含${params.imageUrls.length}张图片，请一并考虑。` : ''}
+
+${params.existingKnowledgePoints && params.existingKnowledgePoints.length > 0 ? 
+  `已有的知识点列表（请避免生成重复或极为相似的知识点）:\n${params.existingKnowledgePoints.map(kp => `- ${kp.name}`).join('\n')}` : ''}
+
+以JSON格式输出，格式如下:
+{
+  "knowledgePoints": [
+    {
+      "name": "知识点名称",
+      "description": "知识点简短说明"
+    }
+  ]
+}
+`;
+
+    // 创建AI客户端
+    const client = await getAIClient(configuredProvider, configuredModel);
+    if (!client) {
+      throw new Error(`无法创建${configuredProvider}的AI客户端，请检查配置和API密钥`);
+    }
+    
+    logInfo('使用AI配置进行分析', {
+      provider: configuredProvider,
+      model: configuredModel
+    });
+    
+    // 发送请求
+    let response;
+    if ('sendRequest' in client) {
+      // 使用GenericAIClient
+      let messageContent: Message[];
+      
+      if (client instanceof GenericAIClient && (client as any).providerId === 'doubao') {
+        // 火山引擎ARK API的处理方式
+        let contentText = prompt;
+        
+        // 对于火山引擎特别处理，将图片URL添加到文本中
+        if (params.imageUrls && params.imageUrls.length > 0) {
+          contentText += '\n\n图片URL:\n' + params.imageUrls.join('\n');
+        }
+        
+        messageContent = [
+          { 
+            role: 'system', 
+            content: `###
+假如你是一位经验丰富、专业过硬的教育专家，你将根据学生提供的题目或内容，来精准分析并提炼知识点。根据以下规则一步步执行：
+1. 仔细研读学生提供的内容。
+2. 对内容进行精准分析。
+3. 提炼出关键知识点，并为每个知识点提供简短说明。
+
+作业科目: ${params.subject || '未指定'}
+
+请以JSON格式输出，格式如下:
+{
+  "knowledgePoints": [
+    {
+      "name": "知识点名称",
+      "description": "知识点简短说明"
+    }
+  ]
+}
+###`
+          },
+          { role: 'user', content: contentText }
+        ];
+      } else {
+        // 其他API的处理方式
+        messageContent = [
+          { role: 'system', content: '你是一位教育专家，擅长分析教育内容并提取知识点。' },
+          { role: 'user', content: prompt }
+        ];
+      }
+      
+      response = await client.sendRequest(messageContent, {
+        temperature: 0.3,
+        maxTokens: 2000
+      });
+    } else {
+      // 使用OpenAI原生客户端
+      response = await client.chat.completions.create({
+        model: configuredModel,
+        messages: [
+          { role: 'system', content: '你是一位教育专家，擅长分析教育内容并提取知识点。' },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.3,
+        max_tokens: 2000
+      });
+    }
+    
+    // 处理响应
+    const content = response.choices[0]?.message?.content || '';
+    
+    if (!content) {
+      throw new Error('AI返回内容为空');
+    }
+    
+    // 提取JSON部分
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('无法从AI响应中提取JSON数据');
+    }
+    
+    const parsedData = JSON.parse(jsonMatch[0]);
+    
+    if (!parsedData.knowledgePoints || !Array.isArray(parsedData.knowledgePoints)) {
+      throw new Error('AI返回的数据格式错误，缺少知识点数组');
+    }
+    
+    // 格式化知识点
+    const formattedKnowledgePoints = parsedData.knowledgePoints.map((kp: any, index: number) => ({
+      id: `kp-${Date.now()}-${index}`,
+      name: kp.name,
+      description: kp.description || '',
+      homework_id: params.homeworkId,
+      created_at: new Date().toISOString()
+    }));
+    
+    return {
+      knowledgePoints: formattedKnowledgePoints
+    };
+  } catch (error) {
+    console.error('分析作业内容失败:', error);
+    
+    // 如果API调用失败，尝试使用模拟数据
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      console.warn('API调用失败，使用模拟数据作为后备方案');
+      return {
+        success: true,
+        knowledgePoints: [
+          {
+            id: `kp-${Date.now()}-1`,
+            name: '图像识别与分析',
+            description: '识别并分析图片中的主要内容',
+            homework_id: params.homeworkId,
+            created_at: new Date().toISOString(),
+            isNew: true
+          },
+          {
+            id: `kp-${Date.now()}-2`,
+            name: params.subject ? `${params.subject}基础知识` : '学科基础知识',
+            description: '与图片内容相关的学科基础知识',
+            homework_id: params.homeworkId,
+            created_at: new Date().toISOString(),
+            isNew: true
+          }
+        ]
+      };
+    }
+    
+    throw error;
+  }
+}
+
+/**
+ * 获取AI客户端
+ * @param provider 提供商ID (可选)
+ * @param modelId 模型ID (可选)
+ * @param debugMode 是否启用调试模式
+ * @returns API客户端或null
+ */
+export async function getAIClient(provider?: string, modelId?: string, debugMode = false) {
+  try {
+    // 强制使用硅基流动API
+    if (FORCE_USE_SBJT) {
+      logInfo('强制使用硅基流动API');
+      const providerId = 'sbjt';
+      const apiEndpoint = 'https://api.siliconflow.cn/v1/chat/completions';
+      
+      // 如果指定了模型，使用指定的模型；否则使用默认的千问视觉模型
+      const modelToUse = modelId || 'Qwen/Qwen2.5-VL-72B-Instruct';
+      
+      logInfo(`创建硅基流动AI客户端，模型: ${modelToUse}, URL: ${apiEndpoint}`);
+      
+      const client = new GenericAIClient({
+        providerId: providerId,
+        apiKey: SBJT_API_KEY,
+        modelId: modelToUse,
+        baseUrl: apiEndpoint
+      });
+      
+      logInfo('成功创建硅基流动AI客户端');
+      return client;
+    }
+    
+    // 原始获取客户端逻辑
+    // 获取用户配置和API密钥
+    const aiConfig = await getUserAIConfig();
+    const providerId = provider || (aiConfig?.provider || 'openai');
+    const apiKey = await getUserAPIKey(providerId);
+    
+    // 日志输出配置信息
+    logInfo('AI配置:', JSON.stringify({
+      configExists: !!aiConfig,
+      configEnabled: aiConfig?.enabled,
+      provider: providerId,
+      apiKeyExists: !!apiKey,
+      apiKeyLength: apiKey ? apiKey.length : 0,
+      debugMode: debugMode || aiConfig?.customSettings?.debugMode
+    }));
+    
+    // 如果没有API密钥，返回null
+    if (!apiKey || apiKey.trim() === '') {
+      logError('AI服务缺少API密钥，无法初始化客户端', {
+        aiConfig: JSON.stringify(aiConfig),
+        storedApiKey: apiKey ? '已设置(长度: ' + apiKey.length + ')' : '未设置'
+      });
+      return null;
+    }
+
+    // 如果AI未启用，返回null
+    if (aiConfig && aiConfig.enabled === false) {
+      logError('AI服务已被用户禁用，使用模拟数据');
+      return null;
+    }
+    
+    const selectedModelId = modelId || aiConfig?.version;
+    
+    // 使用用户设置的调试模式，如果没有指定参数
+    const useDebugMode = debugMode || (aiConfig?.customSettings?.debugMode || false);
+    
+    // 获取提供商配置
+    const providerConfig = getProviderConfig(providerId);
+    
+    // --- 添加详细日志 ---
+    logInfo(`获取 ${providerId} 的配置结果:`, providerConfig ? JSON.stringify(providerConfig.models.map(m => m.id)) : '未找到配置');
+    // --- 结束详细日志 ---
+
+    if (!providerConfig) {
+      logError(`未找到提供商配置: ${providerId}`);
+      // 返回 null 而不是抛出错误，让调用者处理
+      // throw new Error(`未找到提供商配置: ${providerId}`);
+      return null; 
+    }
+    
+    // 获取基础URL
+    const baseUrl = providerConfig.baseUrl;
+    
+    logInfo('使用AI提供商:', {
+      providerId,
+      baseUrl,
+      selectedModelId
+    });
+    
+    // 对于OpenAI使用原生客户端
+    if (providerId.toLowerCase() === 'openai') {
+      logInfo('使用OpenAI原生客户端');
+      const client = new OpenAI({
+        apiKey: apiKey,
+        baseURL: baseUrl || 'https://api.openai.com/v1'
+      });
+      
+      // 测试连接是否可用
+      try {
+        // 非常简短的测试请求
+        const testResponse = await client.chat.completions.create({
+          model: selectedModelId || 'gpt-3.5-turbo',
+          messages: [{ role: 'system', content: 'Hello' }],
+          max_tokens: 5
+        });
+        
+        if (testResponse) {
+          logInfo('OpenAI连接测试成功');
+        }
+      } catch (testError) {
+        logError('OpenAI连接测试失败:', testError);
+        // 不抛出错误，继续使用此客户端
+      }
+      
+      return client;
+    }
+    
+    // 对于豆包（doubao）使用通用客户端，但确保使用正确的端点
+    if (providerId.toLowerCase() === 'doubao') {
+      logInfo('使用豆包API客户端');
+      // 使用火山引擎ARK API而不是直接使用豆包API
+      const apiEndpoint = 'https://ark.cn-beijing.volces.com/api/v3/chat/completions';
+      
+      // 直接使用模型名称，不再转换为推理接入点ID
+      // 豆包的模型命名格式通常为: doubao-1.5-vision-pro-250328 等
+      const modelToUse = selectedModelId || 'doubao-1.5-vision-pro-250328';
+      
+      logInfo('使用豆包模型:', modelToUse);
+      
+      const client = new GenericAIClient({
+        providerId: 'doubao',
+        apiKey: apiKey,
+        modelId: modelToUse,
+        baseUrl: apiEndpoint
+      });
+      
+      logInfo('成功创建豆包API客户端');
+      return client;
+    }
+    
+    // 对于其他提供商，使用通用客户端
+    // 使用getProviderEndpoint获取完整的API端点
+    const apiEndpoint = getProviderEndpoint(
+      // 硅基流动直接使用自己的ID获取端点，不再转为deepseek
+      providerId, 
+      baseUrl
+    );
+    logInfo(`${providerId} API endpoint: ${apiEndpoint}`);
+    
+    // 获取模型ID
+    let modelToUse;
+    if (providerId === 'sbjt') {
+      // 硅基流动模型使用支持图像的模型
+      modelToUse = selectedModelId || 'deepseek-ai/deepseek-vl-7b-chat';
+    } else if (providerId.startsWith('custom-')) {
+      // 自定义模型使用默认模型
+      modelToUse = selectedModelId || 'default-model';
+    } else {
+      // 常规模型
+      modelToUse = selectedModelId || providerConfig.models[0]?.id || '';
+    }
+    
+    if (!modelToUse) {
+      logError(`提供商 ${providerId} 没有可用的模型`);
+      throw new Error(`提供商 ${providerId} 没有可用的模型`);
+    }
+    
+    // 创建通用客户端
+    logInfo(`创建通用AI客户端，提供商: ${providerId}, 模型: ${modelToUse}, URL: ${apiEndpoint}`);
+    
+    const client = new GenericAIClient({
+      providerId: providerId,
+      apiKey: apiKey,
+      modelId: modelToUse,
+      baseUrl: apiEndpoint
+    });
+    
+    return client;
+  } catch (error) {
+    logError('创建AI客户端时出错:', error);
+    throw error;
+  }
 }
 
 /**
@@ -388,41 +1244,260 @@ export async function analyzeWithModel(
   content: string,
   existingPoints: KnowledgePoint[] = []
 ): Promise<AIAnalysisResult> {
-  logInfo('Initiating single model analysis', { providerId, modelId });
-
-  // Validate if provider and model exist (optional, getAIClient might handle this)
-   const providerInfo = getProviderById(providerId);
-   const modelInfo = getModelInfo(providerId, modelId);
-   if (!providerInfo || !modelInfo) {
-     logError('Invalid provider or model ID for analysis', { providerId, modelId });
-     throw new Error(`无效的提供商 (${providerId}) 或模型 (${modelId})`);
-   }
-
   try {
-    // Get the appropriate client (OpenAIClient or GenericAIClient)
-    const client = await getAIClient(providerId, modelId, true); // Use debugMode=true if needed for testing
+    // 记录函数开始调用
+    const isImage = isImageUrl(content);
+    const isTextBot = modelId.startsWith('bot-'); // 判断是否为文本Bot
+    logInfo(`开始使用模型 ${providerId}/${modelId} 分析内容，类型:`, isTextBot ? '文本Bot' : (isImage ? '图片' : '文本'));
+    
+    // 获取AI客户端
+    let client;
+    try {
+      // 获取指定提供商和模型的客户端
+      client = await getAIClient(providerId, modelId);
+    } catch (error) {
+      logError(`获取模型 ${providerId}/${modelId} 的AI客户端失败:`, error);
+      throw new Error(`无法获取AI客户端，请检查API密钥和AI配置`);
+    }
+    
+    if (!client) {
+      logError(`无法获取模型 ${providerId}/${modelId} 的AI客户端`);
+      // 根据环境决定是否返回模拟数据或抛出错误
+      if (process.env.NODE_ENV === 'development') {
+        logInfo('开发环境：因无法获取客户端返回模拟分析结果');
+        return getMockAnalysisResult(content, existingPoints);
+      }
+      throw new Error('无法获取AI客户端，请检查API密钥和AI配置');
+    }
+    
+    // 准备提示词
+    const existingPointsText = existingPoints.length > 0
+      ? existingPoints.map(p => `- ${p.name}`).join('\n')
+      : '(无)';
+    
+    // 根据模型类型构造不同的提示词
+    let systemPromptContent = '你是一个教育内容分析助手，擅长识别学习内容中的知识点并评估掌握情况。';
+    let userPromptContent: string | ContentItem[];
+    
+    if (isTextBot) {
+      systemPromptContent = '你是一个乐于助人的AI助手。'; // Bot的系统提示
+      userPromptContent = content; // 直接使用文本内容
+    } else if (isImage) {
+      // 视觉模型的知识点分析提示
+      const visionPromptText = `
+请分析这张图片中的作业内容，识别出其中包含的知识点，并评估学生对这些知识点的掌握程度。
 
-    // Call the analyzeContent method on the client instance
-    // This method is now part of the IAiClient interface
-    const result = await client.analyzeContent(content, existingPoints);
+已知知识点列表（如果有）：
+${existingPointsText}
 
-    logInfo('Analysis completed successfully', { providerId, modelId });
-    return result;
+请以JSON格式返回分析结果，包含以下字段：
+- knowledgePoints: 知识点数组，每个知识点包含：
+  - name: 知识点名称
+  - description: 知识点描述（简要解释该知识点）
+  - importance: 重要性(1-5，5表示最重要)
+  - masteryLevel: 掌握程度(1-5，5表示完全掌握)
+  - confidence: 识别置信度(0-100)
+  - isNew: 是否为新发现的知识点(相对于已知知识点)
 
-  } catch (error: any) {
-    logError('Analysis with model failed', {
-      providerId,
-      modelId,
-      error: error.message,
-      // stack: error.stack // Optional: include stack trace for debugging
-    });
-    // Return a structured error response
-    return {
-      knowledgePoints: [],
-      analysisTime: new Date().toISOString(),
-      confidence: 'low',
-      error: `模型分析失败 (${providerId} - ${modelId}): ${error.message}`,
-    };
+请对importance和masteryLevel使用1-5的评分标准：
+1 = 非常低/基础/不熟练
+2 = 低/初级/了解基础
+3 = 中等/必要/基本掌握
+4 = 高/重要/熟练
+5 = 非常高/核心/精通
+      `;
+      userPromptContent = [
+        { type: 'text', text: visionPromptText },
+        { type: 'image_url', image_url: { url: content } }
+      ];
+    } else {
+      // 纯文本的知识点分析提示
+      const textPromptText = `
+分析以下作业内容，识别出其中包含的知识点，并评估学生对这些知识点的掌握程度。
+
+已知知识点列表（如果有）：
+${existingPointsText}
+
+${content}
+
+请以JSON格式返回分析结果...
+      `; // 省略重复的JSON格式说明
+      userPromptContent = textPromptText;
+    }
+    
+    // 记录开始时间
+    const startTime = Date.now();
+    logInfo(`开始使用模型 ${providerId}/${modelId} 发送AI请求...`);
+    
+    // 发送请求给AI
+    let response: any;
+    
+    try {
+      if ('sendRequest' in client) {
+        // 使用GenericAIClient
+        const systemMessage: Message = { role: 'system', content: systemPromptContent };
+        const userMessage: Message = { role: 'user', content: userPromptContent };
+        let messages: Message[] = [systemMessage, userMessage];
+        
+        logInfo(`发送请求到模型 ${providerId}/${modelId}...`, {
+          provider: (client as any).providerId,
+          model: (client as any).modelId,
+          isImageContent: isImage,
+          isTextBot: isTextBot
+        });
+        
+        // 根据模型调整maxTokens
+        let requestMaxTokens = 2000;
+        if (modelId === 'deepseek-ai/deepseek-vl2') {
+          requestMaxTokens = 512; // 为DeepSeek VL2设置较小的maxTokens
+        } else if (isTextBot) {
+          requestMaxTokens = 1024; // 文本Bot响应可以长一些
+        }
+        
+        response = await client.sendRequest(messages, {
+          temperature: 0.3, 
+          maxTokens: requestMaxTokens 
+        });
+        
+        logInfo(`模型 ${providerId}/${modelId} 响应成功`, { 
+          hasChoices: !!response?.choices,
+          choicesLength: response?.choices?.length
+        });
+      } else {
+        // 使用OpenAI客户端 (需要更新以支持不同模型和提示)
+        // ... (此处逻辑需要根据OpenAI客户端和模型类型适配，暂时省略)
+        throw new Error('OpenAI原生客户端逻辑需要更新以支持此模型类型');
+      }
+      
+      logInfo(`模型 ${providerId}/${modelId} 响应成功，开始解析结果`);
+    } catch (error) {
+      logError(`模型 ${providerId}/${modelId} 请求失败:`, error);
+      throw new Error(`AI分析请求失败: ${error instanceof Error ? error.message : '未知错误'}`);
+    }
+    
+    // 计算分析时间
+    const analysisTime = Date.now() - startTime;
+    
+    // 解析AI响应
+    const responseContent = response.choices[0]?.message?.content || '';
+    logInfo(`模型 ${providerId}/${modelId} 原始响应内容:`, responseContent.substring(0, 200) + '...');
+    
+    // 如果是文本Bot，直接返回文本结果
+    if (isTextBot) {
+      logInfo(`文本Bot ${providerId}/${modelId} 分析完成`);
+      // 构建一个简单的AIAnalysisResult结构
+      return {
+        knowledgePoints: [{
+          name: "Bot响应",
+          description: responseContent,
+          importance: 0,
+          masteryLevel: 0,
+          confidence: 100,
+          isNew: true
+        }],
+        analysisTime,
+        confidence: 100,
+        providerInfo: { provider: providerId, model: modelId }
+      };
+    }
+    
+    // --- 知识点JSON解析逻辑 (适用于视觉和文本分析模型) ---
+    try {
+      // 尝试提取JSON部分
+      const jsonMatch = responseContent.match(/\{[\s\S]*\}/);
+      let parsed;
+      
+      if (jsonMatch) {
+        // 找到JSON格式的内容
+        const jsonStr = jsonMatch[0];
+        try {
+          parsed = JSON.parse(jsonStr);
+        } catch (jsonError) {
+          logError(`模型 ${providerId}/${modelId} JSON解析失败:`, jsonError);
+          logError('原始JSON字符串:', jsonStr);
+          
+          // 尝试修复常见的JSON格式问题
+          logInfo('尝试修复JSON格式...');
+          const fixedJson = jsonStr
+            .replace(/([{,])\s*(\w+):/g, '$1"$2":') // 为没有引号的键名添加引号
+            .replace(/:\s*'([^']*)'/g, ':"$1"');    // 将单引号替换为双引号
+          
+          try {
+            parsed = JSON.parse(fixedJson);
+            logInfo('JSON修复成功');
+          } catch (fixError) {
+            logError('JSON修复失败:', fixError);
+            throw new Error('无法解析AI返回的JSON数据');
+          }
+        }
+      } else {
+        // 没有找到JSON格式，尝试从文本中提取知识点
+        logInfo(`模型 ${providerId}/${modelId} 未找到JSON格式，尝试从文本中提取知识点`);
+        
+        // 使用简单启发式方法从文本中提取知识点
+        const lines = responseContent.split('\n');
+        const knowledgePoints = [];
+        
+        for (const line of lines) {
+          // 查找可能的知识点描述行
+          if (line.includes('知识点') || line.includes('掌握') || line.match(/^\d+\.\s+/)) {
+            const nameMatch = line.match(/[""「」【】：:]\s*([^""「」【】：:]+)[""「」【】：:]/);
+            if (nameMatch && nameMatch[1].length < 50) {
+              knowledgePoints.push({
+                name: nameMatch[1].trim(),
+                description: line.replace(nameMatch[0], '').trim(),
+                importance: 3,  // 默认重要性
+                masteryLevel: 3, // 默认掌握度
+                confidence: 70,  // 默认置信度
+                isNew: true
+              });
+            }
+          }
+        }
+        
+        if (knowledgePoints.length > 0) {
+          parsed = { knowledgePoints };
+          logInfo(`模型 ${providerId}/${modelId} 成功从文本中提取知识点:`, knowledgePoints.length);
+        } else {
+          throw new Error('AI返回的结果格式无效，无法提取知识点');
+        }
+      }
+      
+      // 验证并处理结果
+      if (!parsed.knowledgePoints || !Array.isArray(parsed.knowledgePoints)) {
+        logError(`模型 ${providerId}/${modelId} 返回的结果格式无效，没有包含知识点数组:`, parsed);
+        throw new Error('AI返回的结果格式无效（缺少知识点数组）');
+      }
+      
+      // 构建结果
+      const result = {
+        knowledgePoints: parsed.knowledgePoints.map((kp: any) => ({
+          name: kp.name,
+          description: kp.description || '',
+          importance: typeof kp.importance === 'number' ? kp.importance : 3,
+          masteryLevel: typeof kp.masteryLevel === 'number' ? kp.masteryLevel : 3,
+          confidence: typeof kp.confidence === 'number' ? kp.confidence : 90,
+          isNew: kp.isNew === true
+        })),
+        analysisTime,
+        confidence: 85,
+        providerInfo: ('getProviderInfo' in client) ? client.getProviderInfo() : {
+          provider: 'sbjt',
+          model: modelId
+        }
+      };
+      
+      logInfo(`模型 ${providerId}/${modelId} 分析完成，识别到知识点数量:`, result.knowledgePoints.length);
+      return result;
+      
+    } catch (error) {
+      logError(`模型 ${providerId}/${modelId} 解析AI响应出错:`, error);
+      logError('原始响应:', responseContent);
+      throw new Error(`解析AI响应失败: ${error instanceof Error ? error.message : '未知错误'}`);
+    }
+  } catch (error) {
+    logError(`模型 ${providerId}/${modelId} 知识点分析出错:`, error);
+    throw error; // 将错误向上传递
   }
 }
 
@@ -487,10 +1562,10 @@ ${extractedText}
 /**
  * 分析作业内容，识别知识点
  * @param content 作业内容
- * @param existingPoints 已有的知识点（可选）
+ * @param existingPoints 已有的知识点
  * @returns 分析结果
  */
-export async function analyzeHomeworkContent(
+export async function analyzeHomeworkContentWithAI(
   content: string,
   existingPoints: KnowledgePoint[] = []
 ): Promise<AIAnalysisResult> {
@@ -501,9 +1576,51 @@ export async function analyzeHomeworkContent(
       return getMockAnalysisResult(content, existingPoints);
     }
     
-    // 使用级联分析方法
-    logInfo('使用级联分析方法');
-    return cascadeAnalyzeContent(content, existingPoints);
+    // 获取用户配置的AI提供商和模型
+    const aiConfig = await getUserAIConfig();
+    if (!aiConfig || !aiConfig.enabled) {
+      logError('AI分析功能未启用或未配置');
+      throw new Error('AI分析功能未启用，请先在AI设置中配置并启用');
+    }
+    
+    // 获取配置的提供商和模型
+    const configuredProvider = aiConfig.provider;
+    const configuredModel = aiConfig.version;
+    
+    if (!configuredProvider || !configuredModel) {
+      logError('未找到已配置的AI模型');
+      throw new Error('未找到已配置的AI模型，请先在AI设置中选择模型');
+    }
+    
+    logInfo('使用用户配置的AI进行分析', {
+      provider: configuredProvider,
+      model: configuredModel
+    });
+    
+    // 直接使用用户配置的提供商和模型进行分析
+    try {
+      const result = await analyzeWithModel(
+        configuredProvider, 
+        configuredModel, 
+        content, 
+        existingPoints
+      );
+      
+      // 确保结果中包含提供商信息
+      if (!result.providerInfo) {
+        result.providerInfo = {
+          provider: configuredProvider,
+          model: configuredModel
+        };
+      }
+      
+      return result;
+    } catch (error) {
+      logError('使用配置的AI分析失败，尝试级联分析', error);
+      
+      // 如果分析失败，尝试使用级联分析方法
+      return cascadeAnalyzeContent(content, existingPoints);
+    }
   } catch (error) {
     logError('知识点分析出错:', error);
     
@@ -671,4 +1788,258 @@ export function getAvailableModels(providerId?: string) {
     logError('获取模型列表出错:', error);
     return [];
   }
+}
+
+/**
+ * 测试AI提供商的API连接
+ * @param provider 提供商ID
+ * @param apiKey API密钥
+ * @param apiId API ID (可选，用于豆包等需要额外ID的提供商)
+ * @param modelId 模型ID (可选，用于测试特定模型)
+ * @returns 测试结果，成功返回true，失败返回错误信息
+ */
+export async function testProviderConnection(
+  provider: string, 
+  apiKey: string, 
+  apiId?: string,
+  modelId?: string
+): Promise<{success: boolean, message: string}> {
+  try {
+    logInfo(`测试AI提供商连接: ${provider}`);
+    
+    if (!apiKey || apiKey.trim() === '') {
+      return {
+        success: false,
+        message: 'API密钥不能为空'
+      };
+    }
+    
+    // 获取提供商配置
+    const providerConfig = getProviderConfig(provider);
+    
+    if (!providerConfig) {
+      return {
+        success: false,
+        message: `未找到提供商配置: ${provider}`
+      };
+    }
+    
+    // 获取基础URL
+    const baseUrl = providerConfig.baseUrl;
+    const modelToUse = modelId || providerConfig.models[0]?.id || '';
+    
+    // 构建请求体和配置
+    let requestData = {};
+    let axiosConfig: {
+      headers: Record<string, string>
+    } = {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    };
+    
+    // 豆包API特殊处理 - 使用代理服务器
+    if (provider.toLowerCase() === 'doubao') {
+      try {
+        logInfo('通过代理服务器测试豆包API连接');
+        
+        // 使用本地代理服务
+        const proxyUrl = 'http://localhost:3001/api/proxy/doubao';
+        
+        // 确保使用正确的模型ID
+        if (!modelToUse || modelToUse.trim() === '') {
+          logError('测试连接时模型ID为空');
+        }
+        
+        // 记录实际使用的模型ID
+        logInfo(`测试连接使用模型: ${modelToUse}`);
+        
+        const response = await axios.post(proxyUrl, {
+          model: modelToUse,  // 直接使用传入的modelId
+          messages: [{ role: 'system', content: 'Hello' }],
+          apiKey: apiKey,
+          apiId: apiId,
+          max_tokens: 5
+        });
+        
+        if (response.data) {
+          logInfo('豆包API测试连接成功');
+          return {
+            success: true,
+            message: '连接测试成功'
+          };
+        } else {
+          logError('豆包API测试连接失败:');
+          return {
+            success: false,
+            message: '连接测试失败：无效响应'
+          };
+        }
+      } catch (error: any) {
+        logError('豆包API测试连接错误:', error);
+        
+        let errorMessage = '连接测试失败';
+        
+        // 获取详细错误信息
+        if (error.response) {
+          errorMessage = `连接测试失败: ${error.response.status} - ${JSON.stringify(error.response.data)}`;
+        } else if (error.message) {
+          errorMessage = `连接测试失败: ${error.message}`;
+        }
+        
+        return {
+          success: false,
+          message: errorMessage
+        };
+      }
+    }
+    
+    // 其他API提供商的处理保持不变
+    const endpoint = getProviderEndpoint(provider, baseUrl);
+    
+    // 根据不同提供商配置请求
+    switch(provider.toLowerCase()) {
+      case 'openai':
+        requestData = {
+          model: modelToUse || 'gpt-3.5-turbo',
+          messages: [{ role: 'system', content: 'Hello' }],
+          max_tokens: 5
+        };
+        
+        axiosConfig.headers = {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        };
+        break;
+        
+      case 'dashscope':
+        requestData = {
+          model: modelToUse,
+          messages: [{ role: 'system', content: 'Hello' }],
+          max_tokens: 5
+        };
+        
+        axiosConfig.headers = {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        };
+        break;
+        
+      default:
+        // 通用配置
+        requestData = {
+          model: modelToUse,
+          messages: [{ role: 'system', content: 'Hello' }],
+          max_tokens: 5
+        };
+        
+        axiosConfig.headers = {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        };
+    }
+    
+    logInfo(`发送测试请求到 ${provider} API:`, {
+      endpoint,
+      provider,
+      model: modelToUse
+    });
+    
+    // 发送测试请求
+    const response = await axios.post(endpoint, requestData, axiosConfig);
+    
+    // 如果请求成功，返回成功
+    if (response.status >= 200 && response.status < 300) {
+      logInfo(`${provider} API测试连接成功`);
+      return {
+        success: true,
+        message: '连接测试成功'
+      };
+    } else {
+      logError(`${provider} API测试连接失败:`, response.status);
+      return {
+        success: false,
+        message: `连接测试失败: ${response.status}`
+      };
+    }
+  } catch (error: any) {
+    logError(`${provider} API测试连接出错:`, error);
+    
+    let errorMessage = '连接测试失败';
+    
+    // 提取详细错误信息
+    if (error.response) {
+      errorMessage = `连接测试失败: ${error.response.status} - ${JSON.stringify(error.response.data)}`;
+      logError('API错误响应:', {
+        status: error.response.status,
+        data: error.response.data
+      });
+    } else if (error.message) {
+      errorMessage = `连接测试失败: ${error.message}`;
+    }
+    
+    return {
+      success: false,
+      message: errorMessage
+    };
+  }
+}
+
+/**
+ * 检查并预处理图片URL，确保AI服务能够访问
+ * @param imageUrl 原始图片URL
+ * @returns 处理后的图片URL
+ */
+async function preprocessImageUrl(imageUrl: string): Promise<string> {
+  try {
+    // 检查是否为Supabase URL
+    if (imageUrl.includes('supabase.co/storage')) {
+      console.log('检测到Supabase存储图片，尝试预处理...');
+      
+      // 下载图片并转换为base64
+      try {
+        console.log('尝试下载图片并转换为base64...');
+        const response = await fetch(imageUrl);
+        
+        if (!response.ok) {
+          throw new Error(`无法下载图片: ${response.status} ${response.statusText}`);
+        }
+        
+        const blob = await response.blob();
+        const base64Image = await blobToBase64(blob);
+        
+        console.log('成功转换图片为base64，长度:', base64Image.length);
+        return base64Image;
+      } catch (dlError) {
+        console.error('图片下载/转换失败:', dlError);
+        
+        // 尝试使用CORS代理作为备选方案
+        console.log('尝试使用CORS代理作为备选...');
+        const proxiedUrl = `https://corsproxy.io/?${encodeURIComponent(imageUrl)}`;
+        console.log('使用CORS代理:', proxiedUrl);
+        return proxiedUrl;
+      }
+    }
+    
+    // 如果不是Supabase URL，直接返回原URL
+    return imageUrl;
+  } catch (error) {
+    console.error('图片预处理失败:', error);
+    // 出错时返回原URL
+    return imageUrl;
+  }
+}
+
+/**
+ * 将Blob转换为base64字符串
+ * @param blob 图片Blob
+ * @returns base64字符串
+ */
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 } 

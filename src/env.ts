@@ -11,12 +11,12 @@ interface Env {
 const defaultEnv: Env = {
   SUPABASE_URL: "https://giluhqotfjpmofowvogn.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdpbHVocW90ZmpwbW9mb3d2b2duIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUzMDIwMDQsImV4cCI6MjA2MDg3ODAwNH0.NkVIqDlRM-qh8HoFR-nZMfXKWT0lDMeNSk5EPJiprZQ",
-  NEXT_PUBLIC_USE_MOCK_AI: "false",
+  NEXT_PUBLIC_USE_MOCK_AI: "true",
   SUPABASE_STORAGE_BUCKET: "homework_files",
 };
 
 // 检查process对象是否存在（浏览器环境中不存在）
-const processEnv = typeof process !== 'undefined' && process.env ? process.env : {};
+const processEnv: Record<string, string | undefined> = typeof process !== 'undefined' && process.env ? process.env : {};
 
 // 获取环境变量，优先使用process.env，不存在则使用默认值
 export const env: Env = {

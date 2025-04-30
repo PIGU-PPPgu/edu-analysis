@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import IntelligentFileParser from "@/components/analysis/IntelligentFileParser";
 import StudentDataImporter from "@/components/analysis/StudentDataImporter";
-import { FileText, Users, Loader2 } from "lucide-react";
+import { FileText, Users, Loader2, List } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -34,7 +35,7 @@ const Index = () => {
     toast.success("数据导入成功", {
       description: `已成功导入 ${data.length} 条记录`
     });
-    // 不再需要直接跳转，因为StudentDataImporter组件内部已经处理了导航
+    // 不再需要直接跳转，而是显示一个按钮让用户手动跳转
   };
 
   if (isLoading) {
@@ -79,6 +80,16 @@ const Index = () => {
                 </CardHeader>
                 <CardContent>
                   <StudentDataImporter onDataImported={handleStudentDataImported} />
+                  <div className="mt-4 pt-4 border-t flex justify-end">
+                    <Button 
+                      variant="outline" 
+                      className="flex items-center gap-2"
+                      onClick={() => navigate('/student-management')}
+                    >
+                      <List className="h-4 w-4" />
+                      查看学生列表
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             </div>

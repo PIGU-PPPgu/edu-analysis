@@ -199,6 +199,58 @@ export async function saveUserAIConfig(config: UserAIConfig): Promise<void> {
 }
 
 /**
+ * 初始化默认AI配置（如果不存在或强制更新）
+ * 默认使用豆包API
+ * @param forceReset 是否强制重置配置
+ */
+export async function initDefaultAIConfig(forceReset: boolean = false): Promise<void> {
+  try {
+    // 检查是否已存在配置
+    const existingConfig = await getUserAIConfig();
+    if (existingConfig && !forceReset) {
+      console.log('已存在AI配置，不需要初始化');
+      return;
+    }
+    
+    // 创建默认配置
+    const defaultConfig: UserAIConfig = {
+      provider: 'doubao',
+      version: 'doubao-1-5-vision-pro-32k-250115',  // 使用与测试组件相同的豆包视觉模型ID
+      enabled: true,
+      customSettings: {
+        debugMode: false
+      },
+      lastUpdated: new Date().toISOString()
+    };
+    
+    // 保存默认配置
+    await saveUserAIConfig(defaultConfig);
+    console.log('已初始化默认AI配置（豆包API）');
+    
+    // 设置默认密钥（如果需要）
+    const keysJson = localStorage.getItem(PROVIDER_API_KEYS_STORAGE_KEY);
+    let keys = {};
+    if (keysJson) {
+      try {
+        keys = JSON.parse(keysJson);
+      } catch (error) {
+        console.error('解析存储的API密钥时出错，重置为空对象', error);
+        keys = {}; 
+      }
+    }
+    
+    // 如果没有豆包API密钥，使用临时测试密钥（仅开发环境使用）
+    if (!keys['doubao']) {
+      console.log('设置豆包API临时测试密钥');
+      keys['doubao'] = '8bba56fe-3e9f-41b9-a9db-5ca3cb8c4ba2'; // 用户提供的豆包API密钥
+      localStorage.setItem(PROVIDER_API_KEYS_STORAGE_KEY, JSON.stringify(keys));
+    }
+  } catch (error) {
+    console.error('初始化默认AI配置失败:', error);
+  }
+}
+
+/**
  * 清除用户AI配置和所有API密钥
  */
 export async function clearUserAISettings(): Promise<void> {

@@ -17,7 +17,8 @@ import {
   PlusCircle,
   Pencil,
   Trash2, 
-  AlertCircle 
+  AlertCircle,
+  Users
 } from "lucide-react";
 import CreateClassDialog from "@/components/class/CreateClassDialog";
 import {
@@ -31,6 +32,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { useNavigate } from "react-router-dom";
 
 interface Class {
   id: string;
@@ -40,6 +42,7 @@ interface Class {
 }
 
 const ClassManagement: React.FC = () => {
+  const navigate = useNavigate();
   const [selectedTab, setSelectedTab] = React.useState("overview");
   const [classes, setClasses] = React.useState<Class[]>([]);
   const [selectedClass, setSelectedClass] = React.useState<Class | null>(null);
@@ -158,6 +161,11 @@ const ClassManagement: React.FC = () => {
     }
   };
 
+  // 添加跳转到学生管理的函数
+  const handleViewStudents = (classId: string, className: string) => {
+    navigate(`/student-management?classId=${classId}&className=${encodeURIComponent(className)}`);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -217,13 +225,24 @@ const ClassManagement: React.FC = () => {
                     </div>
                   </CardContent>
                   <CardFooter className="flex justify-between pt-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => setSelectedClass(classData)}
-                    >
-                      {selectedClass?.id === classData.id ? '当前选中' : '查看详情'}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setSelectedClass(classData)}
+                      >
+                        {selectedClass?.id === classData.id ? '当前选中' : '查看详情'}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleViewStudents(classData.id, classData.name)}
+                        className="flex items-center gap-1"
+                      >
+                        <Users className="h-3 w-3" />
+                        学生管理
+                      </Button>
+                    </div>
                     <div className="flex gap-2">
                       <Button variant="ghost" size="icon" onClick={() => handleEditClass(classData)}>
                         <Pencil className="h-4 w-4" />

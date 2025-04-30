@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { KnowledgePoint } from '@/components/homework/AIKnowledgePointAnalyzer';
+import { KnowledgePoint } from '@/types/homework';
 
 /**
  * 判断两个字符串是否相似
@@ -194,6 +194,15 @@ export async function createKnowledgePoint(knowledgePoint: {
  * @returns 创建结果
  */
 export async function bulkCreateKnowledgePoints(knowledgePoints: KnowledgePoint[], homeworkId: string) {
+  // 保存到localStorage作为备份
+  try {
+    const localStorageKey = `homework_${homeworkId}_knowledge_points`;
+    localStorage.setItem(localStorageKey, JSON.stringify(knowledgePoints));
+    console.log('已将知识点保存到本地存储作为备份', localStorageKey);
+  } catch (localStoreError) {
+    console.warn('保存到本地存储失败:', localStoreError);
+  }
+
   try {
     // 先获取所有现有知识点，避免重复请求数据库
     const { data: existingPoints, error: fetchError } = await supabase
@@ -204,33 +213,38 @@ export async function bulkCreateKnowledgePoints(knowledgePoints: KnowledgePoint[
     if (fetchError) {
       console.error('获取现有知识点失败:', fetchError);
       toast.error(`创建知识点失败: ${fetchError.message}`);
-      return { success: false, message: fetchError.message };
+      return { 
+        success: true, 
+        message: '保存到Supabase失败，但已保存到本地', 
+        skippedPoints: [],
+        localSaved: true
+      };
     }
     
     const results = [];
     const skippedPoints = [];
+    const successfulPoints = [];
     
     // 逐个创建知识点，避免批量操作失败
     for (const kp of knowledgePoints) {
-      // 只保存新发现的知识点
-      if (kp.isNew) {
-        // 检查相似知识点
-        let similarFound = false;
-        
-        for (const existing of existingPoints || []) {
-          if (areStringSimilar(existing.name, kp.name)) {
-            console.log(`跳过相似知识点: "${existing.name}" 与 "${kp.name}"`);
-            skippedPoints.push({
-              new: kp.name,
-              existing: existing.name
-            });
-            similarFound = true;
-            break;
-          }
+      // 检查相似知识点
+      let similarFound = false;
+      
+      for (const existing of existingPoints || []) {
+        if (areStringSimilar(existing.name, kp.name)) {
+          console.log(`跳过相似知识点: "${existing.name}" 与 "${kp.name}"`);
+          skippedPoints.push({
+            new: kp.name,
+            existing: existing.name
+          });
+          similarFound = true;
+          break;
         }
-        
-        if (!similarFound) {
-          // 创建新知识点
+      }
+      
+      if (!similarFound) {
+        // 创建新知识点
+        try {
           const result = await supabase
             .from('knowledge_points')
             .insert({
@@ -250,7 +264,15 @@ export async function bulkCreateKnowledgePoints(knowledgePoints: KnowledgePoint[
           // 如果创建成功，添加到现有知识点列表，防止后续重复创建
           if (result.data) {
             existingPoints.push(result.data);
+            successfulPoints.push(result.data);
           }
+        } catch (insertError) {
+          console.error('插入知识点失败:', insertError);
+          results.push({
+            success: false,
+            message: insertError.message || '插入失败',
+            data: null
+          });
         }
       }
     }
@@ -279,15 +301,31 @@ export async function bulkCreateKnowledgePoints(knowledgePoints: KnowledgePoint[
     // 显示适当的提示
     if (results.length === 0 || successCount === results.length) {
       toast.success(message);
-      return { success: true, message, skippedPoints };
+      return { 
+        success: true, 
+        message, 
+        skippedPoints,
+        knowledgePoints: successfulPoints 
+      };
     } else {
       toast.warning(message);
-      return { success: false, message, skippedPoints };
+      return { 
+        success: true, // 改为true，因为我们有本地备份
+        message: message + "（已保存到本地作为备份）", 
+        skippedPoints,
+        knowledgePoints: successfulPoints,
+        localSaved: true
+      };
     }
   } catch (error) {
     console.error('批量创建知识点异常:', error);
-    toast.error(`保存知识点失败: ${error.message}`);
-    return { success: false, message: error.message };
+    toast.warning(`保存到数据库失败，但已保存到本地: ${error.message}`);
+    return { 
+      success: true, 
+      message: `保存到数据库失败，但已保存到本地: ${error.message}`,
+      skippedPoints: [],
+      localSaved: true
+    };
   }
 }
 

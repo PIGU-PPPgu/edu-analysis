@@ -21,6 +21,7 @@ import HomeworkDetailPage from "./pages/HomeworkDetail";
 import ProfilePage from "./pages/ProfilePage";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
 import CascadeAnalysisTestPage from "./pages/test/CascadeAnalysisTest";
+import { initDefaultAIConfig } from "./utils/userAuth";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,8 @@ const DatabaseInitializer = ({ children }: { children: React.ReactNode }) => {
       try {
         await initializeDatabase();
         await setupInitialData();
+        // 初始化默认AI配置（豆包API），强制重置配置
+        await initDefaultAIConfig(true);
       } catch (error) {
         console.error('数据库初始化失败:', error);
       }
