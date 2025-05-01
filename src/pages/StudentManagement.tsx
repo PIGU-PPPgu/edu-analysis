@@ -340,150 +340,137 @@ export default function StudentManagement() {
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Navbar />
       <div className="container mx-auto py-8 px-4">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold">学生管理</h1>
-            {selectedClassName && (
-              <div className="flex items-center mt-2">
-                <span className="text-sm text-muted-foreground mr-2">当前筛选班级:</span>
-                <Badge variant="secondary" className="mr-2">
-                  {selectedClassName}
-                </Badge>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-6 px-2 text-xs"
-                  onClick={handleClearClassFilter}
-                >
-                  清除筛选
-                </Button>
-              </div>
-            )}
-          </div>
-          <Button 
-            onClick={() => navigate('/')}
-            className="bg-[#B9FF66] text-black hover:bg-[#a8e85c]"
-          >
-            <UserPlus className="mr-2 h-4 w-4" />
-            添加学生
-          </Button>
-        </div>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>学生列表</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex justify-between items-center mb-6">
-              <div className="flex items-center gap-4">
-                <div className="relative w-64">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="搜索学生姓名、学号或班级..."
-                    className="pl-8"
-                    value={searchQuery}
-                    onChange={handleSearch}
-                  />
-                </div>
-                {!selectedClassId && classes.length > 0 && (
-                  <Select onValueChange={(value) => {
-                    const selectedClass = classes.find(c => c.id === value);
-                    if (selectedClass) {
-                      setSelectedClassId(value);
-                      setSelectedClassName(selectedClass.name);
-                      navigate(`/student-management?classId=${value}&className=${encodeURIComponent(selectedClass.name)}`);
-                      fetchStudents(value);
-                    }
-                  }}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="按班级筛选" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {classes.map((cls) => (
-                        <SelectItem key={cls.id} value={cls.id}>
-                          {cls.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-              <Button variant="outline" size="sm" onClick={handleExportStudents}>
-                <Download className="mr-2 h-4 w-4" />
-                导出
+        <div className="flex flex-col space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold">{selectedClassName ? `${selectedClassName} - ` : ''}学生管理</h1>
+              <p className="text-muted-foreground mt-1">管理学生信息和班级分配</p>
+            </div>
+            <div className="flex space-x-2">
+              <Button 
+                variant="outline" 
+                onClick={() => navigate('/student-portrait-management')}
+              >
+                查看学生画像管理
+              </Button>
+              <Button 
+                onClick={() => navigate('/')}
+                className="bg-[#B9FF66] text-black hover:bg-[#a8e85c]"
+              >
+                <UserPlus className="mr-2 h-4 w-4" />
+                添加学生
               </Button>
             </div>
-
-            {loading ? (
-              <div className="py-20 text-center text-muted-foreground">加载中...</div>
-            ) : filteredStudents.length === 0 ? (
-              <div className="py-20 text-center text-muted-foreground">
-                {searchQuery ? '没有找到匹配的学生' : '还没有学生数据，请添加学生'}
+          </div>
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center gap-4">
+              <div className="relative w-64">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="搜索学生姓名、学号或班级..."
+                  className="pl-8"
+                  value={searchQuery}
+                  onChange={handleSearch}
+                />
               </div>
-            ) : (
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>学号</TableHead>
-                      <TableHead>姓名</TableHead>
-                      <TableHead>班级</TableHead>
-                      <TableHead>性别</TableHead>
-                      <TableHead>入学年份</TableHead>
-                      <TableHead>联系电话</TableHead>
-                      <TableHead>邮箱</TableHead>
-                      <TableHead className="text-right">操作</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredStudents.map((student) => (
-                      <TableRow key={student.id}>
-                        <TableCell className="font-medium">{student.student_id}</TableCell>
-                        <TableCell>{student.name}</TableCell>
-                        <TableCell>
-                          {student.class ? (
-                            <Badge variant="outline" className="bg-blue-50">
-                              {student.class.name}
-                            </Badge>
-                          ) : '-'}
-                        </TableCell>
-                        <TableCell>{student.gender || '-'}</TableCell>
-                        <TableCell>{student.admission_year || '-'}</TableCell>
-                        <TableCell>{student.contact_phone || '-'}</TableCell>
-                        <TableCell className="truncate max-w-[180px]">
-                          {student.contact_email || '-'}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <span className="sr-only">打开菜单</span>
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleEditStudent(student)}>
-                                <Pencil className="mr-2 h-4 w-4" />
-                                编辑
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => handleConfirmDelete(student)}
-                                className="text-red-600"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                删除
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
+              {!selectedClassId && classes.length > 0 && (
+                <Select onValueChange={(value) => {
+                  const selectedClass = classes.find(c => c.id === value);
+                  if (selectedClass) {
+                    setSelectedClassId(value);
+                    setSelectedClassName(selectedClass.name);
+                    navigate(`/student-management?classId=${value}&className=${encodeURIComponent(selectedClass.name)}`);
+                    fetchStudents(value);
+                  }
+                }}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="按班级筛选" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classes.map((cls) => (
+                      <SelectItem key={cls.id} value={cls.id}>
+                        {cls.name}
+                      </SelectItem>
                     ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+            <Button variant="outline" size="sm" onClick={handleExportStudents}>
+              <Download className="mr-2 h-4 w-4" />
+              导出
+            </Button>
+          </div>
+
+          {loading ? (
+            <div className="py-20 text-center text-muted-foreground">加载中...</div>
+          ) : filteredStudents.length === 0 ? (
+            <div className="py-20 text-center text-muted-foreground">
+              {searchQuery ? '没有找到匹配的学生' : '还没有学生数据，请添加学生'}
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>学号</TableHead>
+                    <TableHead>姓名</TableHead>
+                    <TableHead>班级</TableHead>
+                    <TableHead>性别</TableHead>
+                    <TableHead>入学年份</TableHead>
+                    <TableHead>联系电话</TableHead>
+                    <TableHead>邮箱</TableHead>
+                    <TableHead className="text-right">操作</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredStudents.map((student) => (
+                    <TableRow key={student.id}>
+                      <TableCell className="font-medium">{student.student_id}</TableCell>
+                      <TableCell>{student.name}</TableCell>
+                      <TableCell>
+                        {student.class ? (
+                          <Badge variant="outline" className="bg-blue-50">
+                            {student.class.name}
+                          </Badge>
+                        ) : '-'}
+                      </TableCell>
+                      <TableCell>{student.gender || '-'}</TableCell>
+                      <TableCell>{student.admission_year || '-'}</TableCell>
+                      <TableCell>{student.contact_phone || '-'}</TableCell>
+                      <TableCell className="truncate max-w-[180px]">
+                        {student.contact_email || '-'}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">打开菜单</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEditStudent(student)}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              编辑
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleConfirmDelete(student)}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              删除
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
       </div>
       
       {/* 编辑学生信息对话框 */}

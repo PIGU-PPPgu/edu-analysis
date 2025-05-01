@@ -44,7 +44,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { mockApi } from "@/data/mockData";
-import { getHomeworkSubmissions } from "@/services/homeworkService";
+import { getHomeworkSubmissions, gradeHomework } from "@/services/homeworkService";
 import { getGradingScaleWithLevels, GradingScaleLevel } from "@/services/gradingService";
 import { AIKnowledgePointAnalyzer, KnowledgePoint } from "@/components/homework/AIKnowledgePointAnalyzer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -101,7 +101,7 @@ export default function TeacherGradeHomeworkDialog({
   const [isLoading, setIsLoading] = useState(false);
   const [selectedKnowledgePoints, setSelectedKnowledgePoints] = useState<string[]>([]);
   const [knowledgePointEvaluations, setKnowledgePointEvaluations] = useState<
-    { id: string; name: string; masteryLevel: number }[]
+    { id: string; name: string; masteryLevel: number; evaluationId?: string }[]
   >([]);
   const { toast } = useToast();
   const [gradingScale, setGradingScale] = useState<{
@@ -133,6 +133,8 @@ export default function TeacherGradeHomeworkDialog({
         
         // 使用Supabase服务获取提交数据
         const submissionsData = await getHomeworkSubmissions(homeworkId);
+        console.log('获取到的提交数据:', submissionsData);
+        
         const studentOptions = submissionsData
           .filter(sub => sub.students && sub.students.id) // 确保学生数据有效
           .map((sub: any) => ({
@@ -148,6 +150,7 @@ export default function TeacherGradeHomeworkDialog({
         if (submissionId) {
           const submission = submissionsData.find((sub: any) => sub.id === submissionId);
           if (submission) {
+            setSelectedSubmission(submission);
             form.setValue('studentId', submission.students.id);
             
             // 如果该提交已评分，预填表单
@@ -157,14 +160,30 @@ export default function TeacherGradeHomeworkDialog({
               
               // 预填知识点评估
               if (submission.submission_knowledge_points && submission.submission_knowledge_points.length > 0) {
+                console.log('载入知识点评估:', submission.submission_knowledge_points);
                 const kpEvals = submission.submission_knowledge_points.map((kpe: any) => ({
                   id: kpe.knowledge_point_id,
-                  name: kpe.knowledge_points.name,
-                  masteryLevel: kpe.mastery_level,
+                  name: kpe.knowledge_points?.name || '未知知识点',
+                  masteryLevel: kpe.mastery_level || 50,
                   evaluationId: kpe.id // 保存评估ID用于更新
                 }));
                 setKnowledgePointEvaluations(kpEvals);
                 setSelectedKnowledgePoints(kpEvals.map((kp: any) => kp.id));
+              }
+            } else {
+              // 如果是未评分的提交，预设知识点但不设置评分
+              // 预先添加作业相关的知识点但设为0分
+              if (knowledgePoints.length > 0) {
+                console.log('自动添加作业相关知识点，等待评估');
+                const autoKpEvals = knowledgePoints.map(kp => ({
+                  id: kp.id,
+                  name: kp.name,
+                  masteryLevel: 50, // 默认50%的掌握度
+                  // 为新的评估使用临时ID格式，便于后端识别需要新建的评估
+                  evaluationId: `temp-${kp.id}`
+                }));
+                setKnowledgePointEvaluations(autoKpEvals);
+                setSelectedKnowledgePoints(autoKpEvals.map(kp => kp.id));
               }
             }
           }
@@ -175,22 +194,42 @@ export default function TeacherGradeHomeworkDialog({
           if (selectedStudent) {
             form.setValue('studentId', selectedStudent.value);
             
-            // 如果该学生已有提交记录且已评分，预填表单
+            // 找到该学生的提交记录
             const submission = submissionsData.find((sub: any) => sub.students.id === studentId);
-            if (submission && submission.status === 'graded') {
-              form.setValue('score', submission.score || 0);
-              form.setValue('feedback', submission.feedback || '');
+            if (submission) {
+              setSelectedSubmission(submission);
               
-              // 预填知识点评估
-              if (submission.submission_knowledge_points && submission.submission_knowledge_points.length > 0) {
-                const kpEvals = submission.submission_knowledge_points.map((kpe: any) => ({
-                  id: kpe.knowledge_point_id,
-                  name: kpe.knowledge_points.name,
-                  masteryLevel: kpe.mastery_level,
-                  evaluationId: kpe.id // 保存评估ID用于更新
-                }));
-                setKnowledgePointEvaluations(kpEvals);
-                setSelectedKnowledgePoints(kpEvals.map((kp: any) => kp.id));
+              // 如果已评分，预填表单
+              if (submission.status === 'graded') {
+                form.setValue('score', submission.score || 0);
+                form.setValue('feedback', submission.feedback || '');
+                
+                // 预填知识点评估
+                if (submission.submission_knowledge_points && submission.submission_knowledge_points.length > 0) {
+                  console.log('载入知识点评估:', submission.submission_knowledge_points);
+                  const kpEvals = submission.submission_knowledge_points.map((kpe: any) => ({
+                    id: kpe.knowledge_point_id,
+                    name: kpe.knowledge_points?.name || '未知知识点',
+                    masteryLevel: kpe.mastery_level || 50,
+                    evaluationId: kpe.id // 保存评估ID用于更新
+                  }));
+                  setKnowledgePointEvaluations(kpEvals);
+                  setSelectedKnowledgePoints(kpEvals.map((kp: any) => kp.id));
+                }
+              } else {
+                // 对于未评分的提交，预设知识点
+                if (knowledgePoints.length > 0) {
+                  console.log('自动添加作业相关知识点，等待评估');
+                  const autoKpEvals = knowledgePoints.map(kp => ({
+                    id: kp.id,
+                    name: kp.name,
+                    masteryLevel: 50, // 默认50%的掌握度
+                    // 为新的评估使用临时ID格式
+                    evaluationId: `temp-${kp.id}`
+                  }));
+                  setKnowledgePointEvaluations(autoKpEvals);
+                  setSelectedKnowledgePoints(autoKpEvals.map(kp => kp.id));
+                }
               }
             }
           }
@@ -208,7 +247,7 @@ export default function TeacherGradeHomeworkDialog({
     };
     
     fetchStudents();
-  }, [homeworkId, submissionId, studentId, open, toast, form]);
+  }, [homeworkId, submissionId, studentId, open, toast, form, knowledgePoints]);
 
   useEffect(() => {
     // 加载评级标准
@@ -277,7 +316,13 @@ export default function TeacherGradeHomeworkDialog({
     setSelectedKnowledgePoints([...selectedKnowledgePoints, knowledgePointId]);
     setKnowledgePointEvaluations([
       ...knowledgePointEvaluations,
-      { id: knowledgePointId, name: knowledgePoint.name, masteryLevel: 50 }
+      { 
+        id: knowledgePointId, 
+        name: knowledgePoint.name, 
+        masteryLevel: 50,
+        // 为新的评估使用临时ID格式
+        evaluationId: `temp-${knowledgePointId}`
+      }
     ]);
   };
 
@@ -378,9 +423,12 @@ export default function TeacherGradeHomeworkDialog({
       
       // 准备知识点评估数据
       const knowledgePointData = knowledgePointEvaluations.map(kp => ({
-        id: kp.evaluationId || kp.id, // 使用评估ID（如果存在）或知识点ID
+        // 使用评估ID（如果存在）或构造临时ID
+        id: kp.evaluationId || `temp-${kp.id}`, 
         masteryLevel: kp.masteryLevel
       }));
+      
+      console.log('提交知识点评估数据:', knowledgePointData);
       
       // 创建提交数据
       const submissionData = {
@@ -390,11 +438,34 @@ export default function TeacherGradeHomeworkDialog({
         knowledgePointEvaluations: knowledgePointData
       };
       
-      // 使用提供的评分提交函数或调用模拟API
+      // 使用提供的评分提交函数或调用API
       if (onGradeSubmit) {
         await onGradeSubmit(submissionData);
       } else {
-        await mockApi.teacher.gradeHomework(submissionData);
+        // 使用真实的API，不再使用模拟API
+        const result = await gradeHomework(submissionData);
+        console.log('评分结果:', result);
+        
+        if (result.knowledgePointResults) {
+          // 处理知识点评估结果
+          console.log('知识点评估结果:', result.knowledgePointResults);
+          
+          // 更新本地的知识点评估ID，从临时ID更新为真实ID
+          const updatedEvaluations = [...knowledgePointEvaluations];
+          result.knowledgePointResults.forEach(res => {
+            if (res.success && res.newId) {
+              // 找到对应的临时ID评估并更新为真实ID
+              const evalIndex = updatedEvaluations.findIndex(
+                kp => kp.evaluationId === res.id
+              );
+              if (evalIndex >= 0) {
+                updatedEvaluations[evalIndex].evaluationId = res.newId;
+              }
+            }
+          });
+          
+          setKnowledgePointEvaluations(updatedEvaluations);
+        }
       }
       
       toast({

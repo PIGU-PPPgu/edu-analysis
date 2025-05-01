@@ -22,6 +22,7 @@ import ProfilePage from "./pages/ProfilePage";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
 import CascadeAnalysisTestPage from "./pages/test/CascadeAnalysisTest";
 import { initDefaultAIConfig } from "./utils/userAuth";
+import StudentPortraitManagement from "./pages/StudentPortraitManagement";
 
 const queryClient = new QueryClient();
 
@@ -71,6 +72,7 @@ function App() {
                     <Route path="/warning-analysis" element={<WarningAnalysis />} />
                     <Route path="/student-management" element={<StudentManagement />} />
                     <Route path="/class-management" element={<ClassManagement />} />
+                    <Route path="/student-portrait-management" element={<StudentPortraitManagement />} />
                   </Route>
                   
                   {/* 学生和教师都可访问的路由 */}

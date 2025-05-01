@@ -12,7 +12,11 @@ import AbilityRadar from "../components/profile/AbilityRadar";
 import AIProfileTags from "../components/profile/AIProfileTags";
 import { StudentData } from "../components/profile/types";
 import { ArrowLeft } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { portraitAPI, StudentPortraitData } from "@/lib/api/portrait";
+import { toast } from "sonner";
 
+// 备用模拟数据，当API数据不可用时使用
 const mockStudentData: StudentData = {
   studentId: "20230001",
   name: "张三",
@@ -30,19 +34,68 @@ const mockStudentData: StudentData = {
 
 const StudentProfile: React.FC = () => {
   const { studentId } = useParams<{ studentId: string }>();
-  const [student, setStudent] = useState<StudentData | null>(null);
+  
+  // 使用React Query获取学生详情数据
+  const { 
+    data: studentPortrait, 
+    isLoading,
+    error
+  } = useQuery({
+    queryKey: ['studentPortrait', studentId],
+    queryFn: () => portraitAPI.getStudentPortrait(studentId!),
+    enabled: !!studentId,
+    staleTime: 5 * 60 * 1000, // 5分钟缓存
+    refetchOnWindowFocus: false
+  });
+  
+  // 转换API数据或使用备用数据
+  const student = React.useMemo(() => {
+    if (studentPortrait) {
+      return {
+        studentId: studentPortrait.student_id,
+        name: studentPortrait.name,
+        className: studentPortrait.class_name || '未知班级',
+        age: 0, // 实际项目中应从数据中获取
+        scores: studentPortrait.scores || mockStudentData.scores
+      } as StudentData;
+    }
+    
+    // 如果API数据不可用且不再加载中，使用备用数据
+    if (!isLoading && error) {
+      return mockStudentData;
+    }
+    
+    return null;
+  }, [studentPortrait, isLoading, error]);
 
-  useEffect(() => {
-    setStudent(mockStudentData);
-  }, [studentId]);
+  if (isLoading) {
+    return (
+      <div className="bg-white min-h-screen">
+        <Navbar />
+        <div className="container mx-auto px-4 py-10">
+          <div className="flex justify-center items-center h-64">
+            <div className="flex flex-col items-center">
+              <div className="animate-spin h-10 w-10 border-2 border-primary border-t-transparent rounded-full mb-4"></div>
+              <p>加载学生数据中...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!student) {
     return (
       <div className="bg-white min-h-screen">
         <Navbar />
         <div className="container mx-auto px-4 py-10">
-          <div className="flex justify-center items-center h-64">
-            <p>加载学生数据中...</p>
+          <div className="flex flex-col gap-3 justify-center items-center h-64">
+            <p className="text-lg font-medium">找不到该学生信息</p>
+            <Button variant="outline" asChild>
+              <Link to="/student-portrait-management">
+                返回学生画像管理
+              </Link>
+            </Button>
           </div>
         </div>
       </div>
@@ -63,6 +116,11 @@ const StudentProfile: React.FC = () => {
                     返回学生管理
                   </Link>
                 </Button>
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/student-portrait-management">
+                    查看画像管理
+                  </Link>
+                </Button>
                 <h1 className="text-3xl font-bold">学生画像分析</h1>
               </div>
               <p className="text-gray-500 mt-1">
@@ -77,7 +135,7 @@ const StudentProfile: React.FC = () => {
                 <div>
                   <CardTitle className="text-2xl">{student.name}</CardTitle>
                   <CardDescription>
-                    学号: {student.studentId} | 班级: {student.className} | 年龄: {student.age}岁
+                    学号: {student.studentId} | 班级: {student.className} | 年龄: {student.age || '未知'}岁
                   </CardDescription>
                 </div>
               </div>
@@ -103,25 +161,36 @@ const StudentProfile: React.FC = () => {
                   <div className="space-y-6">
                     <AbilityRadar />
                     
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <Card>
                         <CardHeader>
                           <CardTitle className="text-base">优势能力</CardTitle>
                         </CardHeader>
                         <CardContent>
                           <ul className="space-y-2">
-                            <li className="flex items-center justify-between">
-                              <span>记忆能力</span>
-                              <span className="font-medium text-green-600">95</span>
-                            </li>
-                            <li className="flex items-center justify-between">
-                              <span>数学运算</span>
-                              <span className="font-medium text-green-600">90</span>
-                            </li>
-                            <li className="flex items-center justify-between">
-                              <span>阅读理解</span>
-                              <span className="font-medium text-green-600">85</span>
-                            </li>
+                            {studentPortrait?.abilities
+                              ?.filter(a => a.isStrength)
+                              .map((ability, index) => (
+                                <li key={index} className="flex items-center justify-between">
+                                  <span>{ability.name}</span>
+                                  <span className="font-medium text-green-600">{ability.score}</span>
+                                </li>
+                              )) || (
+                                <>
+                                  <li className="flex items-center justify-between">
+                                    <span>记忆能力</span>
+                                    <span className="font-medium text-green-600">95</span>
+                                  </li>
+                                  <li className="flex items-center justify-between">
+                                    <span>数学运算</span>
+                                    <span className="font-medium text-green-600">90</span>
+                                  </li>
+                                  <li className="flex items-center justify-between">
+                                    <span>阅读理解</span>
+                                    <span className="font-medium text-green-600">85</span>
+                                  </li>
+                                </>
+                            )}
                           </ul>
                         </CardContent>
                       </Card>
@@ -132,18 +201,29 @@ const StudentProfile: React.FC = () => {
                         </CardHeader>
                         <CardContent>
                           <ul className="space-y-2">
-                            <li className="flex items-center justify-between">
-                              <span>创新思维</span>
-                              <span className="font-medium text-orange-500">65</span>
-                            </li>
-                            <li className="flex items-center justify-between">
-                              <span>逻辑思维</span>
-                              <span className="font-medium text-orange-500">75</span>
-                            </li>
-                            <li className="flex items-center justify-between">
-                              <span>沟通表达</span>
-                              <span className="font-medium text-orange-500">80</span>
-                            </li>
+                            {studentPortrait?.abilities
+                              ?.filter(a => !a.isStrength)
+                              .map((ability, index) => (
+                                <li key={index} className="flex items-center justify-between">
+                                  <span>{ability.name}</span>
+                                  <span className="font-medium text-orange-500">{ability.score}</span>
+                                </li>
+                              )) || (
+                                <>
+                                  <li className="flex items-center justify-between">
+                                    <span>创新思维</span>
+                                    <span className="font-medium text-orange-500">65</span>
+                                  </li>
+                                  <li className="flex items-center justify-between">
+                                    <span>逻辑思维</span>
+                                    <span className="font-medium text-orange-500">75</span>
+                                  </li>
+                                  <li className="flex items-center justify-between">
+                                    <span>沟通表达</span>
+                                    <span className="font-medium text-orange-500">80</span>
+                                  </li>
+                                </>
+                            )}
                           </ul>
                         </CardContent>
                       </Card>
@@ -155,39 +235,56 @@ const StudentProfile: React.FC = () => {
                   <div className="space-y-6">
                     <AIProfileTags student={student} />
                     
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <Card>
                         <CardHeader>
                           <CardTitle className="text-base">学习习惯分析</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                          <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-sm">专注度</span>
-                              <span className="text-sm font-medium">85%</span>
+                          {studentPortrait?.learningHabits?.map((habit, index) => (
+                            <div key={index}>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-sm">{habit.name}</span>
+                                <span className="text-sm font-medium">{habit.percentage}%</span>
+                              </div>
+                              <div className="h-2 bg-gray-200 rounded-full">
+                                <div 
+                                  className="h-full bg-blue-500 rounded-full" 
+                                  style={{ width: `${habit.percentage}%` }}
+                                ></div>
+                              </div>
                             </div>
-                            <div className="h-2 bg-gray-200 rounded-full">
-                              <div className="h-full bg-blue-500 rounded-full" style={{ width: "85%" }}></div>
-                            </div>
-                          </div>
-                          <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-sm">作业完成质量</span>
-                              <span className="text-sm font-medium">78%</span>
-                            </div>
-                            <div className="h-2 bg-gray-200 rounded-full">
-                              <div className="h-full bg-blue-500 rounded-full" style={{ width: "78%" }}></div>
-                            </div>
-                          </div>
-                          <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-sm">课堂参与度</span>
-                              <span className="text-sm font-medium">92%</span>
-                            </div>
-                            <div className="h-2 bg-gray-200 rounded-full">
-                              <div className="h-full bg-blue-500 rounded-full" style={{ width: "92%" }}></div>
-                            </div>
-                          </div>
+                          )) || (
+                            <>
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-sm">专注度</span>
+                                  <span className="text-sm font-medium">85%</span>
+                                </div>
+                                <div className="h-2 bg-gray-200 rounded-full">
+                                  <div className="h-full bg-blue-500 rounded-full" style={{ width: "85%" }}></div>
+                                </div>
+                              </div>
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-sm">作业完成质量</span>
+                                  <span className="text-sm font-medium">78%</span>
+                                </div>
+                                <div className="h-2 bg-gray-200 rounded-full">
+                                  <div className="h-full bg-blue-500 rounded-full" style={{ width: "78%" }}></div>
+                                </div>
+                              </div>
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-sm">课堂参与度</span>
+                                  <span className="text-sm font-medium">92%</span>
+                                </div>
+                                <div className="h-2 bg-gray-200 rounded-full">
+                                  <div className="h-full bg-blue-500 rounded-full" style={{ width: "92%" }}></div>
+                                </div>
+                              </div>
+                            </>
+                          )}
                         </CardContent>
                       </Card>
                       

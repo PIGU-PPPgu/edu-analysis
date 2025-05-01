@@ -178,6 +178,8 @@ export async function gradeHomework(data: {
   }>;
 }) {
   try {
+    console.log('开始评分作业，数据:', data);
+    
     // 更新提交状态和评分
     const { error: submissionError } = await supabase
       .from('homework_submissions')
@@ -196,22 +198,85 @@ export async function gradeHomework(data: {
     }
 
     // 更新知识点评估
+    const knowledgePointResults = [];
     for (const evaluation of data.knowledgePointEvaluations) {
-      const { error: evalError } = await supabase
-        .from('submission_knowledge_points')
-        .update({
-          mastery_level: evaluation.masteryLevel
-        })
-        .eq('id', evaluation.id);
+      console.log('处理知识点评估:', evaluation);
+      
+      // 检查是否是临时ID (以temp-开头)
+      if (evaluation.id.startsWith('temp-')) {
+        // 这是新的知识点评估，需要创建
+        const pointId = evaluation.id.replace('temp-', '');
+        console.log('创建新的知识点评估，知识点ID:', pointId);
+        
+        const { data: newEval, error: createError } = await supabase
+          .from('submission_knowledge_points')
+          .insert({
+            homework_id: data.submissionId.split('-')[0], // 从提交ID中提取作业ID
+            submission_id: data.submissionId,
+            knowledge_point_id: pointId,
+            mastery_level: evaluation.masteryLevel
+          })
+          .select();
+          
+        if (createError) {
+          console.error('创建知识点评估失败:', createError);
+          knowledgePointResults.push({
+            id: evaluation.id,
+            success: false,
+            error: createError.message
+          });
+        } else {
+          console.log('成功创建知识点评估:', newEval);
+          knowledgePointResults.push({
+            id: evaluation.id,
+            success: true,
+            newId: newEval?.[0]?.id
+          });
+        }
+      } else {
+        // 更新现有的知识点评估
+        const { error: evalError } = await supabase
+          .from('submission_knowledge_points')
+          .update({
+            mastery_level: evaluation.masteryLevel
+          })
+          .eq('id', evaluation.id);
 
-      if (evalError) {
-        console.error('更新知识点评估失败:', evalError);
-        // 继续处理其他知识点，但记录错误
+        if (evalError) {
+          console.error('更新知识点评估失败:', evalError);
+          knowledgePointResults.push({
+            id: evaluation.id,
+            success: false,
+            error: evalError.message
+          });
+        } else {
+          console.log('成功更新知识点评估:', evaluation.id);
+          knowledgePointResults.push({
+            id: evaluation.id,
+            success: true
+          });
+        }
       }
     }
 
-    toast.success('作业评分成功');
-    return { success: true };
+    // 记录处理结果
+    const successCount = knowledgePointResults.filter(r => r.success).length;
+    const failCount = knowledgePointResults.length - successCount;
+    
+    if (failCount > 0) {
+      console.warn(`完成评分，但有 ${failCount}/${knowledgePointResults.length} 个知识点评估处理失败`);
+      toast.success('作业评分成功', {
+        description: `但有 ${failCount} 个知识点评估处理失败`
+      });
+    } else {
+      console.log('所有评分和知识点评估处理成功');
+      toast.success('作业评分成功');
+    }
+    
+    return { 
+      success: true,
+      knowledgePointResults
+    };
   } catch (error) {
     console.error('评分作业异常:', error);
     toast.error(`评分失败: ${error.message}`);

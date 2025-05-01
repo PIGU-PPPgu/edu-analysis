@@ -109,9 +109,9 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true }) => {
               预警分析
             </Link>
             <Link
-              to="/student-profile"
+              to="/student-portrait-management"
               className={`text-sm font-medium transition-colors hover:text-primary ${
-                isActive('/student-profile') ? 'text-primary' : 'text-muted-foreground'
+                isActive('/student-portrait-management') ? 'text-primary' : 'text-muted-foreground'
               }`}
             >
               学生画像

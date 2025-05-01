@@ -177,7 +177,8 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
     name: string;
     levels: GradingScaleLevel[];
   } | null>(null);
-  const [homeworkImages, setHomeworkImages] = useState<{url: string; name: string}[]>([]);
+  const [homeworkImages, setHomeworkImages] = useState<{url: string; name: string; status?: string}[]>([]);
+  const [lastUploadedImage, setLastUploadedImage] = useState<{url: string; name: string} | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   
   // 添加知识点确认对话框状态
@@ -366,7 +367,14 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
       
       // 显示上传中状态
       setIsUploadingImage(true);
-      setIsAiAnalyzing(true);
+      
+      // 先添加一个临时图片项，显示上传中状态
+      const tempId = Date.now().toString();
+      setHomeworkImages(prev => [...prev, {
+        url: URL.createObjectURL(file),
+        name: file.name,
+        status: 'uploading'
+      }]);
       
       try {
         // 开始上传图片:
@@ -405,6 +413,10 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
           
         if (uploadError) {
           console.error('Supabase 上传错误:', uploadError);
+          
+          // 移除临时上传项
+          setHomeworkImages(prev => prev.filter(img => !(img.status === 'uploading' && img.name === file.name)));
+          
           throw new Error(`上传失败: ${uploadError.message}`);
         }
         
@@ -416,24 +428,26 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
           .getPublicUrl(filePath);
         
         console.log('已获取公共URL:', publicUrl);
-        console.log('公共URL详细信息:', {
-          url: publicUrl,
-          length: publicUrl.length,
-          isImageUrl: publicUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i) !== null,
-          isPublicAccessible: publicUrl.includes('supabase'),
-        });
         
-        // 添加到图片列表
-        setHomeworkImages(prev => [...prev, {
-          url: publicUrl,
-          name: file.name
-        }]);
+        // 更新临时图片为实际上传完成的图片
+        setHomeworkImages(prev => prev.map(img => 
+          (img.status === 'uploading' && img.name === file.name) 
+            ? { url: publicUrl, name: file.name, status: 'uploaded' } 
+            : img
+        ));
+        
+        // 记录最后上传的图片
+        const uploadedImage = { url: publicUrl, name: file.name };
+        setLastUploadedImage(uploadedImage);
         
         // 上传成功提示
         toast({
           title: "上传成功",
-          description: "作业图片已上传，AI分析中..."
+          description: "作业图片已上传成功"
         });
+        
+        // 设置AI分析状态
+        setIsAiAnalyzing(true);
         
         // 调用AI分析接口
         console.log('开始AI分析图片');
@@ -454,7 +468,7 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
             success, 
             message, 
             knowledgePoints: extractedPoints, 
-            fromLocalStorage
+            localSaved // 使用localSaved代替fromLocalStorage
           } = await bulkCreateKnowledgePoints(
             analysisResult.knowledgePoints, 
             homeworkId
@@ -462,7 +476,7 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
           
           if (success) {
             // 更新知识点列表
-            if (fromLocalStorage) {
+            if (localSaved) { // 使用localSaved
               // 如果是从本地存储恢复的知识点，直接使用
               console.log('使用从本地存储恢复的知识点');
               setKnowledgePoints(extractedPoints || []);
@@ -475,7 +489,7 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
             // 分析完成提示
             toast({
               title: "分析完成",
-              description: `AI已完成图片分析，${fromLocalStorage ? '从本地存储恢复了' : '提取了'}${extractedPoints ? extractedPoints.length : analysisResult.knowledgePoints.length}个知识点`
+              description: `AI已完成图片分析，${localSaved ? '从本地存储恢复了' : '提取了'}${extractedPoints ? extractedPoints.length : analysisResult.knowledgePoints.length}个知识点`
             });
           } else {
             console.error('知识点保存失败:', message);
@@ -495,6 +509,10 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
         }
       } catch (error) {
         console.error('图片上传或分析过程中出错:', error);
+        
+        // 移除临时上传项
+        setHomeworkImages(prev => prev.filter(img => !(img.status === 'uploading' && img.name === file.name)));
+        
         toast({
           variant: "destructive",
           title: "上传失败",
@@ -635,7 +653,7 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
             success, 
             message, 
             knowledgePoints: extractedPoints, 
-            fromLocalStorage
+            localSaved // 使用localSaved代替fromLocalStorage
           } = await bulkCreateKnowledgePoints(
             analysisResult.knowledgePoints, 
             homeworkId
@@ -643,7 +661,7 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
           
           if (success) {
             // 更新知识点列表
-            if (fromLocalStorage) {
+            if (localSaved) { // 使用localSaved
               // 如果是从本地存储恢复的知识点，直接使用
               console.log('使用从本地存储恢复的知识点');
               setKnowledgePoints(extractedPoints || []);
@@ -656,7 +674,7 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
             // 分析完成提示
             toast({
               title: "分析完成",
-              description: `AI已完成图片分析，${fromLocalStorage ? '从本地存储恢复了' : '提取了'}${extractedPoints ? extractedPoints.length : analysisResult.knowledgePoints.length}个知识点`
+              description: `AI已完成图片分析，${localSaved ? '从本地存储恢复了' : '提取了'}${extractedPoints ? extractedPoints.length : analysisResult.knowledgePoints.length}个知识点`
             });
           } else {
             console.error('知识点保存失败:', message);
@@ -1251,11 +1269,23 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {homeworkImages.map((image, index) => (
                         <div key={index} className="relative group">
-                          <img 
-                            src={image.url} 
-                            alt={image.name} 
-                            className="h-32 w-full object-cover rounded-md" 
-                          />
+                          <div className={`relative h-32 w-full overflow-hidden rounded-md ${image.status === 'uploading' ? 'bg-muted animate-pulse' : ''}`}>
+                            <img 
+                              src={image.url} 
+                              alt={image.name} 
+                              className={`h-full w-full object-cover rounded-md ${image.status === 'uploading' ? 'opacity-50' : ''}`}
+                            />
+                            {image.status === 'uploading' && (
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full"></div>
+                              </div>
+                            )}
+                            {image === lastUploadedImage && (
+                              <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+                                新上传
+                              </div>
+                            )}
+                          </div>
                           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-md">
                             <Button 
                               variant="ghost" 
@@ -1264,6 +1294,9 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setHomeworkImages(prev => prev.filter((_, i) => i !== index));
+                                if (lastUploadedImage && lastUploadedImage.url === image.url) {
+                                  setLastUploadedImage(null);
+                                }
                                 toast({
                                   title: "已删除",
                                   description: "作业图片已删除"
