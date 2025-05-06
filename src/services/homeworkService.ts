@@ -163,6 +163,7 @@ export async function gradeHomework(data: {
     id: string;
     masteryLevel: number;
   }>;
+  status?: string; // 添加可选的status参数
 }) {
   try {
     console.log('开始评分作业，数据:', data);
@@ -235,7 +236,7 @@ export async function gradeHomework(data: {
       student_id: studentId,
       homework_id: homeworkId,
         score: data.score,
-        status: 'graded',
+        status: data.status || 'graded', // 使用传入的status或默认为'graded'
       teacher_feedback: data.feedback || '',
         updated_at: new Date().toISOString()
     };

@@ -42,6 +42,12 @@ const gradeOptions = [
   { value: 95, label: "优秀", color: "bg-green-500", borderColor: "border-green-500", description: "完全掌握，举一反三" },
 ];
 
+// 添加未提交作业的特殊评分选项
+const specialGradeOptions = [
+  { value: 0, label: "未交", color: "bg-gray-500", borderColor: "border-gray-500", description: "学生未提交作业" },
+  { value: 0, label: "缺勤", color: "bg-purple-500", borderColor: "border-purple-500", description: "学生缺勤" },
+];
+
 export type SubmissionWithStudent = {
   id: string;
   status: string;
@@ -103,7 +109,8 @@ interface GradeCardViewProps {
     submissionId: string, 
     score: number, 
     feedback: string, 
-    knowledgePointEvaluations: Array<{id: string, masteryLevel: number}>
+    knowledgePointEvaluations: Array<{id: string, masteryLevel: number}>,
+    status?: string
   ) => void;
   onBatchGraded?: (
     submissionIds: string[], 
@@ -136,6 +143,10 @@ export default function GradeCardView({
   const [hoverSubmission, setHoverSubmission] = useState<string | null>(null);
   const [shouldAddKnowledgePoints, setShouldAddKnowledgePoints] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // 添加新的"标记状态"模式
+  const [statusMarkMode, setStatusMarkMode] = useState(false);
+  const [currentStatusToMark, setCurrentStatusToMark] = useState<"not_submitted" | "absent">("not_submitted");
   
   // 容器引用，用于注册事件监听
   const containerRef = useRef<HTMLDivElement>(null);
@@ -233,7 +244,7 @@ export default function GradeCardView({
   };
 
   // 快速评分处理
-  const handleQuickGrade = (submission: SubmissionWithStudent, gradeValue: number) => {
+  const handleQuickGrade = (submission: SubmissionWithStudent, gradeValue: number, status?: string) => {
     // 准备知识点评估数据（使用默认值或现有值）
     let evaluations = [];
     
@@ -245,20 +256,30 @@ export default function GradeCardView({
     }
     
     // 根据评分自动生成反馈
-    const gradeFeedback = getAutoFeedback(gradeValue);
+    let gradeFeedback = getAutoFeedback(gradeValue);
+    
+    // 特殊处理未提交和缺勤状态
+    if (status === "not_submitted") {
+      gradeFeedback = "学生未提交作业。";
+    } else if (status === "absent") {
+      gradeFeedback = "学生缺勤。";
+    }
     
     // 提交评分
     onGraded(
       submission.id,
       gradeValue,
       gradeFeedback,
-      evaluations
+      evaluations,
+      status // 传递额外的状态参数
     );
     
     // 显示成功提示
     toast({
       title: "批改成功",
-      description: `已将 ${submission.students.name} 的作业评为${getGradeLabel(gradeValue)}（${gradeValue}分）`
+      description: status ? 
+        `已将 ${submission.students.name} 的作业标记为${status === "absent" ? "缺勤" : "未交"}` :
+        `已将 ${submission.students.name} 的作业评为${getGradeLabel(gradeValue)}（${gradeValue}分）`
     });
   };
 
@@ -363,7 +384,8 @@ export default function GradeCardView({
       selectedSubmission.id,
       score,
       feedback,
-      evaluationsToSubmit
+      evaluationsToSubmit,
+      selectedSubmission.status
     );
     
     setGradeDialogOpen(false);
@@ -498,6 +520,78 @@ export default function GradeCardView({
     }
   }, [kpEvaluations]);
 
+  // 添加处理状态标记的函数
+  const handleStatusMark = (submission: SubmissionWithStudent, status: "not_submitted" | "absent") => {
+    // 准备自动生成反馈
+    let statusFeedback = status === "not_submitted" ? 
+      "学生未提交作业。" : 
+      "学生请假缺勤。";
+    
+    // 提交评分 (使用0分)
+    onGraded(
+      submission.id,
+      0, // 0分
+      statusFeedback,
+      [], // 不需要知识点评估
+      status // 传递状态
+    );
+    
+    // 显示成功提示
+    toast({
+      title: "状态已标记",
+      description: `已将 ${submission.students.name} 标记为${status === "absent" ? "请假" : "未交"}`
+    });
+  };
+
+  // 批量标记状态
+  const handleBatchStatusMark = (status: "not_submitted" | "absent") => {
+    if (selectedSubmissions.length === 0) {
+      toast({
+        title: "未选择学生",
+        description: "请先选择需要标记的学生",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // 根据状态自动生成反馈
+    const statusFeedback = status === "not_submitted" ? 
+      "学生未提交作业。" : 
+      "学生请假缺勤。";
+    
+    // 如果有批量评分回调函数
+    if (onBatchGraded) {
+      onBatchGraded(
+        selectedSubmissions,
+        0, // 0分
+        statusFeedback
+      );
+    } else {
+      // 逐个提交评分
+      selectedSubmissions.forEach(submissionId => {
+        const submission = submissions.find(s => s.id === submissionId);
+        if (submission) {
+          onGraded(
+            submissionId,
+            0, // 0分
+            statusFeedback,
+            [], // 不处理知识点
+            status
+          );
+        }
+      });
+    }
+    
+    // 清空选择
+    setSelectedSubmissions([]);
+    
+    // 显示成功提示
+    toast({
+      title: "批量标记成功",
+      description: `已将 ${selectedSubmissions.length} 名学生标记为${status === "absent" ? "请假" : "未交"}`
+    });
+  };
+
   return (
     <div className="space-y-6" ref={containerRef} data-grade-card-view>
       <div className="flex justify-between items-center">
@@ -505,13 +599,16 @@ export default function GradeCardView({
           <h3 className="text-lg font-medium">学生作业批改</h3>
           
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">快速评分模式</span>
+            <span className="text-sm text-muted-foreground">快速评分</span>
             <button
               className={cn(
                 "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
                 quickGradeMode ? "bg-primary" : "bg-muted"
               )}
-              onClick={() => setQuickGradeMode(!quickGradeMode)}
+              onClick={() => {
+                setQuickGradeMode(!quickGradeMode);
+                if (statusMarkMode) setStatusMarkMode(false); // 关闭状态标记模式
+              }}
             >
               <span
                 className={cn(
@@ -539,6 +636,50 @@ export default function GradeCardView({
               />
             </button>
           </div>
+          
+          {/* 添加标记状态开关 */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">标记状态</span>
+            <button
+              className={cn(
+                "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                statusMarkMode ? "bg-primary" : "bg-muted"
+              )}
+              onClick={() => {
+                setStatusMarkMode(!statusMarkMode);
+                if (quickGradeMode) setQuickGradeMode(false); // 关闭快速评分模式
+              }}
+            >
+              <span
+                className={cn(
+                  "inline-block h-4 w-4 rounded-full bg-white transition-transform",
+                  statusMarkMode ? "translate-x-6" : "translate-x-1"
+                )}
+              />
+            </button>
+          </div>
+          
+          {/* 当标记状态模式打开时，显示状态选择器 */}
+          {statusMarkMode && (
+            <div className="flex items-center gap-2 ml-4 bg-muted p-1 rounded-md">
+              <Button
+                size="sm"
+                variant={currentStatusToMark === "not_submitted" ? "default" : "outline"}
+                className="h-8 text-xs"
+                onClick={() => setCurrentStatusToMark("not_submitted")}
+              >
+                标记未交
+              </Button>
+              <Button
+                size="sm"
+                variant={currentStatusToMark === "absent" ? "default" : "outline"}
+                className="h-8 text-xs"
+                onClick={() => setCurrentStatusToMark("absent")}
+              >
+                标记请假
+              </Button>
+            </div>
+          )}
         </div>
         
         {batchMode && (
@@ -557,7 +698,33 @@ export default function GradeCardView({
         )}
       </div>
       
-      {batchMode && selectedSubmissions.length > 0 && (
+      {/* 添加批量标记状态按钮区域 */}
+      {batchMode && statusMarkMode && selectedSubmissions.length > 0 && (
+        <div className="bg-muted p-4 rounded-lg mb-4">
+          <div className="flex justify-between items-center">
+            <h4 className="font-medium">批量标记状态</h4>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                className="bg-gray-500 text-white hover:bg-gray-600"
+                onClick={() => handleBatchStatusMark("not_submitted")}
+              >
+                标记为未交
+              </Button>
+              <Button
+                size="sm"
+                className="bg-purple-500 text-white hover:bg-purple-600"
+                onClick={() => handleBatchStatusMark("absent")}
+              >
+                标记为请假
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* 批量评分按钮（原有代码） */}
+      {batchMode && !statusMarkMode && selectedSubmissions.length > 0 && (
         <div className="bg-muted p-4 rounded-lg mb-4">
           <div className="flex justify-between items-center">
             <h4 className="font-medium">批量评分</h4>
@@ -590,66 +757,149 @@ export default function GradeCardView({
           
           // Check if this is the last graded submission
           const isLastGraded = submission.id === lastGradedSubmissionId;
-
+          
           return (
             <div
               key={submission.id}
               data-submission-id={submission.id}
-              className="relative"
+              className={cn(
+                "relative transition-all duration-200",
+                batchMode && "cursor-pointer hover:shadow-md",
+                batchMode && selectedSubmissions.includes(submission.id) && "ring-2 ring-primary bg-primary/5"
+              )}
               onMouseEnter={() => handleCardMouseEnter(submission.id)}
               onMouseLeave={handleCardMouseLeave}
+              onClick={() => {
+                if (batchMode) {
+                  toggleSelectSubmission(submission.id);
+                } else if (statusMarkMode) {
+                  // 当状态标记模式开启时，点击卡片直接标记状态
+                  handleStatusMark(submission, currentStatusToMark);
+                }
+              }}
             >
               {batchMode && (
-                <Checkbox
-                  checked={selectedSubmissions.includes(submission.id)}
-                  onCheckedChange={() => toggleSelectSubmission(submission.id)}
-                  className="absolute top-2 left-2 z-10 bg-white"
-                />
+                <>
+                  <Checkbox
+                    checked={selectedSubmissions.includes(submission.id)}
+                    onCheckedChange={() => toggleSelectSubmission(submission.id)}
+                    className="absolute top-2 left-2 z-10 bg-white"
+                  />
+                  {selectedSubmissions.includes(submission.id) && (
+                    <div className="absolute top-0 right-0 w-0 h-0 border-t-[20px] border-t-primary border-l-[20px] border-l-transparent transform rotate-0"></div>
+                  )}
+                </>
               )}
+              
+              {/* 添加状态标识 - 增强视觉效果 */}
+              {submission.status === "not_submitted" && (
+                <div className="absolute top-0 right-0 z-10">
+                  <Badge className="bg-gray-500 text-white font-medium px-3 py-1 rounded-bl-md rounded-tr-md">
+                    未交
+                  </Badge>
+                </div>
+              )}
+              {submission.status === "absent" && (
+                <div className="absolute top-0 right-0 z-10">
+                  <Badge className="bg-purple-500 text-white font-medium px-3 py-1 rounded-bl-md rounded-tr-md">
+                    请假
+                  </Badge>
+                </div>
+              )}
+
               <StudentCard
                 student={submission.students}
                 status={mapSubmissionStatus(submission.status)}
                 score={submission.score}
-                onClick={() => !batchMode && handleOpenGradeDialog(submission)}
+                onClick={() => !batchMode && !statusMarkMode && handleOpenGradeDialog(submission)}
                 selected={selectedSubmissions.includes(submission.id)}
                 hasKnowledgePointEvaluation={hasEval}
                 isLastGraded={isLastGraded}
               />
               {/* 快速评分按钮逻辑 */}
               {quickGradeMode && hoverSubmission === submission.id && !batchMode && (
-                <div className="absolute bottom-2 right-2 flex gap-1">
-                  {gradeOptions.map((opt) => (
+                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg">
+                  <div className="flex flex-wrap gap-2 justify-center max-w-[90%]">
+                    {/* 根据提交状态决定显示常规评分选项还是特殊评分选项 */}
+                    {(submission.status === "not_submitted" || submission.status === "pending") ? (
+                      // 未提交作业的学生显示特殊评分选项
+                      <>
+                        {specialGradeOptions.map((opt) => (
+                          <Button
+                            key={opt.label}
+                            size="sm"
+                            className={cn(
+                              "px-3 py-2 h-auto",
+                              opt.color,
+                              "text-white font-medium hover:opacity-90",
+                              submission.score === opt.value && submission.status === (opt.label === "未交" ? "not_submitted" : "absent") ? "ring-2 ring-white" : ""
+                            )}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // 特殊处理未交/缺勤的情况
+                              handleQuickGrade(submission, opt.value, opt.label === "缺勤" ? "absent" : "not_submitted");
+                            }}
+                            title={`标记为${opt.label}`}
+                          >
+                            {opt.label}
+                          </Button>
+                        ))}
+                        {/* 仍然提供常规评分选项，但放在特殊选项之后 */}
+                        {gradeOptions.map((opt) => (
+                          <Button
+                            key={opt.value}
+                            size="sm"
+                            className={cn(
+                              "px-3 py-2 h-auto",
+                              opt.color,
+                              "text-white font-medium hover:opacity-90",
+                              submission.score === opt.value ? "ring-2 ring-white" : ""
+                            )}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleQuickGrade(submission, opt.value);
+                            }}
+                            title={`评为 ${opt.label} (${opt.value}分)`}
+                          >
+                            {opt.label}
+                          </Button>
+                        ))}
+                      </>
+                    ) : (
+                      // 已提交作业的学生只显示常规评分选项
+                      gradeOptions.map((opt) => (
+                        <Button
+                          key={opt.value}
+                          size="sm"
+                          className={cn(
+                            "px-3 py-2 h-auto",
+                            opt.color,
+                            "text-white font-medium hover:opacity-90",
+                            submission.score === opt.value ? "ring-2 ring-white" : ""
+                          )}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleQuickGrade(submission, opt.value);
+                          }}
+                          title={`评为 ${opt.label} (${opt.value}分)`}
+                        >
+                          {opt.label}
+                        </Button>
+                      ))
+                    )}
                     <Button
-                      key={opt.value}
                       size="sm"
-                      variant="outline"
-                      className={cn(
-                        "p-1 h-6 w-6",
-                        opt.borderColor,
-                        "hover:bg-opacity-80",
-                         submission.score === opt.value ? opt.color + " text-white" : "text-gray-600"
-                      )}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleQuickGrade(submission, opt.value);
-                      }}
-                      title={`快速评为 ${opt.label} (${opt.value}分)`}
-                    >
-                       {opt.label.charAt(0)}
-                    </Button>
-                  ))}
-                   <Button
-                      size="sm"
-                      variant="outline"
-                      className="p-1 h-6 w-6 border-gray-300 text-gray-600 hover:bg-gray-100"
+                      variant="secondary"
+                      className="px-3 py-2 h-auto bg-white text-gray-800 hover:bg-gray-200"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleOpenGradeDialog(submission);
                       }}
-                       title="详细评分"
+                      title="详细评分"
                     >
-                     <Edit className="h-3 w-3" />
+                      详细评分
                     </Button>
+                  </div>
                 </div>
               )}
             </div>

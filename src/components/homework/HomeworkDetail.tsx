@@ -41,6 +41,8 @@ import {
   Scan,
   Sparkles,
   ChevronDown,
+  XCircle,
+  Calendar,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import {
@@ -114,6 +116,8 @@ const statusMap = {
   pending: { label: "待完成", icon: Clock, color: "bg-yellow-100 text-yellow-800" },
   submitted: { label: "已提交", icon: CheckCircle, color: "bg-blue-100 text-blue-800" },
   graded: { label: "已批改", icon: Award, color: "bg-green-100 text-green-800" },
+  not_submitted: { label: "未交作业", icon: XCircle, color: "bg-gray-100 text-gray-800" },
+  absent: { label: "请假", icon: Calendar, color: "bg-purple-100 text-purple-800" },
 };
 
 // 视图模式类型
@@ -1632,6 +1636,8 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
       case "late": return "late";
       case "pending": return "pending";
       case "missing": return "not_submitted";
+      case "not_submitted": return "not_submitted";
+      case "absent": return "absent";
       default: return "not_submitted";
     }
   };
@@ -1958,6 +1964,8 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
                         <SelectItem value="graded">已批改</SelectItem>
                         <SelectItem value="submitted">已提交</SelectItem>
                         <SelectItem value="pending">待完成</SelectItem>
+                        <SelectItem value="not_submitted">未交作业</SelectItem>
+                        <SelectItem value="absent">请假</SelectItem>
                       </SelectContent>
                     </Select>
 
@@ -2019,7 +2027,7 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
                       submissions={filteredSubmissions}
                       knowledgePoints={knowledgePoints}
                       isSubmitting={isSubmitting}
-                      onGraded={async (submissionId, score, feedback, knowledgePointEvaluations) => {
+                      onGraded={async (submissionId, score, feedback, knowledgePointEvaluations, status) => {
                         setIsSubmitting(true);
                         const currentSubmission = submissions.find(sub => sub.id === submissionId);
                         const studentId = currentSubmission?.students?.id || currentSubmission?.student_id;
@@ -2043,6 +2051,7 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
                             knowledgePointEvaluations,
                             studentId,
                             homeworkId: currentHomeworkId,
+                            status // 添加status参数
                           };
                           const result = await gradeHomework(gradeData);
                           
@@ -2054,10 +2063,12 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
                             setSubmissions(prev => 
                               prev.map(s => {
                                 if (s.id === submissionId) {
+                                  // 使用传入的status或默认为"graded"
+                                  const newStatus = status || "graded";
                                   return {
                                     ...s,
                                     id: updatedSubmissionId,
-                                    status: "graded",
+                                    status: newStatus,
                                     score: score,
                                     teacher_feedback: feedback,
                                     updated_at: new Date().toISOString(), 
@@ -2070,14 +2081,18 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
                             
                             toast({
                               title: "批改成功",
-                              description: `学生的评分已成功保存。`,
+                              description: status === "absent" ? 
+                                `已将 ${studentName} 标记为缺勤` :
+                                status === "not_submitted" ? 
+                                  `已将 ${studentName} 标记为未交作业` :
+                                  `学生 ${studentName} 的评分已成功保存。`,
                             });
 
                             setFilteredSubmissions(prev => 
                               prev.map(s => s.id === submissionId ? 
                                 {...s, 
                                   id: updatedSubmissionId,
-                                  status: "graded", 
+                                  status: status || "graded", 
                                   score: score,
                                   teacher_feedback: feedback,
                                   updated_at: new Date().toISOString(),
@@ -2341,7 +2356,7 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
                         <div className="text-3xl font-bold text-primary">
                           {submissions.length > 0
                             ? `${((submissions.filter(s => s.status === "graded" || s.status === "submitted").length / 
-                              submissions.length) * 100).toFixed(0)}%`
+                              submissions.filter(s => s.status !== "not_submitted" && s.status !== "absent").length) * 100).toFixed(0)}%`
                             : "-"}
                         </div>
                         <div className="text-sm text-muted-foreground mt-1">提交率</div>
@@ -2356,7 +2371,19 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
                         <div className="text-3xl font-bold text-primary">
                           {submissions.filter(s => s.status === "pending").length}
                         </div>
-                        <div className="text-sm text-muted-foreground mt-1">未提交</div>
+                        <div className="text-sm text-muted-foreground mt-1">待提交</div>
+                      </div>
+                      <div className="bg-muted/50 rounded-md p-3 text-center">
+                        <div className="text-3xl font-bold text-primary">
+                          {submissions.filter(s => s.status === "not_submitted").length}
+                        </div>
+                        <div className="text-sm text-muted-foreground mt-1">未交作业</div>
+                      </div>
+                      <div className="bg-muted/50 rounded-md p-3 text-center">
+                        <div className="text-3xl font-bold text-primary">
+                          {submissions.filter(s => s.status === "absent").length}
+                        </div>
+                        <div className="text-sm text-muted-foreground mt-1">请假</div>
                       </div>
                       <div className="bg-muted/50 rounded-md p-3 text-center">
                         <div className="text-3xl font-bold text-primary">
