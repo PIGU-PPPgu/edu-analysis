@@ -442,16 +442,16 @@ const StudentDataImporter: React.FC<StudentDataImporterProps> = ({ onDataImporte
         
         // 延迟导航，给用户感知时间
         setTimeout(() => {
-          toast.success("批量导入完成", {
+        toast.success("批量导入完成", {
             description: (
               <div className="space-y-2">
                 <p>{successMessage}</p>
                 <p className="text-xs text-green-600">导入成功</p>
               </div>
             )
-          });
-          onDataImported(data.data.slice(0, successCount + updatedCount));
-          
+        });
+        onDataImported(data.data.slice(0, successCount + updatedCount));
+        
           // 不再导航到单独的页面，而是通过回调函数通知父组件
           // navigate("/student-management");
         }, 1500);

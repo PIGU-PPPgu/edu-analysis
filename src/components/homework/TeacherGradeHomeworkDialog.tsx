@@ -48,6 +48,8 @@ import { getHomeworkSubmissions, gradeHomework } from "@/services/homeworkServic
 import { getGradingScaleWithLevels, GradingScaleLevel } from "@/services/gradingService";
 import { AIKnowledgePointAnalyzer, KnowledgePoint } from "@/components/homework/AIKnowledgePointAnalyzer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase } from "@/lib/supabase";
+import { updateKnowledgePointEvaluations } from "@/services/knowledgePointService";
 
 export interface TeacherGradeHomeworkDialogProps {
   homeworkId: string;
@@ -86,7 +88,7 @@ type FormValues = z.infer<typeof formSchema>;
 export default function TeacherGradeHomeworkDialog({
   homeworkId,
   submissionId,
-  studentId,
+  studentId: studentIdProp,
   open,
   onOpenChange,
   onGraded,
@@ -109,10 +111,11 @@ export default function TeacherGradeHomeworkDialog({
     name: string;
     levels: GradingScaleLevel[];
   } | null>(null);
-
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<string>("manual");
   const [isAiAnalysisComplete, setIsAiAnalysisComplete] = useState(false);
+  const [preSelectedStudentName, setPreSelectedStudentName] = useState<string | null>(null);
+  const [isLoadingStudentName, setIsLoadingStudentName] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -126,131 +129,42 @@ export default function TeacherGradeHomeworkDialog({
 
   useEffect(() => {
     const fetchStudents = async () => {
-      if (!open) return;
+      if (!open || studentIdProp) return;
       
       try {
         setIsLoading(true);
         
-        // 使用Supabase服务获取提交数据
-        const submissionsData = await getHomeworkSubmissions(homeworkId);
-        console.log('获取到的提交数据:', submissionsData);
+        const result = await getHomeworkSubmissions(homeworkId);
+        console.log('获取到的提交数据 (for dropdown):', result);
         
-        const studentOptions = submissionsData
-          .filter(sub => sub.students && sub.students.id) // 确保学生数据有效
-          .map((sub: any) => ({
-            value: sub.students.id,
-            label: sub.students.name,
-            submissionId: sub.id,
-            status: sub.status
-          }));
+        if (result.success && result.submissions) {
+          const submissionsData = result.submissions;
+          const studentOptions = submissionsData
+            .filter(sub => sub.students && (Array.isArray(sub.students) ? sub.students[0]?.id : sub.students?.id))
+            .map((sub: any) => {
+              const student = Array.isArray(sub.students) ? sub.students[0] : sub.students;
+              return { value: student.id, label: student.name, submissionId: sub.id, status: sub.status };
+            });
         
-        setStudents(studentOptions);
-        
-        // 如果提供了submissionId，直接使用这个提交
-        if (submissionId) {
-          const submission = submissionsData.find((sub: any) => sub.id === submissionId);
-          if (submission) {
-            setSelectedSubmission(submission);
-            form.setValue('studentId', submission.students.id);
-            
-            // 如果该提交已评分，预填表单
-            if (submission.status === 'graded') {
-              form.setValue('score', submission.score || 0);
-              form.setValue('feedback', submission.feedback || '');
-              
-              // 预填知识点评估
-              if (submission.submission_knowledge_points && submission.submission_knowledge_points.length > 0) {
-                console.log('载入知识点评估:', submission.submission_knowledge_points);
-                const kpEvals = submission.submission_knowledge_points.map((kpe: any) => ({
-                  id: kpe.knowledge_point_id,
-                  name: kpe.knowledge_points?.name || '未知知识点',
-                  masteryLevel: kpe.mastery_level || 50,
-                  evaluationId: kpe.id // 保存评估ID用于更新
-                }));
-                setKnowledgePointEvaluations(kpEvals);
-                setSelectedKnowledgePoints(kpEvals.map((kp: any) => kp.id));
-              }
-            } else {
-              // 如果是未评分的提交，预设知识点但不设置评分
-              // 预先添加作业相关的知识点但设为0分
-              if (knowledgePoints.length > 0) {
-                console.log('自动添加作业相关知识点，等待评估');
-                const autoKpEvals = knowledgePoints.map(kp => ({
-                  id: kp.id,
-                  name: kp.name,
-                  masteryLevel: 50, // 默认50%的掌握度
-                  // 为新的评估使用临时ID格式，便于后端识别需要新建的评估
-                  evaluationId: `temp-${kp.id}`
-                }));
-                setKnowledgePointEvaluations(autoKpEvals);
-                setSelectedKnowledgePoints(autoKpEvals.map(kp => kp.id));
-              }
-            }
-          }
-        }
-        // 或者如果提供了studentId，预先选择该学生
-        else if (studentId) {
-          const selectedStudent = studentOptions.find((s: any) => s.value === studentId);
-          if (selectedStudent) {
-            form.setValue('studentId', selectedStudent.value);
-            
-            // 找到该学生的提交记录
-            const submission = submissionsData.find((sub: any) => sub.students.id === studentId);
-            if (submission) {
-              setSelectedSubmission(submission);
-              
-              // 如果已评分，预填表单
-              if (submission.status === 'graded') {
-                form.setValue('score', submission.score || 0);
-                form.setValue('feedback', submission.feedback || '');
-                
-                // 预填知识点评估
-                if (submission.submission_knowledge_points && submission.submission_knowledge_points.length > 0) {
-                  console.log('载入知识点评估:', submission.submission_knowledge_points);
-                  const kpEvals = submission.submission_knowledge_points.map((kpe: any) => ({
-                    id: kpe.knowledge_point_id,
-                    name: kpe.knowledge_points?.name || '未知知识点',
-                    masteryLevel: kpe.mastery_level || 50,
-                    evaluationId: kpe.id // 保存评估ID用于更新
-                  }));
-                  setKnowledgePointEvaluations(kpEvals);
-                  setSelectedKnowledgePoints(kpEvals.map((kp: any) => kp.id));
-                }
-              } else {
-                // 对于未评分的提交，预设知识点
-                if (knowledgePoints.length > 0) {
-                  console.log('自动添加作业相关知识点，等待评估');
-                  const autoKpEvals = knowledgePoints.map(kp => ({
-                    id: kp.id,
-                    name: kp.name,
-                    masteryLevel: 50, // 默认50%的掌握度
-                    // 为新的评估使用临时ID格式
-                    evaluationId: `temp-${kp.id}`
-                  }));
-                  setKnowledgePointEvaluations(autoKpEvals);
-                  setSelectedKnowledgePoints(autoKpEvals.map(kp => kp.id));
-                }
-              }
-            }
-          }
+          setStudents(studentOptions);
+        } else {
+          console.error('获取提交列表失败 (for dropdown):', result.error);
+          toast({ title: "获取学生列表失败", description: result.error || "请检查网络连接" });
+          setStudents([]);
         }
       } catch (error) {
-        console.error("获取提交列表失败:", error);
-        toast({
-          variant: "destructive",
-          title: "错误",
-          description: "获取提交列表失败"
-        });
+        console.error('获取学生列表异常 (for dropdown):', error);
+        toast({ title: "获取学生列表失败", description: "加载学生列表时发生错误" });
+        setStudents([]);
       } finally {
         setIsLoading(false);
       }
     };
     
     fetchStudents();
-  }, [homeworkId, submissionId, studentId, open, toast, form, knowledgePoints]);
+  }, [homeworkId, open, studentIdProp, toast]);
 
   useEffect(() => {
-    // 加载评级标准
     const fetchGradingScale = async () => {
       if (!gradingScaleId || !open) return;
       
@@ -276,37 +190,169 @@ export default function TeacherGradeHomeworkDialog({
     fetchGradingScale();
   }, [gradingScaleId, open, toast]);
 
-  // 加载选中的提交内容
   useEffect(() => {
-    const loadSelectedSubmission = async () => {
-      if (!open || !submissionId) return;
-      
+    const loadDataForDialog = async () => {
+      if (!open) return;
+      const currentStudentId = studentIdProp;
+
+      setIsLoading(true);
+      setIsLoadingStudentName(!!currentStudentId);
+      setSelectedSubmission(null);
+      setPreSelectedStudentName(null);
+      form.reset({ studentId: currentStudentId || "", score: 0, feedback: "" });
+      setKnowledgePointEvaluations([]);
+      setSelectedKnowledgePoints([]);
+
+      let studentNameFromDb: string | null = null;
+      let submissionData: any = null;
+      let loadError: Error | null = null;
+
       try {
-        setIsLoading(true);
+        if (submissionId) {
+          console.log('加载提交数据，通过 submissionId:', submissionId);
+          const { data, error } = await supabase
+            .from('homework_submissions')
+            .select(`
+              id,
+              student_id,
+              score,
+              status,
+              teacher_feedback,
+              students (id, name, student_id),
+              student_knowledge_mastery (id, knowledge_point_id, mastery_level, mastery_grade, assessment_count)
+            `)
+            .eq('id', submissionId)
+            .single();
         
-        // 使用Supabase服务获取提交数据
-        const submissionsData = await getHomeworkSubmissions(homeworkId);
-        const submission = submissionsData.find((sub: any) => sub.id === submissionId);
-        
-        if (submission) {
-          setSelectedSubmission(submission);
+          if (error) {
+            console.error('加载提交数据失败 (by submissionId):', error);
+            toast({ title: "加载失败", description: `无法获取提交数据: ${error.message}` });
+            setIsLoading(false);
+            return;
+          }
+          
+          console.log('提交数据加载成功 (by submissionId):', data);
+          submissionData = data;
+        } else if (currentStudentId) {
+          console.log('加载提交数据，通过 studentId:', currentStudentId, '和 homeworkId:', homeworkId);
+          const { data, error } = await supabase
+            .from('homework_submissions')
+            .select(`
+              id,
+              student_id,
+              score,
+              status,
+              teacher_feedback,
+              students (id, name, student_id),
+              student_knowledge_mastery (id, knowledge_point_id, mastery_level, mastery_grade, assessment_count)
+            `)
+            .eq('student_id', currentStudentId)
+            .eq('homework_id', homeworkId)
+            .maybeSingle();
+            
+          if (error) {
+            console.warn('查询学生提交记录时出错(可能不存在): ', error.message);
+          }
+          
+          submissionData = data;
         }
-      } catch (error) {
-        console.error("获取提交数据失败:", error);
-        toast({
-          variant: "destructive",
-          title: "错误",
-          description: "获取提交数据失败"
-        });
+
+        const studentIdToFetch = currentStudentId || submissionData?.student_id;
+        if (studentIdToFetch) {
+          try {
+            console.log('尝试获取学生姓名, ID:', studentIdToFetch);
+            const { data: studentInfo, error: studentError } = await supabase
+              .from('students')
+              .select('name')
+              .eq('id', studentIdToFetch)
+              .single();
+            if (studentError) {
+              console.error('获取预选学生姓名失败:', studentError);
+              studentNameFromDb = "无效学生";
+            } else if (studentInfo) {
+              studentNameFromDb = studentInfo.name;
+              console.log('获取到学生姓名:', studentNameFromDb);
+            }
+          } catch (nameError: any) {
+             console.error('获取学生姓名时发生异常:', nameError);
+             studentNameFromDb = "查询出错";
+          }
+        }
+
+        if (submissionData) {
+          console.log('处理找到的提交数据:', submissionData);
+          setSelectedSubmission(submissionData);
+          form.reset({
+            studentId: submissionData.student_id,
+            score: submissionData.score || 0,
+            feedback: submissionData.teacher_feedback || '',
+          });
+          
+          if (submissionData.student_knowledge_mastery && submissionData.student_knowledge_mastery.length > 0) {
+            console.log('提交包含知识点评估:', submissionData.student_knowledge_mastery);
+            
+            const knowledgePointMap = new Map(knowledgePoints.map(kp => [kp.id, kp]));
+            
+            const evaluations = submissionData.student_knowledge_mastery.map(evaluation => {
+              const knowledgePoint = knowledgePointMap.get(evaluation.knowledge_point_id);
+              return {
+                id: evaluation.knowledge_point_id,
+                name: knowledgePoint?.name || '未知知识点',
+                masteryLevel: evaluation.mastery_level,
+                evaluationId: evaluation.id
+              };
+            });
+            
+            setKnowledgePointEvaluations(evaluations);
+            setSelectedKnowledgePoints(evaluations.map(e => e.id));
+          } else {
+            initializeDefaultKnowledgePoints();
+          }
+        } else if (currentStudentId) {
+          console.log('未找到提交记录，但有学生ID，为新评分设置表单');
+          form.setValue('studentId', currentStudentId);
+          form.reset({ studentId: currentStudentId, score: 0, feedback: '' });
+          initializeDefaultKnowledgePoints();
+        } else {
+          console.log('通用评分对话框，无预选学生');
+          initializeDefaultKnowledgePoints();
+        }
+      } catch (error: any) {
+        loadError = error;
+        console.error('加载提交数据时捕获异常:', error);
       } finally {
         setIsLoading(false);
+        setIsLoadingStudentName(false);
+        setPreSelectedStudentName(studentNameFromDb);
+        if (loadError) {
+           toast({ title: "加载失败", description: `加载数据时出错: ${loadError.message || loadError}` });
+        }
+      }
+    };
+
+    const initializeDefaultKnowledgePoints = () => {
+      if (knowledgePoints && knowledgePoints.length > 0) {
+        console.log('初始化默认知识点评估');
+        const defaultEvaluations = knowledgePoints.map(kp => ({
+          id: kp.id,
+          name: kp.name,
+          masteryLevel: 50,
+          evaluationId: undefined
+        }));
+        
+        setKnowledgePointEvaluations(defaultEvaluations);
+        setSelectedKnowledgePoints(defaultEvaluations.map(e => e.id));
+      } else {
+        setKnowledgePointEvaluations([]);
+        setSelectedKnowledgePoints([]);
       }
     };
     
-    loadSelectedSubmission();
-  }, [homeworkId, submissionId, open, toast]);
+    if (open) {
+      loadDataForDialog();
+    }
+  }, [open, submissionId, studentIdProp, homeworkId, knowledgePoints, form, toast]);
 
-  // 添加知识点评估
   const handleAddKnowledgePoint = (knowledgePointId: string) => {
     if (selectedKnowledgePoints.includes(knowledgePointId)) return;
     
@@ -320,13 +366,11 @@ export default function TeacherGradeHomeworkDialog({
         id: knowledgePointId, 
         name: knowledgePoint.name, 
         masteryLevel: 50,
-        // 为新的评估使用临时ID格式
         evaluationId: `temp-${knowledgePointId}`
       }
     ]);
   };
 
-  // 移除知识点评估
   const handleRemoveKnowledgePoint = (knowledgePointId: string) => {
     setSelectedKnowledgePoints(
       selectedKnowledgePoints.filter((id) => id !== knowledgePointId)
@@ -336,7 +380,6 @@ export default function TeacherGradeHomeworkDialog({
     );
   };
 
-  // 更新掌握程度
   const handleMasteryLevelChange = (knowledgePointId: string, value: number) => {
     setKnowledgePointEvaluations(
       knowledgePointEvaluations.map((kp) =>
@@ -345,7 +388,6 @@ export default function TeacherGradeHomeworkDialog({
     );
   };
 
-  // 获取掌握程度对应的等级名称
   const getMasteryLevelLabel = (level: number): string => {
     if (level >= 90) return "优秀";
     if (level >= 80) return "良好";
@@ -354,7 +396,6 @@ export default function TeacherGradeHomeworkDialog({
     return "不及格";
   };
 
-  // 根据自定义评级获取等级名称
   const getCustomGradeLabel = (score: number): string => {
     if (!gradingScale || !gradingScale.levels.length) {
       return getMasteryLevelLabel(score);
@@ -367,7 +408,6 @@ export default function TeacherGradeHomeworkDialog({
     return level ? level.name : "-";
   };
 
-  // 在显示分数的地方添加等级显示
   const renderScoreWithGrade = (score: number) => {
     const gradeLabel = getCustomGradeLabel(score);
     return (
@@ -378,117 +418,156 @@ export default function TeacherGradeHomeworkDialog({
     );
   };
 
-  // 处理AI知识点评估结果保存
   const handleSaveAiKnowledgePoints = (aiKnowledgePoints: KnowledgePoint[]) => {
-    // 转换AI知识点为评估格式
     const evaluations = aiKnowledgePoints.map(kp => ({
       id: kp.id || kp.name,
       name: kp.name,
       masteryLevel: kp.masteryLevel || 50
     }));
     
-    // 更新状态
     setKnowledgePointEvaluations(evaluations);
     
-    // 将所有知识点ID添加到选中列表
     setSelectedKnowledgePoints(evaluations.map(e => e.id));
     
-    // 标记AI分析已完成
     setIsAiAnalysisComplete(true);
     
-    // 切换到手动评分标签页
     setActiveTab("manual");
     
-    // 显示成功提示
     toast({
       title: "AI知识点评估已应用",
       description: `已成功应用 ${evaluations.length} 个知识点评估`
     });
     
-    // 如果有回调函数，则调用
     if (onSaveAiKnowledgePoints) {
       onSaveAiKnowledgePoints(aiKnowledgePoints);
     }
   };
 
-  // 提交表单
   const onSubmit = async (values: FormValues) => {
     try {
-      if (!selectedSubmission) {
-        toast.error("请选择学生");
-        return;
-      }
-
       setIsLoading(true);
       
-      // 准备知识点评估数据
-      const knowledgePointData = knowledgePointEvaluations.map(kp => ({
-        // 使用评估ID（如果存在）或构造临时ID
-        id: kp.evaluationId || `temp-${kp.id}`, 
-        masteryLevel: kp.masteryLevel
+      console.log('提交评分表单:', values);
+      
+      const evaluations = knowledgePointEvaluations.map(evaluation => ({
+        knowledgePointId: evaluation.id,
+        masteryLevel: evaluation.masteryLevel,
+        evaluationId: evaluation.evaluationId
       }));
       
-      console.log('提交知识点评估数据:', knowledgePointData);
+      console.log('准备保存知识点评估:', evaluations);
       
-      // 创建提交数据
-      const submissionData = {
-        submissionId: selectedSubmission.id,
-        score: values.score,
-        feedback: values.feedback || "",
-        knowledgePointEvaluations: knowledgePointData
-      };
+      const currentSubmissionId = selectedSubmission?.id || submissionId;
+      const currentStudentId = values.studentId;
       
-      // 使用提供的评分提交函数或调用API
-      if (onGradeSubmit) {
-        await onGradeSubmit(submissionData);
-      } else {
-        // 使用真实的API，不再使用模拟API
-        const result = await gradeHomework(submissionData);
-        console.log('评分结果:', result);
+      let submissionIdToUse = currentSubmissionId;
+      let isNewSubmission = false;
+      
+      if (!submissionIdToUse && currentStudentId && homeworkId) {
+        console.log('创建新的提交记录 for student:', currentStudentId);
+        isNewSubmission = true;
         
-        if (result.knowledgePointResults) {
-          // 处理知识点评估结果
-          console.log('知识点评估结果:', result.knowledgePointResults);
+        const { data: newSubmission, error: createError } = await supabase
+          .from('homework_submissions')
+          .insert({
+            homework_id: homeworkId,
+            student_id: currentStudentId,
+            score: values.score,
+            status: 'graded',
+            teacher_feedback: values.feedback,
+            updated_at: new Date().toISOString()
+          })
+          .select('id')
+          .single();
           
-          // 更新本地的知识点评估ID，从临时ID更新为真实ID
-          const updatedEvaluations = [...knowledgePointEvaluations];
-          result.knowledgePointResults.forEach(res => {
-            if (res.success && res.newId) {
-              // 找到对应的临时ID评估并更新为真实ID
-              const evalIndex = updatedEvaluations.findIndex(
-                kp => kp.evaluationId === res.id
-              );
-              if (evalIndex >= 0) {
-                updatedEvaluations[evalIndex].evaluationId = res.newId;
-              }
-            }
+        if (createError) {
+          console.error('创建提交记录失败:', createError);
+          toast({
+            variant: "destructive",
+            title: "创建提交失败",
+            description: `无法创建新的提交记录: ${createError.message}`
           });
-          
-          setKnowledgePointEvaluations(updatedEvaluations);
+          setIsLoading(false);
+          return;
         }
+        
+        console.log('创建的新提交记录:', newSubmission);
+        submissionIdToUse = newSubmission.id;
+        
+        setSelectedSubmission({ id: submissionIdToUse, student_id: currentStudentId, ...values });
+      } else if (!submissionIdToUse) {
+          console.error('没有有效的提交ID或学生ID来创建提交');
+          toast({
+            variant: "destructive",
+            title: "保存失败",
+            description: "缺少有效的提交信息"
+          });
+          setIsLoading(false);
+          return;
       }
       
-      toast({
-        title: "评分成功",
-        description: "学生成绩和知识点掌握情况已更新"
-      });
+      if (!isNewSubmission) {
+          console.log('更新现有提交记录:', submissionIdToUse);
+          const { error: updateError } = await supabase
+            .from('homework_submissions')
+            .update({
+              score: values.score,
+              status: 'graded',
+              teacher_feedback: values.feedback,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', submissionIdToUse);
+            
+          if (updateError) {
+            console.error('更新提交记录失败:', updateError);
+            toast({
+              variant: "destructive",
+              title: "保存失败",
+              description: `更新评分信息失败: ${updateError.message}`
+            });
+            setIsLoading(false);
+            return;
+          }
+          console.log('提交记录更新成功');
+      }
       
-      // 调用成功回调
+      if (evaluations.length > 0 && submissionIdToUse && currentStudentId && homeworkId) {
+          const evaluationResult = await updateKnowledgePointEvaluations(
+            submissionIdToUse,
+            evaluations,
+            homeworkId
+          );
+          
+          if (!evaluationResult.success) {
+            console.error('保存知识点评估失败:', evaluationResult.message);
+            toast({
+              variant: "destructive",
+              title: "部分保存失败",
+              description: "评分已保存，但知识点评估更新失败"
+            });
+          } else {
+            console.log('知识点评估保存结果:', evaluationResult);
+          }
+      } else {
+           console.log('没有知识点评估需要保存或缺少必要ID');
+      }
+      
       if (onGraded) {
         onGraded();
       }
       
-      // 关闭对话框
       onOpenChange(false);
-      if (onClose) {
-        onClose();
-      }
-    } catch (error) {
-      console.error("评分失败:", error);
+      
+      toast({
+        title: "评分已保存",
+        description: "学生作业评分已成功保存"
+      });
+    } catch (error: any) {
+      console.error('保存评分过程中发生错误:', error);
       toast({
         variant: "destructive",
-        title: "错误",
-        description: `评分失败: ${error instanceof Error ? error.message : "未知错误"}`
+        title: "保存失败",
+        description: `保存评分时发生错误: ${error.message || error}`
       });
     } finally {
       setIsLoading(false);
@@ -513,18 +592,43 @@ export default function TeacherGradeHomeworkDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>选择学生</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select
+                    onValueChange={(value) => {
+                        field.onChange(value);
+                        if (!studentIdProp) {
+                            setPreSelectedStudentName(null);
+                        }
+                    }}
+                    value={field.value || ""}
+                    disabled={!!studentIdProp || isLoading}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="选择学生" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {students.filter(student => !!student.value).map((student) => (
-                        <SelectItem key={student.value} value={student.value}>
-                          {student.label}
-                        </SelectItem>
-                      ))}
+                      {studentIdProp ? (
+                        isLoadingStudentName ? (
+                          <SelectItem value={studentIdProp} disabled>加载中...</SelectItem>
+                        ) : preSelectedStudentName ? (
+                          <SelectItem key={studentIdProp} value={studentIdProp}>
+                            {preSelectedStudentName}
+                          </SelectItem>
+                        ) : (
+                          <SelectItem value={studentIdProp} disabled>学生信息错误</SelectItem>
+                        )
+                      ) : (
+                        students.length > 0 ? (
+                          students.map((student) => (
+                            <SelectItem key={student.value} value={student.value}>
+                              {student.label}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="" disabled>暂无学生</SelectItem>
+                        )
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />

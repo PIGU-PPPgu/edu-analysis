@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,6 +40,7 @@ import {
   FileDown,
   Scan,
   Sparkles,
+  ChevronDown,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import {
@@ -62,18 +63,28 @@ import { StudentCard, StudentCardGrid, SubmissionStatus } from "./StudentCard";
 import GradeCardView from "./GradeCardView";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell, AreaChart, Area } from "recharts";
 import { AutoChart, ChartContainer, ChartTooltip } from "@/components/ui/chart";
-import { getHomeworkById, getHomeworkSubmissions, gradeHomework } from "@/services/homeworkService";
+import { 
+  gradeHomework, 
+  getHomeworkById,
+  getHomeworkSubmissions
+} from "@/services/homeworkService";
 import { getKnowledgePointsByHomeworkId } from "@/services/knowledgePointService";
 import { 
   getGradingScaleWithLevels, 
   scoreToCustomGrade, 
   GradingScaleLevel 
 } from "@/services/gradingService";
-import { AIKnowledgePointAnalyzer, KnowledgePoint } from '@/components/homework/AIKnowledgePointAnalyzer';
-import { bulkCreateKnowledgePoints, updateKnowledgePointEvaluations } from '@/services/knowledgePointService';
+import { AIKnowledgePointAnalyzer } from '@/components/homework/AIKnowledgePointAnalyzer';
+import { KnowledgePoint } from '@/components/homework/AIKnowledgePointAnalyzer';
+import { 
+  bulkCreateKnowledgePoints, 
+  updateKnowledgePointEvaluations,
+  masteryLevelToGrade
+} from '@/services/knowledgePointService';
 
-// 导入模拟数据
-import { mockApi } from "@/data/mockData";
+// 导入Excel导出库
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
 import {
   AlertDialog,
@@ -95,6 +106,9 @@ import {
 } from "@/components/ui/dialog";
 import KnowledgePointAnalysis from './KnowledgePointAnalysis';
 import { KnowledgePoint as HomeworkKnowledgePoint } from "@/types/homework";
+import { KnowledgePointManager } from "@/components/homework/KnowledgePointManager";
+import { supabase } from '@/integrations/supabase/client';
+import { cn } from "@/lib/utils";
 
 const statusMap = {
   pending: { label: "待完成", icon: Clock, color: "bg-yellow-100 text-yellow-800" },
@@ -129,21 +143,19 @@ interface Submission {
   score?: number;
   submit_date?: string;
   submitted_at?: string;
+  updated_at?: string;  // 添加更新时间字段
   students: {
     id: string;
     name: string;
     student_id?: string;
   };
+  student_id?: string; // 添加学生ID字段
   teacher_feedback?: string;
   feedback?: string;
   knowledge_point_evaluation?: any[];
   submission_knowledge_points?: any[];
-}
-
-interface KnowledgePoint {
-  id: string;
-  name: string;
-  description?: string;
+  student_knowledge_mastery?: any[]; // 添加新的知识点评估表
+  knowledge_points_assessed?: boolean; // Add the missing field
 }
 
 interface HomeworkDetailProps {
@@ -187,6 +199,29 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
   // 添加知识点分析对话框状态
   const [showAIAnalysisDialog, setShowAIAnalysisDialog] = useState(false);
   const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
+  const [studentIdMapping, setStudentIdMapping] = useState<{[key: string]: {id: string, name: string}}>({});
+  const [validationInProgress, setValidationInProgress] = useState(false);
+  // Add state to track the last graded submission ID
+  const [lastGradedSubmissionId, setLastGradedSubmissionId] = useState<string | null>(null);
+  // Add ref for the submissions container
+  const submissionsContainerRef = useRef<HTMLDivElement>(null);
+  
+  // 1. 数据加载优化：添加分页相关状态
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLazyLoading, setIsLazyLoading] = useState(false);
+  
+  // 2. 实时更新功能：添加websocket状态与定时器
+  const [realtimeEnabled, setRealtimeEnabled] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const realtimeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // 3. 数据导出功能：添加导出状态
+  const [isExporting, setIsExporting] = useState(false);
+  
+  // 4. 移动端适配：添加屏幕尺寸检测
+  const [isMobileView, setIsMobileView] = useState(false);
 
   useEffect(() => {
     if (!homeworkId) {
@@ -205,12 +240,12 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
         const data = await getHomeworkById(homeworkId);
         
         if (data) {
-          setHomework(data);
+          setHomework(data); // Set homework state first
           
           // 获取知识点
           const kpData = await getKnowledgePointsByHomeworkId(homeworkId);
           console.log("获取到的知识点:", kpData);
-          setKnowledgePoints(kpData);
+          setKnowledgePoints(kpData as unknown as KnowledgePoint[]);
           
           // 获取作业的评级标准
           if (data.grading_scale_id) {
@@ -218,14 +253,26 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
             if (gradingScaleData) {
               setGradingScale({
                 id: gradingScaleData.id || "",
-                name: gradingScaleData.name,
-                levels: gradingScaleData.levels || []
+                name: (gradingScaleData as any).name || "默认评级标准",
+                levels: (gradingScaleData.levels || []) as unknown as GradingScaleLevel[]
               });
             }
           }
           
+          // 获取班级学生ID映射 - 使用本地函数替代
+          if (data.classes && data.classes.id) {
+            try {
+              console.log('获取班级学生ID映射，班级ID:', data.classes.id);
+              // 替换为使用本地的fetchStudentIdMapping函数
+              await fetchStudentIdMapping(data.classes.id);
+            } catch (error) {
+              console.error('获取学生ID映射异常:', error);
+            }
+          }
+          
           // 获取作业提交情况
-          await fetchSubmissions();
+          // 不再重新获取数据，使用本地状态更新
+          await fetchSubmissions(); 
         } else {
           setError("获取作业详情失败");
           toast({
@@ -269,22 +316,209 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
     setFilteredSubmissions(filtered);
   }, [submissions, statusFilter, searchQuery]);
 
-  const fetchSubmissions = async () => {
-    setIsLoadingSubmissions(true);
-    try {
-      // 使用实际的Supabase服务
-      const submissionsData = await getHomeworkSubmissions(homeworkId);
+  // 懒加载设置：添加页面滚动侦听器
+  useEffect(() => {
+    // 仅在submissions标签页且为cards视图时启用懒加载
+    if (currentTab === "submissions" && viewMode === "cards") {
+      const handleScroll = () => {
+        if (submissionsContainerRef.current) {
+          const { scrollTop, scrollHeight, clientHeight } = submissionsContainerRef.current;
+          
+          // 当滚动到底部附近时加载更多内容
+          if (scrollTop + clientHeight >= scrollHeight - 100 && !isLazyLoading && currentPage < totalPages) {
+            setIsLazyLoading(true);
+            setCurrentPage(prev => prev + 1);
+          }
+        }
+      };
+
+      const container = submissionsContainerRef.current;
+      if (container) {
+        container.addEventListener("scroll", handleScroll);
+        
+        return () => {
+          container.removeEventListener("scroll", handleScroll);
+        };
+      }
+    }
+  }, [currentTab, viewMode, isLazyLoading, currentPage, totalPages]);
+
+  // 移动端检测
+  useEffect(() => {
+    const checkMobileView = () => {
+      setIsMobileView(window.innerWidth < 768);
+    };
+    
+    // 初始检查
+    checkMobileView();
+    
+    // 添加窗口大小变化事件监听
+    window.addEventListener('resize', checkMobileView);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobileView);
+    };
+  }, []);
+  
+  // 实时更新功能
+  useEffect(() => {
+    // 启用或禁用实时更新
+    if (realtimeEnabled) {
+      // 每30秒获取一次更新
+      realtimeIntervalRef.current = setInterval(() => {
+        if (homeworkId) {
+          console.log("实时更新：获取最新作业提交");
+          fetchSubmissions(true);
+          setLastUpdate(new Date());
+        }
+      }, 30000); // 30秒检查一次
       
-      setSubmissions(submissionsData);
-      setFilteredSubmissions(submissionsData);
+      toast({
+        title: "实时更新已启用",
+        description: "系统将自动获取最新提交"
+      });
+    } else {
+      // 清除定时器
+      if (realtimeIntervalRef.current) {
+        clearInterval(realtimeIntervalRef.current);
+        realtimeIntervalRef.current = null;
+      }
+    }
+    
+    // 组件卸载时清除定时器
+    return () => {
+      if (realtimeIntervalRef.current) {
+        clearInterval(realtimeIntervalRef.current);
+      }
+    };
+  }, [realtimeEnabled, homeworkId]);
+  
+  // 优化的fetchSubmissions函数，支持分页和实时更新
+  const fetchSubmissions = async (isRealtime = false) => {
+    if (!homeworkId) return;
+    
+    try {
+      if (!isRealtime) {
+        setIsLoading(true);
+      }
+      
+      const result = await getHomeworkSubmissions(homeworkId);
+      console.log("[fetchSubmissions] Raw result from getHomeworkSubmissions:", JSON.stringify(result)); // 打印原始结果
+      
+      if (result.success && result.submissions) {
+        // Map submissions (ensure students object exists)
+        let studentSubmissions = result.submissions.map(submission => {
+          return {
+            ...submission,
+            students: Array.isArray(submission.students) 
+              ? submission.students[0] || { id: submission.student_id, name: "未知学生" }
+              : submission.students || { id: submission.student_id, name: "未知学生" } 
+          };
+        });
+        console.log("[fetchSubmissions] Mapped studentSubmissions:", JSON.stringify(studentSubmissions)); // 打印映射后的结果
+        
+        // Handle case where no submissions exist, create temp ones
+        if (studentSubmissions.length === 0 && homework?.classes?.id) {
+          // 现有逻辑保持不变...
+          try {
+            const { data: classStudents } = await supabase
+              .from('students')
+              .select('id, name, student_id, class_id')
+              .eq('class_id', homework.classes.id);
+            
+            if (classStudents && classStudents.length > 0) {
+              console.log(`找到${classStudents.length}名班级学生，创建临时提交记录`);
+              
+              let tempSubmissions = classStudents.map(student => ({
+                id: `temp-${student.id}`,
+                status: 'pending',
+                students: student,
+                student_knowledge_mastery: []
+              }));
+      
+              setSubmissions(tempSubmissions);
+              
+              // 计算总页数
+              setTotalPages(Math.ceil(tempSubmissions.length / pageSize));
+              
+              const mapping: {[key: string]: {id: string, name: string}} = {};
+              classStudents.forEach(student => {
+                mapping[student.id] = { id: student.id, name: student.name };
+                mapping[`temp-${student.id}`] = { id: student.id, name: student.name };
+              });
+              
+              setStudentIdMapping(mapping);
+            } else {
+              console.log('未找到班级学生');
+              setSubmissions([]);
+              setTotalPages(1);
+            }
     } catch (error) {
+            console.error('获取班级学生失败:', error);
       toast({
         variant: "destructive",
-        title: "错误",
-        description: `获取提交记录失败: ${error.message}`
-      });
+              title: "获取学生名单失败",
+              description: "无法获取班级学生列表"
+            });
+          }
+        } else {
+          // 处理获取到的提交
+          setSubmissions(studentSubmissions);
+          
+          // 计算总页数
+          setTotalPages(Math.ceil(studentSubmissions.length / pageSize));
+          
+          const mapping: {[key: string]: {id: string, name: string}} = {};
+          studentSubmissions.forEach(submission => {
+            if (submission.students) {
+              mapping[submission.students.id] = { 
+                id: submission.students.id, 
+                name: submission.students.name 
+              };
+              mapping[`temp-${submission.students.id}`] = { 
+                id: submission.students.id, 
+                name: submission.students.name 
+              };
+            }
+          });
+          
+          setStudentIdMapping(mapping);
+          
+          // 实时更新提示
+          if (isRealtime) {
+            toast({
+              title: "数据已更新",
+              description: `最新提交数据已同步，共 ${studentSubmissions.length} 条记录`
+            });
+          }
+        }
+      } else {
+        console.error('获取提交列表失败:', result.error);
+        if (!isRealtime) {
+          toast({
+            variant: "destructive",
+            title: "获取提交列表失败",
+            description: result.error || "请检查网络连接后重试"
+          });
+        }
+        setSubmissions([]);
+        setTotalPages(1);
+      }
+    } catch (error) {
+      console.error('获取提交列表异常:', error);
+      if (!isRealtime) {
+        toast({
+          variant: "destructive",
+          title: "获取提交列表失败",
+          description: "加载提交列表时发生错误"
+        });
+      }
+      setSubmissions([]);
+      setTotalPages(1);
     } finally {
-      setIsLoadingSubmissions(false);
+      setIsLoading(false);
+      setIsLazyLoading(false);
+      setLastFetchTime(new Date());
     }
   };
 
@@ -295,7 +529,7 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
   const handleGraded = async () => {
     setIsGradeDialogOpen(false);
     setSelectedSubmissionId(null);
-    await fetchSubmissions();
+    // 不再重新获取数据，使用本地状态更新
   };
 
   const handleOpenGradeDialog = (studentId: string) => {
@@ -315,11 +549,100 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
     setSearchQuery(e.target.value);
   };
 
-  const handleExportResults = () => {
+  // 改进的数据导出功能
+  const handleExportResults = async () => {
+    try {
+      setIsExporting(true);
+      
+      if (!homework || submissions.length === 0) {
+        toast({
+          variant: "destructive",
+          title: "无法导出",
+          description: "没有可导出的数据"
+        });
+        setIsExporting(false);
+        return;
+      }
+      
+      // 准备导出数据
+      const exportData = submissions.map(submission => {
+        // 计算知识点平均掌握度
+        const masteryValues = submission.student_knowledge_mastery
+          ? submission.student_knowledge_mastery.map(km => km.mastery_level)
+          : [];
+        const avgMastery = masteryValues.length > 0
+          ? masteryValues.reduce((sum, val) => sum + val, 0) / masteryValues.length
+          : 0;
+          
+        // 生成知识点掌握情况详情
+        const knowledgePointDetails = submission.student_knowledge_mastery
+          ? submission.student_knowledge_mastery.map(km => 
+              `${km.knowledge_points?.name || '未知'}: ${km.mastery_level}%`
+            ).join('; ')
+          : '';
+        
+        return {
+          '学生姓名': submission.students.name,
+          '学生ID': submission.students.student_id || submission.students.id,
+          '提交状态': submission.status === 'graded' ? '已批改' : 
+                    submission.status === 'submitted' ? '已提交' : 
+                    submission.status === 'late' ? '逾期提交' : '未提交',
+          '分数': submission.score || '',
+          '等级': submission.score ? scoreToGrade(submission.score) : '',
+          '知识点平均掌握度': avgMastery > 0 ? `${avgMastery.toFixed(1)}%` : '',
+          '教师反馈': submission.teacher_feedback || submission.feedback || '',
+          '提交时间': submission.submitted_at ? formatDate(submission.submitted_at) : '',
+          '批改时间': submission.updated_at ? formatDate(submission.updated_at) : '',
+          '知识点详情': knowledgePointDetails
+        };
+      });
+      
+      // 创建工作簿和工作表
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      
+      // 添加工作表到工作簿
+      XLSX.utils.book_append_sheet(workbook, worksheet, '作业批改结果');
+      
+      // 设置列宽
+      const columnWidths = [
+        { wch: 10 },  // 学生姓名
+        { wch: 12 },  // 学生ID
+        { wch: 8 },   // 提交状态
+        { wch: 6 },   // 分数
+        { wch: 6 },   // 等级
+        { wch: 15 },  // 知识点平均掌握度
+        { wch: 30 },  // 教师反馈
+        { wch: 18 },  // 提交时间
+        { wch: 18 },  // 批改时间
+        { wch: 50 }   // 知识点详情
+      ];
+      worksheet['!cols'] = columnWidths;
+      
+      // 导出工作簿
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      
+      // 设置文件名：作业标题-日期
+      const fileName = `${homework.title}-批改结果-${new Date().toISOString().split('T')[0]}.xlsx`;
+      
+      // 保存文件
+      saveAs(blob, fileName);
+      
     toast({
       title: "导出成功",
-      description: "批改结果已导出到Excel文件"
+        description: `批改结果已导出到Excel文件: ${fileName}`
+      });
+    } catch (error) {
+      console.error('导出数据失败:', error);
+      toast({
+        variant: "destructive",
+        title: "导出失败",
+        description: error instanceof Error ? error.message : "导出数据时发生错误"
     });
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleUploadScans = () => {
@@ -479,11 +802,11 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
             if (localSaved) { // 使用localSaved
               // 如果是从本地存储恢复的知识点，直接使用
               console.log('使用从本地存储恢复的知识点');
-              setKnowledgePoints(extractedPoints || []);
+              setKnowledgePoints((extractedPoints || []) as unknown as KnowledgePoint[]);
             } else {
               // 否则从数据库获取最新的知识点列表
               const updatedKnowledgePoints = await getKnowledgePointsByHomeworkId(homeworkId);
-              setKnowledgePoints(updatedKnowledgePoints);
+              setKnowledgePoints(updatedKnowledgePoints as unknown as KnowledgePoint[]);
             }
             
             // 分析完成提示
@@ -664,11 +987,11 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
             if (localSaved) { // 使用localSaved
               // 如果是从本地存储恢复的知识点，直接使用
               console.log('使用从本地存储恢复的知识点');
-              setKnowledgePoints(extractedPoints || []);
+              setKnowledgePoints((extractedPoints || []) as unknown as KnowledgePoint[]);
             } else {
               // 否则从数据库获取最新的知识点列表
               const updatedKnowledgePoints = await getKnowledgePointsByHomeworkId(homeworkId);
-              setKnowledgePoints(updatedKnowledgePoints);
+              setKnowledgePoints(updatedKnowledgePoints as unknown as KnowledgePoint[]);
             }
             
             // 分析完成提示
@@ -774,6 +1097,56 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
     });
   }, [knowledgePoints, submissions]);
 
+  // 计算每个知识点的平均掌握度
+  const knowledgePointAverageMasteryData = useMemo(() => {
+    if (!knowledgePoints.length || !submissions.some(s => s.status === "graded" && s.student_knowledge_mastery?.length > 0)) {
+      return [];
+    }
+
+    return knowledgePoints.map(kp => {
+      const evaluations = submissions
+        .filter(s => s.status === "graded" && s.student_knowledge_mastery)
+        .flatMap(s => s.student_knowledge_mastery)
+        .filter(mastery => mastery.knowledge_points?.id === kp.id);
+      
+      const totalMastery = evaluations.reduce((sum, e) => sum + e.mastery_level, 0);
+      const averageMastery = evaluations.length > 0 ? totalMastery / evaluations.length : 0;
+
+      return {
+        name: kp.name,
+        averageMastery: averageMastery,
+      };
+    });
+  }, [knowledgePoints, submissions]);
+
+  // 计算分数分布数据
+  const scoreDistributionData = useMemo(() => {
+    const gradedSubmissions = submissions.filter(s => s.status === "graded" && s.score !== undefined);
+    if (gradedSubmissions.length === 0) return [];
+
+    const distribution = {
+      "0-59": 0,
+      "60-69": 0,
+      "70-79": 0,
+      "80-89": 0,
+      "90-100": 0,
+    };
+
+    gradedSubmissions.forEach(s => {
+      const score = s.score!;
+      if (score < 60) distribution["0-59"]++;
+      else if (score < 70) distribution["60-69"]++;
+      else if (score < 80) distribution["70-79"]++;
+      else if (score < 90) distribution["80-89"]++;
+      else distribution["90-100"]++;
+    });
+
+    return Object.entries(distribution).map(([range, count]) => ({
+      name: range,
+      "学生人数": count,
+    }));
+  }, [submissions]);
+
   // 评分处理函数
   const handleGradeSubmission = async (data: {
     submissionId: string;
@@ -785,31 +1158,80 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
     }>;
   }) => {
     setIsSubmitting(true);
+    const currentSubmission = submissions.find(sub => sub.id === data.submissionId);
+    const studentId = currentSubmission?.students?.id || currentSubmission?.student_id; 
+    const currentHomeworkId = homeworkId; 
+
+    if (!studentId || !currentHomeworkId) {
+      toast({ variant: "destructive", title: "批改失败", description: "缺少学生ID或作业ID" }); // Ensure toast is defined in scope
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
-      // 使用实际的Supabase服务
-      const result = await gradeHomework(data);
+      const result = await gradeHomework({
+        ...data,
+        studentId: studentId,
+        homeworkId: currentHomeworkId,
+      });
       
       if (result.success) {
+        const updatedSubmissionId = result.submissionId || data.submissionId;
+        const studentName = currentSubmission?.students?.name || '未知学生';
+        
+        setSubmissions(prev => 
+          prev.map(s => {
+            if (s.id === data.submissionId) {
+              return {
+                ...s,
+                id: updatedSubmissionId,
+                status: "graded",
+                score: data.score,
+                teacher_feedback: data.feedback,
+                updated_at: new Date().toISOString(),
+                knowledge_points_assessed: result.knowledgePointsAssessed, // Removed potentially problematic comma
+              };
+            }
+            return s;
+          })
+        );
+
         toast({
-          title: "评分成功",
-          description: "学生成绩和知识点掌握情况已更新"
+          title: "批改成功",
+          description: `学生 ${studentName} 的评分${result.knowledgePointsAssessed ? '和知识点' : ''}已保存。`,
         });
-        await fetchSubmissions(); // 重新加载提交数据
+
+        setFilteredSubmissions(prev => 
+          prev.map(s => s.id === data.submissionId ? 
+            { 
+              ...s,
+              id: updatedSubmissionId,
+              status: "graded", 
+              score: data.score,
+              teacher_feedback: data.feedback,
+              updated_at: new Date().toISOString(),
+              knowledge_points_assessed: result.knowledgePointsAssessed // Removed potentially problematic comma
+            } : s
+          )
+        );
+        
+        const finalSubmissionId = result.submissionId || data.submissionId;
+        setLastGradedSubmissionId(finalSubmissionId);
+
+        setTimeout(() => {
+          const itemElement = submissionsContainerRef.current?.querySelector(`[data-submission-id="${finalSubmissionId}"]`);
+          itemElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 100);
+        
       } else {
-        toast({
-          title: "评分失败",
-          description: "评分失败"
-        });
+         toast({ variant: "destructive", title: "批改失败", description: result.error || "保存评分时出错" });
       }
-    } catch (error) {
-      toast({
-        title: "评分出错",
-        description: `评分出错: ${error.message}`
-      });
+    } catch (error: any) {
+       toast({ variant: "destructive", title: "批改异常", description: error.message || "处理评分时出错" });
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }; // Ensure this closing brace is correct for handleGradeSubmission
 
   // 在渲染评分选项的部分添加以下内容
   const renderScoreDisplayOptions = () => {
@@ -886,7 +1308,7 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
       if (result.success) {
         // 更新知识点列表
         const updatedKnowledgePointsList = await getKnowledgePointsByHomeworkId(homework.id);
-        setKnowledgePoints(updatedKnowledgePointsList);
+        setKnowledgePoints(updatedKnowledgePointsList as unknown as KnowledgePoint[]);
         
         // 根据不同情况显示不同的提示信息
         if (result.skippedPoints && result.skippedPoints.length > 0) {
@@ -905,7 +1327,7 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
         }
         
         // 关闭分析对话框
-        setShowAIAnalysisDialog(false);
+        setShowKnowledgePointDialog(false);
       } else {
         toast({
           variant: "destructive",
@@ -1061,10 +1483,8 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
       const result = await bulkCreateKnowledgePoints(aiKnowledgePoints, homework.id);
       
       if (result.success) {
-        // 更新知识点列表
-        // 先获取最新的知识点列表，确保包含后端处理的结果
-        const updatedKnowledgePointsList = await getKnowledgePointsByHomeworkId(homework.id);
-        setKnowledgePoints(updatedKnowledgePointsList);
+        // 直接调用handleKnowledgePointsChanged刷新知识点列表
+        await handleKnowledgePointsChanged();
         
         // 根据不同情况显示不同的提示信息
         if (result.skippedPoints && result.skippedPoints.length > 0) {
@@ -1111,6 +1531,95 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
     });
   };
 
+  // 在component中添加一个处理知识点变更的函数
+  const handleKnowledgePointsChanged = async () => {
+    console.log('知识点已更新，重新加载知识点列表');
+    if (homework) {
+      const updatedKnowledgePoints = await getKnowledgePointsByHomeworkId(homework.id);
+      setKnowledgePoints(updatedKnowledgePoints as unknown as KnowledgePoint[]);
+      toast({
+        title: "知识点列表已更新",
+        description: "知识点列表已成功刷新"
+      });
+    }
+  };
+
+  // 获取班级学生的有效ID映射
+  const fetchStudentIdMapping = async (classId: string) => {
+    setValidationInProgress(true);
+    try {
+      console.log('获取班级学生ID映射，班级ID:', classId);
+      
+      // 直接使用supabase获取学生列表
+      const { data: students, error } = await supabase
+        .from('students')
+        .select('id, name, student_id')
+        .eq('class_id', classId);
+        
+      if (error) {
+        console.error('获取班级学生列表失败:', error);
+        toast({
+          variant: "destructive",
+          title: "学生信息加载失败",
+          description: `获取班级学生失败: ${error.message}`
+        });
+        return;
+      }
+      
+      if (!students || students.length === 0) {
+        console.warn('班级中没有学生记录');
+        toast({
+          variant: "destructive",
+          title: "学生信息加载失败",
+          description: "班级中没有学生记录"
+        });
+        return;
+      }
+      
+      // 创建ID映射关系
+      const idMapping: {[key: string]: {id: string, name: string}} = {};
+      
+      students.forEach(student => {
+        // 以学生ID为键
+        idMapping[student.id] = {
+          id: student.id,
+          name: student.name
+        };
+        
+        // 以临时ID格式为键
+        idMapping[`temp-${student.id}`] = {
+          id: student.id,
+          name: student.name
+        };
+        
+        // 如果有学号，也以学号为键
+        if (student.student_id) {
+          idMapping[student.student_id] = {
+            id: student.id,
+            name: student.name
+          };
+        }
+      });
+      
+      console.log(`成功获取 ${students.length} 名学生的ID映射`);
+      setStudentIdMapping(idMapping);
+      
+      toast({
+        title: "学生信息加载成功",
+        description: `已加载 ${students.length} 名学生的信息用于评分`
+      });
+    } catch (error) {
+      console.error('获取学生ID映射异常:', error);
+      toast({
+        variant: "destructive",
+        title: "学生信息加载失败",
+        description: "无法获取有效的学生信息，评分可能无法正确保存"
+      });
+    } finally {
+      setValidationInProgress(false);
+    }
+  };
+
   if (isLoading) return <Loading />;
   if (error) return <div className="p-6">{error}</div>;
   if (!homework) return <div>作业不存在</div>;
@@ -1128,7 +1637,7 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${isMobileView ? 'pb-16' : ''}`}>
       <div className="flex items-center gap-2">
         <Button
           variant="ghost"
@@ -1139,6 +1648,27 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <h1 className="text-2xl font-bold">作业详情</h1>
+        
+        {/* 添加实时更新切换按钮 */}
+        <div className="ml-auto flex items-center">
+          <div className="flex items-center mr-3">
+            <span className="text-sm text-muted-foreground mr-2">实时更新</span>
+            <button 
+              onClick={() => setRealtimeEnabled(prev => !prev)}
+              className={`relative inline-flex h-5 w-10 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${realtimeEnabled ? 'bg-green-500' : 'bg-gray-200'}`}
+            >
+              <span 
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 ease-in-out ${realtimeEnabled ? 'translate-x-5' : 'translate-x-0'}`} 
+              />
+            </button>
+          </div>
+          
+          {lastUpdate && (
+            <span className="text-xs text-muted-foreground">
+              最后更新: {lastUpdate.toLocaleTimeString()}
+            </span>
+          )}
+        </div>
       </div>
 
       <Card>
@@ -1178,6 +1708,7 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
               </TabsTrigger>
             </TabsList>
 
+            {/* Details Tab Content */}
             <TabsContent value="details" className="space-y-4">
               <div>
                 <h3 className="font-medium mb-2">作业说明</h3>
@@ -1270,9 +1801,9 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
                       {homeworkImages.map((image, index) => (
                         <div key={index} className="relative group">
                           <div className={`relative h-32 w-full overflow-hidden rounded-md ${image.status === 'uploading' ? 'bg-muted animate-pulse' : ''}`}>
-                            <img 
-                              src={image.url} 
-                              alt={image.name} 
+                          <img 
+                            src={image.url} 
+                            alt={image.name} 
                               className={`h-full w-full object-cover rounded-md ${image.status === 'uploading' ? 'opacity-50' : ''}`}
                             />
                             {image.status === 'uploading' && (
@@ -1352,8 +1883,9 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
               )}
             </TabsContent>
 
+            {/* Submissions Tab Content - Ensure this one is closed correctly */ }
             <TabsContent value="submissions">
-              <div className="space-y-4">
+              <div className="space-y-4"> {/* This div starts at L1611 */} 
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div className="flex items-center gap-2">
                     <h3 className="font-medium">学生作业情况</h3>
@@ -1439,9 +1971,21 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
                       <DropdownMenuContent>
                         <DropdownMenuLabel>批量操作</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={handleExportResults}>
+                        <DropdownMenuItem 
+                          onClick={handleExportResults}
+                          disabled={isExporting}
+                        >
+                          {isExporting ? (
+                            <>
+                              <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                              导出中...
+                            </>
+                          ) : (
+                            <>
                           <Download className="h-4 w-4 mr-2" />
-                          导出结果
+                              导出Excel
+                            </>
+                          )}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={handleUploadScans}>
                           <Upload className="h-4 w-4 mr-2" />
@@ -1465,48 +2009,150 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
                   </p>
                 </div>
 
+                {/* Container for different view modes */}
+                <div ref={submissionsContainerRef}>
+                  {/* Cards View */}
                 {viewMode === "cards" && (
                   filteredSubmissions.length > 0 ? (
                     <GradeCardView 
                       data-grade-card-view
                       submissions={filteredSubmissions}
                       knowledgePoints={knowledgePoints}
-                      onGraded={(submissionId, score, feedback, knowledgePointEvaluations) => {
-                        // 在这里处理评分提交
-                        // 更新提交状态
-                        const updatedSubmission = {
-                          ...filteredSubmissions.find(s => s.id === submissionId),
-                          status: "graded",
-                          score: score,
-                          teacher_feedback: feedback,
-                        };
-                        
-                        // 更新状态
+                      isSubmitting={isSubmitting}
+                      onGraded={async (submissionId, score, feedback, knowledgePointEvaluations) => {
+                        setIsSubmitting(true);
+                        const currentSubmission = submissions.find(sub => sub.id === submissionId);
+                        const studentId = currentSubmission?.students?.id || currentSubmission?.student_id;
+                        const currentHomeworkId = homeworkId;
+
+                        if (!studentId || !currentHomeworkId) {
+                          toast({
+                            variant: "destructive",
+                            title: "批改失败",
+                            description: "缺少学生ID或作业ID，无法保存评分。",
+                          });
+                          setIsSubmitting(false);
+                          return;
+                        }
+
+                        try {
+                          const gradeData = {
+                            submissionId,
+                            score,
+                            feedback,
+                            knowledgePointEvaluations,
+                            studentId,
+                            homeworkId: currentHomeworkId,
+                          };
+                          const result = await gradeHomework(gradeData);
+                          
+                          if (result.success) {
+                            const updatedSubmissionId = result.submissionId || submissionId;
+                            const studentName = currentSubmission?.students?.name || '未知学生';
+                            
+                            // 直接更新本地状态，避免重新获取数据
+                            setSubmissions(prev => 
+                              prev.map(s => {
+                                if (s.id === submissionId) {
+                                  return {
+                                    ...s,
+                                    id: updatedSubmissionId,
+                                    status: "graded",
+                                    score: score,
+                                    teacher_feedback: feedback,
+                                    updated_at: new Date().toISOString(), 
+                                    knowledge_points_assessed: result.knowledgePointsAssessed, 
+                                  };
+                                }
+                                return s; 
+                              })
+                            );
+                            
+                            toast({
+                              title: "批改成功",
+                              description: `学生的评分已成功保存。`,
+                            });
+
+                            setFilteredSubmissions(prev => 
+                              prev.map(s => s.id === submissionId ? 
+                                {...s, 
+                                  id: updatedSubmissionId,
+                                  status: "graded", 
+                                  score: score,
+                                  teacher_feedback: feedback,
+                                  updated_at: new Date().toISOString(),
+                                  knowledge_points_assessed: result.knowledgePointsAssessed
+                                } : s
+                              )
+                            );
+                                  
+                            const finalSubmissionId = result.submissionId || submissionId;
+                            setLastGradedSubmissionId(finalSubmissionId);
+
+                            setTimeout(() => {
+                              const cardElement = submissionsContainerRef.current?.querySelector(`[data-submission-id="${finalSubmissionId}"]`);
+                              cardElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                            }, 100);
+
+                          } else {
+                            toast({
+                              variant: "destructive",
+                              title: "批改失败",
+                              description: result.error || "保存评分时发生未知错误。",
+                            });
+                          }
+                        } catch (error: any) {
+                          console.error("评分处理异常:", error);
+                          toast({
+                            variant: "destructive",
+                            title: "批改异常",
+                            description: error.message || "处理评分时发生严重错误。",
+                          });
+                        } finally {
+                          setIsSubmitting(false);
+                        }
+                      }}
+                      onBatchGraded={async (submissionIds, score, feedback) => {
+                        // 实现批量评分的本地状态更新
                         setSubmissions(prev => 
-                          prev.map(s => s.id === submissionId ? updatedSubmission : s)
+                          prev.map(s => {
+                            if (submissionIds.includes(s.id)) {
+                              return {
+                                ...s,
+                                status: "graded",
+                                score: score,
+                                teacher_feedback: feedback,
+                                updated_at: new Date().toISOString(),
+                              };
+                            }
+                            return s;
+                          })
                         );
                         
-                        // 显示成功提示
-                        toast({
-                          title: "批改成功",
-                          description: "学生成绩和知识点掌握情况已更新"
-                        });
-                      }}
-                      onBatchGraded={(submissionIds, score, feedback) => {
-                        // 处理批量评分
-                        setSubmissions(prev => 
-                          prev.map(s => 
-                            submissionIds.includes(s.id) 
-                              ? {...s, status: "graded", score, teacher_feedback: feedback} 
-                              : s
-                          )
+                        // 同样更新过滤后的列表
+                        setFilteredSubmissions(prev => 
+                          prev.map(s => {
+                            if (submissionIds.includes(s.id)) {
+                              return {
+                                ...s,
+                                status: "graded",
+                                score: score,
+                                teacher_feedback: feedback,
+                                updated_at: new Date().toISOString(),
+                              };
+                            }
+                            return s;
+                          })
                         );
                         
                         toast({
-                          title: "批量评分成功",
-                          description: `已批量评分 ${submissionIds.length} 名学生的作业`
+                          title: "批量批改成功",
+                          description: `已批改 ${submissionIds.length} 份作业`,
                         });
+                        
+                        setLastGradedSubmissionId(null);
                       }}
+                      lastGradedSubmissionId={lastGradedSubmissionId}
                     />
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
@@ -1515,6 +2161,7 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
                   )
                 )}
 
+                  {/* Table View */} 
                 {viewMode === "table" && (
                   filteredSubmissions.length > 0 ? (
                     <Table>
@@ -1533,7 +2180,7 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
                           const status = statusMap[submission.status as keyof typeof statusMap];
                           const StatusIcon = status.icon;
                           return (
-                            <TableRow key={submission.id}>
+                              <TableRow key={submission.id} data-submission-id={submission.id}> {/* Add data-submission-id here too */}
                               <TableCell>{submission.students.name}</TableCell>
                               <TableCell>
                                 <div className="flex items-center">
@@ -1552,33 +2199,52 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
                                   : "-"}
                               </TableCell>
                               <TableCell>
-                                {submission.submit_date
-                                  ? formatDate(submission.submit_date)
+                                  {submission.status === "graded" && submission.updated_at
+                                    ? formatDate(submission.updated_at)
+                                    : submission.submitted_at
+                                      ? formatDate(submission.submitted_at)
                                   : "-"}
                               </TableCell>
                               <TableCell>
                                 <div className="flex flex-wrap gap-1 max-w-[200px]">
-                                  {submission.knowledge_point_evaluation?.map(
-                                    (evaluation) => (
+                                    {(submission.student_knowledge_mastery?.length > 0) ? (
+                                      // 使用新表获取知识点评估数据
+                                      submission.student_knowledge_mastery.map(
+                                        (evaluation) => {
+                                          // 确保评估对象具有必要字段
+                                          const masteryLevel = evaluation.mastery_level;
+                                          const knowledgePtName = evaluation.knowledge_points?.name || "未知知识点";
+                                          // 获取掌握等级
+                                          const masteryGrade = evaluation.mastery_grade || 
+                                            masteryLevelToGrade(masteryLevel);
+
+                                          // 根据等级确定颜色
+                                          const gradeColor = 
+                                            masteryGrade === 'A' ? 'bg-green-100 text-green-800 border-green-200' : 
+                                            masteryGrade === 'B' ? 'bg-blue-100 text-blue-800 border-blue-200' : 
+                                            masteryGrade === 'C' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 
+                                            masteryGrade === 'D' ? 'bg-orange-100 text-orange-800 border-orange-200' : 
+                                            'bg-red-100 text-red-800 border-red-200';
+
+                                            return (
                                       <Badge
                                         key={evaluation.id}
                                         variant="outline"
-                                        className={
-                                          evaluation.mastery_level >= 80
-                                            ? "bg-green-100 text-green-800 border-green-200"
-                                            : evaluation.mastery_level >= 60
-                                            ? "bg-blue-100 text-blue-800 border-blue-200"
-                                            : evaluation.mastery_level >= 40
-                                            ? "bg-yellow-100 text-yellow-800 border-yellow-200"
-                                            : "bg-red-100 text-red-800 border-red-200"
-                                        }
-                                      >
-                                        {evaluation.knowledge_points.name} ({evaluation.mastery_level}%)
+                                            className={cn(
+                                              "px-2 py-0.5",
+                                              gradeColor
+                                            )}
+                                          >
+                                            <span className="flex items-center gap-1">
+                                              {knowledgePtName}: {masteryGrade} ({masteryLevel}%)
+                                            </span>
                                       </Badge>
+                                        );
+                                      }
                                     )
+                                  ) : (
+                                    <span className="text-muted-foreground">未评估</span>
                                   )}
-                                  {(!submission.knowledge_point_evaluation ||
-                                    submission.knowledge_point_evaluation.length === 0) && "-"}
                                 </div>
                               </TableCell>
                               <TableCell>
@@ -1603,6 +2269,7 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
                   )
                 )}
 
+                {/* AI View */} 
                 {viewMode === "ai" && (
                   <div className="mt-6">
                     <div className="bg-muted p-6 rounded-lg border border-dashed text-center">
@@ -1619,13 +2286,16 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
                   </div>
                 )}
 
-                {/* 添加评分显示选项 */}
+                {/* Scoring display options */} 
                 {renderScoreDisplayOptions()}
+                </div>
               </div>
             </TabsContent>
 
+            {/* Analysis Tab Content - Start with only the first three cards uncommented */}
             <TabsContent value="analysis">
               <div className="flex justify-end mb-4">
+                {/* ... Tab controls (numeric/letter score mode buttons) ... */}
                 <div className="bg-muted p-1 rounded-md flex">
                   <Button 
                     variant={scoreDisplayMode === "numeric" ? "default" : "ghost"} 
@@ -1646,165 +2316,15 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
                 </div>
               </div>
                 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* 作业完成状态分布 */}
-                <Card>
+              {/* 1. Card: 数据概览卡片 */}
+              <Card className="mb-6">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-base">作业完成状态</CardTitle>
-                    <CardDescription>学生作业提交情况分布</CardDescription>
-                  </CardHeader>
-                  <CardContent className="h-[300px]">
-                    {submissions.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={[
-                              {
-                                name: "已批改",
-                                value: submissions.filter(s => s.status === "graded").length,
-                                color: "#4ade80"
-                              },
-                              {
-                                name: "已提交",
-                                value: submissions.filter(s => s.status === "submitted").length,
-                                color: "#60a5fa"
-                              },
-                              {
-                                name: "待完成",
-                                value: submissions.filter(s => s.status === "pending").length,
-                                color: "#facc15"
-                              }
-                            ]}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={true}
-                            outerRadius={80}
-                            fill="#8884d8"
-                            dataKey="value"
-                            nameKey="name"
-                            label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                          >
-                            {[
-                              { name: "已批改", value: submissions.filter(s => s.status === "graded").length, color: "#4ade80" },
-                              { name: "已提交", value: submissions.filter(s => s.status === "submitted").length, color: "#60a5fa" },
-                              { name: "待完成", value: submissions.filter(s => s.status === "pending").length, color: "#facc15" }
-                            ].map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <Tooltip />
-                          <Legend />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="flex items-center justify-center h-full">
-                        <p className="text-muted-foreground">暂无数据</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* 成绩分布图 */}
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base">成绩分布</CardTitle>
-                    <CardDescription>学生成绩区间分布情况</CardDescription>
-                  </CardHeader>
-                  <CardContent className="h-[300px]">
-                    {submissions.filter(s => s.status === "graded").length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart 
-                          data={
-                            scoreDisplayMode === "numeric" ? [
-                              { range: "90-100", count: submissions.filter(s => s.status === "graded" && s.score >= 90 && s.score <= 100).length, color: "#4ade80" },
-                              { range: "80-89", count: submissions.filter(s => s.status === "graded" && s.score >= 80 && s.score < 90).length, color: "#60a5fa" },
-                              { range: "70-79", count: submissions.filter(s => s.status === "graded" && s.score >= 70 && s.score < 80).length, color: "#facc15" },
-                              { range: "60-69", count: submissions.filter(s => s.status === "graded" && s.score >= 60 && s.score < 70).length, color: "#f97316" },
-                              { range: "0-59", count: submissions.filter(s => s.status === "graded" && s.score < 60).length, color: "#ef4444" }
-                            ] : [
-                              { range: "A+/A", count: submissions.filter(s => s.status === "graded" && s.score >= 90).length, color: "#4ade80" },
-                              { range: "B+/B", count: submissions.filter(s => s.status === "graded" && s.score >= 80 && s.score < 90).length, color: "#60a5fa" },
-                              { range: "C+/C", count: submissions.filter(s => s.status === "graded" && s.score >= 70 && s.score < 80).length, color: "#facc15" },
-                              { range: "D+/D", count: submissions.filter(s => s.status === "graded" && s.score >= 60 && s.score < 70).length, color: "#f97316" },
-                              { range: "F", count: submissions.filter(s => s.status === "graded" && s.score < 60).length, color: "#ef4444" }
-                            ]
-                          }
-                          margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="range" />
-                          <YAxis />
-                          <Tooltip formatter={(value) => [`${value} 人`, "数量"]} />
-                          <Bar dataKey="count" name="学生人数">
-                            {(scoreDisplayMode === "numeric" ? [
-                              { range: "90-100", count: 0, color: "#4ade80" },
-                              { range: "80-89", count: 0, color: "#60a5fa" },
-                              { range: "70-79", count: 0, color: "#facc15" },
-                              { range: "60-69", count: 0, color: "#f97316" },
-                              { range: "0-59", count: 0, color: "#ef4444" }
-                            ] : [
-                              { range: "A+/A", count: 0, color: "#4ade80" },
-                              { range: "B+/B", count: 0, color: "#60a5fa" },
-                              { range: "C+/C", count: 0, color: "#facc15" },
-                              { range: "D+/D", count: 0, color: "#f97316" },
-                              { range: "F", count: 0, color: "#ef4444" }
-                            ]).map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="flex items-center justify-center h-full">
-                        <p className="text-muted-foreground">暂无评分数据</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* 添加知识点分析组件 */}
-                <Card className="md:col-span-2">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base">知识点分析</CardTitle>
-                    <CardDescription>作业知识点与学生掌握情况</CardDescription>
+                  <CardTitle className="text-base">数据概览</CardTitle>
+                  <CardDescription>当前作业的关键指标</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <KnowledgePointAnalysis 
-                      homeworkId={homeworkId}
-                      submissions={submissions}
-                      knowledgePoints={knowledgePoints as unknown as HomeworkKnowledgePoint[]}
-                      onKnowledgePointsUpdated={(points) => {
-                        setKnowledgePoints(points as unknown as KnowledgePoint[]);
-                        toast({
-                          title: "知识点更新成功",
-                          description: `已更新${points.length}个知识点`
-                        });
-                      }}
-                      isAiAnalyzing={isAiAnalyzing}
-                    />
-                  </CardContent>
-                </Card>
-
-                {/* 作业质量对比分析 */}
-                <Card className="md:col-span-2">
-                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                    <div>
-                      <CardTitle className="text-base">作业质量对比分析</CardTitle>
-                      <CardDescription>当前作业与以前作业的质量指标对比</CardDescription>
-                    </div>
-                    <Select defaultValue="recent3">
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="选择对比范围" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="recent3">近3次作业</SelectItem>
-                        <SelectItem value="recent5">近5次作业</SelectItem>
-                        <SelectItem value="all">全部作业</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                      {/* ... Grid items for stats ... */}
                       <div className="bg-muted/50 rounded-md p-3 text-center">
                         <div className="text-3xl font-bold text-primary">
                           {submissions.filter(s => s.status === "graded").length > 0 
@@ -1828,253 +2348,181 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
                       </div>
                       <div className="bg-muted/50 rounded-md p-3 text-center">
                         <div className="text-3xl font-bold text-primary">
-                          {submissions.filter(s => s.status === "graded").length > 0
-                            ? `${((submissions.filter(s => s.status === "graded" && (s.score || 0) >= 60).length / 
-                              submissions.filter(s => s.status === "graded").length) * 100).toFixed(0)}%`
-                            : "-"}
+                          {submissions.filter(s => s.status === "graded").length}
                         </div>
-                        <div className="text-sm text-muted-foreground mt-1">及格率</div>
+                        <div className="text-sm text-muted-foreground mt-1">已批改</div>
                       </div>
                       <div className="bg-muted/50 rounded-md p-3 text-center">
                         <div className="text-3xl font-bold text-primary">
-                          {submissions.filter(s => s.status === "graded").length > 0
-                            ? `${((submissions.filter(s => s.status === "graded" && (s.score || 0) >= 90).length / 
-                              submissions.filter(s => s.status === "graded").length) * 100).toFixed(0)}%`
-                            : "-"}
+                          {submissions.filter(s => s.status === "pending").length}
                         </div>
-                        <div className="text-sm text-muted-foreground mt-1">优秀率</div>
+                        <div className="text-sm text-muted-foreground mt-1">未提交</div>
                       </div>
                       <div className="bg-muted/50 rounded-md p-3 text-center">
                         <div className="text-3xl font-bold text-primary">
-                          {submissions.some(s => s.knowledge_point_evaluation?.length > 0)
-                            ? `${(submissions
-                              .filter(s => s.status === "graded")
-                              .flatMap(s => s.knowledge_point_evaluation || [])
-                              .reduce((sum, e) => sum + e.mastery_level, 0) / 
-                              submissions
-                                .filter(s => s.status === "graded")
-                                .flatMap(s => s.knowledge_point_evaluation || []).length).toFixed(0)}%`
-                            : "-"}
+                          {knowledgePoints.length}
                         </div>
-                        <div className="text-sm text-muted-foreground mt-1">知识点掌握度</div>
+                        <div className="text-sm text-muted-foreground mt-1">知识点数</div>
                       </div>
-                    </div>
-                    
-                    <div className="h-[300px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart
-                          data={[
-                            {
-                              name: "作业3",
-                              平均分: 78.5,
-                              提交率: 95,
-                              及格率: 88,
-                              优秀率: 20,
-                              知识点掌握度: 75
-                            },
-                            {
-                              name: "作业2",
-                              平均分: 81.2,
-                              提交率: 90,
-                              及格率: 92,
-                              优秀率: 25,
-                              知识点掌握度: 80
-                            },
-                            {
-                              name: "作业1",
-                              平均分: 75.8,
-                              提交率: 85,
-                              及格率: 80,
-                              优秀率: 15,
-                              知识点掌握度: 72
-                            },
-                            {
-                              name: "当前作业",
-                              平均分: submissions.filter(s => s.status === "graded").length > 0 
-                                ? (submissions.filter(s => s.status === "graded").reduce((sum, s) => sum + (s.score || 0), 0) / 
-                                  submissions.filter(s => s.status === "graded").length)
-                                : 0,
-                              提交率: submissions.length > 0
-                                ? (submissions.filter(s => s.status === "graded" || s.status === "submitted").length / 
-                                  submissions.length) * 100
-                                : 0,
-                              及格率: submissions.filter(s => s.status === "graded").length > 0
-                                ? (submissions.filter(s => s.status === "graded" && (s.score || 0) >= 60).length / 
-                                  submissions.filter(s => s.status === "graded").length) * 100
-                                : 0,
-                              优秀率: submissions.filter(s => s.status === "graded").length > 0
-                                ? (submissions.filter(s => s.status === "graded" && (s.score || 0) >= 90).length / 
-                                  submissions.filter(s => s.status === "graded").length) * 100
-                                : 0,
-                              知识点掌握度: submissions.some(s => s.knowledge_point_evaluation?.length > 0)
-                                ? (submissions
-                                  .filter(s => s.status === "graded")
-                                  .flatMap(s => s.knowledge_point_evaluation || [])
-                                  .reduce((sum, e) => sum + e.mastery_level, 0) / 
-                                  submissions
-                                    .filter(s => s.status === "graded")
-                                    .flatMap(s => s.knowledge_point_evaluation || []).length)
-                                : 0
-                            }
-                          ]}
-                          margin={{ top: 20, right: 30, left: 20, bottom: 10 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="name" />
-                          <YAxis domain={[0, 100]} />
-                          <Tooltip formatter={(value) => {
-                            if (typeof value === 'number') {
-                              if (name === "平均分" && scoreDisplayMode === "letter") {
-                                return [scoreToGrade(value), ""];
-                              }
-                              return [value.toFixed(1), ""];
-                            }
-                            return [value, ""];
-                          }} />
-                          <Legend />
-                          <Line type="monotone" dataKey="平均分" stroke="#4ade80" strokeWidth={2} dot={{ r: 5 }} activeDot={{ r: 8 }} />
-                          <Line type="monotone" dataKey="提交率" stroke="#60a5fa" strokeWidth={2} dot={{ r: 5 }} activeDot={{ r: 8 }} />
-                          <Line type="monotone" dataKey="及格率" stroke="#facc15" strokeWidth={2} dot={{ r: 5 }} activeDot={{ r: 8 }} />
-                          <Line type="monotone" dataKey="优秀率" stroke="#f97316" strokeWidth={2} dot={{ r: 5 }} activeDot={{ r: 8 }} />
-                          <Line type="monotone" dataKey="知识点掌握度" stroke="#8884d8" strokeWidth={2} dot={{ r: 5 }} activeDot={{ r: 8 }} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                    
-                    <div className="text-xs text-muted-foreground mt-2 text-center">
-                      * 历史作业数据仅供参考，实际数据将基于系统记录的作业评分情况
                     </div>
                   </CardContent>
-                </Card>
+              </Card>
 
-                {/* 成绩等级趋势 */}
-                <Card className="md:col-span-2">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base">成绩等级趋势</CardTitle>
-                    <CardDescription>近期作业中各等级获得次数变化</CardDescription>
+              {/* 2. Card: 分数分布图表 */}
+              {submissions.filter(s => s.status === "graded").length > 0 && (
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle className="text-base">分数分布</CardTitle>
+                    <CardDescription>已批改作业的分数分布情况</CardDescription>
                   </CardHeader>
-                  <CardContent className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={[
-                          {
-                            month: "9月",
-                            优秀: 5,
-                            良好: 12,
-                            中等: 8,
-                            及格: 3,
-                            不及格: 2
-                          },
-                          {
-                            month: "10月",
-                            优秀: 7,
-                            良好: 15,
-                            中等: 6,
-                            及格: 2,
-                            不及格: 1
-                          },
-                          {
-                            month: "11月",
-                            优秀: 9,
-                            良好: 14,
-                            中等: 5,
-                            及格: 2,
-                            不及格: 0
-                          },
-                          {
-                            month: "12月",
-                            优秀: submissions.filter(s => s.status === "graded" && s.score >= 90).length,
-                            良好: submissions.filter(s => s.status === "graded" && s.score >= 80 && s.score < 90).length,
-                            中等: submissions.filter(s => s.status === "graded" && s.score >= 70 && s.score < 80).length,
-                            及格: submissions.filter(s => s.status === "graded" && s.score >= 60 && s.score < 70).length,
-                            不及格: submissions.filter(s => s.status === "graded" && s.score < 60).length
-                          }
-                        ]}
-                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                      >
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={scoreDistributionData}>
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="month" />
-                        <YAxis />
-                        <Tooltip formatter={(value) => [`${value} 人`, ""]} />
+                        <XAxis dataKey="name" />
+                        <YAxis allowDecimals={false} />
+                        <Tooltip />
                         <Legend />
-                        <Bar dataKey="优秀" fill="#4ade80" name={scoreDisplayMode === "numeric" ? "优秀(90-100)" : "A/A+"} />
-                        <Bar dataKey="良好" fill="#60a5fa" name={scoreDisplayMode === "numeric" ? "良好(80-89)" : "B/B+"} />
-                        <Bar dataKey="中等" fill="#facc15" name={scoreDisplayMode === "numeric" ? "中等(70-79)" : "C/C+"} />
-                        <Bar dataKey="及格" fill="#f97316" name={scoreDisplayMode === "numeric" ? "及格(60-69)" : "D/D+"} />
-                        <Bar dataKey="不及格" fill="#ef4444" name={scoreDisplayMode === "numeric" ? "不及格(<60)" : "F"} />
+                        <Bar dataKey="学生人数" fill="#8884d8" />
                       </BarChart>
                     </ResponsiveContainer>
                   </CardContent>
                 </Card>
-                
-                {/* 作业提交时间趋势 */}
-                <Card className="md:col-span-2">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base">作业提交时间趋势</CardTitle>
-                    <CardDescription>每天作业提交次数分布</CardDescription>
+              )}
+
+              {/* 3. Card: 知识点掌握度雷达图/柱状图 */}
+              {knowledgePoints.length > 0 && (
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle className="text-base">知识点平均掌握度</CardTitle>
+                    <CardDescription>各知识点的平均掌握情况</CardDescription>
                   </CardHeader>
-                  <CardContent className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart
-                        data={[
-                          {
-                            day: "周一",
-                            总提交: 8,
-                            准时提交: 6,
-                            逾期提交: 2
-                          },
-                          {
-                            day: "周二",
-                            总提交: 12,
-                            准时提交: 10,
-                            逾期提交: 2
-                          },
-                          {
-                            day: "周三",
-                            总提交: 15,
-                            准时提交: 11,
-                            逾期提交: 4
-                          },
-                          {
-                            day: "周四",
-                            总提交: 6,
-                            准时提交: 4,
-                            逾期提交: 2
-                          },
-                          {
-                            day: "周五",
-                            总提交: 14,
-                            准时提交: 8,
-                            逾期提交: 6
-                          },
-                          {
-                            day: "周六",
-                            总提交: 9,
-                            准时提交: 5,
-                            逾期提交: 4
-                          },
-                          {
-                            day: "周日",
-                            总提交: 18,
-                            准时提交: 10,
-                            逾期提交: 8
-                          }
-                        ]}
-                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="day" />
-                        <YAxis label={{ value: '提交次数', angle: -90, position: 'insideLeft' }} />
-                        <Tooltip formatter={(value) => [`${value} 次`, ""]} />
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={400}>
+                      <RadarChart cx="50%" cy="50%" outerRadius="80%" data={knowledgePointAverageMasteryData}>
+                        <PolarGrid />
+                        <PolarAngleAxis dataKey="name" />
+                        <PolarRadiusAxis angle={30} domain={[0, 100]} />
+                        <Radar name="平均掌握度" dataKey="averageMastery" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
                         <Legend />
-                        <Area type="monotone" dataKey="总提交" stackId="1" stroke="#8884d8" fill="#8884d8" />
-                        <Area type="monotone" dataKey="准时提交" stackId="2" stroke="#4ade80" fill="#4ade80" />
-                        <Area type="monotone" dataKey="逾期提交" stackId="2" stroke="#ef4444" fill="#ef4444" />
-                      </AreaChart>
+                        <Tooltip formatter={(value) => `${value}%`} />
+                      </RadarChart>
                     </ResponsiveContainer>
                   </CardContent>
                 </Card>
-              </div>
+              )}
+
+              {/* 4. Card: 知识点掌握水平分布 - UNCOMMENTING THIS CARD */}
+              {knowledgePointDistributionData.length > 0 && (
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle className="text-base">知识点掌握水平分布</CardTitle>
+                    <CardDescription>各知识点不同掌握水平的学生人数</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={300}>
+                      {/* Ensure knowledgePointDistributionData is defined via useMemo */}
+                      <BarChart data={knowledgePointDistributionData} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis type="number" allowDecimals={false} />
+                        <YAxis dataKey="name" type="category" width={120} />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="优秀" stackId="a" fill="#82ca9d" />
+                        <Bar dataKey="良好" stackId="a" fill="#8884d8" />
+                        <Bar dataKey="中等" stackId="a" fill="#ffc658" />
+                        <Bar dataKey="不及格" stackId="a" fill="#ff8042" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* 5. Card: 学生个人成绩与知识点掌握情况列表 - UNCOMMENTING THIS CARD */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">学生表现概览</CardTitle>
+                  <CardDescription>每位学生的总分及各知识点掌握情况</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {submissions.filter(s => s.status === "graded").length > 0 ? (
+                    <div className="space-y-4">
+                      {submissions
+                        .filter(s => s.status === "graded")
+                        .sort((a, b) => (b.score || 0) - (a.score || 0)) // Sort by score descending
+                        .slice(0, 5) // Add slice to get only the top 5
+                        .map((studentSubmission, index) => {
+                          const studentName = studentSubmission.students.name;
+                          const overallScore = studentSubmission.score || 0;
+                          const rank = index + 1;
+
+                          let badgeColor = "bg-gray-100 text-gray-800";
+                          let performanceIcon = <Award className="h-4 w-4 text-gray-500" />;
+                          if (overallScore >= 90) {
+                            badgeColor = "bg-green-100 text-green-800";
+                            performanceIcon = <Award className="h-4 w-4 text-green-500" />;
+                          } else if (overallScore >= 75) {
+                            badgeColor = "bg-blue-100 text-blue-800";
+                            performanceIcon = <CheckCircle className="h-4 w-4 text-blue-500" />;
+                          } else if (overallScore >= 60) {
+                            badgeColor = "bg-yellow-100 text-yellow-800";
+                            performanceIcon = <Clock className="h-4 w-4 text-yellow-500" />;
+                          } else {
+                            badgeColor = "bg-red-100 text-red-800";
+                            performanceIcon = <Sparkles className="h-4 w-4 text-red-500" />;
+                          }
+
+                          return (
+                            <details key={studentSubmission.id} className="group bg-muted/30 p-3 rounded-lg">
+                              <summary className="flex justify-between items-center cursor-pointer list-none">
+                                <div className="flex items-center space-x-3">
+                                  <span className={`flex items-center justify-center h-8 w-8 rounded-full text-xs font-semibold ${badgeColor}`}>
+                                    {rank}
+                                  </span>
+                                  <span className="font-medium">{studentName}</span>
+                                  {performanceIcon}
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <span className="text-sm text-muted-foreground">总分:</span>
+                                  <span className={`font-semibold ${overallScore < 60 ? 'text-red-600' : 'text-primary'}`}>
+                                    {getScoreDisplay(overallScore)}
+                                  </span>
+                                  <ChevronDown className="h-4 w-4 transition-transform duration-200 group-open:rotate-180" />
+                                </div>
+                              </summary>
+                              <div className="mt-3 pt-3 border-t border-border/60">
+                                <h4 className="text-sm font-medium mb-2">知识点掌握情况:</h4>
+                                {studentSubmission.student_knowledge_mastery && studentSubmission.student_knowledge_mastery.length > 0 ? (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                                    {studentSubmission.student_knowledge_mastery.map(kp => {
+                                      const masteryGrade = masteryLevelToGrade(kp.mastery_level);
+                                      const gradeColor = 
+                                        masteryGrade === 'A' ? 'bg-green-100 text-green-800 border-green-200' : 
+                                        masteryGrade === 'B' ? 'bg-blue-100 text-blue-800 border-blue-200' : 
+                                        masteryGrade === 'C' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 
+                                        masteryGrade === 'D' ? 'bg-orange-100 text-orange-800 border-orange-200' : 
+                                        'bg-red-100 text-red-800 border-red-200';
+                                      return (
+                                        <Badge key={kp.id} variant="outline" className={cn("px-2 py-1 text-xs justify-between", gradeColor)}>
+                                          <span>{kp.knowledge_points?.name || "未知知识点"}</span>
+                                          <span>{masteryGrade} ({kp.mastery_level}%)</span>
+                                        </Badge>
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  <p className="text-sm text-muted-foreground">无知识点评估数据。</p>
+                                )}
+                              </div>
+                            </details>
+                          );
+                        })}
+                    </div>
+                  ) : (
+                    <p className="text-center text-muted-foreground py-4">尚无已批改的作业可供分析。</p>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </CardContent>

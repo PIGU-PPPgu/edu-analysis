@@ -9,14 +9,24 @@ import { Badge } from "@/components/ui/badge";
 import { Sparkles, Check, Loader2, Cpu, Code, AlertCircle, ChevronDown } from "lucide-react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
-import { KnowledgePoint } from "@/types/homework";
+import { KnowledgePoint as HomeworkKnowledgePoint } from "@/types/homework";
 import { GenericAIClient } from "@/services/aiService"; 
+
+// 为组件导出KnowledgePoint接口
+export interface KnowledgePoint {
+  id: string;
+  name: string;
+  description?: string;
+  masteryLevel?: number;
+  subject?: string;
+  createdAt?: string;
+}
 
 interface AIKnowledgePointAnalyzerProps {
   homeworkId?: string;
   submissionId?: string;
   submissionContent?: string;
-  existingKnowledgePoints?: KnowledgePoint[];
+  existingKnowledgePoints?: HomeworkKnowledgePoint[];
   onSaveKnowledgePoints?: (points: KnowledgePoint[]) => void;
   onClose?: () => void;
   onExtractKnowledgePoints?: (
@@ -58,6 +68,11 @@ export function AIKnowledgePointAnalyzer({
   const [analysisFailed, setAnalysisFailed] = useState(false);
   const [extractedKnowledgePoints, setExtractedKnowledgePoints] = useState<KnowledgePoint[]>([]);
   const [overallSummary, setOverallSummary] = useState("");
+  
+  // 添加知识点确认状态
+  const [confirmingPoints, setConfirmingPoints] = useState(false);
+  const [confirmedPoints, setConfirmedPoints] = useState<{[key: string]: boolean}>({});
+  const [allConfirmed, setAllConfirmed] = useState(false);
 
   // 使用AI分析知识点
   const analyzeWithAI = async () => {
@@ -204,167 +219,331 @@ ${submissionContent}
     await analyzeWithAI();
   };
 
-  // 提交知识点
-  const handleSubmit = () => {
-    // 检查是否已经成功分析
-    if (!analysisSuccess || extractedKnowledgePoints.length === 0) {
-      toast.error('未成功分析知识点，请重试');
+  // 处理单个知识点确认/取消
+  const handleConfirmPoint = (pointId: string, confirmed: boolean) => {
+    setConfirmedPoints(prev => ({
+      ...prev,
+      [pointId]: confirmed
+    }));
+    
+    // 检查是否所有知识点都已确认
+    const updatedConfirmedPoints = {
+      ...confirmedPoints,
+      [pointId]: confirmed
+    };
+    
+    const allPointsConfirmed = extractedKnowledgePoints.every(
+      point => updatedConfirmedPoints[point.id] !== false
+    );
+    
+    setAllConfirmed(allPointsConfirmed);
+  };
+  
+  // 一键确认所有知识点
+  const confirmAllPoints = () => {
+    const allPoints = {};
+    extractedKnowledgePoints.forEach(point => {
+      allPoints[point.id] = true;
+    });
+    
+    setConfirmedPoints(allPoints);
+    setAllConfirmed(true);
+  };
+  
+  // 一键取消所有确认
+  const cancelAllConfirmations = () => {
+    const allPoints = {};
+    extractedKnowledgePoints.forEach(point => {
+      allPoints[point.id] = false;
+    });
+    
+    setConfirmedPoints(allPoints);
+    setAllConfirmed(false);
+  };
+  
+  // 保存确认后的知识点
+  const saveConfirmedPoints = () => {
+    // 只保留已确认的知识点
+    const pointsToSave = extractedKnowledgePoints.filter(
+      point => confirmedPoints[point.id] !== false
+    );
+    
+    if (onExtractKnowledgePoints) {
+      const provider = localStorage.getItem('selectedProvider') || 'openai';
+      const modelId = localStorage.getItem(`${provider}_selected_model`) || '';
+      
+      onExtractKnowledgePoints(
+        pointsToSave,
+        overallSummary,
+        { provider, model: modelId }
+      );
+    }
+    
+    toast.success(`已保存 ${pointsToSave.length} 个确认的知识点`);
+  };
+  
+  // 在AI分析完成后，显示确认界面
+  const proceedToConfirmation = () => {
+    if (extractedKnowledgePoints.length === 0) {
+      toast.error('没有识别到知识点，无法进行确认');
       return;
     }
     
-    // 使用真实分析结果
-    const pointsToSubmit = extractedKnowledgePoints;
+    // 初始化所有知识点为已确认状态
+    const initialConfirmations = {};
+    extractedKnowledgePoints.forEach(point => {
+      initialConfirmations[point.id] = true;
+    });
     
-    if (onExtractKnowledgePoints) {
-      onExtractKnowledgePoints(pointsToSubmit, overallSummary, {
-        provider: localStorage.getItem('selectedProvider') || 'unknown',
-        model: localStorage.getItem(`${localStorage.getItem('selectedProvider') || 'openai'}_selected_model`) || 'unknown'
-      });
+    setConfirmedPoints(initialConfirmations);
+    setConfirmingPoints(true);
+    setAllConfirmed(true);
+  };
+  
+  // 重置确认状态
+  const resetConfirmation = () => {
+    setConfirmingPoints(false);
+    setConfirmedPoints({});
+    setAllConfirmed(false);
+  };
+  
+  // 修改handleSubmit方法，调用proceedToConfirmation
+  const handleSubmit = () => {
+    if (analysisSuccess) {
+      proceedToConfirmation();
+    } else {
+      startAnalysis();
     }
-    
-    // 关闭对话框
-    if (onClose) onClose();
   };
 
   // 显示内容
   return (
     <div className="space-y-4">
-      <div className="flex flex-col space-y-2">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label>学科</Label>
-            <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="如：数学、语文、英语" />
+      {confirmingPoints ? (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-medium">确认知识点</h3>
+            <div className="space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={confirmAllPoints}
+                disabled={allConfirmed}
+              >
+                <Check className="h-4 w-4 mr-1" />
+                全部确认
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={cancelAllConfirmations}
+                disabled={!allConfirmed && Object.keys(confirmedPoints).length === 0}
+              >
+                <AlertCircle className="h-4 w-4 mr-1" />
+                全部取消
+              </Button>
+            </div>
           </div>
-          <div>
-            <Label>年级</Label>
-            <Input value={grade} onChange={(e) => setGrade(e.target.value)} placeholder="如：一年级、初二、高三" />
+          
+          <div className="space-y-2 max-h-60 overflow-y-auto p-1">
+            {extractedKnowledgePoints.map((point) => (
+              <div 
+                key={point.id}
+                className={`p-3 rounded-md border ${
+                  confirmedPoints[point.id] !== false 
+                    ? 'border-green-200 bg-green-50' 
+                    : 'border-gray-200 bg-gray-50'
+                }`}
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="font-medium">{point.name}</h4>
+                    {point.description && (
+                      <p className="text-sm text-gray-500 mt-1">{point.description}</p>
+                    )}
+                  </div>
+                  <Button
+                    variant={confirmedPoints[point.id] !== false ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleConfirmPoint(point.id, confirmedPoints[point.id] === false)}
+                  >
+                    {confirmedPoints[point.id] !== false ? (
+                      <>
+                        <Check className="h-4 w-4 mr-1" />
+                        已确认
+                      </>
+                    ) : (
+                      "确认"
+                    )}
+                  </Button>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label>作业内容</Label>
-        <Textarea 
-          value={submissionContent} 
-          onChange={(e) => setSubmissionContent(e.target.value)}
-          rows={8}
-          placeholder="输入学生作业内容或作业题目，AI将帮助您分析其中包含的知识点"
-        />
-      </div>
-
-      {/* 分析结果 */}
-      {isAnalyzing ? (
-        <div className="p-8 text-center">
-          <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
-          <p className="text-sm text-muted-foreground mt-2">
-            AI正在分析作业内容，识别知识点...
-          </p>
+          
+          <Alert className="bg-blue-50 border-blue-200">
+            <AlertTitle className="flex items-center">
+              <Cpu className="h-4 w-4 mr-2" />
+              AI分析结果总结
+            </AlertTitle>
+            <AlertDescription>
+              {overallSummary || "AI未提供总结信息"}
+            </AlertDescription>
+          </Alert>
+          
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button variant="outline" onClick={resetConfirmation}>
+              返回编辑
+            </Button>
+            <Button 
+              onClick={saveConfirmedPoints}
+              disabled={extractedKnowledgePoints.length > 0 && 
+                !extractedKnowledgePoints.some(p => confirmedPoints[p.id] !== false)}
+            >
+              保存确认的知识点
+            </Button>
+          </div>
         </div>
       ) : (
         <>
-          {/* 分析失败 */}
-          {analysisFailed && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>分析失败</AlertTitle>
-              <AlertDescription>
-                AI无法完成知识点分析，请检查您的AI配置和网络连接，或稍后重试。
-              </AlertDescription>
-            </Alert>
-          )}
-          
-          {/* 分析成功后显示分析结果 */}
-          {analysisSuccess && extractedKnowledgePoints.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="font-medium">分析结果</h3>
-              
-              {/* 知识点列表 */}
-              <div className="space-y-3">
-                {extractedKnowledgePoints.map((point) => (
-                  <Card key={point.id} className="bg-muted/30">
-                    <CardHeader className="p-3 pb-2">
-                      <CardTitle className="text-base flex items-center justify-between">
-                        <span>{point.name}</span>
-                        {point.masteryLevel && (
-                          <Badge variant={getBadgeVariant(point.masteryLevel)} className="ml-2">
-                            掌握度: {point.masteryLevel}%
-                          </Badge>
-                        )}
-                      </CardTitle>
-                      {point.description && (
-                        <CardDescription className="text-xs">
-                          {point.description}
-                        </CardDescription>
-                      )}
-                    </CardHeader>
-                  </Card>
-                ))}
+          <div className="flex flex-col space-y-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>学科</Label>
+                <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="如：数学、语文、英语" />
               </div>
+              <div>
+                <Label>年级</Label>
+                <Input value={grade} onChange={(e) => setGrade(e.target.value)} placeholder="如：一年级、初二、高三" />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>作业内容</Label>
+            <Textarea 
+              value={submissionContent} 
+              onChange={(e) => setSubmissionContent(e.target.value)}
+              rows={8}
+              placeholder="输入学生作业内容或作业题目，AI将帮助您分析其中包含的知识点"
+            />
+          </div>
+
+          {/* 分析结果 */}
+          {isAnalyzing ? (
+            <div className="p-8 text-center">
+              <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
+              <p className="text-sm text-muted-foreground mt-2">
+                AI正在分析作业内容，识别知识点...
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* 分析失败 */}
+              {analysisFailed && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>分析失败</AlertTitle>
+                  <AlertDescription>
+                    AI无法完成知识点分析，请检查您的AI配置和网络连接，或稍后重试。
+                  </AlertDescription>
+                </Alert>
+              )}
               
-              {/* 整体评估 */}
-              {overallSummary && (
-                <div className="mt-4">
-                  <h4 className="text-sm font-medium mb-1">整体评估</h4>
-                  <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
-                    {overallSummary}
-                  </p>
+              {/* 分析成功后显示分析结果 */}
+              {analysisSuccess && extractedKnowledgePoints.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="font-medium">分析结果</h3>
+                  
+                  {/* 知识点列表 */}
+                  <div className="space-y-3">
+                    {extractedKnowledgePoints.map((point) => (
+                      <Card key={point.id} className="bg-muted/30">
+                        <CardHeader className="p-3 pb-2">
+                          <CardTitle className="text-base flex items-center justify-between">
+                            <span>{point.name}</span>
+                            {point.masteryLevel && (
+                              <Badge variant={getBadgeVariant(point.masteryLevel)} className="ml-2">
+                                掌握度: {point.masteryLevel}%
+                              </Badge>
+                            )}
+                          </CardTitle>
+                          {point.description && (
+                            <CardDescription className="text-xs">
+                              {point.description}
+                            </CardDescription>
+                          )}
+                        </CardHeader>
+                      </Card>
+                    ))}
+                  </div>
+                  
+                  {/* 整体评估 */}
+                  {overallSummary && (
+                    <div className="mt-4">
+                      <h4 className="text-sm font-medium mb-1">整体评估</h4>
+                      <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
+                        {overallSummary}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* AI提供商信息 */}
+                  <div className="text-xs text-muted-foreground flex items-center mt-2">
+                    <Cpu className="h-3 w-3 mr-1" />
+                    使用 {localStorage.getItem('selectedProvider') || 'AI'} / 
+                    {localStorage.getItem(`${localStorage.getItem('selectedProvider') || 'openai'}_selected_model`) || '默认模型'} 进行分析
+                  </div>
                 </div>
               )}
               
-              {/* AI提供商信息 */}
-              <div className="text-xs text-muted-foreground flex items-center mt-2">
-                <Cpu className="h-3 w-3 mr-1" />
-                使用 {localStorage.getItem('selectedProvider') || 'AI'} / 
-                {localStorage.getItem(`${localStorage.getItem('selectedProvider') || 'openai'}_selected_model`) || '默认模型'} 进行分析
-              </div>
-            </div>
+              {/* 原始AI响应（调试用） */}
+              {aiResponse && (
+                <Collapsible className="mt-4">
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className="flex items-center gap-1 text-xs">
+                      <Code className="h-3 w-3" />
+                      查看AI原始响应
+                      <ChevronDown className="h-3 w-3" />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="bg-muted p-2 rounded-md overflow-auto max-h-40">
+                      <pre className="text-xs whitespace-pre-wrap">{aiResponse}</pre>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+            </>
           )}
-          
-          {/* 原始AI响应（调试用） */}
-          {aiResponse && (
-            <Collapsible className="mt-4">
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm" className="flex items-center gap-1 text-xs">
-                  <Code className="h-3 w-3" />
-                  查看AI原始响应
-                  <ChevronDown className="h-3 w-3" />
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <div className="bg-muted p-2 rounded-md overflow-auto max-h-40">
-                  <pre className="text-xs whitespace-pre-wrap">{aiResponse}</pre>
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-          )}
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={onClose} disabled={isAnalyzing}>
+              取消
+            </Button>
+            {!analysisSuccess ? (
+              <Button onClick={startAnalysis} disabled={isAnalyzing || !submissionContent}>
+                {isAnalyzing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    分析中...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    开始分析
+                  </>
+                )}
+              </Button>
+            ) : (
+              <Button onClick={proceedToConfirmation}>
+                <Check className="mr-2 h-4 w-4" />
+                确认结果
+              </Button>
+            )}
+          </div>
         </>
       )}
-
-      <div className="flex justify-end gap-2 pt-4">
-        <Button variant="outline" onClick={onClose} disabled={isAnalyzing}>
-          取消
-        </Button>
-        {!analysisSuccess ? (
-          <Button onClick={startAnalysis} disabled={isAnalyzing || !submissionContent}>
-            {isAnalyzing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                分析中...
-              </>
-            ) : (
-              <>
-                <Sparkles className="mr-2 h-4 w-4" />
-                开始分析
-              </>
-            )}
-          </Button>
-        ) : (
-          <Button onClick={handleSubmit}>
-            <Check className="mr-2 h-4 w-4" />
-            确认使用
-          </Button>
-        )}
-      </div>
     </div>
   );
 } 

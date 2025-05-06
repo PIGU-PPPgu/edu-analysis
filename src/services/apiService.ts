@@ -47,4 +47,58 @@ export async function performSingleModelAnalysis(
     logError('单模型分析失败:', error);
     throw new Error(`分析过程出错: ${error instanceof Error ? error.message : '未知错误'}`);
   }
-} 
+}
+
+// 通用错误处理函数
+export const handleApiError = (error: any) => {
+  // 检查网络错误
+  if (!navigator.onLine) {
+    return {
+      success: false,
+      error: '网络连接已断开，请检查您的网络并重试'
+    };
+  }
+  
+  // 处理超时错误
+  if (error.message && error.message.includes('timeout')) {
+    return {
+      success: false,
+      error: '请求超时，请稍后重试'
+    };
+  }
+  
+  // 处理服务器错误
+  if (error.response) {
+    const status = error.response.status;
+    
+    // 处理常见HTTP状态码
+    if (status === 401) {
+      return {
+        success: false,
+        error: '未授权，请重新登录',
+        unauthorized: true
+      };
+    } else if (status === 403) {
+      return {
+        success: false,
+        error: '权限不足，无法执行此操作'
+      };
+    } else if (status === 404) {
+      return {
+        success: false,
+        error: '请求的资源不存在'
+      };
+    } else if (status === 500) {
+      return {
+        success: false,
+        error: '服务器错误，请稍后重试'
+      };
+    }
+  }
+  
+  // 默认错误信息
+  return {
+    success: false,
+    error: error.message || '操作失败，请稍后重试'
+  };
+}; 

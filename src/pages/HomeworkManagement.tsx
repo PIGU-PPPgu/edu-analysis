@@ -108,8 +108,24 @@ const HomeworkManagement = () => {
         // 计算待批改的作业数量 - 这里需要额外请求各作业的提交情况
         let pendingCount = 0;
         for (const homework of homeworks) {
-          const submissions = await getHomeworkSubmissions(homework.id);
-          pendingCount += submissions.filter(sub => sub.status === 'submitted').length;
+          try {
+            // 调用服务获取提交数据
+            const result = await getHomeworkSubmissions(homework.id);
+            
+            // 检查返回结果是否成功，并且 submissions 确实是数组
+            if (result.success && Array.isArray(result.submissions)) {
+              // 在真实的 submissions 数组上执行 filter 操作
+              pendingCount += result.submissions.filter(sub => sub.status === 'submitted').length;
+            } else if (!result.success) {
+              // 如果获取失败，可以选择记录错误或跳过
+              console.warn(`获取作业 ${homework.id} 的提交数据失败:`, result.error);
+            }
+            // 如果 result.submissions 不是数组 (例如 null 或 undefined)，也会被跳过
+            
+          } catch (submissionError) {
+            // 处理 getHomeworkSubmissions 可能抛出的异常
+            console.error(`处理作业 ${homework.id} 的提交时发生错误:`, submissionError);
+          }
         }
         
         setStats({

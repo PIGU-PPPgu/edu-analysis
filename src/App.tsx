@@ -23,6 +23,7 @@ import UnauthorizedPage from "./pages/UnauthorizedPage";
 import CascadeAnalysisTestPage from "./pages/test/CascadeAnalysisTest";
 import { initDefaultAIConfig } from "./utils/userAuth";
 import StudentPortraitManagement from "./pages/StudentPortraitManagement";
+import { DiagnosticsTool } from "./tools/diagnostics-ui";
 
 const queryClient = new QueryClient();
 
@@ -60,6 +61,9 @@ function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/unauthorized" element={<UnauthorizedPage />} />
                 <Route path="/test/cascade-analysis" element={<CascadeAnalysisTestPage />} />
+                
+                {/* 诊断工具路由 */}
+                <Route path="/tools/diagnostics" element={<DiagnosticsTool />} />
                 
                 {/* 需要认证的路由 */}
                 <Route element={<ProtectedRoute />}>

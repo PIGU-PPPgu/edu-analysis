@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
-import { StudentCard } from "@/components/homework/StudentCard";
+import { StudentCard, SubmissionStatus } from "@/components/homework/StudentCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -31,6 +31,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
 
 // 评分等级定义
 const gradeOptions = [
@@ -52,14 +53,39 @@ export type SubmissionWithStudent = {
     class?: string;
   };
   submit_date?: string;
+  submitted_at?: string;
+  updated_at?: string;
   teacher_feedback?: string;
+  knowledge_points_assessed?: boolean;
   knowledge_point_evaluation?: Array<{
     id: string;
     knowledge_point_id: string;
     mastery_level: number;
-    knowledge_points: {
+    knowledge_points?: {
       id: string;
       name: string;
+    };
+  }>;
+  submission_knowledge_points?: Array<{
+    id: string;
+    knowledge_point_id: string;
+    mastery_level: number;
+    knowledge_points?: {
+      id: string;
+      name: string;
+    };
+  }>;
+  student_knowledge_mastery?: Array<{
+    id: string;
+    knowledge_point_id: string;
+    mastery_level: number;
+    mastery_grade?: string;
+    comments?: string;
+    assessment_count?: number;
+    knowledge_points?: {
+      id: string;
+      name: string;
+      description?: string;
     };
   }>;
 };
@@ -84,6 +110,8 @@ interface GradeCardViewProps {
     score: number, 
     feedback: string
   ) => void;
+  isSubmitting?: boolean;
+  lastGradedSubmissionId?: string | null;
 }
 
 export default function GradeCardView({
@@ -91,6 +119,8 @@ export default function GradeCardView({
   knowledgePoints,
   onGraded,
   onBatchGraded,
+  isSubmitting = false,
+  lastGradedSubmissionId,
 }: GradeCardViewProps) {
   const { toast } = useToast();
   const [selectedSubmission, setSelectedSubmission] = useState<SubmissionWithStudent | null>(null);
@@ -105,6 +135,7 @@ export default function GradeCardView({
   const [customKnowledgePoint, setCustomKnowledgePoint] = useState("");
   const [hoverSubmission, setHoverSubmission] = useState<string | null>(null);
   const [shouldAddKnowledgePoints, setShouldAddKnowledgePoints] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   
   // 容器引用，用于注册事件监听
   const containerRef = useRef<HTMLDivElement>(null);
@@ -130,36 +161,75 @@ export default function GradeCardView({
     };
   }, [submissions]); // 当submissions变化时重新注册监听
   
-  // 初始化评分对话框
-  const handleOpenGradeDialog = (submission: SubmissionWithStudent) => {
+  // Initialize grading dialog - **Now fetches fresh data**
+  const handleOpenGradeDialog = async (submission: SubmissionWithStudent) => {
     setSelectedSubmission(submission);
+    setGradeDialogOpen(true); // Open dialog immediately
+    setIsLoading(true); // Show loading state inside dialog
     
-    // 如果已经有评分，则加载当前评分
-    if (submission.status === "graded" && submission.score) {
-      setScore(submission.score);
-    } else {
-      setScore(85); // 默认为"良好"
-    }
-    
-    // 加载当前反馈
-    setFeedback(submission.teacher_feedback || "");
-    
-    // 加载知识点评估
-    if (submission.knowledge_point_evaluation && submission.knowledge_point_evaluation.length > 0) {
-      setKpEvaluations(
-        submission.knowledge_point_evaluation.map(kp => ({
-          id: kp.knowledge_point_id,
+    try {
+      // Fetch the latest submission data directly from Supabase
+      console.log(`Fetching latest data for submission ID: ${submission.id}`);
+      const { data: freshSubmissionData, error } = await supabase
+        .from('homework_submissions')
+        .select(`
+          score,
+          status,
+          teacher_feedback,
+          student_knowledge_mastery (*, 
+            knowledge_points (id, name, description)
+          )
+        `)
+        .eq('id', submission.id)
+        .single();
+
+      if (error) {
+        console.error('Failed to fetch fresh submission data:', error);
+        toast({ title: "加载数据失败", description: "无法获取最新的提交详情", variant: "destructive" });
+        // Keep existing data or reset?
+        setScore(submission.score || 85);
+        setFeedback(submission.teacher_feedback || "");
+        setKpEvaluations([]); // Reset KPs on error
+        setShouldAddKnowledgePoints(false);
+        setIsLoading(false);
+        return; // Exit if fetch failed
+      }
+      
+      console.log('Fetched fresh submission data:', freshSubmissionData);
+
+      // Use the fresh data to set the dialog state
+      setScore(freshSubmissionData.score !== null && freshSubmissionData.score !== undefined ? freshSubmissionData.score : 85);
+      setFeedback(freshSubmissionData.teacher_feedback || "");
+
+      const evaluations = freshSubmissionData.student_knowledge_mastery || [];
+      
+      if (evaluations.length > 0) {
+        console.log('Processing fresh KP evaluations:', evaluations.length);
+        const mappedEvaluations = evaluations.map(kp => ({
+          // Ensure kp and kp.knowledge_points exist before accessing properties
+          id: kp.knowledge_points?.id || kp.knowledge_point_id, // Use nested KP id first, fallback to direct id
           masteryLevel: kp.mastery_level
-        }))
-      );
-      setShouldAddKnowledgePoints(true);
-    } else {
-      // 清空知识点评估
+        }));
+        console.log('Mapped fresh KP evaluations:', mappedEvaluations);
+        setKpEvaluations(mappedEvaluations);
+        setShouldAddKnowledgePoints(true);
+      } else {
+        console.log('No KP evaluations found in fresh data.');
+        setKpEvaluations([]);
+        setShouldAddKnowledgePoints(false);
+      }
+
+    } catch (err) {
+      console.error('Error in handleOpenGradeDialog fetch:', err);
+      toast({ title: "加载错误", description: "打开评分对话框时发生错误", variant: "destructive" });
+      // Reset to defaults on unexpected error
+      setScore(85);
+      setFeedback("");
       setKpEvaluations([]);
       setShouldAddKnowledgePoints(false);
+    } finally {
+      setIsLoading(false); // Hide loading state
     }
-    
-    setGradeDialogOpen(true);
   };
 
   // 快速评分处理
@@ -321,18 +391,46 @@ export default function GradeCardView({
     // 创建一个唯一ID
     const customId = `custom-${Date.now()}`;
     
+    // 先尝试查找现有知识点是否有相似的
+    const similarKnowledgePoint = knowledgePoints.find(kp => 
+      kp.name.toLowerCase().includes(customKnowledgePoint.toLowerCase()) ||
+      customKnowledgePoint.toLowerCase().includes(kp.name.toLowerCase())
+    );
+    
+    if (similarKnowledgePoint) {
+      // 如果找到相似知识点，提示用户并使用现有知识点
+      toast({
+        title: "找到相似知识点",
+        description: `系统将使用已有知识点 "${similarKnowledgePoint.name}" 替代自定义知识点`,
+        duration: 5000
+      });
+      
+      // 检查该知识点是否已添加
+      const isAlreadyAdded = kpEvaluations.some(e => e.id === similarKnowledgePoint.id);
+      
+      if (!isAlreadyAdded) {
+        setKpEvaluations(prev => [...prev, { 
+          id: similarKnowledgePoint.id, 
+          masteryLevel: 70 
+        }]);
+      }
+    } else {
+      // 添加自定义知识点
     const newKp = {
       id: customId,
       masteryLevel: 70
     };
     
     setKpEvaluations(prev => [...prev, newKp]);
-    setCustomKnowledgePoint("");
     
     toast({
       title: "添加成功",
       description: `已添加自定义知识点: ${customKnowledgePoint}`
     });
+    }
+    
+    // 清空输入框
+    setCustomKnowledgePoint("");
   };
 
   // 移除知识点评估
@@ -362,8 +460,9 @@ export default function GradeCardView({
 
   // 处理卡片鼠标悬停，显示快速评分选项
   const handleCardMouseEnter = (submissionId: string) => {
-    if (!quickGradeMode) return;
-    setHoverSubmission(submissionId);
+    if (quickGradeMode) {
+      setHoverSubmission(submissionId);
+    }
   };
 
   // 处理卡片鼠标离开
@@ -379,12 +478,25 @@ export default function GradeCardView({
     
     // 查找是否是自定义知识点
     if (id.startsWith('custom-')) {
-      const evaluation = kpEvaluations.find(e => e.id === id);
-      if (evaluation) return `自定义: ${evaluation.id.replace('custom-', '')}`;
+      // 从ID中提取时间戳部分
+      const timestamp = id.replace('custom-', '');
+      // 如果是当前会话添加的自定义知识点，尝试在会话存储中查找
+      const sessionCustomKp = sessionStorage.getItem(`custom_kp_${timestamp}`);
+      if (sessionCustomKp) return `${sessionCustomKp}`;
+      
+      return `自定义知识点 #${timestamp.slice(-4)}`;
     }
     
     return "未知知识点";
   };
+
+  // 在处理添加自定义知识点时保存到sessionStorage
+  useEffect(() => {
+    if (customKnowledgePoint && customKnowledgePoint.trim()) {
+      const customId = `custom-${Date.now()}`;
+      sessionStorage.setItem(`custom_kp_${customId.replace('custom-', '')}`, customKnowledgePoint);
+    }
+  }, [kpEvaluations]);
 
   return (
     <div className="space-y-6" ref={containerRef} data-grade-card-view>
@@ -466,89 +578,83 @@ export default function GradeCardView({
       )}
       
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        {submissions.map((submission) => (
-          <div 
-            key={submission.id} 
-            className={cn(
-              "relative",
-              submission.status === "graded" && submission.score && getGradeBorderColor(submission.score)
-            )}
-            onMouseEnter={() => handleCardMouseEnter(submission.id)}
-            onMouseLeave={handleCardMouseLeave}
-          >
-            {batchMode && (
-              <div className="absolute -top-2 -left-2 z-10">
+        {submissions.map((submission) => {
+          // Check knowledge point evaluation status
+          const hasEval = 
+            submission.knowledge_points_assessed === true || 
+            !!( 
+              (submission.student_knowledge_mastery && submission.student_knowledge_mastery.length > 0) ||
+              (submission.knowledge_point_evaluation && submission.knowledge_point_evaluation.length > 0) ||
+              (submission.submission_knowledge_points && submission.submission_knowledge_points.length > 0)
+            );
+          
+          // Check if this is the last graded submission
+          const isLastGraded = submission.id === lastGradedSubmissionId;
+
+          return (
+            <div
+              key={submission.id}
+              data-submission-id={submission.id}
+              className="relative"
+              onMouseEnter={() => handleCardMouseEnter(submission.id)}
+              onMouseLeave={handleCardMouseLeave}
+            >
+              {batchMode && (
                 <Checkbox
                   checked={selectedSubmissions.includes(submission.id)}
                   onCheckedChange={() => toggleSelectSubmission(submission.id)}
-                  className="h-5 w-5 bg-white border-gray-300 rounded-full"
+                  className="absolute top-2 left-2 z-10 bg-white"
                 />
-              </div>
-            )}
-            
-            {submission.status === "graded" && submission.score && (
-              <div 
-                className={cn(
-                  "absolute -top-2 -right-2 z-10 rounded-full w-8 h-8 flex items-center justify-center text-xs font-medium text-white shadow-md",
-                  getGradeColor(submission.score)
-                )}
-              >
-                {submission.score}
-              </div>
-            )}
-            
-            {/* 学生卡片组件，添加顶部边框颜色 */}
-            <div className={cn(
-              "overflow-hidden",
-              submission.status === "graded" && submission.score && 
-              `border-t-4 rounded-t-md ${getGradeBorderColor(submission.score)}`
-            )}>
+              )}
               <StudentCard
                 student={submission.students}
-                status={submission.status as any}
+                status={mapSubmissionStatus(submission.status)}
                 score={submission.score}
-                onClick={() => {
-                  if (batchMode) {
-                    toggleSelectSubmission(submission.id);
-                  } else if (!quickGradeMode) {
-                    handleOpenGradeDialog(submission);
-                  }
-                }}
+                onClick={() => !batchMode && handleOpenGradeDialog(submission)}
+                selected={selectedSubmissions.includes(submission.id)}
+                hasKnowledgePointEvaluation={hasEval}
+                isLastGraded={isLastGraded}
               />
-            </div>
-            
-            {/* 快速评分悬浮层 */}
-            {quickGradeMode && hoverSubmission === submission.id && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/10 rounded-md z-10">
-                <div className="bg-white p-2 rounded-md shadow-lg">
-                  <div className="text-center mb-2 text-xs font-medium">
-                    <Badge variant="secondary" className="mb-1">
-                      <Sparkles className="h-3 w-3 mr-1" />
-                      一键评分
-                    </Badge>
-                  </div>
-                  <div className="grid grid-cols-5 gap-1">
-                    {gradeOptions.map((option) => (
-                      <Button
-                        key={option.value}
-                        variant="outline"
-                        size="sm"
-                        className={cn("text-white", option.color)}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleQuickGrade(submission, option.value);
-                        }}
-                        title={`${option.label}: ${option.description}`}
-                      >
-                        {option.value}
-                      </Button>
-                    ))}
-                  </div>
+              {/* 快速评分按钮逻辑 */}
+              {quickGradeMode && hoverSubmission === submission.id && !batchMode && (
+                <div className="absolute bottom-2 right-2 flex gap-1">
+                  {gradeOptions.map((opt) => (
+                    <Button
+                      key={opt.value}
+                      size="sm"
+                      variant="outline"
+                      className={cn(
+                        "p-1 h-6 w-6",
+                        opt.borderColor,
+                        "hover:bg-opacity-80",
+                         submission.score === opt.value ? opt.color + " text-white" : "text-gray-600"
+                      )}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleQuickGrade(submission, opt.value);
+                      }}
+                      title={`快速评为 ${opt.label} (${opt.value}分)`}
+                    >
+                       {opt.label.charAt(0)}
+                    </Button>
+                  ))}
+                   <Button
+                      size="sm"
+                      variant="outline"
+                      className="p-1 h-6 w-6 border-gray-300 text-gray-600 hover:bg-gray-100"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenGradeDialog(submission);
+                      }}
+                       title="详细评分"
+                    >
+                     <Edit className="h-3 w-3" />
+                    </Button>
                 </div>
-              </div>
-            )}
-          </div>
-        ))}
+              )}
+            </div>
+          );
+        })}
       </div>
       
       {/* 评分对话框 */}
@@ -561,7 +667,14 @@ export default function GradeCardView({
             </DialogTitle>
           </DialogHeader>
           
-          {selectedSubmission && (
+          {isLoading ? (
+            // Show loading indicator while fetching fresh data
+            <div className="flex justify-center items-center py-16">
+              <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
+              <p className="ml-3 text-muted-foreground">正在加载最新数据...</p>
+            </div>
+          ) : selectedSubmission ? (
+            // Render dialog content only when not loading and submission is selected
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -836,29 +949,55 @@ export default function GradeCardView({
                 </TabsContent>
               </Tabs>
             </div>
+          ) : (
+            // Optional: Handle case where submission is null after loading (should not happen ideally)
+            <div className="text-center py-10 text-muted-foreground">无法加载学生信息。</div>
           )}
           
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setGradeDialogOpen(false)}>
-              <X className="h-4 w-4 mr-2" />
-              取消
-            </Button>
-            <Button onClick={handleSubmitGrade}>
-              <Save className="h-4 w-4 mr-2" />
-              保存评分
-            </Button>
-          </DialogFooter>
+          {!isLoading && (
+             // Keep Footer outside the conditional content, but hide while loading
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setGradeDialogOpen(false)}> 
+                <X className="h-4 w-4 mr-2" />
+                取消
+              </Button>
+              <Button onClick={handleSubmitGrade} disabled={isSubmitting}> {/* Disable save if parent is submitting */}
+                <Save className="h-4 w-4 mr-2" />
+                {isSubmitting ? "保存中..." : "保存评分"}
+              </Button>
+            </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
     </div>
   );
 }
 
-// 根据分数获取颜色
-function getScoreColor(score: number) {
-  if (score >= 90) return "bg-green-500";
-  if (score >= 80) return "bg-blue-500";
-  if (score >= 70) return "bg-orange-500";
-  if (score >= 60) return "bg-yellow-500";
-  return "bg-red-500";
+// 需要确保 mapSubmissionStatus 函数存在
+function mapSubmissionStatus(status: string): SubmissionStatus {
+  // Based on the possible statuses from the backend/interface
+  switch (status?.toLowerCase()) {
+    case 'graded':
+      return 'graded';
+    case 'submitted':
+      return 'submitted';
+    case 'pending':
+       return 'pending'; // Assuming pending means not submitted yet
+    // Add mappings for other potential statuses like 'late', 'absent'
+    case 'late':
+       return 'late';
+    case 'absent':
+       return 'absent';
+    default:
+      return 'not_submitted'; // Default or if status is null/undefined
+  }
+}
+
+// Helper function (if not already defined)
+function getScoreColor(score: number): string {
+  if (score >= 90) return "text-green-500";
+  if (score >= 80) return "text-blue-500";
+  if (score >= 70) return "text-orange-500";
+  if (score >= 60) return "text-yellow-500";
+  return "text-red-500";
 } 

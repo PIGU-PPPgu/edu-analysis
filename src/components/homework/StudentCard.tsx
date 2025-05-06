@@ -12,6 +12,7 @@ import {
   Check,
   XCircle,
   Send,
+  BrainCircuit,
 } from "lucide-react";
 
 // 提交状态类型
@@ -64,6 +65,8 @@ export interface StudentCardProps {
   onClick?: () => void;
   selected?: boolean;
   className?: string;
+  hasKnowledgePointEvaluation?: boolean;
+  isLastGraded?: boolean;
 }
 
 // 学生卡片组件
@@ -74,6 +77,8 @@ export function StudentCard({
   onClick,
   selected = false,
   className,
+  hasKnowledgePointEvaluation = false,
+  isLastGraded = false,
 }: StudentCardProps) {
   const statusInfo = statusConfig[status];
 
@@ -114,6 +119,7 @@ export function StudentCard({
       className={cn(
         "cursor-pointer transition-all hover:shadow-md",
         selected && "ring-2 ring-primary",
+        isLastGraded && "bg-green-100 ring-2 ring-green-300",
         className
       )}
       onClick={onClick}
@@ -146,6 +152,16 @@ export function StudentCard({
             </Badge>
           )}
         </div>
+        
+        {/* 添加知识点评估状态 */}
+        {hasKnowledgePointEvaluation && (
+          <div className="mt-2 flex items-center justify-center">
+            <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200 text-xs px-1.5 py-0.5 w-full flex justify-center">
+              <BrainCircuit className="h-3 w-3 mr-1" />
+              知识点已评估
+            </Badge>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
