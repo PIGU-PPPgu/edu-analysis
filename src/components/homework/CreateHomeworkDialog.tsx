@@ -83,12 +83,32 @@ const CreateHomeworkDialog: React.FC<CreateHomeworkDialogProps> = ({
       console.log("正在创建作业，用户ID:", user.id);
       
       // 使用homeworkService中的createHomework函数
+      
+      // 根据用户选择处理 grading_scale_id
+      let finalGradingScaleId: string | null = null;
+      if (formData.gradingScaleId === "default") {
+        const defaultScale = gradingScales.find(scale => scale.is_default && scale.id && scale.id.trim() !== '');
+        if (defaultScale) {
+          finalGradingScaleId = defaultScale.id;
+          console.log("用户选择了'默认评级'，将使用数据库中is_default的方案ID:", finalGradingScaleId);
+        } else {
+          console.log("用户选择了'默认评级'，但未找到数据库中is_default的方案，grading_scale_id将为null");
+          // 如果没有在 gradingScales 列表中找到 is_default 的有效 scale, finalGradingScaleId 保持 null
+        }
+      } else if (formData.gradingScaleId && formData.gradingScaleId.trim() !== '') {
+        finalGradingScaleId = formData.gradingScaleId;
+        console.log("用户选择了特定的评级方案ID:", finalGradingScaleId);
+      } else {
+        console.log("用户未选择评级方案或选择了无效方案，grading_scale_id将为null");
+        // 如果 formData.gradingScaleId 为空或无效, finalGradingScaleId 保持 null
+      }
+      
       const result = await createHomework({
         title: formData.title,
         description: formData.description,
         class_id: formData.classId,
         due_date: formData.dueDate || null,
-        grading_scale_id: formData.gradingScaleId === "default" ? null : formData.gradingScaleId || null,
+        grading_scale_id: finalGradingScaleId, // 使用处理后的 finalGradingScaleId
         created_by: user.id
       });
 

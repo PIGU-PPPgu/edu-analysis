@@ -77,14 +77,20 @@ import {
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDate } from "@/lib/utils";
-
-// 导入Supabase服务
-import { getAllHomeworks } from "@/services/homeworkService";
+import { getAllHomeworks, deleteHomework } from "@/services/homeworkService";
 import { getKnowledgePointsByHomeworkId, createKnowledgePoints } from "@/services/knowledgePointService";
 import { supabase } from "@/integrations/supabase/client";
-
-// 临时导入模拟数据（后续完全替换）
 import { mockApi, knowledgePoints } from "@/data/mockData";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 
 const homeworkSchema = z.object({
   title: z.string().min(1, "作业标题不能为空"),
@@ -107,6 +113,7 @@ export default function TeacherHomeworkList() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [selectedKnowledgePoints, setSelectedKnowledgePoints] = useState<string[]>([]);
   const [currentTab, setCurrentTab] = useState("all");
+  const [isForceDeleteDialogOpen, setIsForceDeleteDialogOpen] = useState(false);
 
   const form = useForm<z.infer<typeof homeworkSchema>>({
     resolver: zodResolver(homeworkSchema),
@@ -256,22 +263,27 @@ export default function TeacherHomeworkList() {
 
   const handleDeleteHomework = useCallback(async (id: string) => {
     try {
-      // 使用Supabase删除作业
-      const { error } = await supabase
-        .from('homework')
-        .delete()
-        .eq('id', id);
-        
-      if (error) {
-        throw error;
+      setLoading(true);
+      // 使用homeworkService的deleteHomework函数
+      const result = await deleteHomework(id);
+      
+      if (result.success) {
+        // 删除成功
+        setHomeworks((prev) => prev.filter((hw) => hw.id !== id));
+        toast({
+          title: "删除成功",
+          description: "作业已成功删除",
+        });
+      } else if (result.hasSubmissions) {
+        // 作业有提交，但用户希望强制删除
+        setIsForceDeleteDialogOpen(true); // 打开强制删除对话框
+      } else {
+        toast({
+          variant: "destructive",
+          title: "错误",
+          description: `删除作业失败: ${result.error || "未知错误"}`,
+        });
       }
-
-      // 从列表中移除
-      setHomeworks((prev) => prev.filter((hw) => hw.id !== id));
-      toast({
-        title: "删除成功",
-        description: "作业已成功删除",
-      });
     } catch (error: any) {
       console.error("删除作业失败:", error);
       toast({
@@ -280,9 +292,49 @@ export default function TeacherHomeworkList() {
         description: `删除作业失败: ${error.message || "未知错误"}`,
       });
     } finally {
-      setConfirmDeleteId(null);
+      setLoading(false);
+      // 不要清空confirmDeleteId，因为可能需要用于强制删除
+      if (!isForceDeleteDialogOpen) {
+        setConfirmDeleteId(null);
+      }
     }
   }, [toast]);
+  
+  // 确认强制删除作业
+  const handleForceDeleteHomework = useCallback(async () => {
+    if (!confirmDeleteId) return;
+    
+    try {
+      setLoading(true);
+      const result = await deleteHomework(confirmDeleteId, true); // 使用force=true强制删除
+      
+      if (result.success) {
+        // 删除成功
+        setHomeworks((prev) => prev.filter((hw) => hw.id !== confirmDeleteId));
+        toast({
+          title: "强制删除成功",
+          description: "作业及所有相关提交记录已强制删除",
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "错误",
+          description: `强制删除作业失败: ${result.error || "未知错误"}`,
+        });
+      }
+    } catch (error: any) {
+      console.error("强制删除作业失败:", error);
+      toast({
+        variant: "destructive",
+        title: "错误",
+        description: `强制删除作业失败: ${error.message || "未知错误"}`,
+      });
+    } finally {
+      setLoading(false);
+      setIsForceDeleteDialogOpen(false);
+      setConfirmDeleteId(null);
+    }
+  }, [confirmDeleteId, toast]);
 
   const getCompletionStatus = useCallback((homework: any) => {
     const submissions = homework.homework_submission || [];
@@ -510,37 +562,58 @@ export default function TeacherHomeworkList() {
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={confirmDeleteId !== null}
-        onOpenChange={() => setConfirmDeleteId(null)}
+      <AlertDialog
+        open={!!confirmDeleteId}
+        onOpenChange={(open) => !open && setConfirmDeleteId(null)}
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>确认删除</DialogTitle>
-            <DialogDescription>
-              确定要删除此作业吗？此操作无法撤销，相关的学生作业记录也将被删除。
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setConfirmDeleteId(null)}
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要删除此作业吗？此操作不可撤销。如果学生已经提交了作业，系统会提示您无法直接删除。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-500 hover:bg-red-600"
+              onClick={() => handleDeleteHomework(confirmDeleteId!)}
             >
-              取消
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                if (confirmDeleteId) {
-                  handleDeleteHomework(confirmDeleteId);
-                }
-              }}
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* 强制删除确认对话框 */}
+      <AlertDialog open={isForceDeleteDialogOpen} onOpenChange={setIsForceDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600">强制删除作业及所有提交</AlertDialogTitle>
+            <AlertDialogDescription>
+              <div className="mb-4">
+                <span className="text-red-600 font-semibold">警告：此操作将删除该作业的所有学生提交记录和评分数据，且不可恢复！</span>
+              </div>
+              此操作会：
+              <ul className="list-disc ml-6 mt-2 space-y-1">
+                <li>删除所有学生的提交记录</li>
+                <li>删除所有学生的评分和反馈</li>
+                <li>删除所有相关的知识点掌握度数据</li>
+                <li>删除作业相关的所有文件</li>
+              </ul>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConfirmDeleteId(null)}>取消</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleForceDeleteHomework} 
+              className="bg-red-600 hover:bg-red-700 text-white"
             >
-              确认删除
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              确认强制删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 

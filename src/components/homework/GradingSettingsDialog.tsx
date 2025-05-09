@@ -96,7 +96,7 @@ const scaleSchema = z.object({
   description: z.string().optional(),
   levels: z.array(
     z.object({
-      value: z.number().min(0).max(100),
+      value: z.preprocess((val) => Number(val), z.number().min(0).max(100)),
       name: z.string().min(1, "等级名称不能为空"),
       color: z.string(),
     })
@@ -271,7 +271,11 @@ export default function GradingSettingsDialog({
           ...editingScale,
           name: values.name,
           description: values.description || '',
-          levels: values.levels,
+          levels: values.levels.map(level => ({
+            value: Number(level.value),
+            name: String(level.name),
+            color: String(level.color)
+          })),
         };
         
         const dbScale = convertUiScaleToDbScale(updatedScale, user?.id);
@@ -295,7 +299,11 @@ export default function GradingSettingsDialog({
           id: `scale${Date.now()}`, // 临时ID，会被数据库替换
           name: values.name,
           description: values.description || '',
-          levels: values.levels,
+          levels: values.levels.map(level => ({
+            value: Number(level.value),
+            name: String(level.name),
+            color: String(level.color)
+          })),
         };
         
         const dbScale = convertUiScaleToDbScale(newUiScale, user?.id);

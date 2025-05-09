@@ -212,14 +212,49 @@ export async function updateGradingScale(scale: GradingScale) {
  */
 export async function deleteGradingScale(scaleId: string) {
   try {
+    // 首先检查该评级标准是否被作业引用
+    const { data: referencedHomeworks, error: checkError } = await supabase
+      .from('homework')
+      .select('id, title')
+      .eq('grading_scale_id', scaleId)
+      .limit(5);
+    
+    if (checkError) {
+      console.error('检查评级标准引用失败:', checkError);
+      toast.error(`删除评级标准失败: ${checkError.message}`);
+      return false;
+    }
+    
+    // 如果被引用，则不允许删除
+    if (referencedHomeworks && referencedHomeworks.length > 0) {
+      const homeworkTitles = referencedHomeworks.map(hw => `"${hw.title}"`).join(', ');
+      const errorMessage = `无法删除评级标准：该评级标准正在被以下作业使用：${homeworkTitles}。请先将这些作业的评级标准设置为其他值，或删除这些作业后再尝试删除。`;
+      console.error(errorMessage);
+      toast.error(errorMessage, {
+        duration: 8000 // 延长显示时间，让用户能看清
+      });
+      return false;
+    }
+
+    // 没有被引用，可以安全删除
     const { error } = await supabase
       .from('grading_scales')
       .delete()
       .eq('id', scaleId);
 
     if (error) {
-      console.error('删除评级标准失败:', error);
-      toast.error(`删除评级标准失败: ${error.message}`);
+      // 增强错误处理 - 检查是否是外键约束错误
+      if (error.code === '23503') { // Foreign key violation
+        console.error('删除评级标准失败 - 外键约束:', error);
+        toast.error(`无法删除评级标准：该评级标准正在被其他记录引用。错误代码：${error.code}`, {
+          duration: 8000
+        });
+      } else {
+        console.error('删除评级标准失败:', error);
+        toast.error(`删除评级标准失败: ${error.message}`, {
+          duration: 3000
+        });
+      }
       return false;
     }
 

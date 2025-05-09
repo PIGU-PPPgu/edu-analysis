@@ -138,12 +138,7 @@ export function StudentCard({
           <Badge variant="outline" className={cn("text-xs px-2", statusInfo.color)}>
             <span className="flex items-center gap-1">
               {statusInfo.icon}
-              {status === "submitted" && "已提交"}
-              {status === "graded" && "已评分"}
-              {status === "late" && "迟交"}
-              {status === "not_submitted" && "未提交"}
-              {status === "absent" && "缺勤"}
-              {status === "pending" && "待完成"}
+              {statusInfo.label}
             </span>
           </Badge>
           {status === "graded" && score !== undefined && (

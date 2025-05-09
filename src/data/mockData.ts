@@ -203,9 +203,21 @@ export const mockApi = {
     },
     
     // 删除作业
-    deleteHomework: async (homeworkId: string) => {
+    deleteHomework: async (homeworkId: string, force: boolean = false) => {
       await delay(300); // 从800减至300
-      return { success: true };
+      
+      // 模拟有提交记录但无法删除的情况
+      if (homeworkId === "1" && !force) {
+        return { success: false, hasSubmissions: true, submissionsCount: 3 };
+      }
+      
+      // 模拟强制删除
+      if (homeworkId === "1" && force) {
+        return { success: true, hasSubmissions: true, force: true };
+      }
+      
+      // 其他作业可直接删除
+      return { success: true, hasSubmissions: false };
     },
 
     getHomeworkById: async (id: string) => {

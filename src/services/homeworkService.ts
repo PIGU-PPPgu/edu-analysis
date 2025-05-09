@@ -235,10 +235,10 @@ export async function gradeHomework(data: {
     const submissionData = {
       student_id: studentId,
       homework_id: homeworkId,
-        score: data.score,
-        status: data.status || 'graded', // 使用传入的status或默认为'graded'
+      score: data.score,
+      status: data.score ? "graded" : (data.status || "graded"), // 修改这里，当有分数时强制状态为"graded"
       teacher_feedback: data.feedback || '',
-        updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString()
     };
 
     // 保存评分数据
@@ -251,26 +251,57 @@ export async function gradeHomework(data: {
 
     // 检查是否是更新现有记录还是创建新记录
     if (isTemporarySubmission) {
-      // 创建新记录
-      console.log('创建新提交记录...');
-      const { data: newSubmission, error: createError } = await supabase
+      // 检查是否已经有正式记录存在（避免重复创建）
+      const { data: existingSubmission } = await supabase
         .from('homework_submissions')
-        .insert(submissionData)
-        .select('*')
-        .single();
+        .select('id')
+        .eq('student_id', studentId)
+        .eq('homework_id', homeworkId)
+        .maybeSingle();
+      
+      if (existingSubmission && existingSubmission.id) {
+        console.log(`已找到该学生的现有提交记录 ID: ${existingSubmission.id}，将更新而非创建`);
+        const { data: updatedSubmission, error: updateError } = await supabase
+          .from('homework_submissions')
+          .update(submissionData)
+          .eq('id', existingSubmission.id)
+          .select('*')
+          .single();
 
-      if (createError) {
-        console.error('创建作业提交记录失败:', createError);
-        return {
-          success: false,
-          error: 'create_failed',
-          message: `创建记录失败: ${createError.message}`
-        };
+        if (updateError) {
+          console.error('更新现有作业提交记录失败:', updateError);
+          return {
+            success: false,
+            error: 'update_failed',
+            message: `更新记录失败: ${updateError.message}`
+          };
+        }
+        
+        console.log('更新现有记录成功:', updatedSubmission);
+        result = updatedSubmission;
+        finalSubmissionId = updatedSubmission.id;
+      } else {
+        // 创建新记录
+        console.log('创建新提交记录...');
+        const { data: newSubmission, error: createError } = await supabase
+          .from('homework_submissions')
+          .insert(submissionData)
+          .select('*')
+          .single();
+
+        if (createError) {
+          console.error('创建作业提交记录失败:', createError);
+          return {
+            success: false,
+            error: 'create_failed',
+            message: `创建记录失败: ${createError.message}`
+          };
+        }
+
+        console.log('新记录创建成功:', newSubmission);
+        result = newSubmission;
+        finalSubmissionId = newSubmission.id; // 更新为新创建的记录ID
       }
-
-      console.log('新记录创建成功:', newSubmission);
-      result = newSubmission;
-      finalSubmissionId = newSubmission.id; // 更新为新创建的记录ID
     } else {
       // 更新现有记录 (使用原始的 submissionId)
       console.log('更新现有提交记录:', submissionId);
@@ -288,7 +319,7 @@ export async function gradeHomework(data: {
           error: 'update_failed',
           message: `更新记录失败: ${updateError.message}`
         };
-    }
+      }
 
       console.log('作业记录更新成功:', updatedSubmission);
       result = updatedSubmission || {}; // 防止 result 为 null 或 undefined
@@ -456,11 +487,14 @@ export async function getHomeworksByClassId(classId: string) {
 /**
  * 删除作业
  * @param homeworkId 作业ID
+ * @param force 是否强制删除（包括所有相关提交记录）
  * @returns 成功或失败的结果对象
  */
-export async function deleteHomework(homeworkId: string) {
+export async function deleteHomework(homeworkId: string, force: boolean = false) {
+  console.log(`deleteHomework调用开始 - ID: ${homeworkId}, force: ${force}`);
   try {
     // 首先检查是否有学生提交
+    console.log('1. 检查是否有学生提交...');
     const { data: submissions, error: checkError } = await supabase
       .from('homework_submissions')
       .select('id')
@@ -472,13 +506,122 @@ export async function deleteHomework(homeworkId: string) {
       return { success: false, hasSubmissions: false };
     }
 
-    // 如果有提交，返回特殊标记
-    if (submissions && submissions.length > 0) {
+    console.log(`查询到${submissions?.length || 0}条提交记录`);
+    
+    // 如果有提交且不是强制删除，返回特殊标记
+    if (submissions && submissions.length > 0 && !force) {
+      console.log(`存在${submissions.length}条提交，非强制删除，终止操作`);
       return { success: false, hasSubmissions: true, submissionsCount: submissions.length };
     }
 
-    // 没有提交，可以直接删除
-    // 首先尝试从homework表删除
+    // 如果强制删除，先删除所有相关依赖数据
+    if (force && submissions && submissions.length > 0) {
+      console.log(`====== 强制删除作业 ID: ${homeworkId} ======`);
+      console.log(`强制删除作业，将删除 ${submissions.length} 条提交记录及关联数据`);
+      
+      // 1. 删除知识点评估数据 - student_knowledge_mastery表
+      try {
+        console.log('删除student_knowledge_mastery数据...');
+        // 先删除指向homework的记录
+        const { error: deleteKnowledgeMasteryError1 } = await supabase
+          .from('student_knowledge_mastery')
+          .delete()
+          .eq('homework_id', homeworkId);
+        
+        if (deleteKnowledgeMasteryError1) {
+          console.warn('删除作业相关的knowledge_mastery记录失败:', deleteKnowledgeMasteryError1);
+        }
+        
+        // 再删除指向submissions的记录
+        const { error: deleteKnowledgeMasteryError2 } = await supabase
+          .from('student_knowledge_mastery')
+          .delete()
+          .in('submission_id', submissions.map(s => s.id));
+        
+        if (deleteKnowledgeMasteryError2) {
+          console.warn('删除submission相关的knowledge_mastery记录失败:', deleteKnowledgeMasteryError2);
+        }
+      } catch (err) {
+        console.warn('删除知识点掌握度数据异常:', err);
+        // 继续执行，不阻止删除作业
+      }
+      
+      // 2. 删除旧的submission_knowledge_points表中的数据
+      try {
+        console.log('删除submission_knowledge_points数据...');
+        const { error: deleteSkpError } = await supabase
+          .from('submission_knowledge_points')
+          .delete()
+          .in('submission_id', submissions.map(s => s.id));
+        
+        if (deleteSkpError) {
+          console.warn('删除submission_knowledge_points数据失败:', deleteSkpError);
+        }
+      } catch (err) {
+        console.warn('删除submission_knowledge_points数据异常:', err);
+      }
+      
+      // 3. 删除AI分析结果
+      try {
+        console.log('检查ai_analysis_results表是否存在...');
+        // 检查表是否存在
+        const { data: tableExists, error: tableCheckError } = await supabase
+          .from('information_schema.tables')
+          .select('table_name')
+          .eq('table_schema', 'public')
+          .eq('table_name', 'ai_analysis_results')
+          .maybeSingle();
+          
+        if (tableCheckError || !tableExists) {
+          console.log('ai_analysis_results表不存在，跳过此步骤');
+        } else {
+          console.log('删除ai_analysis_results数据...');
+          const { error: deleteAiResultsError } = await supabase
+            .from('ai_analysis_results')
+            .delete()
+            .eq('homework_id', homeworkId);
+          
+          if (deleteAiResultsError) {
+            console.warn('删除AI分析结果失败:', deleteAiResultsError);
+          }
+        }
+      } catch (err) {
+        console.warn('删除AI分析结果异常:', err);
+      }
+      
+      // 4. 删除提交记录
+      console.log('删除homework_submissions数据...');
+      const { error: deleteSubmissionsError } = await supabase
+        .from('homework_submissions')
+        .delete()
+        .eq('homework_id', homeworkId);
+      
+      if (deleteSubmissionsError) {
+        console.error('删除作业提交失败:', deleteSubmissionsError);
+        toast.error(`删除作业失败: ${deleteSubmissionsError.message}`);
+        return { success: false, hasSubmissions: true };
+      }
+      
+      console.log('已删除所有相关提交记录');
+    }
+    
+    // 5. 删除知识点
+    try {
+      console.log('删除knowledge_points数据...');
+      const { error: deleteKnowledgePointsError } = await supabase
+        .from('knowledge_points')
+        .delete()
+        .eq('homework_id', homeworkId);
+      
+      if (deleteKnowledgePointsError) {
+        console.warn('删除知识点数据失败:', deleteKnowledgePointsError);
+      }
+    } catch (err) {
+      console.warn('删除知识点数据异常:', err);
+    }
+
+    // 最后删除作业本身
+    console.log(`====== 删除作业本身 ID: ${homeworkId} ======`);
     let deleteResponse = await supabase
       .from('homework')
       .delete()
@@ -486,7 +629,8 @@ export async function deleteHomework(homeworkId: string) {
       
     // 如果删除失败，尝试从homeworks表删除
     if (deleteResponse.error) {
-      console.log('从homework表删除失败，尝试从homeworks表删除');
+      console.log('从homework表删除失败，错误:', deleteResponse.error);
+      console.log('尝试从homeworks表删除');
       deleteResponse = await supabase
         .from('homeworks')
         .delete()
@@ -496,17 +640,48 @@ export async function deleteHomework(homeworkId: string) {
     const { error } = deleteResponse;
 
     if (error) {
-      console.error('删除作业失败:', error);
-      toast.error(`删除作业失败: ${error.message}`);
-      return { success: false, hasSubmissions: false };
+      console.error('删除作业失败，响应错误:', error);
+      // 特别处理外键约束错误
+      if (error.code === '23503') { // Foreign key violation
+        console.error('外键约束错误，详情:', error.message, error.details);
+        toast.error(`删除作业失败: 该作业正被其他记录引用（外键约束）。错误详情: ${error.message}`, {
+          duration: 8000
+        });
+      } else {
+        toast.error(`删除作业失败: ${error.message}`);
+      }
+      return { success: false, hasSubmissions: false, error: error };
     }
 
-    toast.success('作业删除成功');
-    return { success: true, hasSubmissions: false };
+    // 6. 尝试删除作业相关文件（如果有）
+    try {
+      const { supabase: supabaseStorage } = await import('@/integrations/supabase/client');
+      const { error: storageError } = await supabaseStorage.storage
+        .from('homework_files')
+        .remove([`homework_files/${homeworkId}`]);
+      
+      if (storageError) {
+        console.warn('删除作业文件失败，可能不存在:', storageError);
+      } else {
+        console.log('已删除作业相关文件');
+      }
+    } catch (storageErr) {
+      console.warn('删除存储文件异常:', storageErr);
+    }
+
+    console.log(`====== 作业删除成功 ID: ${homeworkId} ======`);
+    const successMessage = force 
+      ? '删除成功：作业及所有相关数据已完全删除' 
+      : '删除成功：作业已删除';
+    toast.success(successMessage, {
+      description: force ? `已删除作业及相关的${submissions?.length || 0}条提交记录` : undefined,
+      duration: 5000
+    });
+    return { success: true, hasSubmissions: false, force };
   } catch (error) {
     console.error('删除作业异常:', error);
     toast.error(`删除作业失败: ${error.message}`);
-    return { success: false, hasSubmissions: false };
+    return { success: false, hasSubmissions: false, error: error };
   }
 }
 

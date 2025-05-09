@@ -1173,51 +1173,129 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
     }
 
     try {
+      console.log(`开始评分操作：学生ID=${studentId}, 提交ID=${data.submissionId}, 分数=${data.score}`);
+      
+      // 确保状态正确
+      const submissionStatus = data.score ? "graded" : "pending";
+      console.log(`根据分数(${data.score})设置状态为: ${submissionStatus}`);
+
       const result = await gradeHomework({
         ...data,
         studentId: studentId,
         homeworkId: currentHomeworkId,
+        status: submissionStatus, // 确保传递正确的状态
       });
       
       if (result.success) {
         const updatedSubmissionId = result.submissionId || data.submissionId;
         const studentName = currentSubmission?.students?.name || '未知学生';
         
-        setSubmissions(prev => 
-          prev.map(s => {
-            if (s.id === data.submissionId) {
-              return {
+        console.log(`评分成功：提交ID从 ${data.submissionId} 更新为 ${updatedSubmissionId}, 状态设置为"已批改"`);
+        
+        // 处理临时记录到正式记录的转换
+        const isTemporarySubmission = data.submissionId.startsWith('temp-');
+        
+        setSubmissions(prev => {
+          // 如果是临时记录且返回了新的ID，则替换旧记录
+          if (isTemporarySubmission && updatedSubmissionId !== data.submissionId) {
+            // 先移除临时记录，再添加新记录
+            const withoutTemp = prev.filter(s => s.id !== data.submissionId);
+            
+            // 确保没有重复记录
+            const alreadyHasNew = withoutTemp.some(s => s.id === updatedSubmissionId);
+            
+            if (alreadyHasNew) {
+              // 只更新现有记录
+              return withoutTemp.map(s => s.id === updatedSubmissionId ? {
                 ...s,
-                id: updatedSubmissionId,
                 status: "graded",
                 score: data.score,
                 teacher_feedback: data.feedback,
                 updated_at: new Date().toISOString(),
-                knowledge_points_assessed: result.knowledgePointsAssessed, // Removed potentially problematic comma
-              };
+                knowledge_points_assessed: result.knowledgePointsAssessed
+              } : s);
+            } else {
+              // 添加新记录
+              return [
+                ...withoutTemp,
+                {
+                  ...currentSubmission,
+                  id: updatedSubmissionId,
+                  status: "graded",
+                  score: data.score,
+                  teacher_feedback: data.feedback,
+                  updated_at: new Date().toISOString(),
+                  knowledge_points_assessed: result.knowledgePointsAssessed
+                }
+              ];
             }
-            return s;
-          })
-        );
+          } else {
+            // 普通更新现有记录
+            return prev.map(s => {
+              if (s.id === data.submissionId) {
+                return {
+                  ...s,
+                  id: updatedSubmissionId,
+                  status: "graded",
+                  score: data.score,
+                  teacher_feedback: data.feedback,
+                  updated_at: new Date().toISOString(),
+                  knowledge_points_assessed: result.knowledgePointsAssessed
+                };
+              }
+              return s;
+            });
+          }
+        });
 
         toast({
           title: "批改成功",
           description: `学生 ${studentName} 的评分${result.knowledgePointsAssessed ? '和知识点' : ''}已保存。`,
         });
 
-        setFilteredSubmissions(prev => 
-          prev.map(s => s.id === data.submissionId ? 
-            { 
+        // 同样更新筛选后的数据
+        setFilteredSubmissions(prev => {
+          // 采用与上面相同的逻辑，确保临时记录和正式记录的转换
+          if (isTemporarySubmission && updatedSubmissionId !== data.submissionId) {
+            const withoutTemp = prev.filter(s => s.id !== data.submissionId);
+            
+            const alreadyHasNew = withoutTemp.some(s => s.id === updatedSubmissionId);
+            
+            if (alreadyHasNew) {
+              return withoutTemp.map(s => s.id === updatedSubmissionId ? {
+                ...s,
+                status: "graded", 
+                score: data.score,
+                teacher_feedback: data.feedback,
+                updated_at: new Date().toISOString(),
+                knowledge_points_assessed: result.knowledgePointsAssessed
+              } : s);
+            } else {
+              return [
+                ...withoutTemp,
+                {
+                  ...currentSubmission,
+                  id: updatedSubmissionId,
+                  status: "graded",
+                  score: data.score,
+                  teacher_feedback: data.feedback,
+                  updated_at: new Date().toISOString(),
+                  knowledge_points_assessed: result.knowledgePointsAssessed
+                }
+              ];
+            }
+          } else {
+            return prev.map(s => s.id === data.submissionId ? { 
               ...s,
               id: updatedSubmissionId,
               status: "graded", 
               score: data.score,
               teacher_feedback: data.feedback,
               updated_at: new Date().toISOString(),
-              knowledge_points_assessed: result.knowledgePointsAssessed // Removed potentially problematic comma
-            } : s
-          )
-        );
+              knowledge_points_assessed: result.knowledgePointsAssessed
+            } : s);
+          }
+        });
         
         const finalSubmissionId = result.submissionId || data.submissionId;
         setLastGradedSubmissionId(finalSubmissionId);
@@ -1235,7 +1313,7 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
     } finally {
       setIsSubmitting(false);
     }
-  }; // Ensure this closing brace is correct for handleGradeSubmission
+  };
 
   // 在渲染评分选项的部分添加以下内容
   const renderScoreDisplayOptions = () => {
@@ -1630,7 +1708,23 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
 
   // 将服务器状态映射到组件使用的状态
   const mapSubmissionStatus = (status: string): SubmissionStatus => {
-    switch (status) {
+    console.log(`映射提交状态: ${status}`);
+    // 确保状态字符串有效
+    if (!status) {
+      console.warn('映射到空状态，默认设为未提交');
+      return "not_submitted";
+    }
+    
+    // 忽略大小写，进行规范化处理
+    const normalizedStatus = status.toLowerCase().trim();
+    
+    // 特殊处理：如果submission有分数，无论状态如何都应该显示为已批改
+    if (typeof arguments[1] === 'object' && arguments[1] && arguments[1].score) {
+      console.log(`检测到分数(${arguments[1].score})但状态为"${normalizedStatus}"，强制映射为"graded"`);
+      return "graded";
+    }
+    
+    switch (normalizedStatus) {
       case "graded": return "graded";
       case "submitted": return "submitted";
       case "late": return "late";
@@ -1638,7 +1732,9 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
       case "missing": return "not_submitted";
       case "not_submitted": return "not_submitted";
       case "absent": return "absent";
-      default: return "not_submitted";
+      default:
+        console.warn(`未知状态: ${status}，默认设为未提交`);
+        return "not_submitted";
     }
   };
 

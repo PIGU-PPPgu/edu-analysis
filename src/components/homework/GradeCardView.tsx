@@ -263,7 +263,12 @@ export default function GradeCardView({
       gradeFeedback = "学生未提交作业。";
     } else if (status === "absent") {
       gradeFeedback = "学生缺勤。";
+    } else if (gradeValue > 0) {
+      // 如果有分数，确保状态为已批改
+      status = "graded";
     }
+    
+    console.log(`快速评分: 学生=${submission.students.name}, 分数=${gradeValue}, 状态=${status || 'graded'}`);
     
     // 提交评分
     onGraded(
@@ -271,7 +276,7 @@ export default function GradeCardView({
       gradeValue,
       gradeFeedback,
       evaluations,
-      status // 传递额外的状态参数
+      status || (gradeValue > 0 ? "graded" : undefined) // 确保有分数时状态为"graded"
     );
     
     // 显示成功提示
@@ -380,12 +385,16 @@ export default function GradeCardView({
     // 确定提交哪些知识点评估
     const evaluationsToSubmit = shouldAddKnowledgePoints ? kpEvaluations : [];
     
+    // 根据分数确定状态
+    const submissionStatus = score > 0 ? "graded" : selectedSubmission.status;
+    console.log(`详细评分: 学生=${selectedSubmission.students.name}, 分数=${score}, 状态=${submissionStatus}`);
+    
     onGraded(
       selectedSubmission.id,
       score,
       feedback,
       evaluationsToSubmit,
-      selectedSubmission.status
+      submissionStatus // 使用根据分数确定的状态
     );
     
     setGradeDialogOpen(false);
@@ -522,15 +531,20 @@ export default function GradeCardView({
 
   // 添加处理状态标记的函数
   const handleStatusMark = (submission: SubmissionWithStudent, status: "not_submitted" | "absent") => {
+    // 如果作业有分数，需要先清除分数
+    const score = 0; // 标记状态时始终使用0分
+    
     // 准备自动生成反馈
     let statusFeedback = status === "not_submitted" ? 
       "学生未提交作业。" : 
       "学生请假缺勤。";
     
+    console.log(`标记状态: 学生=${submission.students.name}, 状态=${status}, 分数=${score}`);
+    
     // 提交评分 (使用0分)
     onGraded(
       submission.id,
-      0, // 0分
+      score,
       statusFeedback,
       [], // 不需要知识点评估
       status // 传递状态
@@ -554,16 +568,21 @@ export default function GradeCardView({
       return;
     }
     
+    // 对于状态标记，始终使用0分
+    const score = 0;
+    
     // 根据状态自动生成反馈
     const statusFeedback = status === "not_submitted" ? 
       "学生未提交作业。" : 
       "学生请假缺勤。";
     
+    console.log(`批量标记状态: ${selectedSubmissions.length}名学生, 状态=${status}, 分数=${score}`);
+    
     // 如果有批量评分回调函数
     if (onBatchGraded) {
       onBatchGraded(
         selectedSubmissions,
-        0, // 0分
+        score,
         statusFeedback
       );
     } else {
@@ -573,7 +592,7 @@ export default function GradeCardView({
         if (submission) {
           onGraded(
             submissionId,
-            0, // 0分
+            score,
             statusFeedback,
             [], // 不处理知识点
             status
@@ -809,7 +828,7 @@ export default function GradeCardView({
 
               <StudentCard
                 student={submission.students}
-                status={mapSubmissionStatus(submission.status)}
+                status={mapSubmissionStatus(submission.status, submission)}
                 score={submission.score}
                 onClick={() => !batchMode && !statusMarkMode && handleOpenGradeDialog(submission)}
                 selected={selectedSubmissions.includes(submission.id)}
@@ -1224,7 +1243,15 @@ export default function GradeCardView({
 }
 
 // 需要确保 mapSubmissionStatus 函数存在
-function mapSubmissionStatus(status: string): SubmissionStatus {
+function mapSubmissionStatus(status: string, submission?: SubmissionWithStudent): SubmissionStatus {
+  console.log(`GradeCardView-映射提交状态: ${status}`, submission?.score ? `(分数: ${submission.score})` : '');
+  
+  // 特殊处理：如果submission有分数，无论状态如何都应该显示为已批改
+  if (submission && submission.score) {
+    console.log(`检测到分数(${submission.score})但状态为"${status}"，强制映射为"graded"`);
+    return "graded";
+  }
+  
   // Based on the possible statuses from the backend/interface
   switch (status?.toLowerCase()) {
     case 'graded':
@@ -1238,7 +1265,10 @@ function mapSubmissionStatus(status: string): SubmissionStatus {
        return 'late';
     case 'absent':
        return 'absent';
+    case 'not_submitted':
+       return 'not_submitted';
     default:
+      console.warn(`GradeCardView-未知状态: ${status}，默认设为未提交`);
       return 'not_submitted'; // Default or if status is null/undefined
   }
 }
