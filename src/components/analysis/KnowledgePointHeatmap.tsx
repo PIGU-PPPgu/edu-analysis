@@ -1,293 +1,368 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChevronLeft, ChevronRight, Search, Filter } from "lucide-react";
+
+// 引入热图库
+import { ResponsiveHeatMapCanvas } from "@nivo/heatmap";
 
 interface KnowledgePointHeatmapProps {
   className?: string;
-  data?: any[];
   title?: string;
   description?: string;
 }
 
-// 保留模拟数据作为后备
-const mockData = [
-  {
-    name: "数据结构",
-    平均水平: 75,
-    最高水平: 95,
-    学生数: 28,
-  },
-  {
-    name: "算法设计",
-    平均水平: 68,
-    最高水平: 90,
-    学生数: 32,
-  },
-  {
-    name: "面向对象",
-    平均水平: 82,
-    最高水平: 97,
-    学生数: 25,
-  },
-  {
-    name: "网络编程",
-    平均水平: 60,
-    最高水平: 85,
-    学生数: 18,
-  },
-  {
-    name: "函数式编程",
-    平均水平: 65,
-    最高水平: 88,
-    学生数: 22,
-  },
-  {
-    name: "系统设计",
-    平均水平: 72,
-    最高水平: 92,
-    学生数: 30,
-  },
-  {
-    name: "数据库",
-    平均水平: 78,
-    最高水平: 94,
-    学生数: 27,
-  },
-];
-
-/**
- * 获取知识点掌握度数据
- */
-async function getKnowledgePointsData() {
-  try {
-    // 获取所有作业的知识点评估数据
-    const { data: masteryData, error: masteryError } = await supabase
-      .from('student_knowledge_mastery')
-      .select(`
-        mastery_level,
-        student_id,
-        knowledge_points (
-          id,
-          name
-        )
-      `);
-
-    if (masteryError) {
-      console.error('获取知识点掌握度失败:', masteryError);
-      toast.error(`获取知识点掌握度失败: ${masteryError.message}`);
-      return null;
-    }
-
-    if (!masteryData || masteryData.length === 0) {
-      return [];
-    }
-
-    // 按知识点分类并计算统计数据
-    const knowledgePointsMap = new Map();
-    
-    masteryData.forEach(item => {
-      if (!item.knowledge_points) return;
-      
-      const kpName = item.knowledge_points.name;
-      const level = item.mastery_level;
-      const studentId = item.student_id;
-      
-      if (!knowledgePointsMap.has(kpName)) {
-        knowledgePointsMap.set(kpName, {
-          levels: [level],
-          maxLevel: level,
-          students: new Set([studentId])
-        });
-      } else {
-        const data = knowledgePointsMap.get(kpName);
-        data.levels.push(level);
-        data.maxLevel = Math.max(data.maxLevel, level);
-        data.students.add(studentId);
-        knowledgePointsMap.set(kpName, data);
-      }
-    });
-
-    // 生成热力图数据
-    const result = Array.from(knowledgePointsMap.entries())
-      .map(([kpName, data]) => {
-        // 计算平均分
-        const avgLevel = data.levels.reduce((sum, level) => sum + level, 0) / data.levels.length;
-        
-        return {
-          name: kpName.length > 10 ? kpName.substring(0, 10) + '...' : kpName,
-          平均水平: Math.round(avgLevel),
-          最高水平: data.maxLevel,
-          学生数: data.students.size
-        };
-      })
-      // 按平均水平排序
-      .sort((a, b) => b.平均水平 - a.平均水平);
-
-    return result;
-  } catch (error) {
-    console.error('获取知识点数据异常:', error);
-    toast.error(`获取知识点数据失败: ${error.message || '未知错误'}`);
-    return null;
-  }
+interface Student {
+  id: string;
+  name: string;
+  class_id?: string;
+  class_name?: string;
 }
 
-// 获取水平对应的颜色
-function getLevelColor(level) {
-  if (level >= 90) return "#4ade80"; // 绿色 - 优秀
-  if (level >= 80) return "#60a5fa"; // 蓝色 - 良好
-  if (level >= 60) return "#facc15"; // 黄色 - 及格
-  return "#f87171"; // 红色 - 不及格
+interface KnowledgePoint {
+  id: string;
+  name: string;
+}
+
+interface ClassInfo {
+  id: string;
+  name: string;
+}
+
+interface MasteryData {
+  student_id: string;
+  knowledge_point_id: string;
+  mastery_level: number;
 }
 
 export default function KnowledgePointHeatmap({
   className,
-  data: propData,
-  title = "知识点掌握热力图",
-  description = "各知识点的掌握度与学生分布"
+  title = "知识点掌握度热图",
+  description = "学生对各知识点的掌握程度",
 }: KnowledgePointHeatmapProps) {
-  const [data, setData] = useState<any[]>(propData || mockData);
-  const [loading, setLoading] = useState(!propData);
+  const [allStudents, setAllStudents] = useState<Student[]>([]);
+  const [allKnowledgePoints, setAllKnowledgePoints] = useState<KnowledgePoint[]>([]);
+  const [masteryData, setMasteryData] = useState<MasteryData[]>([]);
+  const [classes, setClasses] = useState<ClassInfo[]>([]);
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("average");
+  
+  // 分页和筛选状态
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState("10");
+  const [classFilter, setClassFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
 
-  // 限制只显示前10个知识点 (增加了可显示的知识点数量)
-  const displayData = data.slice(0, 10);
-
-  // 检查数据有效性
-  const hasValidData = displayData && displayData.length > 0;
-
+  // 获取所有数据
   useEffect(() => {
-    // 如果通过props提供了数据，直接使用
-    if (propData) {
-      setData(propData);
-      return;
-    }
-
-    // 否则从API获取数据
-    const fetchData = async () => {
+    async function fetchData() {
       try {
         setLoading(true);
-        const result = await getKnowledgePointsData();
-        if (result && result.length > 0) {
-          setData(result);
-        } else {
-          // 如果API返回null或空数组，使用模拟数据
-          setData(mockData);
-          setError("无法获取真实数据，显示模拟数据");
+        
+        // 1. 获取知识点列表
+        const { data: knowledgePoints, error: kpError } = await supabase
+          .from("knowledge_points")
+          .select("id, name")
+          .order("name");
+        
+        if (kpError) throw kpError;
+        
+        if (!knowledgePoints || knowledgePoints.length === 0) {
+          setData([]);
+          setError("暂无知识点数据");
+          return;
         }
-      } catch (err) {
-        console.error("获取知识点掌握度数据失败:", err);
-        setData(mockData);
-        setError("加载失败，显示模拟数据");
+        setAllKnowledgePoints(knowledgePoints);
+        
+        // 2. 获取班级列表
+        const { data: classesData, error: classesError } = await supabase
+          .from("classes")
+          .select("id, name")
+          .order("name");
+          
+        if (classesError) throw classesError;
+        setClasses(classesData || []);
+        
+        // 3. 获取学生列表（包含班级信息）
+        const { data: students, error: studentsError } = await supabase
+          .from("students")
+          .select("id, name, class_id, classes(name)")
+          .order("name");
+          
+        if (studentsError) throw studentsError;
+        
+        if (!students || students.length === 0) {
+          setData([]);
+          setError("暂无学生数据");
+          return;
+        }
+        
+        // 处理学生数据，提取班级名称
+        const processedStudents = students.map(student => ({
+          id: student.id,
+          name: student.name,
+          class_id: student.class_id,
+          class_name: student.classes?.name
+        }));
+        
+        setAllStudents(processedStudents);
+        
+        // 4. 获取知识点掌握度数据
+        const { data: masteryDataResult, error: masteryError } = await supabase
+          .from('student_knowledge_mastery')
+          .select(`
+            student_id,
+            knowledge_point_id,
+            mastery_level
+          `);
+          
+        if (masteryError) throw masteryError;
+        setMasteryData(masteryDataResult || []);
+        
+      } catch (err: any) {
+        console.error("获取知识点热图数据失败:", err);
+        setError(`加载失败: ${err.message || "未知错误"}`);
       } finally {
         setLoading(false);
       }
-    };
-
+    }
+    
     fetchData();
-  }, [propData]);
+  }, []);
+
+  // 根据筛选条件过滤学生
+  useEffect(() => {
+    if (allStudents.length === 0) return;
+    
+    let filtered = [...allStudents];
+    
+    // 按班级筛选
+    if (classFilter !== "all") {
+      filtered = filtered.filter(student => student.class_id === classFilter);
+    }
+    
+    // 按名称搜索
+    if (searchQuery.trim() !== "") {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(student => 
+        student.name.toLowerCase().includes(query)
+      );
+    }
+    
+    setFilteredStudents(filtered);
+    // 重置到第一页
+    setCurrentPage(0);
+  }, [allStudents, classFilter, searchQuery]);
+
+  // 根据过滤后的学生和当前页码生成热图数据
+  useEffect(() => {
+    if (filteredStudents.length === 0 || allKnowledgePoints.length === 0) return;
+    
+    const pageSizeNumber = parseInt(pageSize, 10);
+    const start = currentPage * pageSizeNumber;
+    const end = start + pageSizeNumber;
+    const pageStudents = filteredStudents.slice(start, end);
+    
+    // 限制知识点数量为最多10个，避免图表过于拥挤
+    const displayKnowledgePoints = allKnowledgePoints.slice(0, 10);
+    
+    // 为每个学生创建一行数据
+    const heatmapData = [];
+    for (const student of pageStudents) {
+      const rowData = {
+        id: student.name + (student.class_name ? ` (${student.class_name})` : ''),
+        data: []
+      };
+      
+      // 为每个知识点创建一个单元格
+      for (const kp of displayKnowledgePoints) {
+        // 查找该学生对该知识点的掌握度
+        const mastery = masteryData.find(m => 
+          m.student_id === student.id && 
+          m.knowledge_point_id === kp.id
+        );
+        
+        rowData.data.push({
+          x: kp.name.length > 8 ? kp.name.substring(0, 8) + '...' : kp.name,
+          y: mastery ? mastery.mastery_level : 0
+        });
+      }
+      
+      heatmapData.push(rowData);
+    }
+    
+    setData(heatmapData);
+  }, [filteredStudents, allKnowledgePoints, masteryData, currentPage, pageSize]);
 
   return (
     <Card className={className}>
       <CardHeader className="pb-2">
         <CardTitle className="text-base">{title}</CardTitle>
         <CardDescription>
-          {error ? <span className="text-yellow-500">{error}</span> : description}
+          {error ? (
+            <span className="text-yellow-500">{error}</span>
+          ) : (
+            description
+          )}
         </CardDescription>
       </CardHeader>
-      <CardContent className="h-full">
+      <CardContent className="p-0 pb-2">
         {loading ? (
-          <div className="flex flex-col h-full w-full space-y-4 justify-center items-center">
+          <div className="flex flex-col h-[350px] w-full space-y-4 justify-center items-center">
             <Skeleton className="h-[300px] w-full rounded-md" />
             <div className="text-sm text-muted-foreground">加载中...</div>
           </div>
-        ) : !hasValidData ? (
-          <div className="flex flex-col h-full w-full space-y-4 justify-center items-center">
+        ) : !allStudents || allStudents.length === 0 || !allKnowledgePoints || allKnowledgePoints.length === 0 ? (
+          <div className="flex flex-col h-[350px] w-full space-y-4 justify-center items-center">
             <div className="text-center text-muted-foreground">
-              <p>无法显示知识点热力图</p>
-              <p className="text-sm mt-2">暂无足够数据生成有效图表</p>
+              <p>暂无足够数据生成热图</p>
+              <p className="text-sm mt-2">请先批改含知识点的作业</p>
             </div>
           </div>
         ) : (
-          <div className="flex flex-col h-full">
-            <Tabs 
-              defaultValue="average" 
-              className="w-full"
-              onValueChange={setActiveTab}
-            >
-              <TabsList className="w-full grid grid-cols-2 mb-4">
-                <TabsTrigger value="average">平均掌握度</TabsTrigger>
-                <TabsTrigger value="maximum">最高掌握度</TabsTrigger>
-              </TabsList>
-              <TabsContent value="average" className="h-[400px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    layout="vertical"
-                    data={displayData}
-                    margin={{ top: 10, right: 30, left: 80, bottom: 5 }}
+          <>
+            {/* 控制面板：筛选器和分页 */}
+            <div className="px-6 mb-4 space-y-2">
+              {/* 筛选和搜索 */}
+              <div className="flex flex-wrap gap-2">
+                <div className="flex-1 min-w-[200px]">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="搜索学生姓名..."
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      className="w-full pl-9"
+                    />
+                  </div>
+                </div>
+                
+                <Select value={classFilter} onValueChange={setClassFilter}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="选择班级" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">所有班级</SelectItem>
+                    {classes.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                <Select value={pageSize} onValueChange={setPageSize}>
+                  <SelectTrigger className="w-[150px]">
+                    <SelectValue placeholder="每页显示" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="5">5名学生</SelectItem>
+                    <SelectItem value="10">10名学生</SelectItem>
+                    <SelectItem value="15">15名学生</SelectItem>
+                    <SelectItem value="20">20名学生</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* 分页导航 */}
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                  {filteredStudents.length > 0 ? 
+                    `共 ${filteredStudents.length} 名学生` : 
+                    '没有符合条件的学生'
+                  }
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setCurrentPage(p => Math.max(0, p-1))}
+                    disabled={currentPage === 0}
                   >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" domain={[0, 100]} />
-                    <YAxis 
-                      type="category" 
-                      dataKey="name" 
-                      width={120} 
-                      tick={{ fontSize: 12 }}
-                    />
-                    <Tooltip 
-                      formatter={(value) => [`${value}分`, "平均掌握度"]}
-                      labelFormatter={(label) => `知识点: ${label}`}
-                    />
-                    <Bar 
-                      dataKey="平均水平" 
-                      radius={[0, 4, 4, 0]}
-                    >
-                      {displayData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={getLevelColor(entry.平均水平)} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </TabsContent>
-              <TabsContent value="maximum" className="h-[400px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    layout="vertical"
-                    data={displayData}
-                    margin={{ top: 10, right: 30, left: 80, bottom: 5 }}
+                    <ChevronLeft className="h-4 w-4" />
+                    上一页
+                  </Button>
+                  
+                  <span className="text-sm">
+                    第 {currentPage+1} / {Math.max(1, Math.ceil(filteredStudents.length / parseInt(pageSize, 10)))} 页
+                  </span>
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setCurrentPage(p => p+1)}
+                    disabled={currentPage >= Math.ceil(filteredStudents.length / parseInt(pageSize, 10))-1 || filteredStudents.length === 0}
                   >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" domain={[0, 100]} />
-                    <YAxis 
-                      type="category" 
-                      dataKey="name" 
-                      width={120}
-                      tick={{ fontSize: 12 }}
-                    />
-                    <Tooltip 
-                      formatter={(value) => [`${value}分`, "最高掌握度"]}
-                      labelFormatter={(label) => `知识点: ${label}`}
-                    />
-                    <Bar 
-                      dataKey="最高水平" 
-                      radius={[0, 4, 4, 0]}
-                    >
-                      {displayData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={getLevelColor(entry.最高水平)} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </TabsContent>
-            </Tabs>
-            <div className="text-xs text-muted-foreground text-center mt-2">
-              * 颜色深浅表示掌握程度，绿色为优秀，蓝色为良好，黄色为及格，红色为不及格
+                    下一页
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
             </div>
-          </div>
+            
+            {/* 热图 */}
+            <div className="h-[350px] w-full">
+              {data.length > 0 ? (
+                <ResponsiveHeatMapCanvas
+                  data={data}
+                  margin={{ top: 60, right: 90, bottom: 60, left: 90 }}
+                  valueFormat=">-.2s"
+                  axisTop={{
+                    tickSize: 5,
+                    tickPadding: 5,
+                    tickRotation: -45,
+                    legend: "知识点",
+                    legendOffset: -45,
+                  }}
+                  axisRight={null}
+                  axisBottom={null}
+                  axisLeft={{
+                    tickSize: 5,
+                    tickPadding: 5,
+                    tickRotation: 0,
+                    legend: "学生",
+                    legendPosition: "middle",
+                    legendOffset: -72,
+                  }}
+                  colors={{
+                    type: "sequential",
+                    scheme: "blues",
+                    minValue: 0,
+                    maxValue: 100,
+                  }}
+                  emptyColor="#eeeeee"
+                  legends={[
+                    {
+                      anchor: "right",
+                      translateX: 30,
+                      translateY: 0,
+                      length: 200,
+                      thickness: 10,
+                      direction: "column",
+                      tickPosition: "after",
+                      tickSize: 3,
+                      tickSpacing: 4,
+                      tickOverlap: false,
+                      tickFormat: ">-.2s",
+                      title: "掌握度",
+                      titleAlign: "start",
+                      titleOffset: 4,
+                    },
+                  ]}
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center">
+                  <p className="text-muted-foreground">当前筛选条件下没有学生数据</p>
+                </div>
+              )}
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

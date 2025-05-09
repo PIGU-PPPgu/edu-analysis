@@ -3,6 +3,12 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import GradeDistributionChart from "./GradeDistributionChart";
 import GradeTrendChart from "./GradeTrendChart";
 import GradeSankeyChart from "./GradeSankeyChart";
+import KnowledgePointHeatmap from "./KnowledgePointHeatmap";
+import QuestionDifficultyChart from "./QuestionDifficultyChart";
+import ClassPerformanceTable from "./ClassPerformanceTable";
+import StudentGroupsChart from "./StudentGroupsChart";
+import GroupProgressChart from "./GroupProgressChart";
+import StudentVsGroupChart from "./StudentVsGroupChart";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, ChevronRight, BarChart3, Clock, LucideTarget, Users, TrendingUp } from "lucide-react";
@@ -176,26 +182,30 @@ export default function HomeworkAnalysisDashboard({ className }: HomeworkAnalysi
               <CardDescription>作业中不同难度题目的分布情况</CardDescription>
             </CardHeader>
             <CardContent className="pt-0 pb-2">
-              <div className="w-full min-h-[250px] flex items-center justify-center">
-                <div className="text-center p-6 border border-dashed rounded-md w-full h-full flex items-center justify-center">
-                  <p className="text-muted-foreground">题目难度分布图表</p>
-                  {/* 这里将来放题目难度分布图表 */}
-                </div>
+              <div className="w-full min-h-[250px]">
+                <QuestionDifficultyChart 
+                  key={`difficulty-${refreshKey}`}
+                  title="" 
+                  description=""
+                  className="w-full h-full" 
+                />
               </div>
             </CardContent>
           </Card>
           
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">难度与成绩关系</CardTitle>
-              <CardDescription>题目难度与学生成绩的关联分析</CardDescription>
+              <CardTitle className="text-base">班级表现一览</CardTitle>
+              <CardDescription>各班级整体表现与关键指标</CardDescription>
             </CardHeader>
             <CardContent className="pt-0 pb-2">
-              <div className="w-full min-h-[250px] flex items-center justify-center">
-                <div className="text-center p-6 border border-dashed rounded-md w-full h-full flex items-center justify-center">
-                  <p className="text-muted-foreground">难度成绩关系散点图</p>
-                  {/* 这里将来放难度与成绩关系图 */}
-                </div>
+              <div className="w-full min-h-[250px]">
+                <ClassPerformanceTable
+                  key={`performance-${refreshKey}`}
+                  title=""
+                  description=""
+                  className="w-full h-full"
+                />
               </div>
             </CardContent>
           </Card>
@@ -203,15 +213,17 @@ export default function HomeworkAnalysisDashboard({ className }: HomeworkAnalysi
           <div className="w-full md:col-span-2">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">各难度题目通过率</CardTitle>
-                <CardDescription>不同难度层次题目的通过率对比</CardDescription>
+                <CardTitle className="text-base">知识点掌握度热图</CardTitle>
+                <CardDescription>学生对各知识点的掌握程度</CardDescription>
               </CardHeader>
               <CardContent className="pt-0 pb-2">
-                <div className="w-full min-h-[300px] flex items-center justify-center">
-                  <div className="text-center p-6 border border-dashed rounded-md w-full h-full flex items-center justify-center">
-                    <p className="text-muted-foreground">难度通过率对比图表</p>
-                    {/* 这里将来放难度通过率图表 */}
-                  </div>
+                <div className="w-full min-h-[300px]">
+                  <KnowledgePointHeatmap
+                    key={`heatmap-${refreshKey}`}
+                    title=""
+                    description=""
+                    className="w-full h-full"
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -307,15 +319,17 @@ export default function HomeworkAnalysisDashboard({ className }: HomeworkAnalysi
           <div className="w-full md:col-span-2">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">知识点关联图</CardTitle>
-                <CardDescription>知识点之间的关联关系与掌握程度</CardDescription>
+                <CardTitle className="text-base">知识点掌握度热图</CardTitle>
+                <CardDescription>学生对各知识点的掌握程度</CardDescription>
               </CardHeader>
               <CardContent className="pt-0 pb-2">
-                <div className="w-full min-h-[300px] flex items-center justify-center">
-                  <div className="text-center p-6 border border-dashed rounded-md w-full h-full flex items-center justify-center">
-                    <p className="text-muted-foreground">知识点关联网络图</p>
-                    {/* 这里将来放知识点关联图 */}
-                  </div>
+                <div className="w-full min-h-[300px]">
+                  <KnowledgePointHeatmap
+                    key={`heatmap-knowledge-${refreshKey}`}
+                    title=""
+                    description=""
+                    className="w-full h-full"
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -327,48 +341,30 @@ export default function HomeworkAnalysisDashboard({ className }: HomeworkAnalysi
       {activeAnalysisType === "groups" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">学生能力分组</CardTitle>
-              <CardDescription>按能力水平划分的学生群体分布</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0 pb-2">
-              <div className="w-full min-h-[250px] flex items-center justify-center">
-                <div className="text-center p-6 border border-dashed rounded-md w-full h-full flex items-center justify-center">
-                  <p className="text-muted-foreground">学生能力分组图</p>
-                  {/* 这里将来放学生能力分组图 */}
-                </div>
-              </div>
+            <CardContent className="pt-4 pb-2">
+              <StudentGroupsChart 
+                key={`groups-${refreshKey}`}
+                className="w-full h-full"
+              />
             </CardContent>
           </Card>
           
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">群体进步趋势</CardTitle>
-              <CardDescription>不同能力群体的学习进步趋势</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0 pb-2">
-              <div className="w-full min-h-[250px] flex items-center justify-center">
-                <div className="text-center p-6 border border-dashed rounded-md w-full h-full flex items-center justify-center">
-                  <p className="text-muted-foreground">群体进步趋势线图</p>
-                  {/* 这里将来放群体进步趋势图 */}
-                </div>
-              </div>
+            <CardContent className="pt-4 pb-2">
+              <GroupProgressChart
+                key={`progress-${refreshKey}`}
+                className="w-full h-full"
+              />
             </CardContent>
           </Card>
           
           <div className="w-full md:col-span-2">
             <Card>
-              <CardHeader>
-                <CardTitle className="text-base">个体与群体表现对比</CardTitle>
-                <CardDescription>学生个体与所在群体的表现对比</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-0 pb-2">
-                <div className="w-full min-h-[300px] flex items-center justify-center">
-                  <div className="text-center p-6 border border-dashed rounded-md w-full h-full flex items-center justify-center">
-                    <p className="text-muted-foreground">个体-群体对比图</p>
-                    {/* 这里将来放个体与群体对比图 */}
-                  </div>
-                </div>
+              <CardContent className="pt-4 pb-2">
+                <StudentVsGroupChart
+                  key={`vs-${refreshKey}`}
+                  className="w-full h-full"
+                />
               </CardContent>
             </Card>
           </div>
