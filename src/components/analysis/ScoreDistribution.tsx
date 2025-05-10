@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, Cell, CartesianGrid, PieChart, Pie } from "recharts";
@@ -102,15 +101,17 @@ const ScoreDistribution: React.FC<Props> = ({ data: initialData }) => {
   return (
     <Card className="col-span-1">
       <CardHeader>
-        <CardTitle>分数段分布</CardTitle>
-        <CardDescription className="flex items-center justify-between">
-          <span>各学科分数段学生人数</span>
+        <div className="flex items-center justify-between">
+          <CardTitle>分数段分布</CardTitle>
           <Tabs value={viewType} onValueChange={(v) => setViewType(v as "stacked" | "pie")} className="ml-auto">
-            <TabsList className="grid grid-cols-2 h-7">
-              <TabsTrigger value="stacked" className="text-xs px-2 py-0.5">堆叠柱状图</TabsTrigger>
-              <TabsTrigger value="pie" className="text-xs px-2 py-0.5">饼图</TabsTrigger>
+            <TabsList className="grid grid-cols-2 h-8 text-xs">
+              <TabsTrigger value="stacked" className="px-3 py-1">堆叠图</TabsTrigger>
+              <TabsTrigger value="pie" className="px-3 py-1">饼图</TabsTrigger>
             </TabsList>
           </Tabs>
+        </div>
+        <CardDescription className="text-gray-500 pt-1">
+          各学科分数段学生人数
         </CardDescription>
       </CardHeader>
       <CardContent className="h-[320px] flex items-center justify-center">

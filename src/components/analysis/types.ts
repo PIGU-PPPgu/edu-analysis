@@ -11,6 +11,7 @@ export interface CustomProvider {
 }
 
 export interface ParsedData {
+  fileName?: string;
   headers: string[];
   data: any[];
   detectedFormat: string;
@@ -21,10 +22,17 @@ export interface ParsedData {
 export interface FileProcessingProps {
   onFileProcessed: (data: ParsedData) => void;
   isAIEnhanced: boolean;
+  isProcessing?: boolean;
+  onFileSelected?: (file: File) => void;
 }
 
 export interface IntelligentFileParserProps {
-  onDataParsed?: (data: any[]) => void;
+  onFileParsedForReview: (
+    fileData: FileDataForReview, 
+    initialMappings: Record<string, string>, 
+    examInfo: ExamInfo
+  ) => void;
+  onImportIntent?: (fileName: string, fileSize: number) => void;
 }
 
 export interface AIModelConfig {

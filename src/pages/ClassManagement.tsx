@@ -18,7 +18,10 @@ import {
   Pencil,
   Trash2, 
   AlertCircle,
-  Users
+  Users,
+  ChartPieIcon,
+  FileBarChart,
+  Eye
 } from "lucide-react";
 import CreateClassDialog from "@/components/class/CreateClassDialog";
 import {
@@ -90,20 +93,10 @@ const ClassManagement: React.FC = () => {
       setClasses(classesData);
       
       if (classesData.length > 0) {
-        // 如果当前没有选中班级，则选中第一个
-        if (!selectedClass) {
+        if (!selectedClass || !classesData.find(c => c.id === selectedClass.id)) {
           setSelectedClass(classesData[0]);
-        } else {
-          // 如果有选中班级，找到更新后的版本
-          const updated = classesData.find(c => c.id === selectedClass.id);
-          if (updated) {
-            setSelectedClass(updated);
-          } else {
-            setSelectedClass(classesData[0]);
-          }
         }
         
-        // 获取每个班级的学生和作业数量
         const studentCountsData: Record<string, number> = {};
         const homeworkCountsData: Record<string, number> = {};
         
@@ -150,6 +143,9 @@ const ClassManagement: React.FC = () => {
       const success = await deleteClass(classToDelete.id);
       if (success) {
         toast.success('班级删除成功');
+        if (selectedClass?.id === classToDelete.id) {
+          setSelectedClass(null); // 如果删除的是当前选中的班级，则清空选择
+        }
         fetchClasses();
       }
     } catch (error) {
@@ -161,21 +157,27 @@ const ClassManagement: React.FC = () => {
     }
   };
 
-  // 添加跳转到学生管理的函数
   const handleViewStudents = (classId: string, className: string) => {
     navigate(`/student-management?classId=${classId}&className=${encodeURIComponent(className)}`);
   };
 
+  const handleViewClassProfile = (classId: string) => {
+    navigate(`/class-profile/${classId}`);
+  };
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <main className="container mx-auto px-4 py-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">班级管理</h1>
-          <Button onClick={() => {
-            setClassToEdit(null);
-            setCreateDialogOpen(true);
-          }}>
+      <main className="container mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-black">班级管理</h1>
+          <Button 
+            onClick={() => {
+              setClassToEdit(null);
+              setCreateDialogOpen(true);
+            }}
+            className="bg-[#9cff57] hover:bg-[#84d64a] text-black border-none"
+          >
             <PlusCircle className="h-4 w-4 mr-2" />
             新建班级
           </Button>
@@ -184,20 +186,23 @@ const ClassManagement: React.FC = () => {
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="flex flex-col items-center">
-              <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-              <p className="mt-4 text-muted-foreground">加载班级数据中...</p>
+              <div className="w-10 h-10 border-4 border-[#9cff57] border-t-transparent rounded-full animate-spin"></div>
+              <p className="mt-4 text-gray-600">加载班级数据中...</p>
             </div>
           </div>
         ) : classes.length === 0 ? (
-          <Card className="bg-muted/50">
+          <Card className="bg-white border border-gray-200">
             <CardContent className="flex flex-col items-center justify-center py-10">
-              <AlertCircle className="h-10 w-10 text-muted-foreground mb-4" />
-              <p className="text-lg font-medium mb-2">还没有班级数据</p>
-              <p className="text-muted-foreground mb-4">点击"新建班级"按钮创建你的第一个班级</p>
-              <Button onClick={() => {
-                setClassToEdit(null);
-                setCreateDialogOpen(true);
-              }}>
+              <AlertCircle className="h-12 w-12 text-gray-400 mb-4" />
+              <p className="text-xl font-medium text-black mb-2">暂无班级数据</p>
+              <p className="text-gray-600 mb-6">点击下方按钮，开始创建您的第一个班级吧！</p>
+              <Button 
+                onClick={() => {
+                  setClassToEdit(null);
+                  setCreateDialogOpen(true);
+                }}
+                className="bg-[#9cff57] hover:bg-[#84d64a] text-black border-none"
+              >
                 <PlusCircle className="h-4 w-4 mr-2" />
                 新建班级
               </Button>
@@ -205,132 +210,166 @@ const ClassManagement: React.FC = () => {
           </Card>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
               {classes.map((classData) => (
-                <Card key={classData.id} className={`hover:shadow-md transition-shadow ${selectedClass?.id === classData.id ? 'border-primary' : ''}`}>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">{classData.name}</CardTitle>
-                    <CardDescription>{classData.grade}</CardDescription>
+                <Card 
+                  key={classData.id} 
+                  className={`bg-white border border-gray-200 hover:shadow-lg transition-shadow overflow-hidden ${selectedClass?.id === classData.id ? 'border-[#9cff57] border-2' : ''}`}
+                >
+                  <div className={`h-1 w-full ${selectedClass?.id === classData.id ? 'bg-[#9cff57]' : 'bg-gray-300'}`}></div>
+                  <CardHeader className="pt-5 pb-3">
+                    <CardTitle className="text-xl font-bold text-black">{classData.name}</CardTitle>
+                    <CardDescription className="text-gray-500">{classData.grade}</CardDescription>
                   </CardHeader>
-                  <CardContent className="pb-2">
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">学生人数:</span>
-                        <span className="font-medium">{studentsCount[classData.id] || 0}人</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">作业数量:</span>
-                        <span className="font-medium">{homeworksCount[classData.id] || 0}个</span>
-                      </div>
+                  <CardContent className="pb-4 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">学生人数:</span>
+                      <span className="font-semibold text-black">{studentsCount[classData.id] || 0}人</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">作业数量:</span>
+                      <span className="font-semibold text-black">{homeworksCount[classData.id] || 0}个</span>
                     </div>
                   </CardContent>
-                  <CardFooter className="flex justify-between pt-2">
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => setSelectedClass(classData)}
-                      >
-                        {selectedClass?.id === classData.id ? '当前选中' : '查看详情'}
-                      </Button>
+                  <CardFooter className="flex flex-col items-stretch gap-2 pt-3 border-t border-gray-100 p-4">
+                    <Button 
+                      variant={selectedClass?.id === classData.id ? "default" : "outline"} 
+                      size="sm" 
+                      onClick={() => setSelectedClass(classData)}
+                      className={`w-full ${selectedClass?.id === classData.id ? 'bg-[#9cff57] hover:bg-[#84d64a] text-black border-none' : 'border-black text-black hover:bg-gray-100'}`}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      {selectedClass?.id === classData.id ? '当前查看' : '查看详情'}
+                    </Button>
+                    <div className="grid grid-cols-2 gap-2">
                       <Button
-                        variant="secondary"
+                        variant="outline"
                         size="sm"
                         onClick={() => handleViewStudents(classData.id, classData.name)}
-                        className="flex items-center gap-1"
+                        className="flex items-center gap-1 border-black text-black hover:bg-gray-100 w-full"
                       >
-                        <Users className="h-3 w-3" />
-                        学生管理
+                        <Users className="h-4 w-4" />
+                        学生
                       </Button>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="icon" onClick={() => handleEditClass(classData)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDeleteClass(classData)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewClassProfile(classData.id)}
+                        className="flex items-center gap-1 border-black text-black hover:bg-gray-100 w-full"
+                      >
+                        <FileBarChart className="h-4 w-4" />
+                        画像
                       </Button>
                     </div>
                   </CardFooter>
+                  <div className="absolute top-3 right-3 flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => handleEditClass(classData)} className="text-gray-500 hover:text-black h-7 w-7">
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleDeleteClass(classData)} className="text-red-500 hover:text-red-700 h-7 w-7">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                 </Card>
               ))}
             </div>
 
             {selectedClass && (
               <Tabs defaultValue="overview" className="space-y-6" value={selectedTab} onValueChange={setSelectedTab}>
-                <div className="flex justify-between items-center mb-2">
-                  <TabsList className="grid w-full max-w-[600px] grid-cols-3 gap-4">
-                    <TabsTrigger value="overview">班级总览</TabsTrigger>
-                    <TabsTrigger value="comparison">班级对比</TabsTrigger>
-                    <TabsTrigger value="detail">班级详情</TabsTrigger>
+                <div className="flex justify-between items-center mb-4">
+                  <TabsList className="bg-white border border-gray-200 p-1 rounded-lg">
+                    <TabsTrigger value="overview" className="data-[state=active]:bg-[#9cff57] data-[state=active]:text-black rounded-md px-6 py-2">班级总览</TabsTrigger>
+                    <TabsTrigger value="comparison" className="data-[state=active]:bg-[#9cff57] data-[state=active]:text-black rounded-md px-6 py-2">班级对比</TabsTrigger>
+                    <TabsTrigger value="detail" className="data-[state=active]:bg-[#9cff57] data-[state=active]:text-black rounded-md px-6 py-2">班级详情</TabsTrigger>
                   </TabsList>
                 </div>
 
                 <TabsContent value="overview">
-                  <OverviewTab mockClasses={classes} />
+                  <Card className="bg-white border border-gray-200">
+                    <div className="h-1 w-full bg-[#9cff57]"></div>
+                    <CardHeader>
+                      <CardTitle className="text-xl text-black">总览: {selectedClass.name}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <OverviewTab mockClasses={classes.filter(c => c.id === selectedClass.id)} />
+                    </CardContent>
+                  </Card>
                 </TabsContent>
 
                 <TabsContent value="comparison">
-                  <ComparisonTab />
+                  <Card className="bg-white border border-gray-200">
+                    <div className="h-1 w-full bg-[#9cff57]"></div>
+                    <CardHeader>
+                      <CardTitle className="text-xl text-black">对比: {selectedClass.name}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ComparisonTab />
+                    </CardContent>
+                  </Card>
                 </TabsContent>
 
                 <TabsContent value="detail">
-                  <DetailTab 
-                    selectedClass={{
-                      id: selectedClass.id,
-                      className: selectedClass.name,
-                      studentCount: studentsCount[selectedClass.id] || 0,
-                      avgScore: 85.7,
-                      passRate: 97.6,
-                      topStudents: ["张三", "李四", "王五"],
-                      subjectScores: [
-                        { subject: "语文", score: 87.5, fullmarks: 5 },
-                        { subject: "数学", score: 84.2, fullmarks: 8 },
-                        { subject: "英语", score: 88.1, fullmarks: 6 },
-                        { subject: "物理", score: 82.6, fullmarks: 3 },
-                        { subject: "化学", score: 86.3, fullmarks: 4 },
-                        { subject: "生物", score: 85.4, fullmarks: 2 }
-                      ],
-                      competencies: [
-                        { name: "知识掌握", value: 85 },
-                        { name: "解题能力", value: 83 },
-                        { name: "创新思维", value: 75 },
-                        { name: "团队协作", value: 90 },
-                        { name: "学习态度", value: 88 }
-                      ]
-                    }}
-                    competencyData={competencyData}
-                    correlationData={correlationData}
-                    scoreDistributionData={scoreDistributionData}
-                  />
+                  <Card className="bg-white border border-gray-200">
+                    <div className="h-1 w-full bg-[#9cff57]"></div>
+                    <CardHeader>
+                      <CardTitle className="text-xl text-black">详情: {selectedClass.name}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <DetailTab 
+                        selectedClass={{
+                          id: selectedClass.id,
+                          className: selectedClass.name,
+                          studentCount: studentsCount[selectedClass.id] || 0,
+                          avgScore: 85.7,
+                          passRate: 97.6,
+                          topStudents: ["张三", "李四", "王五"],
+                          subjectScores: [
+                            { subject: "语文", score: 87.5, fullmarks: 5 },
+                            { subject: "数学", score: 84.2, fullmarks: 8 },
+                            { subject: "英语", score: 88.1, fullmarks: 6 },
+                          ],
+                          competencies: [
+                            { name: "知识掌握", value: 85 },
+                            { name: "解题能力", value: 83 },
+                          ]
+                        }}
+                        competencyData={competencyData}
+                        correlationData={correlationData}
+                        scoreDistributionData={scoreDistributionData}
+                      />
+                    </CardContent>
+                  </Card>
                 </TabsContent>
               </Tabs>
             )}
           </>
         )}
 
-        {/* 创建/编辑班级对话框 */}
         <CreateClassDialog 
           open={createDialogOpen}
           onOpenChange={setCreateDialogOpen}
-          onClassCreated={fetchClasses}
+          onClassCreated={() => {
+            fetchClasses();
+            // 如果是编辑后创建，保持当前选中班级不变(如果它还存在)
+            // 如果是全新创建，则新班级会在 fetchClasses 后被自动选中 (如果有班级的话)
+          }}
           classToEdit={classToEdit}
         />
 
-        {/* 删除确认对话框 */}
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <AlertDialogContent>
+          <AlertDialogContent className="border border-gray-200">
             <AlertDialogHeader>
-              <AlertDialogTitle>确认删除班级</AlertDialogTitle>
-              <AlertDialogDescription>
-                此操作不可撤销。班级将从系统中永久删除。
+              <AlertDialogTitle className="text-black">确认删除班级</AlertDialogTitle>
+              <AlertDialogDescription className="text-gray-600">
+                此操作不可撤销。班级及其所有关联数据（学生、作业等）将从系统中永久删除。
                 {classToDelete && (
-                  <div className="mt-2 p-2 bg-muted rounded-md">
-                    <p><strong>班级名称:</strong> {classToDelete.name}</p>
-                    <p><strong>年级:</strong> {classToDelete.grade}</p>
-                    {studentsCount[classToDelete.id] > 0 && (
-                      <p className="text-destructive mt-2">
-                        警告：该班级有 {studentsCount[classToDelete.id]} 名学生和 {homeworksCount[classToDelete.id]} 个作业记录将一并删除。
+                  <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md text-sm">
+                    <p><strong>班级名称:</strong> <span className="font-semibold text-red-700">{classToDelete.name}</span></p>
+                    <p><strong>年级:</strong> <span className="font-semibold text-red-700">{classToDelete.grade}</span></p>
+                    {(studentsCount[classToDelete.id] > 0 || homeworksCount[classToDelete.id] > 0) && (
+                      <p className="text-red-700 mt-2">
+                        <AlertCircle className="inline h-4 w-4 mr-1" />
+                        警告：该班级当前有 {studentsCount[classToDelete.id] || 0} 名学生和 {homeworksCount[classToDelete.id] || 0} 个作业记录，这些数据也将被一并永久删除。
                       </p>
                     )}
                   </div>
@@ -338,9 +377,12 @@ const ClassManagement: React.FC = () => {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>取消</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                删除
+              <AlertDialogCancel className="border-black text-black hover:bg-gray-100">取消</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={confirmDelete} 
+                className="bg-red-600 text-white hover:bg-red-700"
+              >
+                确认删除
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

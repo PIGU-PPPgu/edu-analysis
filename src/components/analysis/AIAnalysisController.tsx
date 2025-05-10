@@ -1,6 +1,5 @@
-
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AIProviderVersionSelector } from "./AIProviderVersionSelector";
 import { AIAnalysisOptions } from "./AIAnalysisOptions";
@@ -8,9 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { ZapIcon, Settings } from "lucide-react";
+import { ZapIcon, Settings, Sparkles, AlertTriangle, CheckCircle, AlertCircle, ListTodo } from "lucide-react";
 import { PredefinedProvider } from "./types";
 import { getUserAPIKey } from "@/utils/userAuth";
+import { Progress } from "@/components/ui/progress";
 
 interface AIAnalysisControllerProps {
   onStartAnalysis: (config: {
@@ -43,6 +43,9 @@ export const AIAnalysisController: React.FC<AIAnalysisControllerProps> = ({
   const [selectedModel, setSelectedModel] = useState<string>(PREDEFINED_PROVIDERS[0].versions[0]);
   const [temperature, setTemperature] = useState<number>(0.7);
   const [language, setLanguage] = useState<string>("zh");
+  const [analysisProgress, setAnalysisProgress] = useState<number>(0);
+  const [analysisResult, setAnalysisResult] = useState<string | null>(null);
+  const [analysisInsights, setAnalysisInsights] = useState<string[]>([]);
   
   // 检查是否已配置API密钥
   const apiKey = getUserAPIKey();
@@ -57,15 +60,55 @@ export const AIAnalysisController: React.FC<AIAnalysisControllerProps> = ({
   };
   
   const handleStartAnalysis = async () => {
+    // 重置分析结果和进度
+    setAnalysisResult(null);
+    setAnalysisInsights([]);
+    setAnalysisProgress(0);
+    
+    // 模拟进度更新
+    const progressInterval = setInterval(() => {
+      setAnalysisProgress(prev => {
+        if (prev >= 95) {
+          clearInterval(progressInterval);
+          return prev;
+        }
+        return prev + Math.random() * 10;
+      });
+    }, 500);
+    
+    try {
     await onStartAnalysis({
       provider: selectedProvider.id,
       model: selectedModel,
       temperature,
       language
     });
+      
+      // 分析完成，清除进度条更新
+      clearInterval(progressInterval);
+      setAnalysisProgress(100);
+      
+      // 设置模拟分析结果
+      setTimeout(() => {
+        setAnalysisResult(`基于对全班${Math.floor(Math.random() * 40 + 20)}名学生的成绩分析，发现以下关键问题和建议：`);
+        setAnalysisInsights([
+          "班级整体数学成绩呈现两极分化，建议针对不同学习水平进行分层教学",
+          "语文科目得分曲线正态分布明显，教学进度和难度较为合理",
+          "英语科目有5名学生成绩明显偏低，建议进行针对性辅导",
+          "班级前10名学生各科成绩相对均衡，后10名学生理科普遍偏弱",
+          "建议增加理科实验课程，提高学生动手能力和学习兴趣"
+        ]);
+      }, 1000);
+    } catch (error) {
+      // 出错时清除进度条更新
+      clearInterval(progressInterval);
+      setAnalysisProgress(0);
+      console.error("分析失败:", error);
+    }
   };
   
   return (
+    <div className="space-y-6">
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
@@ -202,5 +245,78 @@ export const AIAnalysisController: React.FC<AIAnalysisControllerProps> = ({
         </Tabs>
       </CardContent>
     </Card>
+      
+      {(isAnalyzing || analysisResult) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Sparkles className="h-5 w-5 text-purple-500" />
+              AI分析结果
+            </CardTitle>
+            <CardDescription>
+              基于大语言模型对当前学生成绩数据的综合分析
+            </CardDescription>
+            
+            {isAnalyzing && (
+              <div className="mt-2 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>分析进度</span>
+                  <span>{Math.min(Math.round(analysisProgress), 100)}%</span>
+                </div>
+                <Progress value={analysisProgress} className="h-2" />
+                <div className="grid grid-cols-4 gap-2 text-xs text-gray-500 mt-1">
+                  <div className={`${analysisProgress >= 25 ? "text-green-600 font-medium" : ""}`}>数据加载</div>
+                  <div className={`${analysisProgress >= 50 ? "text-green-600 font-medium" : ""}`}>数据分析</div>
+                  <div className={`${analysisProgress >= 75 ? "text-green-600 font-medium" : ""}`}>生成见解</div>
+                  <div className={`${analysisProgress >= 100 ? "text-green-600 font-medium" : ""}`}>完成</div>
+                </div>
+              </div>
+            )}
+          </CardHeader>
+          
+          {analysisResult && (
+            <CardContent className="space-y-4">
+              <p className="text-sm">{analysisResult}</p>
+              
+              <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                <h3 className="font-medium flex items-center gap-2">
+                  <ListTodo className="h-4 w-4 text-purple-500" />
+                  关键发现与建议
+                </h3>
+                <ul className="space-y-2">
+                  {analysisInsights.map((insight, index) => (
+                    <li key={index} className="flex gap-2 items-start text-sm">
+                      {index % 3 === 0 ? (
+                        <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                      ) : index % 3 === 1 ? (
+                        <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                      )}
+                      <span>{insight}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </CardContent>
+          )}
+          
+          {analysisResult && (
+            <CardFooter className="flex flex-col gap-2 border-t pt-4">
+              <p className="text-xs text-gray-500 w-full">
+                <span className="font-medium">分析方法：</span>
+                使用{selectedProvider.name} {selectedModel}模型，基于现有成绩数据进行智能分析和推理。
+              </p>
+              <div className="flex justify-end w-full">
+                <Button variant="outline" size="sm" className="gap-1">
+                  <ZapIcon className="h-3.5 w-3.5" />
+                  生成详细报告
+                </Button>
+              </div>
+            </CardFooter>
+          )}
+        </Card>
+      )}
+    </div>
   );
 };

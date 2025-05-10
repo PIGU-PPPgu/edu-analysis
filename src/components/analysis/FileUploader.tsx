@@ -1,4 +1,3 @@
-
 import React, { useRef } from "react";
 import { FileInput } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -7,13 +6,17 @@ import { useFileProcessing } from "@/hooks/useFileProcessing";
 import { FileProcessingProps } from "./types";
 import { toast } from "sonner";
 
-const FileUploader: React.FC<FileProcessingProps> = ({ onFileProcessed, isAIEnhanced }) => {
+const FileUploader: React.FC<FileProcessingProps> = ({ onFileProcessed, isAIEnhanced, onFileSelected }) => {
   const { isProcessing, progress, fileInfo, processFile } = useFileProcessing();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    if (onFileSelected) {
+      onFileSelected(file);
+    }
 
     // 文件大小验证 (限制为10MB)
     const maxSize = 10 * 1024 * 1024; // 10MB
@@ -50,6 +53,10 @@ const FileUploader: React.FC<FileProcessingProps> = ({ onFileProcessed, isAIEnha
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
       
+      if (onFileSelected) {
+        onFileSelected(file);
+      }
+
       // 文件大小验证 (限制为10MB)
       const maxSize = 10 * 1024 * 1024; // 10MB
       if (file.size > maxSize) {

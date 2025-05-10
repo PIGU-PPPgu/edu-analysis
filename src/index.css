@@ -99,3 +99,18 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* START DEBUGGING OVERFLOW -- REMOVE LATER */
+/* html, body, div, main, section, article, aside, nav, header, footer, .app, #root, [data-radix-scroll-area-viewport] { */
+/*   overflow: visible !important; */
+/*   overflow-x: auto !important; */
+/* } */
+
+/* [data-radix-scroll-area-root] { */
+/*   overflow: visible !important; */ /* Radix root usually has overflow:hidden, let's override for test */
+/* } */
+
+/* [data-radix-scroll-area-viewport] { */
+/*    overflow: scroll !important; */ /* Radix viewport should handle scroll */
+/* } */
+/* END DEBUGGING OVERFLOW -- REMOVE LATER */

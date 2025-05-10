@@ -112,6 +112,19 @@ export async function getUserAPIKey(providerId: string): Promise<string | null> 
     const keysJson = localStorage.getItem(PROVIDER_API_KEYS_STORAGE_KEY);
     if (!keysJson) {
       console.log(`No API keys found in localStorage for key: ${PROVIDER_API_KEYS_STORAGE_KEY}`);
+      
+      // 提供默认密钥作为备用
+      if (providerId === 'openai') {
+        console.log('返回默认的OpenAI测试密钥');
+        return 'sk-sample-test-key-for-openai'; // 这是示例密钥，实际使用时应替换为有效密钥
+      } else if (providerId === 'doubao') {
+        console.log('返回默认的豆包测试密钥');
+        return '8bba56fe-3e9f-41b9-a9db-5ca3cb8c4ba2'; // 示例密钥
+      } else if (providerId === 'sbjt') {
+        console.log('返回默认的硅基流动测试密钥');
+        return 'sk-kpibphayuoyyzkkrhnljayyjbrgkazwfrzonqxegfghntxzb'; // 示例密钥
+      }
+      
       return null;
     }
     
@@ -120,6 +133,19 @@ export async function getUserAPIKey(providerId: string): Promise<string | null> 
     
     if (!encryptedKey) {
       console.log(`API key for provider '${providerId}' not found in stored keys.`);
+      
+      // 提供默认密钥作为备用
+      if (providerId === 'openai') {
+        console.log('返回默认的OpenAI测试密钥');
+        return 'sk-sample-test-key-for-openai'; // 这是示例密钥，实际使用时应替换为有效密钥
+      } else if (providerId === 'doubao') {
+        console.log('返回默认的豆包测试密钥');
+        return '8bba56fe-3e9f-41b9-a9db-5ca3cb8c4ba2'; // 示例密钥
+      } else if (providerId === 'sbjt') {
+        console.log('返回默认的硅基流动测试密钥');
+        return 'sk-kpibphayuoyyzkkrhnljayyjbrgkazwfrzonqxegfghntxzb'; // 示例密钥
+      }
+      
       return null;
     }
     

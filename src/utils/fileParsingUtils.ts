@@ -1,4 +1,3 @@
-
 export const standardFields = {
   studentId: ["学号", "id", "student_id", "studentid", "student id", "编号", "序号"],
   name: ["姓名", "name", "student_name", "studentname", "student name", "名字", "学生姓名"],
@@ -272,4 +271,182 @@ export const parseExcel = async (buffer: ArrayBuffer) => {
     console.error("Excel解析失败:", error);
     throw error;
   }
+};
+
+// 增强AI识别力的启发式规则
+export const intelligentFieldDetection = (headers: string[], sampleData: any[]): Record<string, string> => {
+  const mappings: Record<string, string> = {};
+  const matchedFields = new Set<string>();
+  
+  // 1. 使用复杂启发式规则进行标题识别
+  headers.forEach(header => {
+    const normalizedHeader = header.toLowerCase().trim();
+    
+    // 1.1 学号识别 - 基于数据特征
+    if (!matchedFields.has('studentId') && 
+        (normalizedHeader.includes('学') && normalizedHeader.includes('号') || 
+         normalizedHeader.includes('id') ||
+         normalizedHeader.includes('编号'))) {
+      const samples = sampleData.map(row => String(row[header]));
+      // 学号通常是数字或固定模式的字符串
+      const isIdLike = samples.every(s => /^\d+$/.test(s) || /^[A-Za-z]\d+$/.test(s));
+      if (isIdLike) {
+        mappings[header] = 'studentId';
+        matchedFields.add('studentId');
+        return;
+      }
+    }
+    
+    // 1.2 姓名识别 - 基于数据特征
+    if (!matchedFields.has('name') && 
+        (normalizedHeader.includes('姓名') || 
+         normalizedHeader.includes('名字') || 
+         normalizedHeader.includes('name'))) {
+      const samples = sampleData.map(row => String(row[header]));
+      // 名字通常是2-4个中文字符或不含数字的字符串
+      const isNameLike = samples.every(s => /^[\u4e00-\u9fa5]{2,4}$/.test(s) || !/\d/.test(s));
+      if (isNameLike) {
+        mappings[header] = 'name';
+        matchedFields.add('name');
+        return;
+      }
+    }
+    
+    // 1.3 成绩识别 - 基于数据特征
+    if (!matchedFields.has('score') &&
+        (normalizedHeader.includes('分数') || 
+         normalizedHeader.includes('成绩') || 
+         normalizedHeader.includes('得分') ||
+         normalizedHeader.includes('score') ||
+         normalizedHeader.includes('mark'))) {
+      const samples = sampleData.map(row => Number(row[header]));
+      // 成绩通常是0-100之间的数字
+      const isScoreLike = samples.every(s => !isNaN(s) && s >= 0 && s <= 150);
+      if (isScoreLike) {
+        mappings[header] = 'score';
+        matchedFields.add('score');
+        return;
+      }
+    }
+    
+    // 1.4 科目识别 - 基于值域特征
+    if (!matchedFields.has('subject') &&
+        (normalizedHeader.includes('科目') || 
+         normalizedHeader.includes('学科') || 
+         normalizedHeader.includes('课程') ||
+         normalizedHeader.includes('subject'))) {
+      const uniqueValues = new Set(sampleData.map(row => String(row[header])));
+      // 科目通常是有限的几个值：语文、数学、英语等
+      const commonSubjects = ['语文', '数学', '英语', '物理', '化学', '生物', '历史', '地理', '政治'];
+      const matchesCommonSubjects = Array.from(uniqueValues).some(v => 
+        commonSubjects.some(s => String(v).includes(s))
+      );
+      
+      if (matchesCommonSubjects || uniqueValues.size < 10) {
+        mappings[header] = 'subject';
+        matchedFields.add('subject');
+        return;
+      }
+    }
+    
+    // 1.5 班级识别
+    if (!matchedFields.has('className') &&
+        (normalizedHeader.includes('班级') || 
+         normalizedHeader.includes('班')  || 
+         normalizedHeader.includes('class'))) {
+      const uniqueValues = new Set(sampleData.map(row => String(row[header])));
+      // 班级通常包含"班"字或有特定格式
+      const isClassLike = Array.from(uniqueValues).some(v => 
+        String(v).includes('班') || /^\d+级\d+班$/.test(String(v)) || /^[高初]\d+[班\(\d+\)]/.test(String(v))
+      );
+      
+      if (isClassLike) {
+        mappings[header] = 'className';
+        matchedFields.add('className');
+        return;
+      }
+    }
+  });
+  
+  // 2. 基于位置和模式的推断
+  if (!matchedFields.has('studentId') || !matchedFields.has('name')) {
+    // 查找学号和姓名（通常是前两列）
+    for (let i = 0; i < Math.min(headers.length, 2); i++) {
+      const header = headers[i];
+      if (mappings[header]) continue; // 已有映射，跳过
+      
+      const samples = sampleData.map(row => String(row[header]));
+      
+      // 第一列通常是学号
+      if (i === 0 && !matchedFields.has('studentId')) {
+        // 学号通常是纯数字或有固定格式
+        const isIdLike = samples.every(s => /^\d+$/.test(s) || /^[A-Za-z]\d+$/.test(s));
+        if (isIdLike) {
+          mappings[header] = 'studentId';
+          matchedFields.add('studentId');
+          continue;
+        }
+      }
+      
+      // 第二列通常是姓名
+      if (i === 1 && !matchedFields.has('name')) {
+        // 名字通常是2-4个中文字符
+        const isNameLike = samples.every(s => /^[\u4e00-\u9fa5]{2,4}$/.test(s));
+        if (isNameLike) {
+          mappings[header] = 'name';
+          matchedFields.add('name');
+          continue;
+        }
+      }
+    }
+  }
+  
+  // 3. 使用原有别名方法进行补充匹配
+  headers.forEach(header => {
+    if (mappings[header]) return; // 已有映射，跳过
+    
+    const normalizedHeader = header.toLowerCase().trim();
+    
+    for (const [standardField, aliases] of Object.entries(standardFields)) {
+      // 如果这个标准字段已经被映射，跳过
+      if (matchedFields.has(standardField)) continue;
+      
+      // 检查完全匹配和部分匹配
+      if (aliases.some(alias => 
+        alias.toLowerCase() === normalizedHeader ||
+        normalizedHeader.includes(alias.toLowerCase()) ||
+        alias.toLowerCase().includes(normalizedHeader)
+      )) {
+        mappings[header] = standardField;
+        matchedFields.add(standardField);
+        break;
+      }
+    }
+  });
+  
+  // 4. 对于未匹配的字段，设置为ignore
+  headers.forEach(header => {
+    if (!mappings[header]) {
+      mappings[header] = "ignore";
+    }
+  });
+  
+  return mappings;
+};
+
+// 增强文件解析函数，使用AI增强功能
+export const enhancedGenerateInitialMappings = (headers: string[], sampleData: any[]): Record<string, string> => {
+  // 基本映射
+  const basicMappings = generateInitialMappings(headers);
+  
+  // 增强映射
+  if (sampleData && sampleData.length > 0) {
+    // 使用智能检测
+    const intelligentMappings = intelligentFieldDetection(headers, sampleData);
+    
+    // 合并结果，智能检测优先
+    return { ...basicMappings, ...intelligentMappings };
+  }
+  
+  return basicMappings;
 };

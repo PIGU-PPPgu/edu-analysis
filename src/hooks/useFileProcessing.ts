@@ -1,9 +1,9 @@
-
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { parseCSV, parseExcel, isBinaryContent } from '@/utils/fileParsingUtils';
+import { parseCSV, parseExcel, isBinaryContent, enhancedGenerateInitialMappings } from '@/utils/fileParsingUtils';
 import { ParsedData } from '@/components/analysis/types';
 import { supabase } from '@/integrations/supabase/client';
+import { aiService } from '@/services/aiService';
 
 /**
  * 文件处理 Hook
@@ -13,7 +13,7 @@ export const useFileProcessing = () => {
   const [progress, setProgress] = useState(0);
   const [fileInfo, setFileInfo] = useState<{ name: string; size: number } | null>(null);
 
-  const processFile = async (file: File): Promise<ParsedData | null> => {
+  const processFile = async (file: File, isAIEnhanced: boolean = true): Promise<ParsedData | null> => {
     const allowedTypes = [
       'text/csv',
       'application/vnd.ms-excel',
@@ -60,6 +60,18 @@ export const useFileProcessing = () => {
           headers = result.headers;
           data = result.data;
           confidence = 0.9;
+          
+          // 如果启用了AI增强，尝试使用AI分析文件结构
+          if (isAIEnhanced) {
+            try {
+              // 仅采样部分内容以减少API调用量
+              const contentSample = content.split('\n').slice(0, 20).join('\n');
+              const structureAnalysis = await aiService.analyzeFileStructure(contentSample, 'csv');
+              console.log("AI文件结构分析结果:", structureAnalysis);
+            } catch (aiError) {
+              console.warn("AI文件结构分析失败", aiError);
+            }
+          }
         } catch (csvError) {
           console.error("CSV解析失败:", csvError);
           throw new Error(`CSV解析失败: ${csvError instanceof Error ? csvError.message : "未知错误"}`);
@@ -96,9 +108,36 @@ export const useFileProcessing = () => {
           val !== undefined && val !== null && val !== '');
       });
       
-      // 调用 Supabase Edge 函数进行额外的数据增强（如果需要）
-      // 这里可以根据实际需求添加对 Edge 函数的调用
-      setProgress(70);
+      // AI增强步骤 - 当启用AI增强时处理
+      let fieldMappings = {};
+      if (isAIEnhanced) {
+        setProgress(60);
+        
+        try {
+          // 使用样本数据进行AI映射
+          const sampleData = data.slice(0, Math.min(10, data.length));
+          
+          try {
+            // 尝试使用AI服务进行表头映射
+            const mappingResult = await aiService.mapFileHeaders(headers, sampleData);
+            console.log("AI表头映射结果:", mappingResult);
+            
+            if (mappingResult && mappingResult.mappings) {
+              fieldMappings = mappingResult.mappings;
+              confidence = Math.max(confidence, mappingResult.confidence || 0);
+            }
+          } catch (headerMappingError) {
+            console.warn("AI表头映射失败，使用本地规则:", headerMappingError);
+            fieldMappings = enhancedGenerateInitialMappings(headers, sampleData);
+          }
+        } catch (aiError) {
+          console.warn("AI增强处理失败，将使用标准解析", aiError);
+          fieldMappings = enhancedGenerateInitialMappings(headers, data.slice(0, Math.min(10, data.length)));
+        }
+      } else {
+        // 使用基本映射方法
+        fieldMappings = enhancedGenerateInitialMappings(headers, data.slice(0, Math.min(10, data.length)));
+      }
       
       // 智能类型转换 - 判断考试日期、成绩等
       data = data.map(row => {
@@ -118,7 +157,9 @@ export const useFileProcessing = () => {
           
           // 日期格式处理
           if (key.toLowerCase().includes('date') || 
-              key.toLowerCase().includes('日期')) {
+              key.toLowerCase().includes('日期') ||
+              key.toLowerCase().includes('time') ||
+              key.toLowerCase().includes('时间')) {
             // 尝试转换为标准日期格式
             const dateValue = processedRow[key];
             if (typeof dateValue === 'string') {
@@ -135,12 +176,21 @@ export const useFileProcessing = () => {
                 const [_, year, month, day] = slashMatch;
                 processedRow[key] = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
               }
+              
+              // 处理横杠日期格式 (如 "2023-5-1")
+              const dashMatch = dateValue.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+              if (dashMatch) {
+                const [_, year, month, day] = dashMatch;
+                processedRow[key] = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+              }
             }
           }
         });
         
         return processedRow;
       });
+      
+      setProgress(80);
       
       // 最终处理
       setProgress(100);
@@ -151,7 +201,7 @@ export const useFileProcessing = () => {
         data,
         detectedFormat,
         confidence,
-        fieldMappings: {}
+        fieldMappings
       };
 
     } catch (error) {

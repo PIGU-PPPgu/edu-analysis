@@ -29,12 +29,40 @@ export interface AIProvider {
  * 用户AI配置接口
  */
 export interface UserAIConfig {
-  provider: string;               // 选择的提供商
-  version?: string;               // 选择的模型版本
-  enabled: boolean;               // 是否启用AI
-  customSettings?: Record<string, any>; // 自定义设置
-  customProviders?: string;        // 自定义提供商列表（JSON字符串）
-  lastUpdated?: string;           // 最后更新时间
+  /**
+   * AI 服务提供商，例如 "openai", "doubao", "glm" 等
+   */
+  provider: string;
+  
+  /**
+   * 模型版本，例如 "gpt-3.5-turbo", "doubao-1-5" 等
+   */
+  version: string;
+  
+  /**
+   * AI 功能是否启用
+   */
+  enabled: boolean;
+  
+  /**
+   * 自定义设置
+   */
+  customSettings: {
+    /**
+     * 调试模式
+     */
+    debugMode?: boolean;
+    
+    /**
+     * 其他自定义设置
+     */
+    [key: string]: any;
+  };
+  
+  /**
+   * 配置最后更新时间
+   */
+  lastUpdated: string;
 }
 
 export interface AIProviderConfig {
@@ -75,4 +103,114 @@ export interface ProviderConfig {
   requestFormat: (params: any, model: string) => any;
   // 响应格式化函数
   responseFormat: (response: any) => any;
+}
+
+/**
+ * AI 分析结果接口
+ */
+export interface AIAnalysisResult {
+  /**
+   * 分析内容
+   */
+  content: string;
+  
+  /**
+   * 生成时间
+   */
+  generatedAt: string;
+  
+  /**
+   * 所用模型
+   */
+  model: string;
+  
+  /**
+   * 元数据
+   */
+  metadata?: {
+    /**
+     * 标签
+     */
+    tags?: string[];
+    
+    /**
+     * 分析级别
+     */
+    level?: string;
+    
+    /**
+     * 其他元数据
+     */
+    [key: string]: any;
+  };
+}
+
+/**
+ * AI 请求参数接口
+ */
+export interface AIRequestParams {
+  /**
+   * 提供商
+   */
+  provider: string;
+  
+  /**
+   * 模型版本
+   */
+  model: string;
+  
+  /**
+   * API 密钥
+   */
+  apiKey: string;
+  
+  /**
+   * 系统提示语
+   */
+  systemPrompt?: string;
+  
+  /**
+   * 用户输入
+   */
+  userInput: string;
+  
+  /**
+   * 温度
+   */
+  temperature?: number;
+  
+  /**
+   * 最大生成 token 数
+   */
+  maxTokens?: number;
+  
+  /**
+   * 其他参数
+   */
+  [key: string]: any;
+}
+
+/**
+ * AI 分析服务接口
+ */
+export interface AIAnalysisService {
+  /**
+   * 执行学生预警分析
+   */
+  analyzeStudentWarnings(data: any): Promise<AIAnalysisResult>;
+  
+  /**
+   * 执行成绩分析
+   */
+  analyzeGrades(data: any): Promise<AIAnalysisResult>;
+  
+  /**
+   * 执行学生画像生成
+   */
+  generateStudentProfile(data: any): Promise<AIAnalysisResult>;
+  
+  /**
+   * 测试连接
+   */
+  testConnection(params: AIRequestParams): Promise<boolean>;
 } 

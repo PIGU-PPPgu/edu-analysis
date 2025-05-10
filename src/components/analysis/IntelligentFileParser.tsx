@@ -1,103 +1,155 @@
-
-import React, { useState } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileInput } from "lucide-react";
+import { FileInput, Sparkles, TableIcon, CheckCircle as ConfirmIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { processAndSaveData } from "@/utils/dataStorage";
-import HeaderMappingDialog from './HeaderMappingDialog';
+import { Button } from "@/components/ui/button";
 import FileUploader from './FileUploader';
-import DataPreview from './DataPreview';
 import TemplateDownloader from './TemplateDownloader';
-import { ParsedData, IntelligentFileParserProps } from "./types";
-import { generateInitialMappings } from "@/utils/fileParsingUtils";
+import { ParsedData } from "./types";
 import TextDataImporter from "./TextDataImporter";
+import { saveExamData, aiService } from "@/services/aiService";
+import debounce from "lodash/debounce";
+import SimplifiedExamForm from './SimplifiedExamForm';
 
-const IntelligentFileParser: React.FC<IntelligentFileParserProps> = ({ onDataParsed }) => {
+// 考试信息接口
+interface ExamInfo {
+  title: string;
+  type: string;
+  date: string;
+  subject: string;
+}
+
+// Define the structure for data passed to ImportReviewDialog
+interface FileDataForReview {
+    fileName: string;
+    headers: string[];
+    dataRows: any[];
+}
+
+// Redefine props for IntelligentFileParser
+export interface IntelligentFileParserProps {
+  onFileParsedForReview: (
+    fileData: FileDataForReview, 
+    initialMappings: Record<string, string>, 
+    examInfo: ExamInfo
+  ) => void;
+  onImportIntent?: (fileName: string, fileSize: number) => void;
+}
+
+const IntelligentFileParser: React.FC<IntelligentFileParserProps> = ({ 
+  onFileParsedForReview, 
+  onImportIntent
+}) => {
   const [isAIEnhanced, setIsAIEnhanced] = useState(true);
-  const [showHeaderMapping, setShowHeaderMapping] = useState(false);
-  const [headerMappings, setHeaderMappings] = useState<Record<string, string>>({});
   const [parsedData, setParsedData] = useState<ParsedData | null>(null);
-  const [saveToDatabase, setSaveToDatabase] = useState(true);
 
-  // 检查自动映射是否存在未识别字段或重复映射
-  const needHeaderMapping = (mappings: Record<string, string>) => {
-    const used = new Set<string>();
-    for (const [header, mapped] of Object.entries(mappings)) {
-      if (!mapped || mapped === '') return true;
-      // 不允许同一系统字段映射多次（如2列都被识别成score）
-      if (mapped !== 'ignore' && used.has(mapped)) return true;
-      if (mapped !== 'ignore') used.add(mapped);
+  const [examInfo, setExamInfo] = useState<ExamInfo>({
+    title: '',
+    type: '',
+    date: new Date().toISOString().split('T')[0],
+    subject: ''
+  });
+
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const debouncedSetExamInfo = useCallback(
+    debounce((newExamInfo: ExamInfo) => {
+      setExamInfo(newExamInfo);
+    }, 500),
+    [setExamInfo] 
+  );
+  
+  useEffect(() => {
+    if (!parsedData) {
+      setExamInfo({
+        title: '',
+        type: '',
+        date: new Date().toISOString().split('T')[0],
+        subject: ''
+      });
     }
-    return false;
-  };
+  }, [parsedData]);
 
   const handleFileProcessed = async (data: ParsedData) => {
-    // 用AI别名策略自动完成初步字段映射
-    const autoMappings = generateInitialMappings(data.headers);
-    setHeaderMappings(autoMappings);
-    setParsedData({ ...data, fieldMappings: autoMappings });
+    setParsedData(data);
+    setIsProcessing(true);
+    let currentMappings: Record<string, string> = {};
+    let AIdidMap = false;
 
-    // 如果存在未识别或重复映射，则需要手动修正，否则自动进入下一步
-    if (needHeaderMapping(autoMappings)) {
-      setShowHeaderMapping(true);
-    } else {
-      await processDataWithMappings(autoMappings);
-    }
-  };
-
-  const handleTextDataImported = (data: ParsedData) => {
-    handleFileProcessed(data);
-  };
-
-  const processDataWithMappings = async (mappings: Record<string, string>) => {
-    if (!parsedData) return;
-
-    const processedData = parsedData.data.map(row => {
-      const newRow: Record<string, any> = {};
-      Object.entries(mappings).forEach(([originalHeader, mappedField]) => {
-        if (mappedField && mappedField !== 'ignore' && row[originalHeader] !== undefined) {
-          newRow[mappedField] = row[originalHeader];
-        }
-      });
-      return newRow;
-    });
-
-    if (saveToDatabase) {
+    if (isAIEnhanced && data.headers.length > 0) {
       try {
-        const results = await processAndSaveData(processedData);
-        if (results.errors.length > 0) {
-          toast.error("部分数据处理失败", {
-            description: (
-              <div className="max-h-40 overflow-y-auto">
-                <ul className="list-disc list-inside">
-                  {results.errors.map((error, index) => (
-                    <li key={index} className="text-sm">{error}</li>
-                  ))}
-                </ul>
-              </div>
-            ),
-            duration: 5000
+        toast.info("AI正在分析数据结构...", { duration: 2000 });
+        const enhancedResult = await aiService.enhanceFileParsing(data.headers, data.data.slice(0, 5));
+        if (enhancedResult && enhancedResult.mappings && Object.keys(enhancedResult.mappings).length > 0) {
+          currentMappings = enhancedResult.mappings;
+          AIdidMap = true;
+          toast.success("AI成功识别数据结构", {
+            description: enhancedResult.suggestions || "表头字段已自动映射"
           });
+        } else {
+           toast.info("AI未提供有效映射，将使用规则映射。", { duration: 3000 });
         }
       } catch (error) {
-        console.error("保存数据失败:", error);
-        toast.error("数据保存失败", {
-          description: "保存到数据库时发生错误"
-        });
+        console.error("AI增强解析失败:", error);
+        toast.error("AI增强处理遇到问题", { description: "将使用基本解析继续" });
       }
     }
 
-    if (onDataParsed) {
-      onDataParsed(processedData);
+    if (!AIdidMap) {
+      const initialRuleMappings: Record<string, string> = {};
+      data.headers.forEach(header => {
+        const lowerHeader = header.toLowerCase();
+        if (lowerHeader.includes('学号') || lowerHeader.includes('id') || lowerHeader.includes('编号')) {
+          initialRuleMappings[header] = 'student_id';
+        } else if (lowerHeader.includes('姓名') || lowerHeader.includes('name')) {
+          initialRuleMappings[header] = 'name';
+        } else if (lowerHeader.includes('班级') || lowerHeader.includes('class') || lowerHeader.includes('行政班')) {
+          initialRuleMappings[header] = 'class_name';
+        } else if (lowerHeader.includes('分数') || lowerHeader.includes('成绩') || lowerHeader.includes('score')) {
+          initialRuleMappings[header] = 'score';
+        } else if (lowerHeader.includes('总分')) {
+          initialRuleMappings[header] = 'total_score';
+        } else if (lowerHeader.includes('科目') || lowerHeader.includes('学科') || lowerHeader.includes('subject')) {
+          initialRuleMappings[header] = 'subject';
+        } else if (lowerHeader.includes('等级') || lowerHeader.includes('grade') || lowerHeader.includes('层次')) {
+          initialRuleMappings[header] = 'grade';
+        } else if (lowerHeader.includes('班名') || (lowerHeader.includes('班') && lowerHeader.includes('排'))) {
+          initialRuleMappings[header] = 'rank_in_class';
+        } else if (lowerHeader.includes('级名') || (lowerHeader.includes('级') && lowerHeader.includes('排')) || lowerHeader.includes('校排名')) {
+          initialRuleMappings[header] = 'rank_in_grade';
+        }
+      });
+      currentMappings = initialRuleMappings;
     }
+    
+    if (onFileParsedForReview) {
+        const fileDataForReview: FileDataForReview = {
+            fileName: data.fileName || "Uploaded File",
+            headers: data.headers,
+            dataRows: data.data,
+        };
+        onFileParsedForReview(fileDataForReview, currentMappings, { ...examInfo });
+    }
+    setIsProcessing(false);
+  };
 
-    setShowHeaderMapping(false);
-    toast.success("数据解析完成", {
-      description: `已智能识别并解析 ${processedData.length} 条记录`
-    });
+  const handleTextDataImported = (data: ParsedData) => {
+    const dataWithFileName = { ...data, fileName: data.fileName || "Pasted Text Data" };
+    handleFileProcessed(dataWithFileName);
+  };
+
+  const simplifiedExamFormProps = {
+    initialExamInfo: examInfo,
+    onExamInfoChange: debouncedSetExamInfo,
+    disabled: isProcessing
+  };
+
+  const textDataImporterProps = {
+    onDataImported: handleTextDataImported,
+    isAIEnhanced: isAIEnhanced
   };
 
   return (
@@ -105,105 +157,53 @@ const IntelligentFileParser: React.FC<IntelligentFileParserProps> = ({ onDataPar
       <CardHeader>
         <CardTitle className="text-xl font-semibold flex items-center gap-2">
           <FileInput className="h-5 w-5" />
-          智能数据导入
-          {isAIEnhanced && (
-            <span className="bg-[#B9FF66] text-xs font-medium px-2 py-0.5 rounded-full text-black flex items-center">
-              AI增强
-            </span>
-          )}
+          智能数据导入 (初步解析)
         </CardTitle>
         <CardDescription>
           支持多种格式导入，系统自动识别数据结构并智能解析
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="upload" className="w-full">
-          <TabsList className="grid grid-cols-3 mb-4">
-            <TabsTrigger value="upload">上传文件</TabsTrigger>
-            <TabsTrigger value="template">下载模板</TabsTrigger>
-            <TabsTrigger value="paste">粘贴数据</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="upload">
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">AI增强解析</span>
-                  <div
-                    className={`relative inline-block w-10 h-5 rounded-full transition-colors duration-200 ease-in-out cursor-pointer ${
-                      isAIEnhanced ? "bg-[#B9FF66]" : "bg-gray-300"
-                    }`}
-                    onClick={() => setIsAIEnhanced(!isAIEnhanced)}
-                  >
-                    <span
-                      className={`absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform duration-200 ease-in-out transform ${
-                        isAIEnhanced ? "translate-x-5" : "translate-x-0"
-                      }`}
-                    />
-                  </div>
-                </div>
-                <span className="text-xs text-gray-500">
-                  {isAIEnhanced ? "使用AI优化数据解析和类型推断" : "标准数据解析"}
-                </span>
-              </div>
-              
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Checkbox 
-                    id="saveToDb" 
-                    checked={saveToDatabase}
-                    onCheckedChange={(checked) => setSaveToDatabase(checked as boolean)}
-                  />
-                  <Label htmlFor="saveToDb" className="text-sm font-medium">保存到数据库</Label>
-                </div>
-                <span className="text-xs text-gray-500">
-                  {saveToDatabase ? "解析后自动保存到学生和成绩表中" : "仅用于当前分析，不保存到数据库"}
-                </span>
-              </div>
-
-              {!parsedData ? (
-                <FileUploader
-                  onFileProcessed={handleFileProcessed}
-                  isAIEnhanced={isAIEnhanced}
-                />
-              ) : (
-                <DataPreview 
-                  data={parsedData.data}
-                  headers={parsedData.headers}
-                  mappings={headerMappings}
-                  onShowMapping={() => setShowHeaderMapping(true)}
-                  onReupload={() => setParsedData(null)}
-                />
-              )}
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="template">
-            <TemplateDownloader />
-          </TabsContent>
-          
-          <TabsContent value="paste">
-            <TextDataImporter 
-              onDataImported={handleTextDataImported}
-              isAIEnhanced={isAIEnhanced}
+        <div className="space-y-6">
+          <div className="flex items-center space-x-2 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <Sparkles className="h-5 w-5 text-blue-600" />
+            <Label htmlFor="ai-enhanced-checkbox" className="text-sm font-medium text-blue-700">
+              启用 AI 增强解析 (推荐)
+            </Label>
+            <Checkbox
+              id="ai-enhanced-checkbox"
+              checked={isAIEnhanced}
+              onCheckedChange={(checked) => setIsAIEnhanced(Boolean(checked))}
+              className="data-[state=checked]:bg-blue-600"
             />
-          </TabsContent>
-        </Tabs>
-      </CardContent>
+          </div>
 
-      <HeaderMappingDialog
-        open={showHeaderMapping}
-        onOpenChange={setShowHeaderMapping}
-        headers={parsedData?.headers || []}
-        mappings={headerMappings}
-        onUpdateMapping={(header, value) => {
-          setHeaderMappings(prev => ({
-            ...prev,
-            [header]: value
-          }));
-        }}
-        onConfirm={() => processDataWithMappings(headerMappings)}
-      />
+          <SimplifiedExamForm {...simplifiedExamFormProps} />
+
+          <Tabs defaultValue="file" className="w-full">
+            <TabsList>
+              <TabsTrigger value="file">通过文件导入</TabsTrigger>
+              <TabsTrigger value="text">通过文本粘贴</TabsTrigger>
+            </TabsList>
+            <TabsContent value="file">
+              <FileUploader 
+                onFileProcessed={handleFileProcessed} 
+                isProcessing={isProcessing} 
+                isAIEnhanced={isAIEnhanced}
+                onFileSelected={(file) => {
+                  if (onImportIntent) {
+                    onImportIntent(file.name, file.size);
+                  }
+                }}
+              />
+              <TemplateDownloader />
+            </TabsContent>
+            <TabsContent value="text">
+              <TextDataImporter {...textDataImporterProps} />
+            </TabsContent>
+          </Tabs>
+        </div>
+      </CardContent>
     </Card>
   );
 };

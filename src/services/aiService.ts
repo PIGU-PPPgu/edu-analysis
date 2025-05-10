@@ -10,6 +10,7 @@ import { getProviderById, getModelInfo, getModelsByProviderId } from './provider
 import { AIAnalysisResult } from '../types/analysis';
 import { logError, logInfo } from '../utils/logger';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from "sonner"; // 添加toast导入
 
 // 根据环境变量决定是否使用模拟AI
 const USE_MOCK_AI = env.NEXT_PUBLIC_USE_MOCK_AI === 'true';
@@ -250,6 +251,34 @@ export class GenericAIClient {
       throw error;
     }
   }
+
+  // 兼容OpenAI的chat.completions.create接口
+  chat = {
+    completions: {
+      create: async (params: {
+        messages: { role: string; content: string }[];
+        model: string;
+        max_tokens?: number;
+        temperature?: number;
+      }) => {
+        const response = await this.sendRequest(
+          params.messages as Message[], 
+          {
+            maxTokens: params.max_tokens,
+            temperature: params.temperature,
+          }
+        );
+
+        return {
+          choices: response.choices.map(choice => ({
+            message: {
+              content: choice.message?.content || choice.text || ''
+            }
+          }))
+        };
+      }
+    }
+  };
 }
 
 // 接口参数定义
@@ -2042,4 +2071,284 @@ function blobToBase64(blob: Blob): Promise<string> {
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
-} 
+}
+
+/**
+ * AI分析服务 - 提供AI分析相关功能
+ */
+export const aiService = {
+  /**
+   * 分析文件结构
+   * @param fileContent 文件内容
+   * @param fileType 文件类型
+   * @returns 分析结果
+   */
+  async analyzeFileStructure(fileContent: string, fileType: string) {
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-file-analysis', {
+        body: {
+          content: fileContent,
+          type: fileType,
+          action: 'structure_analysis'
+        }
+      });
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('文件结构分析失败:', error);
+      throw error;
+    }
+  },
+  
+  /**
+   * 映射文件表头
+   * @param headers 表头数组
+   * @param sampleData 样本数据
+   * @returns 映射结果
+   */
+  async mapFileHeaders(headers: string[], sampleData: any[]) {
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-file-analysis', {
+        body: {
+          headers,
+          sampleData,
+          action: 'header_mapping'
+        }
+      });
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('表头映射失败:', error);
+      throw error;
+    }
+  },
+  
+  /**
+   * 分析成绩数据
+   * @param gradeData 成绩数据
+   * @param config 分析配置
+   * @returns 分析结果
+   */
+  async analyzeGrades(gradeData: any[], config: {
+    provider: string;
+    model: string;
+    temperature: number;
+    language: string;
+  }) {
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-grades', {
+        body: {
+          grades: gradeData,
+          config
+        }
+      });
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('成绩分析失败:', error);
+      throw error;
+    }
+  },
+  
+  /**
+   * 生成学生成绩报告
+   * @param studentId 学生ID
+   * @param gradeData 成绩数据
+   * @returns 报告内容
+   */
+  async generateStudentReport(studentId: string, gradeData: any[]) {
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-student-report', {
+        body: {
+          studentId,
+          grades: gradeData
+        }
+      });
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('学生报告生成失败:', error);
+      throw error;
+    }
+  },
+  
+  /**
+   * 使用AI增强文件解析能力
+   * @param headers 表头数组
+   * @param sampleData 样本数据行
+   * @returns 优化后的表头映射和数据类型推断
+   */
+  async enhanceFileParsing(headers: string[], sampleData: any[]) {
+    try {
+      console.log('正在使用AI增强解析能力...');
+      
+      // 获取AI客户端（优先使用豆包AI）
+      const client = await getAIClient('doubao');
+      
+      // 客户端可能为null，需要检查
+      if (!client || !('sendRequest' in client)) {
+        console.error('无法获取AI客户端或客户端不支持sendRequest方法');
+        return {
+          mappings: {},
+          dataTypes: {},
+          suggestions: ''
+        };
+      }
+      
+      // 准备要发送的样本数据（限制数量避免token过多）
+      const limitedSampleData = sampleData.slice(0, 3);
+      
+      // 构建提示信息
+      const systemMessage = {
+        role: 'system',
+        content: `你是一个专业的教育数据分析助手，擅长理解和映射学生成绩数据结构。
+分析以下表头和样本数据，根据教育领域的标准命名映射这些表头，并推断数据类型。
+标准表头名称应该包括：student_id(学号)、name(姓名)、class_name(班级)、score(分数)、subject(科目)、
+grade(等级)、rank_in_class(班级排名)、rank_in_grade(年级排名)、exam_date(考试日期)等。
+对不确定的字段，请尝试最合理的猜测，注意处理别名、缩写或不标准的表达方式。`
+      };
+      
+      const userMessage = {
+        role: 'user',
+        content: `以下是我需要解析的数据表头和样本数据：
+表头: ${JSON.stringify(headers)}
+样本数据: ${JSON.stringify(limitedSampleData)}
+
+请分析这些数据并返回JSON格式的映射结果，包含以下内容：
+1. 表头映射：将原始表头映射到标准字段名称
+2. 数据类型推断：推断每个字段的数据类型
+3. 额外建议：任何关于数据处理的建议
+
+返回格式示例:
+{
+  "mappings": {
+    "原表头1": "student_id",
+    "原表头2": "name"
+  },
+  "dataTypes": {
+    "原表头1": "string",
+    "原表头2": "string"
+  },
+  "suggestions": "处理建议"
+}
+
+务必使用JSON格式返回，不要有任何额外解释。`
+      };
+      
+      // 使用类型断言确保TypeScript理解client有sendRequest方法
+      const genericClient = client as GenericAIClient;
+      
+      // 发送请求
+      const response = await genericClient.sendRequest(
+        [systemMessage, userMessage],
+        {
+          temperature: 0.2,
+          maxTokens: 2000
+        }
+      );
+      
+      // 处理响应
+      let content = '';
+      if (response.choices && response.choices.length > 0) {
+        if (response.choices[0].message?.content) {
+          content = response.choices[0].message.content;
+        } else if (response.choices[0].text) {
+          content = response.choices[0].text;
+        }
+      }
+      
+      // 从响应中提取JSON部分
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const jsonContent = jsonMatch[0];
+        try {
+          const result = JSON.parse(jsonContent);
+          console.log('AI解析结果:', result);
+          return result;
+        } catch (e) {
+          console.error('无法解析返回的JSON:', e);
+          throw new Error('AI返回的数据格式无效');
+        }
+      } else {
+        console.error('AI返回内容中未找到JSON:', content);
+        throw new Error('AI返回的内容不包含有效的JSON数据');
+      }
+    } catch (error) {
+      console.error('AI增强解析失败:', error);
+      // 出错时返回空结果，降级为普通解析
+      return {
+        mappings: {},
+        dataTypes: {},
+        suggestions: ''
+      };
+    }
+  }
+};
+  
+// 在文件适当位置添加以下代码
+
+/**
+ * 考试信息接口
+ */
+export interface ExamInfo {
+  title: string;
+  type: string;
+  date: string;
+  subject?: string;
+}
+
+/**
+ * 使用Edge Function批量保存考试成绩数据
+ * @param records 成绩记录数组
+ * @param examInfo 考试信息
+ * @returns 处理结果
+ */
+export async function saveExamData(records: any[], examInfo: ExamInfo) {
+  try {
+    // 构建请求数据
+    const examData = {
+      title: examInfo.title,
+      type: examInfo.type,
+      subject: examInfo.subject,
+      data: records
+    };
+
+    // 直接使用hardcoded URL和ANON_KEY避免环境变量问题
+    const SUPABASE_URL = "https://giluhqotfjpmofowvogn.supabase.co";
+    const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdpbHVocW90ZmpwbW9mb3d2b2duIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDc1MDc1MzcsImV4cCI6MjAyMzA4MzUzN30.4tLi3tPSiWHcRuLcS3tN13aK6CADEr1DVPfgswQTnhA";
+    
+    // 直接使用Supabase REST API（而不是Supabase客户端）来调用Edge Function
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/save-exam-data`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${ANON_KEY}`
+      },
+      body: JSON.stringify({ examData })
+    });
+
+    if (!response.ok) {
+      let errorMessage = '保存数据失败';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorMessage;
+      } catch (e) {
+        // 如果无法解析JSON，使用状态码
+        errorMessage = `保存数据失败: ${response.status} ${response.statusText}`;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('调用保存考试数据API失败:', error);
+    toast.error(`保存考试数据失败: ${(error as Error).message || '未知错误'}`);
+    throw error;
+  }
+}
+  

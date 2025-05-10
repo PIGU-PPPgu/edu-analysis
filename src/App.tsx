@@ -10,6 +10,7 @@ import GradeAnalysis from "./pages/GradeAnalysis";
 import StudentProfile from "./pages/StudentProfile";
 import StudentManagement from "./pages/StudentManagement";
 import ClassManagement from "./pages/ClassManagement";
+import ClassProfile from "./pages/ClassProfile";
 import AISettings from "./pages/AISettings";
 import WarningAnalysis from "./pages/WarningAnalysis";
 import NotFound from "./pages/NotFound";
@@ -76,6 +77,7 @@ function App() {
                     <Route path="/warning-analysis" element={<WarningAnalysis />} />
                     <Route path="/student-management" element={<StudentManagement />} />
                     <Route path="/class-management" element={<ClassManagement />} />
+                    <Route path="/class-profile/:classId" element={<ClassProfile />} />
                     <Route path="/student-portrait-management" element={<StudentPortraitManagement />} />
                   </Route>
                   
