@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from "recharts";
@@ -17,15 +16,23 @@ interface WeaknessData {
 
 interface ClassWeaknessAnalysisProps {
   className?: string;
+  mockData?: WeaknessData[];
 }
 
 const ClassWeaknessAnalysis: React.FC<ClassWeaknessAnalysisProps> = ({ 
-  className = "高二(1)班" 
+  className = "高二(1)班",
+  mockData
 }) => {
   const [weaknessData, setWeaknessData] = useState<WeaknessData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
+    if (mockData && mockData.length > 0) {
+      setWeaknessData(mockData);
+      setIsLoading(false);
+      return;
+    }
+
     const fetchWeaknessData = async () => {
       try {
         setIsLoading(true);
@@ -157,8 +164,11 @@ const ClassWeaknessAnalysis: React.FC<ClassWeaknessAnalysisProps> = ({
       }
     };
     
+    // Only fetch if no mockData
+    if (!mockData) {
     fetchWeaknessData();
-  }, [className]);
+    }
+  }, [className, mockData]);
   
   // 过滤出弱项科目
   const weakSubjects = weaknessData.filter(item => item.isWeak);

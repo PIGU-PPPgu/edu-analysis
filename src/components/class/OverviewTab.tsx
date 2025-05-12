@@ -15,13 +15,19 @@ interface Class {
   name: string;
   grade: string;
   created_at?: string;
+  averageScore?: number;
+  excellentRate?: number;
+  studentCount?: number;
 }
 
 interface Props {
-  mockClasses: Class[];
+  selectedClass: Class;
 }
 
-const OverviewTab: React.FC<Props> = ({ mockClasses }) => {
+const OverviewTab: React.FC<Props> = ({ selectedClass }) => {
+  const className = selectedClass.name;
+  const classGrade = selectedClass.grade;
+  
   const scoreDistributionData = [
     { range: "90-100分", count: 12, color: "#8884d8" },
     { range: "80-89分", count: 18, color: "#82ca9d" },
@@ -50,31 +56,6 @@ const OverviewTab: React.FC<Props> = ({ mockClasses }) => {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {mockClasses.map((classData) => (
-          <Card key={classData.id} className="hover:shadow-md transition-shadow">
-            <div className="p-6">
-              <div className="flex items-center gap-2 text-base font-semibold mb-4">
-                {classData.name}
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">年级:</span>
-                  <span className="font-medium">{classData.grade}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">创建时间:</span>
-                  <span className="font-medium">{new Date(classData.created_at || Date.now()).toLocaleDateString()}</span>
-                </div>
-              </div>
-              <Button variant="outline" className="w-full mt-4" size="sm" asChild>
-                <Link to={`#${classData.id}`}>查看详情</Link>
-              </Button>
-            </div>
-          </Card>
-        ))}
-      </div>
-      
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <HeatmapChart />
         <ScoreBoxPlot 

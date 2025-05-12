@@ -1,253 +1,323 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { corsHeaders } from '../_shared/cors.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.24.0';
 
-// 环境变量
-const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-const openAIKey = Deno.env.get('OPENAI_API_KEY') ?? '';
+interface GradeRecord {
+  id: string;
+  student_id: string;
+  name: string;
+  class_name: string;
+  exam_id: string;
+  exam_title: string;
+  exam_type: string;
+  exam_date: string;
+  subject?: string;
+  total_score?: number;
+  [key: string]: any;
+}
 
-// 成绩分析统计
-function calculateStatistics(grades: any[]) {
-  if (!grades || grades.length === 0) {
-    return {
-      count: 0,
-      average: 0,
-      median: 0,
-      min: 0,
-      max: 0,
-      passingRate: 0,
-      excellentRate: 0,
-      distribution: []
-    };
-  }
-
-  // 过滤有效分数
-  const scores = grades
-    .map(g => g.score)
-    .filter(score => typeof score === 'number' && !isNaN(score));
-  
-  if (scores.length === 0) return { count: 0 };
-  
-  // 排序
-  scores.sort((a, b) => a - b);
-  
-  // 计算基本统计量
-  const count = scores.length;
-  const sum = scores.reduce((a, b) => a + b, 0);
-  const average = sum / count;
-  const median = count % 2 === 0 
-    ? (scores[count / 2 - 1] + scores[count / 2]) / 2 
-    : scores[Math.floor(count / 2)];
-  const min = scores[0];
-  const max = scores[count - 1];
-  
-  // 计算及格率和优秀率
-  const passingCount = scores.filter(s => s >= 60).length;
-  const excellentCount = scores.filter(s => s >= 90).length;
-  const passingRate = passingCount / count;
-  const excellentRate = excellentCount / count;
-  
-  // 计算分数分布
-  const distribution = [
-    { range: "0-59", count: scores.filter(s => s < 60).length },
-    { range: "60-69", count: scores.filter(s => s >= 60 && s < 70).length },
-    { range: "70-79", count: scores.filter(s => s >= 70 && s < 80).length },
-    { range: "80-89", count: scores.filter(s => s >= 80 && s < 90).length },
-    { range: "90-100", count: scores.filter(s => s >= 90).length }
-  ];
-  
-  return {
-    count,
-    average,
-    median,
-    min,
-    max,
-    passingRate,
-    excellentRate,
-    distribution
+interface AnalysisResult {
+  totalStudents: number;
+  overallStats: {
+    average: number;
+    median: number;
+    min: number;
+    max: number;
+    stdDev: number;
   };
+  scoreDistribution: Array<{
+    range: string;
+    count: number;
+  }>;
+  classPerformance: Array<{
+    className: string;
+    count: number;
+    average: number;
+    max: number;
+    min: number;
+    passRate: number;
+  }>;
+  subjectPerformance: Record<string, {
+    average: number;
+    max: number;
+    min: number;
+    stdDev: number;
+    classBreakdown: Record<string, {
+      average: number;
+      max: number;
+      min: number;
+    }>;
+  }>;
 }
 
-// 按科目分组并计算统计量
-function analyzeBySubject(grades: any[]) {
-  if (!grades || grades.length === 0) return {};
-  
-  // 按科目分组
-  const subjectGroups: Record<string, any[]> = {};
-  
-  grades.forEach(grade => {
-    const subject = grade.subject || '未知科目';
-    if (!subjectGroups[subject]) {
-      subjectGroups[subject] = [];
-    }
-    subjectGroups[subject].push(grade);
-  });
-  
-  // 计算每个科目的统计量
-  const results: Record<string, any> = {};
-  
-  for (const [subject, gradesList] of Object.entries(subjectGroups)) {
-    results[subject] = calculateStatistics(gradesList);
-  }
-  
-  return results;
-}
-
-// 使用AI分析成绩数据
-async function analyzeGradesWithAI(grades: any[], config: any) {
-  if (!grades || grades.length === 0) {
-    return {
-      analysis: "没有提供成绩数据进行分析",
-      recommendations: []
-    };
-  }
-  
-  // 计算基本统计数据
-  const statistics = calculateStatistics(grades);
-  const subjectAnalysis = analyzeBySubject(grades);
-  
-  // 准备提供给AI的数据摘要
-  const dataSummary = {
-    totalStudents: grades.length,
-    overallStatistics: statistics,
-    subjectAnalysis
-  };
-  
-  // 构建AI提示词
-  let language = config?.language === 'en' ? 'English' : '中文';
-  let prompt = `
-  请基于以下成绩数据进行深入分析，并提供教学建议。请使用${language}回答。
-  
-  数据概要:
-  ${JSON.stringify(dataSummary, null, 2)}
-  
-  请提供:
-  1. 对整体成绩的分析，包括优势和不足
-  2. 对不同学科表现的对比分析
-  3. 针对性的教学建议和改进措施
-  4. 需要特别关注的问题和学生群体
-  
-  返回格式:
-  {
-    "analysis": "整体分析文本",
-    "insights": [
-      "洞察点1",
-      "洞察点2",
-      ...
-    ],
-    "recommendations": [
-      "建议1",
-      "建议2",
-      ...
-    ],
-    "concerns": [
-      "需关注问题1",
-      "需关注问题2",
-      ...
-    ]
-  }`;
-  
-  // 调用AI API
-  try {
-    const model = config?.model || 'gpt-3.5-turbo';
-    const temperature = config?.temperature || 0.7;
-    
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${openAIKey}`
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: 'system',
-            content: '你是一位专业的教育数据分析师，擅长分析学生成绩数据并提供有价值的教学建议。'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature,
-        max_tokens: 2000
-      })
-    });
-    
-    const result = await response.json();
-    const content = result.choices?.[0]?.message?.content || '';
-    
-    try {
-      // 尝试解析JSON响应
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      }
-      
-      // 如果不是JSON格式，返回文本
-      return {
-        analysis: content,
-        insights: [],
-        recommendations: [],
-        concerns: []
-      };
-    } catch (parseError) {
-      console.error('解析AI响应失败:', parseError);
-      return {
-        analysis: content,
-        insights: [],
-        recommendations: [],
-        concerns: [],
-        error: '无法解析AI响应为JSON格式'
-      };
-    }
-  } catch (error) {
-    console.error('调用AI API失败:', error);
-    return {
-      analysis: "AI分析失败，请稍后再试",
-      error: error.message,
-      insights: [],
-      recommendations: [],
-      concerns: []
-    };
-  }
-}
+// CORS 头
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
+};
 
 serve(async (req) => {
-  // 处理CORS
+  // 处理 OPTIONS 请求
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
   
   try {
-    const { grades, config } = await req.json();
+    // 解析请求
+    const { examId } = await req.json();
     
-    // 首先计算统计数据
-    const statistics = calculateStatistics(grades);
-    const subjectAnalysis = analyzeBySubject(grades);
+    if (!examId) {
+      return new Response(
+        JSON.stringify({ error: 'Missing examId parameter' }),
+        { 
+          status: 400, 
+          headers: { 
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          } 
+        }
+      );
+    }
     
-    // 使用AI进行高级分析
-    const aiAnalysis = await analyzeGradesWithAI(grades, config);
+    // 创建Supabase客户端
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') as string;
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') as string;
     
-    // 整合所有分析结果
-    const result = {
-      statistics,
-      subjectAnalysis,
-      aiAnalysis
-    };
+    const supabaseClient = createClient(
+      supabaseUrl,
+      supabaseKey,
+      { 
+        global: { 
+          headers: { Authorization: req.headers.get('Authorization')! }
+        }
+      }
+    );
     
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    });
+    // 获取考试信息
+    const { data: examInfo, error: examError } = await supabaseClient
+      .from('exams')
+      .select('*')
+      .eq('id', examId)
+      .single();
+    
+    if (examError) {
+      throw new Error(`获取考试信息失败: ${examError.message}`);
+    }
+    
+    // 获取成绩数据
+    const { data: gradeData, error: gradeError } = await supabaseClient
+      .from('grade_data')
+      .select('*')
+      .eq('exam_id', examId);
+    
+    if (gradeError) {
+      throw new Error(`获取成绩数据失败: ${gradeError.message}`);
+    }
+    
+    // 分析数据
+    const analysis = analyzeGradeData(gradeData as GradeRecord[]);
+    
+    // 返回分析结果
+    return new Response(
+      JSON.stringify({
+        examInfo,
+        ...analysis
+      }),
+      { 
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders
+        } 
+      }
+    );
   } catch (error) {
-    console.error('处理成绩分析请求出错:', error);
-    
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
-    });
+    return new Response(
+      JSON.stringify({ 
+        error: error instanceof Error ? error.message : 'An unknown error occurred'
+      }),
+      { 
+        status: 500, 
+        headers: { 
+          'Content-Type': 'application/json',
+          ...corsHeaders
+        } 
+      }
+    );
   }
-}); 
+});
+
+/**
+ * 分析成绩数据
+ */
+function analyzeGradeData(gradeData: GradeRecord[]): AnalysisResult {
+  if (!gradeData.length) {
+    return getEmptyAnalysisResult();
+  }
+  
+  // 获取总分数据
+  const totalScores = gradeData
+    .map(record => parseFloat(record.total_score?.toString() || '0'))
+    .filter(score => !isNaN(score));
+  
+  // 获取所有班级
+  const classes = [...new Set(gradeData.map(record => record.class_name))];
+  
+  // 获取所有可能的科目字段
+  const subjectFields = Object.keys(gradeData[0])
+    .filter(key => key.endsWith('_score') && key !== 'total_score')
+    .map(key => key.replace('_score', ''));
+  
+  // 计算总体统计
+  const overallStats = {
+    average: calculateAverage(totalScores),
+    median: calculateMedian(totalScores),
+    min: Math.min(...totalScores),
+    max: Math.max(...totalScores),
+    stdDev: calculateStandardDeviation(totalScores)
+  };
+  
+  // 计算分数分布
+  const scoreDistribution = [
+    { range: '90-100', count: 0 },
+    { range: '80-89', count: 0 },
+    { range: '70-79', count: 0 },
+    { range: '60-69', count: 0 },
+    { range: '0-59', count: 0 }
+  ];
+  
+  totalScores.forEach(score => {
+    if (score >= 90) scoreDistribution[0].count++;
+    else if (score >= 80) scoreDistribution[1].count++;
+    else if (score >= 70) scoreDistribution[2].count++;
+    else if (score >= 60) scoreDistribution[3].count++;
+    else scoreDistribution[4].count++;
+  });
+  
+  // 计算各班级成绩表现
+  const classPerformance = classes.map(className => {
+    const classScores = gradeData
+      .filter(record => record.class_name === className)
+      .map(record => parseFloat(record.total_score?.toString() || '0'))
+      .filter(score => !isNaN(score));
+    
+    const passCount = classScores.filter(score => score >= 60).length;
+    
+    return {
+      className,
+      count: classScores.length,
+      average: calculateAverage(classScores),
+      max: Math.max(...classScores),
+      min: Math.min(...classScores),
+      passRate: classScores.length > 0 ? passCount / classScores.length : 0
+    };
+  });
+  
+  // 计算各科目成绩表现
+  const subjectPerformance: Record<string, any> = {};
+  
+  subjectFields.forEach(subject => {
+    const fieldName = `${subject}_score`;
+    const subjectScores = gradeData
+      .map(record => parseFloat(record[fieldName]?.toString() || '0'))
+      .filter(score => !isNaN(score));
+    
+    if (subjectScores.length === 0) return;
+    
+    // 计算各班级在该科目的表现
+    const classBreakdown: Record<string, any> = {};
+    
+    classes.forEach(className => {
+      const classSubjectScores = gradeData
+        .filter(record => record.class_name === className)
+        .map(record => parseFloat(record[fieldName]?.toString() || '0'))
+        .filter(score => !isNaN(score));
+      
+      if (classSubjectScores.length === 0) return;
+      
+      classBreakdown[className] = {
+        average: calculateAverage(classSubjectScores),
+        max: Math.max(...classSubjectScores),
+        min: Math.min(...classSubjectScores)
+      };
+    });
+    
+    subjectPerformance[subject] = {
+      average: calculateAverage(subjectScores),
+      max: Math.max(...subjectScores),
+      min: Math.min(...subjectScores),
+      stdDev: calculateStandardDeviation(subjectScores),
+      classBreakdown
+    };
+  });
+  
+  return {
+    totalStudents: gradeData.length,
+    overallStats,
+    scoreDistribution,
+    classPerformance,
+    subjectPerformance
+  };
+}
+
+/**
+ * 计算平均值
+ */
+function calculateAverage(numbers: number[]): number {
+  if (numbers.length === 0) return 0;
+  const sum = numbers.reduce((acc, val) => acc + val, 0);
+  return sum / numbers.length;
+}
+
+/**
+ * 计算中位数
+ */
+function calculateMedian(numbers: number[]): number {
+  if (numbers.length === 0) return 0;
+  
+  const sorted = [...numbers].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  
+  if (sorted.length % 2 === 0) {
+    return (sorted[middle - 1] + sorted[middle]) / 2;
+  } else {
+    return sorted[middle];
+  }
+}
+
+/**
+ * 计算标准差
+ */
+function calculateStandardDeviation(numbers: number[]): number {
+  if (numbers.length === 0) return 0;
+  
+  const avg = calculateAverage(numbers);
+  const squareDiffs = numbers.map(n => Math.pow(n - avg, 2));
+  const avgSquareDiff = calculateAverage(squareDiffs);
+  
+  return Math.sqrt(avgSquareDiff);
+}
+
+/**
+ * 返回空的分析结果
+ */
+function getEmptyAnalysisResult(): AnalysisResult {
+  return {
+    totalStudents: 0,
+    overallStats: {
+      average: 0,
+      median: 0,
+      min: 0,
+      max: 0,
+      stdDev: 0
+    },
+    scoreDistribution: [
+      { range: '90-100', count: 0 },
+      { range: '80-89', count: 0 },
+      { range: '70-79', count: 0 },
+      { range: '60-69', count: 0 },
+      { range: '0-59', count: 0 }
+    ],
+    classPerformance: [],
+    subjectPerformance: {}
+  };
+} 

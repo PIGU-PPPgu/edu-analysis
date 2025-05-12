@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,11 +15,18 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
-interface ClassReportGeneratorProps {
-  className: string;
+// Define a simple interface for selectedClass, ideally import or use a more complete one
+interface SelectedClassObject {
+  id: string;
+  name: string;
+  // Add other fields from Class interface if needed by the report generator
 }
 
-const ClassReportGenerator: React.FC<ClassReportGeneratorProps> = ({ className }) => {
+interface ClassReportGeneratorProps {
+  selectedClass: SelectedClassObject | null; // Changed from className to selectedClass object
+}
+
+const ClassReportGenerator: React.FC<ClassReportGeneratorProps> = ({ selectedClass }) => {
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
   const [reportSettings, setReportSettings] = useState({
@@ -40,7 +46,7 @@ const ClassReportGenerator: React.FC<ClassReportGeneratorProps> = ({ className }
       setIsGenerating(false);
       toast({
         title: "报告生成成功",
-        description: `${className}的班级分析报告已准备就绪`,
+        description: `${selectedClass ? selectedClass.name : '选中班级'}的班级分析报告已准备就绪`,
         variant: "default",
       });
     }, 2500);
@@ -58,7 +64,7 @@ const ClassReportGenerator: React.FC<ClassReportGeneratorProps> = ({ className }
       <CardHeader>
         <CardTitle className="text-base">班级报告生成</CardTitle>
         <CardDescription>
-          生成{className}的全面分析报告
+          生成{selectedClass ? selectedClass.name : '选中班级'}的全面分析报告
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

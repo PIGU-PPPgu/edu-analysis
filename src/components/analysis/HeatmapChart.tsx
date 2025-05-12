@@ -1,116 +1,126 @@
-
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ResponsiveContainer, Tooltip, XAxis, YAxis, Scatter, ScatterChart, Cell, ZAxis } from "recharts";
 import { ChartContainer } from "@/components/ui/chart";
 
-// Mock data for the heatmap
-const generateMockData = () => {
-  const subjects = ["语文", "数学", "英语", "物理", "化学", "生物"];
-  const classes = ["高二(1)班", "高二(2)班", "高二(3)班", "高二(4)班"];
-  
-  const data = [];
-  for (const subject of subjects) {
-    for (const className of classes) {
-      // Random score between 70 and 95
-      const avgScore = 70 + Math.floor(Math.random() * 25);
-      const studentCount = 30 + Math.floor(Math.random() * 15);
-      
-      data.push({
-        subject,
-        className,
-        avgScore,
-        studentCount,
-        z: avgScore
-      });
-    }
-  }
-  
-  return data;
-};
-
-const mockHeatmapData = generateMockData();
-
-// Calculate score to color mapping
-const getColorByScore = (score: number) => {
   // Color gradient from red (lower scores) to green (higher scores)
-  if (score >= 90) return "#B9FF66"; // Green for excellent
-  if (score >= 85) return "#8AE234";
-  if (score >= 80) return "#FCE94F"; // Yellow for good
-  if (score >= 75) return "#FCAF3E";
-  if (score >= 70) return "#FF8042"; // Orange for average
-  return "#FF6347"; // Red for below average
+const getColorByValue = (value: number) => {
+  if (value >= 90) return "#B9FF66"; // Green for excellent
+  if (value >= 85) return "#8AE234";
+  if (value >= 80) return "#FCE94F"; // Yellow for good
+  if (value >= 75) return "#FCAF3E";
+  if (value >= 70) return "#FF8042"; // Orange for average
+  return "#FF6347"; // Red for below average or other cases
 };
+
+interface HeatmapDataItem {
+  x: string; // Represents the metric (e.g., '平均分', '优秀率')
+  y: string; // Represents the class name
+  value: number; // The actual value for the heatmap cell
+  // Optional: include other relevant data if needed for tooltip or other features
+  [key: string]: any; 
+}
 
 interface HeatmapChartProps {
+  chartData: HeatmapDataItem[]; // Changed from optional to required, or provide default
   title?: string;
   description?: string;
+  xAxisLabel?: string;
+  yAxisLabel?: string;
+  valueUnit?: string; // e.g., "分", "%"
 }
 
 const HeatmapChart: React.FC<HeatmapChartProps> = ({ 
-  title = "学科班级热力图", 
-  description = "各班级在不同学科的平均分布表现" 
+  chartData,
+  title = "班级指标热力图", 
+  description = "各班级在不同关键指标上的表现分布",
+  xAxisLabel = "指标",
+  yAxisLabel = "班级",
+  valueUnit = ""
 }) => {
+  if (!chartData || chartData.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{title}</CardTitle>
+          <CardDescription>{description}</CardDescription>
+        </CardHeader>
+        <CardContent className="h-80 flex items-center justify-center">
+          <p className="text-muted-foreground">暂无数据可供显示。</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Dynamically get unique x and y categories for axes
+  const xCategories = Array.from(new Set(chartData.map(item => item.x)));
+  const yCategories = Array.from(new Set(chartData.map(item => item.y)));
+
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent className="h-80">
+      <CardContent className="h-[400px] md:h-[500px]"> 
         <ChartContainer config={{
-          heatmap: { color: "#8884d8" }
+          heatmap: { color: "#8884d8" } // This config might not be used directly by Scatter
         }}>
           <ResponsiveContainer width="100%" height="100%">
             <ScatterChart
-              margin={{ top: 20, right: 20, bottom: 60, left: 20 }}
+              margin={{ top: 20, right: 30, bottom: 80, left: 80 }} // Adjusted margins for labels
             >
               <XAxis 
-                dataKey="subject" 
-                name="科目" 
+                type="category" // Important for discrete categories
+                dataKey="x" 
+                name={xAxisLabel}
                 allowDuplicatedCategory={false}
                 interval={0}
                 angle={-45} 
                 textAnchor="end"
+                height={60} // Adjust height for rotated labels
+                label={{ value: xAxisLabel, position: 'insideBottom', offset: -60 }}
+                domain={xCategories} // Specify domain for proper ordering/display
+                ticks={xCategories.map(cat => ({ value: cat, label: cat }))} // Ensure all categories are shown
               />
               <YAxis 
-                dataKey="className" 
-                name="班级" 
+                type="category" // Important for discrete categories
+                dataKey="y" 
+                name={yAxisLabel}
                 allowDuplicatedCategory={false}
-                width={80}
+                width={100} // Adjust width for labels
+                interval={0}
+                label={{ value: yAxisLabel, angle: -90, position: 'insideLeft' }}
+                domain={yCategories} // Specify domain
+                ticks={yCategories.map(cat => ({ value: cat, label: cat }))} // Ensure all categories are shown
               />
               <ZAxis 
-                dataKey="z" 
-                range={[100, 500]} 
-                name="平均分" 
+                dataKey="value" // ZAxis is used for the 'size' of the scatter points, but here color represents value.
+                range={[100, 500]} // This might be less relevant if color is primary encoding
+                name="数值" 
               />
               <Tooltip 
                 cursor={{ strokeDasharray: '3 3' }}
-                formatter={(value, name, props) => {
-                  if (name === "平均分") {
-                    return [`${value} 分`, name];
-                  }
-                  return [value, name];
-                }}
                 content={({ active, payload }) => {
                   if (active && payload && payload.length) {
-                    const data = payload[0].payload;
+                    const item = payload[0].payload as HeatmapDataItem;
                     return (
-                      <div className="rounded-md border bg-background p-2 shadow-md">
-                        <p className="font-bold">{data.className} - {data.subject}</p>
-                        <p>平均分: <span className="font-semibold">{data.avgScore}</span></p>
-                        <p>学生数: <span className="font-semibold">{data.studentCount}</span></p>
+                      <div className="rounded-md border bg-popover p-2 text-popover-foreground shadow-md">
+                        <p className="font-bold">{item.y} - {item.x}</p>
+                        <p>数值: <span className="font-semibold">{item.value.toFixed(1)}{valueUnit}</span></p>
+                        {/* You can add more details from item if they exist */}
                       </div>
                     );
                   }
                   return null;
                 }}
               />
-              <Scatter data={mockHeatmapData} shape="square">
-                {mockHeatmapData.map((entry, index) => (
+              <Scatter data={chartData} shape="square">
+                {chartData.map((entry, index) => (
                   <Cell 
                     key={`cell-${index}`} 
-                    fill={getColorByScore(entry.avgScore)} 
+                    fill={getColorByValue(entry.value)} 
                   />
                 ))}
               </Scatter>

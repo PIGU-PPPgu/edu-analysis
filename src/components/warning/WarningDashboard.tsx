@@ -204,13 +204,13 @@ const AIInsightPanel = ({
         </Button>
       </div>
       
-      <div className="prose prose-sm max-w-none bg-gray-50 p-6 rounded-lg border border-gray-200 text-gray-700">
+      <div className="prose prose-sm max-w-none bg-gray-50 p-6 rounded-lg border border-gray-200 text-black">
         <div dangerouslySetInnerHTML={{ 
           __html: insights
             .replace(/\n\n/g, '<br/><br/>')
             .replace(/\n/g, '<br/>')
-            .replace(/## (.*)/g, '<h3 class="text-lg font-semibold mt-4 mb-2 text-[#c0ff3f]">$1</h3>')
-            .replace(/\*\*(.*?)\*\*/g, '<strong class="text-[#c0ff3f]">$1</strong>')
+            .replace(/## (.*)/g, '<h3 class="text-lg font-semibold mt-4 mb-2 text-black">$1</h3>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong class="text-black font-normal">$1</strong>')
             .replace(/\*([^*]+)\*/g, '<em>$1</em>')
             .replace(/- (.*)/g, '<li class="ml-4 my-1">$1</li>')
         }} />
@@ -316,16 +316,10 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
               { role: "system", content: "你是一位教育数据分析专家，擅长分析学生预警数据并提供干预建议。" },
               { role: "user", content: prompt }
             ],
-            model: aiConfig.model || "gpt-3.5-turbo",
+            model: aiConfig.model || aiConfig.version || "gpt-3.5-turbo",
           });
-        } else if (typeof aiClient.sendRequest === 'function') {
-          // 使用GenericAIClient的sendRequest方法
-          response = await aiClient.sendRequest([
-            { role: "system", content: "你是一位教育数据分析专家，擅长分析学生预警数据并提供干预建议。" },
-            { role: "user", content: prompt }
-          ]);
         } else {
-          throw new Error("AI客户端接口不兼容");
+          throw new Error("AI客户端接口不兼容或未正确初始化");
         }
       } catch (apiError) {
         console.error("AI API请求失败:", apiError);
@@ -421,7 +415,7 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
 2. 加强班级${Math.random() > 0.5 ? '作业管理和督促' : '考勤管理'}
 3. 发起家校沟通，共同关注学生学习状态
 ${Math.random() > 0.5 ? '4. 设计专项提升计划，针对薄弱学科进行重点辅导' : ''}
-    `;
+      `;
   };
 
   return (
@@ -529,11 +523,11 @@ ${Math.random() > 0.5 ? '4. 设计专项提升计划，针对薄弱学科进行�
           </Card>
           
           <Card className="bg-white border-gray-200 text-gray-900 rounded-xl hover:shadow-lg transition-all duration-200">
-            <CardHeader>
+        <CardHeader>
               <CardTitle className="text-xl font-semibold text-gray-800">预警类型分布</CardTitle>
               <CardDescription className="text-gray-500">各类型预警数量及占比</CardDescription>
-            </CardHeader>
-            <CardContent>
+        </CardHeader>
+        <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {stats.warningsByType.map((warning, index) => (
                   <WarningTypeCard 
@@ -556,7 +550,7 @@ ${Math.random() > 0.5 ? '4. 设计专项提升计划，针对薄弱学科进行�
                 <div className="flex items-center">
                   <Brain className="mr-2 h-5 w-5 text-[#c0ff3f]" />
                   <span>AI预警分析与干预建议</span>
-                </div>
+            </div>
                 <Button 
                   onClick={generateAIInsights}
                   disabled={isGeneratingInsights || !aiConfigured}
@@ -583,8 +577,8 @@ ${Math.random() > 0.5 ? '4. 设计专项提升计划，针对薄弱学科进行�
                     onClick={() => window.location.href = '/ai-settings'}>
                     前往AI设置
                     <ArrowRight className="ml-2 h-3 w-3" />
-                  </Button>
-                </div>
+                </Button>
+              </div>
               ) : (
                 <AIInsightPanel
                   insights={aiInsights}
@@ -593,9 +587,9 @@ ${Math.random() > 0.5 ? '4. 设计专项提升计划，针对薄弱学科进行�
                   onRegenerate={generateAIInsights}
                   error={aiError}
                 />
-              )}
-            </CardContent>
-          </Card>
+          )}
+        </CardContent>
+      </Card>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card className="bg-white border-gray-200 text-gray-900 rounded-xl hover:shadow-lg transition-all duration-200">

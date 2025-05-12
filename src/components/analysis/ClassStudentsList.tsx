@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -7,23 +6,33 @@ import { Input } from "@/components/ui/input";
 import { Link } from "react-router-dom";
 import { ChevronDown, ChevronUp, Search, User } from "lucide-react";
 
+interface Student {
+  studentId: string;
+  name: string;
+  averageScore: number;
+  trend: number; 
+}
+
 interface ClassStudentsListProps {
   classId: string;
   className: string;
   studentCount: number;
+  mockStudentData?: Student[];
 }
 
 const ClassStudentsList: React.FC<ClassStudentsListProps> = ({ 
   classId,
   className,
-  studentCount
+  studentCount,
+  mockStudentData
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<"name" | "averageScore">("averageScore");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   
-  // 空数组替代模拟数据
-  const students = [];
+  const students = mockStudentData || [];
+  
+  const currentStudentCount = mockStudentData ? mockStudentData.length : studentCount;
   
   const filteredStudents = students
     .filter(student => 
@@ -55,7 +64,7 @@ const ClassStudentsList: React.FC<ClassStudentsListProps> = ({
     <Card>
       <CardHeader>
         <CardTitle>{className}学生列表</CardTitle>
-        <CardDescription>班级共有 {studentCount} 名学生</CardDescription>
+        <CardDescription>班级共有 {currentStudentCount} 名学生</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="mb-4">

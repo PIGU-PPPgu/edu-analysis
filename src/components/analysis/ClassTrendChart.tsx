@@ -1,13 +1,8 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { ChartContainer } from "@/components/ui/chart";
 import { supabase } from "@/integrations/supabase/client";
-
-interface ClassTrendChartProps {
-  className: string;
-}
 
 interface ExamData {
   examName: string;
@@ -15,11 +10,22 @@ interface ExamData {
   gradeAvg: number;
 }
 
-const ClassTrendChart: React.FC<ClassTrendChartProps> = ({ className }) => {
-  const [trendData, setTrendData] = useState<ExamData[]>([]);
+interface ClassTrendChartProps {
+  className: string;
+  trendData?: ExamData[];
+}
+
+const ClassTrendChart: React.FC<ClassTrendChartProps> = ({ className, trendData = [] }) => {
+  const [chartData, setChartData] = useState<ExamData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (trendData && trendData.length > 0) {
+      setChartData(trendData);
+      setIsLoading(false);
+      return;
+    }
+
     const fetchClassTrends = async () => {
       try {
         setIsLoading(true);
@@ -35,7 +41,7 @@ const ClassTrendChart: React.FC<ClassTrendChartProps> = ({ className }) => {
         
         if (!classData) {
           console.log("未找到班级:", className);
-          setTrendData([]);
+          setChartData([]);
           return;
         }
         
@@ -51,7 +57,7 @@ const ClassTrendChart: React.FC<ClassTrendChartProps> = ({ className }) => {
         
         if (!studentData || studentData.length === 0) {
           console.log("班级没有学生:", className);
-          setTrendData([]);
+          setChartData([]);
           return;
         }
         
@@ -114,17 +120,20 @@ const ClassTrendChart: React.FC<ClassTrendChartProps> = ({ className }) => {
           })
         );
         
-        setTrendData(examResults);
+        setChartData(examResults);
       } catch (error) {
         console.error("获取班级趋势数据失败:", error);
-        setTrendData([]);
+        setChartData([]);
       } finally {
         setIsLoading(false);
       }
     };
     
+    // 仅在没有提供trendData时获取数据
+    if (!trendData || trendData.length === 0) {
     fetchClassTrends();
-  }, [className]);
+    }
+  }, [className, trendData]);
   
   return (
     <Card>
@@ -137,14 +146,14 @@ const ClassTrendChart: React.FC<ClassTrendChartProps> = ({ className }) => {
           <div className="flex items-center justify-center h-full">
             <p className="text-gray-500">加载中...</p>
           </div>
-        ) : trendData.length > 0 ? (
+        ) : chartData.length > 0 ? (
           <ChartContainer config={{
             classAvg: { color: "#B9FF66" },
             gradeAvg: { color: "#8884d8" }
           }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
-                data={trendData}
+                data={chartData}
                 margin={{ top: 20, right: 30, left: 20, bottom: 10 }}
               >
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} />

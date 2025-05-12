@@ -36,8 +36,14 @@ export interface UserAIConfig {
   
   /**
    * 模型版本，例如 "gpt-3.5-turbo", "doubao-1-5" 等
+   * @deprecated 推荐使用 model 字段
    */
   version: string;
+  
+  /**
+   * 使用的模型ID，例如 "gpt-3.5-turbo"
+   */
+  model?: string;
   
   /**
    * AI 功能是否启用

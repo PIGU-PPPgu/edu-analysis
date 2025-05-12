@@ -8,10 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Search, Filter, AlertTriangle } from "lucide-react";
 
+// 导入学生画像组件
+import StudentWarningProfile from "./StudentWarningProfile";
+
 // 模拟数据 - 在实际应用中应从API获取
 const students = [
   {
-    id: 1,
+    uuid: "student-uuid-001",
     name: "张三",
     avatarUrl: "",
     class: "高一(3)班",
@@ -21,7 +24,7 @@ const students = [
     details: "语文、数学成绩下降超过20%，连续缺勤3次"
   },
   {
-    id: 2,
+    uuid: "student-uuid-002",
     name: "李四",
     avatarUrl: "",
     class: "高一(2)班",
@@ -31,7 +34,7 @@ const students = [
     details: "上周作业完成率低于60%"
   },
   {
-    id: 3,
+    uuid: "student-uuid-003",
     name: "王五",
     avatarUrl: "",
     class: "高一(1)班",
@@ -41,7 +44,7 @@ const students = [
     details: "数学月考成绩下降超过15%"
   },
   {
-    id: 4,
+    uuid: "student-uuid-004",
     name: "赵六",
     avatarUrl: "",
     class: "高一(3)班",
@@ -51,7 +54,7 @@ const students = [
     details: "本月迟到3次"
   },
   {
-    id: 5,
+    uuid: "student-uuid-005",
     name: "孙七",
     avatarUrl: "",
     class: "高一(2)班",
@@ -101,6 +104,20 @@ const WarningList = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterClass, setFilterClass] = useState("all");
   const [filterLevel, setFilterLevel] = useState("all");
+  
+  // 新增状态用于学生画像模态框
+  const [selectedStudentUuid, setSelectedStudentUuid] = useState<string | null>(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  const handleOpenProfileModal = (studentUuid: string) => {
+    setSelectedStudentUuid(studentUuid);
+    setIsProfileModalOpen(true);
+  };
+
+  const handleCloseProfileModal = () => {
+    setIsProfileModalOpen(false);
+    setSelectedStudentUuid(null); // 清理选中的学生
+  };
   
   // 过滤逻辑
   const filteredStudents = students.filter(student => {
@@ -184,7 +201,11 @@ const WarningList = () => {
             <TableBody>
               {filteredStudents.length > 0 ? (
                 filteredStudents.map((student) => (
-                  <TableRow key={student.id}>
+                  <TableRow 
+                    key={student.uuid}
+                    onClick={() => handleOpenProfileModal(student.uuid)}
+                    className="cursor-pointer hover:bg-gray-50 transition-colors"
+                  >
                     <TableCell className="font-medium">
                       <div className="flex items-center">
                         <Avatar className="h-8 w-8 mr-2">
@@ -223,6 +244,11 @@ const WarningList = () => {
           </Table>
         </div>
       </CardContent>
+      <StudentWarningProfile 
+        studentUuid={selectedStudentUuid}
+        isOpen={isProfileModalOpen}
+        onOpenChange={handleCloseProfileModal}
+      />
     </Card>
   );
 };

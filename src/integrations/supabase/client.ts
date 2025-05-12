@@ -57,6 +57,57 @@ if (typeof window !== 'undefined') {
 }
 
 /**
+ * 检查表是否存在
+ * @param tableName 要检查的表名
+ * @returns 检查结果 {exists: boolean, error?: any}
+ */
+export const checkTableExists = async (tableName: string) => {
+  try {
+    // 使用 PostgreSQL 的 pg_tables 视图查询表是否存在
+    // 这个方法比 information_schema 更可靠
+    const { data, error } = await supabase.rpc('table_exists', { table_name: tableName });
+    
+    if (error) {
+      // 如果RPC函数不存在，尝试直接SQL查询
+      console.warn('table_exists RPC函数不存在，尝试直接查询...');
+      
+      // 使用原始SQL查询表是否存在
+      const sql = `SELECT EXISTS (SELECT 1 FROM pg_tables WHERE tablename = '${tableName}' AND schemaname = 'public');`;
+      const { data: sqlData, error: sqlError } = await supabase.from('_before_migrations').select('*').limit(1);
+      
+      // 如果连_before_migrations都查不到，可能是权限问题
+      if (sqlError) {
+        console.error('检查表存在性的备用方法失败:', sqlError);
+        return { exists: false, error: sqlError };
+      }
+      
+      // 尝试直接查询表
+      try {
+        const { count, error: queryError } = await supabase
+          .from(tableName)
+          .select('*', { count: 'exact', head: true });
+        
+        // 如果没有"表不存在"的错误，表可能存在
+        if (!queryError || queryError.code !== '42P01') {  // '42P01' 是 PostgreSQL 中"表不存在"的错误代码
+          return { exists: true };
+        }
+        
+        return { exists: false };
+      } catch (queryError) {
+        console.error('直接查询表失败:', queryError);
+        return { exists: false, error: queryError };
+      }
+    }
+    
+    // 注意：由于在函数定义中将 exists 列名加上了双引号，返回的数据中的键名也会带双引号
+    return { exists: data && data[0] ? data[0].exists : false };
+  } catch (error) {
+    console.error('检查表存在性时出错:', error);
+    return { exists: false, error };
+  }
+};
+
+/**
  * 执行SQL迁移脚本
  * @param sql SQL脚本内容
  * @param name 迁移名称(可选)
@@ -64,27 +115,52 @@ if (typeof window !== 'undefined') {
  */
 export const runMigration = async (sql: string, name?: string) => {
   try {
-    console.log(`执行${name ? `迁移[${name}]` : 'SQL脚本'}...`);
-    const { error } = await supabase.rpc('exec_sql', { sql });
+    console.log(`尝试执行${name ? `迁移[${name}]` : 'SQL脚本'}...`);
     
-    if (error) {
-      console.error(`迁移失败: ${error.message}`);
+    // 检查是否有exec_sql函数
+    const { data: functions, error: functionCheckError } = await supabase
+      .rpc('get_stored_procedures')
+      .select('*');
+    
+    if (functionCheckError) {
+      console.error('检查RPC函数时出错:', functionCheckError);
+      
+      // 提供备用方案
       return { 
         success: false, 
-        message: `迁移失败: ${error.message}` 
+        message: `exec_sql函数不存在，请在Supabase管理面板中手动执行以下SQL：\n\n${sql}` 
       };
     }
     
-    console.log(`迁移${name ? `[${name}]` : ''}成功完成`);
-    return { 
-      success: true, 
-      message: `迁移${name ? `[${name}]` : ''}成功完成` 
-    };
+    // 如果存在exec_sql函数，则调用它
+    if (functions && functions.some(fn => fn.name === 'exec_sql')) {
+      const { error } = await supabase.rpc('exec_sql', { sql });
+      
+      if (error) {
+        console.error(`迁移失败: ${error.message}`);
+        return { 
+          success: false, 
+          message: `迁移失败: ${error.message}` 
+        };
+      }
+      
+      console.log(`迁移${name ? `[${name}]` : ''}成功完成`);
+      return { 
+        success: true, 
+        message: `迁移${name ? `[${name}]` : ''}成功完成` 
+      };
+    } else {
+      // 如果不存在exec_sql函数，则返回SQL供用户手动执行
+      return { 
+        success: false, 
+        message: `exec_sql函数不存在，请在Supabase管理面板中手动执行以下SQL：\n\n${sql}` 
+      };
+    }
   } catch (error) {
     console.error('执行迁移时出错:', error);
     return { 
       success: false, 
-      message: `执行迁移时出错: ${error.message}` 
+      message: `执行迁移时出错: ${error.message}\n\n请手动执行SQL：\n\n${sql}` 
     };
   }
 };

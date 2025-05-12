@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
@@ -17,14 +16,29 @@ interface SubjectScore {
   count: number;
 }
 
-const ExamComparison: React.FC = () => {
-  const [selectedExams, setSelectedExams] = useState<string[]>([]);
-  const [examList, setExamList] = useState<Exam[]>([]);
-  const [scoreData, setScoreData] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+interface ExamComparisonProps {
+  mockExamList?: Exam[];
+  initialSelectedExams?: string[];
+  mockDisplayScores?: any[];
+}
 
-  // 获取所有考试类型
+const ExamComparison: React.FC<ExamComparisonProps> = ({ mockExamList, initialSelectedExams, mockDisplayScores }) => {
+  const [selectedExams, setSelectedExams] = useState<string[]>(initialSelectedExams || []);
+  const [examList, setExamList] = useState<Exam[]>(mockExamList || []);
+  const [scoreData, setScoreData] = useState<any[]>(mockDisplayScores && initialSelectedExams && initialSelectedExams.length > 0 ? mockDisplayScores : []);
+  const [isLoading, setIsLoading] = useState(!mockExamList); // If mockExamList is provided, don't initially load
+
   useEffect(() => {
+    if (mockExamList) {
+      setExamList(mockExamList);
+      // setSelectedExams is already initialized from initialSelectedExams or []
+      // If mockDisplayScores are provided, isLoading should be false.
+      if (mockDisplayScores) {
+        setIsLoading(false);
+      }
+      return; // Skip API call for exam types if mockExamList is provided
+    }
+
     const fetchExamTypes = async () => {
       try {
         const { data, error } = await supabase
@@ -56,19 +70,29 @@ const ExamComparison: React.FC = () => {
       }
     };
     
+    if (!mockExamList) { // Only fetch if no mockExamList
     fetchExamTypes();
-  }, []);
+    }
+  }, [mockExamList, initialSelectedExams, mockDisplayScores]); // Added mockDisplayScores
 
-  // 当选择的考试变化时，获取相应的成绩数据
   useEffect(() => {
-    const fetchScoreData = async () => {
+    if (mockDisplayScores && selectedExams.length > 0) {
+      //This assumes mockDisplayScores is correctly structured for the selectedExams.
+      setScoreData(mockDisplayScores);
+      setIsLoading(false);
+      return; // Skip API call for scores if mockDisplayScores is provided
+    }
+
       if (selectedExams.length === 0) {
         setScoreData([]);
+      // if not in full mock mode (i.e. mockExamList was not provided), then also stop loading.
+      if (!mockExamList) setIsLoading(false); 
         return;
       }
       
-      setIsLoading(true);
-      
+    // Only fetch real data if not in full mock mode (i.e., neither mockExamList nor mockDisplayScores were provided for current selections)
+    if (!mockExamList && !mockDisplayScores) { 
+      const fetchScoreData = async () => {
       try {
         // 解析选中的考试ID并提取考试类型和日期
         const examDetails = selectedExams.map(id => {
@@ -120,13 +144,12 @@ const ExamComparison: React.FC = () => {
         setScoreData(Object.values(subjectMap));
       } catch (error) {
         console.error("获取成绩数据失败:", error);
-      } finally {
-        setIsLoading(false);
       }
     };
     
     fetchScoreData();
-  }, [selectedExams]);
+    }
+  }, [selectedExams, mockDisplayScores, mockExamList]);
 
   const colors = ["#B9FF66", "#8884d8", "#82ca9d", "#ffc658"];
 

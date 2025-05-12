@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
@@ -53,12 +52,22 @@ interface ClassProfileCardProps {
 const ClassProfileCard: React.FC<ClassProfileCardProps> = ({ 
   classData = mockClassData 
 }) => {
+  // Ensure that classData and its nested arrays are defined before use
+  const currentClassData = {
+    ...mockClassData, // Start with mockData as a base
+    ...(classData || {}), // Spread provided classData, ensuring it's not undefined
+    // Ensure arrays are always present, defaulting to empty arrays if not in classData or mockClassData
+    topStudents: classData?.topStudents || mockClassData.topStudents || [],
+    subjectScores: classData?.subjectScores || mockClassData.subjectScores || [],
+    competencies: classData?.competencies || mockClassData.competencies || [],
+  };
+
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>{classData.className}班级画像</CardTitle>
+        <CardTitle>{currentClassData.className}班级画像</CardTitle>
         <CardDescription>
-          学生人数: {classData.studentCount} | 平均分: {classData.avgScore} | 及格率: {classData.passRate}%
+          学生人数: {currentClassData.studentCount} | 平均分: {currentClassData.avgScore} | 及格率: {currentClassData.passRate}%
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-8">
@@ -72,7 +81,7 @@ const ClassProfileCard: React.FC<ClassProfileCardProps> = ({
             }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
-                  data={classData.subjectScores}
+                  data={currentClassData.subjectScores}
                   margin={{ top: 20, right: 30, left: 20, bottom: 65 }}
                 >
                   <XAxis dataKey="subject" angle={-45} textAnchor="end" interval={0} />
@@ -93,7 +102,7 @@ const ClassProfileCard: React.FC<ClassProfileCardProps> = ({
               value: { color: "#B9FF66" }
             }}>
               <ResponsiveContainer width="100%" height="100%">
-                <RadarChart outerRadius={90} data={classData.competencies}>
+                <RadarChart outerRadius={90} data={currentClassData.competencies}>
                   <PolarGrid />
                   <PolarAngleAxis dataKey="name" />
                   <PolarRadiusAxis domain={[0, 100]} />
@@ -116,8 +125,8 @@ const ClassProfileCard: React.FC<ClassProfileCardProps> = ({
           <p className="text-sm text-muted-foreground">
             该班级整体表现优秀，特别在语文和英语科目上有明显优势。团队协作能力突出，
             学习态度积极。可以适当加强创新思维训练，提高物理学科水平。
-            班级有 {classData.topStudents.length} 名学生在年级排名前20，分别是：
-            {classData.topStudents.join("、")}。
+            班级有 {currentClassData.topStudents.length} 名学生在年级排名前20，分别是：
+            {currentClassData.topStudents.join("、")}。
           </p>
         </div>
       </CardContent>

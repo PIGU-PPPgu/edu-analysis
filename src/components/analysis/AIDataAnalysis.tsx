@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -9,11 +8,16 @@ import { AIAnalysisIntro } from "./AIAnalysisIntro";
 import { AIAnalysisTabs } from "./AIAnalysisTabs";
 
 interface AIDataAnalysisProps {
-  data: any[];
-  charts: React.ReactNode[];
+  selectedClass?: any;
+  data?: any[];
+  charts?: React.ReactNode[];
 }
 
-const AIDataAnalysis: React.FC<AIDataAnalysisProps> = ({ data, charts }) => {
+const AIDataAnalysis: React.FC<AIDataAnalysisProps> = ({ 
+  selectedClass, 
+  data: dataProp,
+  charts: chartsProp 
+}) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<{
     overview: string;
@@ -24,6 +28,9 @@ const AIDataAnalysis: React.FC<AIDataAnalysisProps> = ({ data, charts }) => {
   const [aiConfigured, setAiConfigured] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
 
+  const data = dataProp || [];
+  const charts = chartsProp || [];
+
   useEffect(() => {
     const config = getUserAIConfig();
     const apiKey = getUserAPIKey();
@@ -32,14 +39,14 @@ const AIDataAnalysis: React.FC<AIDataAnalysisProps> = ({ data, charts }) => {
 
   // 数据变更时自动进行分析
   useEffect(() => {
-    if (data.length > 0 && aiConfigured && !analysis && !isAnalyzing) {
+    if (data && data.length > 0 && aiConfigured && !analysis && !isAnalyzing) {
       // 只有当数据不为空、AI已配置、还没有分析结果、且不在分析中时，自动开始分析
       generateAnalysis();
     }
   }, [data, aiConfigured, analysis, isAnalyzing]);
 
   const generateAnalysis = async () => {
-    if (data.length === 0) {
+    if (!data || data.length === 0) {
       toast.error("没有足够的数据进行分析");
       return;
     }
@@ -107,7 +114,7 @@ const AIDataAnalysis: React.FC<AIDataAnalysisProps> = ({ data, charts }) => {
       setAnalysis({
         overview: "分析生成遇到问题，以下是基本统计信息",
         insights: [
-          `共有${data.length}条成绩记录`,
+          `共有${data ? data.length : 0}条成绩记录`,
           "系统无法连接到AI服务",
           "请检查网络连接和API配置",
           "可以尝试使用其他AI服务提供商"
@@ -164,7 +171,7 @@ const AIDataAnalysis: React.FC<AIDataAnalysisProps> = ({ data, charts }) => {
         ) : (
           <AIAnalysisTabs 
             analysis={analysis} 
-            dataCount={data.length} 
+            dataCount={data ? data.length : 0}
             onRetry={handleRetry}
             isRetrying={isAnalyzing}
           />
