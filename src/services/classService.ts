@@ -1,6 +1,41 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+// 视图存在状态缓存，避免重复检查视图
+const viewStatusCache = {
+  class_statistics: null as boolean | null,
+  mv_class_subject_stats: null as boolean | null,
+  mv_class_exam_trends: null as boolean | null,
+  mv_class_subject_competency: null as boolean | null,
+  mv_class_subject_correlation: null as boolean | null
+};
+
+// 检查视图是否存在
+async function checkViewExists(viewName: string): Promise<boolean> {
+  // 如果缓存中有结果，直接返回
+  if (viewStatusCache[viewName as keyof typeof viewStatusCache] !== null) {
+    return !!viewStatusCache[viewName as keyof typeof viewStatusCache];
+  }
+  
+  try {
+    // 尝试查询视图
+    const { data, error } = await supabase
+      .from(viewName)
+      .select('*')
+      .limit(1);
+    
+    // 更新缓存
+    const exists = !error;
+    viewStatusCache[viewName as keyof typeof viewStatusCache] = exists;
+    
+    return exists;
+  } catch (e) {
+    // 更新缓存
+    viewStatusCache[viewName as keyof typeof viewStatusCache] = false;
+    return false;
+  }
+}
+
 export interface ClassStatistics {
   class_id: string;
   class_name: string;
@@ -16,22 +51,26 @@ export interface ClassStatistics {
  */
 export async function getAllClasses(): Promise<any[]> {
   try {
-    // 尝试查询视图
-    const { data: statsData, error: statsError } = await supabase
-      .from('class_statistics')
-      .select('*');
+    // 检查视图是否存在
+    const viewExists = await checkViewExists('class_statistics');
     
-    // 如果视图存在，直接返回数据，但需要转换字段名称以符合ClassManagement.tsx的预期
-    if (!statsError) {
-      return statsData.map(item => ({
-        id: item.class_id,
-        name: item.class_name,
-        grade: item.grade,
-        studentCount: item.student_count,
-        homeworkCount: item.homework_count,
-        averageScore: item.average_score,
-        excellentRate: item.excellent_rate
-      }));
+    // 视图存在，直接查询
+    if (viewExists) {
+      const { data: statsData, error: statsError } = await supabase
+        .from('class_statistics')
+        .select('*');
+      
+      if (!statsError) {
+        return statsData.map(item => ({
+          id: item.class_id,
+          name: item.class_name,
+          grade: item.grade,
+          studentCount: item.student_count,
+          homeworkCount: item.homework_count,
+          averageScore: item.average_score,
+          excellentRate: item.excellent_rate
+        }));
+      }
     }
     
     console.warn('class_statistics视图不存在，降级为基础查询');
@@ -518,12 +557,47 @@ export async function getSubjectAnalysisData(classId: string) {
     };
 
     // 1. 获取学科成绩表现数据，优先使用物化视图
-    const { data: subjectStats, error: subjectStatsError } = await supabase
-      .from('mv_class_subject_stats')
-      .select('*')
-      .eq('class_id', classId);
-
-    if (subjectStatsError) {
+    const viewExists = await checkViewExists('mv_class_subject_stats');
+    
+    if (viewExists) {
+      const { data: subjectStats, error: subjectStatsError } = await supabase
+        .from('mv_class_subject_stats')
+        .select('*')
+        .eq('class_id', classId);
+        
+      if (!subjectStatsError && subjectStats && subjectStats.length > 0) {
+        // 使用物化视图数据
+        const subjects = [...new Set(subjectStats.map(item => item.subject))];
+        
+        subjects.forEach(subject => {
+          const subjectData = subjectStats.find(item => item.subject === subject);
+          if (subjectData) {
+            // 构建分数分布数据
+            // 注意：物化视图中没有直接提供分数分布数据，这里需要合成
+            // 实际应用中可以考虑增加物化视图中的分数分布信息
+            const estimatedDistribution = [
+              { range: "0-59", count: Math.round(subjectData.student_count * (1 - subjectData.pass_rate / 100)) },
+              { range: "60-69", count: Math.round(subjectData.student_count * 0.2) },
+              { range: "70-79", count: Math.round(subjectData.student_count * 0.2) },
+              { range: "80-89", count: Math.round(subjectData.student_count * 0.2) },
+              { range: "90-100", count: Math.round(subjectData.student_count * (subjectData.excellent_rate / 100)) },
+            ];
+            
+            result.performance[subject] = [{
+              subject,
+              averageScore: subjectData.average_score,
+              medianScore: subjectData.median_score,
+              minScore: subjectData.min_score,
+              maxScore: subjectData.max_score,
+              passRate: subjectData.pass_rate,
+              excellentRate: subjectData.excellent_rate,
+              scoreDeviation: subjectData.score_deviation,
+              scoreDistribution: estimatedDistribution
+            }];
+          }
+        });
+      }
+    } else {
       console.warn('物化视图mv_class_subject_stats不存在，降级为基础查询');
       // 如果没有物化视图，降级方案可以使用原始查询
       const { data: grades, error: gradesError } = await supabase
@@ -575,46 +649,37 @@ export async function getSubjectAnalysisData(classId: string) {
           }];
         });
       }
-    } else if (subjectStats && subjectStats.length > 0) {
-      // 使用物化视图数据
-      const subjects = [...new Set(subjectStats.map(item => item.subject))];
-      
-      subjects.forEach(subject => {
-        const subjectData = subjectStats.find(item => item.subject === subject);
-        if (subjectData) {
-          // 构建分数分布数据
-          // 注意：物化视图中没有直接提供分数分布数据，这里需要合成
-          // 实际应用中可以考虑增加物化视图中的分数分布信息
-          const estimatedDistribution = [
-            { range: "0-59", count: Math.round(subjectData.student_count * (1 - subjectData.pass_rate / 100)) },
-            { range: "60-69", count: Math.round(subjectData.student_count * 0.2) },
-            { range: "70-79", count: Math.round(subjectData.student_count * 0.2) },
-            { range: "80-89", count: Math.round(subjectData.student_count * 0.2) },
-            { range: "90-100", count: Math.round(subjectData.student_count * (subjectData.excellent_rate / 100)) },
-          ];
-          
-          result.performance[subject] = [{
-            subject,
-            averageScore: subjectData.average_score,
-            medianScore: subjectData.median_score,
-            minScore: subjectData.min_score,
-            maxScore: subjectData.max_score,
-            passRate: subjectData.pass_rate,
-            excellentRate: subjectData.excellent_rate,
-            scoreDeviation: subjectData.score_deviation,
-            scoreDistribution: estimatedDistribution
-          }];
-        }
-      });
     }
 
     // 2. 获取学科趋势数据
-    const { data: trendData, error: trendError } = await supabase
-      .from('mv_class_exam_trends')
-      .select('*')
-      .eq('class_id', classId);
-
-    if (trendError) {
+    const trendsViewExists = await checkViewExists('mv_class_exam_trends');
+    
+    if (trendsViewExists) {
+      const { data: trendData, error: trendError } = await supabase
+        .from('mv_class_exam_trends')
+        .select('*')
+        .eq('class_id', classId);
+        
+      if (!trendError && trendData && trendData.length > 0) {
+        // 使用物化视图数据，按学科分组处理
+        const subjects = [...new Set(trendData.map(item => item.subject))];
+        
+        subjects.forEach(subject => {
+          const subjectTrends = trendData
+            .filter(item => item.subject === subject)
+            .sort((a, b) => new Date(a.exam_date).getTime() - new Date(b.exam_date).getTime());
+            
+          result.trends[subject] = subjectTrends.map(trend => ({
+            date: trend.exam_date,
+            examType: trend.exam_type,
+            averageScore: trend.average_score,
+            medianScore: trend.median_score,
+            passRate: trend.pass_rate,
+            excellentRate: trend.excellent_rate
+          }));
+        });
+      }
+    } else {
       console.warn('物化视图mv_class_exam_trends不存在，降级为基础查询');
       // 降级为聚合查询
       const { data: gradesWithDates, error: gradesDateError } = await supabase
@@ -656,33 +721,61 @@ export async function getSubjectAnalysisData(classId: string) {
           });
         });
       }
-    } else if (trendData && trendData.length > 0) {
-      // 使用物化视图数据，按学科分组处理
-      const subjects = [...new Set(trendData.map(item => item.subject))];
-      
-      subjects.forEach(subject => {
-        const subjectTrends = trendData
-          .filter(item => item.subject === subject)
-          .sort((a, b) => new Date(a.exam_date).getTime() - new Date(b.exam_date).getTime());
-          
-        result.trends[subject] = subjectTrends.map(trend => ({
-          date: trend.exam_date,
-          examType: trend.exam_type,
-          averageScore: trend.average_score,
-          medianScore: trend.median_score,
-          passRate: trend.pass_rate,
-          excellentRate: trend.excellent_rate
-        }));
-      });
     }
 
     // 3. 获取知识点掌握数据
-    const { data: knowledgeData, error: knowledgeError } = await supabase
-      .from('mv_class_subject_competency')
-      .select('*')
-      .eq('class_id', classId);
-
-    if (knowledgeError) {
+    const competencyViewExists = await checkViewExists('mv_class_subject_competency');
+    
+    if (competencyViewExists) {
+      const { data: knowledgeData, error: knowledgeError } = await supabase
+        .from('mv_class_subject_competency')
+        .select('*')
+        .eq('class_id', classId);
+        
+      if (!knowledgeError && knowledgeData && knowledgeData.length > 0) {
+        // 这里使用一个临时方案，尝试从其他地方获取知识点-学科映射
+        const { data: knowledgeSubjectMap, error: mapError } = await supabase
+          .from('knowledge_points')
+          .select('id, subject_id, subject:subject_id(name)');
+          
+        // 构建知识点到学科的映射
+        const pointToSubject = {};
+        if (!mapError && knowledgeSubjectMap) {
+          knowledgeSubjectMap.forEach(item => {
+            pointToSubject[item.id] = item.subject?.name || '未知学科';
+          });
+        }
+        
+        // 按知识点ID分组
+        const pointGroups = knowledgeData.reduce((acc, item) => {
+          const pointId = item.knowledge_point_id;
+          if (!acc[pointId]) {
+            acc[pointId] = [];
+          }
+          acc[pointId].push(item);
+          return acc;
+        }, {});
+        
+        // 构建每个知识点的数据
+        Object.entries(pointGroups).forEach(([pointId, items]: [string, any[]]) => {
+          // 获取该知识点对应的学科
+          const subjectName = pointToSubject[pointId] || '未知学科';
+          
+          if (!result.knowledgePoints[subjectName]) {
+            result.knowledgePoints[subjectName] = [];
+          }
+          
+          // 使用第一个记录的数据（应该是相同的）
+          const item = items[0];
+          result.knowledgePoints[subjectName].push({
+            id: pointId,
+            name: item.knowledge_point_name,
+            category: '知识点', // 物化视图中可能没有这个字段
+            masteryRate: item.average_mastery
+          });
+        });
+      }
+    } else {
       console.warn('物化视图mv_class_subject_competency不存在，降级为基础查询');
       // 降级为原始查询
       // 首先获取班级学生的所有知识点掌握记录
@@ -728,61 +821,23 @@ export async function getSubjectAnalysisData(classId: string) {
           });
         });
       }
-    } else if (knowledgeData && knowledgeData.length > 0) {
-      // 使用物化视图数据，但需要进行转换
-      // 假设knowledge_point_id、knowledge_point_name关联到特定学科
-      // 这里需要进一步查询或调整物化视图以包含学科信息
-      
-      // 这里使用一个临时方案，尝试从其他地方获取知识点-学科映射
-      const { data: knowledgeSubjectMap, error: mapError } = await supabase
-        .from('knowledge_points')
-        .select('id, subject_id, subject:subject_id(name)');
-        
-      // 构建知识点到学科的映射
-      const pointToSubject = {};
-      if (!mapError && knowledgeSubjectMap) {
-        knowledgeSubjectMap.forEach(item => {
-          pointToSubject[item.id] = item.subject?.name || '未知学科';
-        });
-      }
-      
-      // 按知识点ID分组
-      const pointGroups = knowledgeData.reduce((acc, item) => {
-        const pointId = item.knowledge_point_id;
-        if (!acc[pointId]) {
-          acc[pointId] = [];
-        }
-        acc[pointId].push(item);
-        return acc;
-      }, {});
-      
-      // 构建每个知识点的数据
-      Object.entries(pointGroups).forEach(([pointId, items]: [string, any[]]) => {
-        // 获取该知识点对应的学科
-        const subjectName = pointToSubject[pointId] || '未知学科';
-        
-        if (!result.knowledgePoints[subjectName]) {
-          result.knowledgePoints[subjectName] = [];
-        }
-        
-        // 使用第一个记录的数据（应该是相同的）
-        const item = items[0];
-        result.knowledgePoints[subjectName].push({
-          id: pointId,
-          name: item.knowledge_point_name,
-          category: '知识点', // 物化视图中可能没有这个字段
-          masteryRate: item.average_mastery
-        });
-      });
     }
 
     // 4. 获取学科相关性数据
-    const { data: correlationData, error: correlationError } = await supabase
-      .from('mv_class_subject_correlation')
-      .select('*')
-      .eq('class_id', classId);
-
-    if (correlationError) {
+    const correlationViewExists = await checkViewExists('mv_class_subject_correlation');
+    
+    if (correlationViewExists) {
+      const { data: correlationData, error: correlationError } = await supabase
+        .from('mv_class_subject_correlation')
+        .select('*')
+        .eq('class_id', classId);
+        
+      if (!correlationError && correlationData && correlationData.length > 0) {
+        correlationData.forEach(item => {
+          result.correlation[`${item.subject_a}-${item.subject_b}`] = item.correlation_coefficient;
+        });
+      }
+    } else {
       console.warn('物化视图mv_class_subject_correlation不存在，降级为基础查询');
       // 这部分较复杂，需要手动计算学科间的相关性
       // 获取班级所有学生的所有学科成绩
@@ -856,17 +911,12 @@ export async function getSubjectAnalysisData(classId: string) {
           }
         }
       }
-    } else if (correlationData && correlationData.length > 0) {
-      // 使用物化视图数据
-      correlationData.forEach(item => {
-        result.correlation[`${item.subject_a}-${item.subject_b}`] = item.correlation_coefficient;
-      });
     }
 
     return result;
   } catch (error) {
     console.error('获取学科分析数据失败:', error);
     toast.error(`获取学科分析数据失败: ${error.message || '未知错误'}`);
-    return null;
+    throw error; // 向上抛出错误以便调用方处理
   }
 } 

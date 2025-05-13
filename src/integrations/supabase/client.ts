@@ -134,21 +134,21 @@ export const runMigration = async (sql: string, name?: string) => {
     
     // 如果存在exec_sql函数，则调用它
     if (functions && functions.some(fn => fn.name === 'exec_sql')) {
-      const { error } = await supabase.rpc('exec_sql', { sql });
-      
-      if (error) {
-        console.error(`迁移失败: ${error.message}`);
-        return { 
-          success: false, 
-          message: `迁移失败: ${error.message}` 
-        };
-      }
-      
-      console.log(`迁移${name ? `[${name}]` : ''}成功完成`);
+    const { error } = await supabase.rpc('exec_sql', { sql });
+    
+    if (error) {
+      console.error(`迁移失败: ${error.message}`);
       return { 
-        success: true, 
-        message: `迁移${name ? `[${name}]` : ''}成功完成` 
+        success: false, 
+        message: `迁移失败: ${error.message}` 
       };
+    }
+    
+    console.log(`迁移${name ? `[${name}]` : ''}成功完成`);
+    return { 
+      success: true, 
+      message: `迁移${name ? `[${name}]` : ''}成功完成` 
+    };
     } else {
       // 如果不存在exec_sql函数，则返回SQL供用户手动执行
       return { 

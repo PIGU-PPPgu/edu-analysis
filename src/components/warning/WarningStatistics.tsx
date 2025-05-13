@@ -7,7 +7,7 @@ import { AlertTriangle, ChevronDown, ChevronUp, Users, TrendingUp, InfoIcon } fr
 
 // 组件属性接口
 interface WarningStatisticsProps {
-  data?: Array<{ type: string; count: number; percentage: number; trend?: string }>;
+  data?: Array<{ type: string; count: number; percentage: number; trend?: 'up' | 'down' | 'unchanged' }>;
   levelData?: Array<{ level: string; count: number; percentage: number }>;
   className?: string;
 }
@@ -17,7 +17,7 @@ const defaultTypeData = [
   { type: "成绩", count: 32, percentage: 42, trend: "up" },
   { type: "作业", count: 24, percentage: 31, trend: "down" },
   { type: "参与度", count: 18, percentage: 24, trend: "up" },
-  { type: "综合", count: 2, percentage: 3, trend: "down" }
+  { type: "综合", count: 2, percentage: 3, trend: "unchanged" }
 ];
 
 const defaultLevelData = [

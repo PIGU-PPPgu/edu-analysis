@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Card,
   CardContent,
@@ -133,6 +133,7 @@ const StudentWarningProfile: React.FC<StudentWarningProfileProps> = ({ studentUu
   const [profileData, setProfileData] = useState<StudentProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isMountedRef = useRef(true); // 添加挂载状态引用
 
   useEffect(() => {
     if (studentUuid && isOpen) {
@@ -141,6 +142,9 @@ const StudentWarningProfile: React.FC<StudentWarningProfileProps> = ({ studentUu
       // TODO: 替换为真实的API调用
       // 模拟API调用延迟
       setTimeout(() => {
+        // 检查组件是否已卸载
+        if (!isMountedRef.current) return;
+        
         // 假设API调用成功，并使用模拟数据
         // 在真实场景中，这里会 fetch(`/api/get-student-profile?uuid=${studentUuid}`) 或直接调用 Edge Function
         console.log(`Fetching profile for student: ${studentUuid}`);
@@ -151,8 +155,10 @@ const StudentWarningProfile: React.FC<StudentWarningProfileProps> = ({ studentUu
 
         if (!supabaseUrl || !supabaseAnonKey) {
           console.error("Supabase URL or Anon Key is not defined. Using mock data.");
-          setProfileData(mockStudentProfileData); // 使用模拟数据作为回退
-          setIsLoading(false);
+          if (isMountedRef.current) {
+            setProfileData(mockStudentProfileData); // 使用模拟数据作为回退
+            setIsLoading(false);
+          }
           return;
         }
         
@@ -179,27 +185,40 @@ const StudentWarningProfile: React.FC<StudentWarningProfileProps> = ({ studentUu
           if (data.error) { // Edge Function 内部可能返回 error 字段
              throw new Error(data.error.message || 'Error in API response');
           }
-          setProfileData(data);
+          if (isMountedRef.current) {
+            setProfileData(data);
+          }
         })
         .catch(err => {
           console.error("API call failed:", err);
-          setError(err.message);
-          setProfileData(mockStudentProfileData); // API失败时也使用模拟数据作为回退
+          if (isMountedRef.current) {
+            setError(err.message);
+            setProfileData(mockStudentProfileData); // API失败时也使用模拟数据作为回退
+          }
         })
         .finally(() => {
-          setIsLoading(false);
+          if (isMountedRef.current) {
+            setIsLoading(false);
+          }
         });
         */
 
         // 暂时总是使用模拟数据
-        setProfileData(mockStudentProfileData);
-        setIsLoading(false);
+        if (isMountedRef.current) {
+          setProfileData(mockStudentProfileData);
+          setIsLoading(false);
+        }
 
       }, 1000);
     } else if (!isOpen) {
       // 清理数据当模态框关闭时
       setProfileData(null);
     }
+    
+    // 清理函数
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [studentUuid, isOpen]);
 
   if (!isOpen || !studentUuid) {

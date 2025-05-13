@@ -1,507 +1,464 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Slider } from "@/components/ui/slider";
-import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Plus, Trash2, Save, AlertTriangle, Pencil, BookOpen, Clock, ClipboardCheck, UserRound, ChevronDown } from "lucide-react";
-
-// 预警规则类型接口
-interface WarningRule {
-  id: string;
-  name: string;
-  type: string;
-  enabled: boolean;
-  conditions: {
-    threshold: number;
-    operator: "lt" | "gt" | "eq";
-    value: number;
-    unit?: string;
-  };
-  riskLevel: "high" | "medium" | "low";
-  description: string;
-  lastModified: string;
-}
-
-// 模拟数据
-const initialRules: WarningRule[] = [
-  {
-    id: "r1",
-    name: "成绩下降预警",
-    type: "grade",
-    enabled: true,
-    conditions: {
-      threshold: 20,
-      operator: "gt",
-      value: 20,
-      unit: "%"
-    },
-    riskLevel: "high",
-    description: "当学生成绩相比上次考试下降超过20%时触发高风险预警",
-    lastModified: "2023-10-15"
-  },
-  {
-    id: "r2",
-    name: "出勤率预警",
-    type: "attendance",
-    enabled: true,
-    conditions: {
-      threshold: 80,
-      operator: "lt",
-      value: 80,
-      unit: "%"
-    },
-    riskLevel: "medium",
-    description: "当学生月出勤率低于80%时触发中风险预警",
-    lastModified: "2023-10-12"
-  },
-  {
-    id: "r3",
-    name: "作业完成率预警",
-    type: "homework",
-    enabled: true,
-    conditions: {
-      threshold: 70,
-      operator: "lt",
-      value: 70,
-      unit: "%"
-    },
-    riskLevel: "medium",
-    description: "当学生周作业完成率低于70%时触发中风险预警",
-    lastModified: "2023-10-20"
-  },
-  {
-    id: "r4",
-    name: "课堂参与度预警",
-    type: "participation",
-    enabled: false,
-    conditions: {
-      threshold: 60,
-      operator: "lt",
-      value: 60,
-      unit: "%"
-    },
-    riskLevel: "low",
-    description: "当学生课堂参与度评分低于60%时触发低风险预警",
-    lastModified: "2023-09-30"
-  }
-];
-
-// 获取规则类型图标
-const getRuleTypeIcon = (type: string) => {
-  switch (type) {
-    case "grade":
-      return <BookOpen className="h-4 w-4" />;
-    case "attendance":
-      return <Clock className="h-4 w-4" />;
-    case "homework":
-      return <ClipboardCheck className="h-4 w-4" />;
-    case "participation":
-      return <UserRound className="h-4 w-4" />;
-    default:
-      return <AlertTriangle className="h-4 w-4" />;
-  }
-};
-
-// 获取规则类型中文名
-const getRuleTypeName = (type: string) => {
-  switch (type) {
-    case "grade":
-      return "成绩";
-    case "attendance":
-      return "出勤";
-    case "homework":
-      return "作业";
-    case "participation":
-      return "参与度";
-    default:
-      return "其他";
-  }
-};
-
-// 风险等级颜色映射
-const riskLevelColors: Record<string, string> = {
-  high: "text-red-500 bg-red-50",
-  medium: "text-amber-500 bg-amber-50",
-  low: "text-blue-500 bg-blue-50"
-};
-
-// 风险等级中文名
-const riskLevelNames: Record<string, string> = {
-  high: "高风险",
-  medium: "中风险",
-  low: "低风险"
-};
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertTriangle, Plus, Trash2, Edit, RefreshCw } from "lucide-react";
+import { toast } from 'sonner';
+import { getWarningRules, createWarningRule, updateWarningRule, deleteWarningRule, WarningRule } from '@/services/warningService';
 
 const WarningRules = () => {
-  const [rules, setRules] = useState<WarningRule[]>(initialRules);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [editingRule, setEditingRule] = useState<WarningRule | null>(null);
+  const [rules, setRules] = useState<WarningRule[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedRule, setSelectedRule] = useState<WarningRule | null>(null);
   
-  // 新规则表单状态
-  const [newRule, setNewRule] = useState<Partial<WarningRule>>({
-    name: "",
-    type: "grade",
-    enabled: true,
-    conditions: {
-      threshold: 20,
-      operator: "gt",
-      value: 20,
-      unit: "%"
-    },
-    riskLevel: "medium",
-    description: ""
+  // 表单状态
+  const [ruleName, setRuleName] = useState('');
+  const [ruleDescription, setRuleDescription] = useState('');
+  const [ruleSeverity, setRuleSeverity] = useState<'low' | 'medium' | 'high'>('medium');
+  const [ruleConditions, setRuleConditions] = useState<any>({
+    type: '成绩',
+    threshold: 60,
+    operator: '<',
+    subject: '全部',
+    factors: []
   });
   
-  // 切换规则启用状态
-  const toggleRuleEnabled = (id: string) => {
-    setRules(rules.map(rule => 
-      rule.id === id ? { ...rule, enabled: !rule.enabled } : rule
-    ));
-  };
+  // 添加isMounted引用以防止内存泄漏
+  const isMounted = useRef(true);
   
-  // 删除规则
-  const deleteRule = (id: string) => {
-    setRules(rules.filter(rule => rule.id !== id));
-  };
+  // 组件卸载时清理
+  useEffect(() => {
+    fetchRules();
+    
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
   
-  // 编辑规则
-  const startEditRule = (rule: WarningRule) => {
-    setEditingRule(rule);
-    setNewRule(rule);
-    setIsAddDialogOpen(true);
+  // 获取预警规则
+  const fetchRules = async () => {
+    if (!isMounted.current) return;
+    
+    try {
+      setIsLoading(true);
+      const data = await getWarningRules();
+      
+      if (isMounted.current) {
+        setRules(data);
+      }
+    } catch (error) {
+      console.error('获取预警规则失败:', error);
+      if (isMounted.current) {
+        toast.error('获取预警规则失败');
+      }
+    } finally {
+      if (isMounted.current) {
+        setIsLoading(false);
+      }
+    }
   };
-  
-  // 保存规则
-  const saveRule = () => {
-    if (!newRule.name || !newRule.type || !newRule.description) {
-      return; // 表单验证
+
+  // 处理表单提交
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!ruleName.trim()) {
+      toast.error('规则名称不能为空');
+      return;
     }
     
-    const now = new Date().toISOString().split('T')[0];
+    const ruleData = {
+      name: ruleName,
+      description: ruleDescription,
+      severity: ruleSeverity,
+      conditions: ruleConditions,
+      is_active: true,
+      is_system: false,
+      created_by: null // 应该从认证系统获取当前用户ID
+    };
     
-    if (editingRule) {
-      // 更新现有规则
-      setRules(rules.map(rule => 
-        rule.id === editingRule.id ? 
-          { 
-            ...rule, 
-            ...newRule as WarningRule, 
-            lastModified: now 
-          } : rule
+    try {
+      if (isEditMode && selectedRule) {
+        await updateWarningRule(selectedRule.id, ruleData);
+      } else {
+        await createWarningRule(ruleData);
+      }
+      
+      // 刷新规则列表
+      await fetchRules();
+      
+      // 关闭对话框并重置表单
+      setIsDialogOpen(false);
+      resetForm();
+    } catch (error) {
+      console.error('保存规则失败:', error);
+      toast.error('保存规则失败');
+    }
+  };
+
+  // 处理删除规则
+  const handleDeleteRule = async (rule: WarningRule) => {
+    if (!confirm(`确定要删除规则 "${rule.name}" 吗?`)) {
+      return;
+    }
+    
+    try {
+      await deleteWarningRule(rule.id);
+      await fetchRules();
+      toast.success('规则已删除');
+    } catch (error) {
+      console.error('删除规则失败:', error);
+      toast.error('删除规则失败');
+    }
+  };
+
+  // 切换规则状态
+  const handleToggleActive = async (rule: WarningRule, active: boolean) => {
+    try {
+      await updateWarningRule(rule.id, { is_active: active });
+      
+      // 更新本地状态而不是重新获取
+      setRules(prev => prev.map(r => 
+        r.id === rule.id ? { ...r, is_active: active } : r
       ));
-    } else {
-      // 添加新规则
-      const newId = `r${Date.now()}`;
-      setRules([
-        ...rules, 
-        { 
-          id: newId,
-          ...newRule as WarningRule,
-          lastModified: now
-        }
-      ]);
+      
+      toast.success(`规则已${active ? '启用' : '禁用'}`);
+    } catch (error) {
+      console.error('更新规则状态失败:', error);
+      toast.error('更新规则状态失败');
     }
-    
-    // 重置表单并关闭对话框
-    setNewRule({
-      name: "",
-      type: "grade",
-      enabled: true,
-      conditions: {
-        threshold: 20,
-        operator: "gt",
-        value: 20,
-        unit: "%"
-      },
-      riskLevel: "medium",
-      description: ""
+  };
+
+  // 处理编辑规则
+  const handleEditRule = (rule: WarningRule) => {
+    setSelectedRule(rule);
+    setRuleName(rule.name);
+    setRuleDescription(rule.description || '');
+    setRuleSeverity(rule.severity);
+    setRuleConditions(rule.conditions);
+    setIsEditMode(true);
+    setIsDialogOpen(true);
+  };
+
+  // 处理创建新规则
+  const handleCreateRule = () => {
+    resetForm();
+    setIsEditMode(false);
+    setIsDialogOpen(true);
+  };
+
+  // 重置表单
+  const resetForm = () => {
+    setRuleName('');
+    setRuleDescription('');
+    setRuleSeverity('medium');
+    setRuleConditions({
+      type: '成绩',
+      threshold: 60,
+      operator: '<',
+      subject: '全部',
+      factors: []
     });
-    setEditingRule(null);
-    setIsAddDialogOpen(false);
+    setSelectedRule(null);
   };
-  
-  // 操作符号显示
-  const getOperatorDisplay = (operator: string) => {
-    switch (operator) {
-      case "lt": return "<";
-      case "gt": return ">";
-      case "eq": return "=";
-      default: return operator;
+
+  // 获取严重程度标签样式
+  const getSeverityBadge = (severity: string) => {
+    switch (severity) {
+      case 'high':
+        return <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">高</Badge>;
+      case 'medium':
+        return <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200">中</Badge>;
+      case 'low':
+        return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">低</Badge>;
+      default:
+        return <Badge variant="outline">未知</Badge>;
     }
   };
-  
+
   return (
     <Card>
       <CardHeader>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex justify-between items-start">
           <div>
             <CardTitle className="text-xl font-semibold flex items-center">
               <AlertTriangle className="h-5 w-5 text-amber-500 mr-2" />
-              预警规则设置
+              预警规则管理
             </CardTitle>
             <CardDescription>
-              创建和管理学生学习表现的预警规则，自定义预警条件和风险等级
+              配置学生预警规则，系统将根据这些规则自动识别风险学生
             </CardDescription>
           </div>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button 
-                onClick={() => {
-                  setEditingRule(null);
-                  setNewRule({
-                    name: "",
-                    type: "grade",
-                    enabled: true,
-                    conditions: {
-                      threshold: 20,
-                      operator: "gt",
-                      value: 20,
-                      unit: "%"
-                    },
-                    riskLevel: "medium",
-                    description: ""
-                  });
-                }}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                添加规则
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>{editingRule ? "编辑预警规则" : "添加预警规则"}</DialogTitle>
-                <DialogDescription>
-                  {editingRule 
-                    ? "修改预警规则的参数和触发条件" 
-                    : "创建新的预警规则以监测学生学习状态"}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="rule-name">规则名称</Label>
-                  <Input 
-                    id="rule-name" 
-                    placeholder="输入规则名称" 
-                    value={newRule.name || ""} 
-                    onChange={e => setNewRule({...newRule, name: e.target.value})}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="rule-type">规则类型</Label>
-                  <Select 
-                    value={newRule.type} 
-                    onValueChange={value => setNewRule({...newRule, type: value})}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="选择规则类型" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectLabel>数据类型</SelectLabel>
-                        <SelectItem value="grade">成绩</SelectItem>
-                        <SelectItem value="attendance">出勤</SelectItem>
-                        <SelectItem value="homework">作业</SelectItem>
-                        <SelectItem value="participation">课堂参与度</SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>触发条件</Label>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm text-muted-foreground min-w-[80px]">
-                      {newRule.type === "grade" ? "成绩变化" : 
-                       newRule.type === "attendance" ? "出勤率" :
-                       newRule.type === "homework" ? "作业完成率" : "参与度评分"}
-                    </p>
-                    <Select 
-                      value={newRule.conditions?.operator} 
-                      onValueChange={value => setNewRule({
-                        ...newRule, 
-                        conditions: {...newRule.conditions, operator: value as any}
-                      })}
-                      className="w-20"
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="lt">&lt;</SelectItem>
-                        <SelectItem value="gt">&gt;</SelectItem>
-                        <SelectItem value="eq">=</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <div className="flex-1">
-                      <Slider 
-                        value={[newRule.conditions?.value || 0]} 
-                        min={0} 
-                        max={100} 
-                        step={1}
-                        onValueChange={value => setNewRule({
-                          ...newRule, 
-                          conditions: {...newRule.conditions, value: value[0]}
-                        })}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchRules}
+              disabled={isLoading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
+              {isLoading ? '刷新中...' : '刷新'}
+            </Button>
+            <Button onClick={handleCreateRule}>
+              <Plus className="h-4 w-4 mr-1" />
+              新增规则
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>规则名称</TableHead>
+                <TableHead>严重程度</TableHead>
+                <TableHead>描述</TableHead>
+                <TableHead>条件</TableHead>
+                <TableHead className="w-[100px]">状态</TableHead>
+                <TableHead className="text-right">操作</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center">
+                    <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2" />
+                    <p>加载中...</p>
+                  </TableCell>
+                </TableRow>
+              ) : rules.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                    暂无预警规则
+                  </TableCell>
+                </TableRow>
+              ) : (
+                rules.map((rule) => (
+                  <TableRow key={rule.id}>
+                    <TableCell className="font-medium">{rule.name}</TableCell>
+                    <TableCell>{getSeverityBadge(rule.severity)}</TableCell>
+                    <TableCell className="max-w-[200px] truncate" title={rule.description || ''}>
+                      {rule.description || '无描述'}
+                    </TableCell>
+                    <TableCell className="max-w-[200px] truncate">
+                      {formatConditions(rule.conditions)}
+                    </TableCell>
+                    <TableCell>
+                      <Switch 
+                        checked={rule.is_active} 
+                        onCheckedChange={(checked) => handleToggleActive(rule, checked)}
+                        disabled={rule.is_system}
                       />
-                    </div>
-                    <div className="flex items-center gap-1 min-w-[60px]">
-                      <Input 
-                        type="number" 
-                        className="w-12 h-8 text-center p-1" 
-                        value={newRule.conditions?.value || 0}
-                        onChange={e => setNewRule({
-                          ...newRule, 
-                          conditions: {...newRule.conditions, value: Number(e.target.value)}
-                        })}
-                      />
-                      <span>%</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="risk-level">风险等级</Label>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end">
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => handleEditRule(rule)}
+                          disabled={rule.is_system}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => handleDeleteRule(rule)}
+                          disabled={rule.is_system}
+                          className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+
+      {/* 规则编辑对话框 */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[525px]">
+          <DialogHeader>
+            <DialogTitle>
+              {isEditMode ? '编辑预警规则' : '新增预警规则'}
+            </DialogTitle>
+            <DialogDescription>
+              配置预警规则，系统将根据这些规则自动识别风险学生
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="name">规则名称 *</Label>
+                <Input 
+                  id="name" 
+                  value={ruleName}
+                  onChange={(e) => setRuleName(e.target.value)}
+                  placeholder="例如：成绩不及格预警"
+                  required
+                />
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="description">规则描述</Label>
+                <Textarea 
+                  id="description"
+                  value={ruleDescription}
+                  onChange={(e) => setRuleDescription(e.target.value)}
+                  placeholder="描述预警规则的触发条件和含义"
+                  rows={3}
+                />
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="severity">严重程度</Label>
+                <Select 
+                  value={ruleSeverity} 
+                  onValueChange={(value: any) => setRuleSeverity(value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="选择严重程度" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="high">高风险</SelectItem>
+                    <SelectItem value="medium">中风险</SelectItem>
+                    <SelectItem value="low">低风险</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="grid gap-2">
+                <Label>预警类型</Label>
+                <Select 
+                  value={ruleConditions.type || '成绩'} 
+                  onValueChange={(value) => setRuleConditions({...ruleConditions, type: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="选择预警类型" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="成绩">成绩</SelectItem>
+                    <SelectItem value="作业">作业</SelectItem>
+                    <SelectItem value="出勤">出勤</SelectItem>
+                    <SelectItem value="行为">行为</SelectItem>
+                    <SelectItem value="参与度">参与度</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label>比较方式</Label>
                   <Select 
-                    value={newRule.riskLevel} 
-                    onValueChange={value => setNewRule({...newRule, riskLevel: value as any})}
+                    value={ruleConditions.operator || '<'}
+                    onValueChange={(value) => setRuleConditions({...ruleConditions, operator: value})}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="high">高风险</SelectItem>
-                      <SelectItem value="medium">中风险</SelectItem>
-                      <SelectItem value="low">低风险</SelectItem>
+                      <SelectItem value="<">小于</SelectItem>
+                      <SelectItem value="<=">小于等于</SelectItem>
+                      <SelectItem value=">">大于</SelectItem>
+                      <SelectItem value=">=">大于等于</SelectItem>
+                      <SelectItem value="=">等于</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="rule-desc">规则描述</Label>
+                <div className="grid gap-2">
+                  <Label>阈值</Label>
                   <Input 
-                    id="rule-desc" 
-                    placeholder="输入规则描述" 
-                    value={newRule.description || ""} 
-                    onChange={e => setNewRule({...newRule, description: e.target.value})}
+                    type="number"
+                    value={ruleConditions.threshold || 60}
+                    onChange={(e) => setRuleConditions({
+                      ...ruleConditions, 
+                      threshold: parseFloat(e.target.value)
+                    })}
                   />
                 </div>
-                
-                <div className="flex items-center space-x-2 pt-2">
-                  <Switch 
-                    id="rule-enabled" 
-                    checked={newRule.enabled} 
-                    onCheckedChange={checked => setNewRule({...newRule, enabled: checked})}
-                  />
-                  <Label htmlFor="rule-enabled">启用规则</Label>
-                </div>
               </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>取消</Button>
-                <Button onClick={saveRule}>保存</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <Accordion type="single" collapsible className="w-full">
-          {rules.map((rule) => (
-            <AccordionItem value={rule.id} key={rule.id} className="border-b border-gray-200 last:border-b-0">
-              <div className="flex items-center justify-between w-full p-4 hover:bg-gray-50 transition-colors rounded-t-lg">
-                <AccordionTrigger asChild>
-                  <div className="w-full">
-                    <div className="flex items-center space-x-3">
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <Switch
-                          checked={rule.enabled}
-                          onCheckedChange={() => toggleRuleEnabled(rule.id)}
-                          className="data-[state=checked]:bg-[#c0ff3f] data-[state=unchecked]:bg-gray-300"
-                        />
-                      </div>
-                      <div className="flex items-center text-sm font-medium text-gray-800">
-                        {getRuleTypeIcon(rule.type)}
-                        <span className="ml-2">{rule.name}</span>
-                      </div>
-                      <span className={`px-2 py-0.5 text-xs rounded-full ${riskLevelColors[rule.riskLevel] || 'bg-gray-100 text-gray-600'}`}>
-                        {riskLevelNames[rule.riskLevel] || '未知等级'}
-                      </span>
-                    </div>
-                    <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
-                  </div>
-                </AccordionTrigger>
-                <div className="flex items-center space-x-2 flex-shrink-0 ml-4">
-                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); startEditRule(rule); }} className="text-gray-500 hover:text-gray-700">
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); deleteRule(rule.id); }} className="text-red-500 hover:text-red-700">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+              
+              {ruleConditions.type === '成绩' && (
+                <div className="grid gap-2">
+                  <Label>学科</Label>
+                  <Select 
+                    value={ruleConditions.subject || '全部'}
+                    onValueChange={(value) => setRuleConditions({...ruleConditions, subject: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="全部">全部学科</SelectItem>
+                      <SelectItem value="语文">语文</SelectItem>
+                      <SelectItem value="数学">数学</SelectItem>
+                      <SelectItem value="英语">英语</SelectItem>
+                      <SelectItem value="物理">物理</SelectItem>
+                      <SelectItem value="化学">化学</SelectItem>
+                      <SelectItem value="生物">生物</SelectItem>
+                      <SelectItem value="历史">历史</SelectItem>
+                      <SelectItem value="地理">地理</SelectItem>
+                      <SelectItem value="政治">政治</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              </div>
-              <AccordionContent className="p-4 pt-0 bg-white rounded-b-lg">
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="text-sm font-medium">触发条件</h4>
-                    <p className="text-sm text-gray-600 mt-1">
-                      当{getRuleTypeName(rule.type)}
-                      {getOperatorDisplay(rule.conditions.operator)}
-                      {rule.conditions.value}{rule.conditions.unit} 时触发
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <h4 className="text-sm font-medium">规则描述</h4>
-                    <p className="text-sm text-gray-600 mt-1">{rule.description}</p>
-                  </div>
-                  
-                  <div>
-                    <h4 className="text-sm font-medium">最后修改时间</h4>
-                    <p className="text-sm text-gray-600 mt-1">{rule.lastModified}</p>
-                  </div>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-      </CardContent>
-      <CardFooter className="border-t pt-6 flex justify-between">
-        <div className="text-sm text-gray-500">
-          共 {rules.length} 条规则，{rules.filter(r => r.enabled).length} 条已启用
-        </div>
-        <Button variant="outline" size="sm">
-          <Save className="h-4 w-4 mr-2" />
-          导出规则
-        </Button>
-      </CardFooter>
+              )}
+            </div>
+            
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                取消
+              </Button>
+              <Button type="submit">
+                保存规则
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
+};
+
+// 格式化规则条件显示
+const formatConditions = (conditions: any): string => {
+  if (!conditions) return '未设置条件';
+  
+  try {
+    let result = `类型: ${conditions.type || '未指定'}, `;
+    
+    if (conditions.operator && conditions.threshold !== undefined) {
+      result += `条件: ${conditions.operator} ${conditions.threshold}`;
+    }
+    
+    if (conditions.type === '成绩' && conditions.subject) {
+      result += `, 科目: ${conditions.subject}`;
+    }
+    
+    if (conditions.factors && Array.isArray(conditions.factors) && conditions.factors.length > 0) {
+      result += `, 因素: ${conditions.factors.join(', ')}`;
+    }
+    
+    return result;
+  } catch (e) {
+    return JSON.stringify(conditions);
+  }
 };
 
 export default WarningRules;

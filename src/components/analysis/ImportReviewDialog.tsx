@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
 } from "@/components/ui/dialog";
@@ -9,9 +9,23 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, ArrowRight, CheckCircle, Loader2, Info, SearchCheck, Sparkles, FileText, UserCheck, Send, Eye, Lightbulb, XCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle, Loader2, Info, SearchCheck, Sparkles, FileText, UserCheck, Send, Eye, Lightbulb, XCircle, HelpCircle, AlertCircle, Check, ChevronsUpDown, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import SimplifiedExamForm from './SimplifiedExamForm';
 
 // Assuming ExamInfo is defined in a shared types file or passed appropriately
 // For now, defining it locally for clarity if not already globally available.
@@ -309,18 +323,33 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
   };
 
   const handleFinalConfirmAndImport = async () => {
-    if (!fileData || !userConfirmedMappings) {
-        toast.error("数据或映射不完整，无法导入");
-        return;
+    if (!editableExamInfo || !userConfirmedMappings || !fileData) {
+      console.error("Missing required data for import");
+      toast.error("缺少必要数据，无法导入");
+      return;
     }
-    console.log("[Dialog] Final import initiated. ExamInfo:", editableExamInfo, "Mappings:", userConfirmedMappings, "MergeChoice:", mergeChoice);
-    setIsImporting(true);
+
     try {
-      await onFinalImport(editableExamInfo!, userConfirmedMappings, mergeChoice, fileData.dataRows);
-      onOpenChange(false); // Close dialog on success (parent should show toast)
+      setIsImporting(true);
+      
+      await onFinalImport(
+        editableExamInfo,
+        userConfirmedMappings, 
+        mergeChoice,
+        fileData.dataRows
+      );
+
+      toast.success("数据导入成功！");
+      // 添加延迟，让成功提示显示后再关闭对话框
+      setTimeout(() => {
+        onOpenChange(false);
+      }, 500);
+      
     } catch (error) {
-      // Error already handled by parent's onFinalImport or toast shown there
-      console.error("Final import failed:", error);
+      console.error("Final import error:", error);
+      toast.error("导入失败", { 
+        description: error instanceof Error ? error.message : "未知错误" 
+      });
     } finally {
       setIsImporting(false);
     }
@@ -540,6 +569,30 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
         }));
     }
   };
+
+  // 添加学生匹配策略说明
+  const studentMatchingDescription = (
+    <div className="mb-4 bg-blue-50 p-4 rounded-md">
+      <div className="flex items-start gap-2">
+        <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+        <div>
+          <h4 className="font-medium text-blue-700 mb-1">智能学生匹配</h4>
+          <p className="text-sm text-blue-600">
+            系统会使用以下匹配策略自动识别学生信息，无需预处理原始数据文件：
+          </p>
+          <ol className="list-decimal ml-6 mt-2 text-sm text-blue-600">
+            <li>优先使用<strong>学号</strong>精确匹配</li>
+            <li>如果学号未匹配，尝试使用<strong>姓名+班级</strong>组合匹配</li>
+            <li>如果以上均失败，则尝试仅使用<strong>姓名</strong>匹配</li>
+            <li>对于无法匹配的学生，系统将自动创建新的学生记录</li>
+          </ol>
+          <p className="text-xs text-blue-500 mt-2">
+            您只需确保文件中包含姓名、学号、班级中的任意两项，系统就能自动完成匹配。
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 
   const renderStepContent = () => {
     switch (currentStep) {
@@ -814,49 +867,39 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
 
       case 3: // Student Information Merge
         return (
-          <div>
-            <h3 className="text-lg font-semibold mb-2">{UPDATED_STEPS[2].name}</h3>
-            <p className="text-sm text-gray-600 mb-4">{UPDATED_STEPS[2].description}</p>
-            {isCheckingStudents && (
-              <div className="flex items-center justify-center py-6">
-                <Loader2 size={24} className="animate-spin mr-2" /> 正在检查现有学生信息...
-              </div>
-            )}
-            {!isCheckingStudents && existingStudentsInfo && (
-              <>
-                {existingStudentsInfo.count > 0 ? (
-                  <div className="p-4 border rounded-md bg-blue-50 border-blue-200">
-                    <p className="text-blue-700 mb-3">
-                      <SearchCheck size={18} className="inline mr-2" />
-                      系统检测到 <strong>{existingStudentsInfo.count}</strong> 位可能已存在的学生。
-                    </p>
-                    <RadioGroup value={mergeChoice} onValueChange={setMergeChoice} className="space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="merge" id="merge-yes" />
-                        <Label htmlFor="merge-yes" className="font-normal">
-                          是的，将本次导入的成绩合并到这些已存在的学生记录中。
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="create_new" id="merge-no" />
-                        <Label htmlFor="merge-no" className="font-normal">
-                          不，为本次导入的所有记录创建新的学生信息（如果学号/姓名已存在，可能会产生重复记录）。
-                        </Label>
-                      </div>
-                    </RadioGroup>
+          <>
+            <DialogHeader className="mb-4">
+              <DialogTitle>学生信息合并策略</DialogTitle>
+              <DialogDescription>
+                请选择当发现记录与已有学生匹配时的处理方式
+              </DialogDescription>
+            </DialogHeader>
+            
+            {/* 添加学生匹配说明 */}
+            {studentMatchingDescription}
+            
+            <div className="mb-6">
+              {isCheckingStudents ? (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                  <p>正在检查学生信息匹配情况...</p>
+                </div>
+              ) : existingStudentsInfo ? (
+                <div className="bg-amber-50 p-4 rounded-md mb-6">
+                  <div className="flex items-start">
+                    <AlertCircle className="h-5 w-5 text-amber-500 mr-2 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-amber-800">已发现匹配的学生记录</h4>
+                      <p className="text-sm text-amber-700">
+                        系统检测到您的数据与 <strong>{existingStudentsInfo.count}</strong> 条现有学生记录匹配，
+                        请选择如何处理这些重复记录。
+                      </p>
+                    </div>
                   </div>
-                ) : (
-                  <div className="p-4 border rounded-md bg-green-50 border-green-200 text-green-700">
-                    <Info size={18} className="inline mr-2" />
-                    未检测到匹配的现有学生记录。本次导入将为所有学生创建新的学生信息。
-                  </div>
-                )}
-              </>
-            )}
-            {!isCheckingStudents && !existingStudentsInfo && (
-                <p className="text-sm text-gray-500 mt-4">学生信息检查服务似乎未配置或遇到问题。</p>
-            )}
-          </div>
+                </div>
+              ) : null}
+            </div>
+          </>
         );
 
       case 4: // Final Confirmation and Import

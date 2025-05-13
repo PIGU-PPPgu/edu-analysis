@@ -60,11 +60,11 @@ const DataPreview: React.FC<DataPreviewProps> = ({
         }}
       >
         <div style={{ width: `${tableWidth}px`, maxWidth: 'none' }}>
-          <FilePreviewTable 
-            data={data} 
-            headers={headers} 
-            mappings={mappings}
-          />
+      <FilePreviewTable 
+        data={data} 
+        headers={headers} 
+        mappings={mappings}
+      />
         </div>
         <ScrollBar orientation="horizontal" />
       </ScrollArea>

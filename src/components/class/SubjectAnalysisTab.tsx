@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, AlertTriangle, BookOpen, LineChart, BarChart2, BarChart4, PieChart } from "lucide-react";
+import { Loader2, AlertTriangle, BookOpen, LineChart, BarChart2, BarChart4, PieChart, RefreshCcw, ArrowLeft } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import {
   Select,
@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/select";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // 导入分析图表组件
 import SubjectPerformanceChart from "@/components/analysis/subject/SubjectPerformanceChart";
@@ -21,7 +23,7 @@ import SubjectTrendsChart from "@/components/analysis/subject/SubjectTrendsChart
 import SubjectKnowledgePoints from "@/components/analysis/subject/SubjectKnowledgePoints";
 import { Progress } from "@/components/ui/progress";
 
-// 更新接口定义，匹配从ClassManagement传入的参数
+// 更新接口定义，添加错误状态和刷新函数
 interface SubjectAnalysisTabProps {
   selectedClass: {
     id: string;
@@ -35,15 +37,22 @@ interface SubjectAnalysisTabProps {
     knowledgePoints: Record<string, any[]>;
   } | null;
   isLoading: boolean;
+  error?: string | null;
+  onRefresh?: () => void;
+  onBack?: () => void;
 }
 
 const SubjectAnalysisTab: React.FC<SubjectAnalysisTabProps> = ({
   selectedClass,
   data,
-  isLoading
+  isLoading,
+  error,
+  onRefresh,
+  onBack
 }) => {
   const [analysisTab, setAnalysisTab] = useState("performance");
   const [selectedSubject, setSelectedSubject] = useState<string>("");
+  const [lastSelectedSubject, setLastSelectedSubject] = useState<string>("");
   
   // 从数据中提取可用的学科列表
   const subjects = useMemo(() => {
@@ -67,8 +76,15 @@ const SubjectAnalysisTab: React.FC<SubjectAnalysisTabProps> = ({
   useEffect(() => {
     if (subjects.length > 0 && !selectedSubject) {
       setSelectedSubject(subjects[0].id);
+      setLastSelectedSubject(subjects[0].id);
     }
   }, [subjects, selectedSubject]);
+
+  // 当切换学科时保持当前的分析标签页状态
+  const handleSubjectChange = (newSubject: string) => {
+    setLastSelectedSubject(selectedSubject);
+    setSelectedSubject(newSubject);
+  };
 
   const currentSubjectName = useMemo(() => {
     return subjects.find(s => s.id === selectedSubject)?.name || "未选择学科";
@@ -100,11 +116,64 @@ const SubjectAnalysisTab: React.FC<SubjectAnalysisTabProps> = ({
     };
   }, [data, selectedSubject]);
 
+  // 如果有错误信息，显示错误状态
+  if (error) {
+    return (
+      <div className="text-center py-10 text-gray-500 dark:text-gray-400">
+        <AlertTriangle className="h-16 w-16 mx-auto mb-4 text-red-500" />
+        <p className="text-lg font-semibold">获取数据失败</p>
+        <p className="text-sm max-w-md mx-auto mb-4">
+          {error || "加载学科分析数据时出现错误，请稍后再试。"}
+        </p>
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={onRefresh}
+          className="mx-auto"
+        >
+          <RefreshCcw className="mr-2 h-4 w-4" />
+          重试
+        </Button>
+      </div>
+    );
+  }
+
+  // 改进加载状态，使用骨架屏
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-10">
-        <Loader2 className="h-8 w-8 animate-spin text-lime-500 mb-4" />
-        <p className="text-gray-500 dark:text-gray-400">正在加载学科数据...</p>
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
+          <div>
+            <Skeleton className="h-8 w-64 mb-2" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <Skeleton className="h-10 w-[180px]" />
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="col-span-2">
+            <CardHeader>
+              <Skeleton className="h-6 w-48 mb-2" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-80 w-full" />
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-32" />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Skeleton className="h-4 w-full mb-1" />
+              <Skeleton className="h-2 w-full mb-4" />
+              <Skeleton className="h-4 w-full mb-1" />
+              <Skeleton className="h-2 w-full mb-4" />
+              <Skeleton className="h-4 w-full mb-1" />
+              <Skeleton className="h-2 w-full" />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -149,26 +218,55 @@ const SubjectAnalysisTab: React.FC<SubjectAnalysisTabProps> = ({
     <div>
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight text-gray-800 dark:text-gray-100">
-              {selectedClass.name} 学科分析
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {selectedClass.grade || ''} - 学科详细数据与指标分析
-            </p>
+          <div className="flex items-center">
+            {onBack && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={onBack}
+                className="mr-2"
+              >
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                返回
+              </Button>
+            )}
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight text-gray-800 dark:text-gray-100">
+                {selectedClass.name} 学科分析
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {selectedClass.grade || ''} - 学科详细数据与指标分析
+              </p>
+            </div>
           </div>
-          <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="选择学科" />
-            </SelectTrigger>
-            <SelectContent>
-              {subjects.map((subject) => (
-                <SelectItem key={subject.id} value={subject.id}>
-                  {subject.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center space-x-2">
+            {onRefresh && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={onRefresh}
+                className="h-10"
+              >
+                <RefreshCcw className="h-4 w-4 mr-1" />
+                刷新
+              </Button>
+            )}
+            <Select 
+              value={selectedSubject} 
+              onValueChange={handleSubjectChange}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="选择学科" />
+              </SelectTrigger>
+              <SelectContent>
+                {subjects.map((subject) => (
+                  <SelectItem key={subject.id} value={subject.id}>
+                    {subject.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         
         <Tabs value={analysisTab} onValueChange={setAnalysisTab} className="w-full">

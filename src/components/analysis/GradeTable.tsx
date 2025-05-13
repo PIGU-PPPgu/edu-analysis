@@ -4,6 +4,11 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useGradeAnalysis } from "@/contexts/GradeAnalysisContext";
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { SearchIcon, Download, Filter, ArrowUpDown } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 interface GradeData {
   studentId: string;
@@ -15,6 +20,9 @@ interface GradeData {
   examTitle?: string;
   className?: string;
   id?: string;
+  rankInClass?: number;
+  rankInGrade?: number;
+  grade?: string;
 }
 
 interface Props {
@@ -32,6 +40,13 @@ const GradeTable: React.FC<Props> = ({
   const [tableData, setTableData] = useState<GradeData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const tableRef = useRef<HTMLDivElement>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [filter, setFilter] = useState<Record<string, string | null>>({
+    className: null,
+    subject: null
+  });
 
   useEffect(() => {
     // 如果有外部传入的数据或上下文中有数据，优先使用
@@ -131,6 +146,120 @@ const GradeTable: React.FC<Props> = ({
     }
   }, [showExamTitle, showClassName, tableData]);
 
+  // 从数据中获取可用的筛选选项
+  const getUniqueValues = (fieldName: string) => {
+    const values = [...new Set(tableData.map(item => item[fieldName]))].filter(Boolean);
+    return values.sort();
+  };
+  
+  // 处理排序
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('desc');
+    }
+  };
+  
+  // 应用排序和筛选
+  const filteredAndSortedData = () => {
+    // 先筛选
+    let result = tableData.filter(item => {
+      // 应用搜索词过滤
+      const searchFields = [item.studentId, item.name, item.className, item.subject].join(' ').toLowerCase();
+      const searchMatch = !searchTerm || searchFields.includes(searchTerm.toLowerCase());
+      
+      // 应用其他筛选条件
+      const classMatch = !filter.className || item.className === filter.className;
+      const subjectMatch = !filter.subject || item.subject === filter.subject;
+      
+      return searchMatch && classMatch && subjectMatch;
+    });
+    
+    // 再排序
+    if (sortColumn) {
+      result = [...result].sort((a, b) => {
+        const aValue = a[sortColumn];
+        const bValue = b[sortColumn];
+        
+        // 处理数字排序
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+          return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+        }
+        
+        // 处理字符串排序
+        const aString = String(aValue || '').toLowerCase();
+        const bString = String(bValue || '').toLowerCase();
+        
+        if (sortDirection === 'asc') {
+          return aString.localeCompare(bString);
+        } else {
+          return bString.localeCompare(aString);
+        }
+      });
+    }
+    
+    return result;
+  };
+  
+  // 处理CSV导出
+  const handleExportCSV = () => {
+    const rows = [
+      // 表头
+      ['学号', '姓名', '班级', '科目', '分数', '考试标题', '考试类型', '考试日期', '班级排名', '年级排名', '等级'],
+      // 数据行
+      ...tableData.map(row => [
+        row.studentId,
+        row.name,
+        row.className,
+        row.subject,
+        row.score,
+        row.examTitle || '',
+        row.examType || '',
+        row.examDate || '',
+        row.rankInClass || '',
+        row.rankInGrade || '',
+        row.grade || ''
+      ])
+    ];
+    
+    // 转换为CSV
+    const csvContent = rows
+      .map(row => row.map(cell => typeof cell === 'string' && cell.includes(',') ? `"${cell}"` : cell).join(','))
+      .join('\n');
+    
+    // 创建下载链接
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `成绩数据导出_${new Date().toISOString().split('T')[0]}.csv`);
+    link.click();
+  };
+  
+  // 获取排序箭头样式
+  const getSortIndicator = (column: string) => {
+    if (sortColumn !== column) {
+      return <ArrowUpDown className="ml-2 h-4 w-4 text-gray-400" />;
+    }
+    
+    return sortDirection === 'asc' 
+      ? <ArrowUpDown className="ml-2 h-4 w-4 text-black rotate-180" /> 
+      : <ArrowUpDown className="ml-2 h-4 w-4 text-black" />;
+  };
+  
+  // 获取分数等级样式
+  const getScoreBadgeVariant = (score: number) => {
+    if (score >= 90) return 'bg-green-100 text-green-800';
+    if (score >= 80) return 'bg-blue-100 text-blue-800';
+    if (score >= 70) return 'bg-yellow-100 text-yellow-800';
+    if (score >= 60) return 'bg-orange-100 text-orange-800';
+    return 'bg-red-100 text-red-800';
+  };
+  
+  const processedData = filteredAndSortedData();
+  
   return (
     <Card>
       <CardHeader>
@@ -143,64 +272,171 @@ const GradeTable: React.FC<Props> = ({
             <p className="text-gray-500">加载中...</p>
           </div>
         ) : (
-          <ScrollArea className="w-full rounded-md border">
-            <div ref={tableRef} style={{ minWidth: '100%' }}>
-              <Table>
-                <TableHeader className="bg-slate-50 sticky top-0 z-10">
-                  <TableRow>
-                    <TableHead style={{ width: '100px', minWidth: '100px' }} className="px-3">学号</TableHead>
-                    <TableHead style={{ width: '120px', minWidth: '120px' }} className="px-3">姓名</TableHead>
-                    {showClassName && (
-                      <TableHead style={{ width: '120px', minWidth: '120px' }} className="px-3">班级</TableHead>
-                    )}
-                    <TableHead style={{ width: '100px', minWidth: '100px' }} className="px-3">科目</TableHead>
-                    <TableHead style={{ width: '80px', minWidth: '80px' }} className="px-3">分数</TableHead>
-                    <TableHead style={{ width: '120px', minWidth: '120px' }} className="px-3">考试日期</TableHead>
-                    <TableHead style={{ width: '120px', minWidth: '120px' }} className="px-3">考试类型</TableHead>
-                    {showExamTitle && (
-                      <TableHead style={{ width: '200px', minWidth: '200px' }} className="px-3">考试标题</TableHead>
-                    )}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {tableData && tableData.length > 0 ? (
-                    tableData.map((item, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="font-mono px-3">{sanitizeData(item.studentId)}</TableCell>
-                        <TableCell className="px-3">{sanitizeData(item.name)}</TableCell>
-                        {showClassName && (
-                          <TableCell className="px-3">{sanitizeData(item.className || '-')}</TableCell>
-                        )}
-                        <TableCell className="px-3">{sanitizeData(item.subject)}</TableCell>
-                        <TableCell className="font-medium px-3">{sanitizeData(item.score)}</TableCell>
-                        <TableCell className="px-3">{item.examDate ? sanitizeData(item.examDate) : '-'}</TableCell>
-                        <TableCell className="px-3">{item.examType ? sanitizeData(item.examType) : '-'}</TableCell>
-                        {showExamTitle && (
-                          <TableCell className="px-3">
-                            <div style={{ 
-                              maxWidth: '200px', 
-                              overflow: 'hidden', 
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap'
-                            }} title={item.examTitle || '-'}>
-                              {item.examTitle ? sanitizeData(item.examTitle) : '-'}
-                            </div>
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={showExamTitle ? (showClassName ? 8 : 7) : (showClassName ? 7 : 6)} className="text-center py-4 text-gray-500">
-                        暂无数据
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1">
+                <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                <Input 
+                  placeholder="搜索学号、姓名或班级..." 
+                  className="pl-8"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              
+              <div className="flex gap-2">
+                <Select
+                  value={filter.className || ''}
+                  onValueChange={(value) => setFilter({ ...filter, className: value === '' ? null : value })}
+                >
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="班级筛选" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">全部班级</SelectItem>
+                    {getUniqueValues('className').map((className) => (
+                      <SelectItem key={className} value={className}>{className}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                <Select
+                  value={filter.subject || ''}
+                  onValueChange={(value) => setFilter({ ...filter, subject: value === '' ? null : value })}
+                >
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="科目筛选" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">全部科目</SelectItem>
+                    {getUniqueValues('subject').map((subject) => (
+                      <SelectItem key={subject} value={subject}>{subject}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                <Button variant="outline" onClick={handleExportCSV} className="flex items-center gap-1">
+                  <Download className="h-4 w-4" />
+                  导出
+                </Button>
+              </div>
             </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
+            
+            <div className="rounded-md border overflow-hidden">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-14">序号</TableHead>
+                      <TableHead className="w-32 cursor-pointer" onClick={() => handleSort('studentId')}>
+                        <div className="flex items-center">
+                          学号
+                          {getSortIndicator('studentId')}
+                        </div>
+                      </TableHead>
+                      <TableHead className="cursor-pointer" onClick={() => handleSort('name')}>
+                        <div className="flex items-center">
+                          姓名
+                          {getSortIndicator('name')}
+                        </div>
+                      </TableHead>
+                      <TableHead className="cursor-pointer" onClick={() => handleSort('className')}>
+                        <div className="flex items-center">
+                          班级
+                          {getSortIndicator('className')}
+                        </div>
+                      </TableHead>
+                      <TableHead className="cursor-pointer" onClick={() => handleSort('subject')}>
+                        <div className="flex items-center">
+                          科目
+                          {getSortIndicator('subject')}
+                        </div>
+                      </TableHead>
+                      <TableHead className="cursor-pointer text-right" onClick={() => handleSort('score')}>
+                        <div className="flex items-center justify-end">
+                          分数
+                          {getSortIndicator('score')}
+                        </div>
+                      </TableHead>
+                      {tableData.some(item => item.rankInClass) && (
+                        <TableHead className="text-right cursor-pointer" onClick={() => handleSort('rankInClass')}>
+                          <div className="flex items-center justify-end">
+                            班排名
+                            {getSortIndicator('rankInClass')}
+                          </div>
+                        </TableHead>
+                      )}
+                      {tableData.some(item => item.rankInGrade) && (
+                        <TableHead className="text-right cursor-pointer" onClick={() => handleSort('rankInGrade')}>
+                          <div className="flex items-center justify-end">
+                            年级排名
+                            {getSortIndicator('rankInGrade')}
+                          </div>
+                        </TableHead>
+                      )}
+                      {tableData.some(item => item.grade) && (
+                        <TableHead className="cursor-pointer" onClick={() => handleSort('grade')}>
+                          <div className="flex items-center">
+                            等级
+                            {getSortIndicator('grade')}
+                          </div>
+                        </TableHead>
+                      )}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {processedData.length > 0 ? (
+                      processedData.map((item, index) => (
+                        <TableRow key={`${item.studentId}-${item.subject}-${index}`}>
+                          <TableCell className="font-medium">{index + 1}</TableCell>
+                          <TableCell>{item.studentId}</TableCell>
+                          <TableCell>{item.name}</TableCell>
+                          <TableCell>{item.className}</TableCell>
+                          <TableCell>{item.subject}</TableCell>
+                          <TableCell className="text-right">
+                            <Badge className={getScoreBadgeVariant(item.score)}>
+                              {item.score}
+                            </Badge>
+                          </TableCell>
+                          {tableData.some(item => item.rankInClass) && (
+                            <TableCell className="text-right">{item.rankInClass || '-'}</TableCell>
+                          )}
+                          {tableData.some(item => item.rankInGrade) && (
+                            <TableCell className="text-right">{item.rankInGrade || '-'}</TableCell>
+                          )}
+                          {tableData.some(item => item.grade) && (
+                            <TableCell>{item.grade || '-'}</TableCell>
+                          )}
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell 
+                          colSpan={8 + 
+                            (tableData.some(item => item.rankInClass) ? 1 : 0) + 
+                            (tableData.some(item => item.rankInGrade) ? 1 : 0) + 
+                            (tableData.some(item => item.grade) ? 1 : 0)
+                          } 
+                          className="h-24 text-center"
+                        >
+                          暂无数据
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+            
+            <div className="flex justify-between text-sm text-gray-500">
+              <span>共 {processedData.length} 条记录</span>
+              <span>
+                {filter.className || filter.subject ? 
+                  `已筛选: ${filter.className ? `班级(${filter.className})` : ''} ${filter.subject ? `科目(${filter.subject})` : ''}` : 
+                  '显示全部数据'}
+              </span>
+            </div>
+          </div>
         )}
       </CardContent>
     </Card>

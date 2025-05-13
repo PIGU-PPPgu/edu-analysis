@@ -1,6 +1,29 @@
 import { supabase, checkTableExists as supabaseCheckTableExists } from '@/integrations/supabase/client';
 import type { ExamInfo } from '@/components/analysis/ImportReviewDialog';
 
+// 分析维度选项
+export const ANALYSIS_DIMENSIONS = [
+  { id: "class_name", name: "班级" },
+  { id: "subject", name: "科目" },
+  { id: "exam_date", name: "考试时间" },
+  { id: "exam_type", name: "考试类型" },
+  { id: "teacher", name: "任课教师" },
+  { id: "grade", name: "年级" },
+  { id: "score_level", name: "分数段" },
+  { id: "gender", name: "性别" }
+];
+
+// 分析指标选项
+export const ANALYSIS_METRICS = [
+  { id: "avg_score", name: "平均分" },
+  { id: "pass_rate", name: "及格率" },
+  { id: "excellence_rate", name: "优秀率" },
+  { id: "min_score", name: "最低分" },
+  { id: "max_score", name: "最高分" },
+  { id: "student_count", name: "学生人数" },
+  { id: "standard_deviation", name: "标准差" }
+];
+
 export interface GradeData {
   id?: string;
   student_id: string;
@@ -90,9 +113,92 @@ const safeQuery = async (tableName: string, queryFn: () => Promise<any>) => {
   }
 };
 
+/**
+ * 根据提供的学生信息智能匹配学生
+ * 匹配规则：
+ * 1. 优先使用学号匹配
+ * 2. 如果无法使用学号匹配，尝试使用姓名+班级匹配
+ * 3. 如果以上都不行，尝试仅使用姓名匹配（可能返回多个结果）
+ */
+const matchStudent = async (studentInfo: {
+  student_id?: string;
+  name?: string;
+  class_name?: string;
+}): Promise<{ 
+  matchedStudent: any | null; 
+  multipleMatches: boolean;
+  matchType: 'id' | 'name_class' | 'name' | 'none';
+}> => {
+  try {
+    // 如果有学号，优先使用学号匹配
+    if (studentInfo.student_id) {
+      const { data } = await supabase
+        .from('students')
+        .select('*')
+        .eq('student_id', studentInfo.student_id)
+        .limit(1);
+      
+      if (data && data.length > 0) {
+        return {
+          matchedStudent: data[0],
+          multipleMatches: false,
+          matchType: 'id'
+        };
+      }
+    }
+    
+    // 如果有姓名和班级，使用姓名+班级匹配
+    if (studentInfo.name && studentInfo.class_name) {
+      const { data } = await supabase
+        .from('students')
+        .select('*')
+        .eq('name', studentInfo.name)
+        .eq('class_name', studentInfo.class_name);
+      
+      if (data && data.length > 0) {
+        return {
+          matchedStudent: data[0],
+          multipleMatches: data.length > 1,
+          matchType: 'name_class'
+        };
+      }
+    }
+    
+    // 如果只有姓名，尝试仅通过姓名匹配，但可能会有多个结果
+    if (studentInfo.name) {
+      const { data } = await supabase
+        .from('students')
+        .select('*')
+        .eq('name', studentInfo.name);
+      
+      if (data && data.length > 0) {
+        return {
+          matchedStudent: data[0], // 返回第一个匹配的学生
+          multipleMatches: data.length > 1,
+          matchType: 'name'
+        };
+      }
+    }
+    
+    // 没有找到匹配的学生
+    return {
+      matchedStudent: null,
+      multipleMatches: false,
+      matchType: 'none'
+    };
+  } catch (error) {
+    console.error('匹配学生信息失败:', error);
+    return {
+      matchedStudent: null,
+      multipleMatches: false,
+      matchType: 'none'
+    };
+  }
+};
+
 export const gradeAnalysisService = {
   /**
-   * 保存考试数据
+   * 保存考试数据，使用增强的学生匹配逻辑
    */
   async saveExamData(
     processedData: Record<string, any>[],
@@ -103,6 +209,7 @@ export const gradeAnalysisService = {
       // 检查必要的表是否存在
       const examsTableExists = await checkTableExists('exams');
       const gradeDataTableExists = await checkTableExists('grade_data');
+      const studentsTableExists = await checkTableExists('students');
       
       if (!examsTableExists || !gradeDataTableExists) {
         throw new Error(`数据表缺失: ${!examsTableExists ? 'exams' : ''} ${!gradeDataTableExists ? 'grade_data' : ''} 表不存在`);
@@ -130,14 +237,75 @@ export const gradeAnalysisService = {
       // 获取考试ID
       const examId = examRecord?.[0]?.id;
       if (!examId) throw new Error('考试保存失败');
+      
+      // 2. 对每条记录执行智能学生匹配
+      const matchResults = [];
+      const gradeDataWithExamId = [];
+      
+      for (const item of processedData) {
+        // 准备用于匹配的学生信息
+        const studentInfo = {
+          student_id: item.student_id,
+          name: item.name,
+          class_name: item.class_name
+        };
+        
+        // 执行匹配
+        const { matchedStudent, multipleMatches, matchType } = await matchStudent(studentInfo);
+        
+        // 根据匹配结果处理数据
+        const gradeRecord: Record<string, any> = {
+          ...item,
+          exam_id: examId,
+          match_type: matchType,
+          multiple_matches: multipleMatches
+        };
+        
+        // 如果匹配到了学生，使用系统中的学生信息
+        if (matchedStudent) {
+          gradeRecord.student_id = matchedStudent.student_id;
+          gradeRecord.name = matchedStudent.name;
+          gradeRecord.class_name = matchedStudent.class_name;
+          // 添加其他可能的学生信息字段
+          if (matchedStudent.grade) gradeRecord.grade = matchedStudent.grade;
+          if (matchedStudent.school_id) gradeRecord.school_id = matchedStudent.school_id;
+        }
+        // 如果没有匹配到学生但studentsTableExists为真，尝试自动创建学生记录
+        else if (studentsTableExists && studentInfo.name && (studentInfo.student_id || studentInfo.class_name)) {
+          // 创建新学生记录
+          const newStudent = {
+            name: studentInfo.name,
+            student_id: studentInfo.student_id || `ST${Date.now()}${Math.floor(Math.random() * 1000)}`,
+            class_name: studentInfo.class_name || '未知班级',
+            created_at: new Date().toISOString(),
+            source: 'auto_import'
+          };
+          
+          const { data: createdStudent, error: createError } = await supabase
+            .from('students')
+            .insert([newStudent])
+            .select();
+            
+          if (!createError && createdStudent && createdStudent.length > 0) {
+            gradeRecord.student_id = createdStudent[0].student_id;
+            gradeRecord.name = createdStudent[0].name;
+            gradeRecord.class_name = createdStudent[0].class_name;
+            console.log(`已自动创建学生记录: ${createdStudent[0].name}`);
+          } else {
+            console.warn('自动创建学生记录失败:', createError);
+          }
+        }
+        
+        matchResults.push({
+          originalInfo: studentInfo,
+          matchType,
+          multipleMatches
+        });
+        
+        gradeDataWithExamId.push(gradeRecord);
+      }
 
-      // 2. 保存成绩数据
-      const gradeDataWithExamId = processedData.map(item => ({
-        ...item,
-        exam_id: examId
-      }));
-
-      // 根据不同合并策略处理数据
+      // 3. 根据不同合并策略处理数据
       let result;
       
       if (mergeStrategy === 'replace') {
@@ -175,7 +343,23 @@ export const gradeAnalysisService = {
 
       if (result?.error) throw result.error;
       
-      return { success: true, examId, count: processedData.length, error: null };
+      // 返回结果中包含匹配统计信息
+      const matchStats = {
+        total: matchResults.length,
+        matchedById: matchResults.filter(r => r.matchType === 'id').length,
+        matchedByNameAndClass: matchResults.filter(r => r.matchType === 'name_class').length,
+        matchedByNameOnly: matchResults.filter(r => r.matchType === 'name').length,
+        noMatch: matchResults.filter(r => r.matchType === 'none').length,
+        multipleMatches: matchResults.filter(r => r.multipleMatches).length
+      };
+      
+      return { 
+        success: true, 
+        examId, 
+        count: processedData.length, 
+        matchStats,
+        error: null 
+      };
     } catch (error) {
       console.error('保存成绩数据失败:', error);
       return { success: false, error };
@@ -1060,5 +1244,85 @@ export const gradeAnalysisService = {
         message: '初始化数据库表失败，请手动执行SQL脚本。' 
       };
     }
-  }
+  },
+
+  /**
+   * 获取交叉分析数据
+   * @param rowDimension 行维度
+   * @param colDimension 列维度
+   * @param metric 分析指标
+   */
+  getCrossDimensionData: async (rowDimension: string, colDimension: string, metric: string) => {
+    try {
+      // 这里可以替换为实际的API调用
+      // const response = await fetch('/api/analysis/cross-dimension', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ rowDimension, colDimension, metric })
+      // });
+      // const data = await response.json();
+      // return data;
+      
+      // 目前使用模拟数据
+      return gradeAnalysisService.generateMockCrossDimensionData(rowDimension, colDimension, metric);
+    } catch (error) {
+      console.error("获取交叉维度分析数据失败:", error);
+      throw new Error("获取交叉维度分析数据失败");
+    }
+  },
+
+  /**
+   * 生成模拟的交叉分析数据
+   */
+  generateMockCrossDimensionData: (rowField: string, colField: string, valueField: string) => {
+    const mockData = [];
+    const rowValues = ['高一(1)班', '高一(2)班', '高一(3)班', '高二(1)班', '高二(2)班'];
+    const colValues = {
+      'subject': ['语文', '数学', '英语', '物理', '化学', '生物'],
+      'exam_type': ['期中考试', '期末考试', '单元测试', '模拟考试'],
+      'teacher': ['李老师', '王老师', '张老师', '刘老师', '赵老师'],
+      'exam_date': ['2023-09', '2023-10', '2023-11', '2023-12', '2024-01'],
+      'class_name': ['高一(1)班', '高一(2)班', '高一(3)班', '高二(1)班', '高二(2)班'],
+    };
+    
+    // 使用实际的列维度值，如果不存在则使用默认值
+    const actualRowValues = rowField in colValues ? colValues[rowField] : rowValues;
+    const actualColValues = colField in colValues ? colValues[colField] : ['选项1', '选项2', '选项3'];
+    
+    // 为每个行列组合生成数据
+    actualRowValues.forEach(row => {
+      actualColValues.forEach(col => {
+        let value;
+        
+        // 根据指标类型生成不同范围的随机值
+        switch(valueField) {
+          case 'avg_score':
+            value = 60 + Math.random() * 30; // 60-90 之间的随机分数
+            break;
+          case 'pass_rate':
+            value = 0.6 + Math.random() * 0.4; // 60%-100% 之间的随机通过率
+            break;
+          case 'excellence_rate':
+            value = Math.random() * 0.5; // 0-50% 之间的随机优秀率
+            break;
+          case 'min_score':
+            value = 40 + Math.random() * 30; // 40-70 之间的随机最低分
+            break;
+          case 'max_score':
+            value = 85 + Math.random() * 15; // 85-100 之间的随机最高分
+            break;
+          default:
+            value = Math.random() * 100;
+        }
+        
+        mockData.push({
+          [rowField]: row,
+          [colField]: col,
+          [valueField]: value
+        });
+      });
+    });
+    
+    return mockData;
+  },
 }; 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { generateStudentDataset } from '@/services/mockDataService';
+import { toast } from 'sonner';
 import { 
   generateBatchWarnings, 
   aggregateRiskFactors 
@@ -53,6 +54,9 @@ const AssociationAnalysis: React.FC<AssociationAnalysisProps> = ({ className }) 
   >([]);
   const [selectedMetric, setSelectedMetric] = useState<string>('examAverage');
   
+  // 添加组件挂载状态ref
+  const isMountedRef = useRef(true);
+  
   // 指标名称映射
   const metricLabels: Record<string, string> = {
     'examAverage': '考试平均分',
@@ -64,17 +68,22 @@ const AssociationAnalysis: React.FC<AssociationAnalysisProps> = ({ className }) 
   
   // 生成分析数据
   const generateAnalysisData = async () => {
+    // 如果组件已卸载，则不执行任何操作
+    if (!isMountedRef.current) return;
+    
     setIsLoading(true);
     
     try {
       // 模拟API调用延迟
       await new Promise(resolve => setTimeout(resolve, 800));
+      if (!isMountedRef.current) return;
       
       // 生成模拟数据
       const students = generateStudentDataset(150);
       
       // 生成预警结果
       const warnings = generateBatchWarnings(students);
+      if (!isMountedRef.current) return;
       
       // 生成关联规则
       // 方法1：基于原始学生数据生成事件交易记录
@@ -84,13 +93,16 @@ const AssociationAnalysis: React.FC<AssociationAnalysisProps> = ({ className }) 
       
       // 合并两种交易记录
       const combinedTransactions = [...transactions, ...warningTransactions];
+      if (!isMountedRef.current) return;
       
       // 应用Apriori算法挖掘规则
       const rules = generateAssociationRules(combinedTransactions, 0.1, 0.6);
       
       // 格式化关联规则
       const formattedRules = formatRulesAsWarnings(rules);
-      setAssociationRules(formattedRules);
+      if (isMountedRef.current) {
+        setAssociationRules(formattedRules);
+      }
       
       // 计算各指标之间的相关性
       const availableMetrics = [
@@ -103,6 +115,7 @@ const AssociationAnalysis: React.FC<AssociationAnalysisProps> = ({ className }) 
       
       // 生成相关性矩阵
       const correlationMatrix = createCorrelationMatrix(students, availableMetrics);
+      if (!isMountedRef.current) return;
       
       // 转换为可读格式
       const processedCorrelations: Array<{
@@ -137,18 +150,32 @@ const AssociationAnalysis: React.FC<AssociationAnalysisProps> = ({ className }) 
       
       // 按相关性强度排序
       processedCorrelations.sort((a, b) => Math.abs(b.correlation) - Math.abs(a.correlation));
-      setCorrelations(processedCorrelations);
+      if (isMountedRef.current) {
+        setCorrelations(processedCorrelations);
+      }
       
     } catch (error) {
       console.error('生成关联分析数据时出错:', error);
+      if (isMountedRef.current) {
+        toast.error("数据分析失败", { 
+          description: "生成关联分析数据出错，请稍后重试" 
+        });
+      }
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   };
   
-  // 组件加载时生成数据
+  // 组件加载时生成数据，卸载时清理
   useEffect(() => {
     generateAnalysisData();
+    
+    // 返回清理函数
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
   
   // 刷新分析数据

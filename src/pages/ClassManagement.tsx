@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Navbar from "@/components/shared/Navbar";
 import { Button } from "@/components/ui/button";
@@ -61,6 +61,14 @@ interface SubjectAnalysisData {
   knowledgePoints: Record<string, any[]>;
 }
 
+// 定义缓存类型
+interface DataCache {
+  subjectAnalysis: Record<string, {
+    data: SubjectAnalysisData | null;
+    timestamp: number;
+  }>;
+}
+
 const ClassManagement: React.FC = () => {
   const navigate = useNavigate();
   const [selectedTab, setSelectedTab] = useState("overview");
@@ -82,6 +90,17 @@ const ClassManagement: React.FC = () => {
   // 新增 - 学科分析数据状态
   const [subjectAnalysisData, setSubjectAnalysisData] = useState<SubjectAnalysisData | null>(null);
   const [subjectAnalysisLoading, setSubjectAnalysisLoading] = useState(false);
+
+  // 添加数据缓存机制
+  const dataCache = useRef<DataCache>({
+    subjectAnalysis: {}
+  });
+  
+  // 缓存过期时间（10分钟）
+  const CACHE_EXPIRY = 10 * 60 * 1000;
+
+  // 添加错误状态
+  const [subjectAnalysisError, setSubjectAnalysisError] = useState<string | null>(null);
 
   // 获取班级列表
   const fetchClasses = async () => {
@@ -115,30 +134,69 @@ const ClassManagement: React.FC = () => {
     }
   };
 
-  // 获取学科分析数据
-  const fetchSubjectAnalysisData = async (classId: string) => {
+  // 获取学科分析数据 - 再次优化版本
+  const fetchSubjectAnalysisData = async (classId: string, forceRefresh = false) => {
     if (!classId) return;
     
     setSubjectAnalysisLoading(true);
+    setSubjectAnalysisError(null); // 重置错误状态
+    
+    // 检查缓存
+    const cachedData = dataCache.current.subjectAnalysis[classId];
+    const now = Date.now();
+    
+    if (!forceRefresh && cachedData && (now - cachedData.timestamp < CACHE_EXPIRY)) {
+      // 使用缓存数据
+      setSubjectAnalysisData(cachedData.data);
+      setSubjectAnalysisLoading(false);
+      return;
+    }
+    
     try {
       const data = await getSubjectAnalysisData(classId);
+      
+      // 更新缓存
+      dataCache.current.subjectAnalysis[classId] = {
+        data,
+        timestamp: now
+      };
+      
       setSubjectAnalysisData(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('获取学科分析数据失败:', error);
+      setSubjectAnalysisError(error?.message || '数据加载失败');
       toast.error('获取学科分析数据失败');
-      setSubjectAnalysisData(null);
+      // 保留以前的数据，如果有的话
+      if (!forceRefresh && cachedData) {
+        setSubjectAnalysisData(cachedData.data);
+      } else {
+        setSubjectAnalysisData(null);
+      }
     } finally {
       setSubjectAnalysisLoading(false);
     }
+  };
+
+  // 处理刷新学科数据
+  const handleRefreshSubjectData = () => {
+    if (selectedClass) {
+      fetchSubjectAnalysisData(selectedClass.id, true);
+    }
+  };
+  
+  // 处理返回总览
+  const handleBackToOverview = () => {
+    setSelectedTab("overview");
   };
 
   useEffect(() => {
     fetchClasses();
   }, []);
   
-  // 当选中的班级改变或者切换到学科分析标签页时，获取学科分析数据
+  // 修改标签页切换效果，保持缓存数据状态
   useEffect(() => {
     if (selectedClass && selectedTab === 'subject-analysis') {
+      // 切换到学科分析标签页时，确保数据加载
       fetchSubjectAnalysisData(selectedClass.id);
     }
   }, [selectedClass, selectedTab]);
@@ -190,7 +248,42 @@ const ClassManagement: React.FC = () => {
   const handleClassClick = (classItem: Class) => {
     setSelectedClass(classItem);
     setSelectedTab("overview");
+    
+    // 预加载学科分析数据
+    preloadSubjectAnalysisData(classItem.id);
   };
+
+  // 预加载数据函数
+  const preloadSubjectAnalysisData = useCallback(async (classId: string) => {
+    // 检查缓存
+    const cachedData = dataCache.current.subjectAnalysis[classId];
+    const now = Date.now();
+    
+    if (cachedData && (now - cachedData.timestamp < CACHE_EXPIRY)) {
+      // 使用缓存数据
+      setSubjectAnalysisData(cachedData.data);
+      return;
+    }
+    
+    // 无缓存或缓存过期，静默加载数据
+    try {
+      const data = await getSubjectAnalysisData(classId);
+      
+      // 更新缓存
+      dataCache.current.subjectAnalysis[classId] = {
+        data,
+        timestamp: now
+      };
+      
+      // 只有在当前选中的班级匹配时才更新状态
+      if (selectedClass?.id === classId) {
+        setSubjectAnalysisData(data);
+      }
+    } catch (error) {
+      console.error('预加载学科分析数据失败:', error);
+      // 静默失败，不显示错误提示，等用户实际切换到对应标签页时再处理
+    }
+  }, [selectedClass]);
 
   // 处理查看学生
   const handleViewStudents = (classId: string, className: string) => {
@@ -389,6 +482,9 @@ const ClassManagement: React.FC = () => {
                     selectedClass={selectedClass}
                     data={subjectAnalysisData}
                     isLoading={subjectAnalysisLoading}
+                    error={subjectAnalysisError}
+                    onRefresh={handleRefreshSubjectData}
+                    onBack={handleBackToOverview}
                   />
                 </CardContent>
               </Card>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -26,6 +26,20 @@ interface SubjectPerformanceChartProps {
 }
 
 const SubjectPerformanceChart: React.FC<SubjectPerformanceChartProps> = ({ data, subjectName }) => {
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+  // 添加窗口大小监听
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
   if (!data || data.length === 0) {
     return <div className="flex items-center justify-center h-64 text-gray-500">暂无{subjectName}学科成绩数据</div>;
   }
@@ -38,6 +52,9 @@ const SubjectPerformanceChart: React.FC<SubjectPerformanceChartProps> = ({ data,
     { range: "80-89", count: 0 },
     { range: "90-100", count: 0 },
   ];
+
+  // 针对不同屏幕尺寸调整图表配置
+  const isMobile = windowWidth < 768;
 
   const chartData = {
     labels: scoreRanges.map(range => range.range),
@@ -70,10 +87,14 @@ const SubjectPerformanceChart: React.FC<SubjectPerformanceChartProps> = ({ data,
     plugins: {
       legend: {
         position: 'top' as const,
+        display: !isMobile, // 在移动设备上隐藏图例
       },
       title: {
         display: true,
         text: `${subjectName}成绩分布`,
+        font: {
+          size: isMobile ? 14 : 16, // 移动设备上减小字体
+        }
       },
       tooltip: {
         callbacks: {
@@ -91,14 +112,24 @@ const SubjectPerformanceChart: React.FC<SubjectPerformanceChartProps> = ({ data,
       y: {
         beginAtZero: true,
         title: {
-          display: true,
+          display: !isMobile, // 在移动设备上隐藏轴标题
           text: '学生人数'
+        },
+        ticks: {
+          font: {
+            size: isMobile ? 10 : 12, // 移动设备上减小刻度字体
+          }
         }
       },
       x: {
         title: {
-          display: true,
+          display: !isMobile, // 在移动设备上隐藏轴标题
           text: '分数区间'
+        },
+        ticks: {
+          font: {
+            size: isMobile ? 10 : 12, // 移动设备上减小刻度字体
+          }
         }
       }
     }

@@ -7,16 +7,26 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import IntelligentFileParser, { IntelligentFileParserProps } from "@/components/analysis/IntelligentFileParser";
 import StudentDataImporter from "@/components/analysis/StudentDataImporter";
-import { FileText, Users, Loader2, List } from "lucide-react";
+import { FileText, Users, Loader2, List, BarChart3, ListFilter, Download, FileSpreadsheet, FileInput, ChartPieIcon, BarChart2, AlertCircle, Grid } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ImportReviewDialog from "@/components/analysis/ImportReviewDialog";
 import { gradeAnalysisService, MergeStrategy } from "@/services/gradeAnalysisService";
+import CrossDimensionAnalysisPanel from "@/components/analysis/CrossDimensionAnalysisPanel";
+import AnomalyDetection from "@/components/analysis/AnomalyDetection";
+import GradeCorrelationMatrix from "@/components/analysis/GradeCorrelationMatrix";
+import ClassBoxPlotChart from "@/components/analysis/ClassBoxPlotChart";
+import StudentSubjectContribution from "@/components/analysis/StudentSubjectContribution";
 import type { 
     FileDataForReview as ReviewDialogFileData, 
     ExamInfo as ReviewDialogExamInfo, 
     AIParseResult, 
     ExistingStudentCheckResult 
 } from "@/components/analysis/ImportReviewDialog"; // Assuming types are exported from dialog
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
+import { Progress } from '@/components/ui/progress';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import GradeImporter from '@/components/analysis/GradeImporter';
+import SimpleGradeTable from '@/components/analysis/SimpleGradeTable';
 
 // Define standard system fields for mapping - customize as needed
 const STANDARD_SYSTEM_FIELDS: Record<string, string> = {
@@ -197,6 +207,11 @@ const Index = () => {
   const [examInfoForReview, setExamInfoForReview] = useState<ReviewDialogExamInfo | null>(null);
   const [processingFileInfo, setProcessingFileInfo] = useState<{name: string, size: number} | null>(null); // For initial dialog display
 
+  // 整合GradeDataImport的状态
+  const [gradesActiveTab, setGradesActiveTab] = useState('import');
+  const [importedData, setImportedData] = useState<any[]>([]);
+  const [isAnalysisLoading, setIsAnalysisLoading] = useState(false);
+  
   // Mock implementation for onSuggestFieldMapping (for ImportReviewDialog)
   const handleSuggestFieldMapping = async (header: string, sampleData: any[]) => {
     console.log(`Dialog: Requesting AI suggestion for header: "${header}"`, "Sample data:", sampleData.slice(0,5));
@@ -252,12 +267,34 @@ const Index = () => {
     }
   }, [isAuthReady]);
 
+  // 处理成绩分析跳转
+  const handleGoToAnalysis = () => {
+    setIsAnalysisLoading(true);
+    
+    // 模拟加载过程
+    setTimeout(() => {
+      navigate('/grade-analysis');
+      setIsAnalysisLoading(false);
+    }, 800);
+  };
+
   // Renamed and updated for the new dialog flow
   const handleGradeDataImportedSuccessfully = (importedDataCount: number) => {
     toast.success("数据导入成功", {
       description: `已成功导入 ${importedDataCount} 条记录`
     });
+    setGradesActiveTab('preview'); // 切换到预览标签
     navigate("/grade-analysis"); 
+  };
+
+  // 整合GradeDataImport的处理函数
+  const handleGradeDataImported = (data: any[]) => {
+    setImportedData(data);
+    setGradesActiveTab('preview');
+    
+    toast.success('数据导入成功', {
+      description: `已成功导入 ${data.length} 条成绩记录`
+    });
   };
 
   const handleStudentDataImported = (data: any[]) => {
@@ -525,7 +562,9 @@ const Index = () => {
         description: `已导入 ${result.count} 条记录`,
         id: "final-import"
       });
-      handleGradeDataImportedSuccessfully(result.count);
+      
+      // 设置导入的数据
+      setImportedData(processedData);
       
       // 关闭对话框并重置状态
       setIsReviewDialogOpen(false);
@@ -533,6 +572,9 @@ const Index = () => {
       setInitialMappingsForReview(null);
       setExamInfoForReview(null);
       setProcessingFileInfo(null);
+      
+      // 切换到预览标签
+      setGradesActiveTab('preview');
     } catch (error) {
       console.error("Final import error:", error);
       toast.error("最终导入失败", { 
@@ -558,7 +600,7 @@ const Index = () => {
         <h1 className="text-3xl font-bold mb-2">数据导入中心</h1>
         <p className="text-gray-500 mb-8">导入和管理学生信息与成绩数据</p>
         
-        <Tabs defaultValue="grades" className="w-full"> {/* Changed default to grades for testing */}
+        <Tabs defaultValue="students" className="w-full">
           <TabsList className="mb-6 bg-white border shadow-sm">
             <TabsTrigger value="students" className="gap-2 data-[state=active]:bg-[#F2FCE2]">
               <Users className="h-4 w-4" />
@@ -612,10 +654,239 @@ const Index = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <IntelligentFileParser 
-                    onFileParsedForReview={handleFileParsedForReview} 
-                    onImportIntent={handleImportIntent}
-                  />
+                  {/* 集成GradeDataImport的内容 - 嵌套Tabs */}
+                  <Tabs defaultValue="import" className="w-full" onValueChange={setGradesActiveTab} value={gradesActiveTab}>
+                    <TabsList className="mb-6 w-full justify-start">
+                      <TabsTrigger value="import" className="flex items-center gap-1">
+                        <FileInput className="h-4 w-4" />
+                        <span>数据导入</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="preview" className="flex items-center gap-1">
+                        <ListFilter className="h-4 w-4" />
+                        <span>数据预览</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="analysis" className="flex items-center gap-1">
+                        <BarChart2 className="h-4 w-4" />
+                        <span>交叉分析</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="detection" className="flex items-center gap-1">
+                        <AlertCircle className="h-4 w-4" />
+                        <span>异常检测</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="correlation" className="flex items-center gap-1">
+                        <Grid className="h-4 w-4" />
+                        <span>科目相关性</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="boxplot" className="flex items-center gap-1">
+                        <BarChart3 className="h-4 w-4" />
+                        <span>班级箱线图</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="contribution" className="flex items-center gap-1">
+                        <ChartPieIcon className="h-4 w-4" />
+                        <span>贡献度分析</span>
+                      </TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="import">
+                      <div className="grid grid-cols-1 gap-6">
+                        <Alert className="bg-blue-50 border-blue-200">
+                          <FileSpreadsheet className="h-4 w-4 text-blue-500" />
+                          <AlertTitle className="text-blue-700">成绩数据导入说明</AlertTitle>
+                          <AlertDescription className="text-blue-600">
+                            <p className="mb-2">您可以通过以下方式导入成绩数据：</p>
+                            <ol className="list-decimal ml-6 space-y-1">
+                              <li>上传Excel或CSV格式的成绩数据文件</li>
+                              <li>复制粘贴表格数据</li>
+                              <li>手动添加单条成绩记录</li>
+                            </ol>
+                            <p className="mt-2 text-sm">导入前可下载模板文件，按照模板格式填写数据</p>
+                          </AlertDescription>
+                        </Alert>
+                        
+                        {/* 使用GradeImporter组件，提供更完整的导入体验 */}
+                        <GradeImporter onDataImported={handleGradeDataImported} />
+                      </div>
+                    </TabsContent>
+                    
+                    <TabsContent value="preview">
+                      {importedData.length > 0 ? (
+                        <div className="space-y-6">
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <Card>
+                              <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-gray-500">导入数据总量</CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                <div className="text-2xl font-bold">{importedData.length}</div>
+                                <p className="text-xs text-gray-500 mt-1">条成绩记录</p>
+                              </CardContent>
+                            </Card>
+                            
+                            <Card>
+                              <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-gray-500">数据完整率</CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                <div className="text-2xl font-bold">100%</div>
+                                <Progress value={100} className="h-1 mt-1" />
+                              </CardContent>
+                            </Card>
+                            
+                            <Card>
+                              <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-gray-500">班级覆盖</CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                <div className="text-2xl font-bold">
+                                  {new Set(importedData.map(item => item.class_name)).size}
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">个班级</p>
+                              </CardContent>
+                            </Card>
+                            
+                            <Card>
+                              <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-gray-500">科目类型</CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                <div className="text-2xl font-bold">
+                                  {new Set(importedData.map(item => item.subject)).size}
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">个科目</p>
+                              </CardContent>
+                            </Card>
+                          </div>
+                          
+                          <div className="flex items-center justify-between">
+                            <h2 className="text-xl font-semibold">导入数据预览</h2>
+                            <Button variant="outline" className="flex items-center gap-1">
+                              <Download className="h-4 w-4" />
+                              <span>导出数据</span>
+                            </Button>
+                          </div>
+                          
+                          <SimpleGradeTable data={importedData.map(item => ({
+                            studentId: item.student_id,
+                            name: item.name,
+                            className: item.class_name,
+                            subject: item.subject,
+                            score: item.total_score,
+                            examDate: item.exam_date,
+                            examType: item.exam_type,
+                            examTitle: item.exam_title
+                          }))} />
+                          
+                          <div className="flex justify-end gap-4">
+                            <Button variant="outline" onClick={() => setGradesActiveTab('import')}>
+                              返回导入
+                            </Button>
+                            <Button 
+                              onClick={handleGoToAnalysis} 
+                              className="bg-[#c0ff3f] text-black hover:bg-[#a8e85c]"
+                              disabled={isAnalysisLoading}
+                            >
+                              {isAnalysisLoading ? (
+                                <>
+                                  <BarChart3 className="mr-2 h-4 w-4 animate-pulse" />
+                                  正在准备分析...
+                                </>
+                              ) : (
+                                <>
+                                  <BarChart3 className="mr-2 h-4 w-4" />
+                                  前往成绩分析
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-24 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                          <FileSpreadsheet className="h-16 w-16 text-slate-300 mb-4" />
+                          <h3 className="text-xl font-medium mb-2">暂无导入数据</h3>
+                          <p className="text-slate-500 mb-6 text-center max-w-md">
+                            请先使用数据导入功能导入成绩数据，导入后的数据将在此处预览
+                          </p>
+                          <Button 
+                            onClick={() => setGradesActiveTab('import')}
+                            className="bg-[#c0ff3f] text-black hover:bg-[#a8e85c]"
+                          >
+                            <FileInput className="mr-2 h-4 w-4" />
+                            去导入数据
+                          </Button>
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    <TabsContent value="analysis">
+                      <div className="space-y-6">
+                        <Alert className="bg-blue-50 border-blue-200">
+                          <ChartPieIcon className="h-4 w-4 text-blue-500" />
+                          <AlertTitle className="text-blue-700">多维交叉分析</AlertTitle>
+                          <AlertDescription className="text-blue-600">
+                            <p>通过交叉分析功能，您可以从多个维度探索数据之间的关系，发现更深层次的教学规律和问题。</p>
+                          </AlertDescription>
+                        </Alert>
+                        
+                        <CrossDimensionAnalysisPanel />
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="detection">
+                      <div className="space-y-6">
+                        <Alert className="bg-amber-50 border-amber-200">
+                          <AlertCircle className="h-4 w-4 text-amber-500" />
+                          <AlertTitle className="text-amber-700">成绩异常检测</AlertTitle>
+                          <AlertDescription className="text-amber-600">
+                            <p>系统会自动分析成绩数据，识别可能的异常情况，如成绩骤降、数据缺失等，帮助教师及时发现问题。</p>
+                          </AlertDescription>
+                        </Alert>
+                        
+                        <AnomalyDetection />
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="correlation">
+                      <div className="space-y-6">
+                        <Alert className="bg-blue-50 border-blue-200">
+                          <Grid className="h-4 w-4 text-blue-500" />
+                          <AlertTitle className="text-blue-700">科目相关性分析</AlertTitle>
+                          <AlertDescription className="text-blue-600">
+                            <p>通过计算不同科目成绩之间的相关系数，帮助教师理解学科间的关联性，优化教学策略。</p>
+                          </AlertDescription>
+                        </Alert>
+                        
+                        <GradeCorrelationMatrix />
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="boxplot">
+                      <div className="space-y-6">
+                        <Alert className="bg-blue-50 border-blue-200">
+                          <BarChart3 className="h-4 w-4 text-blue-500" />
+                          <AlertTitle className="text-blue-700">班级学科箱线图</AlertTitle>
+                          <AlertDescription className="text-blue-600">
+                            <p>通过箱线图直观展示班级各科目成绩分布，快速定位异常值和极端情况，助力精准教学干预。</p>
+                          </AlertDescription>
+                        </Alert>
+                        
+                        <ClassBoxPlotChart />
+                      </div>
+                    </TabsContent>
+                    
+                    <TabsContent value="contribution">
+                      <div className="space-y-6">
+                        <Alert className="bg-blue-50 border-blue-200">
+                          <ChartPieIcon className="h-4 w-4 text-blue-500" />
+                          <AlertTitle className="text-blue-700">学生科目贡献度</AlertTitle>
+                          <AlertDescription className="text-blue-600">
+                            <p>分析学生各科成绩相对于班级的表现差异，识别学生的优势和劣势学科，为因材施教提供数据支持。</p>
+                          </AlertDescription>
+                        </Alert>
+                        
+                        <StudentSubjectContribution />
+                      </div>
+                    </TabsContent>
+                  </Tabs>
                 </CardContent>
               </Card>
             </div>

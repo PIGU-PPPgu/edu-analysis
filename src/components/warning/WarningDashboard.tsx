@@ -21,6 +21,7 @@ import {
 import { toast } from "sonner";
 import { getUserAIConfig, getUserAPIKey } from "@/utils/userAuth";
 import { getAIClient } from "@/services/aiService";
+import { formatNumber } from "@/utils/formatUtils";
 
 // 组件属性接口
 interface WarningDashboardProps {
@@ -67,7 +68,7 @@ const StatCard = ({
   value: string | number; 
   icon: React.ElementType;
   description?: string;
-  trend?: "up" | "down"; 
+  trend?: "up" | "down" | "unchanged"; 
   change?: number;
 }) => (
   <Card className="overflow-hidden border border-gray-200 bg-white text-gray-900 hover:shadow-lg transition-all duration-200 rounded-xl">
@@ -76,8 +77,8 @@ const StatCard = ({
         <div>
           <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
           <div className="flex items-baseline gap-2">
-            <p className="text-3xl font-bold text-gray-800">{value}</p>
-            {change !== undefined && (
+            <p className="text-3xl font-bold text-gray-800">{formatNumber(value)}</p>
+            {change !== undefined && trend !== 'unchanged' && (
               <div className="flex items-center">
                 {trend === "up" ? (
                   <ArrowUpRight className={`h-4 w-4 ${title.includes('风险') ? 'text-red-500' : 'text-green-500'}`} />
@@ -111,19 +112,21 @@ const WarningTypeCard = ({ type, count, percentage, trend }: {
   type: string; 
   count: number; 
   percentage: number;
-  trend: "up" | "down"; 
+  trend: "up" | "down" | "unchanged"; 
 }) => {
   return (
     <div className={`flex flex-col p-6 rounded-xl bg-white border border-gray-200 hover:shadow-lg transition-all duration-200`}>
       <div className="inline-block px-3 py-1 rounded-md mb-3 text-black font-semibold text-sm self-start" style={{ backgroundColor: '#c0ff3f' }}>
         {type}预警
       </div>
-      <div className="text-4xl font-bold mt-1 text-gray-800">{count}</div>
+      <div className="text-4xl font-bold mt-1 text-gray-800">{formatNumber(count)}</div>
       <div className="flex items-center text-sm mt-2 text-gray-500">
         {trend === "up" ? (
           <ArrowUpRight className="mr-1 h-4 w-4 text-red-500" />
-        ) : (
+        ) : trend === "down" ? (
           <ArrowDownRight className="mr-1 h-4 w-4 text-green-500" />
+        ) : (
+          <span className="mr-1 h-4 w-4">-</span>
         )}
         <span>占比 {percentage}%</span>
       </div>
@@ -236,6 +239,9 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
   const [aiError, setAiError] = useState<string | null>(null);
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [activeTab, setActiveTab] = useState<string>("overview");
+  
+  // 添加isMounted引用以避免内存泄漏
+  const isMounted = React.useRef(true);
 
   // 使用传入的数据或默认数据
   const stats = warningData || defaultWarningStats;
@@ -245,41 +251,67 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
     const checkAIConfig = async () => {
       const config = await getUserAIConfig();
       const apiKey = await getUserAPIKey(config?.provider || '');
-      setAiConfigured(!!config && !!apiKey && config.enabled === true);
+      
+      // 确保组件仍然挂载
+      if (isMounted.current) {
+        setAiConfigured(!!config && !!apiKey && config.enabled === true);
+      }
     };
     
     checkAIConfig();
+    
+    // 组件卸载时的清理函数
+    return () => {
+      isMounted.current = false;
+    };
   }, []);
 
   // 使用aiService中的功能进行AI分析
   const generateAIInsights = async () => {
+    // 如果组件已卸载，不执行操作
+    if (!isMounted.current) return;
+    
     try {
       const aiConfig = await getUserAIConfig();
       
       if (!aiConfig || !aiConfig.enabled) {
-        toast.error("请先配置并启用AI服务", {
-          description: "前往AI设置页面配置大模型API"
-        });
+        if (isMounted.current) {
+          toast.error("请先配置并启用AI服务", {
+            description: "前往AI设置页面配置大模型API"
+          });
+        }
         return;
       }
       
-      setIsGeneratingInsights(true);
-      setAiError(null);
-      setAnalysisProgress(0);
+      if (isMounted.current) setIsGeneratingInsights(true);
+      if (isMounted.current) setAiError(null);
+      if (isMounted.current) setAnalysisProgress(0);
       
       // 启动进度模拟
       const progressInterval = setInterval(() => {
-        setAnalysisProgress(prev => {
-          const newProgress = prev + (Math.random() * 10);
-          return newProgress >= 95 ? 95 : newProgress;
-        });
+        if (isMounted.current) {
+          setAnalysisProgress(prev => {
+            const newProgress = prev + (Math.random() * 10);
+            return newProgress >= 95 ? 95 : newProgress;
+          });
+        }
       }, 500);
       
       // 获取AI客户端
       const aiClient = await getAIClient();
       
+      // 检查组件是否仍然挂载
+      if (!isMounted.current) {
+        clearInterval(progressInterval);
+        return;
+      }
+      
       if (!aiClient) {
-        throw new Error("获取AI服务失败，请检查您的AI设置和API密钥");
+        if (isMounted.current) {
+          clearInterval(progressInterval);
+          throw new Error("获取AI服务失败，请检查您的AI设置和API密钥");
+        }
+        return;
       }
       
       // 准备数据
@@ -328,7 +360,11 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
       
       // 清除进度模拟
       clearInterval(progressInterval);
-      setAnalysisProgress(100);
+      
+      // 检查组件是否仍然挂载
+      if (!isMounted.current) return;
+      
+      if (isMounted.current) setAnalysisProgress(100);
       
       // 处理不同格式的响应
       let insights;
@@ -348,23 +384,35 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
         insights = "未获得有效的AI分析结果";
       }
       
-      setAiInsights(insights || "分析失败，请稍后再试");
-      
-      toast.success("AI分析完成", {
-        description: "已生成预警分析报告"
-      });
+      if (isMounted.current) {
+        setAiInsights(insights || "分析失败，请稍后再试");
+        
+        toast.success("AI分析完成", {
+          description: "已生成预警分析报告"
+        });
+      }
     } catch (error) {
       console.error("生成AI分析失败:", error);
-      setAiError(`AI分析请求失败: ${error instanceof Error ? error.message : '未知错误'}`);
-      toast.error("AI分析失败", {
-        description: "尝试使用备用分析方案",
-      });
       
-      // 使用备用方案生成分析结果
-      setAiInsights(generateFallbackInsight());
+      // 检查组件是否仍然挂载
+      if (!isMounted.current) return;
+      
+      if (isMounted.current) {
+        setAiError(`AI分析请求失败: ${error instanceof Error ? error.message : '未知错误'}`);
+        
+        toast.error("AI分析失败", {
+          description: "尝试使用备用分析方案",
+        });
+        
+        // 使用备用方案生成分析结果
+        setAiInsights(generateFallbackInsight());
+      }
     } finally {
-      setIsGeneratingInsights(false);
-      setAnalysisProgress(100);
+      // 检查组件是否仍然挂载
+      if (isMounted.current) {
+        setIsGeneratingInsights(false);
+        setAnalysisProgress(100);
+      }
     }
   };
 

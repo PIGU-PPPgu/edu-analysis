@@ -1,13 +1,59 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Navbar from "@/components/shared/Navbar";
 import WarningDashboard from "@/components/warning/WarningDashboard";
 import WarningRules from "@/components/warning/WarningRules";
 import WarningList from "@/components/warning/WarningList";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Settings, AlertTriangle } from "lucide-react";
+import { Settings, AlertTriangle, RefreshCcw } from "lucide-react";
+import { toast } from "sonner";
+import { getWarningStatistics, WarningStats } from "@/services/warningService";
 
 const WarningAnalysis = () => {
+  // 添加组件挂载状态ref以防止任何潜在的问题
+  const isMountedRef = useRef(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [warningStats, setWarningStats] = useState<WarningStats | null>(null);
+  
+  // 清理任何潜在的副作用
+  useEffect(() => {
+    fetchWarningData();
+    
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // 获取预警数据
+  const fetchWarningData = async () => {
+    if (!isMountedRef.current) return;
+    
+    try {
+      setIsLoading(true);
+      const stats = await getWarningStatistics();
+      
+      if (isMountedRef.current) {
+        setWarningStats(stats);
+      }
+    } catch (error) {
+      console.error('获取预警数据失败:', error);
+      if (isMountedRef.current) {
+        toast.error('获取预警数据失败', {
+          description: '请稍后重试'
+        });
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  // 刷新数据
+  const handleRefresh = () => {
+    fetchWarningData();
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -19,12 +65,23 @@ const WarningAnalysis = () => {
               基于多维度数据的学生学习预警系统，整合成绩、出勤、作业和参与度等数据
             </p>
           </div>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/ai-settings">
-              <Settings className="mr-2 h-4 w-4" />
-              AI配置
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRefresh} 
+              disabled={isLoading}
+            >
+              <RefreshCcw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              {isLoading ? '刷新中...' : '刷新数据'}
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/ai-settings">
+                <Settings className="mr-2 h-4 w-4" />
+                AI配置
+              </Link>
+            </Button>
+          </div>
         </div>
         
         <div className="bg-amber-50 border-l-4 border-amber-500 p-4 mb-6">
@@ -42,7 +99,10 @@ const WarningAnalysis = () => {
         </div>
         
         <div className="space-y-6">
-          <WarningDashboard />
+          <WarningDashboard 
+            warningData={warningStats}
+            factorStats={warningStats?.commonRiskFactors}
+          />
           <WarningList />
           <WarningRules />
         </div>
