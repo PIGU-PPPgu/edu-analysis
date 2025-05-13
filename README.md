@@ -59,8 +59,8 @@
 
 1. 克隆项目并安装依赖
 ```bash
-git clone <项目URL>
-cd <项目目录>
+git clone https://github.com/PIGU-PPPgu/edu-analysis.git
+cd edu-analysis
 npm install
 ```
 
