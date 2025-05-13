@@ -284,7 +284,7 @@ const Index = () => {
       description: `已成功导入 ${importedDataCount} 条记录`
     });
     setGradesActiveTab('preview'); // 切换到预览标签
-    navigate("/grade-analysis"); 
+    navigate("/grade-analysis");
   };
 
   // 整合GradeDataImport的处理函数
