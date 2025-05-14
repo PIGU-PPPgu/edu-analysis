@@ -27,6 +27,7 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import GradeImporter from '@/components/analysis/GradeImporter';
 import SimpleGradeTable from '@/components/analysis/SimpleGradeTable';
+import { supabase } from "@/integrations/supabase/client";
 
 // Define standard system fields for mapping - customize as needed
 const STANDARD_SYSTEM_FIELDS: Record<string, string> = {
@@ -197,6 +198,7 @@ interface ExamInfoInternal extends ReviewDialogExamInfo {}
 
 const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
+  const [isInitializingTables, setIsInitializingTables] = useState(false);
   const navigate = useNavigate();
   const { user, isAuthReady } = useAuthContext();
 
@@ -212,6 +214,71 @@ const Index = () => {
   const [importedData, setImportedData] = useState<any[]>([]);
   const [isAnalysisLoading, setIsAnalysisLoading] = useState(false);
   
+  // 检查必要的数据表是否存在，并在需要时创建
+  useEffect(() => {
+    const checkAndInitializeTables = async () => {
+      try {
+        setIsInitializingTables(true);
+        
+        // 检查数据表是否存在
+        const requiredTables = ['exams', 'grade_data', 'grade_tags', 'grade_data_tags'];
+        let allTablesExist = true;
+        
+        for (const table of requiredTables) {
+          const { count, error } = await supabase
+            .from(table)
+            .select('*', { count: 'exact', head: true });
+          
+          if (error && error.code === '42P01') { // 表不存在的错误代码
+            allTablesExist = false;
+            break;
+          }
+        }
+        
+        // 如果有表不存在，初始化所有表
+        if (!allTablesExist) {
+          console.log("检测到数据表不完整，准备初始化...");
+          const result = await gradeAnalysisService.initializeTables();
+          
+          if (result.success) {
+            toast.success("数据表初始化成功", {
+              description: "成绩分析所需的数据表已成功创建"
+            });
+          } else if (result.needsManualExecution) {
+            toast.warning("无法自动创建数据表", {
+              description: "请联系管理员在Supabase控制台手动执行SQL脚本"
+            });
+            console.error("需要手动执行的SQL:", result.manualSqlScripts);
+          } else {
+            toast.error("数据表初始化失败", {
+              description: result.message || "请查看控制台了解详情"
+            });
+          }
+        } else {
+          console.log("所有必要的数据表已存在");
+        }
+      } catch (error) {
+        console.error("检查和初始化数据表时出错:", error);
+        toast.error("数据表检查失败", {
+          description: "无法确认必要的数据表是否存在"
+        });
+      } finally {
+        setIsInitializingTables(false);
+      }
+    };
+    
+    if (isAuthReady && user) {
+      checkAndInitializeTables();
+    }
+  }, [isAuthReady, user]);
+
+  useEffect(() => {
+    // 用AuthContext统一处理认证状态，避免重复逻辑
+    if (isAuthReady) {
+      setIsLoading(false);
+    }
+  }, [isAuthReady]);
+
   // Mock implementation for onSuggestFieldMapping (for ImportReviewDialog)
   const handleSuggestFieldMapping = async (header: string, sampleData: any[]) => {
     console.log(`Dialog: Requesting AI suggestion for header: "${header}"`, "Sample data:", sampleData.slice(0,5));
@@ -259,13 +326,6 @@ const Index = () => {
     toast.success(`自定义信息项 "${newFieldName}" 已创建`);
     return newFieldKey;
   };
-
-  useEffect(() => {
-    // 用AuthContext统一处理认证状态，避免重复逻辑
-    if (isAuthReady) {
-      setIsLoading(false);
-    }
-  }, [isAuthReady]);
 
   // 处理成绩分析跳转
   const handleGoToAnalysis = () => {
@@ -665,26 +725,6 @@ const Index = () => {
                         <ListFilter className="h-4 w-4" />
                         <span>数据预览</span>
                       </TabsTrigger>
-                      <TabsTrigger value="analysis" className="flex items-center gap-1">
-                        <BarChart2 className="h-4 w-4" />
-                        <span>交叉分析</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="detection" className="flex items-center gap-1">
-                        <AlertCircle className="h-4 w-4" />
-                        <span>异常检测</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="correlation" className="flex items-center gap-1">
-                        <Grid className="h-4 w-4" />
-                        <span>科目相关性</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="boxplot" className="flex items-center gap-1">
-                        <BarChart3 className="h-4 w-4" />
-                        <span>班级箱线图</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="contribution" className="flex items-center gap-1">
-                        <ChartPieIcon className="h-4 w-4" />
-                        <span>贡献度分析</span>
-                      </TabsTrigger>
                     </TabsList>
                     
                     <TabsContent value="import">
@@ -815,76 +855,6 @@ const Index = () => {
                           </Button>
                         </div>
                       )}
-                    </TabsContent>
-
-                    <TabsContent value="analysis">
-                      <div className="space-y-6">
-                        <Alert className="bg-blue-50 border-blue-200">
-                          <ChartPieIcon className="h-4 w-4 text-blue-500" />
-                          <AlertTitle className="text-blue-700">多维交叉分析</AlertTitle>
-                          <AlertDescription className="text-blue-600">
-                            <p>通过交叉分析功能，您可以从多个维度探索数据之间的关系，发现更深层次的教学规律和问题。</p>
-                          </AlertDescription>
-                        </Alert>
-                        
-                        <CrossDimensionAnalysisPanel />
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent value="detection">
-                      <div className="space-y-6">
-                        <Alert className="bg-amber-50 border-amber-200">
-                          <AlertCircle className="h-4 w-4 text-amber-500" />
-                          <AlertTitle className="text-amber-700">成绩异常检测</AlertTitle>
-                          <AlertDescription className="text-amber-600">
-                            <p>系统会自动分析成绩数据，识别可能的异常情况，如成绩骤降、数据缺失等，帮助教师及时发现问题。</p>
-                          </AlertDescription>
-                        </Alert>
-                        
-                        <AnomalyDetection />
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent value="correlation">
-                      <div className="space-y-6">
-                        <Alert className="bg-blue-50 border-blue-200">
-                          <Grid className="h-4 w-4 text-blue-500" />
-                          <AlertTitle className="text-blue-700">科目相关性分析</AlertTitle>
-                          <AlertDescription className="text-blue-600">
-                            <p>通过计算不同科目成绩之间的相关系数，帮助教师理解学科间的关联性，优化教学策略。</p>
-                          </AlertDescription>
-                        </Alert>
-                        
-                        <GradeCorrelationMatrix />
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent value="boxplot">
-                      <div className="space-y-6">
-                        <Alert className="bg-blue-50 border-blue-200">
-                          <BarChart3 className="h-4 w-4 text-blue-500" />
-                          <AlertTitle className="text-blue-700">班级学科箱线图</AlertTitle>
-                          <AlertDescription className="text-blue-600">
-                            <p>通过箱线图直观展示班级各科目成绩分布，快速定位异常值和极端情况，助力精准教学干预。</p>
-                          </AlertDescription>
-                        </Alert>
-                        
-                        <ClassBoxPlotChart />
-                      </div>
-                    </TabsContent>
-                    
-                    <TabsContent value="contribution">
-                      <div className="space-y-6">
-                        <Alert className="bg-blue-50 border-blue-200">
-                          <ChartPieIcon className="h-4 w-4 text-blue-500" />
-                          <AlertTitle className="text-blue-700">学生科目贡献度</AlertTitle>
-                          <AlertDescription className="text-blue-600">
-                            <p>分析学生各科成绩相对于班级的表现差异，识别学生的优势和劣势学科，为因材施教提供数据支持。</p>
-                          </AlertDescription>
-                        </Alert>
-                        
-                        <StudentSubjectContribution />
-                      </div>
                     </TabsContent>
                   </Tabs>
                 </CardContent>

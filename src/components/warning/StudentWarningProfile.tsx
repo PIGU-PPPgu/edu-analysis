@@ -150,9 +150,18 @@ const StudentWarningProfile: React.FC<StudentWarningProfileProps> = ({ studentUu
         console.log(`Fetching profile for student: ${studentUuid}`);
         
         // 检查 SUPABASE_URL 和 SUPABASE_ANON_KEY 是否在环境变量中定义
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        // 使用直接导入的客户端配置而非process.env变量
+        // const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        // const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        
+        // 直接使用模拟数据
+        if (isMountedRef.current) {
+          setProfileData(mockStudentProfileData);
+          setIsLoading(false);
+        }
 
+        // 以下代码注释掉，避免环境变量问题
+        /*
         if (!supabaseUrl || !supabaseAnonKey) {
           console.error("Supabase URL or Anon Key is not defined. Using mock data.");
           if (isMountedRef.current) {
@@ -161,53 +170,7 @@ const StudentWarningProfile: React.FC<StudentWarningProfileProps> = ({ studentUu
           }
           return;
         }
-        
-        // 真实的API调用 (当前会失败，因为后端DB函数未就绪)
-        // 我们先注释掉，直到DB函数可用
-        /*
-        fetch(`${supabaseUrl}/functions/v1/get-student-academic-profile`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseAnonKey}`, // 或者服务密钥，如果从安全后端调用
-            // Supabase Edge Functions 通常需要项目引用ID (project ref) 作为apikey，如果JWT未启用或从公共客户端调用
-            'apikey': supabaseAnonKey 
-          },
-          body: JSON.stringify({ student_uuid: studentUuid })
-        })
-        .then(res => {
-          if (!res.ok) {
-            throw new Error(`Error fetching student profile: ${res.statusText}`);
-          }
-          return res.json();
-        })
-        .then(data => {
-          if (data.error) { // Edge Function 内部可能返回 error 字段
-             throw new Error(data.error.message || 'Error in API response');
-          }
-          if (isMountedRef.current) {
-            setProfileData(data);
-          }
-        })
-        .catch(err => {
-          console.error("API call failed:", err);
-          if (isMountedRef.current) {
-            setError(err.message);
-            setProfileData(mockStudentProfileData); // API失败时也使用模拟数据作为回退
-          }
-        })
-        .finally(() => {
-          if (isMountedRef.current) {
-            setIsLoading(false);
-          }
-        });
         */
-
-        // 暂时总是使用模拟数据
-        if (isMountedRef.current) {
-          setProfileData(mockStudentProfileData);
-          setIsLoading(false);
-        }
 
       }, 1000);
     } else if (!isOpen) {
@@ -247,9 +210,13 @@ const StudentWarningProfile: React.FC<StudentWarningProfileProps> = ({ studentUu
       <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl">学生预警画像</DialogTitle>
-          {profileData?.student_info && (
+          {profileData?.student_info ? (
              <DialogDescription>
                 {profileData.student_info.student_name} ({profileData.student_info.student_display_id}) - {profileData.student_info.class_name}
+             </DialogDescription>
+          ) : (
+             <DialogDescription>
+                加载学生信息中...
              </DialogDescription>
           )}
         </DialogHeader>

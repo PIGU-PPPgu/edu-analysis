@@ -1,5 +1,6 @@
 import { supabase, checkTableExists as supabaseCheckTableExists } from '@/integrations/supabase/client';
 import type { ExamInfo } from '@/components/analysis/ImportReviewDialog';
+import { requestCache } from '@/utils/cacheUtils';
 
 // 分析维度选项
 export const ANALYSIS_DIMENSIONS = [
@@ -370,15 +371,17 @@ export const gradeAnalysisService = {
    * 获取考试列表
    */
   async getExamList() {
-    return safeQuery('exams', async () => {
-      const { data, error } = await supabase
-        .from('exams')
-        .select('id, title, type, date, subject')
-        .order('date', { ascending: false });
+    return requestCache.get('exams_list', async () => {
+      return safeQuery('exams', async () => {
+        const { data, error } = await supabase
+          .from('exams')
+          .select('id, title, type, date, subject')
+          .order('date', { ascending: false });
+          
+        if (error) throw error;
         
-      if (error) throw error;
-      
-      return { data, error: null };
+        return { data, error: null };
+      });
     });
   },
   
@@ -386,15 +389,17 @@ export const gradeAnalysisService = {
    * 获取考试成绩数据
    */
   async getExamResults(examId: string) {
-    return safeQuery('grade_data', async () => {
-      const { data, error } = await supabase
-        .from('grade_data')
-        .select('*')
-        .eq('exam_id', examId);
+    return requestCache.get(`exam_results_${examId}`, async () => {
+      return safeQuery('grade_data', async () => {
+        const { data, error } = await supabase
+          .from('grade_data')
+          .select('*')
+          .eq('exam_id', examId);
+          
+        if (error) throw error;
         
-      if (error) throw error;
-      
-      return { data, error: null };
+        return { data, error: null };
+      });
     });
   },
   
@@ -1254,17 +1259,28 @@ export const gradeAnalysisService = {
    */
   getCrossDimensionData: async (rowDimension: string, colDimension: string, metric: string) => {
     try {
-      // 这里可以替换为实际的API调用
-      // const response = await fetch('/api/analysis/cross-dimension', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ rowDimension, colDimension, metric })
-      // });
-      // const data = await response.json();
-      // return data;
+      // 构建查询参数
+      const params = new URLSearchParams({
+        row_dimension: rowDimension,
+        col_dimension: colDimension,
+        metric: metric
+      });
       
-      // 目前使用模拟数据
-      return gradeAnalysisService.generateMockCrossDimensionData(rowDimension, colDimension, metric);
+      // 使用Supabase函数获取数据
+      const { data, error } = await supabase.functions.invoke('analyze-data', {
+        body: { 
+          row_dimension: rowDimension,
+          col_dimension: colDimension,
+          metric: metric
+        }
+      });
+      
+      if (error) {
+        console.error("调用交叉分析API失败:", error);
+        throw new Error("获取交叉维度分析数据失败");
+      }
+      
+      return data;
     } catch (error) {
       console.error("获取交叉维度分析数据失败:", error);
       throw new Error("获取交叉维度分析数据失败");
@@ -1272,7 +1288,7 @@ export const gradeAnalysisService = {
   },
 
   /**
-   * 生成模拟的交叉分析数据
+   * 生成模拟的交叉分析数据（仅用于开发测试）
    */
   generateMockCrossDimensionData: (rowField: string, colField: string, valueField: string) => {
     const mockData = [];

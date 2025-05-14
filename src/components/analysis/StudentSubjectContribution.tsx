@@ -22,6 +22,8 @@ import {
   Radar
 } from "recharts";
 import { Loader2, TrendingUp, TrendingDown, Search, User, Download } from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 // 学生科目表现类型
 interface SubjectPerformance {
@@ -50,118 +52,6 @@ interface StudentSubjectContributionProps {
   examId?: string;
   studentId?: string;
 }
-
-// 辅助函数：生成随机学生数据
-const generateMockStudentData = (): StudentData[] => {
-  const students: StudentData[] = [];
-  const classNames = ["高一(1)班", "高一(2)班", "高二(1)班", "高二(2)班", "高三(1)班"];
-  const subjects = ["语文", "数学", "英语", "物理", "化学", "生物", "历史", "地理", "政治"];
-  
-  // 生成模拟学生数据
-  for (let i = 0; i < 50; i++) {
-    const studentId = `S${10000 + i}`;
-    const studentName = `学生${i + 1}`;
-    const className = classNames[Math.floor(Math.random() * classNames.length)];
-    
-    // 为每个学生生成各科目表现
-    const subjectPerformances: SubjectPerformance[] = [];
-    let totalContribution = 0;
-    const strengthSubjects: string[] = [];
-    const weakSubjects: string[] = [];
-    
-    subjects.forEach(subject => {
-      // 生成基础分数，保证各科目有差异
-      let baseScore = 65 + Math.random() * 25; // 基础分在65-90之间
-      
-      // 模拟学生在不同科目的偏好，每个学生有1-2个强项，1-2个弱项
-      const isStrength = Math.random() < 0.2; // 20%概率是强项
-      const isWeak = !isStrength && Math.random() < 0.25; // 25%概率是弱项(如果不是强项)
-      
-      if (isStrength) {
-        baseScore += 10 + Math.random() * 10; // 强项加10-20分
-        baseScore = Math.min(baseScore, 100); // 最高100分
-        strengthSubjects.push(subject);
-      } else if (isWeak) {
-        baseScore -= 10 + Math.random() * 15; // 弱项减10-25分
-        baseScore = Math.max(baseScore, 40); // 最低40分
-        weakSubjects.push(subject);
-      }
-      
-      const score = Math.round(baseScore);
-      const avgScore = Math.round(70 + Math.random() * 10); // 班级平均分在70-80之间
-      const maxScore = Math.min(avgScore + 10 + Math.random() * 10, 100); // 班级最高分
-      
-      // 计算与平均分差距
-      const gap = score - avgScore;
-      const gapPercentage = Math.round((gap / avgScore) * 100);
-      
-      // 计算贡献度得分 (-5到5)
-      // 贡献度算法：根据分数与平均分的差距计算，差距越大贡献度越高/低
-      let contribution = 0;
-      if (gap > 0) {
-        // 正贡献
-        contribution = Math.min(Math.round((gap / 20) * 5), 5); // 高出20分为满分贡献5分
-      } else {
-        // 负贡献
-        contribution = Math.max(Math.round((gap / 20) * 5), -5); // 低于20分为最低贡献-5分
-      }
-      
-      totalContribution += contribution;
-      
-      // 确定表现级别
-      let performanceLevel = "一般";
-      if (score >= maxScore - 5) {
-        performanceLevel = "优秀";
-      } else if (score >= avgScore + 10) {
-        performanceLevel = "良好";
-      } else if (score >= avgScore - 5) {
-        performanceLevel = "一般";
-      } else if (score >= avgScore - 15) {
-        performanceLevel = "较弱";
-      } else {
-        performanceLevel = "待提高";
-      }
-      
-      // 生成提升建议
-      let suggestion = "";
-      if (performanceLevel === "优秀") {
-        suggestion = "保持优势，建议参加竞赛或担任科目组长";
-      } else if (performanceLevel === "良好") {
-        suggestion = "有潜力提升，建议强化复习巩固知识点";
-      } else if (performanceLevel === "一般") {
-        suggestion = "需要更多练习，重点关注基础知识掌握";
-      } else if (performanceLevel === "较弱") {
-        suggestion = "建议增加学习时间，针对性补习基础内容";
-      } else {
-        suggestion = "需要特别关注，建议制定专项辅导计划";
-      }
-      
-      subjectPerformances.push({
-        subject,
-        score,
-        avgScore,
-        maxScore,
-        contribution,
-        performanceLevel,
-        gap,
-        gapPercentage,
-        suggestion
-      });
-    });
-    
-    students.push({
-      id: studentId,
-      name: studentName,
-      className,
-      subjects: subjectPerformances,
-      totalContribution,
-      strengthSubjects,
-      weakSubjects
-    });
-  }
-  
-  return students;
-};
 
 // 获取贡献度对应的颜色类名
 const getContributionColorClass = (value: number): string => {
@@ -196,32 +86,60 @@ const StudentSubjectContribution: React.FC<StudentSubjectContributionProps> = ({
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // 模拟API调用延迟
-        await new Promise(resolve => setTimeout(resolve, 1200));
+        // 获取所有学生列表
+        const { data: studentsList, error: studentsError } = await supabase
+          .from('grade_data')
+          .select('student_id, name, class_name')
+          .distinct();
+          
+        if (studentsError) throw studentsError;
         
-        // 生成模拟数据
-        const mockStudents = generateMockStudentData();
-        setStudents(mockStudents);
+        // 获取科目贡献度分析数据
+        const { data, error } = await supabase.functions.invoke('recommend-charts', {
+          body: {
+            type: 'contribution',
+            examId: examId,
+            studentId: studentId
+          }
+        });
         
-        // 如果提供了studentId，则选中该学生
-        if (studentId) {
-          const foundStudent = mockStudents.find(s => s.id === studentId);
-          if (foundStudent) {
-            setSelectedStudent(foundStudent);
-          } else {
-            setSelectedStudent(mockStudents[0]);
+        if (error) {
+          console.error("获取科目贡献度分析数据失败:", error);
+          throw error;
+        }
+        
+        if (data && data.students) {
+          setStudents(data.students);
+          
+          // 如果有指定的学生ID，则选择该学生
+          if (studentId && data.students.length > 0) {
+            const student = data.students.find(s => s.id === studentId);
+            if (student) {
+              setSelectedStudent(student);
+            } else if (data.students.length > 0) {
+              // 否则选择第一个学生
+              setSelectedStudent(data.students[0]);
+            }
+          } else if (data.students.length > 0) {
+            // 默认选择第一个学生
+            setSelectedStudent(data.students[0]);
           }
         } else {
-          // 默认选择第一个学生
-          setSelectedStudent(mockStudents[0]);
+          setStudents([]);
+          setSelectedStudent(null);
         }
       } catch (error) {
-        console.error("获取学生科目贡献度数据失败:", error);
+        console.error("加载科目贡献度数据失败:", error);
+        toast.error("加载数据失败", {
+          description: "获取科目贡献度分析数据时出错"
+        });
+        setStudents([]);
+        setSelectedStudent(null);
       } finally {
         setIsLoading(false);
       }
     };
-    
+
     fetchData();
   }, [examId, studentId]);
   

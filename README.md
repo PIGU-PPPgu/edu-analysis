@@ -92,4 +92,48 @@ Copyright © 2024 [Linzhang Wu]
 
 根据Apache许可证2.0版本授权
 您可以在遵守许可证的前提下自由使用、修改和分发本软件
-ß
+
+## 性能优化说明
+
+本项目包含以下性能优化内容：
+
+### 1. 数据缓存
+
+项目实现了缓存机制以减少重复请求，主要文件：
+- `/src/utils/cacheUtils.ts` - 缓存工具实现
+- 服务中已添加缓存支持
+
+### 2. 数据库优化
+
+为提高数据库性能，需要执行以下操作：
+
+1. 创建必要的数据表：
+```bash
+# 登录Supabase并运行create_tables.sql脚本
+```
+
+2. 添加性能索引：
+```bash
+# 登录Supabase并运行create_indexes.sql脚本
+```
+
+### 3. 性能工具函数
+
+项目提供了优化渲染的工具函数：
+- 节流函数 `throttle()` - 限制高频事件
+- 防抖函数 `debounce()` - 优化输入处理
+- 批处理函数 `processBatches()` - 优化大数据处理
+
+使用示例：
+```jsx
+import { throttle } from '@/utils/optimizationUtils';
+
+// 防止频繁触发事件导致性能问题
+const handleScroll = throttle(() => {
+  // 滚动处理逻辑
+}, 300);
+
+window.addEventListener('scroll', handleScroll);
+```
+
+更多优化内容请参考 `optimization-summary.md` 文件。

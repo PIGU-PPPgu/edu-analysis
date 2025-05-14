@@ -20,6 +20,8 @@ import {
 } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 // 箱线图数据类型
 interface BoxPlotData {
@@ -150,112 +152,71 @@ const ClassBoxPlotChart: React.FC<ClassBoxPlotChartProps> = ({ examId }) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [classOptions, setClassOptions] = useState<string[]>([]);
 
-  // 模拟生成箱线图数据
-  const generateMockBoxPlotData = (className: string) => {
-    const subjects = ["语文", "数学", "英语", "物理", "化学", "生物", "历史", "地理", "政治"];
-    
-    return subjects.map(subject => {
-      // 基础分数范围，使不同科目有特色
-      let baseMin, baseMax;
-      
-      switch (subject) {
-        case "语文":
-          baseMin = 65;
-          baseMax = 85;
-          break;
-        case "数学":
-          baseMin = 60;
-          baseMax = 90;
-          break;
-        case "英语":
-          baseMin = 70;
-          baseMax = 95;
-          break;
-        case "物理":
-        case "化学":
-          baseMin = 55;
-          baseMax = 88;
-          break;
-        default:
-          baseMin = 60;
-          baseMax = 85;
-      }
-      
-      // 随机生成箱线图所需数据
-      const min = Math.max(baseMin - Math.random() * 15, 20);
-      const max = Math.min(baseMax + Math.random() * 10, 100);
-      const q1 = min + (max - min) * 0.25 + Math.random() * 5;
-      const median = min + (max - min) * 0.5 + Math.random() * 5;
-      const q3 = min + (max - min) * 0.75 + Math.random() * 5;
-      const mean = (min + max) / 2 + (Math.random() - 0.5) * 5;
-      
-      // 生成一些异常值
-      const outliers = [];
-      const outlierCount = Math.floor(Math.random() * 4); // 0到3个异常值
-      
-      for (let i = 0; i < outlierCount; i++) {
-        // 50%的概率是高分异常，50%是低分异常
-        const isHighOutlier = Math.random() > 0.5;
-        const outlierValue = isHighOutlier 
-          ? Math.min(max + 5 + Math.random() * 10, 100) 
-          : Math.max(min - 5 - Math.random() * 20, 0);
-          
-        outliers.push({
-          value: Math.round(outlierValue),
-          studentName: `学生${Math.floor(Math.random() * 50) + 1}`,
-          studentId: `S${10000 + Math.floor(Math.random() * 1000)}`
-        });
-      }
-      
-      return {
-        subject,
-        min: Math.round(min),
-        max: Math.round(max),
-        median: Math.round(median),
-        q1: Math.round(q1),
-        q3: Math.round(q3),
-        mean: Math.round(mean * 10) / 10,
-        outliers
-      };
-    });
-  };
-
-  // 加载数据
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // 模拟API调用
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // 从API获取班级列表
+        const { data: classData, error: classError } = await supabase
+          .from('grade_data')
+          .select('class_name')
+          .distinct();
+          
+        if (classError) throw classError;
         
-        // 模拟班级列表
-        const classes = ["全部班级", "高一(1)班", "高一(2)班", "高二(1)班", "高二(2)班", "高三(1)班"];
-        setClassOptions(classes);
+        if (classData && classData.length > 0) {
+          const classes = classData.map(c => c.class_name).filter(Boolean);
+          setClassOptions(["全部班级", ...classes]);
+        }
         
-        // 生成箱线图数据
-        const mockData = generateMockBoxPlotData(selectedClass);
-        setBoxPlotData(mockData);
+        // 从API获取箱线图数据
+        const { data, error } = await supabase.functions.invoke('recommend-charts', {
+          body: {
+            type: 'boxplot',
+            className: selectedClass === "全部班级" ? null : selectedClass,
+            examId: examId
+          }
+        });
         
-        // 提取所有异常值到列表
-        const allOutliers = mockData.reduce((acc, subject) => {
-          return acc.concat(
-            subject.outliers.map(outlier => ({
-              ...outlier,
-              subject: subject.subject
-            }))
-          );
-        }, []);
+        if (error) {
+          console.error("获取箱线图数据失败:", error);
+          throw error;
+        }
         
-        setOutliersList(allOutliers);
+        if (data && data.boxPlotData) {
+          setBoxPlotData(data.boxPlotData);
+          
+          // 收集所有的异常值放入列表
+          const allOutliers = [];
+          for (const subject of data.boxPlotData) {
+            if (subject.outliers && subject.outliers.length > 0) {
+              for (const outlier of subject.outliers) {
+                allOutliers.push({
+                  subject: subject.subject,
+                  ...outlier
+                });
+              }
+            }
+          }
+          setOutliersList(allOutliers);
+        } else {
+          setBoxPlotData([]);
+          setOutliersList([]);
+        }
       } catch (error) {
-        console.error("获取箱线图数据失败:", error);
+        console.error("加载箱线图数据失败:", error);
+        toast.error("加载数据失败", {
+          description: "获取班级箱线图数据时出错"
+        });
+        setBoxPlotData([]);
+        setOutliersList([]);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchData();
-  }, [examId, selectedClass]);
+  }, [selectedClass, examId]);
 
   const handleClassChange = (value: string) => {
     setSelectedClass(value);

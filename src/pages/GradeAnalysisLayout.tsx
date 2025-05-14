@@ -19,7 +19,11 @@ import {
   School,
   BrainCircuit,
   Sigma,
-  RefreshCcw
+  RefreshCcw,
+  AlertCircle,
+  Grid,
+  BarChart3,
+  ChartPieIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +35,12 @@ import { AdvancedDashboard } from "@/components/analysis/AdvancedDashboard";
 import { StudentProgressView } from "@/components/analysis/StudentProgressView";
 import { AIAnalysisAssistant } from "@/components/analysis/AIAnalysisAssistant";
 import { gradeAnalysisService } from "@/services/gradeAnalysisService";
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import CrossDimensionAnalysisPanel from "@/components/analysis/CrossDimensionAnalysisPanel";
+import AnomalyDetection from "@/components/analysis/AnomalyDetection";
+import GradeCorrelationMatrix from "@/components/analysis/GradeCorrelationMatrix";
+import ClassBoxPlotChart from "@/components/analysis/ClassBoxPlotChart";
+import StudentSubjectContribution from "@/components/analysis/StudentSubjectContribution";
 
 // Updated to match what Supabase actually returns
 interface StudentGrade {
@@ -72,10 +82,16 @@ const GradeAnalysisLayout: React.FC = () => {
   const [classesList, setClassesList] = useState<string[]>([]);
   const [studentsList, setStudentsList] = useState<{id: string; name: string}[]>([]);
 
-  // 获取考试列表
+  // 获取考试列表 - 使用缓存和加载状态优化
   useEffect(() => {
     const fetchExamList = async () => {
       console.log("开始获取考试列表...");
+      
+      if (examList.length > 0) {
+        console.log("使用缓存的考试列表数据");
+        return; // 已有数据，不重复加载
+      }
+      
       try {
         console.log("调用 gradeAnalysisService.getExamList()");
         const { data, error } = await gradeAnalysisService.getExamList();
@@ -108,13 +124,21 @@ const GradeAnalysisLayout: React.FC = () => {
     };
     
     fetchExamList();
-  }, []);
+  }, [examList.length, selectedExam]); // 依赖项更新
 
-  // 获取成绩数据
+  // 获取成绩数据 - 使用缓存和按需加载
   useEffect(() => {
     const fetchGradeData = async () => {
       if (!selectedExam) {
         console.log("未选择考试，无法获取成绩数据");
+        return;
+      }
+      
+      // 如果已经有数据，并且是当前选中的考试的数据，则跳过加载
+      if (gradeData.length > 0 && 
+          gradeData[0].examTitle === examList.find(e => e.id === selectedExam)?.title) {
+        console.log("使用缓存的成绩数据");
+        setIsLoading(false);
         return;
       }
       
@@ -133,7 +157,7 @@ const GradeAnalysisLayout: React.FC = () => {
           throw error;
         }
         
-        console.log("获取到考试成绩数据:", data);
+        console.log("获取到考试成绩数据:", data ? `${data.length}条记录` : '无数据');
         if (data && data.length > 0) {
           // 格式化数据
           console.log("开始格式化成绩数据...");
@@ -149,14 +173,14 @@ const GradeAnalysisLayout: React.FC = () => {
             className: item.class_name || '未知班级'
           }));
           
-          console.log("格式化后的数据:", formattedData);
+          console.log("格式化后的数据:", `${formattedData.length}条记录`);
           setGradeData(formattedData);
           
           // 收集可用的班级和学生列表
           console.log("开始收集班级和学生信息...");
           const classes = [...new Set(data.map((item: any) => item.class_name))].filter(Boolean);
           setClassesList(classes as string[]);
-          console.log("收集到的班级:", classes);
+          console.log("收集到的班级:", classes.length);
           
           const students = data.reduce((acc: {id: string; name: string}[], item: any) => {
             if (!acc.some(s => s.id === item.student_id) && item.student_id && item.name) {
@@ -169,7 +193,7 @@ const GradeAnalysisLayout: React.FC = () => {
           }, []);
           
           setStudentsList(students);
-          console.log("收集到的学生:", students);
+          console.log("收集到的学生:", students.length);
           
           // 如果有班级数据，默认选择第一个班级
           if (classes.length > 0 && !selectedClass) {
@@ -191,7 +215,7 @@ const GradeAnalysisLayout: React.FC = () => {
     };
     
     fetchGradeData();
-  }, [selectedExam, setGradeData]);
+  }, [selectedExam, setGradeData, gradeData, examList, selectedClass]);
 
   // 计算箱线图数据
   useEffect(() => {
@@ -401,26 +425,42 @@ const GradeAnalysisLayout: React.FC = () => {
           onValueChange={setActiveTab} 
           className="space-y-4"
         >
-          <TabsList className="bg-white border">
-            <TabsTrigger value="dashboard" className="gap-1.5">
+          <TabsList className="bg-white border shadow-sm mb-6">
+            <TabsTrigger value="dashboard" className="gap-2 data-[state=active]:bg-[#fafafa]">
               <BarChartBig className="h-4 w-4" />
               数据看板
             </TabsTrigger>
-            <TabsTrigger value="classes" className="gap-1.5">
+            <TabsTrigger value="class" className="gap-2 data-[state=active]:bg-[#fafafa]">
               <School className="h-4 w-4" />
               班级分析
             </TabsTrigger>
-            <TabsTrigger value="students" className="gap-1.5">
+            <TabsTrigger value="student" className="gap-2 data-[state=active]:bg-[#fafafa]">
               <UserRound className="h-4 w-4" />
               学生进步
             </TabsTrigger>
-            <TabsTrigger value="advanced" className="gap-1.5">
+            <TabsTrigger value="advanced" className="gap-2 data-[state=active]:bg-[#fafafa]">
               <Sigma className="h-4 w-4" />
               高级分析
             </TabsTrigger>
-            <TabsTrigger value="ai" className="gap-1.5">
-              <BrainCircuit className="h-4 w-4" />
-              AI助手
+            <TabsTrigger value="cross-analysis" className="gap-2 data-[state=active]:bg-[#fafafa]">
+              <ChartPieIcon className="h-4 w-4" />
+              交叉分析
+            </TabsTrigger>
+            <TabsTrigger value="anomaly" className="gap-2 data-[state=active]:bg-[#fafafa]">
+              <AlertCircle className="h-4 w-4" />
+              异常检测
+            </TabsTrigger>
+            <TabsTrigger value="correlation" className="gap-2 data-[state=active]:bg-[#fafafa]">
+              <Grid className="h-4 w-4" />
+              相关性分析
+            </TabsTrigger>
+            <TabsTrigger value="boxplot" className="gap-2 data-[state=active]:bg-[#fafafa]">
+              <BarChart3 className="h-4 w-4" />
+              班级箱线图
+            </TabsTrigger>
+            <TabsTrigger value="contribution" className="gap-2 data-[state=active]:bg-[#fafafa]">
+              <ChartPieIcon className="h-4 w-4" />
+              贡献度分析
             </TabsTrigger>
           </TabsList>
           
@@ -542,7 +582,7 @@ const GradeAnalysisLayout: React.FC = () => {
             )}
           </TabsContent>
           
-          <TabsContent value="classes">
+          <TabsContent value="class">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-bold">班级成绩分析</h2>
               
@@ -601,7 +641,7 @@ const GradeAnalysisLayout: React.FC = () => {
             )}
           </TabsContent>
           
-          <TabsContent value="students">
+          <TabsContent value="student">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-bold">学生成绩进步分析</h2>
               
@@ -710,52 +750,74 @@ const GradeAnalysisLayout: React.FC = () => {
             )}
           </TabsContent>
           
-          <TabsContent value="ai">
-            {hasNoExams ? (
-              <Card className="bg-white p-4 rounded-lg shadow">
-                <CardContent className="pt-6 text-center">
-                  <p className="mb-4 text-xl text-gray-600">暂无考试数据</p>
-                  <p className="mb-4 text-sm text-gray-500">
-                    请先导入学生成绩数据
-                  </p>
-                  <Button 
-                    onClick={() => navigate("/")}
-                  >
-                    前往导入数据
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : isDataLoaded && selectedExam ? (
-              <AIAnalysisAssistant 
-                examId={selectedExam}
-                examTitle={currentExam?.title}
-                examType={currentExam?.type}
-              />
-            ) : (
-              <div className="text-center py-12 bg-white rounded-lg shadow">
-                <p className="text-xl text-gray-600">智能分析需要数据</p>
-                <p className="text-gray-500 mt-2">请先选择考试并确保有成绩数据</p>
-                {!selectedExam && examList.length > 0 ? (
-                  <Button 
-                    className="mt-4" 
-                    onClick={() => {
-                      if (examList.length > 0) {
-                        handleExamChange(examList[0].id);
-                      }
-                    }}
-                  >
-                    选择考试
-                  </Button>
-                ) : (
-                  <Button 
-                    className="mt-4" 
-                    onClick={() => navigate("/")}
-                  >
-                    前往导入数据
-                  </Button>
-                )}
-              </div>
-            )}
+          <TabsContent value="cross-analysis">
+            <div className="space-y-6">
+              <Alert className="bg-blue-50 border-blue-200">
+                <ChartPieIcon className="h-4 w-4 text-blue-500" />
+                <AlertTitle className="text-blue-700">多维交叉分析</AlertTitle>
+                <AlertDescription className="text-blue-600">
+                  <p>通过交叉分析功能，您可以从多个维度探索数据之间的关系，发现更深层次的教学规律和问题。</p>
+                </AlertDescription>
+              </Alert>
+              
+              <CrossDimensionAnalysisPanel />
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="anomaly">
+            <div className="space-y-6">
+              <Alert className="bg-amber-50 border-amber-200">
+                <AlertCircle className="h-4 w-4 text-amber-500" />
+                <AlertTitle className="text-amber-700">成绩异常检测</AlertTitle>
+                <AlertDescription className="text-amber-600">
+                  <p>系统会自动分析成绩数据，识别可能的异常情况，如成绩骤降、数据缺失等，帮助教师及时发现问题。</p>
+                </AlertDescription>
+              </Alert>
+              
+              <AnomalyDetection />
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="correlation">
+            <div className="space-y-6">
+              <Alert className="bg-blue-50 border-blue-200">
+                <Grid className="h-4 w-4 text-blue-500" />
+                <AlertTitle className="text-blue-700">科目相关性分析</AlertTitle>
+                <AlertDescription className="text-blue-600">
+                  <p>通过计算不同科目成绩之间的相关系数，帮助教师理解学科间的关联性，优化教学策略。</p>
+                </AlertDescription>
+              </Alert>
+              
+              <GradeCorrelationMatrix />
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="boxplot">
+            <div className="space-y-6">
+              <Alert className="bg-blue-50 border-blue-200">
+                <BarChart3 className="h-4 w-4 text-blue-500" />
+                <AlertTitle className="text-blue-700">班级学科箱线图</AlertTitle>
+                <AlertDescription className="text-blue-600">
+                  <p>通过箱线图直观展示班级各科目成绩分布，快速定位异常值和极端情况，助力精准教学干预。</p>
+                </AlertDescription>
+              </Alert>
+              
+              <ClassBoxPlotChart />
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="contribution">
+            <div className="space-y-6">
+              <Alert className="bg-blue-50 border-blue-200">
+                <ChartPieIcon className="h-4 w-4 text-blue-500" />
+                <AlertTitle className="text-blue-700">学生科目贡献度</AlertTitle>
+                <AlertDescription className="text-blue-600">
+                  <p>分析学生各科成绩相对于班级的表现差异，识别学生的优势和劣势学科，为因材施教提供数据支持。</p>
+                </AlertDescription>
+              </Alert>
+              
+              <StudentSubjectContribution />
+            </div>
           </TabsContent>
         </Tabs>
       </div>
