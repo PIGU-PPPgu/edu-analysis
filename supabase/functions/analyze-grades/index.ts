@@ -40,13 +40,14 @@ interface AnalysisResult {
     average: number;
     max: number;
     min: number;
-    stdDev: number;
+    stdDev?: number;
     classBreakdown: Record<string, {
       average: number;
       max: number;
       min: number;
     }>;
   }>;
+  examInfo?: any;
 }
 
 // CORS 头
@@ -57,267 +58,121 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // 处理 OPTIONS 请求
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
-  
+
   try {
-    // 解析请求
     const { examId } = await req.json();
-    
+
     if (!examId) {
-      return new Response(
-        JSON.stringify({ error: 'Missing examId parameter' }),
-        { 
-          status: 400, 
-          headers: { 
-            'Content-Type': 'application/json',
-            ...corsHeaders
-          } 
-        }
-      );
+      return new Response(JSON.stringify({ error: 'Missing examId parameter' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
     }
-    
-    // 创建Supabase客户端
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') as string;
-    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') as string;
-    
+
     const supabaseClient = createClient(
-      supabaseUrl,
-      supabaseKey,
-      { 
-        global: { 
-          headers: { Authorization: req.headers.get('Authorization')! }
-        }
-      }
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     );
-    
-    // 获取考试信息
+
+    // 1. Get Exam Info (as before)
     const { data: examInfo, error: examError } = await supabaseClient
       .from('exams')
       .select('*')
       .eq('id', examId)
       .single();
-    
-    if (examError) {
-      throw new Error(`获取考试信息失败: ${examError.message}`);
-    }
-    
-    // 获取成绩数据
-    const { data: gradeData, error: gradeError } = await supabaseClient
-      .from('grade_data')
-      .select('*')
-      .eq('exam_id', examId);
-    
-    if (gradeError) {
-      throw new Error(`获取成绩数据失败: ${gradeError.message}`);
-    }
-    
-    // 分析数据
-    const analysis = analyzeGradeData(gradeData as GradeRecord[]);
-    
-    // 返回分析结果
-    return new Response(
-      JSON.stringify({
-        examInfo,
-        ...analysis
-      }),
-      { 
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders
-        } 
-      }
-    );
-  } catch (error) {
-    return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'An unknown error occurred'
-      }),
-      { 
-        status: 500, 
-        headers: { 
-          'Content-Type': 'application/json',
-          ...corsHeaders
-        } 
-      }
-    );
-  }
-});
 
-/**
- * 分析成绩数据
- */
-function analyzeGradeData(gradeData: GradeRecord[]): AnalysisResult {
-  if (!gradeData.length) {
-    return getEmptyAnalysisResult();
-  }
-  
-  // 获取总分数据
-  const totalScores = gradeData
-    .map(record => parseFloat(record.total_score?.toString() || '0'))
-    .filter(score => !isNaN(score));
-  
-  // 获取所有班级
-  const classes = [...new Set(gradeData.map(record => record.class_name))];
-  
-  // 获取所有可能的科目字段
-  const subjectFields = Object.keys(gradeData[0])
-    .filter(key => key.endsWith('_score') && key !== 'total_score')
-    .map(key => key.replace('_score', ''));
-  
-  // 计算总体统计
-  const overallStats = {
-    average: calculateAverage(totalScores),
-    median: calculateMedian(totalScores),
-    min: Math.min(...totalScores),
-    max: Math.max(...totalScores),
-    stdDev: calculateStandardDeviation(totalScores)
-  };
-  
-  // 计算分数分布
-  const scoreDistribution = [
-    { range: '90-100', count: 0 },
-    { range: '80-89', count: 0 },
-    { range: '70-79', count: 0 },
-    { range: '60-69', count: 0 },
-    { range: '0-59', count: 0 }
-  ];
-  
-  totalScores.forEach(score => {
-    if (score >= 90) scoreDistribution[0].count++;
-    else if (score >= 80) scoreDistribution[1].count++;
-    else if (score >= 70) scoreDistribution[2].count++;
-    else if (score >= 60) scoreDistribution[3].count++;
-    else scoreDistribution[4].count++;
-  });
-  
-  // 计算各班级成绩表现
-  const classPerformance = classes.map(className => {
-    const classScores = gradeData
-      .filter(record => record.class_name === className)
-      .map(record => parseFloat(record.total_score?.toString() || '0'))
-      .filter(score => !isNaN(score));
+    if (examError) throw new Error(`获取考试信息失败: ${examError.message}`);
+
+    // 2. Call RPC for overall_stats and total_students
+    const { data: overallAnalysisData, error: overallError } = await supabaseClient
+      .rpc('get_exam_analysis', { p_exam_id: examId })
+      .single(); // Expects a single row
+
+    if (overallError) throw new Error(`RPC get_exam_analysis error: ${overallError.message}`);
+    if (!overallAnalysisData) throw new Error('No data from get_exam_analysis');
     
-    const passCount = classScores.filter(score => score >= 60).length;
+    // 3. Call RPC for score_distribution
+    const { data: scoreDistributionData, error: distributionError } = await supabaseClient
+      .rpc('get_score_distribution', { p_exam_id: examId });
+
+    if (distributionError) throw new Error(`RPC get_score_distribution error: ${distributionError.message}`);
     
-    return {
-      className,
-      count: classScores.length,
-      average: calculateAverage(classScores),
-      max: Math.max(...classScores),
-      min: Math.min(...classScores),
-      passRate: classScores.length > 0 ? passCount / classScores.length : 0
+    // 4. Call RPC for class_performance
+    const { data: classPerformanceData, error: classPerfError } = await supabaseClient
+      .rpc('get_class_performance', { p_exam_id: examId });
+
+    if (classPerfError) throw new Error(`RPC get_class_performance error: ${classPerfError.message}`);
+
+    // 5. Call RPC for subject_performance (simplified for 'total_score')
+    const { data: subjectPerformanceRows, error: subjectPerfError } = await supabaseClient
+        .rpc('get_subject_performance', { p_exam_id: examId, p_subject_name: 'total_score' });
+
+    if (subjectPerfError) throw new Error(`RPC get_subject_performance error: ${subjectPerfError.message}`);
+
+    // Transform data to match expected AnalysisResult structure
+    const overallStats = {
+      average: Number(overallAnalysisData.avg_score || 0),
+      median: 0, // TODO: Median is not directly provided by this RPC. Calculate if needed or set to 0/null.
+      min: Number(overallAnalysisData.min_score || 0),
+      max: Number(overallAnalysisData.max_score || 0),
+      stdDev: 0, // TODO: StdDev is not directly provided. Calculate if needed or set to 0/null.
     };
-  });
-  
-  // 计算各科目成绩表现
-  const subjectPerformance: Record<string, any> = {};
-  
-  subjectFields.forEach(subject => {
-    const fieldName = `${subject}_score`;
-    const subjectScores = gradeData
-      .map(record => parseFloat(record[fieldName]?.toString() || '0'))
-      .filter(score => !isNaN(score));
     
-    if (subjectScores.length === 0) return;
+    const transformedClassPerformance = (classPerformanceData || []).map(cp => ({
+        className: cp.class_name,
+        count: Number(cp.student_count || 0),
+        average: Number(cp.average_score || 0),
+        max: Number(cp.max_score || 0),
+        min: Number(cp.min_score || 0),
+        passRate: Number(cp.pass_rate || 0) / 100, 
+    }));
+
+    const subjectPerformance: AnalysisResult['subjectPerformance'] = {};
+    if (subjectPerformanceRows && subjectPerformanceRows.length > 0) {
+        const firstRow = subjectPerformanceRows[0];
+        subjectPerformance['total_score'] = { 
+            average: Number(firstRow.overall_average_score || 0),
+            max: Number(firstRow.overall_max_score || 0),
+            min: Number(firstRow.overall_min_score || 0),
+            stdDev: 0, 
+            classBreakdown: {},
+        };
+        subjectPerformanceRows.forEach(row => {
+            if (row.class_name) { 
+                 subjectPerformance['total_score'].classBreakdown[row.class_name] = {
+                    average: Number(row.class_average_score || 0),
+                    max: Number(row.class_max_score || 0),
+                    min: Number(row.class_min_score || 0),
+                };
+            }
+        });
+    }
+
+    const analysisResult: AnalysisResult = {
+      totalStudents: Number(overallAnalysisData.total_students || 0),
+      overallStats,
+      scoreDistribution: (scoreDistributionData || []).map(sd => ({
+        range: sd.score_range,
+        count: Number(sd.count || 0)
+      })),
+      classPerformance: transformedClassPerformance,
+      subjectPerformance,
+      examInfo 
+    };
     
-    // 计算各班级在该科目的表现
-    const classBreakdown: Record<string, any> = {};
-    
-    classes.forEach(className => {
-      const classSubjectScores = gradeData
-        .filter(record => record.class_name === className)
-        .map(record => parseFloat(record[fieldName]?.toString() || '0'))
-        .filter(score => !isNaN(score));
-      
-      if (classSubjectScores.length === 0) return;
-      
-      classBreakdown[className] = {
-        average: calculateAverage(classSubjectScores),
-        max: Math.max(...classSubjectScores),
-        min: Math.min(...classSubjectScores)
-      };
+    return new Response(JSON.stringify(analysisResult), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
     });
-    
-    subjectPerformance[subject] = {
-      average: calculateAverage(subjectScores),
-      max: Math.max(...subjectScores),
-      min: Math.min(...subjectScores),
-      stdDev: calculateStandardDeviation(subjectScores),
-      classBreakdown
-    };
-  });
-  
-  return {
-    totalStudents: gradeData.length,
-    overallStats,
-    scoreDistribution,
-    classPerformance,
-    subjectPerformance
-  };
-}
 
-/**
- * 计算平均值
- */
-function calculateAverage(numbers: number[]): number {
-  if (numbers.length === 0) return 0;
-  const sum = numbers.reduce((acc, val) => acc + val, 0);
-  return sum / numbers.length;
-}
-
-/**
- * 计算中位数
- */
-function calculateMedian(numbers: number[]): number {
-  if (numbers.length === 0) return 0;
-  
-  const sorted = [...numbers].sort((a, b) => a - b);
-  const middle = Math.floor(sorted.length / 2);
-  
-  if (sorted.length % 2 === 0) {
-    return (sorted[middle - 1] + sorted[middle]) / 2;
-  } else {
-    return sorted[middle];
+  } catch (error) {
+    console.error("Error in analyze-grades function:", error);
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'An unknown error occurred' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    });
   }
-}
-
-/**
- * 计算标准差
- */
-function calculateStandardDeviation(numbers: number[]): number {
-  if (numbers.length === 0) return 0;
-  
-  const avg = calculateAverage(numbers);
-  const squareDiffs = numbers.map(n => Math.pow(n - avg, 2));
-  const avgSquareDiff = calculateAverage(squareDiffs);
-  
-  return Math.sqrt(avgSquareDiff);
-}
-
-/**
- * 返回空的分析结果
- */
-function getEmptyAnalysisResult(): AnalysisResult {
-  return {
-    totalStudents: 0,
-    overallStats: {
-      average: 0,
-      median: 0,
-      min: 0,
-      max: 0,
-      stdDev: 0
-    },
-    scoreDistribution: [
-      { range: '90-100', count: 0 },
-      { range: '80-89', count: 0 },
-      { range: '70-79', count: 0 },
-      { range: '60-69', count: 0 },
-      { range: '0-59', count: 0 }
-    ],
-    classPerformance: [],
-    subjectPerformance: {}
-  };
-} 
+}); 

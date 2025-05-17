@@ -41,6 +41,7 @@ import AnomalyDetection from "@/components/analysis/AnomalyDetection";
 import GradeCorrelationMatrix from "@/components/analysis/GradeCorrelationMatrix";
 import ClassBoxPlotChart from "@/components/analysis/ClassBoxPlotChart";
 import StudentSubjectContribution from "@/components/analysis/StudentSubjectContribution";
+import ExamSelector, { ExamData } from "@/components/analysis/ExamSelector";
 
 // Updated to match what Supabase actually returns
 interface StudentGrade {
@@ -81,6 +82,18 @@ const GradeAnalysisLayout: React.FC = () => {
   const [selectedStudent, setSelectedStudent] = useState<{id: string; name: string} | null>(null);
   const [classesList, setClassesList] = useState<string[]>([]);
   const [studentsList, setStudentsList] = useState<{id: string; name: string}[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // 添加一个状态来跟踪数据库修复
+  const [dbFixStatus, setDbFixStatus] = useState<{
+    checking: boolean;
+    fixed: boolean;
+    error: string | null;
+  }>({
+    checking: false,
+    fixed: false,
+    error: null
+  });
 
   // 获取考试列表 - 使用缓存和加载状态优化
   useEffect(() => {
@@ -303,10 +316,15 @@ const GradeAnalysisLayout: React.FC = () => {
   };
 
   const handleRefreshData = () => {
+    fetchExamList();
+    fetchClassesList();
+    fetchStudentsList();
     if (selectedExam) {
-      toast.info('正在刷新数据...');
-      setGradeData([]);
+      fetchGradeData(); 
     }
+    
+    // 刷新页面提示
+    toast.success("数据已刷新");
   };
 
   const handleAnalyzeData = async () => {
@@ -359,6 +377,32 @@ const GradeAnalysisLayout: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       
+      {dbFixStatus.checking && (
+        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4 mx-4 mt-2">
+          <div className="flex items-center">
+            <Loader2 className="h-4 w-4 animate-spin text-blue-500 mr-2" />
+            <p className="text-sm text-blue-700">正在检查并更新数据库结构...</p>
+          </div>
+        </div>
+      )}
+      
+      {dbFixStatus.error && (
+        <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4 mx-4 mt-2">
+          <div className="flex">
+            <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+            <div>
+              <p className="font-medium text-red-800">数据库结构问题</p>
+              <p className="text-sm text-red-700">
+                {dbFixStatus.error}
+                <br />
+                <span className="font-medium">建议: </span>
+                请联系管理员在Supabase中执行必要的迁移脚本
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div className="container mx-auto py-6 px-4">
         <div className="flex items-center gap-2 mb-6">
           <Button 
@@ -383,21 +427,24 @@ const GradeAnalysisLayout: React.FC = () => {
             {examList.length > 0 ? (
               <>
                 <BookOpen className="h-4 w-4" />
-                <Select 
-                  value={selectedExam || undefined} 
-                  onValueChange={handleExamChange}
-                >
-                  <SelectTrigger className="w-[220px]">
-                    <SelectValue placeholder="选择考试" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {examList.map(exam => (
-                      <SelectItem key={exam.id} value={exam.id}>
-                        {exam.title} ({exam.type})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <ExamSelector 
+                  exams={examList.map(exam => ({
+                    id: exam.id,
+                    name: exam.title,
+                    date: exam.date || '未知日期'
+                  }))}
+                  selectedExams={selectedExam ? [selectedExam] : []}
+                  onChange={(values) => {
+                    if (values.length > 0) {
+                      handleExamChange(values[0]);
+                    } else {
+                      setSelectedExam(null);
+                    }
+                  }}
+                  maxSelections={1}
+                  showDeleteOption={true}
+                  onExamDeleted={handleRefreshData}
+                />
                 <Button 
                   variant="outline"
                   size="icon"

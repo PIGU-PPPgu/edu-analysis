@@ -14,6 +14,8 @@ const FileUploader: React.FC<FileProcessingProps> = ({ onFileProcessed, isAIEnha
     const file = event.target.files?.[0];
     if (!file) return;
 
+    console.log("[FileUploader] 开始处理文件上传:", file.name);
+
     if (onFileSelected) {
       onFileSelected(file);
     }
@@ -33,6 +35,7 @@ const FileUploader: React.FC<FileProcessingProps> = ({ onFileProcessed, isAIEnha
     try {
       const result = await processFile(file);
       if (result) {
+        console.log("[FileUploader] 文件处理成功，调用回调函数");
         onFileProcessed(result);
       }
     } catch (error) {

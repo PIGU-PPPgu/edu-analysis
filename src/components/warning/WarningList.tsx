@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, Filter, AlertTriangle, RefreshCw } from "lucide-react";
+import { Search, Filter, AlertTriangle, RefreshCw, ChevronRight, ArrowRight, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
 // 导入学生画像组件
@@ -49,7 +49,21 @@ const TypeBadge = ({ type }: { type: string }) => {
   );
 };
 
-const WarningList = ({ onWarningSelect }: { onWarningSelect?: (warningId: string) => void }) => {
+interface WarningListProps {
+  onWarningSelect?: (warningId: string) => void;
+  simplified?: boolean; // 是否为简化模式
+  limit?: number; // 显示条数限制
+  showViewAllButton?: boolean; // 是否显示"查看全部"按钮
+  onViewAllClick?: () => void; // "查看全部"按钮点击回调
+}
+
+const WarningList: React.FC<WarningListProps> = ({ 
+  onWarningSelect, 
+  simplified = false,
+  limit,
+  showViewAllButton = false,
+  onViewAllClick
+}) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterClass, setFilterClass] = useState("all");
   const [filterLevel, setFilterLevel] = useState("all");
@@ -170,6 +184,9 @@ const WarningList = ({ onWarningSelect }: { onWarningSelect?: (warningId: string
     return matchesSearch && matchesClass && matchesLevel;
   });
 
+  // 应用限制条数
+  const displayedWarnings = limit ? filteredWarnings.slice(0, limit) : filteredWarnings;
+
   // 格式化警告类型
   const getWarningTypes = (record: WarningRecord): string[] => {
     // 尝试从details中获取类型
@@ -233,6 +250,71 @@ const WarningList = ({ onWarningSelect }: { onWarningSelect?: (warningId: string
     }
   };
 
+  // 简化版的列表界面，适用于AI分析页面
+  if (simplified) {
+    return (
+      <div className="space-y-3">
+        {displayedWarnings.length === 0 && !isLoading ? (
+          <div className="text-center py-8 text-gray-500">
+            <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+            <p>暂无预警记录</p>
+          </div>
+        ) : isLoading ? (
+          <div className="space-y-2">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="rounded-md border p-3 animate-pulse bg-gray-50">
+                <div className="w-1/3 h-4 bg-gray-200 rounded mb-2"></div>
+                <div className="w-2/3 h-3 bg-gray-200 rounded"></div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <>
+            <div className="space-y-2">
+              {displayedWarnings.map((record) => (
+                <div 
+                  key={record.id} 
+                  className="flex justify-between items-center p-3 rounded-md border hover:bg-gray-50 cursor-pointer"
+                  onClick={() => onWarningSelect && onWarningSelect(record.id)}
+                >
+                  <div className="flex items-center space-x-3">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="bg-gray-100 text-gray-700 text-xs">
+                        {record.student?.name ? record.student.name.substring(0, 2) : "学生"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="font-medium text-sm">{record.student?.name || "未知学生"}</div>
+                      <div className="text-xs text-gray-500 flex items-center mt-0.5">
+                        {getWarningTypes(record).map(type => 
+                          <span key={type} className="mr-1">{type}</span>
+                        )}
+                        <span className="mx-1">•</span>
+                        <WarningBadge level={record.rule?.severity || 'medium'} />
+                      </div>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-gray-400" />
+                </div>
+              ))}
+            </div>
+            
+            {showViewAllButton && (
+              <Button 
+                variant="outline" 
+                onClick={onViewAllClick} 
+                className="w-full mt-2 text-sm h-9"
+              >
+                查看全部预警
+                <ExternalLink className="ml-2 h-3.5 w-3.5" />
+              </Button>
+            )}
+          </>
+        )}
+      </div>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -252,15 +334,16 @@ const WarningList = ({ onWarningSelect }: { onWarningSelect?: (warningId: string
             onClick={handleRefresh}
             disabled={isLoading}
           >
-            <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
-            {isLoading ? '获取中...' : '刷新数据'}
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            刷新
           </Button>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col sm:flex-row gap-4 mb-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        {/* 筛选工具栏 */}
+        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 mb-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
             <Input
               placeholder="搜索学生姓名或学号..."
               className="pl-8"
@@ -268,27 +351,32 @@ const WarningList = ({ onWarningSelect }: { onWarningSelect?: (warningId: string
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          
-          <div className="flex gap-2">
+          <div className="flex space-x-2">
             <Select value={filterClass} onValueChange={setFilterClass}>
-              <SelectTrigger className="w-[160px]">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="班级" />
+              <SelectTrigger className="w-[140px]">
+                <div className="flex items-center">
+                  <Filter className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="班级" />
+                </div>
               </SelectTrigger>
               <SelectContent>
                 {classOptions.map(option => (
-                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            
+
             <Select value={filterLevel} onValueChange={setFilterLevel}>
-              <SelectTrigger className="w-[160px]">
-                <AlertTriangle className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="风险等级" />
+              <SelectTrigger className="w-[120px]">
+                <div className="flex items-center">
+                  <AlertTriangle className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="风险级别" />
+                </div>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">所有等级</SelectItem>
+                <SelectItem value="all">所有风险</SelectItem>
                 <SelectItem value="high">高风险</SelectItem>
                 <SelectItem value="medium">中风险</SelectItem>
                 <SelectItem value="low">低风险</SelectItem>
@@ -297,78 +385,139 @@ const WarningList = ({ onWarningSelect }: { onWarningSelect?: (warningId: string
           </div>
         </div>
         
-        <div className="rounded-md border">
+        {/* 表格内容 */}
+        {isLoading ? (
+          <div className="text-center py-12 text-gray-500">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400 mx-auto mb-4"></div>
+            <p>加载预警数据中...</p>
+          </div>
+        ) : displayedWarnings.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            <AlertTriangle className="h-10 w-10 text-amber-300 mx-auto mb-4" />
+            <p>暂无符合条件的预警记录</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                <TableHead>学生</TableHead>
-                <TableHead>学号</TableHead>
-                <TableHead>风险等级</TableHead>
-                <TableHead>预警类型</TableHead>
-                <TableHead>预警日期</TableHead>
-                <TableHead>详情</TableHead>
-                <TableHead className="text-right">操作</TableHead>
+                  <TableHead>学生</TableHead>
+                  <TableHead>预警类型</TableHead>
+                  <TableHead>风险级别</TableHead>
+                  <TableHead>预警时间</TableHead>
+                  <TableHead>详情</TableHead>
+                  <TableHead>状态</TableHead>
+                  <TableHead className="text-right">操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
-                    <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2" />
-                    <p>加载中...</p>
-                  </TableCell>
-                </TableRow>
-              ) : filteredWarnings.length > 0 ? (
-                filteredWarnings.map((record) => (
-                  <TableRow 
-                    key={record.id}
-                    onClick={() => handleOpenProfileModal(record.student?.student_id || '')}
-                    className="cursor-pointer hover:bg-gray-50 transition-colors"
-                  >
-                    <TableCell className="font-medium">
-                      <div className="flex items-center">
-                        <Avatar className="h-8 w-8 mr-2">
-                          <AvatarImage src="" />
-                          <AvatarFallback>{record.student?.name?.charAt(0) || '?'}</AvatarFallback>
+                {displayedWarnings.map((record) => (
+                  <TableRow key={record.id}>
+                    <TableCell>
+                      <div 
+                        className="flex items-center space-x-3 cursor-pointer" 
+                        onClick={() => record.student?.student_id && handleOpenProfileModal(record.student.student_id)}
+                      >
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback className="bg-gray-100 text-gray-700 text-xs">
+                            {record.student?.name ? record.student.name.substring(0, 2) : "学生"}
+                          </AvatarFallback>
                         </Avatar>
-                        {record.student?.name || '未知学生'}
+                        <div>
+                          <div className="font-medium">{record.student?.name || "未知学生"}</div>
+                          <div className="text-xs text-gray-500">{record.student?.student_id || "-"}</div>
+                        </div>
                       </div>
                     </TableCell>
-                    <TableCell>{record.student?.student_id || '无学号'}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {getWarningTypes(record).map(type => (
+                          <TypeBadge key={type} type={type} />
+                        ))}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <WarningBadge level={record.rule?.severity || 'medium'} />
                     </TableCell>
                     <TableCell>
-                      {getWarningTypes(record).map((type, index) => (
-                        <TypeBadge key={index} type={type} />
-                      ))}
+                      {formatDate(record.created_at)}
                     </TableCell>
-                    <TableCell>{formatDate(record.created_at)}</TableCell>
-                    <TableCell className="max-w-[250px] truncate" title={getWarningDetails(record)}>
-                      {getWarningDetails(record)}
+                    <TableCell className="max-w-[200px]">
+                      <p className="truncate text-sm" title={getWarningDetails(record)}>
+                        {getWarningDetails(record)}
+                      </p>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={record.status === 'active' ? 'destructive' : 
+                                      record.status === 'resolved' ? 'default' : 'secondary'}>
+                        {record.status === 'active' ? '未处理' : 
+                         record.status === 'resolved' ? '已解决' : '已忽略'}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm">查看</Button>
+                      <div className="flex justify-end space-x-2">
+                        {record.status === 'active' ? (
+                          <>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleStatusUpdate(record.id, 'resolved')}
+                            >
+                              解决
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleStatusUpdate(record.id, 'dismissed')}
+                            >
+                              忽略
+                            </Button>
+                          </>
+                        ) : (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleStatusUpdate(record.id, 'active')}
+                          >
+                            重新激活
+                          </Button>
+                        )}
+                        {onWarningSelect && (
+                          <Button 
+                            variant="default" 
+                            size="sm"
+                            className="bg-[#c0ff3f] text-black hover:bg-[#a5e034]"
+                            onClick={() => onWarningSelect(record.id)}
+                          >
+                            查看
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
-                    没有找到符合条件的预警记录
-                  </TableCell>
-                </TableRow>
-              )}
+                ))}
               </TableBody>
             </Table>
-        </div>
+          </div>
+        )}
+        
+        {/* 查看全部按钮 */}
+        {limit && filteredWarnings.length > limit && showViewAllButton && (
+          <div className="mt-4 text-center">
+            <Button variant="outline" onClick={onViewAllClick}>
+              查看全部 ({filteredWarnings.length}) 条预警
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </CardContent>
-      {/* 只有当模态框打开且有选中的学生时才渲染StudentWarningProfile组件 */}
-      {isProfileModalOpen && selectedStudentUuid && (
-        <StudentWarningProfile 
-          studentUuid={selectedStudentUuid}
+      
+      {/* 学生画像模态框 */}
+      {selectedStudentUuid && (
+        <StudentWarningProfile
+          studentId={selectedStudentUuid}
           isOpen={isProfileModalOpen}
-          onOpenChange={handleCloseProfileModal}
+          onClose={handleCloseProfileModal}
         />
       )}
     </Card>

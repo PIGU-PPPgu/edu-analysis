@@ -12,7 +12,8 @@ import {
   ArrowUpDown,
   Loader2,
   BarChart3,
-  BookOpen
+  BookOpen,
+  Trash2
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
@@ -26,7 +27,7 @@ import ComparisonTab from "@/components/class/ComparisonTab";
 import SubjectAnalysisTab from "@/components/class/SubjectAnalysisTab";
 import ClassReportGenerator from "@/components/analysis/ClassReportGenerator";
 import AIDataAnalysis from "@/components/analysis/AIDataAnalysis";
-import { getAllClasses, getAllClassesAnalysisData, getSubjectAnalysisData } from "@/services/classService";
+import { getAllClasses, getAllClassesAnalysisData, getSubjectAnalysisData, deleteClass } from "@/services/classService";
 
 // 定义班级类型
 interface Class {
@@ -290,6 +291,29 @@ const ClassManagement: React.FC = () => {
     navigate(`/student-management?classId=${classId}&className=${encodeURIComponent(className)}`);
   };
 
+  // 处理删除班级
+  const handleDeleteClass = async (classId: string, className: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // 防止触发卡片点击
+    
+    if (!confirm(`确定要删除班级"${className}"吗？此操作不可恢复，相关的学生、作业等数据也可能被删除。`)) {
+      return;
+    }
+    
+    try {
+      const success = await deleteClass(classId);
+      if (success) {
+        // 如果当前选中的班级被删除，清空选中状态
+        if (selectedClass?.id === classId) {
+          setSelectedClass(null);
+        }
+        await fetchClasses(); // 重新获取班级列表
+      }
+    } catch (error) {
+      console.error('删除班级失败:', error);
+      toast.error('删除班级失败');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar />
@@ -397,11 +421,21 @@ const ClassManagement: React.FC = () => {
                       </div>
                     </div>
                   </CardContent>
-                    <CardContent className="px-4 py-2 bg-gray-50 dark:bg-gray-800 flex justify-end items-center">
+                    <CardContent className="px-4 py-2 bg-gray-50 dark:bg-gray-800 flex justify-between items-center">
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-lime-600 hover:text-lime-700 dark:text-lime-400 dark:hover:text-lime-500 hover:bg-lime-50 dark:hover:bg-gray-700 px-2 py-1"
+                        className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 hover:bg-red-50 dark:hover:bg-gray-700 px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                          handleDeleteClass(classItem.id, classItem.name, e);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" /> 删除
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-lime-600 hover:text-lime-700 dark:text-lime-400 dark:hover:text-lime-500 hover:bg-lime-50 dark:hover:bg-gray-700 px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity"
                         onClick={(e) => {
                           e.stopPropagation(); // 防止触发卡片点击
                           handleViewClassProfile(classItem.id);

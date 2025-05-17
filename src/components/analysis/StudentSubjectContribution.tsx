@@ -86,48 +86,62 @@ const StudentSubjectContribution: React.FC<StudentSubjectContributionProps> = ({
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // 获取所有学生列表
-        const { data: studentsList, error: studentsError } = await supabase
-          .from('grade_data')
-          .select('student_id, name, class_name')
-          .distinct();
+        // 获取所有学生列表 -- 这个查询未使用且有错误，将被移除
+        // const { data: studentsList, error: studentsError } = await supabase
+        //   .from('grade_data')
+        //   .select('student_id, name, class_name')
+        //   .distinct();
           
-        if (studentsError) throw studentsError;
+        // if (studentsError) throw studentsError;
         
-        // 获取科目贡献度分析数据
-        const { data, error } = await supabase.functions.invoke('recommend-charts', {
-          body: {
-            type: 'contribution',
-            examId: examId,
-            studentId: studentId
-          }
-        });
-        
-        if (error) {
-          console.error("获取科目贡献度分析数据失败:", error);
-          throw error;
-        }
-        
-        if (data && data.students) {
-          setStudents(data.students);
-          
-          // 如果有指定的学生ID，则选择该学生
-          if (studentId && data.students.length > 0) {
-            const student = data.students.find(s => s.id === studentId);
-            if (student) {
-              setSelectedStudent(student);
-            } else if (data.students.length > 0) {
-              // 否则选择第一个学生
-              setSelectedStudent(data.students[0]);
+        // 调用新的 Edge Function 获取科目贡献度分析数据
+        if (examId) { // 确保 examId 存在才调用
+          const { data: contributionResult, error: invokeError } = await supabase.functions.invoke(
+            'get-student-subject-contribution-data', // 新的 Edge Function 名称
+            {
+              body: {
+                examId: examId,
+                studentId: studentId // 如果有 studentId prop，则传递，否则不传或传null (Edge Function会处理)
+              }
             }
-          } else if (data.students.length > 0) {
-            // 默认选择第一个学生
-            setSelectedStudent(data.students[0]);
+          );
+
+          if (invokeError) {
+            console.error("调用 get-student-subject-contribution-data 失败:", invokeError);
+            toast.error("获取科目贡献度数据失败", { description: invokeError.message });
+            setStudents([]);
+            setSelectedStudent(null);
+            return; // 出错则提前返回
+          }
+
+          // 新的 Edge Function 直接返回 StudentData[] 数组
+          if (Array.isArray(contributionResult)) {
+            setStudents(contributionResult);
+            
+            // 如果有指定的学生ID prop，则尝试选择该学生
+            if (studentId && contributionResult.length > 0) {
+              const student = contributionResult.find(s => s.id === studentId);
+              if (student) {
+                setSelectedStudent(student);
+              } else if (contributionResult.length > 0) {
+                // 如果指定ID的学生未在返回结果中找到 (可能因为mock数据或筛选)，选择第一个
+                setSelectedStudent(contributionResult[0]);
+              }
+            } else if (contributionResult.length > 0) {
+              // 默认选择第一个学生
+              setSelectedStudent(contributionResult[0]);
+            }
+          } else {
+            console.warn("get-student-subject-contribution-data 返回了非预期的数据格式:", contributionResult);
+            setStudents([]);
+            setSelectedStudent(null);
           }
         } else {
+          // 如果 examId 不存在，则清空数据
           setStudents([]);
           setSelectedStudent(null);
         }
+
       } catch (error) {
         console.error("加载科目贡献度数据失败:", error);
         toast.error("加载数据失败", {

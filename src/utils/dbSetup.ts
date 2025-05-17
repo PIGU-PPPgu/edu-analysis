@@ -1,5 +1,6 @@
 import { toast } from 'sonner';
 import { executeSql } from './dbUtil';
+import { createWarningStatisticsTable } from '@/app/db/migrations/create_warning_statistics';
 
 // 初始化数据库配置
 export async function initializeDatabase() {
@@ -279,6 +280,18 @@ export async function setupInitialData() {
       `;
       await executeSql(createTermsSql);
       console.log('初始学期数据已创建');
+    }
+    
+    // 创建预警统计表
+    try {
+      const result = await createWarningStatisticsTable();
+      if (result.success) {
+        console.log('预警统计表创建或已存在');
+      } else {
+        console.error('创建预警统计表失败:', result.error);
+      }
+    } catch (error) {
+      console.error('创建预警统计表出错:', error);
     }
     
     toast.success('初始数据设置成功');

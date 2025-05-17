@@ -1,0 +1,16 @@
+{
+  "buckets": [
+    {
+      "id": "homework_images",
+      "name": "homework_images",
+      "public": true,
+      "file_size_limit": 5242880
+    },
+    {
+      "id": "homework_files",
+      "name": "homework_files",
+      "public": true,
+      "file_size_limit": 10485760
+    }
+  ]
+}

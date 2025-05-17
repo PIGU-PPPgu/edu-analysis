@@ -1,6 +1,5 @@
-
 import * as React from "react";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,8 +15,20 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { gradeAnalysisService } from "@/services/gradeAnalysisService";
 
-interface ExamData {
+export interface ExamData {
   id: string;
   name: string;
   date: string;
@@ -28,15 +39,21 @@ interface ExamSelectorProps {
   selectedExams: string[];
   onChange: (value: string[]) => void;
   maxSelections?: number;
+  onExamDeleted?: () => void;
+  showDeleteOption?: boolean;
 }
 
 const ExamSelector: React.FC<ExamSelectorProps> = ({
   exams,
   selectedExams,
   onChange,
-  maxSelections = 4
+  maxSelections = 4,
+  onExamDeleted,
+  showDeleteOption = false
 }) => {
   const [open, setOpen] = React.useState(false);
+  const [examToDelete, setExamToDelete] = React.useState<ExamData | null>(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   const toggleExam = (examId: string) => {
     if (selectedExams.includes(examId)) {
@@ -51,6 +68,49 @@ const ExamSelector: React.FC<ExamSelectorProps> = ({
   const removeExam = (examId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     onChange(selectedExams.filter((id) => id !== examId));
+  };
+  
+  const handleDeleteClick = (e: React.MouseEvent, exam: ExamData) => {
+    e.stopPropagation();
+    setExamToDelete(exam);
+  };
+  
+  const confirmDeleteExam = async () => {
+    if (!examToDelete) return;
+    
+    try {
+      setIsDeleting(true);
+      
+      const result = await gradeAnalysisService.deleteExam(examToDelete.id);
+      
+      if (result.success) {
+        toast.success("考试删除成功", {
+          description: `已删除考试"${examToDelete.name}"及相关成绩数据`
+        });
+        
+        // 如果被删除的考试在选中列表中，从选中列表中移除
+        if (selectedExams.includes(examToDelete.id)) {
+          onChange(selectedExams.filter(id => id !== examToDelete.id));
+        }
+        
+        // 通知父组件刷新考试列表
+        if (onExamDeleted) {
+          onExamDeleted();
+        }
+      } else {
+        toast.error("删除考试失败", {
+          description: result.message || "操作未能完成，请稍后重试"
+        });
+      }
+    } catch (error) {
+      console.error("删除考试时出错:", error);
+      toast.error("删除考试失败", {
+        description: error instanceof Error ? error.message : "未知错误"
+      });
+    } finally {
+      setIsDeleting(false);
+      setExamToDelete(null);
+    }
   };
 
   return (

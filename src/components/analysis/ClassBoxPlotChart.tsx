@@ -16,7 +16,8 @@ import {
   Line,
   Rectangle,
   ReferenceLine,
-  ErrorBar
+  ErrorBar,
+  Label
 } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -156,53 +157,73 @@ const ClassBoxPlotChart: React.FC<ClassBoxPlotChartProps> = ({ examId }) => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // 从API获取班级列表
-        const { data: classData, error: classError } = await supabase
-          .from('grade_data')
-          .select('class_name')
-          .distinct();
-          
-        if (classError) throw classError;
-        
-        if (classData && classData.length > 0) {
-          const classes = classData.map(c => c.class_name).filter(Boolean);
-          setClassOptions(["全部班级", ...classes]);
-        }
-        
-        // 从API获取箱线图数据
-        const { data, error } = await supabase.functions.invoke('recommend-charts', {
-          body: {
-            type: 'boxplot',
-            className: selectedClass === "全部班级" ? null : selectedClass,
-            examId: examId
+        // 使用 RPC 函数获取班级列表
+        if (examId) { // 确保 examId 存在
+          const { data: rpcData, error: rpcError } = await supabase.rpc('get_distinct_class_names', { p_exam_id: examId });
+
+          if (rpcError) {
+            console.error("RPC调用get_distinct_class_names失败:", rpcError);
+            toast.error("获取班级列表失败", { description: rpcError.message });
+            setClassOptions(["全部班级"]);
+          } else if (rpcData && rpcData.length > 0) {
+            const uniqueClassNames = [...new Set(rpcData.map(record => record.class_name).filter(Boolean).sort())];
+            setClassOptions(["全部班级", ...uniqueClassNames]);
+          } else {
+            setClassOptions(["全部班级"]); // 没有数据也保留默认选项
           }
-        });
-        
-        if (error) {
-          console.error("获取箱线图数据失败:", error);
-          throw error;
+        } else {
+          // 如果 examId 不存在，也设置默认值
+          setClassOptions(["全部班级"]);
         }
         
-        if (data && data.boxPlotData) {
-          setBoxPlotData(data.boxPlotData);
-          
-          // 收集所有的异常值放入列表
-          const allOutliers = [];
-          for (const subject of data.boxPlotData) {
-            if (subject.outliers && subject.outliers.length > 0) {
-              for (const outlier of subject.outliers) {
-                allOutliers.push({
-                  subject: subject.subject,
-                  ...outlier
-                });
+        // 调用新的 Edge Function 获取箱线图数据
+        if (examId) { // 确保 examId 存在才调用
+          const { data: boxPlotResult, error: invokeError } = await supabase.functions.invoke(
+            'get-class-boxplot-data', // 新的 Edge Function 名称
+            {
+              body: {
+                examId: examId,
+                className: selectedClass === "全部班级" ? null : selectedClass,
               }
             }
+          );
+
+          if (invokeError) {
+            console.error("调用 get-class-boxplot-data 失败:", invokeError);
+            toast.error("获取箱线图数据失败", { description: invokeError.message });
+            setBoxPlotData([]);
+            setOutliersList([]);
+            return; // 出错则提前返回
           }
-          setOutliersList(allOutliers);
+
+          // 新的 Edge Function 直接返回 BoxPlotData[] 数组
+          if (Array.isArray(boxPlotResult)) {
+            setBoxPlotData(boxPlotResult);
+            
+            // 收集所有的异常值放入列表
+            const allOutliers = [];
+            for (const subject of boxPlotResult) {
+              if (subject.outliers && subject.outliers.length > 0) {
+                for (const outlier of subject.outliers) {
+                  allOutliers.push({
+                    subject: subject.subject,
+                    ...outlier
+                  });
+                }
+              }
+            }
+            setOutliersList(allOutliers);
+          } else {
+            console.warn("get-class-boxplot-data 返回了非预期的数据格式:", boxPlotResult);
+            setBoxPlotData([]);
+            setOutliersList([]);
+          }
         } else {
+          // 如果 examId 不存在，则清空数据
           setBoxPlotData([]);
           setOutliersList([]);
         }
+
       } catch (error) {
         console.error("加载箱线图数据失败:", error);
         toast.error("加载数据失败", {

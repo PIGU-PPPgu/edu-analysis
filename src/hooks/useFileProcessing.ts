@@ -14,6 +14,7 @@ export const useFileProcessing = () => {
   const [fileInfo, setFileInfo] = useState<{ name: string; size: number } | null>(null);
 
   const processFile = async (file: File, isAIEnhanced: boolean = true): Promise<ParsedData | null> => {
+    console.log("[useFileProcessing] 开始处理文件:", file.name, "AI增强:", isAIEnhanced);
     const allowedTypes = [
       'text/csv',
       'application/vnd.ms-excel',

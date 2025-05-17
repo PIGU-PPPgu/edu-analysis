@@ -231,7 +231,7 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
           <CardContent>
             <ClassTrendChart 
               className={selectedClass.name} 
-              trendData={trendData[selectedClass.id] || []}
+              mockData={trendData[selectedClass.id] || []}
             />
           </CardContent>
         </Card>
@@ -244,7 +244,7 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
             <CardContent>
               <ClassTrendChart 
                 className={classToCompare.name} 
-                trendData={trendData[classToCompare.id] || []}
+                mockData={trendData[classToCompare.id] || []}
               />
             </CardContent>
           </Card>

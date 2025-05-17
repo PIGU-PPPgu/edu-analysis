@@ -53,7 +53,8 @@ import {
   Brain,
   ClipboardList,
   Lightbulb,
-  CheckCheck
+  CheckCheck,
+  Network
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -67,6 +68,11 @@ import {
   generateBulkInterventionPlan
 } from '@/services/riskClusterService';
 import { getInterventionTypeOptions } from '@/services/interventionService';
+
+// 聚类视图组件接口
+interface RiskClusterViewProps {
+  simplified?: boolean; // 添加简化模式属性
+}
 
 // 风险聚类卡片组件
 const ClusterCard = ({ 
@@ -373,7 +379,7 @@ const StudentList = ({ students }: { students: StudentRiskClusterAssignment[] })
 };
 
 // 风险聚类分析主组件
-const RiskClusterView = () => {
+const RiskClusterView: React.FC<RiskClusterViewProps> = ({ simplified = false }) => {
   const [clusters, setClusters] = useState<RiskCluster[]>([]);
   const [students, setStudents] = useState<StudentRiskClusterAssignment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -427,6 +433,38 @@ const RiskClusterView = () => {
     // loadData();
   };
   
+  // 如果是简化模式，我们只展示基本信息
+  if (simplified) {
+    return (
+      <div className="h-full">
+        {isLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4">
+            {clusters.map((cluster) => (
+              <div 
+                key={cluster.cluster_id}
+                className="border rounded-md p-4 flex flex-col"
+                style={{ borderLeftColor: cluster.color, borderLeftWidth: '4px' }}
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="font-medium">{cluster.cluster_name}</h3>
+                  <Badge variant="outline">{cluster.student_count}名学生</Badge>
+                </div>
+                <p className="text-xs text-gray-500 line-clamp-2">
+                  主要特征: {cluster.risk_factors.map(f => f.factor).join('、')}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+  
+  // 完整模式
   return (
     <div className="space-y-6">
       <div>

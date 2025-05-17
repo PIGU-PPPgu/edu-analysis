@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import WarningStatistics from "./WarningStatistics";
 import RiskFactorChart from "./RiskFactorChart";
@@ -16,7 +16,9 @@ import {
   BookOpen, 
   Check, 
   Brain, 
-  ArrowRight 
+  ArrowRight,
+  RefreshCw,
+  DatabaseIcon
 } from "lucide-react";
 import { toast } from "sonner";
 import { getUserAIConfig, getUserAPIKey } from "@/utils/userAuth";
@@ -28,6 +30,7 @@ interface WarningDashboardProps {
   factorStats?: Array<{ factor: string; count: number; percentage: number }>;
   levelStats?: Array<{ level: string; count: number; percentage: number }>;
   warningData?: any;
+  isLoading?: boolean;
 }
 
 // 默认模拟数据
@@ -227,11 +230,80 @@ const AIInsightPanel = ({
   );
 };
 
+// 添加错误处理组件，允许用户快速创建表
+const TableErrorHandler = ({ 
+  error, 
+  onRetry 
+}: { 
+  error: string | null;
+  onRetry: () => void;
+}) => {
+  const [isFixing, setIsFixing] = useState(false);
+  
+  // 修复表结构
+  const handleFixTable = async () => {
+    try {
+      setIsFixing(true);
+      // 跳转到创建表的工具页面
+      window.location.href = '/tools/create-warning-table';
+    } catch (error) {
+      console.error('修复表结构失败:', error);
+      toast.error('修复表结构失败');
+      setIsFixing(false);
+    }
+  };
+  
+  if (!error) return null;
+  
+  return (
+    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+      <div className="flex items-start">
+        <AlertTriangle className="h-5 w-5 text-yellow-500 mt-0.5 mr-3 flex-shrink-0" />
+        <div className="flex-1">
+          <h3 className="text-sm font-medium text-yellow-800">数据结构问题</h3>
+          <p className="mt-1 text-sm text-yellow-700">
+            {error}。这可能是因为预警统计表尚未创建。
+          </p>
+          <div className="mt-3 flex space-x-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onRetry}
+            >
+              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+              重试
+            </Button>
+            <Button
+              size="sm"
+              className="bg-[#c0ff3f] text-black hover:bg-[#a5e034]"
+              onClick={handleFixTable}
+              disabled={isFixing}
+            >
+              {isFixing ? (
+                <>
+                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                  正在修复...
+                </>
+              ) : (
+                <>
+                  <DatabaseIcon className="mr-2 h-3.5 w-3.5" />
+                  创建预警表
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // WarningDashboard组件
 const WarningDashboard: React.FC<WarningDashboardProps> = ({ 
   factorStats, 
   levelStats, 
-  warningData 
+  warningData,
+  isLoading = false
 }) => {
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   const [aiInsights, setAiInsights] = useState<string | null>(null);
@@ -239,13 +311,35 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
   const [aiError, setAiError] = useState<string | null>(null);
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [activeTab, setActiveTab] = useState<string>("overview");
+  const [tableError, setTableError] = useState<string | null>(null);
   
   // 添加isMounted引用以避免内存泄漏
   const isMounted = React.useRef(true);
 
-  // 使用传入的数据或默认数据
-  const stats = warningData || defaultWarningStats;
-  const riskFactors = factorStats || stats.commonRiskFactors;
+  // 使用传入的数据或默认数据，并确保数据存在
+  const stats = useMemo(() => {
+    // 确保传入的warningData包含所有必要字段，否则使用默认值
+    if (!warningData) return defaultWarningStats;
+    
+    return {
+      totalStudents: warningData.totalStudents || defaultWarningStats.totalStudents,
+      atRiskStudents: warningData.atRiskStudents || defaultWarningStats.atRiskStudents,
+      highRiskStudents: warningData.highRiskStudents || defaultWarningStats.highRiskStudents,
+      warningsByType: Array.isArray(warningData.warningsByType) 
+        ? warningData.warningsByType 
+        : defaultWarningStats.warningsByType,
+      riskByClass: Array.isArray(warningData.riskByClass) 
+        ? warningData.riskByClass 
+        : defaultWarningStats.riskByClass,
+      commonRiskFactors: Array.isArray(warningData.commonRiskFactors) 
+        ? warningData.commonRiskFactors 
+        : defaultWarningStats.commonRiskFactors
+    };
+  }, [warningData]);
+  
+  const riskFactors = useMemo(() => {
+    return factorStats || stats.commonRiskFactors || [];
+  }, [factorStats, stats]);
 
   useEffect(() => {
     const checkAIConfig = async () => {
@@ -260,11 +354,20 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
     
     checkAIConfig();
     
+    // 检查数据状态，设置错误信息
+    if (warningData && (!warningData.warningsByType || !Array.isArray(warningData.warningsByType))) {
+      setTableError('预警数据格式错误或未找到');
+    } else if (isLoading === false && !warningData) {
+      setTableError('无法加载预警统计数据');
+    } else {
+      setTableError(null);
+    }
+    
     // 组件卸载时的清理函数
     return () => {
       isMounted.current = false;
     };
-  }, []);
+  }, [warningData, isLoading]);
 
   // 使用aiService中的功能进行AI分析
   const generateAIInsights = async () => {
@@ -468,6 +571,13 @@ ${Math.random() > 0.5 ? '4. 设计专项提升计划，针对薄弱学科进行�
 
   return (
     <div className="space-y-6">
+      {tableError && (
+        <TableErrorHandler 
+          error={tableError} 
+          onRetry={() => window.location.reload()} 
+        />
+      )}
+      
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard 
           title="学生总数" 
@@ -479,7 +589,7 @@ ${Math.random() > 0.5 ? '4. 设计专项提升计划，针对薄弱学科进行�
           title="风险学生" 
           value={stats.atRiskStudents} 
           icon={AlertTriangle}
-          description={`占比 ${((stats.atRiskStudents / stats.totalStudents) * 100).toFixed(1)}%`}
+          description={stats.totalStudents ? `占比 ${((stats.atRiskStudents / stats.totalStudents) * 100).toFixed(1)}%` : '占比计算中'}
           change={2.5}
           trend="up"
         />
@@ -487,13 +597,13 @@ ${Math.random() > 0.5 ? '4. 设计专项提升计划，针对薄弱学科进行�
           title="高风险学生" 
           value={stats.highRiskStudents} 
           icon={AlertTriangle}
-          description={`占风险学生 ${((stats.highRiskStudents / stats.atRiskStudents) * 100).toFixed(1)}%`}
+          description={stats.atRiskStudents ? `占风险学生 ${((stats.highRiskStudents / stats.atRiskStudents) * 100).toFixed(1)}%` : '占比计算中'}
           change={-1.2}
           trend="down"
         />
         <StatCard 
           title="风险类型" 
-          value={stats.warningsByType.length} 
+          value={Array.isArray(stats.warningsByType) ? stats.warningsByType.length : 0} 
           icon={BarChart3}
           description="综合预警类型总数"
         />
@@ -524,8 +634,8 @@ ${Math.random() > 0.5 ? '4. 设计专项提升计划，针对薄弱学科进行�
               </CardHeader>
               <CardContent>
                 <WarningStatistics 
-                  data={stats.warningsByType} 
-                  levelData={levelStats}
+                  data={Array.isArray(stats.warningsByType) ? stats.warningsByType : []} 
+                  levelData={Array.isArray(levelStats) ? levelStats : []}
                 />
               </CardContent>
             </Card>
@@ -536,7 +646,7 @@ ${Math.random() > 0.5 ? '4. 设计专项提升计划，针对薄弱学科进行�
                 <CardDescription className="text-gray-500">主要风险因素影响占比</CardDescription>
               </CardHeader>
               <CardContent>
-                <RiskFactorChart data={riskFactors} />
+                <RiskFactorChart data={Array.isArray(riskFactors) ? riskFactors : []} />
               </CardContent>
             </Card>
           </div>
@@ -548,24 +658,29 @@ ${Math.random() > 0.5 ? '4. 设计专项提升计划，针对薄弱学科进行�
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {stats.riskByClass.map((classData, index) => (
+                {Array.isArray(stats.riskByClass) && stats.riskByClass.map((classData, index) => (
                   <Card key={index} className="bg-gray-50 border-l-[3px] border-[#c0ff3f] rounded-lg p-4 hover:shadow-sm transition-shadow">
                     <h3 className="font-semibold text-gray-700 mb-1.5">{classData.className}</h3>
                     <div className="flex justify-between items-center mt-2 mb-1">
                       <span className="text-xs text-gray-500">风险学生比例</span>
                       <span className="text-xs font-medium text-gray-700">
                         {classData.atRiskCount}/{classData.studentCount} 
-                        ({((classData.atRiskCount / classData.studentCount) * 100).toFixed(1)}%)
+                        ({classData.studentCount > 0 ? ((classData.atRiskCount / classData.studentCount) * 100).toFixed(1) : 0}%)
                       </span>
                     </div>
                     <div className="w-full bg-gray-200 h-2 mt-2 rounded-full overflow-hidden">
                       <div 
                         className="h-full rounded-full bg-[#c0ff3f]"
-                        style={{ width: `${(classData.atRiskCount / classData.studentCount) * 100}%` }}
+                        style={{ width: `${classData.studentCount > 0 ? (classData.atRiskCount / classData.studentCount) * 100 : 0}%` }}
                       ></div>
                     </div>
                   </Card>
                 ))}
+                {(!Array.isArray(stats.riskByClass) || stats.riskByClass.length === 0) && (
+                  <div className="col-span-3 p-4 text-center text-gray-500">
+                    <p>暂无班级风险数据</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -577,7 +692,7 @@ ${Math.random() > 0.5 ? '4. 设计专项提升计划，针对薄弱学科进行�
         </CardHeader>
         <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {stats.warningsByType.map((warning, index) => (
+                {Array.isArray(stats.warningsByType) && stats.warningsByType.map((warning, index) => (
                   <WarningTypeCard 
                     key={index}
                     type={warning.type}
@@ -586,6 +701,11 @@ ${Math.random() > 0.5 ? '4. 设计专项提升计划，针对薄弱学科进行�
                     trend={warning.trend}
                   />
                 ))}
+                {(!Array.isArray(stats.warningsByType) || stats.warningsByType.length === 0) && (
+                  <div className="col-span-4 p-4 text-center text-gray-500">
+                    <p>暂无预警类型数据</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -645,7 +765,7 @@ ${Math.random() > 0.5 ? '4. 设计专项提升计划，针对薄弱学科进行�
                 <CardTitle className="text-xl font-semibold text-gray-800">风险因素相关性</CardTitle>
               </CardHeader>
               <CardContent>
-                <RiskFactorChart data={riskFactors} />
+                <RiskFactorChart data={Array.isArray(riskFactors) ? riskFactors : []} />
               </CardContent>
             </Card>
             

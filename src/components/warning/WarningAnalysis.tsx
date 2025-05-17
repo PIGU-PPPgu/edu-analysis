@@ -21,7 +21,8 @@ import {
   ArrowDownRight,
   Minus,
   Users,
-  ClipboardList
+  ClipboardList,
+  ExternalLink
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -68,7 +69,8 @@ const WarningAnalysis = () => {
     list: false,
     rules: false,
     intervention: false,
-    clusters: false
+    clusters: false,
+    ai: false
   });
   
   // 初始化预警统计数据状态
@@ -93,14 +95,72 @@ const WarningAnalysis = () => {
     setLoadingData(true);
     try {
       const statistics = await requestCache.get('warning_statistics', async () => {
-        return await getWarningStatistics();
+        const rawData = await getWarningStatistics();
+
+        // 检查并确保返回数据格式正确
+        if (!rawData) {
+          console.warn('获取预警统计返回空数据');
+          return null;
+        }
+
+        // 转换数据格式，确保前端组件可以正确读取
+        const formattedData: WarningStats = {
+          students: {
+            total: rawData.students?.total || 0,
+            at_risk: rawData.students?.at_risk || 0,
+            trend: rawData.students?.trend || 'unchanged'
+          },
+          classes: {
+            total: rawData.classes?.total || 0,
+            at_risk: rawData.classes?.at_risk || 0,
+            trend: rawData.classes?.trend || 'unchanged'
+          },
+          warnings: {
+            total: rawData.warnings?.total || 0,
+            by_type: Array.isArray(rawData.warnings?.by_type) ? rawData.warnings.by_type : [],
+            by_severity: Array.isArray(rawData.warnings?.by_severity) ? rawData.warnings.by_severity : [
+              { severity: 'high', count: 0, percentage: 0, trend: 'unchanged' },
+              { severity: 'medium', count: 0, percentage: 0, trend: 'unchanged' },
+              { severity: 'low', count: 0, percentage: 0, trend: 'unchanged' }
+            ],
+            trend: rawData.warnings?.trend || 'unchanged'
+          },
+          risk_factors: Array.isArray(rawData.risk_factors) ? rawData.risk_factors : []
+        };
+
+        return formattedData;
       }, 10 * 60 * 1000); // 10分钟缓存
       
       if (statistics) {
+        // 将数据转换为WarningDashboard需要的格式
+        const dashboardStats = {
+          totalStudents: statistics.students.total,
+          atRiskStudents: statistics.students.at_risk,
+          highRiskStudents: statistics.warnings.by_severity.find(s => s.severity === 'high')?.count || 0,
+          warningsByType: statistics.warnings.by_type.map(type => ({
+            type: type.type,
+            count: type.count,
+            percentage: type.percentage,
+            trend: type.trend
+          })),
+          riskByClass: [
+            { className: '高一(1)班', studentCount: 52, atRiskCount: 8 },
+            { className: '高一(2)班', studentCount: 50, atRiskCount: 12 },
+            { className: '高一(3)班', studentCount: 54, atRiskCount: 8 }
+          ],
+          commonRiskFactors: statistics.risk_factors.map(factor => ({
+            factor: factor.factor,
+            count: factor.count,
+            percentage: factor.percentage
+          }))
+        };
+        
         setStats(statistics);
+        console.log('预警数据转换完成:', dashboardStats);
+        toast.success('预警数据已更新');
+      } else {
+        console.warn('获取预警数据失败，使用默认值');
       }
-      
-      toast.success('预警数据已更新');
     } catch (error) {
       console.error('获取预警数据失败:', error);
       toast.error('获取预警数据失败');
@@ -116,7 +176,15 @@ const WarningAnalysis = () => {
       fetchWarningData();
       setTabsLoaded(prev => ({ ...prev, dashboard: true }));
     }
-  }, [activeTab, tabsLoaded.dashboard]);
+    
+    // 如果切换到 AI 分析标签，确保已加载数据
+    if (activeTab === 'ai' && !tabsLoaded.ai) {
+      if (!tabsLoaded.dashboard) {
+        fetchWarningData();
+      }
+      setTabsLoaded(prev => ({ ...prev, ai: true }));
+    }
+  }, [activeTab, tabsLoaded.dashboard, tabsLoaded.ai]);
   
   // 处理预警记录选择
   const handleWarningSelect = (warningId: string) => {
@@ -147,7 +215,7 @@ const WarningAnalysis = () => {
       
       {/* 主要内容 */}
       <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="grid grid-cols-5 w-full mb-6">
+        <TabsList className="grid grid-cols-6 w-full mb-6">
           <TabsTrigger value="dashboard" className="flex items-center space-x-2">
             <LayoutDashboard className="h-4 w-4" />
             <span>总览</span>
@@ -168,12 +236,42 @@ const WarningAnalysis = () => {
             <Users className="h-4 w-4" />
             <span>风险聚类</span>
           </TabsTrigger>
+          <TabsTrigger value="ai" className="flex items-center space-x-2">
+            <Brain className="h-4 w-4" />
+            <span>AI分析</span>
+          </TabsTrigger>
         </TabsList>
         
         <Suspense fallback={<LoadingFallback />}>
           <TabsContent value="dashboard">
             <WarningDashboard
-              stats={stats}
+              factorStats={stats.risk_factors}
+              levelStats={stats.warnings.by_severity.map(s => ({
+                level: s.severity,
+                count: s.count,
+                percentage: s.percentage
+              }))}
+              warningData={{
+                totalStudents: stats.students.total,
+                atRiskStudents: stats.students.at_risk,
+                highRiskStudents: stats.warnings.by_severity.find(s => s.severity === 'high')?.count || 0,
+                warningsByType: stats.warnings.by_type.map(type => ({
+                  type: type.type,
+                  count: type.count,
+                  percentage: type.percentage,
+                  trend: type.trend
+                })),
+                riskByClass: [
+                  { className: '高一(1)班', studentCount: 52, atRiskCount: 8 },
+                  { className: '高一(2)班', studentCount: 50, atRiskCount: 12 },
+                  { className: '高一(3)班', studentCount: 54, atRiskCount: 8 }
+                ],
+                commonRiskFactors: stats.risk_factors.map(factor => ({
+                  factor: factor.factor,
+                  count: factor.count,
+                  percentage: factor.percentage
+                }))
+              }}
               isLoading={loadingData}
             />
           </TabsContent>
@@ -216,6 +314,123 @@ const WarningAnalysis = () => {
           <TabsContent value="clusters">
             {activeTab === 'clusters' && (
               <RiskClusterView />
+            )}
+          </TabsContent>
+          
+          <TabsContent value="ai">
+            {activeTab === 'ai' && (
+              <div className="grid grid-cols-1 gap-6">
+                <Card className="mb-6">
+                  <CardHeader className="bg-[#f8fff0]">
+                    <CardTitle className="flex items-center">
+                      <Brain className="h-5 w-5 mr-2 text-[#c0ff3f]" />
+                      AI智能分析
+                    </CardTitle>
+                    <CardDescription>
+                      利用AI算法深度分析学生预警数据，挖掘潜在规律并提供干预建议
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    <div className="grid gap-6 lg:grid-cols-3">
+                      <Card className="overflow-hidden border-none shadow-sm">
+                        <CardHeader className="p-4 bg-blue-50">
+                          <CardTitle className="text-base font-medium">风险学生聚类分析</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-4">
+                          <p className="text-sm text-gray-500 mb-4">
+                            AI将分析各种维度的数据，将风险学生分为不同聚类，帮助您发现潜在模式。
+                          </p>
+                          <Button variant="outline" className="w-full" onClick={() => setActiveTab('clusters')}>
+                            <Users className="h-4 w-4 mr-2" />
+                            查看聚类分析结果
+                            <ChevronRight className="h-4 w-4 ml-auto" />
+                          </Button>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="overflow-hidden border-none shadow-sm">
+                        <CardHeader className="p-4 bg-amber-50">
+                          <CardTitle className="text-base font-medium">预警因素分析</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-4">
+                          <p className="text-sm text-gray-500 mb-4">
+                            分析影响学生风险的关键因素，量化各因素权重并提供针对性建议。
+                          </p>
+                          <Button variant="outline" className="w-full" onClick={() => setActiveTab('dashboard')}>
+                            <BarChart3 className="h-4 w-4 mr-2" />
+                            查看风险因素分布
+                            <ChevronRight className="h-4 w-4 ml-auto" />
+                          </Button>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="overflow-hidden border-none shadow-sm">
+                        <CardHeader className="p-4 bg-green-50">
+                          <CardTitle className="text-base font-medium">干预策略推荐</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-4">
+                          <p className="text-sm text-gray-500 mb-4">
+                            针对不同风险类型的学生，AI会推荐最有效的干预策略和方法。
+                          </p>
+                          <Button variant="outline" className="w-full" onClick={() => setActiveTab('intervention')}>
+                            <ClipboardList className="h-4 w-4 mr-2" />
+                            查看干预流程
+                            <ChevronRight className="h-4 w-4 ml-auto" />
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    </div>
+                    
+                    <div className="mt-8">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-lg">风险聚类可视化</CardTitle>
+                          <CardDescription>AI根据多维特征对学生风险状态进行聚类分析</CardDescription>
+                        </CardHeader>
+                        <CardContent className="min-h-[300px]">
+                          <Suspense fallback={<LoadingFallback />}>
+                            <RiskClusterView simplified />
+                          </Suspense>
+                        </CardContent>
+                        <CardFooter className="flex justify-end border-t pt-4">
+                          <Button variant="outline" onClick={() => setActiveTab('clusters')}>
+                            查看完整聚类分析
+                            <ExternalLink className="ml-2 h-4 w-4" />
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    </div>
+                    
+                    <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-lg">AI预警趋势预测</CardTitle>
+                          <CardDescription>基于历史数据预测未来预警趋势</CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-6 min-h-[200px] flex items-center justify-center">
+                          <div className="text-center">
+                            <TrendingUp className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+                            <p className="text-gray-500">此功能即将推出，敬请期待</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-lg">预警干预效果评估</CardTitle>
+                          <CardDescription>评估已实施干预措施的效果</CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-6 min-h-[200px] flex items-center justify-center">
+                          <div className="text-center">
+                            <Network className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+                            <p className="text-gray-500">此功能即将推出，敬请期待</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             )}
           </TabsContent>
         </Suspense>

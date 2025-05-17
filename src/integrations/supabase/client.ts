@@ -63,46 +63,54 @@ if (typeof window !== 'undefined') {
  */
 export const checkTableExists = async (tableName: string) => {
   try {
-    // 使用 PostgreSQL 的 pg_tables 视图查询表是否存在
-    // 这个方法比 information_schema 更可靠
-    const { data, error } = await supabase.rpc('table_exists', { table_name: tableName });
+    console.log(`[Supabase] 检查表 ${tableName} 是否存在...`);
     
-    if (error) {
-      // 如果RPC函数不存在，尝试直接SQL查询
-      console.warn('table_exists RPC函数不存在，尝试直接查询...');
-      
-      // 使用原始SQL查询表是否存在
-      const sql = `SELECT EXISTS (SELECT 1 FROM pg_tables WHERE tablename = '${tableName}' AND schemaname = 'public');`;
-      const { data: sqlData, error: sqlError } = await supabase.from('_before_migrations').select('*').limit(1);
-      
-      // 如果连_before_migrations都查不到，可能是权限问题
-      if (sqlError) {
-        console.error('检查表存在性的备用方法失败:', sqlError);
-        return { exists: false, error: sqlError };
-      }
-      
-      // 尝试直接查询表
-      try {
-        const { count, error: queryError } = await supabase
-          .from(tableName)
-          .select('*', { count: 'exact', head: true });
-        
-        // 如果没有"表不存在"的错误，表可能存在
-        if (!queryError || queryError.code !== '42P01') {  // '42P01' 是 PostgreSQL 中"表不存在"的错误代码
-          return { exists: true };
-        }
-        
-        return { exists: false };
-      } catch (queryError) {
-        console.error('直接查询表失败:', queryError);
-        return { exists: false, error: queryError };
-      }
+    // 首先尝试使用 RPC 函数
+    const { data: rpcData, error: rpcError } = await supabase.rpc('table_exists', { table_name: tableName });
+    
+    if (!rpcError && rpcData && rpcData.length > 0) {
+      const exists = rpcData[0].exists;
+      console.log(`[Supabase] 通过RPC检查表 ${tableName} ${exists ? '存在' : '不存在'}`);
+      return { exists };
     }
     
-    // 注意：由于在函数定义中将 exists 列名加上了双引号，返回的数据中的键名也会带双引号
-    return { exists: data && data[0] ? data[0].exists : false };
+    console.log(`[Supabase] RPC 检查失败 (${rpcError?.message || 'unknown'}), 尝试直接查询...`);
+    
+    // 如果RPC调用失败，尝试直接查询表
+    try {
+      const { data, error, status } = await supabase
+        .from(tableName)
+        .select('*', { count: 'exact', head: true })
+        .limit(1);
+      
+      // 如果查询没有返回错误，表必然存在
+      if (!error) {
+        console.log(`[Supabase] 表 ${tableName} 存在 (通过直接查询)`);
+        return { exists: true };
+      }
+      
+      // 检查错误代码，42P01是表不存在的PostgreSQL错误
+      if (error.code === '42P01') {
+        console.log(`[Supabase] 表 ${tableName} 不存在 (确认通过错误代码 42P01)`);
+        return { exists: false };
+      }
+      
+      // 其他错误可能是权限问题等，记录详细信息
+      console.warn(`[Supabase] 查询表 ${tableName} 时出现错误: ${error.message} (代码: ${error.code})`);
+      
+      // 如果是权限错误，可能表存在但无权访问
+      if (error.code?.startsWith('42') || error.code?.startsWith('28')) {
+        console.log(`[Supabase] 表 ${tableName} 可能存在但无权访问`);
+        return { exists: true, error };
+      }
+      
+      return { exists: false, error };
+    } catch (queryError) {
+      console.error(`[Supabase] 直接查询表 ${tableName} 异常:`, queryError);
+      return { exists: false, error: queryError };
+    }
   } catch (error) {
-    console.error('检查表存在性时出错:', error);
+    console.error(`[Supabase] 检查表 ${tableName} 存在性过程中出现异常:`, error);
     return { exists: false, error };
   }
 };
@@ -134,7 +142,7 @@ export const runMigration = async (sql: string, name?: string) => {
     
     // 如果存在exec_sql函数，则调用它
     if (functions && functions.some(fn => fn.name === 'exec_sql')) {
-    const { error } = await supabase.rpc('exec_sql', { sql });
+    const { error } = await supabase.rpc('exec_sql', { sql_query: sql });
     
     if (error) {
       console.error(`迁移失败: ${error.message}`);

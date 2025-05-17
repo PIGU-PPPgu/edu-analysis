@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/shared";
@@ -199,6 +199,7 @@ interface ExamInfoInternal extends ReviewDialogExamInfo {}
 const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isInitializingTables, setIsInitializingTables] = useState(false);
+  const [tablesExist, setTablesExist] = useState<boolean>(true);
   const navigate = useNavigate();
   const { user, isAuthReady } = useAuthContext();
 
@@ -578,7 +579,9 @@ const Index = () => {
     finalExamInfo: ReviewDialogExamInfo,
     confirmedMappings: Record<string, string>,
     mergeChoice: string, 
-    fullDataToImport: any[]
+    fullDataToImport: any[],
+    examScope: 'class' | 'grade' = 'class',
+    newStudentStrategy: 'create' | 'ignore' = 'ignore'
   ) => {
     console.log("Dialog wants to final import with:", finalExamInfo, confirmedMappings, mergeChoice, fullDataToImport);
     toast.info("开始最终导入流程...", {id: "final-import"});
@@ -611,15 +614,28 @@ const Index = () => {
       const result = await gradeAnalysisService.saveExamData(
         processedData, 
         finalExamInfo, 
-        mergeStrategy
+        mergeStrategy,
+        {
+          examScope, 
+          newStudentStrategy
+        }
       );
       
       if (!result.success) {
         throw new Error(result.error instanceof Error ? result.error.message : '未知错误');
       }
       
+      // 构建导入结果消息
+      let successMessage = `已导入 ${result.count} 条记录`;
+      if (result.matchStats) {
+        successMessage += `，其中匹配 ${result.matchStats.matched} 条`;
+        if (result.matchStats.skipped > 0) {
+          successMessage += `，跳过 ${result.matchStats.skipped} 条`;
+        }
+      }
+      
       toast.success("最终导入成功！", {
-        description: `已导入 ${result.count} 条记录`,
+        description: successMessage,
         id: "final-import"
       });
       
@@ -644,6 +660,30 @@ const Index = () => {
     }
   };
 
+  useEffect(() => {
+    // 检查数据库表是否存在
+    const checkTablesExist = async () => {
+      try {
+        // 尝试获取考试列表，如果失败可能是表不存在
+        const { data, error } = await gradeAnalysisService.getExamList();
+        if (error) {
+          console.error('检查表是否存在出错:', error);
+          // 如果错误消息包含表不存在的提示，则设置状态
+          if (error.message.includes('不存在')) {
+            setTablesExist(false);
+          }
+        } else {
+          setTablesExist(true);
+        }
+      } catch (error) {
+        console.error('检查表是否存在时发生异常:', error);
+        setTablesExist(false);
+      }
+    };
+
+    checkTablesExist();
+  }, []);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -659,6 +699,20 @@ const Index = () => {
       <div className="container mx-auto py-8 px-4">
         <h1 className="text-3xl font-bold mb-2">数据导入中心</h1>
         <p className="text-gray-500 mb-8">导入和管理学生信息与成绩数据</p>
+        
+        {!tablesExist && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>数据库表不存在</AlertTitle>
+            <AlertDescription>
+              成绩分析系统需要的数据库表尚未创建。请先
+              <Link to="/tools/init-tables" className="ml-1 font-medium underline">
+                初始化数据库表
+              </Link>
+              ，然后再继续操作。
+            </AlertDescription>
+          </Alert>
+        )}
         
         <Tabs defaultValue="students" className="w-full">
           <TabsList className="mb-6 bg-white border shadow-sm">

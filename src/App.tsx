@@ -25,8 +25,23 @@ import CascadeAnalysisTestPage from "./pages/test/CascadeAnalysisTest";
 import { initDefaultAIConfig } from "./utils/userAuth";
 import StudentPortraitManagement from "./pages/StudentPortraitManagement";
 import { DiagnosticsTool } from "./tools/diagnostics-ui";
+import InitTables from "./pages/InitTables";
+import CreateWarningTablePage from "./pages/tools/CreateWarningTable";
+import { initGlobalErrorHandlers, reduceBrowserWorkload, checkBrowserResources } from "./utils/errorHandlers";
 
-const queryClient = new QueryClient();
+// 全局配置QueryClient
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 2,
+      retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+      staleTime: 10 * 60 * 1000, // 10分钟缓存
+    },
+  },
+});
+
+// 初始化全局错误处理器
+initGlobalErrorHandlers();
 
 // 数据库初始化组件
 const DatabaseInitializer = ({ children }: { children: React.ReactNode }) => {
@@ -43,6 +58,11 @@ const DatabaseInitializer = ({ children }: { children: React.ReactNode }) => {
     };
     
     setupDatabase();
+    
+    // 检查浏览器资源，如果资源不足，自动减少动画和特效
+    if (!checkBrowserResources()) {
+      reduceBrowserWorkload();
+    }
   }, []);
   
   return <>{children}</>;
@@ -65,6 +85,8 @@ function App() {
                 
                 {/* 诊断工具路由 */}
                 <Route path="/tools/diagnostics" element={<DiagnosticsTool />} />
+                <Route path="/tools/init-tables" element={<InitTables />} />
+                <Route path="/tools/create-warning-table" element={<CreateWarningTablePage />} />
                 
                 {/* 需要认证的路由 */}
                 <Route element={<ProtectedRoute />}>

@@ -51,6 +51,34 @@ export const AdvancedDashboard: React.FC<AdvancedDashboardProps> = ({
   const [selectedSubject, setSelectedSubject] = useState<string>("总分");
   const [subjectList, setSubjectList] = useState<string[]>(["总分"]);
   
+  // Helper to ensure scoreDistributionData is always a 5-element array
+  const getDefaultScoreDistribution = () => [
+    { range: '90-100', count: 0, percentage: 0 },
+    { range: '80-89', count: 0, percentage: 0 },
+    { range: '70-79', count: 0, percentage: 0 },
+    { range: '60-69', count: 0, percentage: 0 },
+    { range: '0-59', count: 0, percentage: 0 }
+  ];
+
+  const getSafeScoreDistributionData = () => {
+    const defaultDist = getDefaultScoreDistribution().map(d => ({ range: d.range, count: d.count }));
+    const rawData = analysisResult?.scoreDistribution;
+
+    if (Array.isArray(rawData)) {
+      const processedData = [];
+      for (let i = 0; i < 5; i++) {
+        const defaultItem = defaultDist[i]; // e.g. { range: '90-100', count: 0 }
+        const rawItem = rawData[i];
+        processedData.push({
+          range: rawItem?.range || defaultItem.range,
+          count: typeof rawItem?.count === 'number' ? rawItem.count : defaultItem.count,
+        });
+      }
+      return processedData;
+    }
+    return defaultDist; // Fallback if rawData is not an array
+  };
+  
   // 获取分析数据
   useEffect(() => {
     if (!examId) return;
@@ -106,19 +134,14 @@ export const AdvancedDashboard: React.FC<AdvancedDashboardProps> = ({
   }, [examId]);
   
   // 根据分析结果构建分数分布数据
-  const scoreDistributionData = analysisResult?.scoreDistribution || [
-    { range: '90-100', count: 0 },
-    { range: '80-89', count: 0 },
-    { range: '70-79', count: 0 },
-    { range: '60-69', count: 0 },
-    { range: '0-59', count: 0 }
-  ];
+  const scoreDistributionData = getSafeScoreDistributionData();
   
   // 计算各分数段百分比
-  const totalCount = scoreDistributionData.reduce((sum, item) => sum + item.count, 0);
+  const totalCount = scoreDistributionData.reduce((sum, item) => sum + (item?.count || 0), 0);
   const scoreDistributionPercentages = scoreDistributionData.map(item => ({
-    ...item,
-    percentage: totalCount > 0 ? (item.count / totalCount) * 100 : 0
+    range: item?.range || 'N/A',
+    count: item?.count || 0,
+    percentage: totalCount > 0 ? ((item?.count || 0) / totalCount) * 100 : 0
   }));
   
   // 获取总体统计数据
@@ -296,11 +319,11 @@ export const AdvancedDashboard: React.FC<AdvancedDashboardProps> = ({
                       <p className="text-xs text-gray-500">及格率</p>
                       <p className="text-lg font-bold">
                         {totalCount > 0 
-                          ? ((scoreDistributionData[0].count + 
-                              scoreDistributionData[1].count + 
-                              scoreDistributionData[2].count + 
-                              scoreDistributionData[3].count) / totalCount * 100).toFixed(1)
-                          : 0}%
+                          ? (((scoreDistributionData[0]?.count || 0) + 
+                              (scoreDistributionData[1]?.count || 0) + 
+                              (scoreDistributionData[2]?.count || 0) + 
+                              (scoreDistributionData[3]?.count || 0)) / totalCount * 100).toFixed(1)
+                          : '0.0'}%
                       </p>
                     </div>
                   </div>
@@ -319,11 +342,11 @@ export const AdvancedDashboard: React.FC<AdvancedDashboardProps> = ({
                     <h4 className="text-sm font-medium mb-2">优秀率 (90分以上)</h4>
                     <div className="flex items-center gap-2">
                       <Progress 
-                        value={totalCount > 0 ? (scoreDistributionData[0].count / totalCount) * 100 : 0}
+                        value={totalCount > 0 ? ((scoreDistributionData[0]?.count || 0) / totalCount) * 100 : 0}
                         className="h-2.5"
                       />
                       <span className="text-sm font-medium">
-                        {totalCount > 0 ? ((scoreDistributionData[0].count / totalCount) * 100).toFixed(1) : 0}%
+                        {totalCount > 0 ? (((scoreDistributionData[0]?.count || 0) / totalCount) * 100).toFixed(1) : '0.0'}%
                       </span>
                     </div>
                   </div>
@@ -332,11 +355,11 @@ export const AdvancedDashboard: React.FC<AdvancedDashboardProps> = ({
                     <h4 className="text-sm font-medium mb-2">良好率 (80-89分)</h4>
                     <div className="flex items-center gap-2">
                       <Progress 
-                        value={totalCount > 0 ? (scoreDistributionData[1].count / totalCount) * 100 : 0}
+                        value={totalCount > 0 ? ((scoreDistributionData[1]?.count || 0) / totalCount) * 100 : 0}
                         className="h-2.5"
                       />
                       <span className="text-sm font-medium">
-                        {totalCount > 0 ? ((scoreDistributionData[1].count / totalCount) * 100).toFixed(1) : 0}%
+                        {totalCount > 0 ? (((scoreDistributionData[1]?.count || 0) / totalCount) * 100).toFixed(1) : '0.0'}%
                       </span>
                     </div>
                   </div>
@@ -345,11 +368,11 @@ export const AdvancedDashboard: React.FC<AdvancedDashboardProps> = ({
                     <h4 className="text-sm font-medium mb-2">中等率 (70-79分)</h4>
                     <div className="flex items-center gap-2">
                       <Progress 
-                        value={totalCount > 0 ? (scoreDistributionData[2].count / totalCount) * 100 : 0}
+                        value={totalCount > 0 ? ((scoreDistributionData[2]?.count || 0) / totalCount) * 100 : 0}
                         className="h-2.5"
                       />
                       <span className="text-sm font-medium">
-                        {totalCount > 0 ? ((scoreDistributionData[2].count / totalCount) * 100).toFixed(1) : 0}%
+                        {totalCount > 0 ? (((scoreDistributionData[2]?.count || 0) / totalCount) * 100).toFixed(1) : '0.0'}%
                       </span>
                     </div>
                   </div>
@@ -358,11 +381,11 @@ export const AdvancedDashboard: React.FC<AdvancedDashboardProps> = ({
                     <h4 className="text-sm font-medium mb-2">及格率 (60-69分)</h4>
                     <div className="flex items-center gap-2">
                       <Progress 
-                        value={totalCount > 0 ? (scoreDistributionData[3].count / totalCount) * 100 : 0}
+                        value={totalCount > 0 ? ((scoreDistributionData[3]?.count || 0) / totalCount) * 100 : 0}
                         className="h-2.5"
                       />
                       <span className="text-sm font-medium">
-                        {totalCount > 0 ? ((scoreDistributionData[3].count / totalCount) * 100).toFixed(1) : 0}%
+                        {totalCount > 0 ? (((scoreDistributionData[3]?.count || 0) / totalCount) * 100).toFixed(1) : '0.0'}%
                       </span>
                     </div>
                   </div>
@@ -371,11 +394,11 @@ export const AdvancedDashboard: React.FC<AdvancedDashboardProps> = ({
                     <h4 className="text-sm font-medium mb-2">不及格率 (60分以下)</h4>
                     <div className="flex items-center gap-2">
                       <Progress 
-                        value={totalCount > 0 ? (scoreDistributionData[4].count / totalCount) * 100 : 0}
+                        value={totalCount > 0 ? ((scoreDistributionData[4]?.count || 0) / totalCount) * 100 : 0}
                         className="h-2.5 bg-red-100"
                       />
                       <span className="text-sm font-medium text-red-500">
-                        {totalCount > 0 ? ((scoreDistributionData[4].count / totalCount) * 100).toFixed(1) : 0}%
+                        {totalCount > 0 ? (((scoreDistributionData[4]?.count || 0) / totalCount) * 100).toFixed(1) : '0.0'}%
                       </span>
                     </div>
                   </div>

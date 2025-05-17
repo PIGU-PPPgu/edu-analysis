@@ -278,23 +278,83 @@ export const resolveWarningRecord = async (
 export const getWarningStatistics = async (): Promise<WarningStats> => {
   return requestCache.get('warning_statistics', async () => {
     try {
-      // 实际API实现
+      // 尝试从API获取数据
       const { data, error } = await supabase
         .from('warning_statistics')
-        .select('*')
-        .single();
+        .select('*');
       
       if (error) {
         console.error('获取预警统计出错:', error);
-        return mockWarningStats; // 出错时返回模拟数据
+        
+        // 检查是否是表不存在错误
+        const isTableNotExistError = 
+          error.code === '42P01' || 
+          (error.message && (
+            error.message.includes('relation') && error.message.includes('not exist') ||
+            error.message.includes('不存在') ||
+            error.message.includes('does not exist')
+          ));
+        
+        if (isTableNotExistError) {
+          toast.error('预警统计表不存在', {
+            description: '请先创建预警统计表再查看预警分析',
+            action: {
+              label: '创建统计表',
+              onClick: () => window.location.href = '/tools/create-warning-table'
+            },
+            duration: 10000 // 提示显示10秒
+          });
+        } else if (error.code === '406') {
+          // 406错误可能是权限问题
+          toast.error('无法访问预警统计表', {
+            description: '您可能没有访问权限或需要重新登录',
+            duration: 5000
+          });
+        } else {
+          toast.error('获取预警统计出错', {
+            description: error.message,
+            duration: 5000
+          });
+        }
+        
+        // 使用模拟数据
+        console.info('使用模拟数据作为备用');
+        return mockWarningStats;
       }
       
-      return data || mockWarningStats;
+      // 检查data是否为空或未定义
+      if (!data || data.length === 0) {
+        toast.warning('预警统计数据为空', {
+          description: '请先创建预警统计表并初始化数据',
+          action: {
+            label: '创建统计表',
+            onClick: () => window.location.href = '/tools/create-warning-table'
+          },
+          duration: 5000
+        });
+        console.warn('预警统计数据为空，使用模拟数据');
+        return mockWarningStats;
+      }
+      
+      // 成功获取数据
+      console.log('成功获取预警统计数据', data[0]);
+      return data[0] || mockWarningStats;
     } catch (error) {
+      // 处理未预期的异常
+      const errorMessage = error instanceof Error ? error.message : '未知错误';
       console.error('获取预警统计失败:', error);
+      toast.error('获取预警统计失败', {
+        description: errorMessage,
+        action: {
+          label: '创建统计表',
+          onClick: () => window.location.href = '/tools/create-warning-table'
+        },
+        duration: 5000
+      });
+      
       return mockWarningStats;
     }
-  }, 5 * 60 * 1000); // 缓存5分钟
+  }, 2 * 60 * 1000); // 缓存2分钟，减少缓存时间以更频繁获取最新数据
 };
 
 // 获取单个预警记录

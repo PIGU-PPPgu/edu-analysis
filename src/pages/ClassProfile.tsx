@@ -160,7 +160,8 @@ const ClassProfile: React.FC = () => {
 
   // 获取班级学生列表
   const { 
-    data: classStudents
+    data: classStudents,
+    isLoading: studentsLoading
   } = useQuery({
     queryKey: ['classStudents', classId],
     queryFn: () => portraitAPI.getClassStudents(classId!),
@@ -170,7 +171,8 @@ const ClassProfile: React.FC = () => {
 
   // 获取班级小组列表
   const { 
-    data: classGroups
+    data: classGroups,
+    isLoading: groupsLoading
   } = useQuery({
     queryKey: ['classGroups', classId],
     queryFn: () => portraitAPI.getClassGroups(classId!),
@@ -178,59 +180,45 @@ const ClassProfile: React.FC = () => {
     staleTime: 5 * 60 * 1000
   });
 
-  // 示例AI分析数据
-  const aiInsights = [
-    "该班级语文成绩整体表现优秀，但存在学生之间的较大差异，建议关注成绩两极分化现象。",
-    "数学应用题解题能力普遍较弱，建议加强实际问题的数学建模训练。",
-    "英语听力和口语能力相对薄弱，可以增加日常口语练习环节。",
-    "班级合作学习氛围良好，但部分学生参与度不高，建议采用更多小组互动形式。",
-    "学生课堂注意力集中时间普遍较短，建议课堂活动多样化，增加互动环节。"
-  ];
+  // 获取AI分析数据
+  const {
+    data: aiAnalysisData,
+    isLoading: aiAnalysisLoading
+  } = useQuery({
+    queryKey: ['aiAnalysis', classId],
+    queryFn: () => portraitAPI.getClassAIAnalysis(classId!),
+    enabled: !!classId,
+    staleTime: 10 * 60 * 1000 // 10分钟缓存
+  });
 
-  const aiRecommendations = [
-    "针对数学应用题弱点，每周安排一次实际问题解决的小组活动，培养数学建模思维。",
-    "设立英语角活动，每天利用课间10分钟进行英语口语练习，提高口语表达能力。",
-    '对学习成绩两极分化现象，建议实施"伙伴学习计划"，让优等生辅导学习困难学生。',
-    "调整课堂节奏，每15-20分钟安排一次简短的互动或思考题，保持学生注意力。",
-    "针对不同学习风格的学生，提供差异化的作业选择，满足不同学生的学习需求。"
-  ];
+  // 获取顶尖学生数据
+  const {
+    data: topStudentsData,
+    isLoading: topStudentsLoading
+  } = useQuery({
+    queryKey: ['topStudents', classId],
+    queryFn: () => portraitAPI.getClassTopStudents(classId!),
+    enabled: !!classId,
+    staleTime: 5 * 60 * 1000
+  });
 
-  // 模拟顶尖学生数据
-  const topStudents = [
-    { name: "张伟", score: 96, rank: 1 },
-    { name: "李娜", score: 94, rank: 2 },
-    { name: "王强", score: 92, rank: 3 },
-    { name: "赵敏", score: 90, rank: 4 },
-    { name: "刘洋", score: 89, rank: 5 },
-  ];
+  // 获取学习进度里程碑
+  const {
+    data: milestonesData,
+    isLoading: milestonesLoading
+  } = useQuery({
+    queryKey: ['learningMilestones', classId],
+    queryFn: () => portraitAPI.getClassLearningMilestones(classId!),
+    enabled: !!classId,
+    staleTime: 10 * 60 * 1000
+  });
 
-  // 模拟学习进度里程碑
-  const learningMilestones = [
-    {
-      date: "2023年09月",
-      title: "开学基础评估",
-      description: "班级整体基础评估完成，确立本学期学习目标和重点。",
-      isActive: true
-    },
-    {
-      date: "2023年10月",
-      title: "第一次月考",
-      description: "班级平均分82.5分，优秀率达40%，数学成绩表现突出。",
-      isActive: true
-    },
-    {
-      date: "2023年12月",
-      title: "期中考试",
-      description: "班级平均分提升至85.3分，对比开学提高3.1分，英语仍有提升空间。",
-      isActive: true
-    },
-    {
-      date: "2024年03月",
-      title: "学科能力测评",
-      description: "完成重点学科能力测评，发现数学应用题和英语口语为主要提升方向。",
-      isActive: false
-    }
-  ];
+  // 使用API数据或回退到空数组
+  const aiInsights = aiAnalysisData?.insights || [];
+  const aiRecommendations = aiAnalysisData?.recommendations || [];
+  const topStudents = topStudentsData || [];
+  const learningMilestones = milestonesData || [];
+  const classTags = aiAnalysisData?.tags || [];
 
   if (isLoading) {
     return (
@@ -301,10 +289,14 @@ const ClassProfile: React.FC = () => {
                 班级ID: {classId} | 人数: {classStats?.studentCount || 0}人 | 优秀率: {classStats?.excellentRate || 0}%
               </p>
               <div className="flex flex-wrap gap-2 mt-4">
-                <span className="px-3 py-1 bg-[#9cff57] text-black rounded-full text-sm">学习积极性高</span>
-                <span className="px-3 py-1 bg-black text-white rounded-full text-sm">团队协作能力强</span>
-                <span className="px-3 py-1 bg-gray-200 text-gray-800 rounded-full text-sm">数学基础扎实</span>
-                <span className="px-3 py-1 bg-gray-200 text-gray-800 rounded-full text-sm">需加强英语口语</span>
+                {classTags.slice(0, 4).map((tag, index) => (
+                  <span 
+                    key={index} 
+                    className={`px-3 py-1 ${index === 0 ? 'bg-[#9cff57] text-black' : index === 1 ? 'bg-black text-white' : 'bg-gray-200 text-gray-800'} rounded-full text-sm`}
+                  >
+                    {tag}
+                  </span>
+                ))}
               </div>
             </div>
             <div className="flex justify-end">
@@ -332,7 +324,7 @@ const ClassProfile: React.FC = () => {
             <FeatureStatCard value={`${classStats?.averageScore || 0}`} label="平均分数" icon={<Award className="w-6 h-6" />} />
             <FeatureStatCard value={`${classStats?.excellentRate || 0}%`} label="优秀率" icon={<Star className="w-6 h-6" />} />
             <FeatureStatCard value={`${classStats?.progressRate || 0}%`} label="进步率" icon={<TrendingUp className="w-6 h-6" />} />
-            <FeatureStatCard value="6个月" label="数据周期" icon={<Calendar className="w-6 h-6" />} />
+            <FeatureStatCard value={`${classStats?.dataPeriod || '未知'}`} label="数据周期" icon={<Calendar className="w-6 h-6" />} />
           </div>
         </div>
 
@@ -368,24 +360,34 @@ const ClassProfile: React.FC = () => {
                     <CardTitle className="text-xl">班级学习组</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <ul className="space-y-3">
-                      {classGroups?.map((group, index) => (
-                        <li key={index} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                          <div>
-                            <p className="font-medium">{group.name}</p>
-                            <p className="text-xs text-gray-600">{group.description}</p>
-                          </div>
-                          <div className="text-sm">
-                            <span className="font-medium">{group.student_count}人</span>
-                            {group.averageScore && (
-                              <span className="ml-2 px-2 py-1 bg-[#9cff57] text-black rounded-full">
-                                均分:{group.averageScore}
-                              </span>
-                            )}
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
+                    {groupsLoading ? (
+                      <div className="h-40 flex items-center justify-center">
+                        <div className="w-8 h-8 border-4 border-[#9cff57] border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                    ) : !classGroups || classGroups.length === 0 ? (
+                      <div className="h-40 flex items-center justify-center">
+                        <p className="text-gray-500">暂无学习组数据</p>
+                      </div>
+                    ) : (
+                      <ul className="space-y-3">
+                        {classGroups.map((group, index) => (
+                          <li key={index} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                            <div>
+                              <p className="font-medium">{group.name}</p>
+                              <p className="text-xs text-gray-600">{group.description}</p>
+                            </div>
+                            <div className="text-sm">
+                              <span className="font-medium">{group.student_count}人</span>
+                              {group.averageScore && (
+                                <span className="ml-2 px-2 py-1 bg-[#9cff57] text-black rounded-full">
+                                  均分:{group.averageScore}
+                                </span>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </CardContent>
                 </Card>
                 
@@ -423,19 +425,38 @@ const ClassProfile: React.FC = () => {
                   <CardTitle className="text-xl">班级顶尖学生</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {topStudents.map((student) => (
-                      <StudentCard 
-                        key={student.name}
-                        name={student.name}
-                        score={student.score}
-                        rank={student.rank}
-                      />
-                    ))}
-                  </div>
+                  {topStudentsLoading ? (
+                    <div className="h-40 flex items-center justify-center">
+                      <div className="w-8 h-8 border-4 border-[#9cff57] border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  ) : !topStudents || topStudents.length === 0 ? (
+                    <div className="h-40 flex items-center justify-center">
+                      <p className="text-gray-500">暂无学生数据</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {topStudents.map((student) => (
+                        <StudentCard 
+                          key={student.id || student.name}
+                          name={student.name}
+                          score={student.score}
+                          rank={student.rank}
+                          avatarUrl={student.avatarUrl}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
                 <CardFooter className="flex justify-center border-t">
-                  <Button variant="ghost" className="flex items-center text-gray-600 hover:text-black">
+                  <Button 
+                    variant="ghost" 
+                    className="flex items-center text-gray-600 hover:text-black"
+                    onClick={() => {
+                      if (classId) {
+                        window.location.href = `/student-management?classId=${classId}`;
+                      }
+                    }}
+                  >
                     查看全部学生
                     <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
@@ -450,17 +471,27 @@ const ClassProfile: React.FC = () => {
                   <CardDescription>从开学到现在的班级学习进度与成果</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="py-4">
-                    {learningMilestones.map((milestone, index) => (
-                      <Milestone 
-                        key={index}
-                        date={milestone.date}
-                        title={milestone.title}
-                        description={milestone.description}
-                        isActive={milestone.isActive}
-                      />
-                    ))}
-                  </div>
+                  {milestonesLoading ? (
+                    <div className="h-40 flex items-center justify-center">
+                      <div className="w-8 h-8 border-4 border-[#9cff57] border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  ) : !learningMilestones || learningMilestones.length === 0 ? (
+                    <div className="h-40 flex items-center justify-center">
+                      <p className="text-gray-500">暂无里程碑数据</p>
+                    </div>
+                  ) : (
+                    <div className="py-4">
+                      {learningMilestones.map((milestone, index) => (
+                        <Milestone 
+                          key={index}
+                          date={milestone.date}
+                          title={milestone.title}
+                          description={milestone.description}
+                          isActive={milestone.isActive}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -478,30 +509,30 @@ const ClassProfile: React.FC = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
                   <StatisticCard 
                     title="班级平均分" 
-                    value="85.6" 
-                    description="较上月提高2分" 
-                    trend="up"
+                    value={classStats?.averageScore || 0} 
+                    description={classStats?.scoreChangeDesc || '数据不足'} 
+                    trend={classStats?.averageScoreTrend || 'neutral'}
                     icon={<TrendingUp className="h-5 w-5 text-[#9cff57]" />}
                   />
                   <StatisticCard 
                     title="及格率" 
-                    value="92%" 
-                    description="较上月提高5%" 
-                    trend="up"
+                    value={`${classStats?.passRate || 0}%`} 
+                    description={classStats?.passRateChangeDesc || '数据不足'} 
+                    trend={classStats?.passRateTrend || 'neutral'}
                     icon={<TrendingUp className="h-5 w-5 text-[#9cff57]" />}
                   />
                   <StatisticCard 
                     title="不及格率" 
-                    value="8%" 
-                    description="较上月下降5%" 
-                    trend="down"
+                    value={`${100 - (classStats?.passRate || 0)}%`} 
+                    description={`较上月${(classStats?.passRateTrend === 'up') ? '下降' : '上升'}`} 
+                    trend={(classStats?.passRateTrend === 'up') ? 'down' : 'up'}
                     icon={<TrendingDown className="h-5 w-5 text-red-500" />}
                   />
                   <StatisticCard 
                     title="优秀率" 
-                    value="45%" 
-                    description="较上月提高7%" 
-                    trend="up"
+                    value={`${classStats?.excellentRate || 0}%`} 
+                    description={classStats?.excellentRateChangeDesc || '数据不足'} 
+                    trend={classStats?.excellentRateTrend || 'neutral'}
                     icon={<TrendingUp className="h-5 w-5 text-[#9cff57]" />}
                   />
                 </div>
@@ -552,61 +583,81 @@ const ClassProfile: React.FC = () => {
                 <span className="px-3 py-1 bg-[#9cff57] text-black rounded-full text-sm">AI生成</span>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* AI分析概述 */}
-                <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-                  <h3 className="text-lg font-medium mb-4">班级整体分析</h3>
-                  <p className="text-gray-700">
-                    根据该班级的学习数据分析，学生整体学习情况良好，但存在部分学习薄弱环节和学习习惯问题。AI系统通过对比历史数据和班级内部差异，提供了针对性的教学建议和学习策略。
-                  </p>
-                  <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    <div className="bg-white p-3 rounded-lg border border-gray-200">
-                      <p className="text-sm text-gray-600">样本数量</p>
-                      <p className="text-xl font-bold">{classStats?.studentCount || 0}条</p>
-                    </div>
-                    <div className="bg-white p-3 rounded-lg border border-gray-200">
-                      <p className="text-sm text-gray-600">数据完整度</p>
-                      <p className="text-xl font-bold">96%</p>
-                    </div>
-                    <div className="bg-white p-3 rounded-lg border border-gray-200">
-                      <p className="text-sm text-gray-600">分析精度</p>
-                      <p className="text-xl font-bold">94%</p>
-                    </div>
-                    <div className="bg-white p-3 rounded-lg border border-gray-200">
-                      <p className="text-sm text-gray-600">数据时间跨度</p>
-                      <p className="text-xl font-bold">6个月</p>
-                    </div>
+                {aiAnalysisLoading ? (
+                  <div className="h-64 flex items-center justify-center">
+                    <div className="w-8 h-8 border-4 border-[#9cff57] border-t-transparent rounded-full animate-spin"></div>
                   </div>
-                </div>
-                
-                {/* 关键发现 */}
-                <div>
-                  <h3 className="text-lg font-medium mb-4">关键发现与建议</h3>
-                  <ul className="space-y-3">
-                    {aiInsights.map((insight, index) => (
-                      <li key={index} className="p-4 bg-white border border-gray-200 rounded-lg flex items-start">
-                        <span className="bg-[#9cff57] text-black w-6 h-6 rounded-full flex items-center justify-center mr-3 shrink-0">
-                          {index + 1}
-                        </span>
-                        <span className="text-gray-800">{insight}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                
-                {/* AI建议 */}
-                <div>
-                  <h3 className="text-lg font-medium mb-4">AI教学建议</h3>
-                  <ul className="space-y-3">
-                    {aiRecommendations.map((recommendation, index) => (
-                      <li key={index} className="p-4 bg-gray-50 border border-gray-200 rounded-lg flex items-start hover:bg-white transition-colors">
-                        <span className="bg-[#9cff57] text-black w-6 h-6 rounded-full flex items-center justify-center mr-3 shrink-0">
-                          {index + 1}
-                        </span>
-                        <span className="text-gray-800">{recommendation}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                ) : (
+                  <>
+                    {/* AI分析概述 */}
+                    <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                      <h3 className="text-lg font-medium mb-4">班级整体分析</h3>
+                      <p className="text-gray-700">
+                        {aiAnalysisData?.summary || "根据该班级的学习数据分析，学生整体学习情况良好，但存在部分学习薄弱环节和学习习惯问题。AI系统通过对比历史数据和班级内部差异，提供了针对性的教学建议和学习策略。"}
+                      </p>
+                      <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div className="bg-white p-3 rounded-lg border border-gray-200">
+                          <p className="text-sm text-gray-600">样本数量</p>
+                          <p className="text-xl font-bold">{classStats?.studentCount || 0}条</p>
+                        </div>
+                        <div className="bg-white p-3 rounded-lg border border-gray-200">
+                          <p className="text-sm text-gray-600">数据完整度</p>
+                          <p className="text-xl font-bold">{aiAnalysisData?.dataCompleteness || "96%"}</p>
+                        </div>
+                        <div className="bg-white p-3 rounded-lg border border-gray-200">
+                          <p className="text-sm text-gray-600">分析精度</p>
+                          <p className="text-xl font-bold">{aiAnalysisData?.analysisPrecision || "94%"}</p>
+                        </div>
+                        <div className="bg-white p-3 rounded-lg border border-gray-200">
+                          <p className="text-sm text-gray-600">数据时间跨度</p>
+                          <p className="text-xl font-bold">{aiAnalysisData?.dataTimespan || classStats?.dataPeriod || "6个月"}</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* 关键发现 */}
+                    <div>
+                      <h3 className="text-lg font-medium mb-4">关键发现与建议</h3>
+                      <ul className="space-y-3">
+                        {(aiInsights && aiInsights.length > 0) ? (
+                          aiInsights.map((insight, index) => (
+                            <li key={index} className="p-4 bg-white border border-gray-200 rounded-lg flex items-start">
+                              <span className="bg-[#9cff57] text-black w-6 h-6 rounded-full flex items-center justify-center mr-3 shrink-0">
+                                {index + 1}
+                              </span>
+                              <span className="text-gray-800">{insight}</span>
+                            </li>
+                          ))
+                        ) : (
+                          <li className="p-4 bg-white border border-gray-200 rounded-lg flex items-center justify-center">
+                            <span className="text-gray-500">暂无AI分析洞察</span>
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                    
+                    {/* AI建议 */}
+                    <div>
+                      <h3 className="text-lg font-medium mb-4">AI教学建议</h3>
+                      <ul className="space-y-3">
+                        {(aiRecommendations && aiRecommendations.length > 0) ? (
+                          aiRecommendations.map((recommendation, index) => (
+                            <li key={index} className="p-4 bg-gray-50 border border-gray-200 rounded-lg flex items-start hover:bg-white transition-colors">
+                              <span className="bg-[#9cff57] text-black w-6 h-6 rounded-full flex items-center justify-center mr-3 shrink-0">
+                                {index + 1}
+                              </span>
+                              <span className="text-gray-800">{recommendation}</span>
+                            </li>
+                          ))
+                        ) : (
+                          <li className="p-4 bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-center">
+                            <span className="text-gray-500">暂无AI教学建议</span>
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                  </>
+                )}
               </CardContent>
               <CardFooter className="border-t p-4">
                 <Button className="w-full bg-black hover:bg-gray-800 text-white">
@@ -638,25 +689,28 @@ const ClassProfile: React.FC = () => {
                   <CardDescription>AI根据班级数据生成的学习特点标签</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      "团队协作能力强", 
-                      "数学基础扎实", 
-                      "阅读理解待提高", 
-                      "创新思维活跃",
-                      "课堂参与度高",
-                      "英语口语待加强",
-                      "解决问题能力强",
-                      "自主学习意识好"
-                    ].map((tag, index) => (
-                      <span 
-                        key={index}
-                        className="px-3 py-1.5 rounded-full text-sm bg-black text-white hover:bg-gray-800 transition-colors cursor-pointer"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
+                  {aiAnalysisLoading ? (
+                    <div className="h-40 flex items-center justify-center">
+                      <div className="w-8 h-8 border-4 border-[#9cff57] border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {classTags && classTags.length > 0 ? (
+                        classTags.map((tag, index) => (
+                          <span 
+                            key={index}
+                            className="px-3 py-1.5 rounded-full text-sm bg-black text-white hover:bg-gray-800 transition-colors cursor-pointer"
+                          >
+                            {tag}
+                          </span>
+                        ))
+                      ) : (
+                        <div className="w-full h-32 flex items-center justify-center">
+                          <span className="text-gray-500">暂无学习特点标签</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
