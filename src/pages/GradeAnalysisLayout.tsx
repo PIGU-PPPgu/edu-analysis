@@ -41,7 +41,7 @@ import AnomalyDetection from "@/components/analysis/AnomalyDetection";
 import GradeCorrelationMatrix from "@/components/analysis/GradeCorrelationMatrix";
 import ClassBoxPlotChart from "@/components/analysis/ClassBoxPlotChart";
 import StudentSubjectContribution from "@/components/analysis/StudentSubjectContribution";
-import ExamSelector, { ExamData } from "@/components/analysis/ExamSelector";
+import { ExamSelector } from "@/components/analysis/ExamSelector";
 
 // Updated to match what Supabase actually returns
 interface StudentGrade {
@@ -95,6 +95,87 @@ const GradeAnalysisLayout: React.FC = () => {
     error: null
   });
 
+  // 数据库结构检查 - 更可靠的实现
+  useEffect(() => {
+    const checkDatabase = async () => {
+      // 检查本地存储中的上次检查时间
+      const lastCheckTime = localStorage.getItem('dbStructureLastCheckTime');
+      const now = Date.now();
+      
+      // 如果24小时内已经检查过，则跳过
+      if (lastCheckTime && (now - parseInt(lastCheckTime)) < 24 * 60 * 60 * 1000) {
+        console.log("数据库结构已于24小时内检查过，跳过检查");
+        return;
+      }
+      
+      try {
+        console.log("开始检查数据库结构...");
+        setDbFixStatus(prev => ({ ...prev, checking: true }));
+        
+        // 非阻塞执行数据库检查
+        Promise.all([
+          gradeAnalysisService.checkAndFixStudentsTable().catch(err => {
+            console.warn("检查学生表失败 (非致命错误):", err);
+            return { success: false, error: err };
+          }),
+          gradeAnalysisService.checkAndFixExamsTable().catch(err => {
+            console.warn("检查考试表失败 (非致命错误):", err);
+            return { success: false, error: err };
+          }),
+          gradeAnalysisService.checkAndFixGradeDataTable().catch(err => {
+            console.warn("检查成绩表失败 (非致命错误):", err);
+            return { success: false, error: err };
+          })
+        ]).then(results => {
+          console.log("数据库检查结果:", results);
+          
+          // 记录检查时间，即使失败也记录，避免频繁重试
+          localStorage.setItem('dbStructureLastCheckTime', now.toString());
+          
+          // 设置成功状态
+          const allSucceeded = results.every(r => r.success !== false);
+          
+          setDbFixStatus({
+            checking: false,
+            fixed: allSucceeded,
+            error: allSucceeded ? null : "数据库结构可能需要更新，但不影响基本功能"
+          });
+          
+          if (allSucceeded) {
+            console.log("数据库结构检查并修复完成");
+          } else {
+            console.warn("数据库结构检查部分失败，但应用可以继续运行");
+          }
+        }).catch(error => {
+          // 捕获所有错误
+          console.error("数据库检查过程失败:", error);
+          setDbFixStatus({
+            checking: false,
+            fixed: false,
+            error: null // 不显示错误，避免吓到用户
+          });
+          
+          // 仍然记录检查时间
+          localStorage.setItem('dbStructureLastCheckTime', now.toString());
+        });
+      } catch (error) {
+        console.error("启动数据库检查失败:", error);
+        setDbFixStatus({
+          checking: false,
+          fixed: false,
+          error: null // 不显示错误
+        });
+      }
+    };
+    
+    // 延迟执行数据库检查，优先加载UI
+    const timer = setTimeout(() => {
+      checkDatabase();
+    }, 2000);
+    
+    return () => clearTimeout(timer);
+  }, []); // 仅在组件挂载时执行一次
+
   // 获取考试列表 - 使用缓存和加载状态优化
   useEffect(() => {
     const fetchExamList = async () => {
@@ -106,8 +187,14 @@ const GradeAnalysisLayout: React.FC = () => {
       }
       
       try {
-        console.log("调用 gradeAnalysisService.getExamList()");
-        const { data, error } = await gradeAnalysisService.getExamList();
+        setIsLoading(true);
+        console.log("从Supabase获取考试列表");
+        
+        // 直接从Supabase获取考试列表
+        const { data, error } = await supabase
+          .from('exams')
+          .select('*')
+          .order('date', { ascending: false });
         
         if (error) {
           console.error("获取考试列表出错:", error);
@@ -121,27 +208,34 @@ const GradeAnalysisLayout: React.FC = () => {
         if (data && data.length > 0) {
           setExamList(data);
           
-          // 默认选择第一个考试
-          if (data.length > 0 && !selectedExam) {
-            console.log("选择默认考试:", data[0].id);
+          // 设置默认选中的考试（最新的一个）
+          if (!selectedExam) {
             setSelectedExam(data[0].id);
+            // 加载选中考试的成绩数据
+            await fetchGradeData(data[0].id);
           }
         } else {
-          console.log("未获取到考试列表数据或数据为空");
-          setIsLoading(false); // 即使没有数据也应停止加载状态
+          console.log("没有找到考试数据");
+          toast.warning("没有找到考试数据", {
+            description: "请先创建考试并导入成绩"
+          });
         }
       } catch (error) {
         console.error("加载考试列表失败:", error);
-        setIsLoading(false); // 出错时停止加载状态
+        toast.error("加载考试列表失败", {
+          description: error instanceof Error ? error.message : "未知错误"
+        });
+      } finally {
+        setIsLoading(false);
       }
     };
-    
+
     fetchExamList();
-  }, [examList.length, selectedExam]); // 依赖项更新
+  }, [examList.length, selectedExam]);
 
   // 获取成绩数据 - 使用缓存和按需加载
   useEffect(() => {
-    const fetchGradeData = async () => {
+    const fetchGradeData = async (examId: string) => {
       if (!selectedExam) {
         console.log("未选择考试，无法获取成绩数据");
         return;
@@ -149,7 +243,7 @@ const GradeAnalysisLayout: React.FC = () => {
       
       // 如果已经有数据，并且是当前选中的考试的数据，则跳过加载
       if (gradeData.length > 0 && 
-          gradeData[0].examTitle === examList.find(e => e.id === selectedExam)?.title) {
+          gradeData[0].examId === selectedExam) {
         console.log("使用缓存的成绩数据");
         setIsLoading(false);
         return;
@@ -159,8 +253,11 @@ const GradeAnalysisLayout: React.FC = () => {
       try {
         setIsLoading(true);
         
-        console.log("调用 gradeAnalysisService.getExamResults()");
-        const { data, error } = await gradeAnalysisService.getExamResults(selectedExam);
+        // 直接从Supabase获取成绩数据
+        const { data, error } = await supabase
+          .from('grade_data')
+          .select('*, students(name, student_id)')
+          .eq('exam_id', selectedExam);
         
         if (error) {
           console.error("获取成绩数据出错:", error);
@@ -177,13 +274,14 @@ const GradeAnalysisLayout: React.FC = () => {
           const formattedData = data.map((item: any) => ({
             id: item.id,
             studentId: item.student_id,
-            name: item.name || '未知学生',
+            name: item.name || (item.students ? item.students.name : '未知学生'),
             subject: item.subject || '总分',
-            score: item.total_score,
+            score: parseFloat(item.score) || parseFloat(item.total_score) || 0,
             examDate: item.exam_date,
             examType: item.exam_type || '未知考试',
             examTitle: item.exam_title || '未知考试',
-            className: item.class_name || '未知班级'
+            className: item.class_name || '未知班级',
+            examId: item.exam_id
           }));
           
           console.log("格式化后的数据:", `${formattedData.length}条记录`);
@@ -196,10 +294,10 @@ const GradeAnalysisLayout: React.FC = () => {
           console.log("收集到的班级:", classes.length);
           
           const students = data.reduce((acc: {id: string; name: string}[], item: any) => {
-            if (!acc.some(s => s.id === item.student_id) && item.student_id && item.name) {
+            if (!acc.some(s => s.id === item.student_id) && item.student_id) {
               acc.push({
                 id: item.student_id,
-                name: item.name
+                name: item.name || (item.students ? item.students.name : '未知学生')
               });
             }
             return acc;
@@ -215,6 +313,8 @@ const GradeAnalysisLayout: React.FC = () => {
           }
         } else {
           console.log("未获取到成绩数据或数据为空");
+          // 清空数据
+          setGradeData([]);
         }
       } catch (error) {
         console.error("加载成绩数据失败:", error);
@@ -227,8 +327,8 @@ const GradeAnalysisLayout: React.FC = () => {
       }
     };
     
-    fetchGradeData();
-  }, [selectedExam, setGradeData, gradeData, examList, selectedClass]);
+    fetchGradeData(selectedExam || '');
+  }, [selectedExam, setGradeData, examList, selectedClass]);
 
   // 计算箱线图数据
   useEffect(() => {
@@ -320,7 +420,7 @@ const GradeAnalysisLayout: React.FC = () => {
     fetchClassesList();
     fetchStudentsList();
     if (selectedExam) {
-      fetchGradeData(); 
+      fetchGradeData(selectedExam); 
     }
     
     // 刷新页面提示
@@ -430,20 +530,17 @@ const GradeAnalysisLayout: React.FC = () => {
                 <ExamSelector 
                   exams={examList.map(exam => ({
                     id: exam.id,
-                    name: exam.title,
-                    date: exam.date || '未知日期'
+                    title: exam.title,
+                    date: exam.date || undefined,
+                    type: exam.type || undefined,
+                    subject: exam.subject || undefined
                   }))}
-                  selectedExams={selectedExam ? [selectedExam] : []}
-                  onChange={(values) => {
-                    if (values.length > 0) {
-                      handleExamChange(values[0]);
-                    } else {
-                      setSelectedExam(null);
-                    }
+                  selectedExam={selectedExam ? examList.find(exam => exam.id === selectedExam) || null : null}
+                  onExamSelect={(exam) => {
+                    handleExamChange(exam.id);
                   }}
-                  maxSelections={1}
-                  showDeleteOption={true}
-                  onExamDeleted={handleRefreshData}
+                  isLoading={isLoading}
+                  onExamDelete={handleRefreshData}
                 />
                 <Button 
                   variant="outline"

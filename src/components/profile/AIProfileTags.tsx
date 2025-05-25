@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Brain, Loader2, Tag, Plus, X, Pencil, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
-import { getUserAIConfig, getUserAPIKey } from "@/utils/userAuth";
+import { getUserAIModelConfig, getUserSimpleAPIKey } from "@/utils/userAuth";
 import { StudentData } from "./types";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -62,8 +62,8 @@ const AIProfileTags: React.FC<Props> = ({ student }) => {
   });
 
   useEffect(() => {
-    const config = getUserAIConfig();
-    const apiKey = getUserAPIKey();
+    const config = getUserAIModelConfig();
+    const apiKey = getUserSimpleAPIKey();
     setAiConfigured(!!config && !!apiKey);
   }, []);
 
@@ -71,8 +71,8 @@ const AIProfileTags: React.FC<Props> = ({ student }) => {
     setIsAnalyzing(true);
     
     try {
-      const config = getUserAIConfig();
-      const apiKey = getUserAPIKey();
+      const config = getUserAIModelConfig();
+      const apiKey = getUserSimpleAPIKey();
       
       if (!config || !apiKey) {
         throw new Error("请先在AI设置中配置大模型API");

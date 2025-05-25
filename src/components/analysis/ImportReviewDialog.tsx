@@ -81,10 +81,10 @@ interface ImportReviewDialogProps {
     newStudentStrategy: 'create' | 'ignore'
   ) => Promise<ExistingStudentCheckResult>;
   onFinalImport: (
-    finalExamInfo: ExamInfo,
+    examInfo: ExamInfo,
     confirmedMappings: Record<string, string>,
     mergeChoice: string, 
-    fullDataToImport: any[],
+    dataToProcess: any[],
     examScope: 'class' | 'grade',
     newStudentStrategy: 'create' | 'ignore'
   ) => Promise<void>;
@@ -425,14 +425,43 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
 
   const handleFinalConfirmAndImport = async () => {
     if (!editableExamInfo || !userConfirmedMappings || !fileData) {
-      console.error("Missing required data for import");
+      console.error("缺少必要数据，无法导入", { editableExamInfo, hasMappings: !!userConfirmedMappings, hasFileData: !!fileData });
       toast.error("缺少必要数据，无法导入");
       return;
     }
-
+    
+    // 进行考试信息的校验
+    if (!editableExamInfo.title) {
+      console.error("考试标题为空，无法导入");
+      toast.error("请输入考试标题", {
+        description: "考试标题是必填项"
+      });
+      return;
+    }
+    
+    if (!editableExamInfo.type) {
+      console.error("考试类型为空，无法导入");
+      toast.error("请选择考试类型", {
+        description: "考试类型是必填项"
+      });
+      return;
+    }
+    
+    if (!editableExamInfo.date) {
+      console.error("考试日期为空，无法导入");
+      toast.error("请选择考试日期", {
+        description: "考试日期是必填项"
+      });
+      return;
+    }
+    
     try {
       setIsImporting(true);
       
+      // 确保考试信息完整并记录日志
+      console.log('导入前的考试信息:', editableExamInfo);
+      
+      // 直接调用父组件的onFinalImport函数
       await onFinalImport(
         editableExamInfo,
         userConfirmedMappings, 
@@ -449,7 +478,7 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
       }, 500);
       
     } catch (error) {
-      console.error("Final import error:", error);
+      console.error("导入失败:", error);
       toast.error("导入失败", { 
         description: error instanceof Error ? error.message : "未知错误" 
       });

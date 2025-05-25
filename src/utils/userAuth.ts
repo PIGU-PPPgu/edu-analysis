@@ -291,3 +291,83 @@ export async function clearUserAISettings(): Promise<void> {
   }
 }
 
+/**
+ * AI模型配置
+ */
+export interface AIModelConfig {
+  version: string;
+  temperature: number;
+  maxTokens: number;
+}
+
+/**
+ * 获取用户AI配置
+ * @returns AI配置对象
+ */
+export function getUserAIModelConfig(): AIModelConfig | null {
+  try {
+    const configStr = localStorage.getItem('aiModelConfig');
+    if (!configStr) return null;
+    
+    const config = JSON.parse(configStr);
+    return {
+      version: config.version || 'gpt-3.5-turbo',
+      temperature: parseFloat(config.temperature) || 0.7,
+      maxTokens: parseInt(config.maxTokens) || 1500
+    };
+  } catch (error) {
+    console.error("获取AI配置失败:", error);
+    return null;
+  }
+}
+
+/**
+ * 保存用户AI配置
+ * @param config AI配置对象
+ */
+export function saveUserAIModelConfig(config: AIModelConfig): void {
+  try {
+    localStorage.setItem('aiModelConfig', JSON.stringify(config));
+  } catch (error) {
+    console.error("保存AI配置失败:", error);
+  }
+}
+
+/**
+ * 获取用户API密钥
+ * @returns API密钥
+ */
+export function getUserSimpleAPIKey(): string | null {
+  try {
+    // 使用会话存储而非本地存储，增强安全性
+    return sessionStorage.getItem('userApiKey');
+  } catch (error) {
+    console.error("获取API密钥失败:", error);
+    return null;
+  }
+}
+
+/**
+ * 保存用户API密钥
+ * @param apiKey API密钥
+ */
+export function saveUserSimpleAPIKey(apiKey: string): void {
+  try {
+    // 使用会话存储而非本地存储，增强安全性
+    sessionStorage.setItem('userApiKey', apiKey);
+  } catch (error) {
+    console.error("保存API密钥失败:", error);
+  }
+}
+
+/**
+ * 清除用户API密钥
+ */
+export function clearUserSimpleAPIKey(): void {
+  try {
+    sessionStorage.removeItem('userApiKey');
+  } catch (error) {
+    console.error("清除API密钥失败:", error);
+  }
+}
+

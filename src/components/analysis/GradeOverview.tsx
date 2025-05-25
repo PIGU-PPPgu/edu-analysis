@@ -14,7 +14,7 @@ interface GradeOverviewProps {
 }
 
 const GradeOverview: React.FC<GradeOverviewProps> = ({ parsingError }) => {
-  const { gradeData, isDataLoaded, setGradeData } = useGradeAnalysis();
+  const { gradeData, isDataLoaded, selectedExam } = useGradeAnalysis();
   const [stats, setStats] = useState({
     avg: 0,
     max: 0,
@@ -22,94 +22,112 @@ const GradeOverview: React.FC<GradeOverviewProps> = ({ parsingError }) => {
     passing: 0,
     total: 0
   });
-  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchGradeData = async () => {
-      if (isDataLoaded) return;
-      
+    const calculateGradeStatistics = async () => {
+      if (!gradeData || gradeData.length === 0) {
+        console.log("没有可用的成绩数据，无法计算统计信息");
+        setStats({
+          avg: 0,
+          max: 0,
+          min: 0,
+          passing: 0,
+          total: 0
+        });
+        return;
+      }
+
       try {
-        setIsLoading(true);
+        console.log(`获取到考试成绩数据: ${gradeData.length} 条记录`);
         
-        const { data, error } = await supabase
-          .from('grades')
-          .select('*, students(name)')
-          .order('created_at', { ascending: false })
-          .limit(100);
+        // 确保数据中有score字段并且是数字类型
+        const validGrades = gradeData.filter(
+          (grade) => grade.score !== null && !isNaN(Number(grade.score))
+        );
         
-        if (error) throw error;
-        
-        if (data && data.length > 0) {
-          // 格式化数据
-          const formattedData = data.map(item => ({
-            studentId: item.student_id,
-            name: item.students?.name || '未知学生',
-            subject: item.subject,
-            score: item.score,
-            examDate: item.exam_date,
-            examType: item.exam_type || '未知考试'
-          }));
-          
-          setGradeData(formattedData);
-          const calculatedStats = calculateStatistics(formattedData);
-          setStats(calculatedStats);
+        if (validGrades.length === 0) {
+          console.warn("没有有效的成绩数据（所有成绩为null或非数字）");
+          setStats({
+            avg: 0,
+            max: 0,
+            min: 0,
+            passing: 0,
+            total: gradeData.length
+          });
+          return;
         }
+        
+        // 计算基本统计数据
+        const scores = validGrades.map(grade => Number(grade.score));
+        const total = validGrades.length;
+        const sum = scores.reduce((acc, score) => acc + score, 0);
+        const avg = sum / total;
+        const max = Math.max(...scores);
+        const min = Math.min(...scores);
+        
+        // 计算及格率（默认60分及格）
+        const passingThreshold = 60;
+        const passingCount = scores.filter(score => score >= passingThreshold).length;
+        
+        setStats({
+          avg: avg,
+          max: max,
+          min: min,
+          passing: passingCount,
+          total: total
+        });
       } catch (error) {
-        console.error("加载成绩数据失败:", error);
-      } finally {
-        setIsLoading(false);
+        console.error("计算成绩统计数据时出错:", error);
+        toast.error("计算成绩统计失败", {
+          description: error instanceof Error ? error.message : "未知错误"
+        });
       }
     };
-    
-    fetchGradeData();
-  }, [isDataLoaded, setGradeData]);
-  
-  useEffect(() => {
-    if (isDataLoaded) {
-      const calculatedStats = calculateStatistics(gradeData);
-      setStats(calculatedStats);
-    }
-  }, [gradeData, isDataLoaded]);
 
-  // 如果没有数据，显示引导用户前往首页导入数据的提示
-  if (gradeData.length === 0 && !isLoading) {
-    return (
-      <Card className="bg-white p-4 rounded-lg shadow">
-        <CardContent className="pt-6 text-center">
-          <p className="text-xl text-gray-600 mb-4">暂无成绩数据</p>
-          <p className="text-gray-500 mb-6">请先从首页导入学生成绩数据</p>
-          <Button 
-            onClick={() => navigate("/")}
-            className="flex items-center gap-2"
-          >
-            前往导入数据
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
+    calculateGradeStatistics();
+  }, [gradeData]);
 
-  // 显示成绩统计数据
   return (
-    <Card>
-      <CardContent className="p-6">
-        <h2 className="text-xl font-semibold mb-4">成绩概览</h2>
-        {isLoading ? (
-          <div className="flex justify-center items-center h-40">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+    <Card className="shadow-sm mb-6">
+      <CardContent className="pt-6">
+        {parsingError ? (
+          <div className="text-center py-4">
+            <p className="text-red-500 mb-4">{parsingError}</p>
+            <Button 
+              onClick={() => navigate('/upload')}
+              className="inline-flex items-center"
+            >
+              重新上传成绩 <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+        ) : !isDataLoaded ? (
+          <div className="text-center py-4">
+            <div className="animate-pulse flex space-x-4 justify-center">
+              <div className="h-4 bg-slate-200 rounded w-1/4"></div>
+              <div className="h-4 bg-slate-200 rounded w-1/4"></div>
+              <div className="h-4 bg-slate-200 rounded w-1/4"></div>
+            </div>
+            <p className="text-gray-500 mt-2">加载成绩数据中...</p>
+          </div>
+        ) : gradeData.length === 0 ? (
+          <div className="text-center py-4">
+            <p className="text-amber-500 mb-4">尚未找到成绩数据</p>
+            <Button 
+              onClick={() => navigate('/upload')}
+              className="inline-flex items-center"
+            >
+              上传成绩 <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <StatisticsOverview 
-              averageScore={stats.avg} 
-              maxScore={stats.max} 
-              minScore={stats.min} 
-              passingRate={stats.passing} 
-              totalStudents={stats.total}
-            />
-          </div>
+          <StatisticsOverview
+            avg={stats.avg}
+            max={stats.max}
+            min={stats.min}
+            passing={stats.passing}
+            total={stats.total}
+          />
         )}
       </CardContent>
     </Card>

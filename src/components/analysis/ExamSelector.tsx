@@ -27,157 +27,229 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { gradeAnalysisService } from "@/services/gradeAnalysisService";
+import { supabase } from "@/integrations/supabase/client";
 
-export interface ExamData {
+export interface Exam {
   id: string;
-  name: string;
-  date: string;
+  title: string; // 使用title字段，不是exam_title
+  name?: string;  // 向后兼容，支持name字段
+  type?: string;  // 使用type字段，不是exam_type
+  date?: string;  // 使用date字段，不是exam_date
+  subject?: string;
 }
 
 interface ExamSelectorProps {
-  exams: ExamData[];
-  selectedExams: string[];
-  onChange: (value: string[]) => void;
+  exams: Exam[];
+  // 单选模式的props
+  selectedExam?: Exam | null;
+  onExamSelect?: (exam: Exam) => void;
+  // 多选模式的props
+  selectedExams?: string[];
+  onChange?: (selectedIds: string[]) => void;
   maxSelections?: number;
-  onExamDeleted?: () => void;
-  showDeleteOption?: boolean;
+  // 通用props
+  isLoading?: boolean;
+  onExamDelete?: (examId: string) => void;
 }
 
-const ExamSelector: React.FC<ExamSelectorProps> = ({
+export function ExamSelector({
   exams,
+  selectedExam,
+  onExamSelect,
   selectedExams,
   onChange,
-  maxSelections = 4,
-  onExamDeleted,
-  showDeleteOption = false
-}) => {
+  maxSelections,
+  isLoading = false,
+  onExamDelete,
+}: ExamSelectorProps) {
   const [open, setOpen] = React.useState(false);
-  const [examToDelete, setExamToDelete] = React.useState<ExamData | null>(null);
-  const [isDeleting, setIsDeleting] = React.useState(false);
-
-  const toggleExam = (examId: string) => {
-    if (selectedExams.includes(examId)) {
-      onChange(selectedExams.filter((id) => id !== examId));
-    } else {
-      if (selectedExams.length < maxSelections) {
-        onChange([...selectedExams, examId]);
-      }
-    }
-  };
-
-  const removeExam = (examId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    onChange(selectedExams.filter((id) => id !== examId));
-  };
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [examToDelete, setExamToDelete] = React.useState<Exam | null>(null);
   
-  const handleDeleteClick = (e: React.MouseEvent, exam: ExamData) => {
-    e.stopPropagation();
-    setExamToDelete(exam);
-  };
-  
-  const confirmDeleteExam = async () => {
+  // 判断是多选模式还是单选模式
+  const isMultiSelect = selectedExams !== undefined && onChange !== undefined;
+
+  const handleDeleteExam = async () => {
     if (!examToDelete) return;
     
     try {
-      setIsDeleting(true);
+      // 使用Supabase删除考试
+      const { error } = await supabase
+        .from('exams')
+        .delete()
+        .eq('id', examToDelete.id);
       
-      const result = await gradeAnalysisService.deleteExam(examToDelete.id);
+      if (error) throw error;
       
-      if (result.success) {
-        toast.success("考试删除成功", {
-          description: `已删除考试"${examToDelete.name}"及相关成绩数据`
-        });
-        
-        // 如果被删除的考试在选中列表中，从选中列表中移除
-        if (selectedExams.includes(examToDelete.id)) {
-          onChange(selectedExams.filter(id => id !== examToDelete.id));
+      // 成功删除后调用回调
+      if (onExamDelete) {
+        onExamDelete(examToDelete.id);
+      }
+      
+      toast.success("考试已删除", {
+        description: `已成功删除考试: ${examToDelete.title || examToDelete.name}`
+      });
+      
+      // 如果删除的是当前选中的考试，清除选择
+      if (isMultiSelect && selectedExams && onChange) {
+        const newSelected = selectedExams.filter(id => id !== examToDelete.id);
+        onChange(newSelected);
+      } else if (selectedExam && selectedExam.id === examToDelete.id && onExamSelect) {
+        const remainingExam = exams.find(e => e.id !== examToDelete.id);
+        if (remainingExam) {
+          onExamSelect(remainingExam);
         }
-        
-        // 通知父组件刷新考试列表
-        if (onExamDeleted) {
-          onExamDeleted();
-        }
-      } else {
-        toast.error("删除考试失败", {
-          description: result.message || "操作未能完成，请稍后重试"
-        });
       }
     } catch (error) {
-      console.error("删除考试时出错:", error);
+      console.error("删除考试失败:", error);
       toast.error("删除考试失败", {
         description: error instanceof Error ? error.message : "未知错误"
       });
     } finally {
-      setIsDeleting(false);
+      setDeleteDialogOpen(false);
       setExamToDelete(null);
     }
   };
 
+  // 格式化考试显示文本
+  const formatExamDisplay = (exam: Exam) => {
+    const displayTitle = exam.title || exam.name || "未命名考试";
+    const displayDate = exam.date 
+      ? new Date(exam.date).toLocaleDateString('zh-CN')
+      : "";
+    
+    return displayDate ? `${displayTitle} (${displayDate})` : displayTitle;
+  };
+
+  // 处理考试选择
+  const handleExamToggle = (exam: Exam) => {
+    if (isMultiSelect && selectedExams && onChange) {
+      const isSelected = selectedExams.includes(exam.id);
+      if (isSelected) {
+        onChange(selectedExams.filter(id => id !== exam.id));
+      } else {
+        if (!maxSelections || selectedExams.length < maxSelections) {
+          onChange([...selectedExams, exam.id]);
+        } else {
+          toast.warning(`最多只能选择${maxSelections}个考试`);
+        }
+      }
+    } else if (onExamSelect) {
+      onExamSelect(exam);
+      setOpen(false);
+    }
+  };
+
+  // 获取显示的文本
+  const getDisplayText = () => {
+    if (isLoading) return "加载考试列表...";
+    
+    if (isMultiSelect && selectedExams) {
+      if (selectedExams.length === 0) return "选择考试";
+      if (selectedExams.length === 1) {
+        const exam = exams.find(e => e.id === selectedExams[0]);
+        return exam ? formatExamDisplay(exam) : "选择考试";
+      }
+      return `已选择 ${selectedExams.length} 个考试`;
+    } else if (selectedExam) {
+      return formatExamDisplay(selectedExam);
+    }
+    
+    return "选择考试";
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="flex items-center space-x-4">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full justify-between"
+            className="min-w-[250px] justify-between"
+            disabled={isLoading || exams.length === 0}
           >
-            {selectedExams.length > 0
-              ? `已选择 ${selectedExams.length} 个考试`
-              : "选择要对比的考试"}
+            {getDisplayText()}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-full p-0">
+        <PopoverContent className="p-0 w-[300px]">
           <Command>
             <CommandInput placeholder="搜索考试..." />
-            <CommandEmpty>没有找到相关考试</CommandEmpty>
-            <CommandGroup>
+            <CommandEmpty>没有找到匹配的考试</CommandEmpty>
+            <CommandGroup className="max-h-[300px] overflow-y-auto">
               {exams.map((exam) => (
                 <CommandItem
                   key={exam.id}
                   value={exam.id}
-                  onSelect={() => toggleExam(exam.id)}
-                  disabled={selectedExams.length >= maxSelections && !selectedExams.includes(exam.id)}
+                  onSelect={() => {
+                    handleExamToggle(exam);
+                  }}
+                  className="flex justify-between items-center"
                 >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      selectedExams.includes(exam.id) ? "opacity-100" : "opacity-0"
+                  <div>
+                    <span>{formatExamDisplay(exam)}</span>
+                    {exam.subject && (
+                      <Badge variant="outline" className="ml-2">
+                        {exam.subject}
+                      </Badge>
                     )}
-                  />
-                  <span className="flex-1">{exam.name}</span>
-                  <span className="text-sm text-muted-foreground">{exam.date}</span>
+                    {exam.type && (
+                      <Badge variant="secondary" className="ml-2">
+                        {exam.type}
+                      </Badge>
+                    )}
+                  </div>
+                  {/* 显示选中状态 */}
+                  {isMultiSelect && selectedExams ? (
+                    selectedExams.includes(exam.id) && (
+                      <Check className="h-4 w-4" />
+                    )
+                  ) : (
+                    selectedExam && selectedExam.id === exam.id && (
+                      <Check className="h-4 w-4" />
+                    )
+                  )}
                 </CommandItem>
               ))}
             </CommandGroup>
           </Command>
         </PopoverContent>
       </Popover>
-
-      {selectedExams.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {selectedExams.map((examId) => {
-            const exam = exams.find((e) => e.id === examId);
-            if (!exam) return null;
-            
-            return (
-              <Badge key={examId} variant="secondary" className="px-3 py-1">
-                {exam.name}
-                <button
-                  className="ml-2 rounded-full hover:bg-muted"
-                  onClick={(e) => removeExam(examId, e)}
-                >
-                  ×
-                </button>
-              </Badge>
-            );
-          })}
-        </div>
+      
+      {!isMultiSelect && selectedExam && onExamDelete && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => {
+            setExamToDelete(selectedExam);
+            setDeleteDialogOpen(true);
+          }}
+          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
       )}
+      
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除考试</AlertDialogTitle>
+            <AlertDialogDescription>
+              您确定要删除 "{examToDelete?.title}" 吗？这将删除所有相关的成绩数据，且此操作无法撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteExam}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
-};
-
-export default ExamSelector;
+}

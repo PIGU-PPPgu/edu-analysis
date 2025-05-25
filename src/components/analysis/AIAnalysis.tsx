@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { AIAnalysisTabs } from "./AIAnalysisTabs";
@@ -6,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Brain, Lightbulb } from "lucide-react";
 import { toast } from "sonner";
 import { useGradeAnalysis } from "@/contexts/GradeAnalysisContext";
-import { getUserAIConfig, getUserAPIKey } from "@/utils/userAuth";
+import { getUserAIModelConfig, getUserSimpleAPIKey } from "@/utils/userAuth";
 
 interface AIAnalysisProps {
   className?: string;
@@ -23,8 +22,8 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ className }) => {
   });
 
   useEffect(() => {
-    const config = getUserAIConfig();
-    const apiKey = getUserAPIKey();
+    const config = getUserAIModelConfig();
+    const apiKey = getUserSimpleAPIKey();
     setAiConfigured(!!config && !!apiKey);
   }, []);
 

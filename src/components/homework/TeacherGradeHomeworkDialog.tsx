@@ -149,12 +149,16 @@ export default function TeacherGradeHomeworkDialog({
           setStudents(studentOptions);
         } else {
           console.error('获取提交列表失败 (for dropdown):', result.error);
-          toast({ title: "获取学生列表失败", description: result.error || "请检查网络连接" });
+          toast.error(result.error || "请检查网络连接", {
+            description: "获取学生列表失败"
+          });
           setStudents([]);
         }
       } catch (error) {
         console.error('获取学生列表异常 (for dropdown):', error);
-        toast({ title: "获取学生列表失败", description: "加载学生列表时发生错误" });
+        toast.error("加载学生列表时发生错误", {
+          description: "获取学生列表失败"
+        });
         setStudents([]);
       } finally {
         setIsLoading(false);
@@ -179,10 +183,8 @@ export default function TeacherGradeHomeworkDialog({
         }
       } catch (error) {
         console.error("获取评级标准失败:", error);
-        toast({
-          variant: "destructive",
-          title: "错误",
-          description: "获取评级标准失败"
+        toast.error("获取评级标准失败", {
+          description: "错误"
         });
       }
     };
@@ -226,7 +228,9 @@ export default function TeacherGradeHomeworkDialog({
         
           if (error) {
             console.error('加载提交数据失败 (by submissionId):', error);
-            toast({ title: "加载失败", description: `无法获取提交数据: ${error.message}` });
+            toast.error(`无法获取提交数据: ${error.message}`, {
+              description: "加载失败"
+            });
             setIsLoading(false);
             return;
           }
@@ -325,7 +329,9 @@ export default function TeacherGradeHomeworkDialog({
         setIsLoadingStudentName(false);
         setPreSelectedStudentName(studentNameFromDb);
         if (loadError) {
-           toast({ title: "加载失败", description: `加载数据时出错: ${loadError.message || loadError}` });
+           toast.error(`加载数据时出错: ${loadError.message || loadError}`, {
+             description: "加载失败"
+           });
         }
       }
     };
@@ -433,8 +439,7 @@ export default function TeacherGradeHomeworkDialog({
     
     setActiveTab("manual");
     
-    toast({
-      title: "AI知识点评估已应用",
+    toast.success("AI知识点评估已应用", {
       description: `已成功应用 ${evaluations.length} 个知识点评估`
     });
     
@@ -482,10 +487,8 @@ export default function TeacherGradeHomeworkDialog({
           
         if (createError) {
           console.error('创建提交记录失败:', createError);
-          toast({
-            variant: "destructive",
-            title: "创建提交失败",
-            description: `无法创建新的提交记录: ${createError.message}`
+          toast.error(`无法创建新的提交记录: ${createError.message}`, {
+            description: "创建提交失败"
           });
           setIsLoading(false);
           return;
@@ -497,10 +500,8 @@ export default function TeacherGradeHomeworkDialog({
         setSelectedSubmission({ id: submissionIdToUse, student_id: currentStudentId, ...values });
       } else if (!submissionIdToUse) {
           console.error('没有有效的提交ID或学生ID来创建提交');
-          toast({
-            variant: "destructive",
-            title: "保存失败",
-            description: "缺少有效的提交信息"
+          toast.error("缺少有效的提交信息", {
+            description: "保存失败"
           });
           setIsLoading(false);
           return;
@@ -520,10 +521,8 @@ export default function TeacherGradeHomeworkDialog({
             
           if (updateError) {
             console.error('更新提交记录失败:', updateError);
-            toast({
-              variant: "destructive",
-              title: "保存失败",
-              description: `更新评分信息失败: ${updateError.message}`
+            toast.error(`更新评分信息失败: ${updateError.message}`, {
+              description: "保存失败"
             });
             setIsLoading(false);
             return;
@@ -540,10 +539,8 @@ export default function TeacherGradeHomeworkDialog({
           
           if (!evaluationResult.success) {
             console.error('保存知识点评估失败:', evaluationResult.message);
-            toast({
-              variant: "destructive",
-              title: "部分保存失败",
-              description: "评分已保存，但知识点评估更新失败"
+            toast.error("评分已保存，但知识点评估更新失败", {
+              description: "部分保存失败"
             });
           } else {
             console.log('知识点评估保存结果:', evaluationResult);
@@ -558,16 +555,13 @@ export default function TeacherGradeHomeworkDialog({
       
       onOpenChange(false);
       
-      toast({
-        title: "评分已保存",
-        description: "学生作业评分已成功保存"
+      toast.success("学生作业评分已成功保存", {
+        description: "评分已保存"
       });
     } catch (error: any) {
       console.error('保存评分过程中发生错误:', error);
-      toast({
-        variant: "destructive",
-        title: "保存失败",
-        description: `保存评分时发生错误: ${error.message || error}`
+      toast.error(`保存评分时发生错误: ${error.message || error}`, {
+        description: "保存失败"
       });
     } finally {
       setIsLoading(false);

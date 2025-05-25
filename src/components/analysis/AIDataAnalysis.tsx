@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
 import { ZapIcon } from "lucide-react";
-import { getUserAIConfig, getUserAPIKey } from "@/utils/userAuth";
+import { getUserAIModelConfig, getUserSimpleAPIKey } from "@/utils/userAuth";
 import { performAIAnalysis, generateAnalysisPrompt } from "@/utils/aiAnalysis";
 import { AIAnalysisIntro } from "./AIAnalysisIntro";
 import { AIAnalysisTabs } from "./AIAnalysisTabs";
@@ -32,8 +32,8 @@ const AIDataAnalysis: React.FC<AIDataAnalysisProps> = ({
   const charts = chartsProp || [];
 
   useEffect(() => {
-    const config = getUserAIConfig();
-    const apiKey = getUserAPIKey();
+    const config = getUserAIModelConfig();
+    const apiKey = getUserSimpleAPIKey();
     setAiConfigured(!!config && !!apiKey);
   }, []);
 
@@ -51,8 +51,8 @@ const AIDataAnalysis: React.FC<AIDataAnalysisProps> = ({
       return;
     }
 
-    const aiConfig = getUserAIConfig();
-    const apiKey = getUserAPIKey();
+    const aiConfig = getUserAIModelConfig();
+    const apiKey = getUserSimpleAPIKey();
 
     if (!aiConfig || !apiKey) {
       toast.error("请先配置AI服务", {

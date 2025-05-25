@@ -195,15 +195,11 @@ export default function GradeCardView({
         .single();
 
       if (error) {
-        console.error('Failed to fetch fresh submission data:', error);
-        toast({ title: "加载数据失败", description: "无法获取最新的提交详情", variant: "destructive" });
-        // Keep existing data or reset?
-        setScore(submission.score || 85);
-        setFeedback(submission.teacher_feedback || "");
-        setKpEvaluations([]); // Reset KPs on error
-        setShouldAddKnowledgePoints(false);
-        setIsLoading(false);
-        return; // Exit if fetch failed
+        console.error('加载详情错误:', error);
+        toast.error("无法获取最新的提交详情", {
+          description: "加载数据失败"
+        });
+        return;
       }
       
       console.log('Fetched fresh submission data:', freshSubmissionData);
@@ -230,14 +226,11 @@ export default function GradeCardView({
         setShouldAddKnowledgePoints(false);
       }
 
-    } catch (err) {
-      console.error('Error in handleOpenGradeDialog fetch:', err);
-      toast({ title: "加载错误", description: "打开评分对话框时发生错误", variant: "destructive" });
-      // Reset to defaults on unexpected error
-      setScore(85);
-      setFeedback("");
-      setKpEvaluations([]);
-      setShouldAddKnowledgePoints(false);
+    } catch (error) {
+      console.error('打开评分对话框时发生错误:', error);
+      toast.error("打开评分对话框时发生错误", {
+        description: "加载错误"
+      });
     } finally {
       setIsLoading(false); // Hide loading state
     }

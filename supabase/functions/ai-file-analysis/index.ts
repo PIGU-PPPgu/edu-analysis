@@ -130,6 +130,114 @@ async function mapHeaders(headers: string[], sampleData: any[]) {
   }
 }
 
+function identifyStructure(headers: string[], data: any[]): FileStructureInfo {
+  const structure: FileStructureInfo = {
+    subjectColumns: [],
+    subjects: [],
+    className: null,
+    classNames: [],
+    format: 'wide',
+    nameColumn: '',
+    classColumn: '',
+    excludedColumns: [], // 需要排除的列
+  };
+
+  // 识别名字列
+  const possibleNameColumns = ['姓名', '学生姓名', '学生', '名字', 'name', 'student_name', 'student name'];
+  for (const header of headers) {
+    if (possibleNameColumns.some(col => header.toLowerCase().includes(col.toLowerCase()))) {
+      structure.nameColumn = header;
+      break;
+    }
+  }
+
+  // 识别班级列
+  const possibleClassColumns = ['班级', '班名', '班', 'class', 'class_name', 'class name'];
+  // 排除带有"班名"但明显是排名的列
+  const excludedClassPatterns = [/语文班名/, /数学班名/, /英语班名/, /物理班名/, /化学班名/, /生物班名/, /政治班名/, /历史班名/, /地理班名/, /总分班名/, /总分校名/]; 
+  
+  for (const header of headers) {
+    // 跳过明显是排名的"班名"列
+    if (excludedClassPatterns.some(pattern => pattern.test(header))) {
+      console.log(`排除班级列识别: ${header} 因为这看起来是排名列`);
+      structure.excludedColumns.push(header);
+      continue;
+    }
+    
+    if (possibleClassColumns.some(col => header.toLowerCase().includes(col.toLowerCase()))) {
+      structure.classColumn = header;
+      break;
+    }
+  }
+
+  // 识别班级
+  if (structure.classColumn && data.length > 0) {
+    const classValues = new Set();
+    for (const row of data) {
+      if (row[structure.classColumn]) {
+        classValues.add(row[structure.classColumn]);
+      }
+    }
+    structure.classNames = Array.from(classValues) as string[];
+    if (structure.classNames.length === 1) {
+      structure.className = structure.classNames[0];
+    }
+  }
+
+  // 识别科目列 - 排除带有"班名"的列，这些通常是排名
+  const excludedSubjectPatterns = [
+    /班名/, /班级排名/, /年级排名/, /校名/, /班排/, /年排/,
+    /rank/i, /排名/
+  ];
+  
+  for (const header of headers) {
+    // 排除已经识别的名字和班级列
+    if (header === structure.nameColumn || header === structure.classColumn) {
+      continue;
+    }
+    
+    // 排除明显是排名的列
+    if (excludedSubjectPatterns.some(pattern => pattern.test(header))) {
+      console.log(`排除科目列识别: ${header} 因为这看起来是排名列`);
+      if (!structure.excludedColumns.includes(header)) {
+        structure.excludedColumns.push(header);
+      }
+      continue;
+    }
+    
+    // 检查是否包含数据
+    let hasData = false;
+    for (const row of data) {
+      if (row[header] !== undefined && row[header] !== null && row[header] !== '') {
+        hasData = true;
+        // 检查是否为数字或数字字符串
+        if (typeof row[header] === 'number' || !isNaN(Number(row[header]))) {
+          structure.subjectColumns.push(header);
+          structure.subjects.push(header);
+          break;
+        }
+      }
+    }
+  }
+
+  // 确定数据格式
+  if (structure.subjectColumns.length > 3) {
+    structure.format = 'wide';
+  } else {
+    structure.format = 'long';
+  }
+  
+  console.log(`识别到的数据结构:`);
+  console.log(`识别到 ${structure.subjects.length} 个科目: ${structure.subjects.join(', ')}`);
+  console.log(`识别到 ${structure.classNames.length} 个班级: ${structure.classNames.join(', ')}`);
+  console.log(`数据格式: ${structure.format === 'wide' ? '宽表格式' : '长表格式'}`);
+  console.log(`学生姓名字段: ${structure.nameColumn}`);
+  console.log(`班级字段: ${structure.classColumn}`);
+  console.log(`排除的字段(主要是排名列): ${structure.excludedColumns.join(', ')}`);
+
+  return structure;
+}
+
 serve(async (req) => {
   // 处理CORS
   if (req.method === 'OPTIONS') {
@@ -152,6 +260,13 @@ serve(async (req) => {
       case 'header_mapping':
         const mappingResult = await mapHeaders(headers, sampleData);
         return new Response(JSON.stringify(mappingResult), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        });
+        
+      case 'identify_structure':
+        const structure = identifyStructure(headers, sampleData);
+        return new Response(JSON.stringify(structure), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
         });

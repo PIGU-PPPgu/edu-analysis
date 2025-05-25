@@ -77,12 +77,12 @@ function App() {
         <AuthProvider>
           <DatabaseInitializer>
             <BrowserRouter>
-              <Routes>
+          <Routes>
                 {/* 公开路由 - 无需身份验证 */}
                 <Route path="/login" element={<Login />} />
                 <Route path="/unauthorized" element={<UnauthorizedPage />} />
                 <Route path="/test/cascade-analysis" element={<CascadeAnalysisTestPage />} />
-                
+            
                 {/* 诊断工具路由 */}
                 <Route path="/tools/diagnostics" element={<DiagnosticsTool />} />
                 <Route path="/tools/init-tables" element={<InitTables />} />
@@ -101,8 +101,8 @@ function App() {
                     <Route path="/class-management" element={<ClassManagement />} />
                     <Route path="/class-profile/:classId" element={<ClassProfile />} />
                     <Route path="/student-portrait-management" element={<StudentPortraitManagement />} />
-                  </Route>
-                  
+            </Route>
+            
                   {/* 学生和教师都可访问的路由 */}
                   <Route path="/student-profile/:studentId" element={<StudentProfile />} />
                   <Route path="/ai-settings" element={<AISettings />} />
@@ -116,7 +116,7 @@ function App() {
                 
                 {/* 默认404路由 */}
                 <Route path="*" element={<NotFound />} />
-              </Routes>
+          </Routes>
             </BrowserRouter>
           </DatabaseInitializer>
         </AuthProvider>

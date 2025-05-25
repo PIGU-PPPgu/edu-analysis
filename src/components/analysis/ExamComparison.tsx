@@ -2,12 +2,12 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { ChartContainer } from "@/components/ui/chart";
-import ExamSelector from "./ExamSelector";
+import { ExamSelector } from "./ExamSelector";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Exam {
   id: string;
-  name: string;
+  title: string;
   date: string;
 }
 
@@ -57,7 +57,7 @@ const ExamComparison: React.FC<ExamComparisonProps> = ({ mockExamList, initialSe
             if (!uniqueExams.has(key)) {
               uniqueExams.set(key, {
                 id: key,
-                name: item.exam_type,
+                title: item.exam_type,
                 date: item.exam_date
               });
             }

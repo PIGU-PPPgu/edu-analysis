@@ -10,8 +10,14 @@ import ScoreSummary from "../components/profile/ScoreSummary";
 import ScoreChart from "../components/profile/ScoreChart";
 import AbilityRadar from "../components/profile/AbilityRadar";
 import AIProfileTags from "../components/profile/AIProfileTags";
+import LearningBehaviorAnalysis from "../components/profile/LearningBehaviorAnalysis";
+import LearningStyleAnalysis from "../components/profile/LearningStyleAnalysis";
+import LearningProgressTracker from "../components/profile/LearningProgressTracker";
+import AILearningProfile from "../components/profile/AILearningProfile";
+import StudentLearningTags from "../components/profile/StudentLearningTags";
+import ExportLearningReport from "../components/profile/ExportLearningReport";
 import { StudentData } from "../components/profile/types";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download, FileText, Printer, Share2, Settings } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { portraitAPI, StudentPortraitData } from "@/lib/api/portrait";
 import { toast } from "sonner";
@@ -34,6 +40,7 @@ const mockStudentData: StudentData = {
 
 const StudentProfile: React.FC = () => {
   const { studentId } = useParams<{ studentId: string }>();
+  const [activeTab, setActiveTab] = useState("overview");
   
   // 使用React Query获取学生详情数据
   const { 
@@ -67,6 +74,20 @@ const StudentProfile: React.FC = () => {
     
     return null;
   }, [studentPortrait, isLoading, error]);
+  
+  // 处理报告导出
+  const handleExportReport = () => {
+    toast.success("正在生成学生画像报告...", {
+      description: "报告将在几秒钟内准备完成"
+    });
+    
+    // 模拟报告生成延迟
+    setTimeout(() => {
+      toast.success("学生画像报告已生成", {
+        description: "报告已可供下载"
+      });
+    }, 2500);
+  };
 
   if (isLoading) {
     return (
@@ -107,7 +128,7 @@ const StudentProfile: React.FC = () => {
       <Navbar />
       <div className="container mx-auto px-4 py-10">
         <div className="flex flex-col gap-8">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-wrap justify-between items-center gap-4">
             <div>
               <div className="flex items-center gap-3">
                 <Button variant="outline" size="sm" asChild>
@@ -127,6 +148,15 @@ const StudentProfile: React.FC = () => {
                 全方位评估学生学习情况与表现
               </p>
             </div>
+            
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/settings/ai">
+                  <Settings className="h-4 w-4 mr-1" />
+                  AI设置
+                </Link>
+              </Button>
+            </div>
           </div>
 
           <Card>
@@ -141,19 +171,34 @@ const StudentProfile: React.FC = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="overview" className="w-full">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="mb-6">
                   <TabsTrigger value="overview">成绩概览</TabsTrigger>
+                  <TabsTrigger value="learning-style">学习风格</TabsTrigger>
+                  <TabsTrigger value="behavior">学习行为</TabsTrigger>
                   <TabsTrigger value="ability">能力评估</TabsTrigger>
-                  <TabsTrigger value="profile">学生画像</TabsTrigger>
-                  <TabsTrigger value="trends">趋势分析</TabsTrigger>
-                  <TabsTrigger value="comparison">班级对比</TabsTrigger>
+                  <TabsTrigger value="progress">学习进度</TabsTrigger>
+                  <TabsTrigger value="tags">学习特征</TabsTrigger>
+                  <TabsTrigger value="ai-analysis">AI分析</TabsTrigger>
+                  <TabsTrigger value="export">报告导出</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="overview">
                   <div className="space-y-6">
                     <ScoreSummary student={student} />
                     <ScoreChart student={student} />
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="learning-style">
+                  <div className="space-y-6">
+                    <LearningStyleAnalysis student={student} />
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="behavior">
+                  <div className="space-y-6">
+                    <LearningBehaviorAnalysis student={student} />
                   </div>
                 </TabsContent>
                 
@@ -231,9 +276,15 @@ const StudentProfile: React.FC = () => {
                   </div>
                 </TabsContent>
                 
-                <TabsContent value="profile">
+                <TabsContent value="progress">
                   <div className="space-y-6">
-                    <AIProfileTags student={student} />
+                    <LearningProgressTracker student={student} />
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="tags">
+                  <div className="space-y-6">
+                    <StudentLearningTags student={student} />
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <Card>
@@ -248,8 +299,8 @@ const StudentProfile: React.FC = () => {
                                 <span className="text-sm font-medium">{habit.percentage}%</span>
                               </div>
                               <div className="h-2 bg-gray-200 rounded-full">
-                                <div 
-                                  className="h-full bg-blue-500 rounded-full" 
+                                <div
+                                  className="h-2 bg-blue-500 rounded-full"
                                   style={{ width: `${habit.percentage}%` }}
                                 ></div>
                               </div>
@@ -262,25 +313,49 @@ const StudentProfile: React.FC = () => {
                                   <span className="text-sm font-medium">85%</span>
                                 </div>
                                 <div className="h-2 bg-gray-200 rounded-full">
-                                  <div className="h-full bg-blue-500 rounded-full" style={{ width: "85%" }}></div>
+                                  <div
+                                    className="h-2 bg-blue-500 rounded-full"
+                                    style={{ width: '85%' }}
+                                  ></div>
                                 </div>
                               </div>
+                              
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-sm">做笔记习惯</span>
+                                  <span className="text-sm font-medium">70%</span>
+                                </div>
+                                <div className="h-2 bg-gray-200 rounded-full">
+                                  <div
+                                    className="h-2 bg-blue-500 rounded-full"
+                                    style={{ width: '70%' }}
+                                  ></div>
+                                </div>
+                              </div>
+                              
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-sm">课前预习</span>
+                                  <span className="text-sm font-medium">60%</span>
+                                </div>
+                                <div className="h-2 bg-gray-200 rounded-full">
+                                  <div
+                                    className="h-2 bg-blue-500 rounded-full"
+                                    style={{ width: '60%' }}
+                                  ></div>
+                                </div>
+                              </div>
+                              
                               <div>
                                 <div className="flex items-center justify-between mb-1">
                                   <span className="text-sm">作业完成质量</span>
-                                  <span className="text-sm font-medium">78%</span>
+                                  <span className="text-sm font-medium">90%</span>
                                 </div>
                                 <div className="h-2 bg-gray-200 rounded-full">
-                                  <div className="h-full bg-blue-500 rounded-full" style={{ width: "78%" }}></div>
-                                </div>
-                              </div>
-                              <div>
-                                <div className="flex items-center justify-between mb-1">
-                                  <span className="text-sm">课堂参与度</span>
-                                  <span className="text-sm font-medium">92%</span>
-                                </div>
-                                <div className="h-2 bg-gray-200 rounded-full">
-                                  <div className="h-full bg-blue-500 rounded-full" style={{ width: "92%" }}></div>
+                                  <div
+                                    className="h-2 bg-blue-500 rounded-full"
+                                    style={{ width: '90%' }}
+                                  ></div>
                                 </div>
                               </div>
                             </>
@@ -290,26 +365,32 @@ const StudentProfile: React.FC = () => {
                       
                       <Card>
                         <CardHeader>
-                          <CardTitle className="text-base">教师评价摘要</CardTitle>
+                          <CardTitle className="text-base">AI分析标签</CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <p className="text-sm">
-                            学生课堂表现积极，能够主动参与讨论，回答问题。作业完成认真，但有时粗心导致错误。
-                            阅读能力强，善于理解文本内容。在数学计算方面表现出色，但在解决复杂问题时需要提升
-                            思考能力。建议鼓励其培养更全面的学习方法和习惯。
-                          </p>
+                          <AIProfileTags student={student} />
                         </CardContent>
                       </Card>
                     </div>
                   </div>
                 </TabsContent>
                 
-                <TabsContent value="trends">
-                  <StudentGradeTrend studentId={student.studentId} studentName={student.name} />
+                <TabsContent value="ai-analysis">
+                  <div className="space-y-6">
+                    <AILearningProfile student={student} />
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="export">
+                  <div className="space-y-6">
+                    <ExportLearningReport student={student} />
+                  </div>
                 </TabsContent>
                 
                 <TabsContent value="comparison">
-                  <ClassComparison studentId={student.studentId} studentName={student.name} />
+                  <div className="space-y-6">
+                    <ClassComparison />
+                  </div>
                 </TabsContent>
               </Tabs>
             </CardContent>

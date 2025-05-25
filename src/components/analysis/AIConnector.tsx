@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
-import { saveUserAIConfig, getUserAIConfig, getUserAPIKey, saveUserAPIKey } from "@/utils/userAuth";
+import { saveUserAIConfig, getUserAIConfig, getUserSimpleAPIKey, saveUserSimpleAPIKey } from "@/utils/userAuth";
 import { AIProviderSelector } from "./AIProviderSelector";
 import { AIModelVersionSelector } from "./AIModelVersionSelector";
 import { AICustomModelDialog } from "./AICustomModelDialog";
@@ -67,19 +67,22 @@ const AIConnector: React.FC<AIConnectorProps> = ({ onConnect }) => {
     status: 'none' | 'success' | 'error' | 'validating';
     message: string;
   }>({ status: 'none', message: '' });
+  const [hasApiKey, setHasApiKey] = useState(false);
 
   const form = useForm({
     defaultValues: {
       apiKey: "",
+      provider: predefinedProviders[0].id,
+      version: predefinedProviders[0].versions[0],
       enabled: true,
     },
   });
 
-  // 从本地恢复配置
+  // 加载已保存的配置
   useEffect(() => {
     const loadSavedConfig = async () => {
       const savedConfig = await getUserAIConfig();
-      const savedKey = await getUserAPIKey();
+      const savedKey = await getUserSimpleAPIKey();
       if (savedConfig && savedKey) {
         setIsConnected(true);
         setSelectedProvider(savedConfig.provider);
@@ -95,12 +98,15 @@ const AIConnector: React.FC<AIConnectorProps> = ({ onConnect }) => {
         }
         
         setSelectedVersion(version);
+        form.setValue("provider", savedConfig.provider);
+        form.setValue("version", savedConfig.version);
         form.setValue("enabled", savedConfig.enabled);
         setApiKey(savedKey);
+        setHasApiKey(true);
 
-        if (savedConfig.customProviders) {
+        if (savedConfig.customSettings && savedConfig.customSettings.customProviders) {
           try {
-            setCustomProviders(JSON.parse(savedConfig.customProviders));
+            setCustomProviders(JSON.parse(savedConfig.customSettings.customProviders));
           } catch (e) {
             setCustomProviders([]);
           }
@@ -372,7 +378,7 @@ const AIConnector: React.FC<AIConnectorProps> = ({ onConnect }) => {
     return apiKey.startsWith('sk-ant-') && apiKey.length > 20;
   };
 
-  const onSubmit = async (data: { apiKey: string; enabled: boolean }) => {
+  const onSubmit = async (data: { apiKey: string; provider: string; version: string; enabled: boolean }) => {
     if (!apiKey) {
       toast.error("请输入API密钥");
       return;
@@ -387,7 +393,7 @@ const AIConnector: React.FC<AIConnectorProps> = ({ onConnect }) => {
     try {
       console.log("保存最终配置...");
       // 保存API密钥
-      await saveUserAPIKey(apiKey);
+      await saveUserSimpleAPIKey(apiKey);
       
       // 保存AI配置 - 特殊处理硅基流动的DeepSeek系列模型
       let configProvider = selectedProvider;
@@ -402,7 +408,9 @@ const AIConnector: React.FC<AIConnectorProps> = ({ onConnect }) => {
         provider: configProvider,
         version: configVersion,
         enabled: data.enabled,
-        customProviders: JSON.stringify(customProviders),
+        customSettings: {
+          customProviders: JSON.stringify(customProviders),
+        },
         lastUpdated: new Date().toISOString()
       });
       

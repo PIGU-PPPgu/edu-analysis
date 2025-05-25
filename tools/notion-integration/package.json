@@ -1,0 +1,13 @@
+{
+  "name": "notion-project-sync",
+  "version": "1.0.0",
+  "description": "同步学生画像系统项目状态到Notion",
+  "main": "sync.js",
+  "scripts": {
+    "sync": "node sync.js"
+  },
+  "dependencies": {
+    "@notionhq/client": "^1.0.4",
+    "dotenv": "^16.0.3"
+  }
+} 

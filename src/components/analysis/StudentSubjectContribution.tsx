@@ -21,7 +21,7 @@ import {
   PolarRadiusAxis,
   Radar
 } from "recharts";
-import { Loader2, TrendingUp, TrendingDown, Search, User, Download } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Search, User, Download, RefreshCw, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -74,381 +74,356 @@ const getPerformanceLevelClass = (level: string): string => {
   }
 };
 
+// 班级数据不完整时的警告组件
+const MissingDataWarning = ({ type }: { type: 'class' | 'student' | 'subject' }) => {
+  const messages = {
+    class: {
+      title: "班级数据不完整",
+      details: "未找到完整的班级信息，这可能影响分析结果的准确性。请确保导入数据时正确映射了班级字段。"
+    },
+    student: {
+      title: "学生信息缺失",
+      details: "无法获取完整的学生信息，请检查数据导入是否成功，以及学生ID是否正确。"
+    },
+    subject: {
+      title: "科目数据不完整",
+      details: "未找到完整的科目成绩数据，请检查导入的数据是否包含科目字段和分数。"
+    }
+  };
+
+  const message = messages[type];
+
+  return (
+    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 my-4">
+      <div className="flex items-center">
+        <div className="flex-shrink-0">
+          <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+        </div>
+        <div className="ml-3">
+          <p className="text-sm font-medium text-yellow-800">{message.title}</p>
+          <p className="text-sm text-yellow-700 mt-1">{message.details}</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const StudentSubjectContribution: React.FC<StudentSubjectContributionProps> = ({ examId, studentId }) => {
-  const [students, setStudents] = useState<StudentData[]>([]);
-  const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState("bar");
+  const [studentData, setStudentData] = useState<StudentData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [students, setStudents] = useState<Array<{id: string, name: string}>>([]);
+  const [selectedStudent, setSelectedStudent] = useState<string | null>(studentId || null);
+  const [radarData, setRadarData] = useState<any[]>([]);
+  const [barData, setBarData] = useState<any[]>([]);
   
-  // 加载数据
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        // 获取所有学生列表 -- 这个查询未使用且有错误，将被移除
-        // const { data: studentsList, error: studentsError } = await supabase
-        //   .from('grade_data')
-        //   .select('student_id, name, class_name')
-        //   .distinct();
-          
-        // if (studentsError) throw studentsError;
-        
-        // 调用新的 Edge Function 获取科目贡献度分析数据
-        if (examId) { // 确保 examId 存在才调用
-          const { data: contributionResult, error: invokeError } = await supabase.functions.invoke(
-            'get-student-subject-contribution-data', // 新的 Edge Function 名称
-            {
-              body: {
-                examId: examId,
-                studentId: studentId // 如果有 studentId prop，则传递，否则不传或传null (Edge Function会处理)
-              }
-            }
-          );
-
-          if (invokeError) {
-            console.error("调用 get-student-subject-contribution-data 失败:", invokeError);
-            toast.error("获取科目贡献度数据失败", { description: invokeError.message });
-            setStudents([]);
-            setSelectedStudent(null);
-            return; // 出错则提前返回
-          }
-
-          // 新的 Edge Function 直接返回 StudentData[] 数组
-          if (Array.isArray(contributionResult)) {
-            setStudents(contributionResult);
-            
-            // 如果有指定的学生ID prop，则尝试选择该学生
-            if (studentId && contributionResult.length > 0) {
-              const student = contributionResult.find(s => s.id === studentId);
-              if (student) {
-                setSelectedStudent(student);
-              } else if (contributionResult.length > 0) {
-                // 如果指定ID的学生未在返回结果中找到 (可能因为mock数据或筛选)，选择第一个
-                setSelectedStudent(contributionResult[0]);
-              }
-            } else if (contributionResult.length > 0) {
-              // 默认选择第一个学生
-              setSelectedStudent(contributionResult[0]);
-            }
-          } else {
-            console.warn("get-student-subject-contribution-data 返回了非预期的数据格式:", contributionResult);
-            setStudents([]);
-            setSelectedStudent(null);
-          }
-        } else {
-          // 如果 examId 不存在，则清空数据
-          setStudents([]);
-          setSelectedStudent(null);
-        }
-
-      } catch (error) {
-        console.error("加载科目贡献度数据失败:", error);
-        toast.error("加载数据失败", {
-          description: "获取科目贡献度分析数据时出错"
-        });
-        setStudents([]);
-        setSelectedStudent(null);
-      } finally {
-        setIsLoading(false);
+  // 添加刷新状态
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  const fetchData = async () => {
+    if (!examId || !selectedStudent) {
+      setError('请选择考试和学生');
+      return;
+    }
+    
+    setLoading(true);
+    setError(null);
+    setIsRefreshing(true);
+    
+    try {
+      // 获取学科贡献度数据
+      const { data, error } = await supabase.functions.invoke('get-student-subject-contribution-data', {
+        body: { exam_id: examId, student_id: selectedStudent }
+      });
+      
+      if (error) {
+        console.error('获取学生科目贡献度数据失败:', error);
+        setError('获取数据失败，请稍后再试');
+        return;
       }
-    };
-
-    fetchData();
-  }, [examId, studentId]);
-  
-  // 处理学生选择变更
-  const handleStudentChange = (studentId: string) => {
-    const student = students.find(s => s.id === studentId);
-    if (student) {
-      setSelectedStudent(student);
+      
+      if (!data || !data.studentData) {
+        setError('未找到学生科目数据');
+        setStudentData(null);
+        return;
+      }
+      
+      setStudentData(data.studentData);
+      
+      // 处理雷达图数据
+      const radar = prepareRadarData(data.studentData);
+      setRadarData(radar);
+      
+      // 处理柱状图数据
+      const bar = prepareBarData(data.studentData);
+      setBarData(bar);
+      
+      // 获取考试的所有学生列表
+      if (data.students && data.students.length > 0) {
+        setStudents(data.students);
+        
+        // 如果未设置选中的学生，默认选择第一个
+        if (!selectedStudent && data.students.length > 0) {
+          setSelectedStudent(data.students[0].id);
+        }
+      }
+    } catch (err) {
+      console.error('获取学生科目贡献度数据时出错:', err);
+      setError('获取数据时出错');
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
     }
   };
   
-  // 过滤学生列表
-  const filteredStudents = students.filter(student => 
-    student.name.includes(searchQuery) || 
-    student.id.includes(searchQuery)
-  );
+  // 初次加载和ID变化时获取数据
+  useEffect(() => {
+    if (examId && selectedStudent) {
+      fetchData();
+    }
+  }, [examId, selectedStudent]);
   
-  // 准备雷达图数据
+  // 手动刷新数据
+  const handleRefresh = () => {
+    fetchData();
+  };
+  
+  // 切换学生
+  const handleStudentChange = (studentId: string) => {
+    setSelectedStudent(studentId);
+  };
+  
+  // 处理图表数据
   const prepareRadarData = (studentData: StudentData | null) => {
-    if (!studentData) return [];
+    if (!studentData || !studentData.subjects || studentData.subjects.length === 0) {
+      return [];
+    }
     
     return studentData.subjects.map(subject => ({
       subject: subject.subject,
-      score: subject.score,
-      average: subject.avgScore,
-      fullMark: 100
+      contribution: subject.contribution + 5, // 映射到0-10范围
+      fullMark: 10
     }));
   };
   
-  // 准备柱状图数据
   const prepareBarData = (studentData: StudentData | null) => {
-    if (!studentData) return [];
+    if (!studentData || !studentData.subjects || studentData.subjects.length === 0) {
+      return [];
+    }
     
     return studentData.subjects.map(subject => ({
       subject: subject.subject,
-      score: subject.score,
-      average: subject.avgScore,
-      gap: subject.gap,
-      contribution: subject.contribution
+      贡献度: subject.contribution,
+      与平均分差距: subject.gap,
+      fill: subject.contribution > 0 ? '#82ca9d' : '#ff7f7f'
     }));
   };
   
-  // 下载学生分析报告
   const handleDownloadReport = () => {
-    if (!selectedStudent) return;
-    
-    // 实际应用中应该生成PDF或Excel报告
-    console.log("导出学生分析报告", selectedStudent);
-    alert(`${selectedStudent.name} 的优劣势分析报告已导出`);
+    // 实现报告下载功能...
   };
-
+  
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle>学生科目贡献度分析</CardTitle>
-        <CardDescription>
-          分析学生在各科目的表现差异，识别优势与薄弱科目
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="md:w-1/3">
-            <label className="block text-sm font-medium mb-1 text-gray-700">搜索学生</label>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="输入学生姓名或学号搜索..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8"
-              />
-            </div>
-          </div>
-          
-          <div className="md:w-2/3">
-            <label className="block text-sm font-medium mb-1 text-gray-700">选择学生</label>
-            <Select 
-              value={selectedStudent?.id || ""}
-              onValueChange={handleStudentChange}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="请选择学生" />
+    <Card className="w-full h-full">
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle className="text-lg font-medium">学科贡献度分析</CardTitle>
+          <CardDescription>分析各科目对学生总成绩的贡献情况</CardDescription>
+        </div>
+        <div className="flex items-center space-x-2">
+          {students.length > 0 && (
+            <Select onValueChange={handleStudentChange} value={selectedStudent || undefined}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="选择学生" />
               </SelectTrigger>
               <SelectContent>
-                {filteredStudents.map(student => (
+                {students.map((student) => (
                   <SelectItem key={student.id} value={student.id}>
-                    {student.name} ({student.className})
+                    {student.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          )}
+          
+          {/* 添加刷新按钮 */}
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+          >
+            {isRefreshing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+          </Button>
+          
+          <Button variant="outline" size="icon" onClick={handleDownloadReport}>
+            <Download className="h-4 w-4" />
+          </Button>
         </div>
-
-        {isLoading ? (
-          <div className="flex items-center justify-center py-24">
-            <div className="text-center">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary mb-4" />
-              <p className="text-sm text-gray-500">加载学生贡献度数据中...</p>
-            </div>
+      </CardHeader>
+      <CardContent className="p-4">
+        {loading && !isRefreshing ? (
+          <div className="flex items-center justify-center h-60">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        ) : selectedStudent ? (
-          <div className="space-y-6">
-            {/* 学生基本信息 */}
-            <div className="bg-muted/20 p-4 rounded-lg">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-                <div className="flex items-center gap-3 mb-3 md:mb-0">
-                  <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center">
-                    <User className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold">{selectedStudent.name}</h3>
-                    <p className="text-sm text-gray-500">{selectedStudent.id} | {selectedStudent.className}</p>
-                  </div>
-                </div>
-                
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">总体贡献度:</span>
-                    <span className={`font-bold ${selectedStudent.totalContribution > 0 ? "text-green-600" : "text-red-600"}`}>
-                      {selectedStudent.totalContribution > 0 ? "+" : ""}{selectedStudent.totalContribution}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="text-xs h-8"
-                      onClick={handleDownloadReport}
-                    >
-                      <Download className="h-3.5 w-3.5 mr-1" />
-                      导出分析报告
-                    </Button>
-                  </div>
-                </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center h-60 text-center">
+            <AlertTriangle className="h-10 w-10 text-amber-500 mb-4" />
+            <p className="text-muted-foreground">{error}</p>
+            {error === '未找到学生科目数据' && (
+              <Button 
+                variant="outline" 
+                className="mt-4"
+                onClick={handleRefresh}
+              >
+                刷新数据
+              </Button>
+            )}
+          </div>
+        ) : !studentData ? (
+          <MissingDataWarning type="student" />
+        ) : studentData.subjects.length === 0 ? (
+          <MissingDataWarning type="subject" />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* 雷达图 - 学科贡献度 */}
+            <div className="h-[300px]">
+              <h3 className="text-sm font-medium mb-2">学科贡献度雷达图</h3>
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart 
+                  cx="50%" 
+                  cy="50%" 
+                  outerRadius="70%" 
+                  data={radarData}
+                >
+                  <PolarGrid />
+                  <PolarAngleAxis dataKey="subject" />
+                  <PolarRadiusAxis domain={[0, 10]} axisLine={false} />
+                  <Radar
+                    name="贡献度"
+                    dataKey="contribution"
+                    stroke="#8884d8"
+                    fill="#8884d8"
+                    fillOpacity={0.6}
+                  />
+                  <Legend />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+            
+            {/* 柱状图 - 与平均分差距 */}
+            <div className="h-[300px]">
+              <h3 className="text-sm font-medium mb-2">各科目与平均分差距</h3>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={barData}
+                  margin={{ top: 10, right: 30, left: 0, bottom: 30 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="subject" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="与平均分差距" fill="#82ca9d" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            
+            {/* 学科贡献表格 */}
+            <div className="col-span-1 md:col-span-2">
+              <h3 className="text-sm font-medium mb-2">学科详细分析</h3>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>科目</TableHead>
+                      <TableHead>成绩</TableHead>
+                      <TableHead>班级平均</TableHead>
+                      <TableHead>差距</TableHead>
+                      <TableHead>贡献度</TableHead>
+                      <TableHead>表现评级</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {studentData.subjects.map((subject) => (
+                      <TableRow key={subject.subject}>
+                        <TableCell>{subject.subject}</TableCell>
+                        <TableCell>{subject.score}</TableCell>
+                        <TableCell>{subject.avgScore.toFixed(1)}</TableCell>
+                        <TableCell className={subject.gap > 0 ? "text-green-600" : "text-red-600"}>
+                          {subject.gap > 0 ? "+" : ""}{subject.gap.toFixed(1)}
+                        </TableCell>
+                        <TableCell className={subject.contribution > 0 ? "text-green-600" : "text-red-600"}>
+                          {subject.contribution > 0 ? "+" : ""}{subject.contribution.toFixed(1)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getPerformanceLevelClass(subject.performanceLevel)}>
+                            {subject.performanceLevel}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             </div>
             
-            {/* 优劣势科目总结 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card className="bg-green-50 border-green-200">
+            {/* 优势和薄弱科目建议 */}
+            <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card className="bg-green-50">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-green-600" />
-                    优势科目
-                  </CardTitle>
+                  <CardTitle className="text-base text-green-800">优势学科</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedStudent.strengthSubjects.length > 0 ? (
-                      selectedStudent.strengthSubjects.map((subject, index) => (
-                        <Badge key={index} className="bg-green-100 text-green-800 border-green-300">
-                          {subject}
-                        </Badge>
-                      ))
-                    ) : (
-                      <p className="text-sm text-gray-500">暂无明显优势科目</p>
-                    )}
-                  </div>
+                  {studentData.strengthSubjects.length > 0 ? (
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap gap-2">
+                        {studentData.strengthSubjects.map(subject => (
+                          <Badge key={subject} variant="outline" className="bg-green-100 text-green-800 border-green-300">
+                            {subject}
+                          </Badge>
+                        ))}
+                      </div>
+                      <p className="text-sm text-green-700">
+                        这些学科表现优秀，建议保持良好学习状态，可适当分享学习方法给其他同学。
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">暂未发现显著优势学科</p>
+                  )}
                 </CardContent>
               </Card>
               
-              <Card className="bg-red-50 border-red-200">
+              <Card className="bg-amber-50">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <TrendingDown className="h-4 w-4 text-red-600" />
-                    薄弱科目
-                  </CardTitle>
+                  <CardTitle className="text-base text-amber-800">待提升学科</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedStudent.weakSubjects.length > 0 ? (
-                      selectedStudent.weakSubjects.map((subject, index) => (
-                        <Badge key={index} className="bg-red-100 text-red-800 border-red-300">
-                          {subject}
-                        </Badge>
-                      ))
-                    ) : (
-                      <p className="text-sm text-gray-500">暂无明显薄弱科目</p>
-                    )}
-                  </div>
+                  {studentData.weakSubjects.length > 0 ? (
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap gap-2">
+                        {studentData.weakSubjects.map(subject => (
+                          <Badge key={subject} variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
+                            {subject}
+                          </Badge>
+                        ))}
+                      </div>
+                      <p className="text-sm text-amber-700">
+                        这些学科需要加强，建议增加练习时间，必要时寻求教师辅导或参考优秀同学的学习方法。
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">暂未发现明显薄弱学科</p>
+                  )}
                 </CardContent>
               </Card>
             </div>
-            
-            {/* 图表显示 */}
-            <Tabs value={viewMode} onValueChange={setViewMode} className="w-full">
-              <TabsList>
-                <TabsTrigger value="bar">柱状图视图</TabsTrigger>
-                <TabsTrigger value="radar">雷达图视图</TabsTrigger>
-                <TabsTrigger value="table">表格视图</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="bar" className="mt-4">
-                <div className="h-[400px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={prepareBarData(selectedStudent)}
-                      margin={{ top: 20, right: 30, left: 20, bottom: 70 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis 
-                        dataKey="subject" 
-                        angle={-45} 
-                        textAnchor="end"
-                        height={70} 
-                      />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="score" name="学生分数" fill="#8884d8" />
-                      <Bar dataKey="average" name="班级平均" fill="#82ca9d" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="radar" className="mt-4">
-                <div className="h-[400px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart outerRadius={120} data={prepareRadarData(selectedStudent)}>
-                      <PolarGrid />
-                      <PolarAngleAxis dataKey="subject" />
-                      <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                      <Radar
-                        name="学生分数"
-                        dataKey="score"
-                        stroke="#8884d8"
-                        fill="#8884d8"
-                        fillOpacity={0.6}
-                      />
-                      <Radar
-                        name="班级平均"
-                        dataKey="average"
-                        stroke="#82ca9d"
-                        fill="#82ca9d"
-                        fillOpacity={0.6}
-                      />
-                      <Legend />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="table" className="mt-4">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>科目</TableHead>
-                        <TableHead>学生分数</TableHead>
-                        <TableHead>班级平均</TableHead>
-                        <TableHead>差距</TableHead>
-                        <TableHead>贡献度</TableHead>
-                        <TableHead>表现级别</TableHead>
-                        <TableHead>建议</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {selectedStudent.subjects.map((subject, index) => (
-                        <TableRow key={index}>
-                          <TableCell className="font-medium">{subject.subject}</TableCell>
-                          <TableCell>{subject.score}</TableCell>
-                          <TableCell>{subject.avgScore}</TableCell>
-                          <TableCell className={subject.gap >= 0 ? "text-green-600" : "text-red-600"}>
-                            {subject.gap > 0 ? "+" : ""}{subject.gap} ({subject.gapPercentage}%)
-                          </TableCell>
-                          <TableCell className={getContributionColorClass(subject.contribution)}>
-                            {subject.contribution > 0 ? "+" : ""}{subject.contribution}
-                          </TableCell>
-                          <TableCell>
-                            <Badge 
-                              variant="outline" 
-                              className={getPerformanceLevelClass(subject.performanceLevel)}
-                            >
-                              {subject.performanceLevel}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="max-w-xs">
-                            <p className="text-xs text-gray-600 truncate" title={subject.suggestion}>
-                              {subject.suggestion}
-                            </p>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </div>
-        ) : (
-          <div className="flex items-center justify-center py-16 text-gray-500">
-            请选择一个学生进行分析
           </div>
         )}
       </CardContent>
