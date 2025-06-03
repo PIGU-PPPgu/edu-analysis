@@ -409,7 +409,7 @@ const AIConnector: React.FC<AIConnectorProps> = ({ onConnect }) => {
         version: configVersion,
         enabled: data.enabled,
         customSettings: {
-          customProviders: JSON.stringify(customProviders),
+        customProviders: JSON.stringify(customProviders),
         },
         lastUpdated: new Date().toISOString()
       });

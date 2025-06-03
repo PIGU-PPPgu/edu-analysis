@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
 } from "@/components/ui/dialog";
@@ -26,6 +26,11 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import SimplifiedExamForm from './SimplifiedExamForm';
+import { FieldInquiryDialog } from '@/components/db/FieldInquiryDialog';
+import { FieldType } from '@/services/intelligentFileParser';
+import { analyzeCSVHeaders, generateMappingSuggestions } from '@/services/intelligentFieldMapper';
+import StudentMatchingAnalysis from './StudentMatchingAnalysis';
+import { supabase } from '@/integrations/supabase/client';
 
 // Assuming ExamInfo is defined in a shared types file or passed appropriately
 // For now, defining it locally for clarity if not already globally available.
@@ -50,6 +55,32 @@ export interface AIParseResult {
 
 export interface ExistingStudentCheckResult {
     count: number;
+    // 🚀 新增：详细的学生匹配信息
+    totalStudentsInFile: number;
+    exactMatches: Array<{
+      fileStudent: { name: string; student_id?: string; class_name?: string };
+      systemStudent: { id: string; name: string; student_id: string; class_name?: string };
+      matchType: 'exact_id' | 'exact_name';
+    }>;
+    fuzzyMatches: Array<{
+      fileStudent: { name: string; student_id?: string; class_name?: string };
+      possibleMatches: Array<{
+        systemStudent: { id: string; name: string; student_id: string; class_name?: string };
+        similarity: number;
+        matchReason: string;
+      }>;
+    }>;
+    newStudents: Array<{
+      name: string;
+      student_id?: string;
+      class_name?: string;
+    }>;
+    systemStudentsNotInFile: Array<{
+      id: string;
+      name: string;
+      student_id: string;
+      class_name?: string;
+    }>;
     // message?: string; // e.g. "Found 5 existing students. Recommended action: Merge."
 }
 
@@ -71,6 +102,24 @@ interface ImportReviewDialogProps {
   // Value: display name (e.g., "学号", "自定义物理等级 (自定义)")
   availableSystemFields?: Record<string, string>; // Made optional for default value
   initialDisplayInfo?: { name: string, size: number } | null;
+  
+  // 智能解析结果
+  intelligentParseResult?: {
+    success: boolean;
+    data: any[];
+    metadata: {
+      originalHeaders: string[];
+      detectedStructure: 'wide' | 'long' | 'mixed';
+      confidence: number;
+      suggestedMappings: Record<string, string>;
+      detectedSubjects: string[];
+      examInfo?: any;
+      totalRows: number;
+      autoProcessed?: boolean;
+      unknownFields?: Array<{ name: string; sampleValues: string[] }>;
+      needsFieldInquiry?: boolean;
+    };
+  } | null;
 
   onStartAIParse?: (fileData: FileDataForReview, currentExamInfo: ExamInfo | null) => Promise<AIParseResult>;
   onCheckExistingStudents?: (
@@ -130,6 +179,7 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
   currentExamInfo,
   availableSystemFields = DEFAULT_FALLBACK_FIELDS, // 已有默认值
   initialDisplayInfo,
+  intelligentParseResult,
   onStartAIParse,
   onCheckExistingStudents,
   onFinalImport,
@@ -145,6 +195,23 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
   const [aiParseProgress, setAiParseProgress] = useState(0);
   const [aiParseError, setAiParseError] = useState<string | null>(null);
   const [aiSuggestedMappings, setAiSuggestedMappings] = useState<Record<string, string> | null>(null);
+  
+  // 🚀 智能字段分析状态
+  const [intelligentAnalysis, setIntelligentAnalysis] = useState<{
+    isAnalyzing: boolean;
+    confidence: number;
+    detectedSubjects: string[];
+    isWideFormat: boolean;
+    mappingCount: number;
+    issues: string[];
+  }>({
+    isAnalyzing: false,
+    confidence: 0,
+    detectedSubjects: [],
+    isWideFormat: false,
+    mappingCount: 0,
+    issues: []
+  });
   
   // 新增：自动映射相关状态
   const [autoMappingConfidence, setAutoMappingConfidence] = useState<'low' | 'medium' | 'high'>('low');
@@ -179,6 +246,23 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
     isLoading: boolean;        // True when waiting for parent to confirm creation
   }>>({});
   
+  // 字段询问相关状态
+  const [showFieldInquiry, setShowFieldInquiry] = useState(false);
+  const [unknownFields, setUnknownFields] = useState<Array<{ name: string; sampleValues: string[] }>>([]);
+  const [fieldInquiryContext, setFieldInquiryContext] = useState<{
+    detectedSubjects: string[];
+    fileStructure: 'wide' | 'long' | 'mixed';
+    otherFields: string[];
+  } | undefined>(undefined);
+  
+  // 🚀 新增：模糊匹配确认状态
+  const [fuzzyMatchConfirmations, setFuzzyMatchConfirmations] = useState<Record<number, string>>({});
+  const [rejectedFuzzyMatches, setRejectedFuzzyMatches] = useState<Set<number>>(new Set());
+  
+  // 🚀 新增：智能学生匹配分析状态
+  const [studentMatchingResult, setStudentMatchingResult] = useState<ExistingStudentCheckResult | null>(null);
+  const [isPerformingStudentAnalysis, setIsPerformingStudentAnalysis] = useState(false);
+  
   // 添加调试日志 - 移到状态声明之后避免引用错误
   console.log("[Dialog Step 2 Render DEBUG] aiParseError:", aiParseError);
   console.log("[Dialog] availableSystemFields received:", availableSystemFields); 
@@ -190,6 +274,106 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
   useEffect(() => {
     console.log("[Dialog Mount/Prop Change DEBUG] availableSystemFields received by dialog:", JSON.stringify(availableSystemFields));
   }, [availableSystemFields]);
+
+  // 检查智能解析结果，决定是否需要字段询问或设置自动映射
+  useEffect(() => {
+    console.log("[ImportReviewDialog] useEffect触发 - 检查智能解析结果:", {
+      hasIntelligentParseResult: !!intelligentParseResult,
+      autoProcessed: intelligentParseResult?.metadata?.autoProcessed,
+      needsFieldInquiry: intelligentParseResult?.metadata?.needsFieldInquiry,
+      confidence: intelligentParseResult?.metadata?.confidence,
+      unknownFieldsCount: intelligentParseResult?.metadata?.unknownFields?.length || 0,
+      currentStep,
+      hasFileData: !!fileData
+    });
+    
+    // 🚀 执行智能字段分析
+    if (isOpen && fileData && fileData.headers && currentStep === 1) {
+      console.log('[智能分析] 开始分析CSV表头结构...');
+      setIntelligentAnalysis(prev => ({ ...prev, isAnalyzing: true }));
+      
+      try {
+        const analysis = analyzeCSVHeaders(fileData.headers);
+        const suggestions = generateMappingSuggestions(fileData.headers);
+        
+        console.log('[智能分析] 分析完成:', {
+          识别的科目: analysis.subjects,
+          置信度: analysis.confidence,
+          是否宽表格: analysis.subjects.length > 1,
+          映射数量: analysis.mappings.length,
+          问题: suggestions.issues
+        });
+        
+        setIntelligentAnalysis({
+          isAnalyzing: false,
+          confidence: analysis.confidence,
+          detectedSubjects: analysis.subjects,
+          isWideFormat: analysis.subjects.length > 1,
+          mappingCount: analysis.mappings.length,
+          issues: suggestions.issues
+        });
+        
+        // 如果是高置信度的宽表格，自动设置映射
+        if (analysis.confidence > 0.8 && analysis.subjects.length > 1) {
+          console.log('[智能分析] 高置信度宽表格，自动设置映射');
+          setAiSuggestedMappings(suggestions.suggestions);
+          setUserConfirmedMappings(suggestions.suggestions);
+          setAutoMappingComplete(true);
+          setAutoMappingConfidence('high');
+        }
+        
+      } catch (error) {
+        console.error('[智能分析] 分析失败:', error);
+        setIntelligentAnalysis(prev => ({ 
+          ...prev, 
+          isAnalyzing: false,
+          issues: ['智能分析失败，请手动配置字段映射']
+        }));
+      }
+    }
+    
+    // 只在对话框打开且有智能解析结果时处理，且只在步骤1时处理一次
+    if (!isOpen || !intelligentParseResult || currentStep !== 1) {
+      return;
+    }
+    
+    // 检查是否需要字段询问
+    if (intelligentParseResult.metadata?.needsFieldInquiry && intelligentParseResult.metadata.unknownFields) {
+      console.log("[Dialog] 检测到需要字段询问，未知字段:", intelligentParseResult.metadata.unknownFields);
+      
+      setUnknownFields(intelligentParseResult.metadata.unknownFields);
+      setFieldInquiryContext({
+        detectedSubjects: intelligentParseResult.metadata.detectedSubjects || [],
+        fileStructure: intelligentParseResult.metadata.detectedStructure,
+        otherFields: intelligentParseResult.metadata.originalHeaders || []
+      });
+      setShowFieldInquiry(true);
+      return;
+    }
+    
+    // 设置自动映射结果，但不立即跳转
+    const autoMappings = intelligentParseResult.metadata.suggestedMappings || {};
+    setAiSuggestedMappings(autoMappings);
+    setUserConfirmedMappings(autoMappings);
+    
+    // 检查是否应该自动跳过字段映射
+    const shouldAutoSkip = intelligentParseResult.metadata?.autoProcessed || 
+                          (intelligentParseResult.metadata?.confidence && intelligentParseResult.metadata.confidence >= 0.8);
+    
+    if (shouldAutoSkip) {
+      console.log("[Dialog] ✅ 智能解析置信度足够高，标记为自动处理");
+      console.log("[Dialog] 置信度:", intelligentParseResult.metadata?.confidence);
+      console.log("[Dialog] 自动处理状态:", intelligentParseResult.metadata?.autoProcessed);
+      
+      setAutoMappingComplete(true);
+      setAutoMappingConfidence('high');
+    } else {
+      console.log("[Dialog] 智能解析置信度不足，需要手动字段映射");
+      console.log("[Dialog] 置信度:", intelligentParseResult.metadata?.confidence);
+      setAutoMappingComplete(false);
+      setAutoMappingConfidence('low');
+    }
+  }, [intelligentParseResult, isOpen, currentStep, fileData]);
 
   // 在使用availableSystemFields的地方替换为effectiveSystemFields
   useEffect(() => {
@@ -263,20 +447,18 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
     }
   }, [isOpen, currentExamInfo]);
 
-  // Effect for Step 2: Trigger AI parsing when moving to step 2 AND fileData is available.
-  // This is now explicitly triggered by user clicking "Next" from Step 1.
+  // Effect for initializing exam info when moving to step 2
   useEffect(() => {
-    if (isOpen && currentStep === 2 && fileData && onStartAIParse && !isAIParsing && !aiSuggestedMappings && !aiParseError) {
+    if (isOpen && currentStep === 2 && !editableExamInfo) {
         // Initialize editableExamInfo if it hasn't been set from props yet
-        if (!editableExamInfo && currentExamInfo) {
+        if (currentExamInfo) {
             setEditableExamInfo(currentExamInfo);
-        } else if (!editableExamInfo && !currentExamInfo) {
+        } else {
             // Ensure there's a default if no exam info came from props
             setEditableExamInfo({ title: '', type: '', date: new Date().toISOString().split('T')[0], subject: '' });
         }
-        handleStartAIParsingInternal();
     }
-  }, [isOpen, currentStep, fileData, onStartAIParse, isAIParsing, aiSuggestedMappings, aiParseError, currentExamInfo, editableExamInfo]);
+  }, [isOpen, currentStep, currentExamInfo, editableExamInfo]);
 
   const handleStartAIParsingInternal = async () => {
     if (!fileData || !onStartAIParse) return; 
@@ -387,13 +569,52 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
         toast.error("映射尚未确认");
         return;
     }
-    console.log("[Dialog] Mappings confirmed, proceeding to step 3. Current mappings:", userConfirmedMappings);
-    setCurrentStep(3);
+    
+    // 检查是否有基本的必要字段映射
+    const mappedFields = Object.values(userConfirmedMappings).filter(value => value && value.trim() !== '');
+    const hasStudentId = mappedFields.includes('student_id');
+    const hasName = mappedFields.includes('name');
+    
+    // 🚀 修复：只要求姓名字段必需，学号字段可选
+    if (!hasName) {
+        toast.error("缺少必要字段映射", {
+            description: "姓名字段是必需的，请确保映射了姓名字段才能继续"
+        });
+        return;
+    }
+    
+    // 学号字段是可选的，但建议有
+    if (!hasStudentId) {
+        console.warn("建议映射学号字段以提高匹配准确性");
+        toast.info("建议完善字段映射", {
+            description: "未检测到学号字段，将仅使用姓名进行学生匹配。建议添加学号字段以提高准确性。",
+            duration: 3000
+        });
+    }
+    
+    // 统计映射情况
+    const totalHeaders = Object.keys(userConfirmedMappings).length;
+    const mappedHeaders = mappedFields.length;
+    const unmappedHeaders = totalHeaders - mappedHeaders;
+    
+    if (unmappedHeaders > 0) {
+        console.log(`[Dialog] 字段映射不完整: ${mappedHeaders}/${totalHeaders} 个字段已映射`);
+        
+        // 给用户一个温和的提醒
+        toast.warning("部分字段未映射", {
+            description: `${unmappedHeaders} 个字段未映射，未映射的字段将被忽略。继续导入？`,
+            duration: 4000
+        });
+    }
+    
+    console.log("[Dialog] Mappings confirmed, proceeding to step 4. Current mappings:", userConfirmedMappings);
+    console.log(`[Dialog] 映射统计: ${mappedHeaders}/${totalHeaders} 个字段已映射`);
+    setCurrentStep(4);
   };
 
   useEffect(() => {
-    // Trigger student check when moving to step 3
-    if (isOpen && currentStep === 3 && fileData && onCheckExistingStudents && userConfirmedMappings && !isCheckingStudents && !existingStudentsInfo) {
+    // Trigger student check when moving to step 4 (学生信息策略)
+    if (isOpen && currentStep === 4 && fileData && onCheckExistingStudents && userConfirmedMappings && !isCheckingStudents && !existingStudentsInfo) {
       handleStudentCheck();
     }
   }, [isOpen, currentStep, fileData, onCheckExistingStudents, userConfirmedMappings, isCheckingStudents, existingStudentsInfo]);
@@ -424,12 +645,65 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
   };
 
   const handleFinalConfirmAndImport = async () => {
-    if (!editableExamInfo || !userConfirmedMappings || !fileData) {
-      console.error("缺少必要数据，无法导入", { editableExamInfo, hasMappings: !!userConfirmedMappings, hasFileData: !!fileData });
+    if (!editableExamInfo || !fileData) {
+      console.error("缺少必要数据，无法导入", { editableExamInfo, hasFileData: !!fileData });
       toast.error("缺少必要数据，无法导入");
       return;
     }
     
+    // 检查字段映射是否存在，如果不存在则尝试创建默认映射
+    if (!userConfirmedMappings || Object.keys(userConfirmedMappings).length === 0) {
+      console.warn("用户未确认字段映射，尝试创建默认映射");
+      
+      // 检查是否有文件数据和表头
+      if (!fileData.headers || fileData.headers.length === 0) {
+        console.error("无法创建默认映射：缺少文件表头信息");
+        toast.error("导入失败", {
+          description: "文件表头信息缺失，请重新选择文件"
+        });
+        return;
+      }
+      
+      // 创建基本的默认映射
+      const defaultMappings: Record<string, string> = {};
+      const headers = fileData.headers;
+      
+      // 尝试智能匹配常见字段
+      headers.forEach(header => {
+        const lowerHeader = header.toLowerCase();
+        if (lowerHeader.includes('学号') || lowerHeader.includes('id') || lowerHeader === 'student_id') {
+          defaultMappings[header] = 'student_id';
+        } else if (lowerHeader.includes('姓名') || lowerHeader.includes('name') || lowerHeader === 'name') {
+          defaultMappings[header] = 'name';
+        } else if (lowerHeader.includes('班级') || lowerHeader.includes('class') || lowerHeader === 'class_name') {
+          defaultMappings[header] = 'class_name';
+        } else if (lowerHeader.includes('总分') || lowerHeader.includes('总成绩') || lowerHeader === 'total_score') {
+          defaultMappings[header] = 'total_score';
+        } else {
+          // 其他字段映射为自定义字段
+          defaultMappings[header] = header;
+        }
+      });
+      
+      console.log("创建的默认映射:", defaultMappings);
+      setUserConfirmedMappings(defaultMappings);
+      
+      // 给用户一个提示
+      toast.warning("使用默认字段映射", {
+        description: "系统已自动创建字段映射，如有问题请返回上一步手动调整"
+      });
+      
+      // 使用创建的默认映射继续导入
+      await proceedWithImport(defaultMappings);
+      return;
+    }
+    
+    // 有字段映射的情况，直接进行导入
+    await proceedWithImport(userConfirmedMappings);
+  };
+
+  // 提取实际导入逻辑到单独函数
+  const proceedWithImport = async (mappings: Record<string, string>) => {
     // 进行考试信息的校验
     if (!editableExamInfo.title) {
       console.error("考试标题为空，无法导入");
@@ -438,7 +712,7 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
       });
       return;
     }
-    
+
     if (!editableExamInfo.type) {
       console.error("考试类型为空，无法导入");
       toast.error("请选择考试类型", {
@@ -446,7 +720,7 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
       });
       return;
     }
-    
+
     if (!editableExamInfo.date) {
       console.error("考试日期为空，无法导入");
       toast.error("请选择考试日期", {
@@ -454,33 +728,70 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
       });
       return;
     }
+
+    // 验证映射中是否包含必要字段
+    // 🚀 修复：改为更灵活的验证逻辑
+    const mappedFields = Object.values(mappings);
+    const hasStudentId = mappedFields.includes('student_id');
+    const hasName = mappedFields.includes('name');
+    
+    // 姓名字段是必需的
+    if (!hasName) {
+      console.error("缺少必要字段映射: name");
+      toast.error("字段映射不完整", {
+        description: "姓名字段是必需的，请返回上一步确保映射了姓名字段"
+      });
+      return;
+    }
+    
+    // 学号字段是可选的，但建议有
+    if (!hasStudentId) {
+      console.warn("建议映射学号字段以提高匹配准确性");
+      toast.warning("建议完善字段映射", {
+        description: "未检测到学号字段，将仅使用姓名进行学生匹配。建议添加学号字段以提高准确性。",
+        duration: 4000
+      });
+    }
+    
+    // 检查是否有分数相关字段
+    const hasScoreFields = mappedFields.some(field => 
+      field.includes('score') || field.includes('分数') || field === 'total_score'
+    );
+    
+    if (!hasScoreFields) {
+      console.warn("未检测到分数字段");
+      toast.warning("未检测到分数字段", {
+        description: "建议映射至少一个分数字段以便进行成绩分析",
+        duration: 3000
+      });
+    }
+
+    setIsImporting(true);
     
     try {
-      setIsImporting(true);
-      
-      // 确保考试信息完整并记录日志
-      console.log('导入前的考试信息:', editableExamInfo);
-      
-      // 直接调用父组件的onFinalImport函数
+      console.log("[Dialog] 开始最终导入，参数:", {
+        examInfo: editableExamInfo,
+        mappings: mappings,
+        fileData: fileData ? `${fileData.dataRows.length} rows` : 'no data',
+        existingStudents: existingStudentsInfo || 'none checked',
+        mergeChoice
+      });
+
       await onFinalImport(
         editableExamInfo,
-        userConfirmedMappings, 
+        mappings,
         mergeChoice,
         fileData.dataRows,
         examScope,
         newStudentStrategy
       );
-
-      toast.success("数据导入成功！");
-      // 添加延迟，让成功提示显示后再关闭对话框
-      setTimeout(() => {
-        onOpenChange(false);
-      }, 500);
       
+      toast.success("数据导入成功！");
+      onOpenChange(false);
     } catch (error) {
       console.error("导入失败:", error);
-      toast.error("导入失败", { 
-        description: error instanceof Error ? error.message : "未知错误" 
+      toast.error("导入失败", {
+        description: error instanceof Error ? error.message : "未知错误"
       });
     } finally {
       setIsImporting(false);
@@ -488,59 +799,62 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
   };
 
   const handleNext = () => {
+    console.log(`[Dialog] Moving from step ${currentStep} to next step`);
+    
     if (currentStep === 1) {
-      // 预览步骤 -> 考试信息步骤
-      if (!fileData) {
-        toast.error("无法继续，缺少文件数据");
-        return;
-      }
-      if (!editableExamInfo) {
-        setEditableExamInfo({
-          title: '',
-          type: '',
-          date: new Date().toISOString().split('T')[0],
-          subject: ''
-        });
-      }
+      // 从数据预览到考试信息
       setCurrentStep(2);
-    }
-    else if (currentStep === 2) {
-      // 考试信息步骤 -> 智能匹配步骤
-      if (!editableExamInfo?.title || !editableExamInfo?.type || !editableExamInfo?.date) {
-        toast.error("请完整填写考试信息");
-        return;
+    } else if (currentStep === 2) {
+      // 从考试信息到字段映射或直接到学生信息策略
+      // 检查是否可以自动跳过字段映射步骤
+      if (autoMappingComplete && intelligentAnalysis.confidence >= 1.0 && userConfirmedMappings) {
+        // 检查是否有必要字段映射
+        const mappedFields = Object.values(userConfirmedMappings).filter(value => value && value.trim() !== '');
+        const hasStudentId = mappedFields.includes('student_id');
+        const hasName = mappedFields.includes('name');
+        
+        if (hasStudentId || hasName) {
+          console.log('[Dialog] 智能分析完成，直接跳过字段映射步骤到第4步');
+          toast.success('智能识别完成', {
+            description: '系统已自动完成字段映射，直接进入学生信息处理步骤',
+            duration: 2000
+          });
+          setCurrentStep(4); // 直接跳到第4步
+          return;
+        }
       }
-      // 开始AI解析
-      handleStartAIParsingInternal();
+      
+      // 如果不能自动跳过，正常进入第3步
+      console.log('[Dialog] 进入字段映射步骤');
       setCurrentStep(3);
-    }
-    else if (currentStep === 3) {
-      // 智能匹配步骤 -> 学生信息策略步骤
+    } else if (currentStep === 3) {
+      // 从字段映射到学生信息策略
       handleConfirmMappings();
-      setCurrentStep(4);
-    }
-    else if (currentStep === 4) {
-      // 学生信息策略步骤 -> 最终确认步骤
-      handleStudentCheck();
+    } else if (currentStep === 4) {
+      // 从学生信息策略到最终确认
       setCurrentStep(5);
     }
-    else if (currentStep === 5) {
-      // 最终确认步骤 -> 导入
-      handleFinalConfirmAndImport();
-    }
-    
-    console.log("[Dialog] Next button clicked. Current step:", currentStep + 1);
   };
 
   const handlePrevious = () => {
-    if (currentStep > 1) {
-      if (currentStep === 3 && isAIParsing) {
-        toast.info("正在进行AI解析，请等待解析完成或取消操作");
-        return;
+    console.log(`[Dialog] Moving from step ${currentStep} to previous step`);
+    
+    if (currentStep === 2) {
+      setCurrentStep(1);
+    } else if (currentStep === 3) {
+      setCurrentStep(2);
+    } else if (currentStep === 4) {
+      // 如果是从自动跳过的情况回到上一步，需要判断是回到第2步还是第3步
+      if (autoMappingComplete && autoMappingConfidence === 'high') {
+        console.log('[Dialog] 从自动跳过的第4步回到第2步');
+        setCurrentStep(2);
+      } else {
+        console.log('[Dialog] 从第4步回到第3步');
+        setCurrentStep(3);
       }
-      setCurrentStep(currentStep - 1);
+    } else if (currentStep === 5) {
+      setCurrentStep(4);
     }
-    console.log("[Dialog] Previous button clicked. Current step:", currentStep - 1);
   };
 
   const handleDialogClose = () => {
@@ -724,6 +1038,81 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
       }));
   };
 
+  // 处理字段询问完成
+  const handleFieldInquiryComplete = (fieldMappings: Record<string, FieldType>) => {
+    console.log("[Dialog] 字段询问完成，映射结果:", fieldMappings);
+    
+    // 将FieldType映射转换为字符串映射
+    const stringMappings: Record<string, string> = {};
+    Object.entries(fieldMappings).forEach(([fieldName, fieldType]) => {
+      stringMappings[fieldName] = fieldType;
+    });
+    
+    // 合并智能解析的映射和用户询问的映射
+    const combinedMappings = {
+      ...intelligentParseResult?.metadata?.suggestedMappings,
+      ...stringMappings
+    };
+    
+    setUserConfirmedMappings(combinedMappings);
+    setShowFieldInquiry(false);
+    
+    // 继续到下一步
+    setCurrentStep(2);
+    
+    toast.success("字段映射完成", {
+      description: `成功映射 ${Object.keys(fieldMappings).length} 个字段`
+    });
+  };
+
+  // 🚀 新增：处理模糊匹配确认
+  const handleConfirmFuzzyMatch = (fileStudentIndex: number, systemStudentId: string) => {
+    console.log(`[Dialog] 确认模糊匹配: 文件学生索引 ${fileStudentIndex} -> 系统学生ID ${systemStudentId}`);
+    
+    setFuzzyMatchConfirmations(prev => ({
+      ...prev,
+      [fileStudentIndex]: systemStudentId
+    }));
+    
+    // 从拒绝列表中移除（如果之前被拒绝过）
+    setRejectedFuzzyMatches(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(fileStudentIndex);
+      return newSet;
+    });
+    
+    toast.success("匹配确认成功", {
+      description: "已确认学生匹配关系"
+    });
+  };
+
+  // 🚀 新增：处理模糊匹配拒绝
+  const handleRejectFuzzyMatch = (fileStudentIndex: number) => {
+    console.log(`[Dialog] 拒绝模糊匹配: 文件学生索引 ${fileStudentIndex}`);
+    
+    setRejectedFuzzyMatches(prev => new Set([...prev, fileStudentIndex]));
+    
+    // 从确认列表中移除（如果之前被确认过）
+    setFuzzyMatchConfirmations(prev => {
+      const newConfirmations = { ...prev };
+      delete newConfirmations[fileStudentIndex];
+      return newConfirmations;
+    });
+    
+    toast.info("已拒绝匹配", {
+      description: "该学生将被视为新学生处理"
+    });
+  };
+
+  // 🚀 新增：查看学生详情（占位函数）
+  const handleViewStudentDetails = (student: any) => {
+    console.log("[Dialog] 查看学生详情:", student);
+    // 这里可以实现学生详情查看功能
+    toast.info("学生详情", {
+      description: `查看 ${student.name} 的详细信息`
+    });
+  };
+
   const handleSelectChange = (header: string, value: string) => {
     console.log(`[Dialog] Select change for header "${header}": new value "${value}"`);
     if (value === '__CREATE_NEW__') {
@@ -742,29 +1131,59 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
     }
   };
 
-  // 添加学生匹配策略说明
-  const studentMatchingDescription = (
-    <div className="mb-4 bg-blue-50 p-4 rounded-md">
-      <div className="flex items-start gap-2">
-        <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
-        <div>
-          <h4 className="font-medium text-blue-700 mb-1">智能学生匹配</h4>
-          <p className="text-sm text-blue-600">
-            系统会使用以下匹配策略自动识别学生信息，无需预处理原始数据文件：
-          </p>
-          <ol className="list-decimal ml-6 mt-2 text-sm text-blue-600">
-            <li>优先使用<strong>学号</strong>精确匹配</li>
-            <li>如果学号未匹配，尝试使用<strong>姓名+班级</strong>组合匹配</li>
-            <li>如果以上均失败，则尝试仅使用<strong>姓名</strong>匹配</li>
-            <li>对于无法匹配的学生，系统将自动创建新的学生记录</li>
-          </ol>
-          <p className="text-xs text-blue-500 mt-2">
-            您只需确保文件中包含姓名、学号、班级中的任意两项，系统就能自动完成匹配。
-          </p>
+  // 新增：学生匹配说明组件
+  const studentMatchingDescription = useMemo(() => {
+    if (!fileData) return null;
+    
+    // 检测是否是宽表格式
+    const scoreFields = fileData.headers.filter(header => 
+      header.includes('分数') || header.includes('成绩') || header.includes('score')
+    );
+    const isWideFormat = scoreFields.length > 1;
+    
+    // 计算实际学生数量（去重）
+    const studentIdField = Object.keys(userConfirmedMappings || {}).find(key => 
+      userConfirmedMappings?.[key] === 'student_id'
+    );
+    const nameField = Object.keys(userConfirmedMappings || {}).find(key => 
+      userConfirmedMappings?.[key] === 'name'
+    );
+    
+    const uniqueStudentsSet = new Set<string>();
+    fileData.dataRows.forEach(row => {
+      const studentId = studentIdField ? String(row[studentIdField]).trim() : null;
+      const name = nameField ? String(row[nameField]).trim() : null;
+      const key = studentId || name;
+      if (key) uniqueStudentsSet.add(key);
+    });
+    
+    const uniqueStudentCount = uniqueStudentsSet.size;
+    const totalRecords = fileData.dataRows.length;
+    
+    return (
+      <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+        <div className="flex items-start">
+          <Info className="h-5 w-5 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
+          <div className="text-sm">
+            <h4 className="font-medium text-blue-800 mb-2">数据结构说明</h4>
+            <div className="text-blue-700 space-y-1">
+              <p>• <strong>文件总记录数：</strong>{totalRecords} 条</p>
+              <p>• <strong>实际学生人数：</strong>{uniqueStudentCount} 人</p>
+              {isWideFormat && (
+                <p>• <strong>数据格式：</strong>宽表格式（每个学生一行，包含多个科目分数）</p>
+              )}
+              {!isWideFormat && totalRecords > uniqueStudentCount && (
+                <p>• <strong>数据格式：</strong>长表格式（每个学生每科目一行记录）</p>
+              )}
+              <p className="text-xs text-blue-600 mt-2">
+                系统将基于学生人数（{uniqueStudentCount}人）进行匹配检查，而不是记录总数
+              </p>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  }, [fileData, userConfirmedMappings]);
 
   // 添加智能批量匹配功能
   const handleBatchAIMatching = async () => {
@@ -904,6 +1323,85 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
              <div className="mt-2 text-xs text-gray-500">
                 如果预览数据与您期望上传的文件不符，请取消并重新上传。
             </div>
+            
+            {/* 🚀 智能分析结果显示 */}
+            {fileData && (
+              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-2 mb-3">
+                  <Sparkles className="h-5 w-5 text-blue-600" />
+                  <h4 className="font-semibold text-blue-800">智能字段分析</h4>
+                  {intelligentAnalysis.isAnalyzing && (
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                  )}
+                </div>
+                
+                {intelligentAnalysis.isAnalyzing ? (
+                  <p className="text-sm text-blue-700">正在分析CSV表头结构...</p>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="font-medium text-gray-700">识别置信度: </span>
+                        <Badge variant={intelligentAnalysis.confidence > 0.8 ? "default" : intelligentAnalysis.confidence > 0.5 ? "secondary" : "destructive"}>
+                          {(intelligentAnalysis.confidence * 100).toFixed(0)}%
+                        </Badge>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-700">数据格式: </span>
+                        <Badge variant={intelligentAnalysis.isWideFormat ? "default" : "secondary"}>
+                          {intelligentAnalysis.isWideFormat ? "宽表格(多科目)" : "长表格(单科目)"}
+                        </Badge>
+                      </div>
+                    </div>
+                    
+                    {intelligentAnalysis.detectedSubjects.length > 0 && (
+                      <div>
+                        <span className="font-medium text-gray-700">识别的科目: </span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {intelligentAnalysis.detectedSubjects.map(subject => (
+                            <Badge key={subject} variant="outline" className="text-xs">
+                              {subject}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div>
+                      <span className="font-medium text-gray-700">字段映射: </span>
+                      <span className="text-sm text-gray-600">
+                        已识别 {intelligentAnalysis.mappingCount}/{fileData.headers.length} 个字段
+                      </span>
+                    </div>
+                    
+                    {intelligentAnalysis.issues.length > 0 && (
+                      <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                        <div className="flex items-center gap-1 mb-1">
+                          <AlertCircle className="h-4 w-4 text-yellow-600" />
+                          <span className="text-sm font-medium text-yellow-800">注意事项:</span>
+                        </div>
+                        <ul className="text-xs text-yellow-700 space-y-1">
+                          {intelligentAnalysis.issues.map((issue, index) => (
+                            <li key={index}>• {issue}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    
+                    {intelligentAnalysis.confidence > 0.8 && intelligentAnalysis.isWideFormat && (
+                      <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
+                        <div className="flex items-center gap-1">
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <span className="text-sm font-medium text-green-800">
+                            系统已自动识别表格结构，将在导入时自动转换为标准格式
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         );
 
@@ -979,6 +1477,26 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
                 <div className="mt-1 text-xs text-blue-500">如果您不提供科目信息，系统将视为含多科目的综合考试</div>
               </div>
             </div>
+            
+            {/* 🚀 智能分析结果预览 */}
+            {intelligentAnalysis.confidence > 0 && (
+              <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <h4 className="font-semibold text-green-800">智能分析完成</h4>
+                </div>
+                <div className="text-sm text-green-700 space-y-1">
+                  <p>• 识别置信度: <strong>{(intelligentAnalysis.confidence * 100).toFixed(0)}%</strong></p>
+                  {intelligentAnalysis.detectedSubjects.length > 0 && (
+                    <p>• 检测到科目: <strong>{intelligentAnalysis.detectedSubjects.join('、')}</strong></p>
+                  )}
+                  <p>• 数据格式: <strong>{intelligentAnalysis.isWideFormat ? '宽表格(多科目)' : '长表格(单科目)'}</strong></p>
+                  {intelligentAnalysis.confidence > 0.8 && (
+                    <p className="text-green-600 font-medium">✓ 系统将自动处理字段映射，无需手动配置</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         );
 
@@ -1000,6 +1518,40 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
                 <p>等待数据加载以开始智能分析...</p>
             </div>
         );
+        
+        // 🚀 如果智能分析置信度足够高，直接跳过字段映射
+        if (intelligentAnalysis.confidence > 0.8 && autoMappingComplete) {
+          return (
+            <div className="space-y-6">
+              <h3 className="text-lg font-semibold mb-2">{UPDATED_STEPS[2].name}</h3>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
+                <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
+                <h4 className="text-lg font-semibold text-green-800 mb-2">智能分析完成</h4>
+                <p className="text-green-700 mb-4">
+                  系统已自动识别您的文件结构并完成字段映射（置信度: {(intelligentAnalysis.confidence * 100).toFixed(0)}%）
+                </p>
+                <div className="grid grid-cols-2 gap-4 text-sm text-green-600 mb-4">
+                  <div>
+                    <span className="font-medium">数据格式:</span> {intelligentAnalysis.isWideFormat ? '宽表格(多科目)' : '长表格(单科目)'}
+                  </div>
+                  <div>
+                    <span className="font-medium">识别科目:</span> {intelligentAnalysis.detectedSubjects.join('、')}
+                  </div>
+                </div>
+                <p className="text-xs text-green-600 mb-4">
+                  系统将在导入时自动转换数据格式，正在自动跳转到下一步...
+                </p>
+                
+                {/* 添加自动跳转提示 */}
+                <div className="flex items-center justify-center space-x-2 text-sm text-green-600">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>3秒后自动进入学生信息处理步骤</span>
+                </div>
+              </div>
+            </div>
+          );
+        }
+        
         if (isAIParsing) return (
           <div className="text-center py-8 h-[70vh] flex flex-col justify-center items-center">
             <h3 className="text-xl font-semibold mb-3">AI助手分析中</h3>
@@ -1037,6 +1589,33 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
             <div>
               <h3 className="text-lg font-semibold mb-2">{UPDATED_STEPS[2].name}</h3>
               <p className="text-sm text-gray-600 mb-4">{UPDATED_STEPS[2].description}</p>
+              
+              {/* 添加字段映射状态和帮助信息 */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium text-blue-900 mb-1">字段映射说明</h4>
+                    <div className="text-sm text-blue-800 space-y-1">
+                      <p>• <strong>必要字段</strong>：至少需要映射"学号"或"姓名"字段</p>
+                      <p>• <strong>推荐字段</strong>：班级、总分等字段有助于更好的数据分析</p>
+                      <p>• <strong>其他字段</strong>：可以映射为自定义字段，或保持空白忽略</p>
+                    </div>
+                    {userConfirmedMappings && (
+                      <div className="mt-2 text-sm">
+                        <span className="text-blue-700">
+                          映射状态: {Object.values(userConfirmedMappings).filter(v => v && v.trim() !== '').length} / {Object.keys(userConfirmedMappings).length} 个字段已映射
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
               <ScrollArea className="h-[35vh] border rounded-md bg-white">
                 <div className="overflow-x-auto">
                 <Table className="min-w-full">
@@ -1229,7 +1808,7 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
 
       case 4: // Student Information Merge
         return (
-          <>
+          <div className="space-y-4">
             <DialogHeader className="mb-4">
               <DialogTitle>学生信息处理策略</DialogTitle>
               <DialogDescription>
@@ -1300,7 +1879,7 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
                 </RadioGroup>
               </div>
             </div>
-          </>
+          </div>
         );
 
       case 5: // Final Confirmation and Import
@@ -1368,6 +1947,341 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
     </div>
   );
 
+  // 新增：检查智能解析结果并自动设置映射
+  useEffect(() => {
+    if (isOpen && intelligentParseResult && intelligentParseResult.success) {
+      const { metadata } = intelligentParseResult;
+      
+      console.log('[ImportReviewDialog] 检查智能解析结果:', {
+        confidence: metadata.confidence,
+        autoProcessed: metadata.autoProcessed,
+        mappingsCount: Object.keys(metadata.suggestedMappings).length,
+        totalFields: metadata.originalHeaders?.length || fileData?.headers.length
+      });
+      
+      // 如果智能解析标记为可自动处理，直接设置映射并跳过字段映射步骤
+      if (metadata.autoProcessed && metadata.confidence >= 0.8) {
+        console.log('[ImportReviewDialog] 智能解析置信度高，自动设置映射并跳过字段映射步骤');
+        
+        setAiSuggestedMappings(metadata.suggestedMappings);
+        setUserConfirmedMappings(metadata.suggestedMappings);
+        setAutoMappingConfidence('high');
+        setAutoMappingComplete(true);
+        setAutoMappedFields(Object.values(metadata.suggestedMappings));
+        
+        // 🚀 更新intelligentAnalysis状态
+        setIntelligentAnalysis({
+          isAnalyzing: false,
+          confidence: metadata.confidence,
+          detectedSubjects: metadata.detectedSubjects || [],
+          isWideFormat: metadata.detectedStructure === 'wide',
+          mappingCount: Object.keys(metadata.suggestedMappings).length,
+          issues: []
+        });
+        
+        // 显示成功提示
+        toast.success('智能识别完成！', {
+          description: `系统已自动识别所有必要字段 (置信度: ${(metadata.confidence * 100).toFixed(0)}%)，将自动跳过字段映射步骤`,
+          duration: 3000
+        });
+        
+        // 如果当前在第1步，自动跳转到第2步（考试信息）
+        if (currentStep === 1) {
+          setTimeout(() => {
+            setCurrentStep(2);
+          }, 1500);
+        }
+      } else if (metadata.suggestedMappings && Object.keys(metadata.suggestedMappings).length > 0) {
+        // 如果有建议映射但置信度不够高，设置为建议但不自动跳过
+        console.log('[ImportReviewDialog] 智能解析提供建议映射，但需要用户确认');
+        
+        setAiSuggestedMappings(metadata.suggestedMappings);
+        setUserConfirmedMappings(metadata.suggestedMappings);
+        
+        // 🚀 更新intelligentAnalysis状态
+        setIntelligentAnalysis({
+          isAnalyzing: false,
+          confidence: metadata.confidence,
+          detectedSubjects: metadata.detectedSubjects || [],
+          isWideFormat: metadata.detectedStructure === 'wide',
+          mappingCount: Object.keys(metadata.suggestedMappings).length,
+          issues: []
+        });
+        
+        const mappedCount = Object.keys(metadata.suggestedMappings).length;
+        const totalCount = metadata.originalHeaders?.length || fileData?.headers.length || 0;
+        
+        if (metadata.confidence >= 0.6) {
+          setAutoMappingConfidence('medium');
+          toast.info('智能识别部分完成', {
+            description: `系统已识别 ${mappedCount}/${totalCount} 个字段，请在第3步检查并确认映射`,
+            duration: 4000
+          });
+        } else {
+          setAutoMappingConfidence('low');
+          toast.warning('需要您的帮助', {
+            description: `系统只识别了 ${mappedCount}/${totalCount} 个字段，请在第3步完成剩余映射`,
+            duration: 4000
+          });
+        }
+      }
+    }
+  }, [isOpen, intelligentParseResult, fileData, currentStep]);
+
+  // 🚀 新增：智能分析完成后的自动跳转逻辑
+  useEffect(() => {
+    // 只在第3步且智能分析完成时触发自动跳转
+    if (currentStep === 3 && intelligentAnalysis.confidence >= 1.0 && autoMappingComplete) {
+      console.log('[Dialog] 智能分析100%置信度，准备自动跳转到第4步');
+      
+      const timer = setTimeout(() => {
+        console.log('[Dialog] 执行自动跳转到第4步');
+        toast.success('自动跳转', {
+          description: '智能识别完成，已自动进入学生信息处理步骤',
+          duration: 2000
+        });
+        setCurrentStep(4);
+      }, 3000); // 3秒后自动跳转
+      
+      return () => clearTimeout(timer);
+    }
+  }, [currentStep, intelligentAnalysis.confidence, autoMappingComplete]);
+
+  // 🚀 新增：智能分析完成后直接跳过第3步的逻辑
+  useEffect(() => {
+    // 当智能分析完成且置信度足够高时，直接从第2步跳到第4步
+    if (currentStep === 2 && intelligentAnalysis.confidence >= 1.0 && autoMappingComplete && userConfirmedMappings) {
+      console.log('[Dialog] 智能分析完成，准备从第2步直接跳转到第4步');
+      
+      // 检查是否有必要字段映射
+      const mappedFields = Object.values(userConfirmedMappings).filter(value => value && value.trim() !== '');
+      const hasStudentId = mappedFields.includes('student_id');
+      const hasName = mappedFields.includes('name');
+      
+      if (hasStudentId || hasName) {
+        const timer = setTimeout(() => {
+          console.log('[Dialog] 执行从第2步直接跳转到第4步');
+          toast.success('智能识别完成', {
+            description: '系统已自动完成字段映射，直接进入学生信息处理步骤',
+            duration: 3000
+          });
+          setCurrentStep(4);
+        }, 2000); // 2秒后自动跳转
+        
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [currentStep, intelligentAnalysis.confidence, autoMappingComplete, userConfirmedMappings]);
+
+  // 🚀 新增：智能学生匹配分析
+  const performStudentMatchingAnalysis = async (fileData: any[]): Promise<ExistingStudentCheckResult> => {
+    console.log('[Dialog] 开始执行智能学生匹配分析');
+    
+    try {
+      // 从文件数据中提取学生信息
+      const fileStudents = fileData.map(row => {
+        const mappedData: any = {};
+        
+        // 使用确认的字段映射来提取学生信息
+        Object.entries(userConfirmedMappings || {}).forEach(([originalField, mappedField]) => {
+          if (row[originalField] !== undefined) {
+            mappedData[mappedField] = row[originalField];
+          }
+        });
+        
+        return {
+          name: mappedData.name || '',
+          student_id: mappedData.student_id || '',
+          class_name: mappedData.class_name || ''
+        };
+      }).filter(student => student.name); // 过滤掉没有姓名的记录
+      
+      console.log('[Dialog] 文件中提取的学生信息:', fileStudents);
+      
+      // 获取系统中的所有学生
+      const { data: systemStudents, error } = await supabase
+        .from('students')
+        .select('id, name, student_id, class_name')
+        .order('name');
+      
+      if (error) {
+        console.error('[Dialog] 获取系统学生失败:', error);
+        throw error;
+      }
+      
+      console.log('[Dialog] 系统中的学生数量:', systemStudents?.length || 0);
+      
+      // 执行智能匹配分析
+      const exactMatches: any[] = [];
+      const fuzzyMatches: any[] = [];
+      const newStudents: any[] = [];
+      const systemStudentsNotInFile: any[] = [];
+      
+      // 创建系统学生的映射表
+      const systemStudentsByName = new Map();
+      const systemStudentsById = new Map();
+      
+      (systemStudents || []).forEach(student => {
+        systemStudentsByName.set(student.name.toLowerCase(), student);
+        if (student.student_id) {
+          systemStudentsById.set(student.student_id, student);
+        }
+      });
+      
+      // 分析每个文件中的学生
+      fileStudents.forEach(fileStudent => {
+        let matched = false;
+        
+        // 1. 精确学号匹配
+        if (fileStudent.student_id && systemStudentsById.has(fileStudent.student_id)) {
+          const systemStudent = systemStudentsById.get(fileStudent.student_id);
+          exactMatches.push({
+            fileStudent,
+            systemStudent,
+            matchType: 'exact_id'
+          });
+          matched = true;
+        }
+        // 2. 精确姓名匹配
+        else if (systemStudentsByName.has(fileStudent.name.toLowerCase())) {
+          const systemStudent = systemStudentsByName.get(fileStudent.name.toLowerCase());
+          exactMatches.push({
+            fileStudent,
+            systemStudent,
+            matchType: 'exact_name'
+          });
+          matched = true;
+        }
+        // 3. 模糊匹配
+        else {
+          const possibleMatches: any[] = [];
+          
+          (systemStudents || []).forEach(systemStudent => {
+            // 计算姓名相似度（简单的编辑距离）
+            const similarity = calculateNameSimilarity(fileStudent.name, systemStudent.name);
+            
+            if (similarity >= 0.6) { // 相似度阈值
+              let matchReason = '';
+              if (similarity >= 0.9) {
+                matchReason = '姓名高度相似';
+              } else if (similarity >= 0.7) {
+                matchReason = '姓名中等相似';
+              } else {
+                matchReason = '姓名部分相似';
+              }
+              
+              // 如果班级信息匹配，提高相似度
+              if (fileStudent.class_name && systemStudent.class_name && 
+                  fileStudent.class_name === systemStudent.class_name) {
+                matchReason += '，班级匹配';
+                // 可以适当提高相似度
+              }
+              
+              possibleMatches.push({
+                systemStudent,
+                similarity,
+                matchReason
+              });
+            }
+          });
+          
+          if (possibleMatches.length > 0) {
+            // 按相似度排序
+            possibleMatches.sort((a, b) => b.similarity - a.similarity);
+            
+            fuzzyMatches.push({
+              fileStudent,
+              possibleMatches: possibleMatches.slice(0, 3) // 最多显示3个可能匹配
+            });
+            matched = true;
+          }
+        }
+        
+        // 如果没有匹配到，标记为新学生
+        if (!matched) {
+          newStudents.push(fileStudent);
+        }
+      });
+      
+      // 找出系统中存在但文件中没有的学生
+      const fileStudentNames = new Set(fileStudents.map(s => s.name.toLowerCase()));
+      const fileStudentIds = new Set(fileStudents.map(s => s.student_id).filter(Boolean));
+      
+      (systemStudents || []).forEach(systemStudent => {
+        const nameMatch = fileStudentNames.has(systemStudent.name.toLowerCase());
+        const idMatch = systemStudent.student_id && fileStudentIds.has(systemStudent.student_id);
+        
+        if (!nameMatch && !idMatch) {
+          systemStudentsNotInFile.push(systemStudent);
+        }
+      });
+      
+      const result: ExistingStudentCheckResult = {
+        count: exactMatches.length,
+        totalStudentsInFile: fileStudents.length,
+        exactMatches,
+        fuzzyMatches,
+        newStudents,
+        systemStudentsNotInFile
+      };
+      
+      console.log('[Dialog] 学生匹配分析结果:', result);
+      return result;
+      
+    } catch (error) {
+      console.error('[Dialog] 学生匹配分析失败:', error);
+      
+      // 返回默认结果
+      return {
+        count: 0,
+        totalStudentsInFile: fileData.length,
+        exactMatches: [],
+        fuzzyMatches: [],
+        newStudents: [],
+        systemStudentsNotInFile: []
+      };
+    }
+  };
+  
+  // 🚀 新增：计算姓名相似度（简单的编辑距离算法）
+  const calculateNameSimilarity = (name1: string, name2: string): number => {
+    const s1 = name1.toLowerCase().trim();
+    const s2 = name2.toLowerCase().trim();
+    
+    if (s1 === s2) return 1.0;
+    
+    // 计算编辑距离
+    const matrix = Array(s1.length + 1).fill(null).map(() => Array(s2.length + 1).fill(null));
+    
+    for (let i = 0; i <= s1.length; i++) {
+      matrix[i][0] = i;
+    }
+    
+    for (let j = 0; j <= s2.length; j++) {
+      matrix[0][j] = j;
+    }
+    
+    for (let i = 1; i <= s1.length; i++) {
+      for (let j = 1; j <= s2.length; j++) {
+        if (s1[i - 1] === s2[j - 1]) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j] + 1,     // 删除
+            matrix[i][j - 1] + 1,     // 插入
+            matrix[i - 1][j - 1] + 1  // 替换
+          );
+        }
+      }
+    }
+    
+    const editDistance = matrix[s1.length][s2.length];
+    const maxLength = Math.max(s1.length, s2.length);
+    
+    // 转换为相似度（0-1之间）
+    return maxLength === 0 ? 1.0 : 1 - (editDistance / maxLength);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl md:max-w-2xl lg:max-w-3xl max-h-[90vh] flex flex-col p-0 shadow-xl">
@@ -1385,7 +2299,17 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
 
         <DialogFooter className="p-4 sm:p-5 border-t flex flex-col sm:flex-row justify-between items-center w-full bg-gray-50 space-y-3 sm:space-y-0">
           <div className="flex-shrink-0">
-            <Button variant="outline" onClick={handlePrevious} disabled={isAIParsing || isCheckingStudents || isImporting}>
+            <Button 
+              variant="outline" 
+              onClick={handlePrevious} 
+              disabled={
+                currentStep <= 1 || 
+                isAIParsing || 
+                isCheckingStudents || 
+                isImporting ||
+                (currentStep === 3 && isAIParsing) // 只在第3步AI解析时禁用
+              }
+            >
               <ArrowLeft size={16} className="mr-1.5" />
               上一步
             </Button>
@@ -1399,8 +2323,8 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
                 onClick={handleNext} 
                 disabled={
                     (currentStep === 1 && !fileData) || 
-                    (currentStep === 2 && (isAIParsing || (!userConfirmedMappings && !aiParseError) || Object.values(customFieldCreationState).some(s => s.isPromptingName || s.isLoading) || Object.values(fieldSuggestionsLoading).some(loading => loading) )) || 
-                    (currentStep === 3 && isCheckingStudents) || 
+                    (currentStep === 2 && (!editableExamInfo?.title || !editableExamInfo?.type || !editableExamInfo?.date)) ||
+                    (currentStep === 3 && (isAIParsing || isCheckingStudents || Object.values(customFieldCreationState).some(s => s.isPromptingName || s.isLoading) || Object.values(fieldSuggestionsLoading).some(loading => loading))) || 
                     isImporting
                 }
               >
@@ -1425,6 +2349,21 @@ const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
           </div>
         </DialogFooter>
       </DialogContent>
+      
+      {/* 字段询问对话框 */}
+      <FieldInquiryDialog
+        isOpen={showFieldInquiry}
+        onOpenChange={setShowFieldInquiry}
+        unknownFields={unknownFields}
+        context={fieldInquiryContext}
+        onComplete={handleFieldInquiryComplete}
+        onCancel={() => {
+          setShowFieldInquiry(false);
+          toast.info("已取消字段询问", {
+            description: "将使用默认的字段映射界面"
+          });
+        }}
+      />
     </Dialog>
   );
 };

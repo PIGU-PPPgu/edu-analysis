@@ -912,63 +912,7 @@ class PortraitAPI {
     }
   }
   
-  /**
-   * 获取学生详细画像信息
-   */
-  async getStudentPortrait(studentId: string): Promise<StudentPortraitData | null> {
-    try {
-      const cacheKey = `student_portrait_${studentId}`;
-      
-      if (this.isCacheValid(cacheKey)) {
-        return this.cache.get(cacheKey)!.data;
-      }
-      
-      // 获取学生基本信息
-      const { data, error } = await supabase
-        .from('students')
-        .select('*, class:class_id (name)')
-        .eq('id', studentId)
-        .single();
-        
-      if (error) throw error;
-      if (!data) return null;
-      
-      // 实际项目中还需查询其他相关表获取完整学生画像数据
-      // 这里使用模拟数据补充
-      const studentPortrait: StudentPortraitData = {
-        ...data,
-        class_name: data.class?.name || '未知班级',
-        scores: [
-          { subject: "语文", score: 92, examDate: "2023-09-01", examType: "期中考试" },
-          { subject: "数学", score: 88, examDate: "2023-09-01", examType: "期中考试" },
-          { subject: "英语", score: 76, examDate: "2023-09-01", examType: "期中考试" },
-          { subject: "科学", score: 85, examDate: "2023-09-01", examType: "期中考试" },
-          { subject: "音乐", score: 96, examDate: "2023-09-01", examType: "期中考试" },
-          { subject: "体育", score: 90, examDate: "2023-09-01", examType: "期中考试" },
-        ],
-        abilities: [
-          { name: "记忆能力", score: 95, isStrength: true },
-          { name: "数学运算", score: 90, isStrength: true },
-          { name: "阅读理解", score: 85, isStrength: true },
-          { name: "创新思维", score: 65, isStrength: false },
-          { name: "逻辑思维", score: 75, isStrength: false },
-          { name: "沟通表达", score: 80, isStrength: false },
-        ],
-        learningHabits: [
-          { name: "专注度", percentage: 85 },
-          { name: "作业完成质量", percentage: 78 },
-          { name: "课堂参与度", percentage: 92 },
-        ],
-        tags: ["学习积极", "有责任心", "需要提升创新能力", "数学能力强", "阅读理解佳"]
-      };
-      
-      this.updateCache(cacheKey, studentPortrait);
-      return studentPortrait;
-    } catch (error) {
-      console.error('获取学生画像数据失败:', error);
-      return null;
-    }
-  }
+
   
   /**
    * 获取班级学习里程碑

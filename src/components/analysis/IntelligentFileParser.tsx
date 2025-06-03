@@ -10,7 +10,7 @@ import FileUploader from './FileUploader';
 import TemplateDownloader from './TemplateDownloader';
 import { ParsedData } from "./types";
 import TextDataImporter from "./TextDataImporter";
-import { saveExamData, aiService } from "@/services/aiService";
+import { aiService } from "@/services/aiService";
 import debounce from "lodash/debounce";
 import SimplifiedExamForm from './SimplifiedExamForm';
 

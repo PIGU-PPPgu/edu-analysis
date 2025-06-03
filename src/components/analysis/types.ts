@@ -17,6 +17,27 @@ export interface ParsedData {
   detectedFormat: string;
   confidence: number;
   fieldMappings: Record<string, string>;
+  intelligentParseResult?: {
+    success: boolean;
+    data: any[];
+    metadata: {
+      originalHeaders: string[];
+      detectedStructure: 'wide' | 'long' | 'mixed';
+      confidence: number;
+      suggestedMappings: Record<string, string>;
+      detectedSubjects: string[];
+      examInfo?: {
+        title?: string;
+        type?: string;
+        date?: string;
+        grade?: string;
+      };
+      totalRows: number;
+      autoProcessed?: boolean; // 标记是否自动处理
+      unknownFields?: Array<{ name: string; sampleValues: string[] }>; // 未识别的字段
+      needsFieldInquiry?: boolean; // 是否需要字段询问
+    };
+  } | null;
 }
 
 export interface FileProcessingProps {

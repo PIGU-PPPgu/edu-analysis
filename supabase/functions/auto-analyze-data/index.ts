@@ -5,46 +5,164 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*', 
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS'
 };
 
 // 处理智能分析数据结构
 serve(async (req) => {
   // 处理CORS预检请求
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
   
   try {
     console.log('[auto-analyze-data] 收到请求');
-    const { data, examInfo } = await req.json();
+    console.log('[auto-analyze-data] 请求方法:', req.method);
+    console.log('[auto-analyze-data] 请求头:', Object.fromEntries(req.headers.entries()));
     
-    if (!data || !Array.isArray(data) || data.length === 0) {
-      throw new Error('无效的数据格式，请提供非空数组');
+    let requestBody;
+    try {
+      const requestText = await req.text();
+      console.log('[auto-analyze-data] 请求原始文本长度:', requestText.length);
+      console.log('[auto-analyze-data] 请求开头100字符:', requestText.substring(0, 100));
+      
+      if (!requestText.trim()) {
+        return new Response(
+          JSON.stringify({ 
+            error: '请求体为空',
+            details: '没有收到任何数据' 
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      requestBody = JSON.parse(requestText);
+      console.log('[auto-analyze-data] JSON解析成功');
+    } catch (parseError) {
+      console.error('[auto-analyze-data] JSON解析失败:', parseError);
+      return new Response(
+        JSON.stringify({ 
+          error: '请求数据格式不正确，无法解析JSON',
+          details: parseError.message 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    const { data, examInfo } = requestBody;
+    console.log('[auto-analyze-data] 请求体解构结果:', {
+      hasData: !!data,
+      dataType: typeof data,
+      dataIsArray: Array.isArray(data),
+      dataLength: data?.length,
+      hasExamInfo: !!examInfo,
+      examInfoType: typeof examInfo
+    });
+    
+    if (!data) {
+      return new Response(
+        JSON.stringify({ error: '缺少data参数' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    if (!Array.isArray(data)) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'data参数必须是数组格式',
+          receivedType: typeof data,
+          receivedValue: Array.isArray(data) ? `数组长度: ${data.length}` : String(data).substring(0, 100)
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    if (data.length === 0) {
+      return new Response(
+        JSON.stringify({ error: '数据数组不能为空' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
     
     console.log(`[auto-analyze-data] 开始分析数据，共${data.length}条记录`);
+    console.log('[auto-analyze-data] 第一条数据样本:', data[0]);
+    console.log('[auto-analyze-data] 数据字段:', Object.keys(data[0] || {}));
     
-    // 1. 分析数据结构
-    const dataStructure = analyzeDataStructure(data);
-    console.log('[auto-analyze-data] 数据结构分析结果:', dataStructure);
+    // 执行数据分析逻辑
+    console.log('[auto-analyze-data] 开始执行分析逻辑...');
     
-    // 2. 进行数据分析
-    const analysisResults = analyzeData(data, dataStructure);
-    console.log('[auto-analyze-data] 数据分析结果:', analysisResults);
+    // 基础统计分析
+    const statistics = {
+      totalRecords: data.length,
+      subjects: [...new Set(data.map(d => d.subject).filter(Boolean))],
+      classes: [...new Set(data.map(d => d.class_name).filter(Boolean))],
+      students: [...new Set(data.map(d => d.name || d.student_id).filter(Boolean))],
+      scoreRange: {
+        min: 0,
+        max: 0,
+        avg: 0
+      }
+    };
     
-    // 3. 生成洞察结果
-    const insights = generateInsights(data, dataStructure, analysisResults, examInfo);
-    console.log('[auto-analyze-data] 生成洞察结果:', insights.length);
+    // 计算分数统计
+    const validScores = data
+      .map(d => parseFloat(d.score) || 0)
+      .filter(s => s > 0);
+    
+    if (validScores.length > 0) {
+      statistics.scoreRange = {
+        min: Math.min(...validScores),
+        max: Math.max(...validScores),
+        avg: validScores.reduce((sum, score) => sum + score, 0) / validScores.length
+      };
+    }
+    
+    console.log('[auto-analyze-data] 统计分析完成:', statistics);
+    
+    // 生成分析报告
+    const analysisResult = {
+      success: true,
+      statistics,
+      insights: [
+        `共导入${statistics.totalRecords}条成绩记录`,
+        `涉及${statistics.subjects.length}个科目: ${statistics.subjects.join(', ')}`,
+        `涉及${statistics.classes.length}个班级: ${statistics.classes.join(', ')}`,
+        `涉及${statistics.students.length}名学生`,
+        validScores.length > 0 ? 
+          `成绩范围: ${statistics.scoreRange.min.toFixed(1)} - ${statistics.scoreRange.max.toFixed(1)}分，平均分: ${statistics.scoreRange.avg.toFixed(1)}分` :
+          '暂无有效分数数据'
+      ],
+      recommendations: [
+        '数据导入成功，可以进行后续分析',
+        statistics.scoreRange.avg < 60 ? '建议关注平均分较低的科目和班级' : '整体成绩表现良好',
+        '可以使用成绩分析功能查看详细统计信息'
+      ],
+      processedAt: new Date().toISOString()
+    };
+    
+    console.log('[auto-analyze-data] 分析完成，返回结果');
     
     return new Response(
-      JSON.stringify({ dataStructure, analysisResults, insights }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify(analysisResult),
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
     );
   } catch (error) {
-    console.error('[auto-analyze-data] 错误:', error);
+    console.error('[auto-analyze-data] 处理过程中发生错误:', error);
+    console.error('[auto-analyze-data] 错误堆栈:', error.stack);
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ 
+        error: '服务器内部错误',
+        message: error.message,
+        details: error.stack
+      }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
     );
   }
 });

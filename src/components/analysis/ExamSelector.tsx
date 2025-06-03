@@ -36,6 +36,7 @@ export interface Exam {
   type?: string;  // 使用type字段，不是exam_type
   date?: string;  // 使用date字段，不是exam_date
   subject?: string;
+  gradeCount?: number; // 成绩记录数量
 }
 
 interface ExamSelectorProps {
@@ -68,7 +69,7 @@ export function ExamSelector({
   
   // 判断是多选模式还是单选模式
   const isMultiSelect = selectedExams !== undefined && onChange !== undefined;
-
+  
   const handleDeleteExam = async () => {
     if (!examToDelete) return;
     
@@ -88,8 +89,8 @@ export function ExamSelector({
       
       toast.success("考试已删除", {
         description: `已成功删除考试: ${examToDelete.title || examToDelete.name}`
-      });
-      
+        });
+        
       // 如果删除的是当前选中的考试，清除选择
       if (isMultiSelect && selectedExams && onChange) {
         const newSelected = selectedExams.filter(id => id !== examToDelete.id);
@@ -199,6 +200,11 @@ export function ExamSelector({
                         {exam.type}
                       </Badge>
                     )}
+                    {exam.gradeCount !== undefined && (
+                      <Badge variant={exam.gradeCount > 0 ? "default" : "destructive"} className="ml-2">
+                        {exam.gradeCount > 0 ? `${exam.gradeCount}条记录` : "无数据"}
+                      </Badge>
+                    )}
                   </div>
                   {/* 显示选中状态 */}
                   {isMultiSelect && selectedExams ? (
@@ -216,7 +222,7 @@ export function ExamSelector({
           </Command>
         </PopoverContent>
       </Popover>
-      
+
       {!isMultiSelect && selectedExam && onExamDelete && (
         <Button
           variant="ghost"

@@ -24,27 +24,16 @@ import { ParsedData } from './types';
 import { FileInput, Loader2, AlertTriangle, Info, Check, HelpCircle, Download, FileSpreadsheet, FileText, UploadCloud, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import SimplifiedExamForm from './SimplifiedExamForm';
-import { gradeAnalysisService, MergeStrategy, saveExamData, getDistinctClassNames, autoAnalyzeGradeData } from '@/services/gradeAnalysisService';
+import { gradeAnalysisService, MergeStrategy, getDistinctClassNames, autoAnalyzeGradeData } from '@/services/gradeAnalysisService';
+import { saveExamData } from '@/services/aiService';
 import ImportReviewDialog, { FileDataForReview, ExamInfo } from './ImportReviewDialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Lightbulb } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 
 // 成绩数据导入组件的属性
 interface GradeImporterProps {
@@ -98,6 +87,7 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
   const [importReviewOpen, setImportReviewOpen] = useState(false);
   const [fileData, setFileData] = useState<FileDataForReview | null>(null);
   const [fileInfo, setFileInfo] = useState<{ name: string; size: number } | null>(null);
+  const [parsedData, setParsedData] = useState<ParsedData | null>(null);
   const [currentExamInfo, setCurrentExamInfo] = useState<ExamInfo>({
     title: '',
     type: '',
@@ -572,6 +562,9 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
       headers: data.headers
     });
     
+    // 设置解析数据
+    setParsedData(data);
+    
     // 设置文件数据和文件信息
     setFileData({
       fileName: data.fileName || '未命名文件',
@@ -582,6 +575,13 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
     setFileInfo({
       name: data.fileName || '未命名文件',
       size: JSON.stringify(data.data).length
+    });
+    
+    console.log("[GradeImporter] 设置了parsedData状态:", {
+      fileName: data.fileName,
+      headersCount: data.headers?.length,
+      dataRowsCount: data.data?.length,
+      intelligentParseResult: !!data.intelligentParseResult
     });
     
     // 确保在状态更新后再打开对话框
@@ -1016,114 +1016,143 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
   };
 
   // 最终导入数据
-  const handleFinalImport = async (examInfo, mappings, mergeChoice, dataToProcess, examScope, newStudentStrategy) => {
+  const handleFinalImport = async (
+    examInfo: ExamInfo,
+    confirmedMappings: Record<string, string>,
+    mergeChoice: string,
+    dataToProcess: any[],
+    examScope: 'class' | 'grade',
+    newStudentStrategy: 'create' | 'ignore'
+  ) => {
     try {
       setIsSubmitting(true);
-      setAnalysisLog({
-        status: 'analyzing',
-        message: '正在进行数据分析...'
-      });
-
-      // 确保有数据要处理
-      if (!dataToProcess || dataToProcess.length === 0) {
-        throw new Error('没有数据可导入');
-      }
-
-      // 使用传入的考试信息，而不是依赖于组件状态
-      console.log('传入的考试信息:', examInfo);
       
-      // 确保考试信息完整
-      if (!examInfo || !examInfo.title) {
-        toast.error("缺少考试标题", {
-          description: "请确保已设置考试标题"
-        });
-        throw new Error('请输入考试标题');
-      }
-
-      // 首先进行自动数据分析
-      console.log('开始自动分析数据');
-      const autoAnalysisResult = await autoAnalyzeGradeData(dataToProcess, {
-        examName: examInfo.title,
-        examId: examInfo.type
-      });
+      console.log("[GradeImporter] 开始最终导入，合并策略:", mergeChoice);
+      console.log("[GradeImporter] 考试信息:", examInfo);
+      console.log("[GradeImporter] 字段映射:", confirmedMappings);
+      console.log("[GradeImporter] 数据量:", dataToProcess.length);
       
-      console.log('自动分析结果:', autoAnalysisResult);
-      
-      // 使用分析结果更新日志
-      setAnalysisLog({
-        status: 'success',
-        message: `自动分析完成，识别到 ${autoAnalysisResult.analysisResults.allSubjects.length} 个科目，${autoAnalysisResult.analysisResults.allClasses.length} 个班级`,
-        autoAnalysisResult
-      });
-
-      // 检查班级信息
-      let processedDataWithClassFix = [...dataToProcess];
-      
-      // 如果发现数据中没有班级信息，使用自动分析结果中的班级
-      if (autoAnalysisResult.dataStructure.identifiedFields.className) {
-        console.log('使用识别到的班级字段:', autoAnalysisResult.dataStructure.identifiedFields.className);
-      } else {
-        // 没有识别到班级字段，尝试从学号推断
-        console.log('未识别到班级字段，尝试从学号推断班级');
-        processedDataWithClassFix = dataToProcess.map(row => {
-          const studentId = row.student_id || '';
-          // 从学号推断班级
-          if (studentId && studentId.includes('7') && (studentId.startsWith('1081109') || studentId.startsWith('108110907'))) {
-            return { ...row, class_name: '初三7班' };
+      // 使用映射转换数据
+      const mappedData = dataToProcess.map(row => {
+        const mappedRow: Record<string, any> = {};
+        
+        // 应用字段映射
+        for (const [csvField, systemField] of Object.entries(confirmedMappings)) {
+          if (csvField && systemField && row[csvField] !== undefined) {
+            mappedRow[systemField] = row[csvField];
           }
-          // 如果无法推断，使用默认班级
-          if (!row.class_name) {
-            return { ...row, class_name: '未知班级' };
-          }
-          return row;
-        });
+        }
+        
+        // 添加考试信息
+        mappedRow.exam_title = examInfo.title;
+        mappedRow.exam_type = examInfo.type;
+        mappedRow.exam_date = examInfo.date;
+        
+        return mappedRow;
+      });
+      
+      // 保存考试数据
+      const result = await gradeAnalysisService.saveExamData(
+        mappedData, 
+        examInfo, 
+        mergeChoice as MergeStrategy,
+        {
+          examScope,
+          newStudentStrategy
+        }
+      );
+      
+      if (!result.success) {
+        console.error("[GradeImporter] 保存成绩数据失败:", result.message || result.error);
+        
+        // 检查是否是唯一约束冲突错误
+        if (result.error?.code === '23505') {
+          toast.error('导入失败：存在重复数据', {
+            description: '该考试已有相同学生的成绩记录。请使用"更新"策略替换现有数据，或使用"替换"策略删除所有现有数据后重新导入。',
+            duration: 5000,
+          });
+        } else {
+          toast.error('导入失败', {
+            description: result.message || '保存数据时发生错误，请检查数据格式或稍后重试',
+            duration: 5000,
+          });
+        }
+        
+        return false;
       }
       
-      // 记录数据转换前的班级信息状态
-      console.log('数据转换前的班级信息:', processedDataWithClassFix.map(row => row.class_name).filter((value, index, self) => self.indexOf(value) === index));
+      console.log("[GradeImporter] 导入成功:", result);
       
-      // 确保在saveExamData调用中传递完整的考试信息和数据，但不传入默认班级参数
-      const importResponse = await saveExamData({
-        examName: examInfo.title,
-        examDate: examInfo.date,
-        examType: examInfo.type,
-        examId: examInfo.type || examInfo.title, // 确保examId有值
-        data: processedDataWithClassFix,
-        dataFormat: 'wide'
-        // 不传入默认className参数，让函数使用数据中的班级名称
-      });
-
-      console.log('数据导入成功:', importResponse);
-
-      // 更新可用班级列表
-      const classNames = await getDistinctClassNames();
-      setUserCreatedCustomFields({
-        ...userCreatedCustomFields,
-        'class_name': '全部班级'
-      });
-
-      setIsSubmitting(false);
-      toast.success(`考试 "${examInfo.title}" 的数据已成功导入，包含 ${processedDataWithClassFix.length} 条记录。`, {
-        description: '导入成功'
-      });
-      
-      // 添加自动分析的洞察结果到提示中
-      if (autoAnalysisResult.insights && autoAnalysisResult.insights.length > 0) {
-        autoAnalysisResult.insights.forEach((insight, index) => {
-          setTimeout(() => {
-            toast(insight.title, {
-              description: insight.content
+      // 自动分析数据
+      if (mappedData.length > 0) {
+        try {
+          console.log("[GradeImporter] 开始自动分析数据...");
+          setAnalysisLog({
+            status: 'analyzing',
+            message: '正在分析导入的数据...'
+          });
+          
+          // 使用 Edge Function 进行自动分析
+          const analysisResult = await autoAnalyzeGradeData(mappedData, examInfo);
+          
+          if (analysisResult.success) {
+            console.log("[GradeImporter] 自动分析成功:", analysisResult);
+            setAnalysisLog({
+              status: 'success',
+              message: '数据分析完成',
+              autoAnalysisResult: analysisResult.data
             });
-          }, index * 1000); // 错开显示时间
+            
+            toast.success('成绩数据导入并分析成功', {
+              description: `已导入 ${mappedData.length} 条成绩记录并完成自动分析`,
+            });
+          } else {
+            console.warn("[GradeImporter] 自动分析失败:", analysisResult.error);
+            setAnalysisLog({
+              status: 'error',
+              message: `数据导入成功，但分析失败: ${analysisResult.error?.message || '未知错误'}`
+            });
+            
+            toast.success('成绩数据导入成功', {
+              description: `已导入 ${mappedData.length} 条成绩记录，但自动分析失败`,
+            });
+          }
+        } catch (analysisError) {
+          console.error("[GradeImporter] 自动分析异常:", analysisError);
+          setAnalysisLog({
+            status: 'error',
+            message: `数据导入成功，但分析过程中发生异常: ${(analysisError as Error).message}`
+          });
+          
+          toast.success('成绩数据导入成功', {
+            description: `已导入 ${mappedData.length} 条成绩记录，但自动分析失败`,
+          });
+        }
+      } else {
+        toast.success('成绩数据导入成功', {
+          description: '没有数据需要分析',
         });
       }
       
+      // 关闭导入对话框
+      setImportReviewOpen(false);
+      
+      // 通知父组件数据已导入
+      if (onDataImported && typeof onDataImported === 'function') {
+        onDataImported(mappedData);
+      }
+      
+      return true;
     } catch (error) {
-      console.error('导入数据过程中出错:', error);
-      setIsSubmitting(false);
-      toast.error(error.message || '未知错误导致导入失败', {
-        description: '导入失败'
+      console.error("[GradeImporter] 导入过程中发生错误:", error);
+      
+      toast.error('导入过程中发生错误', {
+        description: (error as Error).message || '未知错误',
       });
+      
+      return false;
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1371,8 +1400,10 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
     
     try {
       const analysisResult = await autoAnalyzeGradeData(data, {
-        examName: currentExamInfo.title,
-        examId: currentExamInfo.type
+        title: currentExamInfo.title,
+        type: currentExamInfo.type,
+        date: currentExamInfo.date,
+        subject: currentExamInfo.subject || ''
       });
       
       setAnalysisLog({
@@ -1745,6 +1776,7 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
           }}
           availableSystemFields={{...SYSTEM_FIELDS, ...userCreatedCustomFields}}
           initialDisplayInfo={fileInfo}
+          intelligentParseResult={parsedData?.intelligentParseResult}
           onStartAIParse={handleStartAIParse}
           onCheckExistingStudents={handleCheckExistingStudents}
           onFinalImport={handleFinalImport}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -7,8 +7,9 @@ import { useGradeAnalysis } from "@/contexts/GradeAnalysisContext";
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { SearchIcon, Download, Filter, ArrowUpDown } from 'lucide-react';
+import { SearchIcon, Download, Filter, ArrowUpDown, ChevronDown, ChevronUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import * as XLSX from 'xlsx';
 
 interface GradeData {
   studentId: string;
@@ -41,9 +42,14 @@ const GradeTable: React.FC<Props> = ({
   const [isLoading, setIsLoading] = useState(true);
   const tableRef = useRef<HTMLDivElement>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const [filter, setFilter] = useState<Record<string, string | null>>({
+  const [sortField, setSortField] = useState<string>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [selectedSubject, setSelectedSubject] = useState<string>('all');
+  const [selectedClass, setSelectedClass] = useState<string>('all');
+  const [filter, setFilter] = useState<{
+    className: string | null;
+    subject: string | null;
+  }>({
     className: null,
     subject: null
   });
@@ -153,12 +159,12 @@ const GradeTable: React.FC<Props> = ({
   };
   
   // 处理排序
-  const handleSort = (column: string) => {
-    if (sortColumn === column) {
+  const handleSort = (field: string) => {
+    if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
-      setSortColumn(column);
-      setSortDirection('desc');
+      setSortField(field);
+      setSortDirection('asc');
     }
   };
   
@@ -178,10 +184,10 @@ const GradeTable: React.FC<Props> = ({
     });
     
     // 再排序
-    if (sortColumn) {
+    if (sortField) {
       result = [...result].sort((a, b) => {
-        const aValue = a[sortColumn];
-        const bValue = b[sortColumn];
+        const aValue = a[sortField];
+        const bValue = b[sortField];
         
         // 处理数字排序
         if (typeof aValue === 'number' && typeof bValue === 'number') {
@@ -209,7 +215,7 @@ const GradeTable: React.FC<Props> = ({
       // 表头
       ['学号', '姓名', '班级', '科目', '分数', '考试标题', '考试类型', '考试日期', '班级排名', '年级排名', '等级'],
       // 数据行
-      ...tableData.map(row => [
+      ...filteredAndSortedData().map(row => [
         row.studentId,
         row.name,
         row.className,
@@ -239,14 +245,14 @@ const GradeTable: React.FC<Props> = ({
   };
   
   // 获取排序箭头样式
-  const getSortIndicator = (column: string) => {
-    if (sortColumn !== column) {
-      return <ArrowUpDown className="ml-2 h-4 w-4 text-gray-400" />;
+  const getSortIcon = (field: string) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="ml-2 h-4 w-4" />;
     }
     
     return sortDirection === 'asc' 
-      ? <ArrowUpDown className="ml-2 h-4 w-4 text-black rotate-180" /> 
-      : <ArrowUpDown className="ml-2 h-4 w-4 text-black" />;
+      ? <ChevronUp className="ml-2 h-4 w-4" /> 
+      : <ChevronDown className="ml-2 h-4 w-4" />;
   };
   
   // 获取分数等级样式
@@ -331,38 +337,38 @@ const GradeTable: React.FC<Props> = ({
                       <TableHead className="w-32 cursor-pointer" onClick={() => handleSort('studentId')}>
                         <div className="flex items-center">
                           学号
-                          {getSortIndicator('studentId')}
+                          {getSortIcon('studentId')}
                         </div>
                       </TableHead>
                       <TableHead className="cursor-pointer" onClick={() => handleSort('name')}>
                         <div className="flex items-center">
                           姓名
-                          {getSortIndicator('name')}
+                          {getSortIcon('name')}
                         </div>
                       </TableHead>
                       <TableHead className="cursor-pointer" onClick={() => handleSort('className')}>
                         <div className="flex items-center">
                           班级
-                          {getSortIndicator('className')}
+                          {getSortIcon('className')}
                         </div>
                       </TableHead>
                       <TableHead className="cursor-pointer" onClick={() => handleSort('subject')}>
                         <div className="flex items-center">
                           科目
-                          {getSortIndicator('subject')}
+                          {getSortIcon('subject')}
                         </div>
                       </TableHead>
                       <TableHead className="cursor-pointer text-right" onClick={() => handleSort('score')}>
                         <div className="flex items-center justify-end">
                           分数
-                          {getSortIndicator('score')}
+                          {getSortIcon('score')}
                         </div>
                       </TableHead>
                       {tableData.some(item => item.rankInClass) && (
                         <TableHead className="text-right cursor-pointer" onClick={() => handleSort('rankInClass')}>
                           <div className="flex items-center justify-end">
                             班排名
-                            {getSortIndicator('rankInClass')}
+                            {getSortIcon('rankInClass')}
                           </div>
                         </TableHead>
                       )}
@@ -370,7 +376,7 @@ const GradeTable: React.FC<Props> = ({
                         <TableHead className="text-right cursor-pointer" onClick={() => handleSort('rankInGrade')}>
                           <div className="flex items-center justify-end">
                             年级排名
-                            {getSortIndicator('rankInGrade')}
+                            {getSortIcon('rankInGrade')}
                           </div>
                         </TableHead>
                       )}
@@ -378,7 +384,7 @@ const GradeTable: React.FC<Props> = ({
                         <TableHead className="cursor-pointer" onClick={() => handleSort('grade')}>
                           <div className="flex items-center">
                             等级
-                            {getSortIndicator('grade')}
+                            {getSortIcon('grade')}
                           </div>
                         </TableHead>
                       )}

@@ -225,42 +225,112 @@ import * as XLSX from 'xlsx';
 
 export const parseExcel = async (buffer: ArrayBuffer) => {
   try {
-    const workbook = XLSX.read(buffer, { type: 'array' });
+    console.log('[parseExcel] 开始解析Excel文件，buffer大小:', buffer.byteLength);
     
-    if (!workbook || workbook.SheetNames.length === 0) {
-      throw new Error("Excel文件为空或格式不正确");
+    // 检查文件大小
+    if (buffer.byteLength === 0) {
+      throw new Error("Excel文件为空");
     }
     
+    // 使用arraybuffer类型读取
+    const workbook = XLSX.read(buffer, { 
+      type: 'array',
+      cellDates: true,  // 自动解析日期
+      cellNF: false,    // 不包含格式信息
+      cellText: false   // 不转换为文本
+    });
+    
+    if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) {
+      throw new Error("Excel文件格式不正确或不包含工作表");
+    }
+
+    console.log('[parseExcel] 工作表列表:', workbook.SheetNames);
+
     // 默认使用第一个工作表
     const firstSheetName = workbook.SheetNames[0];
     const firstSheet = workbook.Sheets[firstSheetName];
     
-    // 转换为JSON格式
-    const options = { header: 1, defval: '' };
+    if (!firstSheet) {
+      throw new Error(`工作表 "${firstSheetName}" 不存在`);
+    }
+    
+    // 转换为JSON格式，使用第一行作为表头
+    const options = { 
+      header: 1, 
+      defval: '',
+      raw: false,  // 格式化数值
+      dateNF: 'yyyy-mm-dd'  // 日期格式
+    };
     const data = XLSX.utils.sheet_to_json(firstSheet, options);
     
-    if (!Array.isArray(data) || data.length < 2) {
-      throw new Error("Excel数据不足或格式不正确");
+    console.log('[parseExcel] 原始数据行数:', data.length);
+    
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error("Excel表格为空或无法读取数据");
+    }
+    
+    if (data.length < 2) {
+      throw new Error("Excel表格至少需要包含表头行和一行数据");
     }
 
-    const headers = (data[0] as string[]).map(h => String(h).trim());
+    // 处理表头，确保所有表头都是字符串且不为空
+    const rawHeaders = data[0] as any[];
+    const headers = rawHeaders.map((h, index) => {
+      let header = String(h || '').trim();
+      if (!header) {
+        header = `未命名列${index + 1}`;
+      }
+      return header;
+    }).filter(h => h !== '未命名列' && h.length > 0);
     
-    // 检查是否有空白表头
-    const hasEmptyHeaders = headers.some(h => !h);
-    if (hasEmptyHeaders) {
-      throw new Error("表头存在空白列，请确保所有列都有列名");
+    console.log('[parseExcel] 处理后的表头:', headers);
+    
+    // 检查是否有有效表头
+    if (headers.length === 0) {
+      throw new Error("表格没有有效的列标题");
     }
     
-    // 转换数据行
-    const rows = data.slice(1).map(row => {
-      const obj: Record<string, any> = {};
-      (row as any[]).forEach((cell, index) => {
-        if (index < headers.length) {
-          obj[headers[index]] = cell;
-        }
+    // 转换数据行，过滤空行
+    const rows = data.slice(1)
+      .filter(row => {
+        // 过滤完全空白的行
+        const rowArray = row as any[];
+        return rowArray.some(cell => cell !== undefined && cell !== null && String(cell).trim() !== '');
+      })
+      .map((row, rowIndex) => {
+        const obj: Record<string, any> = {};
+        const rowArray = row as any[];
+        
+        headers.forEach((header, index) => {
+          if (index < rowArray.length) {
+            let cellValue = rowArray[index];
+            
+            // 处理不同数据类型
+            if (cellValue !== undefined && cellValue !== null) {
+              // 如果是日期对象，转换为字符串
+              if (cellValue instanceof Date) {
+                cellValue = cellValue.toISOString().split('T')[0];
+              } else {
+                cellValue = String(cellValue).trim();
+              }
+            } else {
+              cellValue = '';
+            }
+            
+            obj[header] = cellValue;
+          } else {
+            obj[header] = '';
+          }
+        });
+        
+        return obj;
       });
-      return obj;
-    });
+
+    console.log('[parseExcel] 处理后的数据行数:', rows.length);
+    
+    if (rows.length === 0) {
+      throw new Error("Excel表格不包含有效数据行");
+    }
 
     return { 
       headers, 
@@ -268,7 +338,10 @@ export const parseExcel = async (buffer: ArrayBuffer) => {
       sheetNames: workbook.SheetNames 
     };
   } catch (error) {
-    console.error("Excel解析失败:", error);
+    console.error('[parseExcel] Excel解析失败:', error);
+    if (error.message?.includes('Unsupported file')) {
+      throw new Error("不支持的Excel文件格式，请使用.xlsx或.xls文件");
+    }
     throw error;
   }
 };
@@ -436,17 +509,53 @@ export const intelligentFieldDetection = (headers: string[], sampleData: any[]):
 
 // 增强文件解析函数，使用AI增强功能
 export const enhancedGenerateInitialMappings = (headers: string[], sampleData: any[]): Record<string, string> => {
+  console.log('[enhancedGenerateInitialMappings] 开始字段映射，表头:', headers);
+  console.log('[enhancedGenerateInitialMappings] 样本数据:', sampleData?.slice(0, 2));
+  
   // 基本映射
   const basicMappings = generateInitialMappings(headers);
+  console.log('[enhancedGenerateInitialMappings] 基础映射结果:', basicMappings);
   
   // 增强映射
   if (sampleData && sampleData.length > 0) {
     // 使用智能检测
     const intelligentMappings = intelligentFieldDetection(headers, sampleData);
+    console.log('[enhancedGenerateInitialMappings] 智能映射结果:', intelligentMappings);
     
     // 合并结果，智能检测优先
-    return { ...basicMappings, ...intelligentMappings };
+    const finalMappings = { ...basicMappings, ...intelligentMappings };
+    
+    // 清理映射结果，移除无意义的映射
+    const cleanedMappings: Record<string, string> = {};
+    const usedStandardFields = new Set<string>();
+    
+    // 关键字段优先级
+    const requiredFields = ['student_id', 'name', 'class_name', 'score'];
+    const priorityFields = [...requiredFields, 'subject', 'exam_date', 'exam_type'];
+    
+    headers.forEach(header => {
+      const mapping = finalMappings[header];
+      
+      // 如果是高优先级字段且未被使用，保留
+      if (priorityFields.includes(mapping) && !usedStandardFields.has(mapping)) {
+        cleanedMappings[header] = mapping;
+        usedStandardFields.add(mapping);
+      }
+      // 如果是其他有效字段且未被使用
+      else if (mapping && mapping !== 'ignore' && !usedStandardFields.has(mapping)) {
+        cleanedMappings[header] = mapping;
+        usedStandardFields.add(mapping);
+      }
+      // 其他情况设为ignore
+      else {
+        cleanedMappings[header] = 'ignore';
+      }
+    });
+    
+    console.log('[enhancedGenerateInitialMappings] 清理后的映射结果:', cleanedMappings);
+    return cleanedMappings;
   }
   
+  console.log('[enhancedGenerateInitialMappings] 使用基础映射结果:', basicMappings);
   return basicMappings;
 };

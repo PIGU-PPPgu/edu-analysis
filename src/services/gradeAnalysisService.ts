@@ -2,6 +2,16 @@ import { supabase, checkTableExists as supabaseCheckTableExists } from '@/integr
 import { toast } from 'sonner';
 import type { ExamInfo } from '@/components/analysis/ImportReviewDialog';
 import { requestCache } from '@/utils/cacheUtils';
+import { convertWideToLongFormat } from '@/lib/gradeDataConverter'
+import { matchStudent } from '@/utils/studentMatcher'
+import { PERFORMANCE_CONFIG, getOptimalBatchSize, PerformanceMonitor } from './performanceConfig'
+import { 
+  analyzeCSVHeaders, 
+  convertWideToLongFormatEnhanced, 
+  generateMappingSuggestions,
+  type FieldMapping 
+} from './intelligentFieldMapper'
+import { enhancedStudentMatcher } from './enhancedStudentMatcher';
 
 // 分析维度选项
 export const ANALYSIS_DIMENSIONS = [
@@ -38,7 +48,7 @@ export interface GradeData {
   [key: string]: any;
 }
 
-export type MergeStrategy = 'replace' | 'update' | 'add_only';
+export type MergeStrategy = 'replace' | 'update' | 'add_only' | 'skip' | 'append';
 
 // 辅助方法: 检查表是否存在
 async function checkTableExists(tableName: string): Promise<boolean> {
@@ -113,13 +123,63 @@ const safeQuery = async (tableName: string, queryFn: () => Promise<any>) => {
 };
 
 /**
- * 根据提供的学生信息智能匹配学生
- * 匹配规则：
- * 1. 优先使用学号匹配
- * 2. 如果无法使用学号匹配，尝试使用姓名+班级匹配
- * 3. 如果以上都不行，尝试仅使用姓名匹配（可能返回多个结果）
+ * 增强的学生匹配函数，使用智能匹配器
  */
-const matchStudent = async (studentInfo: {
+const matchStudentEnhanced = async (studentInfo: {
+  student_id?: string;
+  name?: string;
+  class_name?: string;
+}): Promise<{ 
+  matchedStudent: any | null; 
+  multipleMatches: boolean;
+  matchType: 'id' | 'name_class' | 'name' | 'none';
+  confidence: number;
+  matchReason: string;
+}> => {
+  try {
+    console.log(`🔍 匹配学生: ${JSON.stringify(studentInfo)}`);
+    
+    // 使用增强的学生匹配器
+    const matchResult = await enhancedStudentMatcher.matchSingleStudent(studentInfo);
+    
+    // 转换匹配类型格式
+    let legacyMatchType: 'id' | 'name_class' | 'name' | 'none';
+    switch (matchResult.matchType) {
+      case 'exact_id':
+        legacyMatchType = 'id';
+        break;
+      case 'exact_name':
+      case 'exact_class_name':
+        legacyMatchType = 'name_class';
+        break;
+      case 'fuzzy_name':
+      case 'fuzzy_combined':
+        legacyMatchType = 'name';
+        break;
+      default:
+        legacyMatchType = 'none';
+    }
+
+    console.log(`✅ 匹配结果: ${matchResult.matchReason} (置信度: ${matchResult.confidence})`);
+
+    return {
+      matchedStudent: matchResult.matchedStudent,
+      multipleMatches: matchResult.multipleMatches,
+      matchType: legacyMatchType,
+      confidence: matchResult.confidence,
+      matchReason: matchResult.matchReason
+    };
+  } catch (error) {
+    console.error('❌ 增强学生匹配失败:', error);
+    
+    // 降级到原始匹配逻辑
+    console.log('🔄 降级到原始匹配逻辑...');
+    return await originalMatchStudent(studentInfo);
+  }
+};
+
+// 原始的学生匹配函数（作为备用）
+const originalMatchStudent = async (studentInfo: {
   student_id?: string;
   name?: string;
   class_name?: string;
@@ -197,7 +257,7 @@ const matchStudent = async (studentInfo: {
 
 export const gradeAnalysisService = {
   /**
-   * 保存考试数据，使用增强的学生匹配逻辑
+   * 保存考试数据，使用增强的学生匹配逻辑（批量优化版本）
    */
   async saveExamData(
     processedData: Record<string, any>[],
@@ -213,7 +273,8 @@ export const gradeAnalysisService = {
         throw new Error('考试信息不完整，请提供有效的考试标题');
       }
       
-      console.log(`保存考试数据: ${examInfo.title}，合并策略: ${mergeStrategy}`);
+      console.log(`[性能优化] 保存考试数据: ${examInfo.title}，合并策略: ${mergeStrategy}，数据量: ${processedData.length} 条`);
+      const startTime = Date.now();
       
       // 确保考试记录存在
       const examId = await this.ensureExamExists(examInfo);
@@ -222,299 +283,230 @@ export const gradeAnalysisService = {
         throw new Error('创建考试记录失败');
       }
       
-      // 处理学生数据
-      const matchResults = [];
-      const gradeData = [];
-      
-      for (const item of processedData) {
-        // 提取学生信息
-        const studentInfo = {
-          student_id: item.student_id || '',
-          name: item.name || '',
-          class_name: item.class_name || ''
-        };
+      // 🚀 智能重复数据检测和处理
+      console.log(`[智能检测] 检查考试 ${examId} 是否已有数据...`);
+      const { data: existingData, error: checkError } = await supabase
+        .from('grade_data')
+        .select('student_id, subject')
+        .eq('exam_id', examId);
         
-        // 找到匹配的学生记录
-        const { matchedStudent, multipleMatches, matchType } = await matchStudent(studentInfo);
+      if (checkError) {
+        console.warn(`[智能检测] 检查重复数据失败: ${checkError.message}`);
+      } else if (existingData && existingData.length > 0) {
+        // 存在数据，根据策略处理
+        console.log(`[智能检测] 发现考试已有 ${existingData.length} 条记录`);
         
-        // 如果没有匹配的学生，根据策略决定是否创建
-        let studentRecord = matchedStudent;
-        if (!studentRecord && options?.newStudentStrategy === 'create') {
-          console.log(`创建新学生: ${studentInfo.name}`);
-          const { data: newStudent } = await supabase
-            .from('students')
-            .insert({
-              student_id: studentInfo.student_id,
-              name: studentInfo.name,
-              class_name: studentInfo.class_name,
-              // 可以添加更多字段
-            })
-            .select('*')
-            .single();
-            
-          studentRecord = newStudent;
+        if (mergeStrategy === 'skip') {
+          console.log(`[智能检测] 使用跳过策略，不导入已存在的考试数据`);
+          return { success: true, message: '考试数据已存在，根据策略跳过导入', examId };
         }
+      } else {
+        console.log(`[智能检测] 未发现重复数据，可以安全导入`);
+      }
+      
+      // 🚀 智能字段分析：分析CSV表头结构
+      if (processedData.length > 0) {
+        const headers = Object.keys(processedData[0]);
+        console.log('[智能分析] 检测到的CSV表头:', headers);
         
-        // 记录匹配结果
-        matchResults.push({
-          original: studentInfo,
-          matched: studentRecord,
-          matchType,
-          multipleMatches
+        const headerAnalysis = analyzeCSVHeaders(headers);
+        console.log('[智能分析] 表头分析结果:', {
+          识别的科目: headerAnalysis.subjects,
+          学生字段: headerAnalysis.studentFields.map(f => f.originalField),
+          置信度: headerAnalysis.confidence
         });
         
-        // 如果是多种格式的数据，需要转换为统一格式
-        if (item.subject) {
-          // 已经是长格式 (一行一个科目)
-          const recordToAdd = {
-            ...item,
-            exam_id: examId,
-            student_id: studentRecord?.student_id || item.student_id,
-            // 确保使用匹配到的学生记录信息，否则保留原始数据
-            name: studentRecord?.name || item.name,
-            class_name: item.class_name || studentRecord?.class_name || '未知班级',
-          };
+        // 如果是宽表格格式（包含多个科目），使用增强转换
+        if (headerAnalysis.subjects.length > 1 && headerAnalysis.confidence > 0.7) {
+          console.log('[智能分析] 检测到宽表格格式，使用增强转换逻辑');
           
-          // 如果有exam_date并且是字符串，尝试解析为ISO 8601日期
-          if (recordToAdd.exam_date && typeof recordToAdd.exam_date === 'string') {
+          // 转换宽表格为长表格
+          const convertedData: Record<string, any>[] = [];
+          
+          processedData.forEach((row, index) => {
             try {
-              // 尝试解析日期
-              const date = new Date(recordToAdd.exam_date);
-              recordToAdd.exam_date = date.toISOString().split('T')[0];
-            } catch (e) {
-              // 如果无法解析，使用当前日期
-              recordToAdd.exam_date = new Date().toISOString().split('T')[0];
+              const result = convertWideToLongFormatEnhanced(row, headerAnalysis);
+              convertedData.push(...result);
+            } catch (error) {
+              console.error(`[智能分析] 转换第 ${index + 1} 行数据失败:`, error);
             }
-          }
+          });
           
-          gradeData.push(recordToAdd);
-        } else {
-          // 宽格式 (一行包含多个科目)
-          const convertedRecords = convertWideToLongFormat(
-            item, 
-            studentRecord || {
-              student_id: item.student_id || '',
-              name: item.name || '',
-              class_name: item.class_name || ''
-            }, 
-            {
-              ...examInfo,
-              exam_id: examId
-            }
-          );
-          
-          gradeData.push(...convertedRecords);
+          console.log(`[智能分析] 宽表格转换完成: ${processedData.length} 行原始数据 → ${convertedData.length} 行转换后数据`);
+          processedData = convertedData;
         }
       }
       
-      // 添加考试ID到所有记录
-      const gradeDataWithExamId = gradeData.map(record => ({
-        ...record,
+      // 添加考试ID到每条数据
+      const gradeDataWithExamId = processedData.map(item => ({
+        ...item,
         exam_id: examId
       }));
       
-      console.log(`准备保存 ${gradeDataWithExamId.length} 条成绩记录`);
+      console.log(`[性能优化] 处理 ${gradeDataWithExamId.length} 条成绩数据`);
       
-      let result;
-      
-      // 根据合并策略处理数据
+      // 根据不同的合并策略处理数据
       if (mergeStrategy === 'replace') {
-        // 先检查是否有重复数据
-        const { data: existingData, error: checkError } = await supabase
+        // 🚀 性能优化：先删除旧数据，然后批量插入新数据
+        console.log(`[性能优化] 使用replace策略，先删除旧数据再批量插入`);
+        
+        // 删除该考试的所有现有数据
+        const { error: deleteError } = await supabase
           .from('grade_data')
-          .select('student_id, subject')
+          .delete()
           .eq('exam_id', examId);
           
-        if (checkError) throw checkError;
-        
-        // 如果存在已有数据，先删除再插入
-        if (existingData && existingData.length > 0) {
-          console.log(`发现考试 ${examId} 已有 ${existingData.length} 条记录，根据replace策略将删除后重新插入`);
-          
-          // 先删除该考试的所有现有数据
-          const { error: deleteError } = await supabase
-            .from('grade_data')
-            .delete()
-            .eq('exam_id', examId);
-            
-          if (deleteError) throw deleteError;
+        if (deleteError) {
+          console.error(`删除旧数据失败: ${deleteError.message}`);
+          throw new Error(`删除旧数据失败: ${deleteError.message}`);
         }
         
         // 批量插入新数据
-        result = await supabase
-          .from('grade_data')
-          .insert(gradeDataWithExamId);
-      } 
-      else if (mergeStrategy === 'update') {
-        try {
-          // 对于每条记录，使用upsert进行更新或插入
-          // 先将数据分成小批次处理，避免一次性处理过多数据
-          const batchSize = 100;
-          const batches = [];
-          
-          for (let i = 0; i < gradeDataWithExamId.length; i += batchSize) {
-            batches.push(gradeDataWithExamId.slice(i, i + batchSize));
-          }
-          
-          console.log(`将数据分成 ${batches.length} 批进行处理，每批最多 ${batchSize} 条记录`);
-          
-          let successCount = 0;
-          let errorCount = 0;
-          
-          for (let i = 0; i < batches.length; i++) {
-            const batch = batches[i];
-            console.log(`处理第 ${i+1}/${batches.length} 批数据，共 ${batch.length} 条记录`);
-            
-            // 对于每条记录，先尝试删除已存在的记录，然后再插入
-            for (const record of batch) {
-              try {
-                // 先删除可能存在的记录
-                await supabase
-                  .from('grade_data')
-                  .delete()
-                  .eq('exam_id', record.exam_id)
-                  .eq('student_id', record.student_id)
-                  .eq('subject', record.subject);
-                  
-                // 然后插入新记录
-                const { error } = await supabase
-                  .from('grade_data')
-                  .insert(record);
-                  
-                if (error) {
-                  console.error(`第 ${i+1} 批中插入记录失败:`, error);
-                  errorCount++;
-                } else {
-                  successCount++;
-                }
-              } catch (error) {
-                console.error(`处理第 ${i+1} 批中的记录时出错:`, error);
-                errorCount++;
-              }
-            }
-          }
-          
-          console.log(`处理完成，成功: ${successCount}, 失败: ${errorCount}`);
-          result = { error: errorCount > 0 ? new Error(`有 ${errorCount} 条记录处理失败`) : null };
-        } catch (batchError) {
-          console.error('批量处理数据失败:', batchError);
-          throw batchError;
+        const batchSize = 500; // 每批处理的记录数
+        const batches = [];
+        
+        for (let i = 0; i < gradeDataWithExamId.length; i += batchSize) {
+          batches.push(gradeDataWithExamId.slice(i, i + batchSize));
         }
-      }
-      else if (mergeStrategy === 'add_only') {
-        // 查询现有记录
-        const { data: existingRecords, error: queryError } = await supabase
-          .from('grade_data')
-          .select('student_id, subject')
-          .eq('exam_id', examId);
+        
+        console.log(`[性能优化] 将数据分成 ${batches.length} 批进行插入，每批最多 ${batchSize} 条记录`);
+        
+        let totalInserted = 0;
+        for (let i = 0; i < batches.length; i++) {
+          const batch = batches[i];
+          console.log(`[性能优化] 处理第 ${i+1}/${batches.length} 批数据，共 ${batch.length} 条记录`);
           
-        if (queryError) throw queryError;
-        
-        console.log(`发现考试 ${examId} 已有 ${existingRecords?.length || 0} 条记录`);
-        
-        // 过滤掉已存在的记录
-        const recordsToInsert = gradeDataWithExamId.filter(record => {
-          // 检查是否存在相同学生ID和科目的记录
-          return !existingRecords?.some(existing => 
-            existing.student_id === record.student_id && 
-            existing.subject === record.subject
-          );
-        });
-        
-        console.log(`过滤后需要插入 ${recordsToInsert.length} 条新记录`);
-        
-        // 插入不存在的记录
-        if (recordsToInsert.length > 0) {
-          try {
-            // 分批处理数据
-            const batchSize = 100;
-            let insertedCount = 0;
-            let errorCount = 0;
+          const { error: insertError } = await supabase
+            .from('grade_data')
+            .insert(batch);
             
-            for (let i = 0; i < recordsToInsert.length; i += batchSize) {
-              const batch = recordsToInsert.slice(i, i + batchSize);
-              try {
-                const { error: insertError } = await supabase
-                  .from('grade_data')
-                  .insert(batch);
-                  
-                if (insertError) {
-                  console.error(`插入批次数据失败:`, insertError);
-                  errorCount += batch.length;
-                } else {
-                  insertedCount += batch.length;
-                }
-              } catch (batchError) {
-                console.error(`批次插入数据失败:`, batchError);
-                errorCount += batch.length;
-              }
-            }
-            
-            console.log(`插入完成，成功: ${insertedCount}, 失败: ${errorCount}`);
-            result = { error: errorCount > 0 ? new Error(`有 ${errorCount} 条记录插入失败`) : null };
-          } catch (insertError) {
-            console.error('批量插入数据失败:', insertError);
+          if (insertError) {
+            console.error(`批次 ${i+1} 插入失败: `, insertError);
             throw insertError;
           }
-        } else {
-          // 没有新记录需要插入
-          console.log('没有新记录需要插入');
-          result = { error: null };
-        }
-      }
-
-      if (result?.error) {
-        // 特殊处理错误：如果是"Could not find the 'grade' column"错误
-        if (result.error.message && result.error.message.includes("Could not find the 'grade' column")) {
-          console.error('导入错误: grade字段不存在，尝试修复...');
           
-          // 尝试添加grade字段
-          const fixResult = await this.checkAndFixGradeColumn();
-          if (fixResult.success) {
-            console.log('成功添加grade字段，重试导入');
+          totalInserted += batch.length;
+          console.log(`[性能优化] 批次 ${i+1} 插入成功，累计插入 ${totalInserted}/${gradeDataWithExamId.length} 条记录`);
+        }
+      } 
+      else if (mergeStrategy === 'update') {
+        // 🚀 性能优化：使用Supabase的upsert功能进行批量更新/插入
+        console.log(`[性能优化] 使用upsert策略批量处理数据`);
+        
+        const batchSize = 300; // 对于upsert，使用稍小的批次以避免超时
+        const batches = [];
+        
+        for (let i = 0; i < gradeDataWithExamId.length; i += batchSize) {
+          batches.push(gradeDataWithExamId.slice(i, i + batchSize));
+        }
+        
+        console.log(`[性能优化] 将数据分成 ${batches.length} 批进行upsert，每批最多 ${batchSize} 条记录`);
+        
+        let totalUpserted = 0;
+        for (let i = 0; i < batches.length; i++) {
+          const batch = batches[i];
+          console.log(`[性能优化] 处理第 ${i+1}/${batches.length} 批数据，共 ${batch.length} 条记录`);
+          
+          // 修复：使用正确的约束字段 (exam_id, student_id, subject) 而不是 (exam_id, student_id)
+          const { error: upsertError } = await supabase
+            .from('grade_data')
+            .upsert(batch, {
+              onConflict: 'exam_id,student_id,subject',  // 修改：包含subject字段，使不同学科成绩可以共存
+              ignoreDuplicates: false
+            });
             
-            // 重新尝试导入
-            result = await supabase
+          if (upsertError) {
+            console.error(`批次 ${i+1} upsert失败: `, upsertError);
+            
+            // 尝试使用替代方案：如果upsert失败，尝试使用replace策略
+            console.log(`[恢复策略] upsert失败，尝试使用replace策略作为备选方案...`);
+            
+            // 删除该考试的所有现有数据
+            const { error: deleteError } = await supabase
+              .from('grade_data')
+              .delete()
+              .eq('exam_id', examId);
+              
+            if (deleteError) {
+              console.error(`删除旧数据失败: ${deleteError.message}`);
+              throw new Error(`更新数据失败，备选方案也失败: ${deleteError.message}`);
+            }
+            
+            // 批量插入所有数据
+            const { error: insertError } = await supabase
               .from('grade_data')
               .insert(gradeDataWithExamId);
-            
-            if (result?.error) {
-              throw result.error;
+              
+            if (insertError) {
+              console.error(`备选方案插入失败: `, insertError);
+              throw new Error(`更新数据失败，备选方案也失败: ${insertError.message}`);
             }
-          } else {
-            // 添加列失败，抛出特殊错误
-            throw new Error(`grade字段不存在且无法自动添加: ${fixResult.message}`);
+            
+            console.log(`[恢复策略] 备选方案成功: 已删除旧数据并插入 ${gradeDataWithExamId.length} 条新记录`);
+            totalUpserted = gradeDataWithExamId.length;
+            break;
           }
-        } else if (result.error.code === '23505') { // 唯一约束冲突错误代码
-          console.error('发生唯一约束冲突:', result.error);
-          throw new Error(`数据导入失败：存在重复的学生成绩记录。请尝试使用'update'策略更新现有数据，或使用'replace'策略替换所有数据。错误详情: ${result.error.message}`);
-        } else {
-          throw result.error;
+          
+          totalUpserted += batch.length;
+          console.log(`[性能优化] 批次 ${i+1} upsert成功，累计处理 ${totalUpserted}/${gradeDataWithExamId.length} 条记录`);
         }
+      } 
+      else if (mergeStrategy === 'append') {
+        // 🚀 性能优化：仅插入新记录，忽略已存在的记录
+        console.log(`[性能优化] 使用append策略批量插入新记录`);
+        
+        const batchSize = 500;
+        const batches = [];
+        
+        for (let i = 0; i < gradeDataWithExamId.length; i += batchSize) {
+          batches.push(gradeDataWithExamId.slice(i, i + batchSize));
+        }
+        
+        console.log(`[性能优化] 将数据分成 ${batches.length} 批进行插入，每批最多 ${batchSize} 条记录`);
+        
+        let totalInserted = 0;
+        for (let i = 0; i < batches.length; i++) {
+          const batch = batches[i];
+          console.log(`[性能优化] 处理第 ${i+1}/${batches.length} 批数据，共 ${batch.length} 条记录`);
+          
+          // 使用upsert但设置ignoreDuplicates为true
+          const { error: insertError } = await supabase
+            .from('grade_data')
+            .upsert(batch, {
+              onConflict: 'exam_id,student_id,subject',
+              ignoreDuplicates: true // 忽略已存在的记录
+            });
+            
+          if (insertError) {
+            console.error(`批次 ${i+1} 插入失败: `, insertError);
+            throw insertError;
+          }
+          
+          totalInserted += batch.length;
+          console.log(`[性能优化] 批次 ${i+1} 插入成功，累计插入 ${totalInserted}/${gradeDataWithExamId.length} 条记录`);
+        }
+      } 
+      else {
+        throw new Error(`不支持的合并策略: ${mergeStrategy}`);
       }
       
-      // 返回结果中包含匹配统计信息
-      const matchStats = {
-        total: matchResults.length,
-        matched: matchResults.filter(r => r.matchType !== 'none').length,
-        matchedById: matchResults.filter(r => r.matchType === 'id').length,
-        matchedByNameAndClass: matchResults.filter(r => r.matchType === 'name_class').length,
-        matchedByNameOnly: matchResults.filter(r => r.matchType === 'name').length,
-        noMatch: matchResults.filter(r => r.matchType === 'none').length,
-        multipleMatches: matchResults.filter(r => r.multipleMatches).length,
-        skipped: processedData.length - matchResults.length
-      };
+      // 计算耗时
+      const endTime = Date.now();
+      const timeUsed = (endTime - startTime) / 1000;
+      console.log(`[性能优化] 保存考试数据完成，耗时: ${timeUsed.toFixed(2)}秒`);
       
-      return { 
-        success: true, 
-        examId, 
-        count: gradeDataWithExamId.length, 
-        matchStats,
-        error: null 
+      return {
+        success: true,
+        message: `成功保存考试数据，共 ${gradeDataWithExamId.length} 条记录`,
+        examId
       };
-    } catch (error) {
-      console.error('保存成绩数据失败:', error);
-      return { success: false, error };
+    } catch (error: any) {
+      console.error('保存成绩数据失败: ', error);
+      return {
+        success: false,
+        message: `保存成绩数据失败: ${error.message || '未知错误'}`,
+        error
+      };
     }
   },
   
@@ -1414,29 +1406,7 @@ export const gradeAnalysisService = {
     }
   },
   
-  /**
-   * 检查并修复考试表 - 简化健壮版本
-   */
-  async checkAndFixExamsTable() {
-    console.log("检查考试表结构");
-    try {
-      // 简单检查表是否存在
-      const { data, error } = await supabase
-        .from('exams')
-        .select('id, title')
-        .limit(1);
-      
-      if (error) {
-        console.warn("考试表检查失败:", error.message);
-        return { success: false, error };
-      }
-      
-      return { success: true };
-    } catch (error) {
-      console.error("检查考试表出错:", error);
-      return { success: false, error };
-    }
-  },
+
   
   /**
    * 检查并修复成绩数据表 - 简化健壮版本
@@ -2070,6 +2040,14 @@ export const gradeAnalysisService = {
       results.gradeDataColumns = columnsResult.success;
       if (!columnsResult.success) {
         results.errors.push('修复grade_data表字段失败');
+      }
+
+      // 5. 特别检查rank_in_school字段（如果通用检查失败）
+      if (!columnsResult.success || !columnsResult.details?.rank_in_school?.exists) {
+        const rankInSchoolResult = await this.checkAndFixRankInSchoolColumn();
+        if (!rankInSchoolResult.success) {
+          results.errors.push('添加rank_in_school字段失败');
+        }
       }
 
       return {
@@ -3011,6 +2989,141 @@ export const gradeAnalysisService = {
   },
   
   /**
+   * 检查grade_data表是否有rank_in_school字段，并在需要时添加
+   */
+  async checkAndFixRankInSchoolColumn() {
+    try {
+      console.log('开始检查grade_data表的rank_in_school字段...');
+      
+      // 首先检查表是否存在
+      const tableExists = await checkTableExists('grade_data');
+      if (!tableExists) {
+        console.log('grade_data表不存在，需要先创建表');
+        return {
+          success: false,
+          message: 'grade_data表不存在，请先初始化数据库',
+          needsCreation: true
+        };
+      }
+      
+      // 标记字段是否已经验证存在
+      let rankInSchoolColumnExists = false;
+      
+      // 方法1: 尝试使用RPC函数检查
+      try {
+        const { data: hasColumn, error: checkError } = await supabase.rpc('has_column', { 
+          table_name: 'grade_data', 
+          column_name: 'rank_in_school' 
+        });
+
+        if (!checkError && hasColumn === true) {
+          console.log('使用RPC确认rank_in_school字段已存在');
+          rankInSchoolColumnExists = true;
+        }
+      } catch (rpcError) {
+        console.log('RPC函数不存在或调用失败，尝试备选方法');
+      }
+      
+      // 方法2: 如果RPC失败，尝试直接查询信息模式
+      if (!rankInSchoolColumnExists) {
+        try {
+          const { data, error } = await supabase
+            .from('information_schema.columns')
+            .select('column_name')
+            .eq('table_name', 'grade_data')
+            .eq('column_name', 'rank_in_school')
+            .eq('table_schema', 'public');
+            
+          if (!error && data && data.length > 0) {
+            console.log('通过information_schema确认rank_in_school字段已存在');
+            rankInSchoolColumnExists = true;
+          }
+        } catch (queryError) {
+          console.log('information_schema查询失败，尝试最后方法');
+        }
+      }
+      
+      // 方法3: 如果前两种方法都失败，尝试直接执行添加列，并通过错误判断列是否存在
+      if (!rankInSchoolColumnExists) {
+        try {
+          // 尝试执行添加列的SQL
+          const addColumnSQL = `
+            ALTER TABLE grade_data ADD COLUMN rank_in_school INTEGER;
+            COMMENT ON COLUMN grade_data.rank_in_school IS '校内排名';
+          `;
+          
+          const { data, error } = await supabase.rpc('exec_sql', {
+            sql_query: addColumnSQL
+          });
+          
+          // 如果没有错误，说明列成功添加
+          if (!error) {
+            console.log('成功添加rank_in_school字段');
+            return { success: true, modified: true };
+          }
+          
+          // 如果错误是"列已存在"，实际上是成功的情况
+          if (error && error.message && 
+              (error.message.includes('already exists') || 
+               error.code === '42701' || 
+               error.message.includes('已经存在'))) {
+            console.log('根据错误信息判断rank_in_school字段已存在');
+            rankInSchoolColumnExists = true;
+          } else {
+            // 其他错误情况，记录详细信息
+            console.error('添加rank_in_school字段错误:', error);
+            
+            // 检查一下错误是否包含额外信息
+            if (error.details) {
+              console.error('错误详情:', error.details);
+            }
+            if (error.hint) {
+              console.error('错误提示:', error.hint);
+            }
+            
+            throw error;
+          }
+        } catch (execError) {
+          console.error('尝试添加列失败，无法确定列是否存在:', execError);
+        }
+      }
+      
+      // 如果通过任何方法确认列已存在
+      if (rankInSchoolColumnExists) {
+        console.log('grade_data表结构正常，rank_in_school字段已存在');
+        return { success: true, modified: false };
+      }
+      
+      // 如果到这里，说明所有自动方法都失败了，提供SQL脚本供手动执行
+      console.warn('无法确认或添加rank_in_school字段，需要手动执行SQL');
+      return {
+        success: false,
+        message: 'grade_data表缺少rank_in_school字段，自动修复失败',
+        sql: `
+        -- 添加rank_in_school字段到grade_data表
+        DO $$
+        BEGIN
+          BEGIN
+            ALTER TABLE grade_data ADD COLUMN rank_in_school INTEGER;
+            COMMENT ON COLUMN grade_data.rank_in_school IS '校内排名';
+            RAISE NOTICE 'rank_in_school字段已添加';
+          EXCEPTION WHEN duplicate_column THEN
+            RAISE NOTICE 'rank_in_school字段已存在，无需添加';
+          END;
+        END $$;
+        `
+      };
+    } catch (error) {
+      console.error('检查rank_in_school字段出错:', error);
+      return { 
+        success: false, 
+        error,
+        message: `检查rank_in_school字段出错: ${error instanceof Error ? error.message : '未知错误'}`
+      };
+    }
+  },
+  
+  /**
    * 一次性检查并修复所有可能需要的列
    * 这是一个更全面的方法，可以防止逐渐发现缺失列的问题
    */
@@ -3038,6 +3151,7 @@ export const gradeAnalysisService = {
         { name: 'multiple_matches', type: 'BOOLEAN DEFAULT false', comment: '是否存在多个匹配结果' },
         { name: 'rank_in_class', type: 'INTEGER', comment: '班级内排名' },
         { name: 'rank_in_grade', type: 'INTEGER', comment: '年级内排名' },
+        { name: 'rank_in_school', type: 'INTEGER', comment: '校内排名' },
         { name: 'exam_scope', type: 'TEXT DEFAULT \'class\'', comment: '考试范围，继承自exams表' }
       ];
 
@@ -3189,6 +3303,28 @@ export const gradeAnalysisService = {
     if (!examId) throw new Error('考试保存失败');
     
     return examId;
+  },
+
+  /**
+   * 增强学生匹配函数
+   */
+  async matchStudentEnhanced(studentInfo: {
+    student_id?: string;
+    name?: string;
+    class_name?: string;
+  }) {
+    return await matchStudentEnhanced(studentInfo);
+  },
+
+  /**
+   * 原始学生匹配函数（备用）
+   */
+  async originalMatchStudent(studentInfo: {
+    student_id?: string;
+    name?: string;
+    class_name?: string;
+  }) {
+    return await originalMatchStudent(studentInfo);
   }
 }; 
 
@@ -3237,9 +3373,9 @@ function convertWideToLongFormat(
   
   // 提取数据行中的学生基本信息
   const studentInfo: Record<string, any> = {
-    student_id: baseStudentRecord.student_id || item.student_id || '',
-    name: baseStudentRecord.name || item.name || '',
-    class_name: item.class_name || baseStudentRecord.class_name || '未知班级', // 优先使用数据行的班级信息
+    student_id: baseStudentRecord.student_id || item.student_id || item.姓名 || '',
+    name: baseStudentRecord.name || item.name || item.姓名 || '',
+    class_name: item.class_name || item.班级 || baseStudentRecord.class_name || '未知班级', // 优先使用数据行的班级信息
   };
   
   console.log(`[convertWideToLongFormat] 提取的学生信息: ID=${studentInfo.student_id}, 姓名=${studentInfo.name}, 班级=${studentInfo.class_name}`);
@@ -3256,92 +3392,176 @@ function convertWideToLongFormat(
   // 记录exam_id，便于调试
   console.log(`[convertWideToLongFormat] 使用的exam_id: ${examinationInfo.exam_id}`);
   
-  // 检查是否存在"总分"字段
-  const hasTotalScore = Object.keys(item).some(key => 
-    key.includes('总分') && key.includes('分数')
-  );
+  // 增强的科目识别模式
+  const ENHANCED_SUBJECT_PATTERNS = {
+    '语文': ['语文', '语', 'chinese', 'yuwen'],
+    '数学': ['数学', '数', 'math', 'mathematics', 'shuxue'],
+    '英语': ['英语', '英', 'english', 'yingyu'],
+    '物理': ['物理', '物', 'physics', 'wuli'],
+    '化学': ['化学', '化', 'chemistry', 'huaxue'],
+    '生物': ['生物', '生', 'biology', 'shengwu'],
+    '政治': ['政治', '政', 'politics', 'zhengzhi', '道法', '道德与法治'],
+    '历史': ['历史', '史', 'history', 'lishi'],
+    '地理': ['地理', '地', 'geography', 'dili'],
+    '总分': ['总分', '总', 'total', '合计']
+  };
   
   // 扫描每个列，寻找科目相关数据
   const allColumns = Object.keys(item);
-  const subjectColumns = new Set<string>();
+  const subjectData: Record<string, any> = {};
   
-  // 识别科目字段
+  // 智能识别科目字段
   allColumns.forEach(col => {
     // 跳过非科目字段 (姓名、班级、学号等)
     if (['姓名', '名字', '班级', '学号', 'student_id', 'name', 'class_name'].includes(col)) {
       return;
     }
     
-    // 识别科目列，通常为 "科目名+分数/等级/排名" 的格式，如 "语文分数"，"数学等级"
-    const subjectMatch = col.match(/^([\u4e00-\u9fa5a-zA-Z]+)(分数|等级|排名|校名|班名|级名)/);
-    if (subjectMatch) {
-      const subject = subjectMatch[1];
-      if (subject !== '总分') { // 排除"总分"字段，单独处理
-        subjectColumns.add(subject);
+    // 遍历所有科目模式进行匹配
+    for (const [subject, patterns] of Object.entries(ENHANCED_SUBJECT_PATTERNS)) {
+      for (const pattern of patterns) {
+        if (col.toLowerCase().includes(pattern.toLowerCase())) {
+          // 初始化科目数据对象
+          if (!subjectData[subject]) {
+            subjectData[subject] = {};
+          }
+          
+          // 判断字段类型
+          if (col.includes('分数') || col.includes('score')) {
+            subjectData[subject].score = parseFloat(item[col]) || 0;
+          } else if (col.includes('等级') || col.includes('grade')) {
+            subjectData[subject].grade = item[col];
+          } else if (col.includes('班名') || col.includes('class_rank')) {
+            subjectData[subject].rank_in_class = parseInt(item[col]) || 0;
+          } else if (col.includes('校名') || col.includes('级名') || col.includes('grade_rank')) {
+            subjectData[subject].rank_in_grade = parseInt(item[col]) || 0;
+          } else {
+            // 如果没有明确的类型标识，尝试根据数据类型推断
+            const value = item[col];
+            if (typeof value === 'number' || (typeof value === 'string' && /^\d+\.?\d*$/.test(value))) {
+              // 数值类型，可能是分数
+              if (!subjectData[subject].score) {
+                subjectData[subject].score = parseFloat(value) || 0;
+              }
+            } else {
+              // 文本类型，可能是等级
+              if (!subjectData[subject].grade) {
+                subjectData[subject].grade = value;
+              }
+            }
+          }
+          break;
+        }
       }
     }
   });
   
-  // 对于每个识别到的科目，创建一条记录
-  subjectColumns.forEach(subject => {
-    const scoreColumn = `${subject}分数`;
-    const gradeColumn = `${subject}等级`;
-    const classRankColumn = `${subject}班名`;
-    const gradeRankColumn = `${subject}校名`;
-    
-    if (item[scoreColumn] !== undefined) {
+  // 为每个识别到的科目创建记录
+  Object.entries(subjectData).forEach(([subject, data]) => {
+    if (data.score !== undefined || data.grade !== undefined) {
       const subjectRecord: Record<string, any> = {
         ...studentInfo,
         ...examinationInfo,
         subject,
-        score: parseFloat(item[scoreColumn]) || 0,
+        score: data.score || null,
+        grade: data.grade || null,
+        rank_in_class: data.rank_in_class || null,
+        rank_in_grade: data.rank_in_grade || null,
       };
-      
-      // 添加可选字段
-      if (item[gradeColumn] !== undefined) {
-        subjectRecord.grade = item[gradeColumn];
-      }
-      
-      if (item[classRankColumn] !== undefined) {
-        subjectRecord.rank_in_class = parseInt(item[classRankColumn]) || 0;
-      }
-      
-      if (item[gradeRankColumn] !== undefined) {
-        subjectRecord.rank_in_grade = parseInt(item[gradeRankColumn]) || 0;
-      }
       
       result.push(subjectRecord);
     }
   });
   
-  // 如果存在"总分"字段，添加一条总分记录
-  if (hasTotalScore) {
-    const totalScoreColumn = allColumns.find(col => col.includes('总分') && col.includes('分数'));
-    const totalGradeColumn = allColumns.find(col => col.includes('总分') && col.includes('等级'));
-    const totalClassRankColumn = allColumns.find(col => col.includes('总分') && col.includes('班名'));
-    const totalGradeRankColumn = allColumns.find(col => col.includes('总分') && col.includes('校名'));
+  // 如果没有识别到任何科目数据，尝试传统方法作为后备
+  if (result.length === 0) {
+    console.log('[convertWideToLongFormat] 使用传统方法作为后备');
     
-    if (totalScoreColumn && item[totalScoreColumn] !== undefined) {
-      const totalRecord: Record<string, any> = {
-        ...studentInfo,
-        ...examinationInfo,
-        subject: '总分',
-        score: parseFloat(item[totalScoreColumn]) || 0,
-      };
-      
-      if (totalGradeColumn && item[totalGradeColumn] !== undefined) {
-        totalRecord.grade = item[totalGradeColumn];
+    // 检查是否存在"总分"字段
+    const hasTotalScore = Object.keys(item).some(key => 
+      key.includes('总分') && key.includes('分数')
+    );
+    
+    const subjectColumns = new Set<string>();
+    
+    // 识别科目字段（传统方法）
+    allColumns.forEach(col => {
+      // 跳过非科目字段 (姓名、班级、学号等)
+      if (['姓名', '名字', '班级', '学号', 'student_id', 'name', 'class_name'].includes(col)) {
+        return;
       }
       
-      if (totalClassRankColumn && item[totalClassRankColumn] !== undefined) {
-        totalRecord.rank_in_class = parseInt(item[totalClassRankColumn]) || 0;
+      // 识别科目列，通常为 "科目名+分数/等级/排名" 的格式，如 "语文分数"，"数学等级"
+      const subjectMatch = col.match(/^([\u4e00-\u9fa5a-zA-Z]+)(分数|等级|排名|校名|班名|级名)/);
+      if (subjectMatch) {
+        const subject = subjectMatch[1];
+        if (subject !== '总分') { // 排除"总分"字段，单独处理
+          subjectColumns.add(subject);
+        }
       }
+    });
+    
+    // 对于每个识别到的科目，创建一条记录
+    subjectColumns.forEach(subject => {
+      const scoreColumn = `${subject}分数`;
+      const gradeColumn = `${subject}等级`;
+      const classRankColumn = `${subject}班名`;
+      const gradeRankColumn = `${subject}校名`;
       
-      if (totalGradeRankColumn && item[totalGradeRankColumn] !== undefined) {
-        totalRecord.rank_in_grade = parseInt(item[totalGradeRankColumn]) || 0;
+      if (item[scoreColumn] !== undefined) {
+        const subjectRecord: Record<string, any> = {
+          ...studentInfo,
+          ...examinationInfo,
+          subject,
+          score: parseFloat(item[scoreColumn]) || 0,
+        };
+        
+        // 添加可选字段
+        if (item[gradeColumn] !== undefined) {
+          subjectRecord.grade = item[gradeColumn];
+        }
+        
+        if (item[classRankColumn] !== undefined) {
+          subjectRecord.rank_in_class = parseInt(item[classRankColumn]) || 0;
+        }
+        
+        if (item[gradeRankColumn] !== undefined) {
+          subjectRecord.rank_in_grade = parseInt(item[gradeRankColumn]) || 0;
+        }
+        
+        result.push(subjectRecord);
       }
+    });
+    
+    // 如果存在"总分"字段，添加一条总分记录
+    if (hasTotalScore) {
+      const totalScoreColumn = allColumns.find(col => col.includes('总分') && col.includes('分数'));
+      const totalGradeColumn = allColumns.find(col => col.includes('总分') && col.includes('等级'));
+      const totalClassRankColumn = allColumns.find(col => col.includes('总分') && col.includes('班名'));
+      const totalGradeRankColumn = allColumns.find(col => col.includes('总分') && col.includes('校名'));
       
-      result.push(totalRecord);
+      if (totalScoreColumn && item[totalScoreColumn] !== undefined) {
+        const totalRecord: Record<string, any> = {
+          ...studentInfo,
+          ...examinationInfo,
+          subject: '总分',
+          score: parseFloat(item[totalScoreColumn]) || 0,
+        };
+        
+        if (totalGradeColumn && item[totalGradeColumn] !== undefined) {
+          totalRecord.grade = item[totalGradeColumn];
+        }
+        
+        if (totalClassRankColumn && item[totalClassRankColumn] !== undefined) {
+          totalRecord.rank_in_class = parseInt(item[totalClassRankColumn]) || 0;
+        }
+        
+        if (totalGradeRankColumn && item[totalGradeRankColumn] !== undefined) {
+          totalRecord.rank_in_grade = parseInt(item[totalGradeRankColumn]) || 0;
+        }
+        
+        result.push(totalRecord);
+      }
     }
   }
   

@@ -3,9 +3,14 @@ import { createClient } from '@supabase/supabase-js';
 import { Database } from '@/types/database';
 import { env } from '@/env';
 
-// 使用环境变量
-const SUPABASE_URL = env.SUPABASE_URL;
-const SUPABASE_ANON_KEY = env.SUPABASE_ANON_KEY;
+// 确保 URL 和 API 密钥格式正确
+const SUPABASE_URL = env.SUPABASE_URL.trim(); // 移除可能的空白字符
+const SUPABASE_ANON_KEY = env.SUPABASE_ANON_KEY.replace(/%$/, ''); // 移除末尾可能的百分号
+
+// 打印连接信息，帮助调试
+console.log('Supabase 连接配置:');
+console.log(`URL: ${SUPABASE_URL}`);
+console.log(`KEY 长度: ${SUPABASE_ANON_KEY.length} 字符`);
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
@@ -16,18 +21,30 @@ const supabaseConfig = {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    // 添加错误处理，防止离线状态下持续请求
-    networkRetries: 0,
   },
-  // 全局错误处理
+  // 添加重试和错误处理
   global: {
     fetch: (...args) => {
-      // 检查网络连接
-      if (!navigator.onLine) {
-        console.warn('网络连接已断开，Supabase请求已暂停');
-        return Promise.reject(new Error('网络已断开连接'));
-      }
-      return fetch(...args);
+      // 添加超时处理
+      const timeout = 10000; // 10秒超时
+      const controller = new AbortController();
+      const { signal } = controller;
+      
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+        console.warn('Supabase 请求超时');
+      }, timeout);
+      
+      return fetch(...args, { signal })
+        .then(response => {
+          clearTimeout(timeoutId);
+          return response;
+        })
+        .catch(error => {
+          clearTimeout(timeoutId);
+          console.error('Supabase 请求失败:', error);
+          return Promise.reject(error);
+        });
     },
   },
 };
@@ -55,6 +72,25 @@ if (typeof window !== 'undefined') {
     console.warn('网络已断开连接，Supabase服务不可用');
   });
 }
+
+// 添加一个检查连接方法
+export const checkSupabaseConnection = async () => {
+  try {
+    // 尝试读取一个表
+    const { data, error } = await supabase.from('classes').select('*').limit(1);
+    
+    if (error) {
+      console.error('Supabase 连接检查失败:', error);
+      return false;
+    }
+    
+    console.log('Supabase 连接正常');
+    return true;
+  } catch (e) {
+    console.error('Supabase 连接检查异常:', e);
+    return false;
+  }
+};
 
 /**
  * 检查表是否存在

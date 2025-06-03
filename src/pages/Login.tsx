@@ -48,7 +48,7 @@ const Login = () => {
           
           <UserAuthForm onSuccess={handleAuthSuccess} />
           
-          <div className="mt-8 text-center">
+          <div className="mt-6 text-center">
             <p className="text-sm text-gray-500">
               登录即表示您同意我们的
               <a href="#" className="text-blue-600 hover:underline mx-1">服务条款</a>

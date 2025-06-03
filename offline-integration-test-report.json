@@ -1,0 +1,186 @@
+{
+  "timestamp": "2025-06-02T23:59:52.239Z",
+  "summary": {
+    "totalTests": 5,
+    "passedTests": 3,
+    "failedTests": 2,
+    "successRate": 0.6
+  },
+  "testResults": [
+    {
+      "scenarioName": "完美匹配场景",
+      "success": true,
+      "duration": 0,
+      "results": {
+        "totalFileStudents": 10,
+        "totalSystemStudents": 20,
+        "exactMatchCount": 10,
+        "fuzzyMatchCount": 0,
+        "newStudentCount": 0,
+        "missingStudentCount": 10,
+        "matchRate": 1
+      },
+      "expectations": {
+        "expectedMatches": 10,
+        "expectedNewStudents": 0,
+        "expectedMissing": 0,
+        "expectedFuzzyMatches": 0
+      },
+      "validation": {
+        "exactMatches": {
+          "expected": 10,
+          "actual": 10,
+          "passed": true
+        },
+        "newStudents": {
+          "expected": 0,
+          "actual": 0,
+          "passed": true
+        }
+      }
+    },
+    {
+      "scenarioName": "部分新学生场景",
+      "success": true,
+      "duration": 1,
+      "results": {
+        "totalFileStudents": 11,
+        "totalSystemStudents": 20,
+        "exactMatchCount": 8,
+        "fuzzyMatchCount": 0,
+        "newStudentCount": 3,
+        "missingStudentCount": 12,
+        "matchRate": 0.7272727272727273
+      },
+      "expectations": {
+        "expectedMatches": 8,
+        "expectedNewStudents": 3,
+        "expectedMissing": 0,
+        "expectedFuzzyMatches": 0
+      },
+      "validation": {
+        "exactMatches": {
+          "expected": 8,
+          "actual": 8,
+          "passed": true
+        },
+        "newStudents": {
+          "expected": 3,
+          "actual": 3,
+          "passed": true
+        }
+      }
+    },
+    {
+      "scenarioName": "缺失学生场景",
+      "success": true,
+      "duration": 0,
+      "results": {
+        "totalFileStudents": 7,
+        "totalSystemStudents": 20,
+        "exactMatchCount": 7,
+        "fuzzyMatchCount": 0,
+        "newStudentCount": 0,
+        "missingStudentCount": 13,
+        "matchRate": 1
+      },
+      "expectations": {
+        "expectedMatches": 7,
+        "expectedNewStudents": 0,
+        "expectedMissing": 3,
+        "expectedFuzzyMatches": 0
+      },
+      "validation": {
+        "exactMatches": {
+          "expected": 7,
+          "actual": 7,
+          "passed": true
+        },
+        "newStudents": {
+          "expected": 0,
+          "actual": 0,
+          "passed": true
+        }
+      }
+    },
+    {
+      "scenarioName": "模糊匹配场景",
+      "success": false,
+      "duration": 0,
+      "results": {
+        "totalFileStudents": 5,
+        "totalSystemStudents": 20,
+        "exactMatchCount": 0,
+        "fuzzyMatchCount": 0,
+        "newStudentCount": 5,
+        "missingStudentCount": 20,
+        "matchRate": 0
+      },
+      "expectations": {
+        "expectedMatches": 0,
+        "expectedNewStudents": 0,
+        "expectedMissing": 0,
+        "expectedFuzzyMatches": 5
+      },
+      "validation": {
+        "exactMatches": {
+          "expected": 0,
+          "actual": 0,
+          "passed": true
+        },
+        "newStudents": {
+          "expected": 0,
+          "actual": 5,
+          "passed": false
+        },
+        "fuzzyMatches": {
+          "expected": 5,
+          "actual": 0,
+          "passed": false
+        }
+      }
+    },
+    {
+      "scenarioName": "混合场景",
+      "success": false,
+      "duration": 0,
+      "results": {
+        "totalFileStudents": 7,
+        "totalSystemStudents": 20,
+        "exactMatchCount": 3,
+        "fuzzyMatchCount": 0,
+        "newStudentCount": 4,
+        "missingStudentCount": 17,
+        "matchRate": 0.42857142857142855
+      },
+      "expectations": {
+        "expectedMatches": 3,
+        "expectedNewStudents": 2,
+        "expectedMissing": 0,
+        "expectedFuzzyMatches": 2
+      },
+      "validation": {
+        "exactMatches": {
+          "expected": 3,
+          "actual": 3,
+          "passed": true
+        },
+        "newStudents": {
+          "expected": 2,
+          "actual": 4,
+          "passed": false
+        },
+        "fuzzyMatches": {
+          "expected": 2,
+          "actual": 0,
+          "passed": false
+        }
+      }
+    }
+  ],
+  "systemInfo": {
+    "nodeVersion": "v23.10.0",
+    "platform": "darwin",
+    "testType": "offline"
+  }
+}
