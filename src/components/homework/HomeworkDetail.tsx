@@ -425,18 +425,38 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
         if (studentSubmissions.length === 0 && homework?.classes?.id) {
           // 现有逻辑保持不变...
           try {
-            const { data: classStudents } = await supabase
+            // 尝试通过class_id查询（新结构）
+            let { data: classStudents, error: classError } = await supabase
               .from('students')
-              .select('id, name, student_id, class_id')
+              .select('id, name, student_id, class_name, class_id')
               .eq('class_id', homework.classes.id);
+            
+            // 如果通过class_id查询失败，尝试通过class_name查询（旧结构）
+            if (classError || !classStudents || classStudents.length === 0) {
+              console.log('尝试通过class_name查询学生...');
+              const { data: classStudentsByName, error: nameError } = await supabase
+                .from('students')
+                .select('id, name, student_id, class_name')
+                .eq('class_name', homework.classes.name);
+              
+              if (!nameError && classStudentsByName) {
+                classStudents = classStudentsByName;
+                console.log(`通过班级名称找到${classStudents.length}名学生`);
+              }
+            }
             
             if (classStudents && classStudents.length > 0) {
               console.log(`找到${classStudents.length}名班级学生，创建临时提交记录`);
               
               let tempSubmissions = classStudents.map(student => ({
-                id: `temp-${student.id}`,
+                id: `temp-${student.id || student.student_id}`,
                 status: 'pending',
-                students: student,
+                students: {
+                  id: student.id || student.student_id,
+                  student_id: student.student_id,
+                  name: student.name,
+                  class_name: student.class_name
+                },
                 student_knowledge_mastery: []
               }));
       
@@ -447,8 +467,9 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
               
               const mapping: {[key: string]: {id: string, name: string}} = {};
               classStudents.forEach(student => {
-                mapping[student.id] = { id: student.id, name: student.name };
-                mapping[`temp-${student.id}`] = { id: student.id, name: student.name };
+                const studentId = student.id || student.student_id;
+                mapping[studentId] = { id: studentId, name: student.name };
+                mapping[`temp-${studentId}`] = { id: studentId, name: student.name };
               });
               
               setStudentIdMapping(mapping);
