@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Upload, FileText, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { gradeAnalysisService } from '@/services/gradeAnalysisService';
+import { supabase } from '@/integrations/supabase/client';
 import * as XLSX from 'xlsx';
 
 interface BasicGradeImporterProps {
@@ -18,6 +19,8 @@ export const BasicGradeImporter: React.FC<BasicGradeImporterProps> = ({ onDataIm
   const [isLoading, setIsLoading] = useState(false);
   const [parsedData, setParsedData] = useState<any[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
+  const [previewPage, setPreviewPage] = useState(1);
+  const [previewPageSize] = useState(5);
   const [examInfo, setExamInfo] = useState({
     title: '',
     type: '期中考试',
@@ -61,6 +64,7 @@ export const BasicGradeImporter: React.FC<BasicGradeImporterProps> = ({ onDataIm
       if (data.length > 0) {
         setHeaders(Object.keys(data[0]));
         setParsedData(data);
+        setPreviewPage(1); // 重置分页
         
         // 自动推断考试信息
         const fileName = file.name.replace(/\.(csv|xlsx|xls)$/i, '');
@@ -144,9 +148,77 @@ export const BasicGradeImporter: React.FC<BasicGradeImporterProps> = ({ onDataIm
     });
   };
 
-  // 智能字段映射 - 增加学生匹配功能
+  // 智能字段映射 - 重新设计学生匹配逻辑
   const createFieldMappingWithStudentMatch = async (data: any[]) => {
     if (!data || data.length === 0) return [];
+
+    console.log(`🚀 开始处理 ${data.length} 条数据，重新设计学生匹配逻辑...`);
+    
+    // 1. 先分析数据结构，识别包含的科目
+    const headers = Object.keys(data[0]);
+    console.log('📊 检测到的表头:', headers);
+    
+    // 科目识别模式 - 支持"科目+分数"格式
+    const subjectPatterns = {
+      '语文': ['语文分数', '语文'],
+      '数学': ['数学分数', '数学'],  
+      '英语': ['英语分数', '英语'],
+      '物理': ['物理分数', '物理'],
+      '化学': ['化学分数', '化学'],
+      '生物': ['生物分数', '生物'],
+      '政治': ['政治分数', '政治', '道法分数', '道法'],
+      '历史': ['历史分数', '历史'],
+      '地理': ['地理分数', '地理'],
+      '总分': ['总分分数', '总分']
+    };
+    
+    // 检测数据中包含的科目
+    const detectedSubjects = new Map<string, {scoreField: string, gradeField?: string, classRankField?: string}>();
+    
+    // 扫描表头，寻找科目相关字段
+    headers.forEach(header => {
+      Object.entries(subjectPatterns).forEach(([subject, patterns]) => {
+        patterns.forEach(pattern => {
+          if (header === pattern) {
+            // 找到科目的分数字段
+            if (!detectedSubjects.has(subject)) {
+              detectedSubjects.set(subject, { scoreField: header });
+            }
+            
+            // 寻找对应的等级和排名字段
+            const subjectKey = pattern.replace('分数', '');
+            const gradeField = `${subjectKey}等级`;
+            const classRankField = `${subjectKey}班名`;
+            
+            if (headers.includes(gradeField)) {
+              detectedSubjects.get(subject)!.gradeField = gradeField;
+            }
+            if (headers.includes(classRankField)) {
+              detectedSubjects.get(subject)!.classRankField = classRankField;
+            }
+          }
+        });
+      });
+    });
+    
+    console.log(`🎯 检测到科目及字段映射:`);
+    detectedSubjects.forEach((fields, subject) => {
+      console.log(`  ${subject}: 分数=${fields.scoreField}, 等级=${fields.gradeField || '无'}, 班名=${fields.classRankField || '无'}`);
+    });
+    
+    // 2. 批量获取所有学生信息用于匹配
+    console.log('📚 批量获取学生信息...');
+    const { data: allStudents, error: studentError } = await supabase
+      .from('students')
+      .select('student_id, name, class_name');
+    
+    if (studentError) {
+      console.error('获取学生信息失败:', studentError);
+      throw new Error(`获取学生信息失败: ${studentError.message}`);
+    }
+    
+    console.log('📖 数据库中的学生信息示例:', allStudents?.slice(0, 3));
+    console.log(`📊 数据库中共有 ${allStudents?.length || 0} 个学生`);
 
     const mappedData = [];
     let matchedCount = 0;
@@ -154,107 +226,132 @@ export const BasicGradeImporter: React.FC<BasicGradeImporterProps> = ({ onDataIm
 
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
-      const mappedRow: any = {
-        exam_title: examInfo.title,
-        exam_type: examInfo.type,
-        exam_date: examInfo.date,
-        subject: examInfo.subject
-      };
-
-      // 第一步：从原始数据中提取基本信息
-      let studentInfo: { student_id?: string; name?: string; class_name?: string } = {};
       
-      Object.keys(row).forEach(key => {
-        const value = row[key];
-        if (value === undefined || value === null || value === '') return;
+      // 第一步：从CSV行中提取学生基本信息
+      let csvStudentName = '';
+      let csvClassName = '';
+      
+      // 直接从固定字段名提取
+      if (row['姓名']) {
+        csvStudentName = String(row['姓名']).trim();
+      }
+      if (row['班级']) {
+        csvClassName = String(row['班级']).trim();
+      }
+      
+      console.log(`🔍 第${i+1}行CSV数据: 姓名="${csvStudentName}", 班级="${csvClassName}"`);
+      
+      // 第二步：在数据库中查找匹配的学生
+      let matchedStudent = null;
+      let matchReason = '';
+      
+      if (csvStudentName && csvClassName && allStudents) {
+        // 方法1: 精确匹配 姓名+班级
+        matchedStudent = allStudents.find(student => 
+          student.name === csvStudentName && student.class_name === csvClassName
+        );
         
-        const lowerKey = key.toLowerCase();
-        const trimmedValue = String(value).trim();
-
-        // 提取学生基本信息用于匹配
-        if (lowerKey.includes('学号') || lowerKey.includes('studentid') || 
-            lowerKey.includes('student_id') || lowerKey === 'id' || lowerKey === '编号') {
-          studentInfo.student_id = trimmedValue;
-        } 
-        else if (lowerKey.includes('姓名') || lowerKey.includes('name') || 
-                 lowerKey.includes('学生姓名') || lowerKey === '姓名') {
-          studentInfo.name = trimmedValue;
-        } 
-        else if (lowerKey.includes('班级') || lowerKey.includes('class') ||
-                 lowerKey.includes('班') || lowerKey === '班级名称') {
-          studentInfo.class_name = trimmedValue;
-        }
-        
-        // 继续提取其他字段
-        if (lowerKey.includes('分数') || lowerKey.includes('成绩') || 
-            lowerKey.includes('总分') || lowerKey.includes('score') ||
-            lowerKey === '分数' || lowerKey === '成绩' || lowerKey === '总分') {
-          const numValue = parseFloat(trimmedValue);
-          if (!isNaN(numValue)) {
-            mappedRow.score = numValue;
-          }
-        } 
-        else if (lowerKey.includes('等级') || lowerKey.includes('grade') ||
-                 lowerKey.includes('评级')) {
-          mappedRow.grade = trimmedValue;
-        } 
-        else if (lowerKey.includes('班级排名') || lowerKey.includes('班名')) {
-          const rankValue = parseInt(trimmedValue);
-          if (!isNaN(rankValue)) {
-            mappedRow.rank_in_class = rankValue;
-          }
-        } 
-        else if (lowerKey.includes('年级排名') || lowerKey.includes('级名')) {
-          const rankValue = parseInt(trimmedValue);
-          if (!isNaN(rankValue)) {
-            mappedRow.rank_in_grade = rankValue;
-          }
-        }
-      });
-
-      // 第二步：尝试匹配后台已有学生
-      try {
-        const matchResult = await gradeAnalysisService.matchStudentEnhanced ? 
-          await gradeAnalysisService.matchStudentEnhanced(studentInfo) :
-          await gradeAnalysisService.originalMatchStudent(studentInfo);
-
-        if (matchResult.matchedStudent) {
-          // 找到匹配的学生，使用后台数据
-          mappedRow.student_id = matchResult.matchedStudent.student_id;
-          mappedRow.name = matchResult.matchedStudent.name;
-          mappedRow.class_name = matchResult.matchedStudent.class_name;
+        if (matchedStudent) {
+          matchReason = '姓名+班级精确匹配';
           matchedCount++;
-          
-          console.log(`✅ 第${i+1}行: 匹配到学生 ${mappedRow.name} (${mappedRow.student_id}) - ${matchResult.matchReason || '姓名班级匹配'}`);
+          console.log(`✅ 精确匹配成功: ${csvStudentName} -> ${matchedStudent.student_id} (${matchedStudent.class_name})`);
         } else {
-          // 没有找到匹配的学生，使用原始数据或生成新数据
-          if (studentInfo.student_id) {
-            mappedRow.student_id = studentInfo.student_id;
-          } else if (studentInfo.name) {
-            // 生成临时学号
-            const nameBase = studentInfo.name.replace(/\s+/g, '');
-            const classBase = studentInfo.class_name ? studentInfo.class_name.replace(/\s+/g, '') : 'unknown';
-            mappedRow.student_id = `${classBase}_${nameBase}_${Date.now() % 10000}`;
+          // 方法2: 尝试班级格式变换后匹配
+          const classVariants = [
+            csvClassName.replace('初三', '九年级'),
+            csvClassName.replace('九年级', '初三'),
+            csvClassName.replace('班', ''),
+            `${csvClassName}班`,
+            csvClassName.replace(/^(\d+)$/, '九年级$1班'),
+            csvClassName.replace(/^(\d+)班$/, '九年级$1班')
+          ];
+          
+          console.log(`🔄 尝试班级格式变体: ${classVariants.join(', ')}`);
+          
+          for (const variant of classVariants) {
+            matchedStudent = allStudents.find(student => 
+              student.name === csvStudentName && student.class_name === variant
+            );
+            if (matchedStudent) {
+              matchReason = `姓名+班级变体匹配 (${variant})`;
+              matchedCount++;
+              console.log(`✅ 变体匹配成功: ${csvStudentName} + ${variant} -> ${matchedStudent.student_id}`);
+              break;
+            }
           }
-          
-          mappedRow.name = studentInfo.name || `学生_${mappedRow.student_id}`;
-          mappedRow.class_name = studentInfo.class_name || '未知班级';
-          newStudentCount++;
-          
-          console.log(`🆕 第${i+1}行: 新学生 ${mappedRow.name} (${mappedRow.student_id})`);
         }
-      } catch (error) {
-        console.error(`❌ 第${i+1}行匹配失败:`, error);
-        // 降级处理：使用原始数据
-        mappedRow.student_id = studentInfo.student_id || `unknown_${Date.now() % 10000}`;
-        mappedRow.name = studentInfo.name || `学生_${mappedRow.student_id}`;
-        mappedRow.class_name = studentInfo.class_name || '未知班级';
+        
+        // 方法3: 如果还没匹配到，尝试仅通过姓名匹配（如果姓名唯一）
+        if (!matchedStudent) {
+          const sameName = allStudents.filter(student => student.name === csvStudentName);
+          if (sameName.length === 1) {
+            matchedStudent = sameName[0];
+            matchReason = '姓名唯一匹配';
+            matchedCount++;
+            console.log(`✅ 姓名唯一匹配: ${csvStudentName} -> ${matchedStudent.student_id} (${matchedStudent.class_name})`);
+          } else if (sameName.length > 1) {
+            console.log(`⚠️ 找到${sameName.length}个同名学生，无法唯一确定: ${sameName.map(s => `${s.name}(${s.class_name})`).join(', ')}`);
+          }
+        }
+      }
+      
+      // 第三步：确定最终学生信息
+      let finalStudentInfo;
+      if (matchedStudent) {
+        // 使用数据库中的真实学生信息
+        finalStudentInfo = {
+          student_id: matchedStudent.student_id,
+          name: matchedStudent.name,
+          class_name: matchedStudent.class_name
+        };
+        console.log(`✅ 第${i+1}行最终匹配: ID=${finalStudentInfo.student_id}, 姓名=${finalStudentInfo.name}, 班级=${finalStudentInfo.class_name} [${matchReason}]`);
+      } else {
+        // 如果没有匹配到，创建新学生记录
+        finalStudentInfo = {
+          student_id: `temp_${Date.now()}_${i}`,
+          name: csvStudentName || `学生_${i+1}`,
+          class_name: csvClassName || '未知班级'
+        };
+        newStudentCount++;
+        console.log(`🆕 第${i+1}行创建新学生: ID=${finalStudentInfo.student_id}, 姓名=${finalStudentInfo.name}, 班级=${finalStudentInfo.class_name} [未匹配到数据库]`);
       }
 
-      mappedData.push(mappedRow);
+      // 第四步：根据检测到的科目生成记录
+      detectedSubjects.forEach((fields, subject) => {
+        const scoreValue = parseFloat(row[fields.scoreField]);
+        const gradeValue = fields.gradeField ? row[fields.gradeField] : null;
+        const classRank = fields.classRankField ? parseInt(row[fields.classRankField]) : null;
+        
+        // 只有当分数有效时才创建记录
+        if (!isNaN(scoreValue)) {
+          const record = {
+            ...finalStudentInfo,
+            exam_title: examInfo.title,
+            exam_type: examInfo.type,
+            exam_date: examInfo.date,
+            subject: subject,
+            score: scoreValue,
+            grade: gradeValue,
+            rank_in_class: classRank,
+            rank_in_grade: null,
+          };
+          
+          console.log(`📋 创建记录: 学生${finalStudentInfo.name}(${finalStudentInfo.student_id}), 班级=${finalStudentInfo.class_name}, 科目=${subject}, 分数=${scoreValue}`);
+          
+          mappedData.push(record);
+        }
+      });
     }
 
-    console.log(`🎯 学生匹配结果: 匹配已有学生 ${matchedCount} 个，新学生 ${newStudentCount} 个`);
+    console.log(`🎯 学生匹配总结:`);
+    console.log(`  ✅ 成功匹配已有学生: ${matchedCount} 个`);
+    console.log(`  🆕 创建新学生记录: ${newStudentCount} 个`);
+    console.log(`📊 数据生成总结:`);
+    console.log(`  📚 涉及学生: ${data.length} 名`);
+    console.log(`  📖 涉及科目: ${detectedSubjects.size} 个 (${Array.from(detectedSubjects.keys()).join(', ')})`);
+    console.log(`  📋 生成记录: ${mappedData.length} 条`);
+    console.log(`  📈 预期计算: ${detectedSubjects.size} 科目 × ${data.length} 学生 = ${detectedSubjects.size * data.length} 条记录`);
+    
     return mappedData;
   };
 
@@ -343,6 +440,7 @@ export const BasicGradeImporter: React.FC<BasicGradeImporterProps> = ({ onDataIm
       setFile(null);
       setParsedData([]);
       setHeaders([]);
+      setPreviewPage(1); // 重置分页
       setExamInfo({
         title: '',
         type: '期中考试',
@@ -463,19 +561,116 @@ export const BasicGradeImporter: React.FC<BasicGradeImporterProps> = ({ onDataIm
 
         {/* 数据预览 */}
         {parsedData.length > 0 && (
-          <div className="space-y-2">
-            <Label>数据预览 (前3行)</Label>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label>数据预览</Label>
+              <div className="text-sm text-gray-500">
+                共 {parsedData.length} 条记录
+              </div>
+            </div>
+            
             <div className="border rounded-lg p-4 bg-gray-50 text-sm">
-              <div className="grid gap-2">
-                <div className="font-medium text-gray-600">
+              <div className="space-y-3">
+                <div className="font-medium text-gray-600 border-b border-gray-200 pb-2">
                   检测到字段: {headers.join(', ')}
                 </div>
-                {parsedData.slice(0, 3).map((row, index) => (
-                  <div key={index} className="text-gray-800">
-                    第{index + 1}行: {Object.values(row).slice(0, 4).join(' | ')}
-                    {Object.values(row).length > 4 && '...'}
+                
+                {/* 智能预览：检测是否为宽表格式 */}
+                {(() => {
+                  const subjectPatterns = {
+                    '语文': ['语文分数'],
+                    '数学': ['数学分数'],
+                    '英语': ['英语分数'],
+                    '物理': ['物理分数'],
+                    '化学': ['化学分数'],
+                    '生物': ['生物分数'],
+                    '政治': ['道法分数'],
+                    '历史': ['历史分数'],
+                    '地理': ['地理分数'],
+                    '总分': ['总分分数']
+                  };
+                  
+                  const detectedSubjects = new Set();
+                  headers.forEach(header => {
+                    Object.entries(subjectPatterns).forEach(([subject, patterns]) => {
+                      if (patterns.includes(header)) {
+                        detectedSubjects.add(subject);
+                      }
+                    });
+                  });
+                  
+                  const isWideFormat = detectedSubjects.size > 1;
+                  
+                  return (
+                    <div className="bg-blue-50 p-3 rounded border-l-4 border-blue-400">
+                      <div className="text-blue-700 font-medium">
+                        {isWideFormat ? 
+                          `📊 宽表格式，检测到科目: ${Array.from(detectedSubjects).join(', ')}` :
+                          `📝 长表格式，科目: ${examInfo.subject || '总分'}`
+                        }
+                      </div>
+                      {isWideFormat && (
+                        <div className="text-blue-600 text-xs mt-1">
+                          预计生成记录数: {detectedSubjects.size} 个科目 × {parsedData.length} 名学生 = {detectedSubjects.size * parsedData.length} 条记录
+                          <br />
+                          (每个学生每个科目包含分数、等级、排名等信息)
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+                
+                {/* 分页数据显示 */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-medium text-gray-700">
+                      数据样例 (第 {previewPage} 页, 共 {Math.ceil(parsedData.length / previewPageSize)} 页)
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => setPreviewPage(Math.max(1, previewPage - 1))}
+                        disabled={previewPage === 1}
+                        className="px-2 py-1 text-xs border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                      >
+                        上一页
+                      </button>
+                      <span className="text-xs text-gray-500">
+                        {previewPage} / {Math.ceil(parsedData.length / previewPageSize)}
+                      </span>
+                      <button
+                        onClick={() => setPreviewPage(Math.min(Math.ceil(parsedData.length / previewPageSize), previewPage + 1))}
+                        disabled={previewPage === Math.ceil(parsedData.length / previewPageSize)}
+                        className="px-2 py-1 text-xs border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                      >
+                        下一页
+                      </button>
+                    </div>
                   </div>
-                ))}
+                  
+                  {(() => {
+                    const startIndex = (previewPage - 1) * previewPageSize;
+                    const endIndex = Math.min(startIndex + previewPageSize, parsedData.length);
+                    const pageData = parsedData.slice(startIndex, endIndex);
+                    
+                    return pageData.map((row, index) => (
+                      <div key={startIndex + index} className="bg-white p-3 rounded border border-gray-200">
+                        <div className="font-medium text-gray-800 mb-2">
+                          第 {startIndex + index + 1} 行数据:
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-xs">
+                          {Object.entries(row).map(([key, value]) => (
+                            <div key={key} className="flex">
+                              <span className="font-medium text-gray-600 min-w-[80px]">{key}:</span>
+                              <span className="text-gray-800 ml-2 truncate" title={String(value)}>
+                                {String(value)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
               </div>
             </div>
           </div>

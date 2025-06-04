@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useEffect } from "react";
+import ModernHomepage from "./pages/ModernHomepage";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import GradeAnalysis from "./pages/GradeAnalysis";
@@ -90,7 +91,8 @@ function App() {
                 
                 {/* 需要认证的路由 */}
                 <Route element={<ProtectedRoute />}>
-                  <Route path="/" element={<Index />} />
+                  <Route path="/" element={<ModernHomepage />} />
+                  <Route path="/data-import" element={<Index />} />
                   <Route path="/profile" element={<ProfilePage />} />
                   
                   {/* 需要特定角色的路由 */}

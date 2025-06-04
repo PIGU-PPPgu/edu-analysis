@@ -103,6 +103,10 @@ const GradeAnalysisLayout: React.FC = () => {
   const [classesList, setClassesList] = useState<string[]>([]);
   const [studentsList, setStudentsList] = useState<{id: string; name: string}[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // 新增：科目筛选相关状态
+  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+  const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
 
   // 添加一个状态来跟踪数据库修复
   const [dbFixStatus, setDbFixStatus] = useState<{
@@ -377,14 +381,22 @@ const GradeAnalysisLayout: React.FC = () => {
             
             // 处理班级信息 - 如果grade_data中的class_name是"未知班级"，尝试从students表获取
             let finalClassName = item.class_name;
+            console.log(`🏫 第${item.id}行班级处理: grade_data.class_name="${item.class_name}"`);
+            
             if (!finalClassName || finalClassName === '未知班级') {
               // 从students表中获取的学生信息可能包含班级
               const studentInfo = studentsData?.find(s => s.student_id === item.student_id);
+              console.log(`🔍 查找学生${item.student_id}在students表中的信息:`, studentInfo);
+              
               if (studentInfo && studentInfo.class_name) {
                 finalClassName = studentInfo.class_name;
+                console.log(`✅ 从students表获取班级: "${finalClassName}"`);
               } else {
                 finalClassName = '未知班级';
+                console.log(`❌ 无法获取班级信息，使用默认值: "未知班级"`);
               }
+            } else {
+              console.log(`✅ 直接使用grade_data中的班级: "${finalClassName}"`);
             }
             
             return {
@@ -429,6 +441,11 @@ const GradeAnalysisLayout: React.FC = () => {
           
           setStudentsList(students);
           console.log("收集到的学生:", students.length, "个");
+          
+          // 收集可用的科目列表
+          const subjects = [...new Set(formattedData.map((item: any) => item.subject))].filter(s => s && s.trim());
+          setAvailableSubjects(subjects as string[]);
+          console.log("收集到的科目:", subjects);
           
           // 如果有班级数据，默认选择第一个班级
           if (classes.length > 0 && !selectedClass) {
@@ -577,8 +594,15 @@ const GradeAnalysisLayout: React.FC = () => {
   // 学生选择处理
   const handleStudentChange = (studentId: string) => {
     const student = studentsList.find(s => s.id === studentId);
-    if (student) {
-      setSelectedStudent(student);
+    setSelectedStudent(student || null);
+  };
+
+  // 新增：科目筛选处理函数
+  const handleSubjectChange = (subject: string) => {
+    if (subject === "all") {
+      setSelectedSubject(null);
+    } else {
+      setSelectedSubject(subject);
     }
   };
 
@@ -599,6 +623,17 @@ const GradeAnalysisLayout: React.FC = () => {
   
   // 获取当前选中考试的详细信息
   const currentExam = examList.find(exam => exam.id === selectedExam) || null;
+  
+  // 根据科目筛选过滤成绩数据
+  const filteredGradeData = selectedSubject 
+    ? gradeData.filter(item => item.subject === selectedSubject)
+    : gradeData;
+    
+  // 计算唯一学生数（不受科目筛选影响）
+  const uniqueStudentCount = [...new Set(gradeData.map(item => item.student_id))].length;
+  
+  // 计算当前筛选条件下的学生数
+  const filteredStudentCount = [...new Set(filteredGradeData.map(item => item.student_id))].length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -819,75 +854,74 @@ const GradeAnalysisLayout: React.FC = () => {
               </div>
             )}
             
-            {/* 优化后的成绩明细表格 */}
-            {isDataLoaded && (
-              <Card className="bg-gradient-to-br from-white to-gray-50 shadow-lg border-0">
-                <CardHeader className="pb-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                      <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                        <Table className="h-5 w-5 text-blue-600" />
-                        成绩明细表
-                      </CardTitle>
-                      <CardDescription className="mt-1">
-                        共 {gradeData.length} 条记录 • 点击表头可排序
-                      </CardDescription>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm">
-                        <Download className="h-4 w-4 mr-2" />
-                        导出
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Filter className="h-4 w-4 mr-2" />
-                        筛选
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* 搜索和筛选栏 */}
-                  <div className="flex flex-col sm:flex-row gap-3 mt-4">
-                    <div className="flex-1">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <input
-                          type="text"
-                          placeholder="搜索学生姓名或学号..."
-                          className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
+            {/* 主要内容区域 */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              {/* 数据概览统计 */}
+              {filteredGradeData.length > 0 && (
+                <div className="lg:col-span-4 mb-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">数据概览</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <div className="text-2xl font-bold text-blue-600">{uniqueStudentCount}</div>
+                          <div className="text-sm text-blue-700">总学生数</div>
+                        </div>
+                        <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
+                          <div className="text-2xl font-bold text-green-600">{availableSubjects.length}</div>
+                          <div className="text-sm text-green-700">科目数量</div>
+                        </div>
+                        <div className="text-center p-3 bg-orange-50 rounded-lg border border-orange-200">
+                          <div className="text-2xl font-bold text-orange-600">{gradeData.length}</div>
+                          <div className="text-sm text-orange-700">总记录数</div>
+                        </div>
+                        <div className="text-center p-3 bg-purple-50 rounded-lg border border-purple-200">
+                          <div className="text-2xl font-bold text-purple-600">{filteredGradeData.length}</div>
+                          <div className="text-sm text-purple-700">
+                            {selectedSubject ? `${selectedSubject}记录` : '筛选后记录'}
+                          </div>
+                        </div>
                       </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+              
+              {/* 左侧主要内容 */}
+              {isDataLoaded && (
+                <Card className="lg:col-span-3">
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg">成绩明细表</CardTitle>
+                      {/* 科目筛选器 */}
+                      {availableSubjects.length > 1 && (
+                        <Select value={selectedSubject || "all"} onValueChange={handleSubjectChange}>
+                          <SelectTrigger className="w-[140px]">
+                            <SelectValue placeholder="选择科目" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">全部科目</SelectItem>
+                            {availableSubjects.map((subject) => (
+                              <SelectItem key={subject} value={subject}>
+                                {subject}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
-                    <Select defaultValue="all">
-                      <SelectTrigger className="w-[140px]">
-                        <SelectValue placeholder="选择班级" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">所有班级</SelectItem>
-                        {classesList.map(className => (
-                          <SelectItem key={className} value={className}>
-                            {className}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select defaultValue="all">
-                      <SelectTrigger className="w-[140px]">
-                        <SelectValue placeholder="成绩范围" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">所有成绩</SelectItem>
-                        <SelectItem value="excellent">优秀 (≥90)</SelectItem>
-                        <SelectItem value="good">良好 (80-89)</SelectItem>
-                        <SelectItem value="fair">中等 (70-79)</SelectItem>
-                        <SelectItem value="pass">及格 (60-69)</SelectItem>
-                        <SelectItem value="fail">不及格 (&lt;60)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardHeader>
-
-                <CardContent>
-                  <div className="bg-white rounded-lg border border-gray-100 overflow-hidden">
+                    <p className="text-sm text-gray-600 mt-2">
+                      共 {filteredGradeData.length} 条记录 • {filteredStudentCount} 名学生
+                      {selectedSubject && (
+                        <span className="ml-2 text-blue-600">
+                          (当前筛选: {selectedSubject})
+                        </span>
+                      )}
+                    </p>
+                  </CardHeader>
+                  <CardContent>
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
@@ -925,7 +959,7 @@ const GradeAnalysisLayout: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                          {gradeData.slice(0, 20).map((item, index) => {
+                          {filteredGradeData.slice(0, 20).map((item, index) => {
                             // 计算成绩等级
                             const getGradeLevel = (score: number) => {
                               if (score >= 90) return { level: '优秀', color: 'bg-emerald-100 text-emerald-800', icon: '🏆' };
@@ -948,23 +982,23 @@ const GradeAnalysisLayout: React.FC = () => {
                                       {index + 1}
                                     </div>
                                     <span className="text-sm font-mono text-gray-700">
-                                      {item.studentId}
+                                      {item.student_id}
                                     </span>
                                   </div>
                                 </td>
                                 <td className="py-3 px-4">
                                   <div className="flex items-center gap-2">
                                     <div className="w-8 h-8 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full flex items-center justify-center text-xs font-medium text-gray-600">
-                                      {item.name ? item.name.charAt(0) : '?'}
+                                      {item.students?.name ? item.students.name.charAt(0) : (item.name ? item.name.charAt(0) : '?')}
                                     </div>
                                     <span className="text-sm font-medium text-gray-900">
-                                      {item.name}
+                                      {item.students?.name || item.name || '未知学生'}
                                     </span>
                                   </div>
                                 </td>
                                 <td className="py-3 px-4">
                                   <Badge variant="outline" className="text-xs">
-                                    {item.className}
+                                    {item.className || '未知班级'}
                                   </Badge>
                                 </td>
                                 <td className="py-3 px-4 text-center">
@@ -1003,93 +1037,43 @@ const GradeAnalysisLayout: React.FC = () => {
                         </tbody>
                       </table>
                     </div>
-
-                    {/* 分页和统计信息 */}
-                    <div className="bg-gray-50 px-4 py-3 border-t border-gray-200">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                        <div className="text-sm text-gray-600">
-                          显示 1-{Math.min(20, gradeData.length)} 条，共 {gradeData.length} 条记录
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" disabled>
-                            <ChevronLeft className="h-4 w-4" />
-                            上一页
-                          </Button>
-                          <div className="flex items-center gap-1">
-                            <Button variant="default" size="sm" className="w-8 h-8 p-0">
-                              1
-                            </Button>
-                            {gradeData.length > 20 && (
-                              <>
-                                <Button variant="outline" size="sm" className="w-8 h-8 p-0">
-                                  2
-                                </Button>
-                                <span className="text-sm text-gray-400 px-1">...</span>
-                              </>
-                            )}
-                          </div>
-                          <Button variant="outline" size="sm" disabled={gradeData.length <= 20}>
-                            下一页
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+            
+            {/* 右侧主要内容 */}
+            {isDataLoaded && (
+              <Card className="lg:col-span-1">
+                <CardHeader>
+                  <CardTitle className="text-lg">数据统计</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="text-center p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {filteredGradeData.length > 0 ? 
+                        (filteredGradeData.reduce((sum, item) => sum + item.score, 0) / filteredGradeData.length).toFixed(1) : 
+                        '0.0'
+                      }
                     </div>
+                    <div className="text-sm text-blue-700">平均分</div>
                   </div>
-
-                  {/* 快速统计卡片 */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg border border-green-200">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Award className="h-4 w-4 text-green-600" />
-                        <span className="text-sm font-medium text-green-700">优秀人数</span>
-                      </div>
-                      <div className="text-xl font-bold text-green-800">
-                        {gradeData.filter(item => item.score >= 90).length}
-                      </div>
-                      <div className="text-xs text-green-600">
-                        占比 {((gradeData.filter(item => item.score >= 90).length / gradeData.length) * 100).toFixed(1)}%
-                      </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">记录数:</span>
+                      <span className="font-medium">{filteredGradeData.length}</span>
                     </div>
-
-                    <div className="bg-gradient-to-r from-blue-50 to-cyan-50 p-4 rounded-lg border border-blue-200">
-                      <div className="flex items-center gap-2 mb-2">
-                        <TrendingUp className="h-4 w-4 text-blue-600" />
-                        <span className="text-sm font-medium text-blue-700">及格人数</span>
-                      </div>
-                      <div className="text-xl font-bold text-blue-800">
-                        {gradeData.filter(item => item.score >= 60).length}
-                      </div>
-                      <div className="text-xs text-blue-600">
-                        占比 {((gradeData.filter(item => item.score >= 60).length / gradeData.length) * 100).toFixed(1)}%
-                      </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">学生数:</span>
+                      <span className="font-medium">{filteredStudentCount}</span>
                     </div>
-
-                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border border-purple-200">
-                      <div className="flex items-center gap-2 mb-2">
-                        <BarChart3 className="h-4 w-4 text-purple-600" />
-                        <span className="text-sm font-medium text-purple-700">平均分</span>
+                    {selectedSubject && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">当前科目:</span>
+                        <span className="font-medium text-blue-600">{selectedSubject}</span>
                       </div>
-                      <div className="text-xl font-bold text-purple-800">
-                        {(gradeData.reduce((sum, item) => sum + item.score, 0) / gradeData.length).toFixed(1)}
-                      </div>
-                      <div className="text-xs text-purple-600">
-                        总分 {gradeData.reduce((sum, item) => sum + item.score, 0)}
-                      </div>
-                    </div>
-
-                    <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-4 rounded-lg border border-orange-200">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Users className="h-4 w-4 text-orange-600" />
-                        <span className="text-sm font-medium text-orange-700">总人数</span>
-                      </div>
-                      <div className="text-xl font-bold text-orange-800">
-                        {gradeData.length}
-                      </div>
-                      <div className="text-xs text-orange-600">
-                        {classesList.length} 个班级
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>

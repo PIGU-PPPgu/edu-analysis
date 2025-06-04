@@ -79,7 +79,15 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true }) => {
             <Link
               to="/"
               className={`text-sm font-medium transition-colors hover:text-primary ${
-                isActive('/') ? 'text-primary' : 'text-muted-foreground'
+                isActive('/') && location.pathname === '/' ? 'text-primary' : 'text-muted-foreground'
+              }`}
+            >
+              首页
+            </Link>
+            <Link
+              to="/data-import"
+              className={`text-sm font-medium transition-colors hover:text-primary ${
+                isActive('/data-import') ? 'text-primary' : 'text-muted-foreground'
               }`}
             >
               数据导入
