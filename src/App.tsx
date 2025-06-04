@@ -80,6 +80,7 @@ function App() {
             <BrowserRouter>
           <Routes>
                 {/* 公开路由 - 无需身份验证 */}
+                <Route path="/" element={<ModernHomepage />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/unauthorized" element={<UnauthorizedPage />} />
                 <Route path="/test/cascade-analysis" element={<CascadeAnalysisTestPage />} />
@@ -91,7 +92,7 @@ function App() {
                 
                 {/* 需要认证的路由 */}
                 <Route element={<ProtectedRoute />}>
-                  <Route path="/" element={<ModernHomepage />} />
+                  <Route path="/dashboard" element={<Index />} />
                   <Route path="/data-import" element={<Index />} />
                   <Route path="/profile" element={<ProfilePage />} />
                   
@@ -103,7 +104,7 @@ function App() {
                     <Route path="/class-management" element={<ClassManagement />} />
                     <Route path="/class-profile/:classId" element={<ClassProfile />} />
                     <Route path="/student-portrait-management" element={<StudentPortraitManagement />} />
-            </Route>
+                  </Route>
             
                   {/* 学生和教师都可访问的路由 */}
                   <Route path="/student-profile/:studentId" element={<StudentProfile />} />
