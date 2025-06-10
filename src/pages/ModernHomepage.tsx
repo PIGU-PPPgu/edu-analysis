@@ -64,24 +64,14 @@ const ModernHomepage = () => {
 
   // 处理登录/注册按钮点击
   const handleGetStarted = () => {
-    if (user) {
-      // 如果已登录，跳转到仪表板
-      navigate('/dashboard');
-    } else {
-      // 如果未登录，跳转到登录页面
-      navigate('/login');
-    }
+    // 审核模式：直接跳转到仪表板，无需登录验证
+    navigate('/dashboard');
   };
 
   // 处理功能模块点击
   const handleFeatureClick = (path: string) => {
-    if (user) {
-      // 如果已登录，直接跳转到功能页面
-      navigate(path);
-    } else {
-      // 如果未登录，跳转到登录页面
-      navigate('/login');
-    }
+    // 审核模式：直接跳转到功能页面，无需登录验证
+    navigate(path);
   };
 
   // AI驱动的核心功能

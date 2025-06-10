@@ -40,7 +40,9 @@ import {
   ChevronRight,
   CircleX,
   Plus,
-  Settings2
+  Settings2,
+  Activity,
+  Brain
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +51,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Loader2 } from 'lucide-react';
 // import { ClassAnalysisView } from "@/components/analysis/ClassAnalysisView"; // 已删除
 import { AdvancedDashboard } from "@/components/analysis/advanced/AdvancedDashboard";
+import { PredictiveAnalysis } from "@/components/analysis/advanced/PredictiveAnalysis";
+import { LearningBehaviorAnalysis } from "@/components/analysis/advanced/LearningBehaviorAnalysis";
 // import { StudentProgressView } from "@/components/analysis/StudentProgressView"; // 已删除
 // import { AIAnalysisAssistant } from "@/components/analysis/AIAnalysisAssistant"; // 已删除
 import { gradeAnalysisService } from "@/services/gradeAnalysisService";
@@ -856,6 +860,14 @@ const GradeAnalysisContent: React.FC = () => {
               <Sigma className="h-4 w-4" />
               高级分析
             </TabsTrigger>
+            <TabsTrigger value="predictive" className="gap-2 data-[state=active]:bg-[#fafafa]">
+              <Brain className="h-4 w-4" />
+              预测分析
+            </TabsTrigger>
+            <TabsTrigger value="behavior" className="gap-2 data-[state=active]:bg-[#fafafa]">
+              <Activity className="h-4 w-4" />
+              行为分析
+            </TabsTrigger>
             <TabsTrigger value="cross-analysis" className="gap-2 data-[state=active]:bg-[#fafafa]">
               <ChartPieIcon className="h-4 w-4" />
               交叉分析
@@ -1148,6 +1160,34 @@ const GradeAnalysisContent: React.FC = () => {
                 )}
               </div>
             )}
+          </TabsContent>
+          
+          <TabsContent value="predictive">
+            <div className="space-y-6">
+              <Alert className="bg-blue-50 border-blue-200">
+                <Brain className="h-4 w-4 text-blue-500" />
+                <AlertTitle className="text-blue-700">智能预测分析</AlertTitle>
+                <AlertDescription className="text-blue-600">
+                  <p>基于历史成绩数据，运用机器学习算法预测学生未来的学习表现，提供个性化的学习建议和干预措施。</p>
+                </AlertDescription>
+              </Alert>
+              
+              <PredictiveAnalysis />
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="behavior">
+            <div className="space-y-6">
+              <Alert className="bg-green-50 border-green-200">
+                <Activity className="h-4 w-4 text-green-500" />
+                <AlertTitle className="text-green-700">学习行为分析</AlertTitle>
+                <AlertDescription className="text-green-600">
+                  <p>深度分析学生的学习模式、认知风格和行为特征，识别学习者类型，为个性化教学提供科学依据。</p>
+                </AlertDescription>
+              </Alert>
+              
+              <LearningBehaviorAnalysis />
+            </div>
           </TabsContent>
           
           <TabsContent value="cross-analysis">

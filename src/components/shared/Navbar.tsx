@@ -85,101 +85,65 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true }) => {
               首页
             </Link>
             
-            {user ? (
-              // 已登录用户显示完整导航
-              <>
-                <Link
-                  to="/dashboard"
-                  className={`text-sm font-medium transition-colors hover:text-primary ${
-                    isActive('/dashboard') || isActive('/data-import') ? 'text-primary' : 'text-muted-foreground'
-                  }`}
-                >
-                  仪表板
-                </Link>
-                <Link
-                  to="/homework"
-                  className={`text-sm font-medium transition-colors hover:text-primary ${
-                    isActive('/homework') ? 'text-primary' : 'text-muted-foreground'
-                  }`}
-                >
-                  作业管理
-                </Link>
-                <Link
-                  to="/grade-analysis"
-                  className={`text-sm font-medium transition-colors hover:text-primary ${
-                    isActive('/grade-analysis') ? 'text-primary' : 'text-muted-foreground'
-                  }`}
-                >
-                  成绩分析
-                </Link>
-                <Link
-                  to="/warning-analysis"
-                  className={`text-sm font-medium transition-colors hover:text-primary ${
-                    isActive('/warning-analysis') ? 'text-primary' : 'text-muted-foreground'
-                  }`}
-                >
-                  预警分析
-                </Link>
-                <Link
-                  to="/student-portrait-management"
-                  className={`text-sm font-medium transition-colors hover:text-primary ${
-                    isActive('/student-portrait-management') ? 'text-primary' : 'text-muted-foreground'
-                  }`}
-                >
-                  学生画像
-                </Link>
-                <Link
-                  to="/class-management"
-                  className={`text-sm font-medium transition-colors hover:text-primary ${
-                    isActive('/class-management') ? 'text-primary' : 'text-muted-foreground'
-                  }`}
-                >
-                  班级管理
-                </Link>
-                <Link
-                  to="/ai-settings"
-                  className={`text-sm font-medium transition-colors hover:text-primary ${
-                    isActive('/ai-settings') ? 'text-primary' : 'text-muted-foreground'
-                  }`}
-                >
-                  AI设置
-                </Link>
-              </>
-            ) : (
-              // 未登录用户显示简化导航
-              <>
-                <a
-                  href="#features"
-                  className="text-sm font-medium transition-colors hover:text-primary text-muted-foreground hover:text-gray-900"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                >
-                  产品功能
-                </a>
-                <a
-                  href="#workflow"
-                  className="text-sm font-medium transition-colors hover:text-primary text-muted-foreground hover:text-gray-900"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    document.getElementById('workflow')?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                >
-                  AI流程
-                </a>
-                <a
-                  href="#technology"
-                  className="text-sm font-medium transition-colors hover:text-primary text-muted-foreground hover:text-gray-900"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    document.getElementById('technology')?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                >
-                  技术栈
-                </a>
-              </>
-            )}
+            {/* 审核模式：始终显示完整导航，便于公安部门审核所有功能 */}
+            <>
+              <Link
+                to="/dashboard"
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  isActive('/dashboard') || isActive('/data-import') ? 'text-primary' : 'text-muted-foreground'
+                }`}
+              >
+                仪表板
+              </Link>
+              <Link
+                to="/homework"
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  isActive('/homework') ? 'text-primary' : 'text-muted-foreground'
+                }`}
+              >
+                作业管理
+              </Link>
+              <Link
+                to="/grade-analysis"
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  isActive('/grade-analysis') ? 'text-primary' : 'text-muted-foreground'
+                }`}
+              >
+                成绩分析
+              </Link>
+              <Link
+                to="/warning-analysis"
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  isActive('/warning-analysis') ? 'text-primary' : 'text-muted-foreground'
+                }`}
+              >
+                预警分析
+              </Link>
+              <Link
+                to="/student-portrait-management"
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  isActive('/student-portrait-management') ? 'text-primary' : 'text-muted-foreground'
+                }`}
+              >
+                学生画像
+              </Link>
+              <Link
+                to="/class-management"
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  isActive('/class-management') ? 'text-primary' : 'text-muted-foreground'
+                }`}
+              >
+                班级管理
+              </Link>
+              <Link
+                to="/ai-settings"
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  isActive('/ai-settings') ? 'text-primary' : 'text-muted-foreground'
+                }`}
+              >
+                AI设置
+              </Link>
+            </>
           </nav>
         )}
         
@@ -221,10 +185,16 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true }) => {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button onClick={() => navigate('/login')}>
-              <User className="mr-2 h-4 w-4" />
-              登录
-            </Button>
+            // 审核模式：显示审核标识而不是登录按钮
+            <div className="flex items-center gap-2">
+              <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
+                审核模式
+              </span>
+              <Button variant="outline" size="sm" onClick={() => navigate('/login')}>
+                <User className="mr-2 h-4 w-4" />
+                登录
+              </Button>
+            </div>
           )}
         </div>
       </div>
