@@ -28,6 +28,8 @@ import StudentPortraitManagement from "./pages/StudentPortraitManagement";
 import { DiagnosticsTool } from "./tools/diagnostics-ui";
 import InitTables from "./pages/InitTables";
 import CreateWarningTablePage from "./pages/tools/CreateWarningTable";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import ICPNotice from "./pages/ICPNotice";
 import { initGlobalErrorHandlers, reduceBrowserWorkload, checkBrowserResources } from "./utils/errorHandlers";
 
 
@@ -83,6 +85,8 @@ function App() {
                 {/* 公开路由 - 暂时移除身份验证，便于审核测试 */}
                 <Route path="/" element={<ModernHomepage />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
+                <Route path="/icp-notice" element={<ICPNotice />} />
                 <Route path="/unauthorized" element={<UnauthorizedPage />} />
                 <Route path="/test/cascade-analysis" element={<CascadeAnalysisTestPage />} />
                 

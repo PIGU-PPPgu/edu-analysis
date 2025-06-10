@@ -1,24 +1,13 @@
-import React, { useState } from "react";
+import React from "react";
 
 const Footer: React.FC = () => {
-  const [email, setEmail] = useState("");
-
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (email) {
-      console.log("Subscribed with email:", email);
-      alert("感谢您的订阅！");
-      setEmail("");
-    }
-  };
-
   return (
-    <footer className="w-full mt-[140px] px-[100px] max-md:max-w-full max-md:mt-10 max-md:px-5">
+    <footer className="w-full mt-[140px] flex justify-center max-md:mt-10">
       <div className="bg-[#191A23] max-w-full w-[1241px] pt-[55px] pb-[50px] px-[60px] rounded-[45px_45px_0px_0px] max-md:px-5">
         <div className="w-full max-w-[1121px] max-md:max-w-full">
           <div className="flex w-full items-center gap-[40px_155px] flex-wrap max-md:max-w-full">
             <div className="aspect-[6.21] w-[180px] self-stretch shrink-0 my-auto flex items-center">
-              <h2 className="text-white text-2xl font-bold">学生画像系统</h2>
+              <h2 className="text-white text-2xl font-bold">Intelliclass.online</h2>
             </div>
             <nav className="self-stretch flex min-w-60 gap-10 text-lg text-white font-normal underline flex-wrap my-auto max-md:max-w-full">
               <a
@@ -70,59 +59,57 @@ const Footer: React.FC = () => {
               <div className="text-lg text-white font-normal mt-[27px]">
                 <div>
                   <a
-                    href="mailto:support@student-ai.com"
+                    href="mailto:734738695@qq.com"
                     className="hover:text-[#B9FF66] transition-colors"
                   >
-                    邮箱: support@student-ai.com
+                    邮箱: 734738695@qq.com
                   </a>
                 </div>
                 <div className="mt-5">
                   <a
-                    href="tel:400-888-9999"
+                    href="tel:13138112934"
                     className="hover:text-[#B9FF66] transition-colors"
                   >
-                    电话: 400-888-9999
+                    电话: 13138112934
                   </a>
                 </div>
-                <address className="mt-5 not-italic">
-                  地址: 广东省深圳市南山区
-                  <br />
-                  科技园南区深圳湾科技生态园
-                </address>
               </div>
             </div>
-
-            <form
-              className="bg-[rgba(41,42,50,1)] flex min-w-60 gap-5 overflow-hidden font-normal flex-wrap px-10 py-[58px] rounded-[14px] max-md:max-w-full max-md:px-5"
-              onSubmit={handleSubscribe}
-            >
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="邮箱地址"
-                required
-                className="border min-w-60 gap-2.5 overflow-hidden text-lg text-white bg-transparent w-[285px] px-[35px] py-[22px] rounded-[14px] border-white border-solid focus:outline-none focus:border-[#B9FF66] max-md:px-5"
-              />
-              <button
-                type="submit"
-                className="bg-[#B9FF66] min-w-60 gap-2.5 text-xl text-black text-center leading-[1.4] px-[35px] py-5 rounded-[14px] hover:bg-[#a8e85c] transition-colors max-md:px-5"
-              >
-                订阅更新
-              </button>
-            </form>
           </div>
         </div>
 
         <div className="flex w-full max-w-[1120px] flex-col items-stretch text-lg text-white font-normal leading-loose mt-[50px] max-md:max-w-full max-md:mt-10">
           <div className="border min-h-px w-full border-white border-solid" />
+          
+          {/* 重要备案信息区域 - 突出显示 */}
+          <div className="bg-red-600 text-white p-4 rounded-lg mt-6 mb-6">
+            <div className="text-center">
+              <h3 className="text-xl font-bold mb-2">⚠️ 重要提醒：致审核人员</h3>
+              <p className="text-sm mb-3">
+                本网站为<strong>个人非商业性网站</strong>，仅供开发者个人工作使用，暂不对外开放
+              </p>
+              <a
+                href="/icp-notice"
+                className="inline-block bg-white text-red-600 px-6 py-2 rounded font-bold hover:bg-gray-100 transition-colors"
+              >
+                📋 查看详细备案说明
+              </a>
+            </div>
+          </div>
+          
           <div className="flex gap-10 flex-wrap mt-[50px] max-md:max-w-full max-md:mt-10">
-            <div>© 2025 学生画像系统. 保留所有权利.</div>
+            <div>© 2025 Intelliclass.online. 保留所有权利.</div>
             <a
               href="/privacy"
               className="underline hover:text-[#B9FF66] transition-colors"
             >
               隐私政策
+            </a>
+            <a
+              href="/icp-notice"
+              className="underline text-[#B9FF66] font-semibold hover:text-white transition-colors"
+            >
+              ICP备案说明
             </a>
             <a
               href="https://beian.miit.gov.cn/"
