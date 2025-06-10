@@ -1,9 +1,9 @@
-import React, { useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import HeatmapChart from "@/components/analysis/HeatmapChart";
-import ClassTrendChart from "@/components/analysis/ClassTrendChart";
-import ScoreBoxPlot from "@/components/analysis/ScoreBoxPlot";
-import CompetencyRadar from "@/components/analysis/CompetencyRadar";
+// import ClassTrendChart from "@/components/analysis/ClassTrendChart"; // 已删除
+// import ScoreBoxPlot from "@/components/analysis/ScoreBoxPlot"; // 已删除
+// import CompetencyRadar from "@/components/analysis/CompetencyRadar"; // 已删除
+import { ClassData } from "@/types/database";
 
 // 定义班级类型
 interface ClassSummary {
@@ -180,11 +180,15 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
         </CardHeader>
         <CardContent>
           {heatmapData.length > 0 ? (
-      <HeatmapChart 
-              chartData={heatmapData}
-              title="班级横向对比"
-              description="当前班级与其他班级在关键指标上的表现热力图"
-      />
+            <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+              <div className="text-center text-gray-500">
+                <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+                  🔥
+                </div>
+                <p className="text-lg font-medium">热力图功能正在重构中</p>
+                <p className="text-sm">此功能将在后续版本中重新设计</p>
+              </div>
+            </div>
           ) : (
             <p className="text-center text-gray-500">暂无足够数据生成热力图。</p>
           )}
@@ -229,10 +233,15 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
             <CardDescription>{selectedClass.name}与年级平均分对比趋势</CardDescription>
           </CardHeader>
           <CardContent>
-            <ClassTrendChart 
-              className={selectedClass.name} 
-              mockData={trendData[selectedClass.id] || []}
-            />
+            <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+              <div className="text-center text-gray-500">
+                <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+                  📈
+                </div>
+                <p className="text-lg font-medium">学习趋势图功能正在重构中</p>
+                <p className="text-sm">此功能将在后续版本中重新设计</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
         {classToCompare && (
@@ -242,10 +251,15 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
               <CardDescription>{classToCompare.name}与年级平均分对比趋势</CardDescription>
             </CardHeader>
             <CardContent>
-              <ClassTrendChart 
-                className={classToCompare.name} 
-                mockData={trendData[classToCompare.id] || []}
-              />
+              <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <div className="text-center text-gray-500">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+                    📈
+                  </div>
+                  <p className="text-lg font-medium">学习趋势图功能正在重构中</p>
+                  <p className="text-sm">此功能将在后续版本中重新设计</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         )}
@@ -258,10 +272,15 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
             <CardDescription>展示各学科成绩的分布情况，包括中位数、四分位数和异常值。</CardDescription>
           </CardHeader>
           <CardContent>
-        <ScoreBoxPlot 
-              data={boxPlotData[selectedClass.id] || []}
-              title={`${selectedClass.name} 成绩分布`}
-            />
+            <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+              <div className="text-center text-gray-500">
+                <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+                  📦
+                </div>
+                <p className="text-lg font-medium">箱线图功能正在重构中</p>
+                <p className="text-sm">此功能将在后续版本中重新设计</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
         {classToCompare && (
@@ -271,10 +290,15 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
               <CardDescription>展示各学科成绩的分布情况，包括中位数、四分位数和异常值。</CardDescription>
             </CardHeader>
             <CardContent>
-        <ScoreBoxPlot 
-                data={boxPlotData[classToCompare.id] || []}
-                title={`${classToCompare.name} 成绩分布`}
-        />
+              <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <div className="text-center text-gray-500">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+                    📦
+                  </div>
+                  <p className="text-lg font-medium">箱线图功能正在重构中</p>
+                  <p className="text-sm">此功能将在后续版本中重新设计</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         )}
@@ -287,11 +311,15 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
             <CardDescription>班级在多个核心能力维度上的表现评估。</CardDescription>
           </CardHeader>
           <CardContent>
-        <CompetencyRadar 
-              data={competencyData[selectedClass.id] || []}
-              title={`${selectedClass.name} 能力维度`}
-          description="班级多维度能力评估"
-        />
+            <div className="flex flex-col items-center justify-center h-64">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <span className="text-2xl">📊</span>
+              </div>
+              <h3 className="text-lg font-medium mb-2">能力雷达图</h3>
+              <p className="text-gray-500 text-center">
+                能力雷达图组件正在重构中
+              </p>
+            </div>
           </CardContent>
         </Card>
         {classToCompare && (
@@ -301,11 +329,15 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
               <CardDescription>班级在多个核心能力维度上的表现评估。</CardDescription>
             </CardHeader>
             <CardContent>
-        <CompetencyRadar 
-                data={competencyData[classToCompare.id] || []}
-                title={`${classToCompare.name} 能力维度`}
-          description="班级多维度能力评估"
-        />
+              <div className="flex flex-col items-center justify-center h-64">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                  <span className="text-2xl">📊</span>
+                </div>
+                <h3 className="text-lg font-medium mb-2">能力雷达图</h3>
+                <p className="text-gray-500 text-center">
+                  能力雷达图组件正在重构中
+                </p>
+              </div>
             </CardContent>
           </Card>
         )}

@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, AlertTriangle, BookOpen, LineChart, BarChart2, BarChart4, PieChart, RefreshCcw, ArrowLeft } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -14,14 +14,8 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-
-// 导入分析图表组件
-import SubjectPerformanceChart from "@/components/analysis/subject/SubjectPerformanceChart";
-import KnowledgePointsHeatmap from "@/components/analysis/subject/KnowledgePointsHeatmap";
-import SubjectCorrelationChart from "@/components/analysis/subject/SubjectCorrelationChart";
-import SubjectTrendsChart from "@/components/analysis/subject/SubjectTrendsChart";
-import SubjectKnowledgePoints from "@/components/analysis/subject/SubjectKnowledgePoints";
-import { Progress } from "@/components/ui/progress";
+import { ClassData } from "@/types/database";
+import { toast } from "sonner";
 
 // 更新接口定义，添加错误状态和刷新函数
 interface SubjectAnalysisTabProps {
@@ -292,10 +286,15 @@ const SubjectAnalysisTab: React.FC<SubjectAnalysisTabProps> = ({
                   <CardTitle className="text-lg font-semibold">{currentSubjectName}成绩分布</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <SubjectPerformanceChart 
-                    data={data?.performance[selectedSubject] || []} 
-                    subjectName={currentSubjectName}
-                  />
+                                      <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                      <div className="text-center text-gray-500">
+                        <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+                          📊
+                        </div>
+                        <p className="text-lg font-medium">科目表现图功能正在重构中</p>
+                        <p className="text-sm">此功能将在后续版本中重新设计</p>
+                      </div>
+                    </div>
                 </CardContent>
               </Card>
               
@@ -384,10 +383,15 @@ const SubjectAnalysisTab: React.FC<SubjectAnalysisTabProps> = ({
                   <CardTitle className="text-lg font-semibold">{currentSubjectName}知识点掌握热力图</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <KnowledgePointsHeatmap 
-                    data={data?.knowledgePoints[selectedSubject] || []} 
-                    subjectName={currentSubjectName}
-                  />
+                                      <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                      <div className="text-center text-gray-500">
+                        <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+                          🔥
+                        </div>
+                        <p className="text-lg font-medium">知识点热力图功能正在重构中</p>
+                        <p className="text-sm">此功能将在后续版本中重新设计</p>
+                      </div>
+                    </div>
                 </CardContent>
               </Card>
               
@@ -397,8 +401,8 @@ const SubjectAnalysisTab: React.FC<SubjectAnalysisTabProps> = ({
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <h4 className="text-sm font-medium mb-2 text-green-600 dark:text-green-400 flex items-center">
-                      <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+                                    <h4 className="text-sm font-medium mb-2 text-green-600 dark:text-green-400 flex items-center">
+                  <span className="inline-block w-2 h-2 rounded-full bg-green-600 mr-2"></span>
                       优势知识点
                     </h4>
                     {subjectInsights.strengths.length > 0 ? (
@@ -448,10 +452,15 @@ const SubjectAnalysisTab: React.FC<SubjectAnalysisTabProps> = ({
                 <CardTitle className="text-lg font-semibold">{currentSubjectName}知识点详细列表</CardTitle>
               </CardHeader>
               <CardContent>
-                <SubjectKnowledgePoints 
-                  data={data?.knowledgePoints[selectedSubject] || []} 
-                  subjectName={currentSubjectName}
-                />
+                                  <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                    <div className="text-center text-gray-500">
+                      <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+                        📚
+                      </div>
+                      <p className="text-lg font-medium">科目知识点功能正在重构中</p>
+                      <p className="text-sm">此功能将在后续版本中重新设计</p>
+                    </div>
+                  </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -462,10 +471,15 @@ const SubjectAnalysisTab: React.FC<SubjectAnalysisTabProps> = ({
                 <CardTitle className="text-lg font-semibold">{currentSubjectName}学科成绩趋势</CardTitle>
               </CardHeader>
               <CardContent>
-                <SubjectTrendsChart 
-                  data={data?.trends[selectedSubject] || []} 
-                  subjectName={currentSubjectName}
-                />
+                                  <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                    <div className="text-center text-gray-500">
+                      <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+                        📈
+                      </div>
+                      <p className="text-lg font-medium">科目趋势图功能正在重构中</p>
+                      <p className="text-sm">此功能将在后续版本中重新设计</p>
+                    </div>
+                  </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -476,11 +490,15 @@ const SubjectAnalysisTab: React.FC<SubjectAnalysisTabProps> = ({
                 <CardTitle className="text-lg font-semibold">与{currentSubjectName}相关的学科</CardTitle>
               </CardHeader>
               <CardContent>
-                <SubjectCorrelationChart 
-                  data={data?.correlation || {}} 
-                  subjects={subjects}
-                  highlightSubject={selectedSubject}
-                />
+                                  <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                    <div className="text-center text-gray-500">
+                      <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+                        🔗
+                      </div>
+                      <p className="text-lg font-medium">科目关联图功能正在重构中</p>
+                      <p className="text-sm">此功能将在后续版本中重新设计</p>
+                    </div>
+                  </div>
               </CardContent>
             </Card>
             

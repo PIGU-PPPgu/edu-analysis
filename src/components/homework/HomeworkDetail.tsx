@@ -276,7 +276,7 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
           
           // 获取作业提交情况
           // 不再重新获取数据，使用本地状态更新
-          await fetchSubmissions(); 
+          await fetchSubmissions(false, data); // 传入作业数据
         } else {
           setError("获取作业详情失败");
           toast({
@@ -372,7 +372,7 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
       realtimeIntervalRef.current = setInterval(() => {
         if (homeworkId) {
           console.log("实时更新：获取最新作业提交");
-          fetchSubmissions(true);
+          fetchSubmissions(true, homework); // 传入当前homework状态
           setLastUpdate(new Date());
         }
       }, 30000); // 30秒检查一次
@@ -395,11 +395,14 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
         clearInterval(realtimeIntervalRef.current);
       }
     };
-  }, [realtimeEnabled, homeworkId]);
+  }, [realtimeEnabled, homeworkId, homework]);
   
   // 优化的fetchSubmissions函数，支持分页和实时更新
-  const fetchSubmissions = async (isRealtime = false) => {
+  const fetchSubmissions = async (isRealtime = false, homeworkData?: Homework) => {
     if (!homeworkId) return;
+    
+    // 使用传入的homeworkData或当前状态中的homework
+    const currentHomework = homeworkData || homework;
     
     try {
       if (!isRealtime) {
@@ -409,116 +412,155 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
       const result = await getHomeworkSubmissions(homeworkId);
       console.log("[fetchSubmissions] Raw result from getHomeworkSubmissions:", JSON.stringify(result)); // 打印原始结果
       
-      if (result.success && result.submissions) {
-        // Map submissions (ensure students object exists)
-        let studentSubmissions = result.submissions.map(submission => {
+      if (result.success && currentHomework?.classes?.id) {
+        // Map existing submissions (ensure students object exists)
+        let existingSubmissions = result.submissions?.map(submission => {
           return {
             ...submission,
             students: Array.isArray(submission.students) 
               ? submission.students[0] || { id: submission.student_id, name: "未知学生" }
               : submission.students || { id: submission.student_id, name: "未知学生" } 
           };
-        });
-        console.log("[fetchSubmissions] Mapped studentSubmissions:", JSON.stringify(studentSubmissions)); // 打印映射后的结果
+        }) || [];
         
-        // Handle case where no submissions exist, create temp ones
-        if (studentSubmissions.length === 0 && homework?.classes?.id) {
-          // 现有逻辑保持不变...
-          try {
-            // 尝试通过class_id查询（新结构）
-            let { data: classStudents, error: classError } = await supabase
-              .from('students')
-              .select('id, name, student_id, class_name, class_id')
-              .eq('class_id', homework.classes.id);
-            
-            // 如果通过class_id查询失败，尝试通过class_name查询（旧结构）
-            if (classError || !classStudents || classStudents.length === 0) {
-              console.log('尝试通过class_name查询学生...');
-              const { data: classStudentsByName, error: nameError } = await supabase
-                .from('students')
-                .select('id, name, student_id, class_name')
-                .eq('class_name', homework.classes.name);
-              
-              if (!nameError && classStudentsByName) {
-                classStudents = classStudentsByName;
-                console.log(`通过班级名称找到${classStudents.length}名学生`);
-              }
-            }
-            
-            if (classStudents && classStudents.length > 0) {
-              console.log(`找到${classStudents.length}名班级学生，创建临时提交记录`);
-              
-              let tempSubmissions = classStudents.map(student => ({
-                id: `temp-${student.id || student.student_id}`,
-                status: 'pending',
-                students: {
-                  id: student.id || student.student_id,
-                  student_id: student.student_id,
-                  name: student.name,
-                  class_name: student.class_name
-                },
-                student_knowledge_mastery: []
-              }));
-      
-              setSubmissions(tempSubmissions);
-              
-              // 计算总页数
-              setTotalPages(Math.ceil(tempSubmissions.length / pageSize));
-              
-              const mapping: {[key: string]: {id: string, name: string}} = {};
-              classStudents.forEach(student => {
-                const studentId = student.id || student.student_id;
-                mapping[studentId] = { id: studentId, name: student.name };
-                mapping[`temp-${studentId}`] = { id: studentId, name: student.name };
-              });
-              
-              setStudentIdMapping(mapping);
-            } else {
-              console.log('未找到班级学生');
-              setSubmissions([]);
-              setTotalPages(1);
-            }
-    } catch (error) {
-            console.error('获取班级学生失败:', error);
-      toast({
-        variant: "destructive",
-              title: "获取学生名单失败",
-              description: "无法获取班级学生列表"
-            });
-          }
-        } else {
-          // 处理获取到的提交
-          setSubmissions(studentSubmissions);
+        console.log("[fetchSubmissions] Mapped existingSubmissions:", JSON.stringify(existingSubmissions)); // 打印映射后的结果
+        
+        // 始终获取班级所有学生，并合并现有提交记录
+        console.log("[fetchSubmissions] 获取班级所有学生并合并提交记录。作业数据:", {
+          homeworkId: currentHomework.id,
+          classId: currentHomework.classes.id,
+          className: currentHomework.classes.name,
+          existingSubmissionsCount: existingSubmissions.length
+        });
+        
+        try {
+          // 尝试通过class_id查询（新结构）
+          let { data: classStudents, error: classError } = await supabase
+            .from('students')
+            .select('id, name, student_id, class_name, class_id')
+            .eq('class_id', currentHomework.classes.id);
           
-          // 计算总页数
-          setTotalPages(Math.ceil(studentSubmissions.length / pageSize));
-          
-          const mapping: {[key: string]: {id: string, name: string}} = {};
-          studentSubmissions.forEach(submission => {
-            if (submission.students) {
-              mapping[submission.students.id] = { 
-                id: submission.students.id, 
-                name: submission.students.name 
-              };
-              mapping[`temp-${submission.students.id}`] = { 
-                id: submission.students.id, 
-                name: submission.students.name 
-              };
-            }
+          console.log("[fetchSubmissions] 通过class_id查询结果:", { 
+            classStudents: classStudents?.length || 0, 
+            error: classError?.message 
           });
           
-          setStudentIdMapping(mapping);
+          // 如果通过class_id查询失败，尝试通过class_name查询（旧结构）
+          if (classError || !classStudents || classStudents.length === 0) {
+            console.log('[fetchSubmissions] 尝试通过class_name查询学生...', currentHomework.classes.name);
+            const { data: classStudentsByName, error: nameError } = await supabase
+              .from('students')
+              .select('id, name, student_id, class_name')
+              .eq('class_name', currentHomework.classes.name);
+            
+            console.log("[fetchSubmissions] 通过class_name查询结果:", { 
+              classStudents: classStudentsByName?.length || 0, 
+              error: nameError?.message 
+            });
+            
+            if (!nameError && classStudentsByName) {
+              classStudents = classStudentsByName;
+              console.log(`[fetchSubmissions] 通过班级名称找到${classStudents.length}名学生`);
+            }
+          }
           
-          // 实时更新提示
-          if (isRealtime) {
+          if (classStudents && classStudents.length > 0) {
+            console.log(`[fetchSubmissions] 找到${classStudents.length}名班级学生，开始合并数据`);
+            
+            // 创建学生ID到现有提交记录的映射
+            const existingSubmissionMap = new Map();
+            existingSubmissions.forEach(submission => {
+              const studentId = submission.students?.id || submission.student_id;
+              if (studentId) {
+                existingSubmissionMap.set(studentId, submission);
+              }
+            });
+            
+            // 为所有学生创建完整的提交记录列表
+            const allSubmissions = classStudents.map(student => {
+              const studentId = student.id || student.student_id;
+              const existingSubmission = existingSubmissionMap.get(studentId);
+              
+              if (existingSubmission) {
+                // 使用现有的提交记录
+                console.log(`[fetchSubmissions] 学生 ${student.name} 有现有提交记录，状态: ${existingSubmission.status}`);
+                return {
+                  ...existingSubmission,
+                  students: {
+                    id: studentId,
+                    student_id: student.student_id,
+                    name: student.name,
+                    class_name: student.class_name
+                  }
+                };
+              } else {
+                // 为没有提交记录的学生创建临时记录
+                console.log(`[fetchSubmissions] 学生 ${student.name} 没有提交记录，创建临时记录`);
+                return {
+                  id: `temp-${studentId}`,
+                  status: 'pending',
+                  students: {
+                    id: studentId,
+                    student_id: student.student_id,
+                    name: student.name,
+                    class_name: student.class_name
+                  },
+                  student_knowledge_mastery: []
+                };
+              }
+            });
+    
+            console.log(`[fetchSubmissions] 合并完成，总共${allSubmissions.length}条记录 (${existingSubmissions.length}条现有 + ${allSubmissions.length - existingSubmissions.length}条临时)`);
+            setSubmissions(allSubmissions);
+            
+            // 计算总页数
+            setTotalPages(Math.ceil(allSubmissions.length / pageSize));
+            
+            // 创建学生ID映射
+            const mapping: {[key: string]: {id: string, name: string}} = {};
+            classStudents.forEach(student => {
+              const studentId = student.id || student.student_id;
+              mapping[studentId] = { id: studentId, name: student.name };
+              mapping[`temp-${studentId}`] = { id: studentId, name: student.name };
+            });
+            
+            setStudentIdMapping(mapping);
+            
+            // 显示成功提示
+            const newRecordsCount = allSubmissions.length - existingSubmissions.length;
             toast({
-              title: "数据已更新",
-              description: `最新提交数据已同步，共 ${studentSubmissions.length} 条记录`
+              title: "学生列表已加载",
+              description: `班级共${allSubmissions.length}名学生 (${existingSubmissions.length}名已有记录，${newRecordsCount}名待处理)`
+            });
+            
+            // 实时更新提示
+            if (isRealtime && existingSubmissions.length > 0) {
+              toast({
+                title: "数据已更新",
+                description: `最新提交数据已同步，共 ${allSubmissions.length} 条记录`
+              });
+            }
+          } else {
+            console.log('[fetchSubmissions] 未找到班级学生');
+            setSubmissions([]);
+            setTotalPages(1);
+            
+            toast({
+              variant: "destructive",
+              title: "未找到学生",
+              description: "该班级中没有找到学生记录"
             });
           }
+        } catch (error) {
+          console.error('[fetchSubmissions] 获取班级学生失败:', error);
+          toast({
+            variant: "destructive",
+            title: "获取学生名单失败",
+            description: "无法获取班级学生列表"
+          });
         }
       } else {
-        console.error('获取提交列表失败:', result.error);
+        console.error('[fetchSubmissions] 获取提交列表失败或缺少作业数据:', result.error);
         if (!isRealtime) {
           toast({
             variant: "destructive",
@@ -530,7 +572,7 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
         setTotalPages(1);
       }
     } catch (error) {
-      console.error('获取提交列表异常:', error);
+      console.error('[fetchSubmissions] 获取提交列表异常:', error);
       if (!isRealtime) {
         toast({
           variant: "destructive",

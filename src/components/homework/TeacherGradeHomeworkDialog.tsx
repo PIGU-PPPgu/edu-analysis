@@ -620,7 +620,7 @@ export default function TeacherGradeHomeworkDialog({
                             </SelectItem>
                           ))
                         ) : (
-                          <SelectItem value="" disabled>暂无学生</SelectItem>
+                          <SelectItem value="none" disabled>暂无学生</SelectItem>
                         )
                       )}
                     </SelectContent>

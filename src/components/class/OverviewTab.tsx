@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "react-router-dom";
-import { FileText, Loader2 } from "lucide-react";
+import { FileText, Loader2, TrendingUp, TrendingDown, Minus, Users, Award, Target, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import HeatmapChart from "@/components/analysis/HeatmapChart";
-import ScoreBoxPlot from "@/components/analysis/ScoreBoxPlot";
-import ExamComparison from "@/components/analysis/ExamComparison";
-import ScoreDistribution from "@/components/analysis/ScoreDistribution";
-import CompetencyRadar from "@/components/analysis/CompetencyRadar";
-import CorrelationBubble from "@/components/analysis/CorrelationBubble";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+// import CompetencyRadar from "@/components/analysis/CompetencyRadar"; // 已删除
+// import CorrelationBubble from "@/components/analysis/CorrelationBubble"; // 已删除
+import ScoreDistribution from "@/components/analysis/statistics/ScoreDistribution";
 import { toast } from "sonner";
 import { getClassDetailedAnalysisData } from "@/services/classService";
 
@@ -115,39 +114,38 @@ const OverviewTab: React.FC<Props> = ({ selectedClass }) => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <HeatmapChart chartData={generateHeatmapData()} />
-        <ScoreBoxPlot data={boxPlotData} />
+        <Card className="flex flex-col items-center justify-center min-h-[320px]">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+            <span className="text-2xl">📊</span>
+          </div>
+          <h3 className="text-lg font-medium mb-2">能力雷达图</h3>
+          <p className="text-gray-500 text-center">
+            能力雷达图组件正在重构中
+          </p>
+        </Card>
+        <Card className="flex flex-col items-center justify-center min-h-[320px]">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+            <span className="text-2xl">🔗</span>
+          </div>
+          <h3 className="text-lg font-medium mb-2">关联分析图</h3>
+          <p className="text-gray-500 text-center">
+            关联分析组件正在重构中
+          </p>
+        </Card>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {examComparisonData.examList.length > 0 && (
-          <ExamComparison 
-            mockExamList={examComparisonData.examList}
-            initialSelectedExams={examComparisonData.initialSelected}
-            mockDisplayScores={examComparisonData.displayScores}
-          />
-        )}
-        <ScoreDistribution data={scoreDistributionData} />
-      </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {isLoading ? (
-          <Card className="flex items-center justify-center min-h-[320px]">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <span className="ml-2">加载能力维度数据...</span>
-          </Card>
-        ) : (
-          <CompetencyRadar data={competencyData} />
-        )}
-        <CorrelationBubble 
-          data={correlationData} 
-          xName="课堂表现" 
-          yName="作业质量" 
-          zName="考试成绩"
-          title="学习表现关联分析"
-          description="课堂表现、作业质量与考试成绩的关联性"
-        />
-      </div>
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+         <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+           <div className="text-center text-gray-500">
+             <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+               📊
+             </div>
+             <p className="text-lg font-medium">考试对比功能正在重构中</p>
+             <p className="text-sm">此功能将在后续版本中重新设计</p>
+           </div>
+         </div>
+         <ScoreDistribution data={scoreDistributionData} />
+       </div>
       
       <div className="flex justify-end">
         <Button asChild>

@@ -528,7 +528,7 @@ export function ProfileSettings() {
                               <SelectValue placeholder="请选择默认学科" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">无默认</SelectItem>
+                              <SelectItem value="none">无默认</SelectItem>
                               <SelectItem value="math">数学</SelectItem>
                               <SelectItem value="chinese">语文</SelectItem>
                               <SelectItem value="english">英语</SelectItem>

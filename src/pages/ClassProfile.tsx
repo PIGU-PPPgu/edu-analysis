@@ -1,24 +1,27 @@
-import React from "react";
-import { useParams, Link } from "react-router-dom";
+import React, { useState, useEffect, useMemo } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Navbar from "@/components/shared/Navbar";
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, FileText, PieChart, ListFilter, BarChart2, Brain, User, ChevronRight, Calendar, Star, Activity, Award } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Minus, FileText, PieChart, ListFilter, BarChart2, Brain, User, ChevronRight, Calendar, Star, Activity, Award, Users, BookOpen, TrendingUp as TrendingUpIcon, BarChart3, Loader2, AlertCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
+import { Progress } from "@/components/ui/progress";
+import { supabase } from "@/integrations/supabase/client";
+import { OverviewTab } from "@/components/class/OverviewTab";
+import { DetailTab } from "@/components/class/DetailTab";
+import { ComparisonTab } from "@/components/class/ComparisonTab";
+import { SubjectAnalysisTab } from "@/components/class/SubjectAnalysisTab";
+import ScoreDistribution from "@/components/analysis/statistics/ScoreDistribution";
 
 // 复用现有的分析组件
-import ClassTrendChart from "@/components/analysis/ClassTrendChart";
-import GradeDistributionChart from "@/components/analysis/GradeDistributionChart";
-import CompetencyRadar from "@/components/analysis/CompetencyRadar";
-import ClassComparison from "@/components/analysis/ClassComparison";
-import ClassWeaknessAnalysis from "@/components/analysis/ClassWeaknessAnalysis";
-import SubjectAverages from "@/components/analysis/SubjectAverages";
-import ScoreDistribution from "@/components/analysis/ScoreDistribution";
-import { AIAnalysisInsightsPanel } from "@/components/analysis/AIAnalysisInsightsPanel";
-import { AIAnalysisRecommendationsPanel } from "@/components/analysis/AIAnalysisRecommendationsPanel";
-import { AIAnalysisOverviewPanel } from "@/components/analysis/AIAnalysisOverviewPanel";
+// import ClassTrendChart from "@/components/analysis/ClassTrendChart"; // 已删除
+// import ClassComparison from "@/components/analysis/ClassComparison"; // 已删除
+// import ClassWeaknessAnalysis from "@/components/analysis/ClassWeaknessAnalysis"; // 已删除
+// import SubjectAverages from "@/components/analysis/SubjectAverages"; // 已删除
 import AIProfileTags from "@/components/profile/AIProfileTags";
 
 // 使用portrait API
@@ -537,7 +540,7 @@ const ClassProfile: React.FC = () => {
                   />
                 </div>
                 
-                <GradeDistributionChart 
+                <ScoreDistribution 
                   title="班级成绩分布" 
                   endpoint={`/api/class/${classId}/grade-distribution`}
                 />
@@ -559,14 +562,15 @@ const ClassProfile: React.FC = () => {
                 <CardDescription>各学科平均成绩与优势分析</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <SubjectAverages 
-                  subjectStats={classStats?.subjectStats || []}
-                />
-                
-                <ClassWeaknessAnalysis 
-                  classId={classId!}
-                  showStudents={true}
-                />
+                <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                  <div className="text-center text-gray-500">
+                    <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+                      📊
+                    </div>
+                    <p className="text-lg font-medium">班级弱点分析组件正在重构中</p>
+                    <p className="text-sm">此功能将在后续版本中重新设计</p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -675,10 +679,13 @@ const ClassProfile: React.FC = () => {
                   <CardTitle className="text-xl">能力雷达图</CardTitle>
                 </CardHeader>
                 <CardContent className="h-80">
-                  <CompetencyRadar 
-                    classId={classId!}
-                    title="班级能力评估"
-                  />
+                  <div className="flex flex-col items-center justify-center h-full">
+                    <Brain className="h-16 w-16 text-gray-300 mb-4" />
+                    <h3 className="text-lg font-medium mb-2">能力雷达图</h3>
+                    <p className="text-gray-500 text-center">
+                      能力雷达图组件正在重构中
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
               

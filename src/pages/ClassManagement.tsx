@@ -25,8 +25,8 @@ import OverviewTab from "@/components/class/OverviewTab";
 import DetailTab from "@/components/class/DetailTab";
 import ComparisonTab from "@/components/class/ComparisonTab";
 import SubjectAnalysisTab from "@/components/class/SubjectAnalysisTab";
-import ClassReportGenerator from "@/components/analysis/ClassReportGenerator";
-import AIDataAnalysis from "@/components/analysis/AIDataAnalysis";
+// import ClassReportGenerator from "@/components/analysis/ClassReportGenerator"; // 已删除
+// import AIDataAnalysis from "@/components/analysis/AIDataAnalysis"; // 已删除
 import { getAllClasses, getAllClassesAnalysisData, getSubjectAnalysisData, deleteClass } from "@/services/classService";
 
 // 定义班级类型
@@ -323,7 +323,7 @@ const ClassManagement: React.FC = () => {
           <Button 
             onClick={() => setCreateDialogOpen(true)}
             variant="outline"
-            className="bg-lime-500 hover:bg-lime-600 text-white dark:bg-lime-600 dark:hover:bg-lime-700 dark:text-gray-900 dark:border-lime-600"
+            className="bg-[#B9FF66] hover:bg-[#A8F055] text-black dark:bg-[#B9FF66] dark:hover:bg-[#A8F055] dark:text-black border-[#B9FF66]"
           >
             <PlusCircle className="mr-2 h-5 w-5" />
             创建新班级
@@ -392,14 +392,14 @@ const ClassManagement: React.FC = () => {
                   <Card 
                     key={classItem.id} 
                     className={`group cursor-pointer transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-xl dark:bg-gray-800 dark:hover:bg-gray-750
-                      ${selectedClass?.id === classItem.id ? "ring-2 ring-lime-500 border-lime-500 dark:ring-lime-400 dark:border-lime-400 shadow-lg" : "border-gray-200 dark:border-gray-700"}
-                      bg-white dark:bg-gray-850 border hover:border-lime-500 dark:hover:border-lime-400 rounded-lg overflow-hidden shadow-md
+                      ${selectedClass?.id === classItem.id ? "ring-2 ring-[#B9FF66] border-[#B9FF66] shadow-lg" : "border-gray-200 dark:border-gray-700"}
+                      bg-white dark:bg-gray-850 border hover:border-[#B9FF66] rounded-lg overflow-hidden shadow-md
                     `}
                     onClick={() => handleClassClick(classItem)}
                   >
-                    <div className={`h-1.5 ${selectedClass?.id === classItem.id ? 'bg-lime-500' : 'bg-gray-300 dark:bg-gray-600'} group-hover:bg-lime-500 transition-colors duration-300`}></div>
+                    <div className={`h-1.5 ${selectedClass?.id === classItem.id ? 'bg-[#B9FF66]' : 'bg-gray-300 dark:bg-gray-600'} group-hover:bg-[#B9FF66] transition-colors duration-300`}></div>
                     <CardHeader className="pb-2 px-4 pt-3">
-                      <CardTitle className="text-lg font-semibold truncate text-gray-800 dark:text-white group-hover:text-lime-600 dark:group-hover:text-lime-400 transition-colors duration-300">
+                      <CardTitle className="text-lg font-semibold truncate text-gray-800 dark:text-white group-hover:text-[#5E9622] dark:group-hover:text-[#B9FF66] transition-colors duration-300">
                         {classItem.name}
                       </CardTitle>
                       <CardDescription className="text-xs text-gray-500 dark:text-gray-400">
@@ -408,7 +408,7 @@ const ClassManagement: React.FC = () => {
                   </CardHeader>
                     <CardContent className="px-4 pb-3 space-y-1.5">
                       <div className="flex items-center text-xs text-gray-600 dark:text-gray-300">
-                        <Users className="h-3.5 w-3.5 mr-1.5 text-lime-500 dark:text-lime-400" /> 学生: {classItem.studentCount ?? 'N/A'}
+                        <Users className="h-3.5 w-3.5 mr-1.5 text-[#B9FF66]" /> 学生: {classItem.studentCount ?? 'N/A'}
                       </div>
                       <div className="flex items-center text-xs text-gray-600 dark:text-gray-300">
                         <div className="flex items-center">
@@ -435,7 +435,7 @@ const ClassManagement: React.FC = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-lime-600 hover:text-lime-700 dark:text-lime-400 dark:hover:text-lime-500 hover:bg-lime-50 dark:hover:bg-gray-700 px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="text-[#5E9622] hover:text-[#426811] dark:text-[#B9FF66] dark:hover:text-[#A8F055] hover:bg-[#B9FF66]/10 dark:hover:bg-gray-700 px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity"
                         onClick={(e) => {
                           e.stopPropagation(); // 防止触发卡片点击
                           handleViewClassProfile(classItem.id);
@@ -454,19 +454,19 @@ const ClassManagement: React.FC = () => {
             {selectedClass && (
           <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full mt-8">
             <TabsList className="grid w-full grid-cols-5 bg-gray-100 dark:bg-gray-900 p-1 rounded-lg shadow-inner">
-              <TabsTrigger value="overview" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-lime-600 dark:data-[state=active]:text-lime-400 data-[state=active]:shadow-md rounded-md px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
+              <TabsTrigger value="overview" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-[#5E9622] dark:data-[state=active]:text-[#B9FF66] data-[state=active]:shadow-md rounded-md px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
                 <Users className="mr-2 h-5 w-5" />班级总览
               </TabsTrigger>
-              <TabsTrigger value="comparison" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-lime-600 dark:data-[state=active]:text-lime-400 data-[state=active]:shadow-md rounded-md px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
+              <TabsTrigger value="comparison" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-[#5E9622] dark:data-[state=active]:text-[#B9FF66] data-[state=active]:shadow-md rounded-md px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
                 <ChartPieIcon className="mr-2 h-5 w-5" />班级对比
               </TabsTrigger>
-              <TabsTrigger value="subject-analysis" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-lime-600 dark:data-[state=active]:text-lime-400 data-[state=active]:shadow-md rounded-md px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
+              <TabsTrigger value="subject-analysis" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-[#5E9622] dark:data-[state=active]:text-[#B9FF66] data-[state=active]:shadow-md rounded-md px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
                 <BookOpen className="mr-2 h-5 w-5" />学科分析
               </TabsTrigger>
-              <TabsTrigger value="details" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-lime-600 dark:data-[state=active]:text-lime-400 data-[state=active]:shadow-md rounded-md px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
+              <TabsTrigger value="details" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-[#5E9622] dark:data-[state=active]:text-[#B9FF66] data-[state=active]:shadow-md rounded-md px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
                 <FileBarChart className="mr-2 h-5 w-5" />详细数据
               </TabsTrigger>
-              <TabsTrigger value="ai-analysis" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-lime-600 dark:data-[state=active]:text-lime-400 data-[state=active]:shadow-md rounded-md px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
+              <TabsTrigger value="ai-analysis" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-[#5E9622] dark:data-[state=active]:text-[#B9FF66] data-[state=active]:shadow-md rounded-md px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
                 <Brain className="mr-2 h-5 w-5" />AI分析
               </TabsTrigger>
                   </TabsList>
@@ -549,8 +549,24 @@ const ClassManagement: React.FC = () => {
                 <CardContent className="space-y-6">
                   {selectedClass ? (
                     <>
-                      <AIDataAnalysis selectedClass={selectedClass} />
-                      <ClassReportGenerator selectedClass={selectedClass} />
+                      <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                        <div className="text-center text-gray-500">
+                          <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+                            🤖
+                          </div>
+                          <p className="text-lg font-medium">AI数据分析正在重构中</p>
+                          <p className="text-sm">此功能将在后续版本中重新设计</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                        <div className="text-center text-gray-500">
+                          <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+                            📋
+                          </div>
+                          <p className="text-lg font-medium">班级报告生成器正在重构中</p>
+                          <p className="text-sm">此功能将在后续版本中重新设计</p>
+                        </div>
+                      </div>
                     </>
                   ) : (
                     <div className="text-center py-10 text-gray-500 dark:text-gray-400">请先选择一个班级以进行AI分析。</div>

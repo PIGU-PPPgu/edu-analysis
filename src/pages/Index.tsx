@@ -1,20 +1,23 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/shared";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import StudentDataImporter from "@/components/analysis/StudentDataImporter";
-import { FileText, Users, Loader2, List, BarChart3, ListFilter, Download, FileSpreadsheet, FileInput } from "lucide-react";
+import { FileText, Users, Loader2, List, BarChart3, ListFilter, Download, FileSpreadsheet, FileInput, Plus, Settings, BookOpen, AlertTriangle, User, Upload, TrendingUp, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { gradeAnalysisService } from "@/services/gradeAnalysisService";
-import SimpleGradeTable from '@/components/analysis/SimpleGradeTable';
+import GradeImporter from "@/components/analysis/core/GradeImporter";
+import StudentDataImporter from "@/components/analysis/core/StudentDataImporter";
 import { supabase } from "@/integrations/supabase/client";
-import { BasicGradeImporter } from "@/components/analysis/BasicGradeImporter";
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+// import Footer from "@/components/shared/Footer"; // 暂时移除
 
 const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -242,7 +245,7 @@ const Index = () => {
                     </TabsList>
                     
                     <TabsContent value="import" className="space-y-6">
-                      <BasicGradeImporter onDataImported={handleDataImported} />
+                      <GradeImporter onDataImported={handleDataImported} />
                     </TabsContent>
                     
                     <TabsContent value="preview">
@@ -302,17 +305,6 @@ const Index = () => {
                             </Button>
                           </div>
                           
-                          <SimpleGradeTable data={importedData.map(item => ({
-                            studentId: item.student_id,
-                            name: item.name,
-                            className: item.class_name,
-                            subject: item.subject,
-                            score: item.score || item.total_score,
-                            examDate: item.exam_date,
-                            examType: item.exam_type,
-                            examTitle: item.exam_title
-                          }))} />
-                          
                           <div className="flex justify-end gap-4">
                             <Button variant="outline" onClick={() => setGradesActiveTab('import')}>
                               返回导入
@@ -360,6 +352,7 @@ const Index = () => {
           </TabsContent>
         </Tabs>
       </div>
+              {/* <Footer /> */}
     </div>
   );
 };
