@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useGradeAnalysis } from "@/contexts/GradeAnalysisContext";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import GradeOverview from "@/components/analysis/GradeOverview";
-import ScoreDistribution from "@/components/analysis/ScoreDistribution";
-import ScoreBoxPlot from "@/components/analysis/ScoreBoxPlot";
+import GradeOverview from "@/components/analysis/core/GradeOverview";
+import ScoreDistribution from "@/components/analysis/statistics/ScoreDistribution";
+// import MultiClassPerformanceTable from "@/components/analysis/MultiClassPerformanceTable"; // 已删除
+import { Subject } from "@/types/grade";
+
 import Navbar from "@/components/shared/Navbar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
@@ -45,22 +47,30 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
-import { ClassAnalysisView } from "@/components/analysis/ClassAnalysisView";
-import { AdvancedDashboard } from "@/components/analysis/AdvancedDashboard";
-import { StudentProgressView } from "@/components/analysis/StudentProgressView";
-import { AIAnalysisAssistant } from "@/components/analysis/AIAnalysisAssistant";
+// import { ClassAnalysisView } from "@/components/analysis/ClassAnalysisView"; // 已删除
+import { AdvancedDashboard } from "@/components/analysis/advanced/AdvancedDashboard";
+// import { StudentProgressView } from "@/components/analysis/StudentProgressView"; // 已删除
+// import { AIAnalysisAssistant } from "@/components/analysis/AIAnalysisAssistant"; // 已删除
 import { gradeAnalysisService } from "@/services/gradeAnalysisService";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import CrossDimensionAnalysisPanel from "@/components/analysis/CrossDimensionAnalysisPanel";
-import AnomalyDetection from "@/components/analysis/AnomalyDetection";
-import GradeCorrelationMatrix from "@/components/analysis/GradeCorrelationMatrix";
-import ClassBoxPlotChart from "@/components/analysis/ClassBoxPlotChart";
-import StudentSubjectContribution from "@/components/analysis/StudentSubjectContribution";
-import { ExamSelector } from "@/components/analysis/ExamSelector";
-import DataTypeAnalyzer from "@/components/analysis/subject/DataTypeAnalyzer";
-import SubjectComparisonAnalysis from "@/components/analysis/subject/SubjectComparisonAnalysis";
-import IntelligentDataAnalyzer from "@/components/analysis/subject/IntelligentDataAnalyzer";
+import AnomalyDetection from "@/components/analysis/advanced/AnomalyDetection";
+// import GradeCorrelationMatrix from "@/components/analysis/GradeCorrelationMatrix"; // 已删除
+import ClassBoxPlotChart from "@/components/analysis/comparison/ClassBoxPlotChart";
+// import StudentSubjectContribution from "@/components/analysis/StudentSubjectContribution"; // 已删除
+// import { ExamSelector } from "@/components/analysis/ExamSelector"; // 已删除
+// import DataTypeAnalyzer from "@/components/analysis/subject/DataTypeAnalyzer"; // 已删除
+// import SubjectComparisonAnalysis from "@/components/analysis/subject/SubjectComparisonAnalysis"; // 已删除
+// import IntelligentDataAnalyzer from "@/components/analysis/subject/IntelligentDataAnalyzer"; // 已删除
 import PerformanceMonitor from '@/components/ui/performance-monitor';
+import { getGradeLevelInfo } from '@/utils/gradeUtils';
+// import ClassSelector from "@/components/analysis/ClassSelector"; // 已删除
+import ClassComparisonChart from "@/components/analysis/comparison/ClassComparisonChart";
+import GradeTable from "@/components/analysis/core/GradeTable";
+
+// 新增导入 - 全局筛选相关组件
+import { FilterProvider, useFilter, filterUtils } from "@/contexts/FilterContext";
+// 使用新的紧凑筛选器替换原有的大型筛选器
+import CompactGradeFilters from "@/components/ui/compact-grade-filters";
 
 // Updated to match what Supabase actually returns
 interface StudentGrade {
@@ -74,6 +84,7 @@ interface StudentGrade {
   students?: {
     name?: string;
     student_id?: string;
+    class_name?: string;
   };
 }
 
@@ -87,8 +98,19 @@ interface ExamInfo {
   gradeCount?: number;
 }
 
+// 外层包装组件，提供FilterProvider
 const GradeAnalysisLayout: React.FC = () => {
+  return (
+    <FilterProvider>
+      <GradeAnalysisContent />
+    </FilterProvider>
+  );
+};
+
+// 主要分析组件
+const GradeAnalysisContent: React.FC = () => {
   const { gradeData, isDataLoaded, calculateStatistics, setGradeData } = useGradeAnalysis();
+  const { filterState, updateFilter, isFiltered } = useFilter();
   const [boxPlotData, setBoxPlotData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
@@ -104,9 +126,12 @@ const GradeAnalysisLayout: React.FC = () => {
   const [studentsList, setStudentsList] = useState<{id: string; name: string}[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  // 新增：科目筛选相关状态
-  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+  // 新增：科目筛选相关状态 - 使用全局筛选状态
   const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
+  
+  // 新增：表格排序状态
+  const [sortField, setSortField] = useState<string>('score');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // 添加一个状态来跟踪数据库修复
   const [dbFixStatus, setDbFixStatus] = useState<{
@@ -119,6 +144,26 @@ const GradeAnalysisLayout: React.FC = () => {
     error: null
   });
 
+  // 使用全局筛选状态过滤数据
+  const filteredGradeData = React.useMemo(() => {
+    if (!isDataLoaded) return [];
+    
+    return filterUtils.filterData(gradeData, filterState, {
+      classField: 'class_name',
+      subjectField: 'subject',
+      examField: 'exam_id',
+      dateField: 'exam_date'
+    });
+  }, [gradeData, filterState, isDataLoaded]);
+
+  // 计算过滤后的学生数量
+  const filteredStudentCount = React.useMemo(() => {
+    const uniqueStudents = new Set(
+      filteredGradeData.map(grade => grade.student_id)
+    );
+    return uniqueStudents.size;
+  }, [filteredGradeData]);
+
   // 数据库结构检查 - 更可靠的实现
   useEffect(() => {
     const checkDatabase = async () => {
@@ -126,7 +171,7 @@ const GradeAnalysisLayout: React.FC = () => {
       const lastCheckTime = localStorage.getItem('dbStructureLastCheckTime');
       const now = Date.now();
       
-      // 如果24小时内已经检查过，则跳过
+      // 如果24小时内已经检查过，则跳过检查
       if (lastCheckTime && (now - parseInt(lastCheckTime)) < 24 * 60 * 60 * 1000) {
         console.log("数据库结构已于24小时内检查过，跳过检查");
         return;
@@ -401,7 +446,8 @@ const GradeAnalysisLayout: React.FC = () => {
             
             return {
               id: item.id,
-              studentId: item.student_id,
+              student_id: item.student_id,  // 保持下划线命名统一
+              studentId: item.student_id,   // 同时保留驼峰命名兼容性
               name: studentMap.get(item.student_id) || item.name || '未知学生',
               subject: item.subject || '总分',
               score: finalScore,
@@ -409,6 +455,7 @@ const GradeAnalysisLayout: React.FC = () => {
               examType: item.exam_type || '未知考试',
               examTitle: item.exam_title || '未知考试',
               className: finalClassName,
+              class_name: finalClassName,   // 同时保留下划线命名兼容性
               examId: item.exam_id
             };
           });
@@ -600,9 +647,27 @@ const GradeAnalysisLayout: React.FC = () => {
   // 新增：科目筛选处理函数
   const handleSubjectChange = (subject: string) => {
     if (subject === "all") {
-      setSelectedSubject(null);
+      updateFilter({
+        ...filterState,
+        selectedSubjects: []
+      });
     } else {
-      setSelectedSubject(subject);
+      updateFilter({
+        ...filterState,
+        selectedSubjects: [subject]
+      });
+    }
+  };
+
+  // 重复的filteredGradeData计算已移除，使用顶部的全局筛选逻辑
+
+  // 处理表格排序
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
     }
   };
 
@@ -623,17 +688,6 @@ const GradeAnalysisLayout: React.FC = () => {
   
   // 获取当前选中考试的详细信息
   const currentExam = examList.find(exam => exam.id === selectedExam) || null;
-  
-  // 根据科目筛选过滤成绩数据
-  const filteredGradeData = selectedSubject 
-    ? gradeData.filter(item => item.subject === selectedSubject)
-    : gradeData;
-    
-  // 计算唯一学生数（不受科目筛选影响）
-  const uniqueStudentCount = [...new Set(gradeData.map(item => item.student_id))].length;
-  
-  // 计算当前筛选条件下的学生数
-  const filteredStudentCount = [...new Set(filteredGradeData.map(item => item.student_id))].length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -666,6 +720,7 @@ const GradeAnalysisLayout: React.FC = () => {
       )}
       
       <div className="container mx-auto py-6 px-4">
+        {/* 页面头部 */}
         <div className="flex items-center gap-2 mb-6">
           <Button 
             variant="ghost" 
@@ -681,7 +736,7 @@ const GradeAnalysisLayout: React.FC = () => {
           {isDataLoaded && (
             <span className="bg-green-100 text-green-800 text-xs font-medium ml-2 px-2.5 py-0.5 rounded-full flex items-center">
               <span className="w-2 h-2 bg-green-500 rounded-full mr-1"></span>
-              {gradeData.length}条记录
+              {filteredGradeData.length}/{gradeData.length}条记录
             </span>
           )}
           
@@ -689,22 +744,11 @@ const GradeAnalysisLayout: React.FC = () => {
             {examList.length > 0 ? (
               <>
                 <BookOpen className="h-4 w-4" />
-                <ExamSelector 
-                  exams={examList.map(exam => ({
-                    id: exam.id,
-                    title: exam.title,
-                    date: exam.date || undefined,
-                    type: exam.type || undefined,
-                    subject: exam.subject || undefined,
-                    gradeCount: exam.gradeCount
-                  }))}
-                  selectedExam={selectedExam ? examList.find(exam => exam.id === selectedExam) || null : null}
-                  onExamSelect={(exam) => {
-                    handleExamChange(exam.id);
-                  }}
-                  isLoading={isLoading}
-                  onExamDelete={handleRefreshData}
-                />
+                <div className="flex items-center justify-center px-4 py-2 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                  <div className="text-center text-gray-500">
+                    <span className="text-sm">考试选择器正在重构中</span>
+                  </div>
+                </div>
                 <Button 
                   variant="outline"
                   size="icon"
@@ -726,6 +770,69 @@ const GradeAnalysisLayout: React.FC = () => {
             )}
           </div>
         </div>
+
+        {/* 紧凑筛选器组件 - 替换原有的大型筛选器 */}
+        {isDataLoaded && (
+          <div className="mb-6">
+            <CompactGradeFilters
+              config={{
+                classes: classesList.length > 0 ? classesList : ['全部班级'],
+                subjects: availableSubjects.length > 0 ? availableSubjects : ['全部科目'],
+                examTypes: ['期中考试', '期末考试', '月考', '周测', '单元测试'],
+                scoreRanges: [
+                  { label: '优秀 (90-100)', min: 90, max: 100 },
+                  { label: '良好 (80-89)', min: 80, max: 89 },
+                  { label: '中等 (70-79)', min: 70, max: 79 },
+                  { label: '及格 (60-69)', min: 60, max: 69 },
+                  { label: '不及格 (0-59)', min: 0, max: 59 },
+                ]
+              }}
+              filterState={{
+                searchTerm: filterState.searchTerm || '',
+                selectedClasses: filterState.selectedClasses || [],
+                selectedSubjects: filterState.selectedSubjects || [],
+                selectedExamTypes: [],
+                selectedScoreRange: ''
+              }}
+              onFilterChange={(newFilterState) => {
+                updateFilter({
+                  ...filterState,
+                  searchTerm: newFilterState.searchTerm,
+                  selectedClasses: newFilterState.selectedClasses,
+                  selectedSubjects: newFilterState.selectedSubjects
+                });
+              }}
+              totalRecords={gradeData.length}
+              filteredRecords={filteredGradeData.length}
+              className="mb-4"
+            />
+            {/* 筛选状态摘要 */}
+            {isFiltered && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center text-sm text-blue-700">
+                    <Filter className="h-4 w-4 mr-2" />
+                    当前筛选: {filterUtils.getFilterDescription(filterState)}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => updateFilter({
+                      mode: 'grade',
+                      selectedClasses: [],
+                      selectedSubjects: [],
+                      selectedExam: filterState.selectedExam,
+                      dateRange: undefined
+                    })}
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    清除筛选
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         
         <Tabs 
           value={activeTab} 
@@ -780,6 +887,7 @@ const GradeAnalysisLayout: React.FC = () => {
           </TabsList>
           
           <TabsContent value="dashboard" className="space-y-6">
+            {/* 当前考试信息展示 */}
             {currentExam && (
               <Card className="bg-white p-4 rounded-lg shadow mb-4">
                 <CardHeader className="pb-2">
@@ -822,15 +930,11 @@ const GradeAnalysisLayout: React.FC = () => {
               </Card>
             )}
           
-            <GradeOverview />
+            <GradeOverview gradeData={filteredGradeData} />
             
             {isDataLoaded && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <ScoreDistribution />
-                
-                {boxPlotData.length > 0 && (
-                  <ScoreBoxPlot data={boxPlotData} />
-                )}
+              <div className="grid grid-cols-1 gap-6">
+                <ScoreDistribution gradeData={filteredGradeData} />
               </div>
             )}
             
@@ -854,255 +958,38 @@ const GradeAnalysisLayout: React.FC = () => {
               </div>
             )}
             
-            {/* 主要内容区域 */}
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-              {/* 数据概览统计 */}
-              {filteredGradeData.length > 0 && (
-                <div className="lg:col-span-4 mb-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">数据概览</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
-                          <div className="text-2xl font-bold text-blue-600">{uniqueStudentCount}</div>
-                          <div className="text-sm text-blue-700">总学生数</div>
-                        </div>
-                        <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
-                          <div className="text-2xl font-bold text-green-600">{availableSubjects.length}</div>
-                          <div className="text-sm text-green-700">科目数量</div>
-                        </div>
-                        <div className="text-center p-3 bg-orange-50 rounded-lg border border-orange-200">
-                          <div className="text-2xl font-bold text-orange-600">{gradeData.length}</div>
-                          <div className="text-sm text-orange-700">总记录数</div>
-                        </div>
-                        <div className="text-center p-3 bg-purple-50 rounded-lg border border-purple-200">
-                          <div className="text-2xl font-bold text-purple-600">{filteredGradeData.length}</div>
-                          <div className="text-sm text-purple-700">
-                            {selectedSubject ? `${selectedSubject}记录` : '筛选后记录'}
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-              
-              {/* 左侧主要内容 */}
-              {isDataLoaded && (
-                <Card className="lg:col-span-3">
-                  <CardHeader className="pb-4">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">成绩明细表</CardTitle>
-                      {/* 科目筛选器 */}
-                      {availableSubjects.length > 1 && (
-                        <Select value={selectedSubject || "all"} onValueChange={handleSubjectChange}>
-                          <SelectTrigger className="w-[140px]">
-                            <SelectValue placeholder="选择科目" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">全部科目</SelectItem>
-                            {availableSubjects.map((subject) => (
-                              <SelectItem key={subject} value={subject}>
-                                {subject}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-600 mt-2">
-                      共 {filteredGradeData.length} 条记录 • {filteredStudentCount} 名学生
-                      {selectedSubject && (
-                        <span className="ml-2 text-blue-600">
-                          (当前筛选: {selectedSubject})
-                        </span>
-                      )}
-                    </p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
-                          <tr>
-                            <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors">
-                              <div className="flex items-center gap-2">
-                                <span>学号</span>
-                                <ArrowUpDown className="h-3 w-3 text-gray-400" />
-                              </div>
-                            </th>
-                            <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors">
-                              <div className="flex items-center gap-2">
-                                <span>姓名</span>
-                                <ArrowUpDown className="h-3 w-3 text-gray-400" />
-                              </div>
-                            </th>
-                            <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors">
-                              <div className="flex items-center gap-2">
-                                <span>班级</span>
-                                <ArrowUpDown className="h-3 w-3 text-gray-400" />
-                              </div>
-                            </th>
-                            <th className="py-3 px-4 text-center text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors">
-                              <div className="flex items-center justify-center gap-2">
-                                <span>分数</span>
-                                <ArrowUpDown className="h-3 w-3 text-gray-400" />
-                              </div>
-                            </th>
-                            <th className="py-3 px-4 text-center text-sm font-semibold text-gray-700">
-                              等级
-                            </th>
-                            <th className="py-3 px-4 text-center text-sm font-semibold text-gray-700">
-                              操作
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {filteredGradeData.slice(0, 20).map((item, index) => {
-                            // 计算成绩等级
-                            const getGradeLevel = (score: number) => {
-                              if (score >= 90) return { level: '优秀', color: 'bg-emerald-100 text-emerald-800', icon: '🏆' };
-                              if (score >= 80) return { level: '良好', color: 'bg-blue-100 text-blue-800', icon: '👍' };
-                              if (score >= 70) return { level: '中等', color: 'bg-yellow-100 text-yellow-800', icon: '📈' };
-                              if (score >= 60) return { level: '及格', color: 'bg-orange-100 text-orange-800', icon: '✓' };
-                              return { level: '不及格', color: 'bg-red-100 text-red-800', icon: '⚠️' };
-                            };
-
-                            const gradeLevel = getGradeLevel(item.score);
-
-                            return (
-                              <tr 
-                                key={index} 
-                                className="hover:bg-blue-50 transition-colors group"
-                              >
-                                <td className="py-3 px-4">
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-8 h-8 bg-gradient-to-r from-blue-100 to-blue-200 rounded-full flex items-center justify-center text-xs font-medium text-blue-700">
-                                      {index + 1}
-                                    </div>
-                                    <span className="text-sm font-mono text-gray-700">
-                                      {item.student_id}
-                                    </span>
-                                  </div>
-                                </td>
-                                <td className="py-3 px-4">
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-8 h-8 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full flex items-center justify-center text-xs font-medium text-gray-600">
-                                      {item.students?.name ? item.students.name.charAt(0) : (item.name ? item.name.charAt(0) : '?')}
-                                    </div>
-                                    <span className="text-sm font-medium text-gray-900">
-                                      {item.students?.name || item.name || '未知学生'}
-                                    </span>
-                                  </div>
-                                </td>
-                                <td className="py-3 px-4">
-                                  <Badge variant="outline" className="text-xs">
-                                    {item.className || '未知班级'}
-                                  </Badge>
-                                </td>
-                                <td className="py-3 px-4 text-center">
-                                  <div className="flex items-center justify-center">
-                                    <span className={`
-                                      text-lg font-bold px-3 py-1 rounded-lg
-                                      ${item.score >= 90 ? 'text-emerald-700 bg-emerald-100' : 
-                                        item.score >= 80 ? 'text-blue-700 bg-blue-100' :
-                                        item.score >= 70 ? 'text-yellow-700 bg-yellow-100' :
-                                        item.score >= 60 ? 'text-orange-700 bg-orange-100' :
-                                        'text-red-700 bg-red-100'}
-                                    `}>
-                                      {item.score}
-                                    </span>
-                                  </div>
-                                </td>
-                                <td className="py-3 px-4 text-center">
-                                  <Badge className={`${gradeLevel.color} border-0`}>
-                                    <span className="mr-1">{gradeLevel.icon}</span>
-                                    {gradeLevel.level}
-                                  </Badge>
-                                </td>
-                                <td className="py-3 px-4 text-center">
-                                  <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                                      <Eye className="h-3 w-3" />
-                                    </Button>
-                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                                      <Edit className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-            
-            {/* 右侧主要内容 */}
+            {/* 成绩明细区域 */}
             {isDataLoaded && (
-              <Card className="lg:col-span-1">
-                <CardHeader>
-                  <CardTitle className="text-lg">数据统计</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="text-center p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600">
-                      {filteredGradeData.length > 0 ? 
-                        (filteredGradeData.reduce((sum, item) => sum + item.score, 0) / filteredGradeData.length).toFixed(1) : 
-                        '0.0'
-                      }
-                    </div>
-                    <div className="text-sm text-blue-700">平均分</div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">记录数:</span>
-                      <span className="font-medium">{filteredGradeData.length}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">学生数:</span>
-                      <span className="font-medium">{filteredStudentCount}</span>
-                    </div>
-                    {selectedSubject && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">当前科目:</span>
-                        <span className="font-medium text-blue-600">{selectedSubject}</span>
-                      </div>
+              <Card>
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg">
+                    {filterState.selectedSubjects.length > 0 ? 
+                      `${filterState.selectedSubjects.join(', ')} 成绩明细` : 
+                      '学生成绩明细'
+                    }
+                  </CardTitle>
+                  <p className="text-sm text-gray-600 mt-2">
+                    共 {filteredGradeData.length} 条记录 • {filteredStudentCount} 名学生
+                    {isFiltered && (
+                      <span className="ml-2 text-blue-600">
+                        ({filterUtils.getFilterDescription(filterState)})
+                      </span>
                     )}
-                  </div>
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <GradeTable gradeData={filteredGradeData} />
                 </CardContent>
               </Card>
             )}
           </TabsContent>
           
           <TabsContent value="class">
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4">
               <h2 className="text-xl font-bold">班级成绩分析</h2>
-              
-              {classesList.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <Select 
-                    value={selectedClass || undefined} 
-                    onValueChange={handleClassChange}
-                  >
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="                                                    班级" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {classesList.map(className => (
-                        <SelectItem key={className} value={className}>
-                          {className}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+              <p className="text-sm text-gray-600 mt-1">
+                当前筛选状态: {filterUtils.getFilterDescription(filterState)}
+              </p>
             </div>
             
             {hasNoExams ? (
@@ -1120,11 +1007,38 @@ const GradeAnalysisLayout: React.FC = () => {
                 </CardContent>
               </Card>
             ) : isDataLoaded ? (
-              <ClassAnalysisView 
-                classId={selectedClass || undefined} 
-                examId={selectedExam || undefined}
-                className={selectedClass || "全部班级"}
-              />
+              <div className="space-y-6">
+                {/* 多班级对比图表 */}
+                {classesList.length > 1 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <BarChart3 className="h-5 w-5 text-blue-600" />
+                        多班级对比分析
+                      </CardTitle>
+                      <CardDescription>
+                        对比不同班级在各科目上的表现差异，识别优势和不足
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ClassComparisonChart
+                        gradeData={filteredGradeData}
+                      />
+                    </CardContent>
+                  </Card>
+                )}
+                
+                {/* 单班级详细分析 */}
+                <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                  <div className="text-center text-gray-500">
+                    <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+                      🏫
+                    </div>
+                    <p className="text-lg font-medium">班级分析视图正在重构中</p>
+                    <p className="text-sm">此功能将在后续版本中重新设计</p>
+                  </div>
+                </div>
+              </div>
             ) : (
               <div className="text-center py-12 bg-white rounded-lg shadow">
                 <p className="text-xl text-gray-600">暂无班级数据</p>
@@ -1140,28 +1054,12 @@ const GradeAnalysisLayout: React.FC = () => {
           </TabsContent>
           
           <TabsContent value="student">
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4">
               <h2 className="text-xl font-bold">学生成绩进步分析</h2>
-              
-              {studentsList.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <Select 
-                    value={selectedStudent?.id} 
-                    onValueChange={handleStudentChange}
-                  >
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="选择学生" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {studentsList.map(student => (
-                        <SelectItem key={student.id} value={student.id}>
-                          {student.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+              <p className="text-sm text-gray-600 mt-1">
+                当前筛选状态: {filterUtils.getFilterDescription(filterState)} • 
+                {filteredStudentCount} 名学生
+              </p>
             </div>
             
             {hasNoExams ? (
@@ -1178,23 +1076,26 @@ const GradeAnalysisLayout: React.FC = () => {
                   </Button>
                 </CardContent>
               </Card>
-            ) : isDataLoaded && selectedStudent ? (
-              <StudentProgressView 
-                studentId={selectedStudent.id}
-                studentName={selectedStudent.name} 
-              />
+            ) : isDataLoaded ? (
+              <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <div className="text-center text-gray-500">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+                    📈
+                  </div>
+                  <p className="text-lg font-medium">学生成绩进步分析正在重构中</p>
+                  <p className="text-sm">此功能将在后续版本中重新设计</p>
+                </div>
+              </div>
             ) : (
               <div className="text-center py-12 bg-white rounded-lg shadow">
-                <p className="text-xl text-gray-600">请选择学生</p>
+                <p className="text-xl text-gray-600">暂无学生数据</p>
                 <p className="text-gray-500 mt-2">查看学生历次成绩进步情况</p>
-                {!isDataLoaded && (
-                  <Button 
-                    className="mt-4" 
-                    onClick={() => navigate("/")}
-                  >
-                    前往导入数据
-                  </Button>
-                )}
+                <Button 
+                  className="mt-4" 
+                  onClick={() => navigate("/")}
+                >
+                  前往导入数据
+                </Button>
               </div>
             )}
           </TabsContent>
@@ -1220,6 +1121,7 @@ const GradeAnalysisLayout: React.FC = () => {
                 examTitle={currentExam?.title}
                 examDate={currentExam?.date || undefined}
                 examType={currentExam?.type}
+                gradeData={filteredGradeData}
               />
             ) : (
               <div className="text-center py-12 bg-white rounded-lg shadow">
@@ -1258,7 +1160,7 @@ const GradeAnalysisLayout: React.FC = () => {
                 </AlertDescription>
               </Alert>
               
-              <CrossDimensionAnalysisPanel />
+              {/* 占位符 */}
             </div>
           </TabsContent>
           
@@ -1272,7 +1174,7 @@ const GradeAnalysisLayout: React.FC = () => {
                 </AlertDescription>
               </Alert>
               
-              <AnomalyDetection />
+              {/* 占位符 */}
             </div>
           </TabsContent>
           
@@ -1286,7 +1188,15 @@ const GradeAnalysisLayout: React.FC = () => {
                 </AlertDescription>
               </Alert>
               
-              <GradeCorrelationMatrix classId={selectedClass || selectedExam || ''} />
+              <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <div className="text-center text-gray-500">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+                    🔗
+                  </div>
+                  <p className="text-lg font-medium">科目相关性分析正在重构中</p>
+                  <p className="text-sm">此功能将在后续版本中重新设计</p>
+                </div>
+              </div>
             </div>
           </TabsContent>
           
@@ -1300,7 +1210,7 @@ const GradeAnalysisLayout: React.FC = () => {
                 </AlertDescription>
               </Alert>
               
-              <ClassBoxPlotChart />
+              <ClassBoxPlotChart gradeData={filteredGradeData} />
             </div>
           </TabsContent>
           
@@ -1308,13 +1218,39 @@ const GradeAnalysisLayout: React.FC = () => {
             <div className="space-y-6">
               <Alert className="bg-blue-50 border-blue-200">
                 <ChartPieIcon className="h-4 w-4 text-blue-500" />
-                <AlertTitle className="text-blue-700">学生科目贡献度</AlertTitle>
+                <AlertTitle className="text-blue-700">多班级表现对比分析</AlertTitle>
                 <AlertDescription className="text-blue-600">
+                  <p>详细对比各班级在不同科目的表现，包括排名、统计数据和导出功能。</p>
+                </AlertDescription>
+              </Alert>
+              
+              <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <div className="text-center text-gray-500">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+                    👥
+                  </div>
+                  <p className="text-lg font-medium">学生科目贡献度分析正在重构中</p>
+                  <p className="text-sm">此功能将在后续版本中重新设计</p>
+                </div>
+              </div>
+              
+              <Alert className="bg-green-50 border-green-200 mt-6">
+                <ChartPieIcon className="h-4 w-4 text-green-500" />
+                <AlertTitle className="text-green-700">学生科目贡献度</AlertTitle>
+                <AlertDescription className="text-green-600">
                   <p>分析学生各科成绩相对于班级的表现差异，识别学生的优势和劣势学科，为因材施教提供数据支持。</p>
                 </AlertDescription>
               </Alert>
               
-              <StudentSubjectContribution />
+              <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <div className="text-center text-gray-500">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+                    👥
+                  </div>
+                  <p className="text-lg font-medium">学生科目贡献度分析正在重构中</p>
+                  <p className="text-sm">此功能将在后续版本中重新设计</p>
+                </div>
+              </div>
             </div>
           </TabsContent>
           
@@ -1329,13 +1265,37 @@ const GradeAnalysisLayout: React.FC = () => {
               </Alert>
               
               {/* 真正的AI分析组件 */}
-              <IntelligentDataAnalyzer />
+              <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <div className="text-center text-gray-500">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+                    🤖
+                  </div>
+                  <p className="text-lg font-medium">智能数据分析器正在重构中</p>
+                  <p className="text-sm">此功能将在后续版本中重新设计</p>
+                </div>
+              </div>
               
               {/* 数据类型分析 */}
-              <DataTypeAnalyzer />
+              <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <div className="text-center text-gray-500">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+                    📊
+                  </div>
+                  <p className="text-lg font-medium">数据类型分析器正在重构中</p>
+                  <p className="text-sm">此功能将在后续版本中重新设计</p>
+                </div>
+              </div>
               
               {/* 科目对比分析 */}
-              <SubjectComparisonAnalysis />
+              <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <div className="text-center text-gray-500">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+                    📈
+                  </div>
+                  <p className="text-lg font-medium">科目对比分析正在重构中</p>
+                  <p className="text-sm">此功能将在后续版本中重新设计</p>
+                </div>
+              </div>
             </div>
           </TabsContent>
 

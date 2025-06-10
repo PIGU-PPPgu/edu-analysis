@@ -61,6 +61,19 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				'brand-green': {
+					DEFAULT: '#B9FF66',
+					50: '#F4FFE5',
+					100: '#E8FFCC',
+					200: '#D1FF99',
+					300: '#B9FF66',
+					400: '#A8F055',
+					500: '#96E044',
+					600: '#7AC433',
+					700: '#5E9622',
+					800: '#426811',
+					900: '#263A00'
 				}
 			},
 			borderRadius: {

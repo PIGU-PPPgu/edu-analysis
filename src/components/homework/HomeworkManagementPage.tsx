@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, BarChart2, ListChecks, FileText } from "lucide-react";
-import HomeworkAnalysisDashboard from "../analysis/HomeworkAnalysisDashboard";
+// import HomeworkAnalysisDashboard from "../analysis/HomeworkAnalysisDashboard"; // 已删除
 
 export default function HomeworkManagementPage() {
   return (
@@ -42,7 +42,15 @@ export default function HomeworkManagementPage() {
         </TabsList>
         
         <TabsContent value="dashboard">
-          <HomeworkAnalysisDashboard />
+                      <div className="flex flex-col items-center justify-center py-12 bg-gray-50 rounded-lg">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <span className="text-2xl">📊</span>
+              </div>
+              <h3 className="text-lg font-medium mb-2">作业分析面板</h3>
+              <p className="text-gray-500 text-center">
+                作业分析功能正在重构中，敬请期待
+              </p>
+            </div>
         </TabsContent>
         
         <TabsContent value="homeworks">

@@ -28,7 +28,10 @@ import StudentPortraitManagement from "./pages/StudentPortraitManagement";
 import { DiagnosticsTool } from "./tools/diagnostics-ui";
 import InitTables from "./pages/InitTables";
 import CreateWarningTablePage from "./pages/tools/CreateWarningTable";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import ICPNotice from "./pages/ICPNotice";
 import { initGlobalErrorHandlers, reduceBrowserWorkload, checkBrowserResources } from "./utils/errorHandlers";
+
 
 // 全局配置QueryClient
 const queryClient = new QueryClient({
@@ -79,23 +82,40 @@ function App() {
           <DatabaseInitializer>
             <BrowserRouter>
           <Routes>
-                {/* 公开路由 - 无需身份验证 */}
+                {/* 公开路由 - 暂时移除身份验证，便于审核测试 */}
+                <Route path="/" element={<ModernHomepage />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
+                <Route path="/icp-notice" element={<ICPNotice />} />
                 <Route path="/unauthorized" element={<UnauthorizedPage />} />
                 <Route path="/test/cascade-analysis" element={<CascadeAnalysisTestPage />} />
+                
+                {/* 暂时开放的主要功能页面 - 便于公安部门审核 */}
+                <Route path="/dashboard" element={<Index />} />
+                <Route path="/data-import" element={<Index />} />
+                <Route path="/grade-analysis" element={<GradeAnalysis />} />
+                <Route path="/warning-analysis" element={<WarningAnalysis />} />
+                <Route path="/student-management" element={<StudentManagement />} />
+                <Route path="/class-management" element={<ClassManagement />} />
+                <Route path="/student-portrait-management" element={<StudentPortraitManagement />} />
+                <Route path="/ai-settings" element={<AISettings />} />
+                <Route path="/homework" element={<HomeworkManagement />} />
+                <Route path="/profile" element={<ProfilePage />} />
             
                 {/* 诊断工具路由 */}
                 <Route path="/tools/diagnostics" element={<DiagnosticsTool />} />
                 <Route path="/tools/init-tables" element={<InitTables />} />
                 <Route path="/tools/create-warning-table" element={<CreateWarningTablePage />} />
                 
-                {/* 需要认证的路由 */}
+                {/* 测试路由 - 新增改进的成绩分析演示 */}
+                {/* <Route path="/test/improved-grade-analysis" element={<ImprovedGradeAnalysisDemo />} /> */}
+                
+                {/* 临时注释掉认证路由 - 便于审核测试
                 <Route element={<ProtectedRoute />}>
-                  <Route path="/" element={<ModernHomepage />} />
+                  <Route path="/dashboard" element={<Index />} />
                   <Route path="/data-import" element={<Index />} />
                   <Route path="/profile" element={<ProfilePage />} />
                   
-                  {/* 需要特定角色的路由 */}
                   <Route element={<ProtectedRoute allowedRoles={['admin', 'teacher']} />}>
                     <Route path="/grade-analysis" element={<GradeAnalysis />} />
                     <Route path="/warning-analysis" element={<WarningAnalysis />} />
@@ -103,18 +123,24 @@ function App() {
                     <Route path="/class-management" element={<ClassManagement />} />
                     <Route path="/class-profile/:classId" element={<ClassProfile />} />
                     <Route path="/student-portrait-management" element={<StudentPortraitManagement />} />
-            </Route>
+                  </Route>
             
-                  {/* 学生和教师都可访问的路由 */}
                   <Route path="/student-profile/:studentId" element={<StudentProfile />} />
                   <Route path="/ai-settings" element={<AISettings />} />
                   
-                  {/* 作业相关路由 */}
                   <Route path="/homework" element={<HomeworkManagement />} />
                   <Route path="/homework/edit/:homeworkId" element={<HomeworkManagement />} />
                   <Route path="/homework/:homeworkId" element={<HomeworkDetailPage />} />
                   <Route path="/student-homework" element={<StudentManagement />} />
                 </Route>
+                */}
+                
+                {/* 暂时开放的动态路由 */}
+                <Route path="/class-profile/:classId" element={<ClassProfile />} />
+                <Route path="/student-profile/:studentId" element={<StudentProfile />} />
+                <Route path="/homework/edit/:homeworkId" element={<HomeworkManagement />} />
+                <Route path="/homework/:homeworkId" element={<HomeworkDetailPage />} />
+                <Route path="/student-homework" element={<StudentManagement />} />
                 
                 {/* 默认404路由 */}
                 <Route path="*" element={<NotFound />} />

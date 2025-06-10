@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Navbar from "@/components/shared/Navbar";
 import StudentGradeTrend from "../components/analysis/StudentGradeTrend";
-import ClassComparison from "../components/analysis/ClassComparison";
+import ClassComparisonChart from "../components/analysis/comparison/ClassComparisonChart";
 import ScoreSummary from "../components/profile/ScoreSummary";
 import ScoreChart from "../components/profile/ScoreChart";
 import AbilityRadar from "../components/profile/AbilityRadar";
@@ -389,7 +389,7 @@ const StudentProfile: React.FC = () => {
                 
                 <TabsContent value="comparison">
                   <div className="space-y-6">
-                    <ClassComparison />
+                    <ClassComparisonChart />
                   </div>
                 </TabsContent>
               </Tabs>

@@ -93,6 +93,21 @@ export async function getHomeworkById(homeworkId: string) {
  */
 export async function getHomeworkSubmissions(homeworkId: string) {
   try {
+    // 首先检查学生表的结构，确定正确的查询方式
+    const { data: tableInfo, error: tableError } = await supabase
+      .from('students')
+      .select('id, student_id, name, class_name')
+      .limit(1);
+    
+    if (tableError) {
+      console.error('检查学生表结构失败:', tableError);
+    }
+    
+    // 根据表结构确定查询策略
+    const hasUuidId = tableInfo && tableInfo.length > 0 && tableInfo[0].id;
+    
+    console.log('学生表结构检查:', { hasUuidId, sampleRecord: tableInfo?.[0] });
+    
     const { data, error } = await supabase
       .from('homework_submissions')
       .select(`
@@ -104,9 +119,10 @@ export async function getHomeworkSubmissions(homeworkId: string) {
         student_id,
         knowledge_points_assessed,
         students (
-          id,
+          ${hasUuidId ? 'id,' : ''}
           name,
-          student_id
+          student_id,
+          class_name
         ),
         student_knowledge_mastery (
           id,
@@ -133,9 +149,30 @@ export async function getHomeworkSubmissions(homeworkId: string) {
       };
     }
 
+    // 调试输出，检查返回的数据结构
+    console.log('作业提交记录查询结果示例:', data?.slice(0, 2));
+    
+    // 数据后处理：确保学生信息结构一致
+    const processedData = data?.map(submission => ({
+      ...submission,
+      students: submission.students ? {
+        id: submission.students.id || submission.students.student_id,
+        student_id: submission.students.student_id,
+        name: submission.students.name || '未知学生',
+        class_name: submission.students.class_name || '未知班级'
+      } : {
+        id: submission.student_id,
+        student_id: submission.student_id,
+        name: '未知学生',
+        class_name: '未知班级'
+      }
+    }));
+
+    console.log('处理后的数据示例:', processedData?.slice(0, 2));
+
     return {
       success: true,
-      submissions: data
+      submissions: processedData || []
     };
   } catch (error: any) {
     console.error('获取作业提交异常:', error);

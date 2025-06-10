@@ -320,7 +320,6 @@ export const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
                               <SelectValue placeholder="选择信息项..." />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="" disabled={!!currentMapping && currentMapping !== 'unknown'}>选择信息项...</SelectItem>
                               <SelectItem value="unknown" disabled={!!currentMapping && currentMapping !== 'unknown'}>标记为未匹配</SelectItem>
                               {systemFieldsToMap.map(sf => (
                                 <SelectItem key={sf.value} value={sf.value}>{sf.label}</SelectItem>

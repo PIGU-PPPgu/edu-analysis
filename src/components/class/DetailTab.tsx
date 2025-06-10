@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import ClassProfileCard from "@/components/analysis/ClassProfileCard";
-import ClassTrendChart from "@/components/analysis/ClassTrendChart";
-import ClassWeaknessAnalysis from "@/components/analysis/ClassWeaknessAnalysis";
-import ClassReportGenerator from "@/components/analysis/ClassReportGenerator";
-import ClassStudentsList from "@/components/analysis/ClassStudentsList";
-import ExamComparison from "@/components/analysis/ExamComparison";
-import ScoreDistribution from "@/components/analysis/ScoreDistribution";
-import ScoreBoxPlot from "@/components/analysis/ScoreBoxPlot";
-import CompetencyRadar from "@/components/analysis/CompetencyRadar";
-import CorrelationBubble from "@/components/analysis/CorrelationBubble";
-import AIDataAnalysis from "@/components/analysis/AIDataAnalysis";
+import ClassProfileCard from "@/components/class/ClassProfileCard";
+// import ClassTrendChart from "@/components/analysis/ClassTrendChart"; // 已删除
+// import ClassWeaknessAnalysis from "@/components/analysis/ClassWeaknessAnalysis"; // 已删除
+import ClassStudentsList from "@/components/class/ClassStudentsList";
+import ExamComparison from "@/components/class/ExamComparison";
+import ScoreDistribution from "@/components/analysis/statistics/ScoreDistribution";
+import ScoreBoxPlot from "@/components/class/ScoreBoxPlot";
+// import CompetencyRadar from "@/components/analysis/CompetencyRadar"; // 已删除
+// import CorrelationBubble from "@/components/analysis/CorrelationBubble"; // 已删除
+// import AIDataAnalysis from "@/components/analysis/AIDataAnalysis"; // 已删除
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -230,10 +229,15 @@ const DetailTab: React.FC<Props> = ({
                   </CardHeader>
                   <CardContent>
                     {classTrendData.length > 0 ? (
-                      <ClassTrendChart 
-                        className={safeClassName} 
-                        mockData={classTrendData} 
-                      />
+                      <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                        <div className="text-center text-gray-500">
+                          <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+                            📈
+                          </div>
+                          <p className="text-lg font-medium">班级趋势图表正在重构中</p>
+                          <p className="text-sm">此功能将在后续版本中重新设计</p>
+                        </div>
+                      </div>
                     ) : (
                       <div className="flex items-center justify-center h-64 text-gray-500">
                         暂无成绩趋势数据
@@ -248,10 +252,15 @@ const DetailTab: React.FC<Props> = ({
                   </CardHeader>
                   <CardContent>
                     {weaknessAnalysisData.length > 0 ? (
-                      <ClassWeaknessAnalysis 
-                        className={safeClassName} 
-                        mockData={weaknessAnalysisData} 
-                      />
+                      <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                        <div className="text-center text-gray-500">
+                          <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+                            📊
+                          </div>
+                          <p className="text-lg font-medium">班级弱点分析正在重构中</p>
+                          <p className="text-sm">此功能将在后续版本中重新设计</p>
+                        </div>
+                      </div>
                     ) : (
                       <div className="flex items-center justify-center h-64 text-gray-500">
                         暂无学科优劣势数据
@@ -320,13 +329,15 @@ const DetailTab: React.FC<Props> = ({
                     <CardDescription>班级多维度能力评估</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {competencyData.length > 0 ? (
-                      <CompetencyRadar data={competencyData} />
-                    ) : (
-                      <div className="flex items-center justify-center h-64 text-gray-500">
-                        暂无能力维度数据
+                    <div className="flex flex-col items-center justify-center h-64">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                        <span className="text-2xl">📊</span>
                       </div>
-                    )}
+                      <h3 className="text-lg font-medium mb-2">能力雷达图</h3>
+                      <p className="text-gray-500 text-center">
+                        能力雷达图组件正在重构中
+                      </p>
+                    </div>
                   </CardContent>
                 </Card>
               </div>
@@ -337,18 +348,15 @@ const DetailTab: React.FC<Props> = ({
                   <CardDescription>课堂表现、作业质量与考试成绩的关联性</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {correlationData.length > 0 ? (
-                    <CorrelationBubble 
-                      data={correlationData} 
-                      xName="课堂表现" 
-                      yName="作业质量" 
-                      zName="考试成绩"
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-64 text-gray-500">
-                      暂无关联分析数据
+                  <div className="flex flex-col items-center justify-center h-64">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                      <span className="text-2xl">🔗</span>
                     </div>
-                  )}
+                    <h3 className="text-lg font-medium mb-2">关联分析图</h3>
+                    <p className="text-gray-500 text-center">
+                      关联分析组件正在重构中
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
             </>

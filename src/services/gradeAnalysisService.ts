@@ -3373,9 +3373,10 @@ function convertWideToLongFormat(
   
   // 提取数据行中的学生基本信息
   const studentInfo: Record<string, any> = {
-    student_id: baseStudentRecord.student_id || item.student_id || item.姓名 || '',
+    student_id: baseStudentRecord.student_id || item.student_id || item.学号 || '',
     name: baseStudentRecord.name || item.name || item.姓名 || '',
     class_name: item.class_name || item.班级 || baseStudentRecord.class_name || '未知班级', // 优先使用数据行的班级信息
+    grade_level: item.grade_level || item.年级 || baseStudentRecord.grade_level || null,
   };
   
   console.log(`[convertWideToLongFormat] 提取的学生信息: ID=${studentInfo.student_id}, 姓名=${studentInfo.name}, 班级=${studentInfo.class_name}`);
@@ -3385,6 +3386,7 @@ function convertWideToLongFormat(
     exam_title: examInfo.title || '',
     exam_type: examInfo.type || '',
     exam_date: examInfo.date || new Date().toISOString().split('T')[0],
+    exam_scope: examInfo.scope || 'class', // 默认班级范围
     // 确保exam_id从baseStudentRecord传递过来
     exam_id: baseStudentRecord.exam_id
   };
@@ -3413,7 +3415,7 @@ function convertWideToLongFormat(
   // 智能识别科目字段
   allColumns.forEach(col => {
     // 跳过非科目字段 (姓名、班级、学号等)
-    if (['姓名', '名字', '班级', '学号', 'student_id', 'name', 'class_name'].includes(col)) {
+    if (['姓名', '名字', '班级', '学号', '年级', 'student_id', 'name', 'class_name', 'grade_level'].includes(col)) {
       return;
     }
     
@@ -3426,15 +3428,23 @@ function convertWideToLongFormat(
             subjectData[subject] = {};
           }
           
-          // 判断字段类型
-          if (col.includes('分数') || col.includes('score')) {
+          // 判断字段类型（支持新的字段结构）
+          if (col.includes('分数') || col.includes('score') || col.includes('成绩')) {
             subjectData[subject].score = parseFloat(item[col]) || 0;
-          } else if (col.includes('等级') || col.includes('grade')) {
-            subjectData[subject].grade = item[col];
-          } else if (col.includes('班名') || col.includes('class_rank')) {
+          } else if (col.includes('总分') && !col.includes('满分')) {
+            subjectData[subject].total_score = parseFloat(item[col]) || 0;
+          } else if (col.includes('满分') || col.includes('总分满分') || col.includes('subject_total_score')) {
+            subjectData[subject].subject_total_score = parseFloat(item[col]) || 100;
+          } else if (col.includes('等级') || col.includes('grade') || col.includes('评级') || col.includes('等第')) {
+            subjectData[subject].original_grade = item[col]; // 使用新的原始等级字段
+          } else if (col.includes('班名') || col.includes('class_rank') || col.includes('班级排名')) {
             subjectData[subject].rank_in_class = parseInt(item[col]) || 0;
-          } else if (col.includes('校名') || col.includes('级名') || col.includes('grade_rank')) {
+          } else if (col.includes('校名') || col.includes('级名') || col.includes('grade_rank') || col.includes('年级排名')) {
             subjectData[subject].rank_in_grade = parseInt(item[col]) || 0;
+          } else if (col.includes('百分位') || col.includes('percentile')) {
+            subjectData[subject].percentile = parseFloat(item[col]) || null;
+          } else if (col.includes('标准分') || col.includes('z_score') || col.includes('zscore')) {
+            subjectData[subject].z_score = parseFloat(item[col]) || null;
           } else {
             // 如果没有明确的类型标识，尝试根据数据类型推断
             const value = item[col];
@@ -3445,8 +3455,8 @@ function convertWideToLongFormat(
               }
             } else {
               // 文本类型，可能是等级
-              if (!subjectData[subject].grade) {
-                subjectData[subject].grade = value;
+              if (!subjectData[subject].original_grade) {
+                subjectData[subject].original_grade = value;
               }
             }
           }
@@ -3456,17 +3466,27 @@ function convertWideToLongFormat(
     }
   });
   
-  // 为每个识别到的科目创建记录
+  // 为每个识别到的科目创建记录（使用新的字段结构）
   Object.entries(subjectData).forEach(([subject, data]) => {
-    if (data.score !== undefined || data.grade !== undefined) {
+    if (data.score !== undefined || data.total_score !== undefined || data.original_grade !== undefined) {
       const subjectRecord: Record<string, any> = {
         ...studentInfo,
         ...examinationInfo,
         subject,
+        // 分数字段（优先使用score，然后是total_score）
         score: data.score || null,
-        grade: data.grade || null,
+        total_score: data.total_score || null,
+        subject_total_score: data.subject_total_score || 100, // 默认满分100
+        // 等级字段（新结构）
+        original_grade: data.original_grade || null, // 原始等级（CSV中的等级）
+        computed_grade: null, // 计算等级（由系统自动计算）
+        grade: data.original_grade || null, // 向后兼容的等级字段
+        // 排名字段
         rank_in_class: data.rank_in_class || null,
         rank_in_grade: data.rank_in_grade || null,
+        // 统计字段
+        percentile: data.percentile || null,
+        z_score: data.z_score || null,
       };
       
       result.push(subjectRecord);
@@ -3487,12 +3507,12 @@ function convertWideToLongFormat(
     // 识别科目字段（传统方法）
     allColumns.forEach(col => {
       // 跳过非科目字段 (姓名、班级、学号等)
-      if (['姓名', '名字', '班级', '学号', 'student_id', 'name', 'class_name'].includes(col)) {
+      if (['姓名', '名字', '班级', '学号', '年级', 'student_id', 'name', 'class_name', 'grade_level'].includes(col)) {
         return;
       }
       
       // 识别科目列，通常为 "科目名+分数/等级/排名" 的格式，如 "语文分数"，"数学等级"
-      const subjectMatch = col.match(/^([\u4e00-\u9fa5a-zA-Z]+)(分数|等级|排名|校名|班名|级名)/);
+      const subjectMatch = col.match(/^([\u4e00-\u9fa5a-zA-Z]+)(分数|成绩|等级|评级|排名|校名|班名|级名|满分|总分)/);
       if (subjectMatch) {
         const subject = subjectMatch[1];
         if (subject !== '总分') { // 排除"总分"字段，单独处理
@@ -3504,21 +3524,26 @@ function convertWideToLongFormat(
     // 对于每个识别到的科目，创建一条记录
     subjectColumns.forEach(subject => {
       const scoreColumn = `${subject}分数`;
+      const totalScoreColumn = `${subject}总分`;
+      const totalScoreFullColumn = `${subject}满分`;
       const gradeColumn = `${subject}等级`;
       const classRankColumn = `${subject}班名`;
       const gradeRankColumn = `${subject}校名`;
       
-      if (item[scoreColumn] !== undefined) {
+      if (item[scoreColumn] !== undefined || item[totalScoreColumn] !== undefined) {
         const subjectRecord: Record<string, any> = {
           ...studentInfo,
           ...examinationInfo,
           subject,
-          score: parseFloat(item[scoreColumn]) || 0,
+          score: item[scoreColumn] ? parseFloat(item[scoreColumn]) : null,
+          total_score: item[totalScoreColumn] ? parseFloat(item[totalScoreColumn]) : null,
+          subject_total_score: item[totalScoreFullColumn] ? parseFloat(item[totalScoreFullColumn]) : 100,
         };
         
-        // 添加可选字段
+        // 添加可选字段（使用新的字段结构）
         if (item[gradeColumn] !== undefined) {
-          subjectRecord.grade = item[gradeColumn];
+          subjectRecord.original_grade = item[gradeColumn]; // 原始等级
+          subjectRecord.grade = item[gradeColumn]; // 向后兼容
         }
         
         if (item[classRankColumn] !== undefined) {
@@ -3532,37 +3557,6 @@ function convertWideToLongFormat(
         result.push(subjectRecord);
       }
     });
-    
-    // 如果存在"总分"字段，添加一条总分记录
-    if (hasTotalScore) {
-      const totalScoreColumn = allColumns.find(col => col.includes('总分') && col.includes('分数'));
-      const totalGradeColumn = allColumns.find(col => col.includes('总分') && col.includes('等级'));
-      const totalClassRankColumn = allColumns.find(col => col.includes('总分') && col.includes('班名'));
-      const totalGradeRankColumn = allColumns.find(col => col.includes('总分') && col.includes('校名'));
-      
-      if (totalScoreColumn && item[totalScoreColumn] !== undefined) {
-        const totalRecord: Record<string, any> = {
-          ...studentInfo,
-          ...examinationInfo,
-          subject: '总分',
-          score: parseFloat(item[totalScoreColumn]) || 0,
-        };
-        
-        if (totalGradeColumn && item[totalGradeColumn] !== undefined) {
-          totalRecord.grade = item[totalGradeColumn];
-        }
-        
-        if (totalClassRankColumn && item[totalClassRankColumn] !== undefined) {
-          totalRecord.rank_in_class = parseInt(item[totalClassRankColumn]) || 0;
-        }
-        
-        if (totalGradeRankColumn && item[totalGradeRankColumn] !== undefined) {
-          totalRecord.rank_in_grade = parseInt(item[totalGradeRankColumn]) || 0;
-        }
-        
-        result.push(totalRecord);
-      }
-    }
   }
   
   console.log(`[convertWideToLongFormat] 处理完成，共生成 ${result.length} 条科目记录，班级信息为 ${studentInfo.class_name}，exam_id为 ${examinationInfo.exam_id}`);

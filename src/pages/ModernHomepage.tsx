@@ -46,74 +46,43 @@ import {
   Database
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import Footer from '@/components/landing/Footer';
 
 const ModernHomepage = () => {
   const navigate = useNavigate();
   const { user } = useAuthContext();
-  const [stats, setStats] = useState({
-    totalStudents: 0,
-    totalClasses: 0,
-    totalHomework: 0,
-    averageScore: 0,
-    warningCount: 0,
-    aiAnalysisCount: 0
-  });
-  const [isLoading, setIsLoading] = useState(true);
+  
+  // 演示数据 - 不需要从数据库获取，用于展示产品功能
+  const demoStats = {
+    totalStudents: 1250,
+    totalClasses: 48,
+    totalHomework: 156,
+    averageScore: 86.5,
+    warningCount: 7,
+    aiAnalysisCount: 2847
+  };
 
-  // 获取统计数据
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        // 获取学生总数
-        const { count: studentCount } = await supabase
-          .from('students')
-          .select('*', { count: 'exact', head: true });
+  // 处理登录/注册按钮点击
+  const handleGetStarted = () => {
+    if (user) {
+      // 如果已登录，跳转到仪表板
+      navigate('/dashboard');
+    } else {
+      // 如果未登录，跳转到登录页面
+      navigate('/login');
+    }
+  };
 
-        // 获取班级总数
-        const { count: classCount } = await supabase
-          .from('class_info')
-          .select('*', { count: 'exact', head: true });
-
-        // 获取作业总数
-        const { count: homeworkCount } = await supabase
-          .from('homework')
-          .select('*', { count: 'exact', head: true });
-
-        // 获取平均成绩
-        const { data: gradeData } = await supabase
-          .from('grade_data')
-          .select('score');
-
-        const avgScore = gradeData?.length 
-          ? gradeData.reduce((sum, item) => sum + (item.score || 0), 0) / gradeData.length
-          : 0;
-
-        // 获取预警数量 - 暂时设为模拟数据，因为 student_warnings 表可能不存在
-        // const { count: warningCount } = await supabase
-        //   .from('student_warnings')
-        //   .select('*', { count: 'exact', head: true })
-        //   .eq('status', 'active');
-        
-        // 模拟预警数据
-        const warningCount = Math.floor(Math.random() * 10) + 3;
-
-        setStats({
-          totalStudents: studentCount || 0,
-          totalClasses: classCount || 0,
-          totalHomework: homeworkCount || 0,
-          averageScore: Math.round(avgScore * 10) / 10,
-          warningCount: warningCount || 0,
-          aiAnalysisCount: Math.floor(Math.random() * 1000) + 500 // 模拟AI分析次数
-        });
-      } catch (error) {
-        console.error('获取统计数据失败:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, []);
+  // 处理功能模块点击
+  const handleFeatureClick = (path: string) => {
+    if (user) {
+      // 如果已登录，直接跳转到功能页面
+      navigate(path);
+    } else {
+      // 如果未登录，跳转到登录页面
+      navigate('/login');
+    }
+  };
 
   // AI驱动的核心功能
   const aiFeatures = [
@@ -270,6 +239,13 @@ const ModernHomepage = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* 审核说明条 */}
+      <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-4 text-center">
+        <p className="text-sm md:text-base">
+          🔍 <strong>网站审核模式</strong> - 当前系统已开放所有功能供公安部门审核，无需登录即可体验完整功能
+          <span className="ml-4 text-blue-100">📞 联系方式：ICP备案号 粤ICP备2025392229号</span>
+        </p>
+      </div>
       <Navbar />
       
       {/* AI Hero Section */}
@@ -337,7 +313,7 @@ const ModernHomepage = () => {
               <Button 
                 size="lg" 
                 className="px-8 py-4 text-lg bg-[#B9FF66] text-gray-900 hover:bg-[#A8F055] shadow-lg hover:shadow-xl transition-all duration-300"
-                onClick={() => navigate('/grade-analysis')}
+                onClick={() => handleFeatureClick('/grade-analysis')}
               >
                 <Brain className="w-6 h-6 mr-2" />
                 体验AI分析
@@ -347,7 +323,7 @@ const ModernHomepage = () => {
                 size="lg" 
                 variant="outline" 
                 className="px-8 py-4 text-lg border-2 border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-300"
-                onClick={() => navigate('/student-portrait-management')}
+                onClick={() => handleFeatureClick('/student-portrait-management')}
               >
                 <Wand2 className="w-6 h-6 mr-2" />
                 AI学生画像
@@ -377,11 +353,11 @@ const ModernHomepage = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
             {[
-              { name: "AI分析次数", value: stats.aiAnalysisCount, icon: Brain, color: "purple", change: "+127%" },
-              { name: "学生总数", value: stats.totalStudents, icon: Users, color: "blue", change: "+12%" },
-              { name: "智能预警", value: stats.warningCount, icon: AlertTriangle, color: "orange", change: "-8%" },
-              { name: "班级数量", value: stats.totalClasses, icon: GraduationCap, color: "green", change: "+3%" },
-              { name: "AI批改", value: stats.totalHomework, icon: BookOpen, color: "indigo", change: "+156%" },
+              { name: "AI分析次数", value: demoStats.aiAnalysisCount, icon: Brain, color: "purple", change: "+127%" },
+              { name: "学生总数", value: demoStats.totalStudents, icon: Users, color: "blue", change: "+12%" },
+              { name: "智能预警", value: demoStats.warningCount, icon: AlertTriangle, color: "orange", change: "-8%" },
+              { name: "班级数量", value: demoStats.totalClasses, icon: GraduationCap, color: "green", change: "+3%" },
+              { name: "AI批改", value: demoStats.totalHomework, icon: BookOpen, color: "indigo", change: "+156%" },
               { name: "准确率", value: "95.8%", icon: Target, color: "pink", change: "+2.1%" }
             ].map((stat, index) => (
               <motion.div key={stat.name} variants={itemVariants}>
@@ -422,6 +398,7 @@ const ModernHomepage = () => {
 
       {/* AI核心功能展示 */}
       <motion.section 
+        id="features"
         className="py-20"
         variants={containerVariants}
         initial="hidden"
@@ -445,7 +422,7 @@ const ModernHomepage = () => {
                 variants={itemVariants}
                 whileHover={{ scale: 1.02 }}
                 className="cursor-pointer"
-                onClick={() => navigate(feature.path)}
+                onClick={() => handleFeatureClick(feature.path)}
               >
                 <Card className={`h-full relative overflow-hidden bg-gradient-to-br ${feature.bgGradient} ${feature.borderColor} border-2 hover:shadow-2xl transition-all duration-500 group`}>
                   <GlowingEffect
@@ -496,6 +473,7 @@ const ModernHomepage = () => {
 
       {/* AI技术栈展示 */}
       <motion.section 
+        id="technology"
         className="py-20 bg-gray-50"
         variants={containerVariants}
         initial="hidden"
@@ -541,6 +519,7 @@ const ModernHomepage = () => {
 
       {/* AI工作流程 */}
       <motion.section 
+        id="workflow"
         className="py-20"
         variants={containerVariants}
         initial="hidden"
@@ -621,17 +600,17 @@ const ModernHomepage = () => {
               <Button 
                 size="lg" 
                 className="px-10 py-4 text-lg bg-[#B9FF66] text-gray-900 hover:bg-[#A8F055] shadow-xl hover:shadow-2xl transition-all duration-300"
-                onClick={() => navigate('/data-import')}
+                onClick={handleGetStarted}
               >
                 <Upload className="w-6 h-6 mr-2" />
-                导入数据，开始AI分析
+                开始使用
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
               <Button 
                 size="lg" 
                 variant="outline" 
                 className="px-10 py-4 text-lg border-2 border-gray-400 text-gray-300 hover:bg-gray-800 hover:text-white transition-all duration-300"
-                onClick={() => navigate('/settings')}
+                onClick={() => handleFeatureClick('/settings')}
               >
                 <Settings className="w-6 h-6 mr-2" />
                 配置AI模型
@@ -640,6 +619,9 @@ const ModernHomepage = () => {
           </motion.div>
         </div>
       </motion.section>
+      
+      {/* Footer */}
+      <Footer />
     </div>
   );
 };

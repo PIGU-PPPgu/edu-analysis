@@ -1,61 +1,75 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
+import { 
+  GradeRecord, 
+  ExamInfo, 
+  GradeStatistics, 
+  GradeFilter,
+  Subject 
+} from "@/types/grade";
 
-// Define types for our grade data
-export interface GradeRecord {
-  id?: string;
-  studentId: string;
-  name: string;
-  subject: string;
-  score: number;
-  examDate: string;
-  examType: string;
-  studentName?: string;
-  className?: string;
-  [key: string]: any; // Allow for flexible additional fields
-}
-
+// 图表数据接口
 export interface ChartData {
   id: string;
   data: any[];
 }
 
+// 解析文件信息接口
 export interface ParsedFileInfo {
   headers: string[];
   mappings: Record<string, string>;
 }
 
-interface ExamInfo {
-  id: string;
-  title: string;
-  type: string;
-  date: string;
-  subject?: string;
-}
-
+// Context接口定义
 interface GradeAnalysisContextType {
+  // 基础数据
   gradeData: GradeRecord[];
   setGradeData: (data: GradeRecord[]) => void;
+  
+  // 过滤后的数据
+  filteredGradeData: GradeRecord[];
+  
+  // 当前筛选条件
+  filter: GradeFilter;
+  setFilter: (filter: GradeFilter) => void;
+  
+  // 图表相关
   customCharts: ChartData[];
   setCustomCharts: (charts: ChartData[]) => void;
   selectedCharts: string[];
   setSelectedCharts: (chartIds: string[]) => void;
+  
+  // 错误和文件信息
   parsingError: string | null;
   setParsingError: (error: string | null) => void;
   fileInfo: ParsedFileInfo | null;
   setFileInfo: (info: ParsedFileInfo | null) => void;
-  isDataLoaded: boolean;
-  calculateStatistics: (data: GradeRecord[]) => any;
+  
+  // 状态
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
+  isDataLoaded: boolean;
+  
+  // 考试相关
   examList: ExamInfo[];
   currentExam: ExamInfo | null;
-  examData: any[];
+  selectedExam: ExamInfo | null;
+  examData: GradeRecord[];
   analysisResult: any | null;
   loading: boolean;
+  examInfo?: ExamInfo;
+  
+  // 操作方法
   setCurrentExam: (exam: ExamInfo) => void;
+  setSelectedExam: (exam: ExamInfo | null) => void;
   loadExamList: () => Promise<void>;
   loadExamData: (examId: string) => Promise<void>;
   analyzeCurrentExam: () => Promise<void>;
+  calculateStatistics: (data: GradeRecord[]) => GradeStatistics;
+  
+  // 筛选方法
+  filterBySubject: (subject: Subject | string) => GradeRecord[];
+  filterByClass: (className: string) => GradeRecord[];
+  filterByGradeLevel: (gradeLevel: string) => GradeRecord[];
 }
 
 const GradeAnalysisContext = createContext<GradeAnalysisContextType | undefined>(undefined);
@@ -69,47 +83,147 @@ export const useGradeAnalysis = () => {
 };
 
 export const GradeAnalysisProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  // 基础状态
   const [gradeData, setGradeData] = useState<GradeRecord[]>([]);
+  const [filter, setFilter] = useState<GradeFilter>({});
   const [customCharts, setCustomCharts] = useState<ChartData[]>([]);
   const [selectedCharts, setSelectedCharts] = useState<string[]>(["distribution", "subject"]);
   const [parsingError, setParsingError] = useState<string | null>(null);
   const [fileInfo, setFileInfo] = useState<ParsedFileInfo | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  
+  // 考试相关状态
   const [examList, setExamList] = useState<ExamInfo[]>([]);
   const [currentExam, setCurrentExam] = useState<ExamInfo | null>(null);
-  const [examData, setExamData] = useState<any[]>([]);
+  const [selectedExam, setSelectedExam] = useState<ExamInfo | null>(null);
+  const [examData, setExamData] = useState<GradeRecord[]>([]);
   const [analysisResult, setAnalysisResult] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Determine if data is loaded
+  // 计算过滤后的数据
+  const filteredGradeData = React.useMemo(() => {
+    let filtered = [...gradeData];
+    
+    if (filter.subject) {
+      filtered = filtered.filter(record => 
+        record.subject === filter.subject || 
+        (record.subject === undefined && filter.subject === Subject.TOTAL)
+      );
+    }
+    
+    if (filter.class) {
+      filtered = filtered.filter(record => 
+        record.class_name === filter.class
+      );
+    }
+    
+    if (filter.examId) {
+      filtered = filtered.filter(record => 
+        record.exam_id === filter.examId
+      );
+    }
+    
+    if (filter.gradeLevel) {
+      filtered = filtered.filter(record => 
+        record.grade_level === filter.gradeLevel
+      );
+    }
+    
+    if (filter.scoreRange) {
+      filtered = filtered.filter(record => 
+        record.score >= (filter.scoreRange?.min || 0) && 
+        record.score <= (filter.scoreRange?.max || Infinity)
+      );
+    }
+    
+    return filtered;
+  }, [gradeData, filter]);
+
+  // 判断数据是否加载
   const isDataLoaded = gradeData.length > 0;
 
-  // Calculate statistics from grade data
-  const calculateStatistics = (data: GradeRecord[]) => {
+  // 计算统计数据
+  const calculateStatistics = (data: GradeRecord[]): GradeStatistics => {
     if (!data || data.length === 0) {
-      return { avg: 0, max: 0, min: 0, passing: 0, total: 0 };
+      return { 
+        total: 0, 
+        average: 0, 
+        max: 0, 
+        min: 0, 
+        median: 0,
+        standardDeviation: 0,
+        passRate: 0, 
+        excellentRate: 0,
+        distribution: []
+      };
     }
 
     const scores = data.map(item => item.score).filter(score => !isNaN(Number(score)));
     
     if (scores.length === 0) {
-      return { avg: 0, max: 0, min: 0, passing: 0, total: 0 };
+      return { 
+        total: 0, 
+        average: 0, 
+        max: 0, 
+        min: 0, 
+        median: 0,
+        standardDeviation: 0,
+        passRate: 0, 
+        excellentRate: 0,
+        distribution: []
+      };
     }
     
-    const avg = scores.reduce((sum, score) => sum + Number(score), 0) / scores.length;
+    // 基础统计
+    const total = scores.length;
+    const sum = scores.reduce((a, b) => a + Number(b), 0);
+    const average = sum / total;
     const max = Math.max(...scores);
     const min = Math.min(...scores);
-    const passing = scores.filter(score => Number(score) >= 60).length;
+    
+    // 中位数
+    const sortedScores = [...scores].sort((a, b) => a - b);
+    const median = total % 2 === 0 
+      ? (sortedScores[total / 2 - 1] + sortedScores[total / 2]) / 2
+      : sortedScores[Math.floor(total / 2)];
+    
+    // 标准差
+    const variance = scores.reduce((acc, score) => acc + Math.pow(score - average, 2), 0) / total;
+    const standardDeviation = Math.sqrt(variance);
+    
+    // 及格率和优秀率（简化计算）
+    const passCount = scores.filter(score => Number(score) >= 60).length;
+    const excellentCount = scores.filter(score => Number(score) >= 90).length;
+    const passRate = (passCount / total) * 100;
+    const excellentRate = (excellentCount / total) * 100;
     
     return {
-      avg: parseFloat(avg.toFixed(2)),
+      total,
+      average: parseFloat(average.toFixed(2)),
       max,
       min,
-      passing,
-      total: scores.length
+      median: parseFloat(median.toFixed(2)),
+      standardDeviation: parseFloat(standardDeviation.toFixed(2)),
+      passRate: parseFloat(passRate.toFixed(2)),
+      excellentRate: parseFloat(excellentRate.toFixed(2)),
+      distribution: [] // 这里可以后续添加等级分布
     };
   };
 
+  // 筛选方法
+  const filterBySubject = (subject: Subject | string): GradeRecord[] => {
+    return gradeData.filter(record => record.subject === subject);
+  };
+
+  const filterByClass = (className: string): GradeRecord[] => {
+    return gradeData.filter(record => record.class_name === className);
+  };
+
+  const filterByGradeLevel = (gradeLevel: string): GradeRecord[] => {
+    return gradeData.filter(record => record.grade_level === gradeLevel);
+  };
+
+  // 考试相关操作
   const loadExamList = async () => {
     setLoading(true);
     try {
@@ -117,10 +231,28 @@ export const GradeAnalysisProvider: React.FC<{ children: ReactNode }> = ({ child
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // 模拟数据
-      const mockExams = [
-        { id: '1', title: '期中考试', type: '期中', date: '2023-10-15', subject: '综合' },
-        { id: '2', title: '月考', type: '月考', date: '2023-09-20', subject: '综合' },
-        { id: '3', title: '单元测试', type: '单元', date: '2023-08-25', subject: '语文' }
+      const mockExams: ExamInfo[] = [
+        { 
+          id: '1', 
+          name: '期中考试', 
+          type: '期中', 
+          date: '2023-10-15', 
+          subjects: [Subject.TOTAL, Subject.CHINESE, Subject.MATH] 
+        },
+        { 
+          id: '2', 
+          name: '月考', 
+          type: '月考', 
+          date: '2023-09-20', 
+          subjects: [Subject.TOTAL, Subject.CHINESE, Subject.MATH] 
+        },
+        { 
+          id: '3', 
+          name: '单元测试', 
+          type: '单元', 
+          date: '2023-08-25', 
+          subjects: [Subject.CHINESE] 
+        }
       ];
       
       setExamList(mockExams);
@@ -141,16 +273,13 @@ export const GradeAnalysisProvider: React.FC<{ children: ReactNode }> = ({ child
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       // 模拟数据
-      const mockGradeData = Array(30).fill(null).map((_, index) => ({
+      const mockGradeData: GradeRecord[] = Array(30).fill(null).map((_, index) => ({
         id: `s${index + 1}`,
         student_id: `S${10000 + index}`,
-        name: `学生${index + 1}`,
+        student_name: `学生${index + 1}`,
         class_name: `班级${Math.floor(index / 10) + 1}`,
-        total_score: Math.floor(60 + Math.random() * 40),
-        chinese_score: Math.floor(60 + Math.random() * 40),
-        math_score: Math.floor(60 + Math.random() * 40),
-        english_score: Math.floor(60 + Math.random() * 40),
-        rank_in_class: index % 10 + 1,
+        subject: Subject.TOTAL,
+        score: Math.floor(60 + Math.random() * 40),
         exam_id: examId
       }));
       
@@ -185,9 +314,9 @@ export const GradeAnalysisProvider: React.FC<{ children: ReactNode }> = ({ child
           { className: '班级3', average: 81.4, max: 97, min: 62, passRate: 0.95 }
         ],
         subjectAverages: {
-          chinese: 82.3,
-          math: 78.6,
-          english: 84.1
+          [Subject.CHINESE]: 82.3,
+          [Subject.MATH]: 78.6,
+          [Subject.ENGLISH]: 84.1
         }
       };
       
@@ -199,30 +328,54 @@ export const GradeAnalysisProvider: React.FC<{ children: ReactNode }> = ({ child
     }
   };
 
-  const value = {
+  // Context值
+  const value: GradeAnalysisContextType = {
+    // 基础数据
     gradeData,
     setGradeData,
+    filteredGradeData,
+    
+    // 筛选条件
+    filter,
+    setFilter,
+    
+    // 图表相关
     customCharts,
     setCustomCharts,
     selectedCharts,
     setSelectedCharts,
+    
+    // 错误和文件信息
     parsingError,
     setParsingError,
     fileInfo,
     setFileInfo,
-    isDataLoaded,
-    calculateStatistics,
+    
+    // 状态
     isLoading,
     setIsLoading,
+    isDataLoaded,
+    
+    // 考试相关
     examList,
     currentExam,
+    selectedExam,
     examData,
     analysisResult,
     loading,
+    
+    // 操作方法
     setCurrentExam,
+    setSelectedExam,
     loadExamList,
     loadExamData,
-    analyzeCurrentExam
+    analyzeCurrentExam,
+    calculateStatistics,
+    
+    // 筛选方法
+    filterBySubject,
+    filterByClass,
+    filterByGradeLevel
   };
 
   return (
@@ -231,3 +384,5 @@ export const GradeAnalysisProvider: React.FC<{ children: ReactNode }> = ({ child
     </GradeAnalysisContext.Provider>
   );
 };
+
+
