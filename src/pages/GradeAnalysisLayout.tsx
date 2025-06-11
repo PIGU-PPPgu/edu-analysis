@@ -51,8 +51,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Loader2 } from 'lucide-react';
 // import { ClassAnalysisView } from "@/components/analysis/ClassAnalysisView"; // 已删除
 import { AdvancedDashboard } from "@/components/analysis/advanced/AdvancedDashboard";
+<<<<<<< HEAD
 import { PredictiveAnalysis } from "@/components/analysis/advanced/PredictiveAnalysis";
 import { LearningBehaviorAnalysis } from "@/components/analysis/advanced/LearningBehaviorAnalysis";
+=======
+>>>>>>> 41582ecc356006fb88940924d6abc9707668c301
 // import { StudentProgressView } from "@/components/analysis/StudentProgressView"; // 已删除
 // import { AIAnalysisAssistant } from "@/components/analysis/AIAnalysisAssistant"; // 已删除
 import { gradeAnalysisService } from "@/services/gradeAnalysisService";

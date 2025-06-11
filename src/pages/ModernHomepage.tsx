@@ -64,14 +64,34 @@ const ModernHomepage = () => {
 
   // 处理登录/注册按钮点击
   const handleGetStarted = () => {
+<<<<<<< HEAD
     // 审核模式：直接跳转到仪表板，无需登录验证
     navigate('/dashboard');
+=======
+    if (user) {
+      // 如果已登录，跳转到仪表板
+      navigate('/dashboard');
+    } else {
+      // 如果未登录，跳转到登录页面
+      navigate('/login');
+    }
+>>>>>>> 41582ecc356006fb88940924d6abc9707668c301
   };
 
   // 处理功能模块点击
   const handleFeatureClick = (path: string) => {
+<<<<<<< HEAD
     // 审核模式：直接跳转到功能页面，无需登录验证
     navigate(path);
+=======
+    if (user) {
+      // 如果已登录，直接跳转到功能页面
+      navigate(path);
+    } else {
+      // 如果未登录，跳转到登录页面
+      navigate('/login');
+    }
+>>>>>>> 41582ecc356006fb88940924d6abc9707668c301
   };
 
   // AI驱动的核心功能
