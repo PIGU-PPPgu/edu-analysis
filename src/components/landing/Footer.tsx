@@ -53,7 +53,7 @@ const Footer: React.FC = () => {
             <div className="flex min-w-60 flex-col items-stretch">
               <div className="text-xl text-black font-medium">
                 <div className="bg-[#B9FF66] px-[7px] rounded-[7px]">
-                  联系我们:
+                  ⚠️待审核完成后，我会按要求完善网站信息，并马上开启登陆功能，同时继续加强数据库安全工作，请耐心等待。
                 </div>
               </div>
               <div className="text-lg text-white font-normal mt-[27px]">

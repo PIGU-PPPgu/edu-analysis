@@ -399,16 +399,18 @@ class PortraitAPI {
       
       // 获取这些学生的成绩
       const studentIds = students.map(s => s.id);
+      // 从grade_data表获取成绩数据，使用student_id字段匹配
+      const studentIdList = students.map(s => s.student_id); // 使用学号匹配
       const { data: grades, error: gradesError } = await supabase
-        .from('grades')
-        .select('id, student_id, subject, score, exam_type, exam_date')
-        .in('student_id', studentIds);
+        .from('grade_data')
+        .select('student_id, name, subject, score, exam_type, exam_date')
+        .in('student_id', studentIdList);
         
       if (gradesError) {
         console.error("获取学生成绩失败:", gradesError);
       }
       
-      // 按学生ID分组处理成绩
+      // 按学生学号分组处理成绩
       const studentGrades: Record<string, any[]> = {};
       grades?.forEach(grade => {
         if (!studentGrades[grade.student_id]) {
@@ -417,7 +419,7 @@ class PortraitAPI {
         
         studentGrades[grade.student_id].push({
           subject: grade.subject,
-          score: parseFloat(grade.score), // 确保分数是数字类型
+          score: parseFloat(grade.score) || 0, // 确保分数是数字类型，默认0
           examDate: grade.exam_date,
           examType: grade.exam_type
         });
@@ -445,7 +447,7 @@ class PortraitAPI {
       
       // 构建学生数据
       const studentData: StudentPortraitData[] = students.map(student => {
-        const studentScores = studentGrades[student.id] || [];
+        const studentScores = studentGrades[student.student_id] || [];
         
         // 计算学生的能力数据
         const abilities = this.generateStudentAbilities(studentScores);
@@ -458,7 +460,7 @@ class PortraitAPI {
         
         return {
           id: student.id,
-          student_id: student.id,
+          student_id: student.student_id, // 使用真实学号
           name: student.name,
           class_id: classId,
           class_name: className,

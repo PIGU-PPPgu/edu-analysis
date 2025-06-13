@@ -1,9 +1,11 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, AlertCircle } from "lucide-react";
 import StatCard from "./StatCard";
 import { ClassPortraitStats } from "@/lib/api/portrait";
+import { PageLoading } from "@/components/ui/loading";
+import EmptyState from "@/components/ui/empty-state";
 
 interface ClassOverviewProps {
   classId: string;
@@ -25,18 +27,21 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
   isLoading
 }) => {
   if (isLoading) {
-    return (
-      <div className="flex justify-center py-20">
-        <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full"></div>
-      </div>
-    );
+    return <PageLoading text="加载班级统计数据..." />;
   }
   
   if (!stats) {
     return (
-      <div className="text-center py-10 text-muted-foreground">
-        无法加载班级统计数据
-      </div>
+      <EmptyState
+        icon={AlertCircle}
+        title="无法加载班级数据"
+        description="班级统计数据暂时无法获取，请稍后重试"
+        action={{
+          label: "重新加载",
+          onClick: () => window.location.reload(),
+          variant: "outline"
+        }}
+      />
     );
   }
   

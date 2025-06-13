@@ -304,7 +304,7 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
         <AlertDescription>
           <div className="space-y-1 text-sm">
             <p>• <strong>检测方法</strong>: 基于Z分数统计方法，识别偏离正常范围的成绩</p>
-            <p>• <strong>异常阈值</strong>: Z分数绝对值 > 2.5 为异常，> 3.0 为极端异常</p>
+            <p>• <strong>异常阈值</strong>: Z分数绝对值 &gt; 2.5 为异常，&gt; 3.0 为极端异常</p>
             <p>• <strong>风险等级</strong>: 高风险需要立即关注，中风险建议跟进</p>
             <p>• <strong>应用建议</strong>: 结合学生具体情况分析，避免单纯依赖数据判断</p>
           </div>

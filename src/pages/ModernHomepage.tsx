@@ -233,7 +233,7 @@ const ModernHomepage = () => {
       <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-4 text-center">
         <p className="text-sm md:text-base">
           🔍 <strong>网站审核模式</strong> - 当前系统已开放所有功能供公安部门审核，无需登录即可体验完整功能
-          <span className="ml-4 text-blue-100">📞 联系方式：ICP备案号 粤ICP备2025392229号</span>
+          <span className="ml-4 text-blue-100">📞 联系方式：13138112934 ICP备案号 粤ICP备2025392229号</span>
         </p>
       </div>
       <Navbar />

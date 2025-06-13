@@ -7,8 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, Users, UserCircle, UsersIcon, Layers, BarChart3, Brain, Zap, ArrowLeftRight } from "lucide-react";
-import { toast } from "sonner";
+import { Search, Users, UserCircle, UsersIcon, Layers, BarChart3, Brain, Zap, ArrowLeftRight, AlertCircle } from "lucide-react";
+import { toastHelpers } from "@/components/ui/toast-helpers";
+import { toast } from "@/components/ui/use-toast";
+
 import { useQuery } from "@tanstack/react-query";
 import { portraitAPI, ClassPortraitStats, StudentPortraitData, GroupPortraitData } from "@/lib/api/portrait";
 import StudentCard from "@/components/portrait/StudentCard";
@@ -18,6 +20,9 @@ import { IntelligentPortraitAnalysis } from "@/components/portrait/advanced";
 import EnhancedStudentPortrait from "@/components/portrait/advanced/EnhancedStudentPortrait";
 import StudentPortraitComparison from "@/components/portrait/advanced/StudentPortraitComparison";
 import { supabase } from "@/integrations/supabase/client";
+import { PageLoading, CardLoading } from "@/components/ui/loading";
+import EmptyState from "@/components/ui/empty-state";
+import { useDebounce } from "@/hooks/useDebounce";
 
 interface Class {
   id: string;
@@ -34,6 +39,12 @@ const StudentPortraitManagement: React.FC = () => {
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   
+  // 使用防抖优化搜索体验
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+  
+  // 搜索状态指示
+  const isSearching = searchQuery !== debouncedSearchQuery;
+  
   // 使用React Query获取班级数据
   const { data: classesData, isLoading: isLoadingClasses } = useQuery({
     queryKey: ['classes'],
@@ -47,19 +58,19 @@ const StudentPortraitManagement: React.FC = () => {
 
         if (error) throw error;
 
-        // 获取每个班级的学生数量
+        // 获取每个班级的学生数量 - 使用实际数据查询替代count查询
         const classesWithCount = await Promise.all(
           (data || []).map(async (cls) => {
-            const { count, error: countError } = await supabase
+            const { data: studentsData, error: countError } = await supabase
               .from('students')
-              .select('id', { count: true })
+              .select('id')
               .eq('class_id', cls.id);
 
             if (countError) throw countError;
 
             return {
               ...cls,
-              student_count: count || 0
+              student_count: studentsData?.length || 0
             };
           })
         );
@@ -67,7 +78,7 @@ const StudentPortraitManagement: React.FC = () => {
         return classesWithCount;
       } catch (error) {
         console.error('获取班级列表失败:', error);
-        toast.error('获取班级列表失败');
+        toastHelpers.loadError('班级列表');
         return [];
       }
     },
@@ -141,43 +152,43 @@ const StudentPortraitManagement: React.FC = () => {
   }, []);
 
   const handleViewClassPortrait = useCallback((classId: string) => {
-    // 暂时使用alert，后续实现班级画像页面
-    toast('班级画像功能正在开发中');
+    // 暂时使用toast，后续实现班级画像页面
+    toastHelpers.developing('班级画像');
     // navigate(`/class-portrait/${classId}`);
   }, []);
 
   const handleViewGroupPortrait = useCallback((groupId: string) => {
-    // 暂时使用alert，后续实现小组画像页面
-    toast('小组画像功能正在开发中');
+    // 暂时使用toast，后续实现小组画像页面
+    toastHelpers.developing('小组画像');
     // navigate(`/group-portrait/${groupId}`);
   }, []);
   
-  // 过滤数据 - 使用useMemo优化性能
+  // 过滤数据 - 使用useMemo优化性能，使用防抖搜索
   const filteredClasses = React.useMemo(() => {
     return classes.filter(cls => 
-      cls.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      cls.grade.toLowerCase().includes(searchQuery.toLowerCase())
+      cls.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) || 
+      cls.grade.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
     );
-  }, [classes, searchQuery]);
+  }, [classes, debouncedSearchQuery]);
 
   const filteredStudents = React.useMemo(() => {
     return students?.filter(student => 
-      student.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      student.student_id.toLowerCase().includes(searchQuery.toLowerCase())
+      student.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) || 
+      student.student_id.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
     ) || [];
-  }, [students, searchQuery]);
+  }, [students, debouncedSearchQuery]);
 
   const filteredGroups = React.useMemo(() => {
     return groups?.filter(group => 
-      group.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      (group.description && group.description.toLowerCase().includes(searchQuery.toLowerCase()))
+      group.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) || 
+      (group.description && group.description.toLowerCase().includes(debouncedSearchQuery.toLowerCase()))
     ) || [];
-  }, [groups, searchQuery]);
+  }, [groups, debouncedSearchQuery]);
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <div className="container mx-auto py-8 px-4">
+        <Navbar />
+        <div className="container mx-auto py-8 px-4">
         <div className="flex flex-col space-y-6">
           <div className="flex justify-between items-center">
             <div>
@@ -205,17 +216,23 @@ const StudentPortraitManagement: React.FC = () => {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
+                    {isSearching && (
+                      <div className="absolute right-2.5 top-2.5">
+                        <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="space-y-1 max-h-[500px] overflow-y-auto pr-1">
                     {isLoadingClasses ? (
-                      <div className="flex justify-center py-4">
-                        <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full"></div>
-                      </div>
+                      <CardLoading text="加载班级列表..." />
                     ) : filteredClasses.length === 0 ? (
-                      <div className="text-center py-4 text-muted-foreground">
-                        没有找到匹配的班级
-                      </div>
+                      <EmptyState
+                        icon={AlertCircle}
+                        title="没有找到班级"
+                        description={searchQuery ? "没有匹配的班级，请尝试其他关键词" : "暂无班级数据"}
+                        size="sm"
+                      />
                     ) : (
                       filteredClasses.map((cls) => (
                         <div
@@ -316,16 +333,26 @@ const StudentPortraitManagement: React.FC = () => {
                               value={searchQuery}
                               onChange={(e) => setSearchQuery(e.target.value)}
                             />
+                            {isSearching && (
+                              <div className="absolute right-2.5 top-2.5">
+                                <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                              </div>
+                            )}
                           </div>
                           
                           {isLoadingGroups ? (
-                            <div className="flex justify-center py-20">
-                              <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full"></div>
-                            </div>
+                            <PageLoading text="加载小组数据..." />
                           ) : filteredGroups.length === 0 ? (
-                            <div className="text-center py-20 text-muted-foreground">
-                              没有找到匹配的小组
-                            </div>
+                            <EmptyState
+                              icon={UsersIcon}
+                              title="没有找到小组"
+                              description={searchQuery ? "没有匹配的小组，请尝试其他关键词" : "该班级暂无小组数据"}
+                              action={{
+                                label: "创建小组",
+                                onClick: () => toast({ description: "小组创建功能正在开发中" }),
+                                variant: "outline"
+                              }}
+                            />
                           ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               {filteredGroups.map((group) => (
@@ -350,16 +377,26 @@ const StudentPortraitManagement: React.FC = () => {
                               value={searchQuery}
                               onChange={(e) => setSearchQuery(e.target.value)}
                             />
+                            {isSearching && (
+                              <div className="absolute right-2.5 top-2.5">
+                                <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                              </div>
+                            )}
                           </div>
                           
                           {isLoadingStudents ? (
-                            <div className="flex justify-center py-20">
-                              <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full"></div>
-                            </div>
+                            <PageLoading text="加载学生数据..." />
                           ) : filteredStudents.length === 0 ? (
-                            <div className="text-center py-20 text-muted-foreground">
-                              没有找到匹配的学生
-                            </div>
+                            <EmptyState
+                              icon={UserCircle}
+                              title="没有找到学生"
+                              description={searchQuery ? "没有匹配的学生，请尝试其他关键词" : "该班级暂无学生数据"}
+                              action={{
+                                label: "添加学生",
+                                onClick: () => toast({ description: "学生添加功能请前往学生管理页面" }),
+                                variant: "outline"
+                              }}
+                            />
                           ) : (
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                               {filteredStudents.map((student) => (
