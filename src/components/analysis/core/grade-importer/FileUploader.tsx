@@ -1,13 +1,14 @@
 /**
  * 🔧 FileUploader 组件 - GradeImporter重构第1部分
  * 
- * 负责文件上传和基础解析功能
+ * 负责文件上传和AI增强解析功能
  * 
  * 功能包括：
  * - 文件拖拽上传
  * - 文件格式验证 
  * - 文件大小检查
  * - Excel/CSV解析
+ * - AI智能解析（字段映射、结构识别）
  * - 文件预览信息显示
  */
 
@@ -27,10 +28,13 @@ import {
   CheckCircle,
   FileText,
   Download,
-  Trash2
+  Trash2,
+  Brain,
+  Zap
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
+import { AIEnhancedFileParser } from '@/services/aiEnhancedFileParser';
 import { 
   FileUploadHandler, 
   FileUploadResult, 
@@ -211,7 +215,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({
     });
   };
 
-  // 处理文件上传
+  // 处理文件上传 - 集成AI增强解析
   const handleFileUpload: FileUploadHandler = async (files) => {
     if (files.length === 0) return;
 
@@ -245,26 +249,105 @@ const FileUploader: React.FC<FileUploaderProps> = ({
       // 等待上传完成
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // 解析文件
-      let parsedData: ParsedData;
-      
-      if (file.type.includes('sheet') || file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-        parsedData = await parseExcelFile(file);
-      } else if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
-        parsedData = await parseCSVFile(file);
+      let result: FileUploadResult;
+
+      if (enableAIEnhancement) {
+        // 🤖 使用AI增强解析
+        console.log('🤖 启用AI增强解析...');
+        toast.info('正在使用AI智能解析文件...', { duration: 2000 });
+        
+        const aiParser = new AIEnhancedFileParser();
+        const aiResult = await aiParser.oneClickParse(file);
+        
+        console.log('🎉 AI解析完成:', aiResult);
+        
+        // 转换AI解析结果为FileUploadResult格式
+        result = {
+          success: true,
+          data: {
+            headers: aiResult.headers,
+            data: aiResult.data,
+            preview: aiResult.data.slice(0, 5),
+            totalRows: aiResult.data.length,
+            fileName: file.name,
+            fileSize: file.size
+          },
+          aiAnalysis: {
+            examInfo: {
+              title: aiResult.metadata?.examInfo?.title || `${file.name.replace(/\.[^/.]+$/, "")}`,
+              type: aiResult.metadata?.examInfo?.type || 'monthly',
+              date: aiResult.metadata?.examInfo?.date || new Date().toISOString().split('T')[0],
+              scope: 'class' as const
+            },
+            fieldMappings: aiResult.metadata?.suggestedMappings || {},
+            subjects: aiResult.metadata?.detectedSubjects || [],
+            dataStructure: aiResult.metadata?.detectedStructure || 'wide',
+            confidence: aiResult.metadata?.confidence || 0.5,
+            processing: {
+              requiresUserInput: false,
+              issues: [],
+              suggestions: [`AI分析置信度: ${((aiResult.metadata?.confidence || 0.5) * 100).toFixed(1)}%`]
+            }
+          }
+        };
+        
+        toast.success(`🤖 AI智能解析完成！识别到 ${result.data.totalRows} 行数据，置信度 ${((aiResult.metadata?.confidence || 0.5) * 100).toFixed(1)}%`);
+        
       } else {
-        throw new Error('不支持的文件格式');
+        // 📊 使用传统解析
+        console.log('📊 使用传统解析...');
+        let parsedData: ParsedData;
+        
+        if (file.type.includes('sheet') || file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+          parsedData = await parseExcelFile(file);
+        } else if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
+          parsedData = await parseCSVFile(file);
+        } else {
+          throw new Error('不支持的文件格式');
+        }
+
+        result = {
+          success: true,
+          data: parsedData
+        };
+        
+        toast.success(`文件上传成功！共解析 ${parsedData.totalRows} 行数据`);
       }
 
-      toast.success(`文件上传成功！共解析 ${parsedData.totalRows} 行数据`);
-
-      onFileUploaded({
-        success: true,
-        data: parsedData
-      });
+      onFileUploaded(result);
 
     } catch (error) {
       console.error('文件处理错误:', error);
+      
+      // AI解析失败时，尝试降级到传统解析
+      if (enableAIEnhancement && error.message.includes('AI')) {
+        console.log('🔄 AI解析失败，降级到传统解析...');
+        toast.warning('AI解析失败，使用传统方式解析...');
+        
+        try {
+          let parsedData: ParsedData;
+          
+          if (file.type.includes('sheet') || file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+            parsedData = await parseExcelFile(file);
+          } else if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
+            parsedData = await parseCSVFile(file);
+          } else {
+            throw new Error('不支持的文件格式');
+          }
+
+          onFileUploaded({
+            success: true,
+            data: parsedData
+          });
+          
+          toast.success(`传统解析成功！共解析 ${parsedData.totalRows} 行数据`);
+          return;
+          
+        } catch (fallbackError) {
+          console.error('传统解析也失败:', fallbackError);
+        }
+      }
+      
       toast.error(`文件处理失败: ${error.message}`);
       
       onFileUploaded({

@@ -27,16 +27,32 @@ import {
   ParsedData,
   FieldMapping,
   ExamInfo,
-  ImportConfigState,
-  DEFAULT_IMPORT_CONFIG,
-  DEFAULT_EXAM_INFO
+  ImportConfigState
 } from './types';
+
+// 默认配置值
+const DEFAULT_EXAM_INFO: ExamInfo = {
+  title: '',
+  type: 'monthly',
+  date: new Date().toISOString().split('T')[0],
+  subject: '',
+  scope: 'class'
+};
+
+const DEFAULT_IMPORT_CONFIG: ImportConfigState = {
+  examScope: 'class',
+  newStudentStrategy: 'create',
+  mergeStrategy: 'update',
+  enableDuplicateCheck: true,
+  enableDataValidation: true,
+  enableAIEnhancement: true
+};
 
 const RefactoredGradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
   // 核心状态管理
   const [activeStep, setActiveStep] = useState<'upload' | 'mapping' | 'config' | 'preview' | 'import'>('upload');
   const [parsedData, setParsedData] = useState<ParsedData | null>(null);
-  const [fieldMappings, setFieldMappings] = useState<FieldMapping>({});
+  const [fieldMappings, setFieldMappings] = useState<Record<string, string>>({});
   const [examInfo, setExamInfo] = useState<ExamInfo>(DEFAULT_EXAM_INFO);
   const [importConfig, setImportConfig] = useState<ImportConfigState>(DEFAULT_IMPORT_CONFIG);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -58,7 +74,7 @@ const RefactoredGradeImporter: React.FC<GradeImporterProps> = ({ onDataImported 
   };
 
   // 处理字段映射配置
-  const handleMappingConfigured = (mappings: FieldMapping) => {
+  const handleMappingConfigured = (mappings: Record<string, string>) => {
     setFieldMappings(mappings);
     setCompletedSteps(prev => new Set([...prev, 'mapping']));
     setActiveStep('config');

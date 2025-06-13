@@ -7,13 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, Users, UserCircle, UsersIcon, Layers, BarChart3 } from "lucide-react";
+import { Search, Users, UserCircle, UsersIcon, Layers, BarChart3, Brain, Zap, ArrowLeftRight } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { portraitAPI, ClassPortraitStats, StudentPortraitData, GroupPortraitData } from "@/lib/api/portrait";
 import StudentCard from "@/components/portrait/StudentCard";
 import GroupCard from "@/components/portrait/GroupCard";
 import ClassOverview from "@/components/portrait/ClassOverview";
+import { IntelligentPortraitAnalysis } from "@/components/portrait/advanced";
+import EnhancedStudentPortrait from "@/components/portrait/advanced/EnhancedStudentPortrait";
+import StudentPortraitComparison from "@/components/portrait/advanced/StudentPortraitComparison";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Class {
@@ -264,7 +267,7 @@ const StudentPortraitManagement: React.FC = () => {
                   
                   <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <div className="px-6">
-                      <TabsList className="grid w-full grid-cols-3">
+                      <TabsList className="grid w-full grid-cols-6">
                         <TabsTrigger value="class" className="flex items-center">
                           <Users className="h-4 w-4 mr-2" />
                           班级
@@ -276,6 +279,18 @@ const StudentPortraitManagement: React.FC = () => {
                         <TabsTrigger value="student" className="flex items-center">
                           <UserCircle className="h-4 w-4 mr-2" />
                           学生
+                        </TabsTrigger>
+                        <TabsTrigger value="ai-analysis" className="flex items-center">
+                          <Brain className="h-4 w-4 mr-2" />
+                          AI分析
+                        </TabsTrigger>
+                        <TabsTrigger value="enhanced-analysis" className="flex items-center">
+                          <Zap className="h-4 w-4 mr-2" />
+                          增强分析
+                        </TabsTrigger>
+                        <TabsTrigger value="comparison" className="flex items-center">
+                          <BarChart3 className="h-4 w-4 mr-2" />
+                          对比分析
                         </TabsTrigger>
                       </TabsList>
                     </div>
@@ -346,7 +361,7 @@ const StudentPortraitManagement: React.FC = () => {
                               没有找到匹配的学生
                             </div>
                           ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                               {filteredStudents.map((student) => (
                                 <StudentCard
                                   key={student.id}
@@ -357,6 +372,18 @@ const StudentPortraitManagement: React.FC = () => {
                             </div>
                           )}
                         </div>
+                      </TabsContent>
+                      
+                      <TabsContent value="ai-analysis" className="mt-0">
+                        <IntelligentPortraitAnalysis />
+                      </TabsContent>
+                      
+                      <TabsContent value="enhanced-analysis" className="mt-0">
+                        <EnhancedStudentPortrait />
+                      </TabsContent>
+                      
+                      <TabsContent value="comparison" className="mt-0">
+                        <StudentPortraitComparison />
                       </TabsContent>
                     </CardContent>
                   </Tabs>

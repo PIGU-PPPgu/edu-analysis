@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useGradeAnalysis } from "@/contexts/GradeAnalysisContext";
 import { 
   PieChart,
   BarChart, 
@@ -45,7 +44,6 @@ export const AdvancedDashboard: React.FC<AdvancedDashboardProps> = ({
   examType = "",
   gradeData: propGradeData
 }) => {
-  const { examList } = useGradeAnalysis();
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [classRanking, setClassRanking] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -98,9 +96,9 @@ export const AdvancedDashboard: React.FC<AdvancedDashboardProps> = ({
         
         setAnalysisResult(data);
         
-        // 提取科目列表
+        // 提取科目列表 - 不再包含总分
         if (data?.subjectPerformance) {
-          const subjects = ["总分", ...Object.keys(data.subjectPerformance)];
+          const subjects = Object.keys(data.subjectPerformance);
           setSubjectList(subjects);
         }
         

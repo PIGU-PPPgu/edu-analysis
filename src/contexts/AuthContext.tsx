@@ -1,158 +1,117 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
-import type { AuthError } from "@supabase/supabase-js";
-import { toast } from "sonner";
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface AuthContextType {
-  user: any | null;
-  userRole: string | null;
-  signIn: (email: string, password: string) => Promise<any>;
-  signOut: () => Promise<{ error: AuthError } | void>;
-  refreshSession: () => Promise<void>;
+  user: User | null;
+  session: Session | null;
   isAuthReady: boolean;
+  signIn: (email: string, password: string) => Promise<{ error?: any }>;
+  signUp: (email: string, password: string) => Promise<{ error?: any }>;
+  signOut: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({
-  user: null,
-  userRole: null,
-  signIn: async () => ({}),
-  signOut: async () => {},
-  refreshSession: async () => {},
-  isAuthReady: false,
-});
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<any | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [isAuthReady, setIsAuthReady] = useState<boolean>(false);
+// 🔧 开发模式配置
+const DEV_MODE = {
+  enabled: false, // ✅ 关闭开发模式，注册问题已解决
+  mockUser: {
+    id: 'dev-user-123',
+    email: 'dev@teacher.com',
+    user_metadata: {
+      full_name: '开发测试教师'
+    },
+    app_metadata: {},
+    aud: 'authenticated',
+    created_at: new Date().toISOString(),
+    role: 'authenticated',
+    updated_at: new Date().toISOString()
+  } as User
+};
 
-  // 从本地存储获取用户角色
-  const getUserRoleFromLocalStorage = (userId: string): string | null => {
-    try {
-      const storedRole = localStorage.getItem(`user_role_${userId}`);
-      return storedRole;
-    } catch (err) {
-      console.error("从本地存储获取角色失败:", err);
-      return null;
-    }
-  };
-
-  // 将用户角色保存到本地存储
-  const saveUserRoleToLocalStorage = (userId: string, role: string) => {
-    try {
-      localStorage.setItem(`user_role_${userId}`, role);
-    } catch (err) {
-      console.error("保存角色到本地存储失败:", err);
-    }
-  };
-
-  // 刷新会话函数
-  const refreshSession = async () => {
-    try {
-      const { data, error } = await supabase.auth.refreshSession();
-      
-      if (error) {
-        console.error("刷新会话失败:", error);
-        toast.error("会话刷新失败，请重新登录");
-        await signOut();
-        return;
-      }
-      
-      if (data.session) {
-        setUser(data.session.user);
-        
-        // 从本地存储获取角色
-        const savedRole = getUserRoleFromLocalStorage(data.session.user.id);
-        if (savedRole) {
-          setUserRole(savedRole);
-        } else {
-          // 默认为管理员角色进行测试
-          setUserRole('admin');
-          saveUserRoleToLocalStorage(data.session.user.id, 'admin');
-        }
-      }
-    } catch (error) {
-      console.error("刷新会话异常:", error);
-      await signOut();
-    }
-  };
-
-  // 检查初始会话的函数
-  const initAuth = async () => {
-    try {
-      setIsAuthReady(false);
-      
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        console.error("获取会话失败:", error);
-        setUser(null);
-        setUserRole(null);
-        setIsAuthReady(true);
-        return;
-      }
-      
-      if (session) {
-        // 会话有效
-        setUser(session.user);
-        
-        // 从本地存储获取角色
-        const savedRole = getUserRoleFromLocalStorage(session.user.id);
-        if (savedRole) {
-          setUserRole(savedRole);
-        } else {
-          // 如果没有保存角色，设置为管理员（便于测试）
-          setUserRole('admin');
-          saveUserRoleToLocalStorage(session.user.id, 'admin');
-        }
-      } else {
-        // 无有效会话
-        setUser(null);
-        setUserRole(null);
-      }
-    } catch (error) {
-      console.error("初始化认证失败:", error);
-      setUser(null);
-      setUserRole(null);
-    } finally {
-      setIsAuthReady(true);
-    }
-  };
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
 
   useEffect(() => {
-    initAuth();
+    // 🔧 开发模式：直接设置模拟用户
+    if (DEV_MODE.enabled) {
+      console.log('🔧 开发模式已启用 - 使用模拟认证');
+      setUser(DEV_MODE.mockUser);
+      setSession({
+        access_token: 'mock-token',
+        refresh_token: 'mock-refresh',
+        expires_in: 3600,
+        expires_at: Date.now() / 1000 + 3600,
+        token_type: 'bearer',
+        user: DEV_MODE.mockUser
+      } as Session);
+      setIsAuthReady(true);
+      toast.success('开发模式：已自动登录');
+      return;
+    }
 
-    // 监听登录状态变化
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log("认证状态变化:", event);
+    // 正常的Supabase认证流程
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
         
-        if (session) {
+        if (error) {
+          console.error('获取会话失败:', error);
+        } else if (session) {
           setUser(session.user);
-          
-          // 从本地存储获取角色
-          const savedRole = getUserRoleFromLocalStorage(session.user.id);
-          if (savedRole) {
-            setUserRole(savedRole);
-          } else {
-            // 如果没有保存角色，设置为管理员（便于测试）
-            setUserRole('admin');
-            saveUserRoleToLocalStorage(session.user.id, 'admin');
-          }
-        } else {
-          setUser(null);
-          setUserRole(null);
+          setSession(session);
         }
+      } catch (error) {
+        console.error('认证初始化失败:', error);
+      } finally {
+        setIsAuthReady(true);
       }
-    );
-
-    return () => {
-      subscription.unsubscribe();
     };
+
+    initializeAuth();
+
+    // 监听认证状态变化
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('认证状态变化:', event, session);
+      
+      if (session) {
+        setUser(session.user);
+        setSession(session);
+      } else {
+        setUser(null);
+        setSession(null);
+      }
+      
+      setIsAuthReady(true);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  // 登录函数
-  async function signIn(email: string, password: string) {
+  const signIn = async (email: string, password: string) => {
+    // 🔧 开发模式：模拟登录成功
+    if (DEV_MODE.enabled) {
+      console.log('🔧 开发模式：模拟登录');
+      setUser(DEV_MODE.mockUser);
+      setSession({
+        access_token: 'mock-token',
+        refresh_token: 'mock-refresh',
+        expires_in: 3600,
+        expires_at: Date.now() / 1000 + 3600,
+        token_type: 'bearer',
+        user: DEV_MODE.mockUser
+      } as Session);
+      toast.success('开发模式：登录成功');
+      return {};
+    }
+
+    // 正常的登录流程
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -160,86 +119,94 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
-        toast.error("登录失败", {
-          description: error.message,
-        });
-        return { data, error };
-      }
-
-      if (data?.user) {
-        // 登录成功
-        setUser(data.user);
-        
-        // 从本地存储获取角色
-        const savedRole = getUserRoleFromLocalStorage(data.user.id);
-        if (savedRole) {
-          setUserRole(savedRole);
-        } else {
-          // 如果没有保存角色，设置为管理员（便于测试）
-          setUserRole('admin');
-          saveUserRoleToLocalStorage(data.user.id, 'admin');
-        }
-        
-        toast.success("登录成功");
-      }
-
-      return { data, error };
-    } catch (error) {
-      console.error("登录过程中出现错误:", error);
-      toast.error("登录异常", {
-        description: error instanceof Error ? error.message : "未知错误",
-      });
-      return {
-        data: {},
-        error: error instanceof Error ? { message: error.message } as AuthError : { message: "未知错误" } as AuthError,
-      };
-    }
-  }
-
-  // 登出函数
-  async function signOut() {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error("退出登录失败:", error);
-        toast.error("退出登录失败", {
-          description: error.message,
-        });
+        toast.error(`登录失败: ${error.message}`);
         return { error };
       }
 
-      // 清除用户状态
-      setUser(null);
-      setUserRole(null);
-      toast.success("已退出登录");
-      return {};
-    } catch (error) {
-      console.error("退出登录过程中出现错误:", error);
-      toast.error("退出登录异常", {
-        description: error instanceof Error ? error.message : "未知错误",
-      });
-      return {
-        error: error instanceof Error ? { message: error.message } as AuthError : { message: "未知错误" } as AuthError,
-      };
+      toast.success('登录成功');
+      return { data };
+    } catch (error: any) {
+      toast.error(`登录异常: ${error.message}`);
+      return { error };
     }
-  }
+  };
+
+  const signUp = async (email: string, password: string) => {
+    // 🔧 开发模式：模拟注册成功
+    if (DEV_MODE.enabled) {
+      console.log('🔧 开发模式：模拟注册');
+      toast.success('开发模式：注册成功，已自动登录');
+      return await signIn(email, password);
+    }
+
+    // 正常的注册流程
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) {
+        toast.error(`注册失败: ${error.message}`);
+        return { error };
+      }
+
+      if (data.user && data.session) {
+        toast.success('注册成功');
+      } else {
+        toast.success('注册成功，请查收验证邮件');
+      }
+      
+      return { data };
+    } catch (error: any) {
+      toast.error(`注册异常: ${error.message}`);
+      return { error };
+    }
+  };
+
+  const signOut = async () => {
+    // 🔧 开发模式：模拟退出
+    if (DEV_MODE.enabled) {
+      console.log('🔧 开发模式：模拟退出');
+      setUser(null);
+      setSession(null);
+      toast.success('开发模式：已退出登录');
+      return;
+    }
+
+    // 正常的退出流程
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        toast.error(`退出失败: ${error.message}`);
+      } else {
+        toast.success('已退出登录');
+      }
+    } catch (error: any) {
+      toast.error(`退出异常: ${error.message}`);
+    }
+  };
+
+  const value: AuthContextType = {
+    user,
+    session,
+    isAuthReady,
+    signIn,
+    signUp,
+    signOut,
+  };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        userRole,
-        signIn,
-        signOut,
-        refreshSession,
-        isAuthReady,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
-}
+};
 
-export function useAuthContext() {
-  return useContext(AuthContext);
-} 
+export const useAuthContext = (): AuthContextType => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuthContext must be used within an AuthProvider');
+  }
+  return context;
+}; 

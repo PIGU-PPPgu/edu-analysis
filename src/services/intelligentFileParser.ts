@@ -126,7 +126,7 @@ const SUBJECT_PATTERNS = [
   
   // 特殊科目
   { pattern: /道法|道德与法治|思想品德|品德/i, subject: '道德与法治' },
-  { pattern: /总分|总成绩|total/i, subject: '总分' },
+  // 注意：总分不再作为科目处理，而是作为total_score字段
   
   // 综合科目
   { pattern: /文综|文科综合/i, subject: '文科综合' },

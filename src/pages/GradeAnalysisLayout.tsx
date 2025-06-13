@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import GradeOverview from "@/components/analysis/core/GradeOverview";
 import ScoreDistribution from "@/components/analysis/statistics/ScoreDistribution";
+import { BasicGradeStats } from "@/components/analysis/core/BasicGradeStats";
+import OptimizedDataDashboard from "@/components/analysis/core/OptimizedDataDashboard";
 // import MultiClassPerformanceTable from "@/components/analysis/MultiClassPerformanceTable"; // 已删除
 import { Subject } from "@/types/grade";
 
@@ -42,7 +44,10 @@ import {
   Plus,
   Settings2,
   Activity,
-  Brain
+  Brain,
+  CheckCircle,
+  Calendar,
+  AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,11 +56,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Loader2 } from 'lucide-react';
 // import { ClassAnalysisView } from "@/components/analysis/ClassAnalysisView"; // 已删除
 import { AdvancedDashboard } from "@/components/analysis/advanced/AdvancedDashboard";
-<<<<<<< HEAD
 import { PredictiveAnalysis } from "@/components/analysis/advanced/PredictiveAnalysis";
 import { LearningBehaviorAnalysis } from "@/components/analysis/advanced/LearningBehaviorAnalysis";
-=======
->>>>>>> 41582ecc356006fb88940924d6abc9707668c301
 // import { StudentProgressView } from "@/components/analysis/StudentProgressView"; // 已删除
 // import { AIAnalysisAssistant } from "@/components/analysis/AIAnalysisAssistant"; // 已删除
 import { gradeAnalysisService } from "@/services/gradeAnalysisService";
@@ -73,6 +75,10 @@ import { getGradeLevelInfo } from '@/utils/gradeUtils';
 // import ClassSelector from "@/components/analysis/ClassSelector"; // 已删除
 import ClassComparisonChart from "@/components/analysis/comparison/ClassComparisonChart";
 import GradeTable from "@/components/analysis/core/GradeTable";
+import SubjectCorrelationAnalysis from "@/components/analysis/advanced/SubjectCorrelationAnalysis";
+import AnomalyDetectionAnalysis from "@/components/analysis/advanced/AnomalyDetectionAnalysis";
+import ContributionAnalysis from "@/components/analysis/advanced/ContributionAnalysis";
+import CrossAnalysis from "@/components/analysis/advanced/CrossAnalysis";
 
 // 新增导入 - 全局筛选相关组件
 import { FilterProvider, useFilter, filterUtils } from "@/contexts/FilterContext";
@@ -156,7 +162,7 @@ const GradeAnalysisContent: React.FC = () => {
     if (!isDataLoaded) return [];
     
     return filterUtils.filterData(gradeData, filterState, {
-      classField: 'class_name',
+      classField: 'class_name',  // 确保使用正确的字段名
       subjectField: 'subject',
       examField: 'exam_id',
       dateField: 'exam_date'
@@ -203,227 +209,138 @@ const GradeAnalysisContent: React.FC = () => {
             return { success: false, error: err };
           })
         ]).then(results => {
-          console.log("数据库检查结果:", results);
-          
-          // 记录检查时间，即使失败也记录，避免频繁重试
-          localStorage.setItem('dbStructureLastCheckTime', now.toString());
-          
-          // 设置成功状态
-          const allSucceeded = results.every(r => r.success !== false);
-          
-          setDbFixStatus({
-            checking: false,
-            fixed: allSucceeded,
-            error: allSucceeded ? null : "数据库结构可能需要更新，但不影响基本功能"
-          });
-          
-          if (allSucceeded) {
-            console.log("数据库结构检查并修复完成");
+          const hasErrors = results.some(result => !result.success);
+          if (hasErrors) {
+            console.warn("数据库检查发现一些问题，但不影响基本功能");
           } else {
-            console.warn("数据库结构检查部分失败，但应用可以继续运行");
+            console.log("数据库结构检查完成，一切正常");
           }
-        }).catch(error => {
-          // 捕获所有错误
-          console.error("数据库检查过程失败:", error);
+          
+          // 记录检查时间
+          localStorage.setItem('dbStructureLastCheckTime', now.toString());
+          
           setDbFixStatus({
             checking: false,
-            fixed: false,
-            error: null // 不显示错误，避免吓到用户
+            fixed: !hasErrors,
+            error: hasErrors ? "数据库结构存在一些问题，但不影响基本功能" : null
           });
-          
-          // 仍然记录检查时间
-          localStorage.setItem('dbStructureLastCheckTime', now.toString());
         });
       } catch (error) {
-        console.error("启动数据库检查失败:", error);
+        console.error("数据库检查过程中发生异常:", error);
         setDbFixStatus({
           checking: false,
           fixed: false,
-          error: null // 不显示错误
+          error: "数据库检查失败，请检查网络连接"
         });
       }
     };
-    
-    // 延迟执行数据库检查，优先加载UI
-    const timer = setTimeout(() => {
-      checkDatabase();
-    }, 2000);
-    
-    return () => clearTimeout(timer);
-  }, []); // 仅在组件挂载时执行一次
 
-  // 获取考试列表 - 使用缓存和加载状态优化
-  useEffect(() => {
-    const fetchExamList1 = async () => {
+    checkDatabase();
+  }, []);
+
+  // 创建可重用的加载考试列表函数
+  const loadExamList = useCallback(async () => {
+    try {
       console.log("开始获取考试列表...");
       
-      if (examList.length > 0) {
-        console.log("使用缓存的考试列表数据");
-        return; // 已有数据，不重复加载
-      }
-      
-      try {
-        setIsLoading(true);
-        console.log("从Supabase获取考试列表");
-        
-        // 直接从Supabase获取考试列表
-        const { data, error } = await supabase
-          .from('exams')
-          .select('*')
-          .order('date', { ascending: false });
-        
-        if (error) {
-          console.error("获取考试列表出错:", error);
-          toast.error("获取考试列表失败", {
-            description: error instanceof Error ? error.message : "未知错误"
-          });
-          throw error;
-        }
-        
-        console.log("获取到考试列表:", data);
-        if (data && data.length > 0) {
-          // 为每个考试获取成绩数量
-          console.log("检查每个考试的成绩数量...");
-          const examsWithCounts = await Promise.all(
-            data.map(async (exam) => {
-              const { count, error: countError } = await supabase
-                .from('grade_data')
-                .select('id', { count: 'exact', head: true })
-                .eq('exam_id', exam.id);
-              
-              return {
-                ...exam,
-                gradeCount: countError ? 0 : (count || 0)
-              };
-            })
-          );
-          
-          setExamList(examsWithCounts);
-          console.log("考试列表及成绩数量:", examsWithCounts.map(e => `${e.title}: ${e.gradeCount}条`));
-          
-          // 检查哪些考试有成绩数据，优先选择有数据的考试
-          if (!selectedExam) {
-            console.log("选择考试...");
-            
-            // 首先筛选出有成绩数据的考试
-            const examsWithGrades = examsWithCounts.filter(exam => exam.gradeCount && exam.gradeCount > 0);
-            
-            let examToSelect = null;
-            
-            if (examsWithGrades.length > 0) {
-              // 如果有考试包含成绩数据，按日期排序选择最新的
-              const sortedExamsWithGrades = examsWithGrades.sort((a, b) => 
-                new Date(b.date || '1970-01-01').getTime() - new Date(a.date || '1970-01-01').getTime()
-              );
-              examToSelect = sortedExamsWithGrades[0];
-              console.log(`优先选择有数据的考试: ${examToSelect.title} (${examToSelect.gradeCount}条记录)`);
-            } else {
-              // 如果没有考试包含成绩数据，选择最新的考试
-              const sortedExams = examsWithCounts.sort((a, b) => 
-                new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
-              );
-              examToSelect = sortedExams[0];
-              
-              if (examToSelect) {
-                console.log(`选择最新考试: ${examToSelect.title} (无成绩数据，可能导入失败)`);
-                toast.warning("最新考试暂无成绩数据", {
-                  description: `考试"${examToSelect.title}"导入后没有找到成绩数据，请检查导入过程是否成功`
-                });
-              }
-            }
-            
-            // 设置选中的考试
-            if (examToSelect) {
-              setSelectedExam(examToSelect.id);
-            }
-          }
-        } else {
-          console.log("没有找到考试数据");
-          toast.warning("没有找到考试数据", {
-            description: "请先创建考试并导入成绩"
-          });
-        }
-      } catch (error) {
-        console.error("加载考试列表失败:", error);
-        toast.error("加载考试列表失败", {
-          description: error instanceof Error ? error.message : "未知错误"
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchExamList1();
-  }, [examList.length, selectedExam]);
+      // 获取所有考试信息
+      const { data: examsData, error: examsError } = await supabase
+        .from('exams')
+        .select('*')
+        .order('date', { ascending: false });
 
-  // 获取成绩数据 - 使用缓存和按需加载
+      if (examsError) {
+        console.error("获取考试列表失败:", examsError);
+        toast.error("获取考试列表失败", {
+          description: examsError.message
+        });
+        return;
+      }
+
+      if (examsData && examsData.length > 0) {
+        // 为每个考试计算成绩数量
+        const examsWithCount = await Promise.all(
+          examsData.map(async (exam) => {
+            const { count } = await supabase
+              .from('grade_data')
+              .select('*', { count: 'exact', head: true })
+              .eq('exam_id', exam.id);
+            
+            return {
+              ...exam,
+              gradeCount: count || 0
+            };
+          })
+        );
+
+        console.log("获取到考试列表:", examsWithCount);
+        setExamList(examsWithCount);
+        
+        // 如果没有选中的考试，默认选择第一个
+        if (!selectedExam && examsWithCount.length > 0) {
+          const defaultExam = examsWithCount[0];
+          console.log("默认选择考试:", defaultExam.title);
+          setSelectedExam(defaultExam.id);
+        }
+      } else {
+        console.log("没有找到考试数据");
+        setExamList([]);
+      }
+    } catch (error) {
+      console.error("获取考试列表时发生异常:", error);
+      toast.error("获取考试列表失败", {
+        description: "请检查网络连接或联系管理员"
+      });
+    }
+  }, [selectedExam]);
+
+  // 获取考试列表 - 使用可重用函数
   useEffect(() => {
-    const fetchGradeData1 = async (examId: string) => {
-      if (!selectedExam) {
+    loadExamList();
+  }, [loadExamList]);
+
+  // 获取成绩数据 - 修复版本
+  useEffect(() => {
+    const fetchGradeData = async (examId: string) => {
+      if (!examId) {
         console.log("未选择考试，无法获取成绩数据");
+        setIsLoading(false);
         return;
       }
       
       // 如果已经有数据，并且是当前选中的考试的数据，则跳过加载
       if (gradeData.length > 0 && 
-          gradeData[0].examId === selectedExam) {
+          gradeData[0].examId === examId) {
         console.log("使用缓存的成绩数据");
         setIsLoading(false);
         return;
       }
       
-      console.log(`开始获取考试ID[${selectedExam}]的成绩数据...`);
+      console.log(`开始获取考试ID[${examId}]的成绩数据...`);
       try {
         setIsLoading(true);
         
-        // 修改查询方式，使用两次独立查询替代外键关系查询
-        // 第一步：获取成绩数据
+        // 修改查询方式，直接查询grade_data表，不使用JOIN
         const { data: gradeDataResult, error: gradeError } = await supabase
           .from('grade_data')
           .select('*')
-          .eq('exam_id', selectedExam);
+          .eq('exam_id', examId);
         
         if (gradeError) {
           console.error("获取成绩数据出错:", gradeError);
           toast.error("获取成绩数据失败", {
-            description: gradeError instanceof Error ? gradeError.message : "未知错误"
+            description: gradeError.message
           });
           throw gradeError;
         }
         
-        // 如果有成绩数据，获取相关学生信息
         if (gradeDataResult && gradeDataResult.length > 0) {
-          // 收集所有学生ID
-          const studentIds = [...new Set(gradeDataResult.map(item => item.student_id))];
-          
-          // 第二步：获取学生数据
-          const { data: studentsData, error: studentsError } = await supabase
-            .from('students')
-            .select('student_id, name, class_name')
-            .in('student_id', studentIds);
-          
-          if (studentsError) {
-            console.warn("获取学生数据出错 (非致命错误):", studentsError);
-            // 即使学生数据获取失败，也继续处理成绩数据
-          }
-          
-          // 创建学生ID到名字的映射
-          const studentMap = new Map();
-          if (studentsData) {
-            studentsData.forEach(student => {
-              studentMap.set(student.student_id, student.name);
-            });
-          }
-          
-          console.log("获取到考试成绩数据:", gradeDataResult ? `${gradeDataResult.length}条记录` : '无数据');
-          
-          // 格式化数据
-          console.log("开始格式化成绩数据...");
+          console.log("获取到考试成绩数据:", gradeDataResult.length, "条记录");
           console.log("原始数据样本:", gradeDataResult.slice(0, 2));
           
+          // 格式化数据 - 修复版本，直接使用grade_data表中的字段
           const formattedData = gradeDataResult.map((item: any) => {
             // 从grade_data表中提取正确的分数
-            // 优先使用score字段，如果没有则使用total_score
             let finalScore = 0;
             if (item.score !== null && item.score !== undefined) {
               finalScore = parseFloat(item.score);
@@ -431,38 +348,30 @@ const GradeAnalysisContent: React.FC = () => {
               finalScore = parseFloat(item.total_score);
             }
             
-            // 处理班级信息 - 如果grade_data中的class_name是"未知班级"，尝试从students表获取
-            let finalClassName = item.class_name;
-            console.log(`🏫 第${item.id}行班级处理: grade_data.class_name="${item.class_name}"`);
+            // 处理班级信息 - 直接使用grade_data表中的字段
+            let finalClassName = '未知班级';
+            if (item.class_name && item.class_name !== '未知班级') {
+              finalClassName = item.class_name;
+            }
             
-            if (!finalClassName || finalClassName === '未知班级') {
-              // 从students表中获取的学生信息可能包含班级
-              const studentInfo = studentsData?.find(s => s.student_id === item.student_id);
-              console.log(`🔍 查找学生${item.student_id}在students表中的信息:`, studentInfo);
-              
-              if (studentInfo && studentInfo.class_name) {
-                finalClassName = studentInfo.class_name;
-                console.log(`✅ 从students表获取班级: "${finalClassName}"`);
-              } else {
-                finalClassName = '未知班级';
-                console.log(`❌ 无法获取班级信息，使用默认值: "未知班级"`);
-              }
-            } else {
-              console.log(`✅ 直接使用grade_data中的班级: "${finalClassName}"`);
+            // 处理学生姓名 - 直接使用grade_data表中的字段
+            let finalName = '未知学生';
+            if (item.name) {
+              finalName = item.name;
             }
             
             return {
               id: item.id,
-              student_id: item.student_id,  // 保持下划线命名统一
-              studentId: item.student_id,   // 同时保留驼峰命名兼容性
-              name: studentMap.get(item.student_id) || item.name || '未知学生',
+              student_id: item.student_id,
+              studentId: item.student_id,
+              name: finalName,
               subject: item.subject || '总分',
               score: finalScore,
               examDate: item.exam_date,
               examType: item.exam_type || '未知考试',
               examTitle: item.exam_title || '未知考试',
               className: finalClassName,
-              class_name: finalClassName,   // 同时保留下划线命名兼容性
+              class_name: finalClassName,
               examId: item.exam_id
             };
           });
@@ -471,9 +380,11 @@ const GradeAnalysisContent: React.FC = () => {
           console.log("格式化后的数据总数:", formattedData.length);
           setGradeData(formattedData);
           
-          // 收集可用的班级和学生列表 - 使用格式化后的数据
-          console.log("开始收集班级和学生信息...");
-          const classes = [...new Set(formattedData.map((item: any) => item.className))].filter(c => c && c !== '未知班级');
+          // 收集可用的班级列表 - 修复版本
+          const classes = [...new Set(formattedData
+            .map((item: any) => item.className)
+            .filter(c => c && c !== '未知班级')
+          )];
           
           // 如果没有有效班级，至少包含"未知班级"
           if (classes.length === 0) {
@@ -483,6 +394,7 @@ const GradeAnalysisContent: React.FC = () => {
           setClassesList(classes as string[]);
           console.log("收集到的班级:", classes);
           
+          // 收集学生列表
           const students = formattedData.reduce((acc: {id: string; name: string}[], item: any) => {
             if (!acc.some(s => s.id === item.studentId) && item.studentId) {
               acc.push({
@@ -497,7 +409,10 @@ const GradeAnalysisContent: React.FC = () => {
           console.log("收集到的学生:", students.length, "个");
           
           // 收集可用的科目列表
-          const subjects = [...new Set(formattedData.map((item: any) => item.subject))].filter(s => s && s.trim());
+          const subjects = [...new Set(formattedData
+            .map((item: any) => item.subject)
+            .filter(s => s && s.trim())
+          )];
           setAvailableSubjects(subjects as string[]);
           console.log("收集到的科目:", subjects);
           
@@ -508,8 +423,10 @@ const GradeAnalysisContent: React.FC = () => {
           }
         } else {
           console.log("未获取到成绩数据或数据为空");
-          // 清空数据
           setGradeData([]);
+          setClassesList([]);
+          setStudentsList([]);
+          setAvailableSubjects([]);
         }
       } catch (error) {
         console.error("加载成绩数据失败:", error);
@@ -522,8 +439,10 @@ const GradeAnalysisContent: React.FC = () => {
       }
     };
     
-    fetchGradeData1(selectedExam || '');
-  }, [selectedExam, setGradeData, examList, selectedClass]);
+    if (selectedExam) {
+      fetchGradeData(selectedExam);
+    }
+  }, [selectedExam, setGradeData]);
 
   // 计算箱线图数据
   useEffect(() => {
@@ -564,11 +483,15 @@ const GradeAnalysisContent: React.FC = () => {
     }
   }, [gradeData]);
 
-  // 考试切换处理
+  // 考试切换处理 - 修复版本
   const handleExamChange = (examId: string) => {
+    console.log("切换考试:", examId);
     setSelectedExam(examId);
-    // 设置isDataLoaded为false触发数据重新加载
+    // 清空当前数据，触发重新加载
     setGradeData([]);
+    setClassesList([]);
+    setStudentsList([]);
+    setAvailableSubjects([]);
   };
 
   // Handler for AI Analysis start
@@ -610,6 +533,53 @@ const GradeAnalysisContent: React.FC = () => {
     }
   };
 
+  // 新增：删除考试处理函数
+  const handleDeleteExam = async () => {
+    if (!selectedExam) {
+      toast.error('请先选择要删除的考试');
+      return;
+    }
+
+    const examToDelete = examList.find(e => e.id === selectedExam);
+    if (!examToDelete) {
+      toast.error('找不到要删除的考试');
+      return;
+    }
+
+    // 确认删除
+    const confirmed = window.confirm(
+      `确定要删除考试"${examToDelete.title}"吗？\n\n此操作将删除该考试的所有成绩数据，且无法恢复。`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setIsLoading(true);
+      toast.info('正在删除考试...');
+
+      const result = await gradeAnalysisService.deleteExam(selectedExam);
+      
+      if (result.success) {
+        toast.success(`考试"${examToDelete.title}"已成功删除`);
+        
+        // 重新加载考试列表
+        handleRefreshData();
+        
+        // 清除当前选择的考试
+        setSelectedExam(null);
+        setGradeData([]);
+        
+      } else {
+        toast.error(`删除失败: ${result.message || '未知错误'}`);
+      }
+    } catch (error) {
+      console.error('删除考试时发生错误:', error);
+      toast.error(`删除失败: ${error.message || '未知错误'}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleRefreshData = () => {
     setIsRefreshing(true);
     // 清空缓存，重新获取数据
@@ -617,8 +587,7 @@ const GradeAnalysisContent: React.FC = () => {
     setClassesList([]);
     setStudentsList([]);
     setGradeData([]);
-    
-    // 这里不直接调用那些未定义的函数，而是依靠 useEffect 的依赖更新来触发数据刷新
+    setSelectedExam(null);
     
     // 刷新页面提示
     toast.success("数据已刷新");
@@ -666,8 +635,6 @@ const GradeAnalysisContent: React.FC = () => {
     }
   };
 
-  // 重复的filteredGradeData计算已移除，使用顶部的全局筛选逻辑
-
   // 处理表格排序
   const handleSort = (field: string) => {
     if (sortField === field) {
@@ -678,26 +645,23 @@ const GradeAnalysisContent: React.FC = () => {
     }
   };
 
-  if (isLoading && examList.length === 0) {
+  if (isLoading) {
     return (
-      <div className="flex flex-col min-h-screen bg-gray-50">
+      <div className="min-h-screen flex flex-col bg-gray-50">
         <Navbar />
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
-          <span>正在加载考试数据...</span>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">正在加载成绩数据</h3>
+            <p className="text-gray-500">请稍候...</p>
+          </div>
         </div>
       </div>
     );
   }
 
-  // 修改这里，不再提前返回简化界面，而是记录没有数据的状态
-  const hasNoExams = examList.length === 0 && !isLoading;
-  
-  // 获取当前选中考试的详细信息
-  const currentExam = examList.find(exam => exam.id === selectedExam) || null;
-
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-gray-50">
       <Navbar />
       
       {dbFixStatus.checking && (
@@ -748,25 +712,63 @@ const GradeAnalysisContent: React.FC = () => {
           )}
           
           <div className="ml-auto flex items-center gap-2">
+            {/* 考试选择器 - 修复版本 */}
             {examList.length > 0 ? (
               <>
                 <BookOpen className="h-4 w-4" />
-                <div className="flex items-center justify-center px-4 py-2 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                  <div className="text-center text-gray-500">
-                    <span className="text-sm">考试选择器正在重构中</span>
-                  </div>
-                </div>
+                <Select value={selectedExam || ''} onValueChange={handleExamChange}>
+                  <SelectTrigger className="w-[280px]">
+                    <SelectValue placeholder="选择考试">
+                      {selectedExam && examList.find(e => e.id === selectedExam) ? (
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          <span>{examList.find(e => e.id === selectedExam)?.title}</span>
+                          <Badge variant="secondary" className="ml-auto">
+                            {examList.find(e => e.id === selectedExam)?.gradeCount || 0}条记录
+                          </Badge>
+                        </div>
+                      ) : (
+                        "选择考试"
+                      )}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {examList.map((exam) => (
+                      <SelectItem key={exam.id} value={exam.id}>
+                        <div className="flex items-center justify-between w-full">
+                          <div className="flex flex-col">
+                            <span className="font-medium">{exam.title}</span>
+                            <span className="text-xs text-gray-500">
+                              {exam.type} • {exam.date ? new Date(exam.date).toLocaleDateString() : '未知日期'}
+                            </span>
+                          </div>
+                          <Badge variant="outline" className="ml-2">
+                            {exam.gradeCount || 0}条记录
+                          </Badge>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button 
+                  variant="outline"
+                  size="icon"
+                  onClick={handleDeleteExam}
+                  title="删除考试"
+                >
+                  <CircleX className="h-4 w-4" />
+                </Button>
                 <Button 
                   variant="outline"
                   size="icon"
                   onClick={handleRefreshData}
                   title="刷新数据"
+                  disabled={isRefreshing}
                 >
-                  <RefreshCcw className="h-4 w-4" />
+                  <RefreshCcw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                 </Button>
               </>
             ) : (
-              // 即使没有考试，也显示占位按钮，保持布局一致
               <Button 
                 variant="outline"
                 onClick={() => navigate("/")}
@@ -778,7 +780,7 @@ const GradeAnalysisContent: React.FC = () => {
           </div>
         </div>
 
-        {/* 紧凑筛选器组件 - 替换原有的大型筛选器 */}
+        {/* 紧凑筛选器组件 - 修复版本 */}
         {isDataLoaded && (
           <div className="mb-6">
             <CompactGradeFilters
@@ -903,7 +905,7 @@ const GradeAnalysisContent: React.FC = () => {
           
           <TabsContent value="dashboard" className="space-y-6">
             {/* 当前考试信息展示 */}
-            {currentExam && (
+            {selectedExam && (
               <Card className="bg-white p-4 rounded-lg shadow mb-4">
                 <CardHeader className="pb-2">
                   <div className="flex justify-between items-center">
@@ -912,14 +914,14 @@ const GradeAnalysisContent: React.FC = () => {
                       当前分析考试
                     </CardTitle>
                     <Badge>
-                      {currentExam.type}
+                      {examList.find(e => e.id === selectedExam)?.type}
                     </Badge>
                   </div>
                   <CardDescription>
-                    {currentExam.title} 
-                    {currentExam.date && (
+                    {examList.find(e => e.id === selectedExam)?.title} 
+                    {examList.find(e => e.id === selectedExam)?.date && (
                       <span className="ml-2 text-gray-400">
-                        ({new Date(currentExam.date).toLocaleDateString()})
+                        ({new Date(examList.find(e => e.id === selectedExam)?.date).toLocaleDateString()})
                       </span>
                     )}
                   </CardDescription>
@@ -928,7 +930,7 @@ const GradeAnalysisContent: React.FC = () => {
             )}
             
             {/* 显示没有数据的提示卡片 - 简化版 */}
-            {hasNoExams && (
+            {examList.length === 0 && !isLoading && (
               <Card className="bg-white p-4 rounded-lg shadow mb-4">
                 <CardContent className="pt-6 text-center">
                   <p className="mb-4 text-xl text-gray-600">暂无考试数据</p>
@@ -945,15 +947,15 @@ const GradeAnalysisContent: React.FC = () => {
               </Card>
             )}
           
-            <GradeOverview gradeData={filteredGradeData} />
+            {/* 使用优化的数据看板组件 */}
+            <OptimizedDataDashboard 
+              gradeData={filteredGradeData} 
+              loading={isLoading}
+              showScoreDistribution={true}
+              showDetailedStats={true}
+            />
             
-            {isDataLoaded && (
-              <div className="grid grid-cols-1 gap-6">
-                <ScoreDistribution gradeData={filteredGradeData} />
-              </div>
-            )}
-            
-            {!isDataLoaded && !isLoading && !hasNoExams && (
+            {!isDataLoaded && !isLoading && (
               <div className="text-center py-12 bg-white rounded-lg shadow">
                 <p className="text-xl text-gray-600">暂无成绩数据</p>
                 <p className="text-gray-500 mt-2">请先导入学生成绩数据</p>
@@ -1007,7 +1009,7 @@ const GradeAnalysisContent: React.FC = () => {
               </p>
             </div>
             
-            {hasNoExams ? (
+            {examList.length === 0 && !isLoading && (
               <Card className="bg-white p-4 rounded-lg shadow">
                 <CardContent className="pt-6 text-center">
                   <p className="mb-4 text-xl text-gray-600">暂无考试数据</p>
@@ -1021,7 +1023,9 @@ const GradeAnalysisContent: React.FC = () => {
                   </Button>
                 </CardContent>
               </Card>
-            ) : isDataLoaded ? (
+            )}
+            
+            {isDataLoaded && (
               <div className="space-y-6">
                 {/* 多班级对比图表 */}
                 {classesList.length > 1 && (
@@ -1037,7 +1041,13 @@ const GradeAnalysisContent: React.FC = () => {
                     </CardHeader>
                     <CardContent>
                       <ClassComparisonChart
-                        gradeData={filteredGradeData}
+                        data={filteredGradeData}
+                        filterState={{
+                          selectedClasses: filterState.selectedClasses || [],
+                          viewMode: filterState.mode === 'multi-class' ? 'comparison' : 'all',
+                          comparisonTarget: 'classes'
+                        }}
+                        selectedSubject={filterState.selectedSubjects[0] as Subject || Subject.TOTAL}
                       />
                     </CardContent>
                   </Card>
@@ -1054,17 +1064,6 @@ const GradeAnalysisContent: React.FC = () => {
                   </div>
                 </div>
               </div>
-            ) : (
-              <div className="text-center py-12 bg-white rounded-lg shadow">
-                <p className="text-xl text-gray-600">暂无班级数据</p>
-                <p className="text-gray-500 mt-2">请先导入学生和成绩数据</p>
-                <Button 
-                  className="mt-4" 
-                  onClick={() => navigate("/")}
-                >
-                  前往导入数据
-                </Button>
-              </div>
             )}
           </TabsContent>
           
@@ -1077,7 +1076,7 @@ const GradeAnalysisContent: React.FC = () => {
               </p>
             </div>
             
-            {hasNoExams ? (
+            {examList.length === 0 && !isLoading && (
               <Card className="bg-white p-4 rounded-lg shadow">
                 <CardContent className="pt-6 text-center">
                   <p className="mb-4 text-xl text-gray-600">暂无考试数据</p>
@@ -1091,32 +1090,18 @@ const GradeAnalysisContent: React.FC = () => {
                   </Button>
                 </CardContent>
               </Card>
-            ) : isDataLoaded ? (
-              <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                <div className="text-center text-gray-500">
-                  <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
-                    📈
-                  </div>
-                  <p className="text-lg font-medium">学生成绩进步分析正在重构中</p>
-                  <p className="text-sm">此功能将在后续版本中重新设计</p>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-12 bg-white rounded-lg shadow">
-                <p className="text-xl text-gray-600">暂无学生数据</p>
-                <p className="text-gray-500 mt-2">查看学生历次成绩进步情况</p>
-                <Button 
-                  className="mt-4" 
-                  onClick={() => navigate("/")}
-                >
-                  前往导入数据
-                </Button>
-              </div>
+            )}
+            
+            {isDataLoaded && (
+              <BasicGradeStats 
+                gradeData={filteredGradeData}
+                title="学生成绩进步分析"
+              />
             )}
           </TabsContent>
           
           <TabsContent value="advanced">
-            {hasNoExams ? (
+            {examList.length === 0 && (
               <Card className="bg-white p-4 rounded-lg shadow">
                 <CardContent className="pt-6 text-center">
                   <p className="mb-4 text-xl text-gray-600">暂无考试数据</p>
@@ -1130,38 +1115,16 @@ const GradeAnalysisContent: React.FC = () => {
                   </Button>
                 </CardContent>
               </Card>
-            ) : isDataLoaded && selectedExam ? (
+            )}
+            
+            {isDataLoaded && selectedExam && (
               <AdvancedDashboard 
                 examId={selectedExam}
-                examTitle={currentExam?.title}
-                examDate={currentExam?.date || undefined}
-                examType={currentExam?.type}
+                examTitle={examList.find(e => e.id === selectedExam)?.title}
+                examDate={examList.find(e => e.id === selectedExam)?.date || undefined}
+                examType={examList.find(e => e.id === selectedExam)?.type}
                 gradeData={filteredGradeData}
               />
-            ) : (
-              <div className="text-center py-12 bg-white rounded-lg shadow">
-                <p className="text-xl text-gray-600">高级分析需要数据</p>
-                <p className="text-gray-500 mt-2">请先选择考试并确保有成绩数据</p>
-                {!selectedExam && examList.length > 0 ? (
-                  <Button 
-                    className="mt-4" 
-                    onClick={() => {
-                      if (examList.length > 0) {
-                        handleExamChange(examList[0].id);
-                      }
-                    }}
-                  >
-                    选择考试
-                  </Button>
-                ) : (
-                  <Button 
-                    className="mt-4" 
-                    onClick={() => navigate("/")}
-                  >
-                    前往导入数据
-                  </Button>
-                )}
-              </div>
             )}
           </TabsContent>
           
@@ -1195,51 +1158,80 @@ const GradeAnalysisContent: React.FC = () => {
           
           <TabsContent value="cross-analysis">
             <div className="space-y-6">
-              <Alert className="bg-blue-50 border-blue-200">
-                <ChartPieIcon className="h-4 w-4 text-blue-500" />
-                <AlertTitle className="text-blue-700">多维交叉分析</AlertTitle>
-                <AlertDescription className="text-blue-600">
-                  <p>通过交叉分析功能，您可以从多个维度探索数据之间的关系，发现更深层次的教学规律和问题。</p>
-                </AlertDescription>
-              </Alert>
-              
-              {/* 占位符 */}
+              {isDataLoaded ? (
+                <CrossAnalysis 
+                  gradeData={filteredGradeData}
+                  title="多维交叉分析"
+                  className=""
+                />
+              ) : (
+                <Card className="bg-white p-4 rounded-lg shadow">
+                  <CardContent className="pt-6 text-center">
+                    <Grid className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p className="mb-4 text-xl text-gray-600">暂无考试数据</p>
+                    <p className="mb-4 text-sm text-gray-500">
+                      请先导入学生成绩数据进行交叉分析
+                    </p>
+                    <Button 
+                      onClick={() => navigate("/")}
+                    >
+                      前往导入数据
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </TabsContent>
           
           <TabsContent value="anomaly">
             <div className="space-y-6">
-              <Alert className="bg-amber-50 border-amber-200">
-                <AlertCircle className="h-4 w-4 text-amber-500" />
-                <AlertTitle className="text-amber-700">成绩异常检测</AlertTitle>
-                <AlertDescription className="text-amber-600">
-                  <p>系统会自动分析成绩数据，识别可能的异常情况，如成绩骤降、数据缺失等，帮助教师及时发现问题。</p>
-                </AlertDescription>
-              </Alert>
-              
-              {/* 占位符 */}
+              {isDataLoaded ? (
+                <AnomalyDetectionAnalysis 
+                  gradeData={filteredGradeData}
+                  title="成绩异常检测"
+                />
+              ) : (
+                <Card className="bg-white p-4 rounded-lg shadow">
+                  <CardContent className="pt-6 text-center">
+                    <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p className="mb-4 text-xl text-gray-600">暂无考试数据</p>
+                    <p className="mb-4 text-sm text-gray-500">
+                      请先导入学生成绩数据进行异常检测
+                    </p>
+                    <Button 
+                      onClick={() => navigate("/")}
+                    >
+                      前往导入数据
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </TabsContent>
           
           <TabsContent value="correlation">
             <div className="space-y-6">
-              <Alert className="bg-blue-50 border-blue-200">
-                <Grid className="h-4 w-4 text-blue-500" />
-                <AlertTitle className="text-blue-700">科目相关性分析</AlertTitle>
-                <AlertDescription className="text-blue-600">
-                  <p>通过计算不同科目成绩之间的相关系数，帮助教师理解学科间的关联性，优化教学策略。</p>
-                </AlertDescription>
-              </Alert>
-              
-              <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                <div className="text-center text-gray-500">
-                  <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
-                    🔗
-                  </div>
-                  <p className="text-lg font-medium">科目相关性分析正在重构中</p>
-                  <p className="text-sm">此功能将在后续版本中重新设计</p>
-                </div>
-              </div>
+              {isDataLoaded ? (
+                <SubjectCorrelationAnalysis 
+                  gradeData={filteredGradeData}
+                  title="科目相关性分析"
+                />
+              ) : (
+                <Card className="bg-white p-4 rounded-lg shadow">
+                  <CardContent className="pt-6 text-center">
+                    <Grid className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p className="mb-4 text-xl text-gray-600">暂无考试数据</p>
+                    <p className="mb-4 text-sm text-gray-500">
+                      请先导入学生成绩数据进行相关性分析
+                    </p>
+                    <Button 
+                      onClick={() => navigate("/")}
+                    >
+                      前往导入数据
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </TabsContent>
           
@@ -1259,41 +1251,28 @@ const GradeAnalysisContent: React.FC = () => {
           
           <TabsContent value="contribution">
             <div className="space-y-6">
-              <Alert className="bg-blue-50 border-blue-200">
-                <ChartPieIcon className="h-4 w-4 text-blue-500" />
-                <AlertTitle className="text-blue-700">多班级表现对比分析</AlertTitle>
-                <AlertDescription className="text-blue-600">
-                  <p>详细对比各班级在不同科目的表现，包括排名、统计数据和导出功能。</p>
-                </AlertDescription>
-              </Alert>
-              
-              <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                <div className="text-center text-gray-500">
-                  <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
-                    👥
-                  </div>
-                  <p className="text-lg font-medium">学生科目贡献度分析正在重构中</p>
-                  <p className="text-sm">此功能将在后续版本中重新设计</p>
-                </div>
-              </div>
-              
-              <Alert className="bg-green-50 border-green-200 mt-6">
-                <ChartPieIcon className="h-4 w-4 text-green-500" />
-                <AlertTitle className="text-green-700">学生科目贡献度</AlertTitle>
-                <AlertDescription className="text-green-600">
-                  <p>分析学生各科成绩相对于班级的表现差异，识别学生的优势和劣势学科，为因材施教提供数据支持。</p>
-                </AlertDescription>
-              </Alert>
-              
-              <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                <div className="text-center text-gray-500">
-                  <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
-                    👥
-                  </div>
-                  <p className="text-lg font-medium">学生科目贡献度分析正在重构中</p>
-                  <p className="text-sm">此功能将在后续版本中重新设计</p>
-                </div>
-              </div>
+              {isDataLoaded ? (
+                <ContributionAnalysis 
+                  gradeData={filteredGradeData}
+                  title="学生科目贡献度分析"
+                  className=""
+                />
+              ) : (
+                <Card className="bg-white p-4 rounded-lg shadow">
+                  <CardContent className="pt-6 text-center">
+                    <Target className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p className="mb-4 text-xl text-gray-600">暂无考试数据</p>
+                    <p className="mb-4 text-sm text-gray-500">
+                      请先导入学生成绩数据进行贡献度分析
+                    </p>
+                    <Button 
+                      onClick={() => navigate("/")}
+                    >
+                      前往导入数据
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </TabsContent>
           

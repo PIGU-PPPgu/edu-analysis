@@ -5,19 +5,23 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Download, RefreshCw, AlertTriangle } from "lucide-react";
 import { ResponsiveContainer, ComposedChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { Badge } from "@/components/ui/badge";
-import { useGradeAnalysis } from "@/contexts/GradeAnalysisContext";
 import { calculateBoxPlotData, groupBy, type BoxPlotData } from "@/components/analysis/services/calculationUtils";
 import { formatBoxPlotDataForNivo } from "@/components/analysis/services/chartUtils";
+import type { GradeRecord } from "@/types/grade";
 
 // ============================================================================
 // 类型定义
 // ============================================================================
 
 interface ClassBoxPlotChartProps {
+  /** 成绩数据 */
+  gradeData: GradeRecord[];
   /** 考试ID（可选） */
   examId?: string;
   /** 自定义样式类名 */
   className?: string;
+  /** 是否显示加载状态 */
+  isLoading?: boolean;
 }
 
 interface ProcessedBoxPlotData {
@@ -155,14 +159,15 @@ const CustomTooltip = ({ active, payload }: any) => {
 // ============================================================================
 
 const ClassBoxPlotChart: React.FC<ClassBoxPlotChartProps> = ({ 
+  gradeData, 
   examId, 
-  className = "" 
+  className = "",
+  isLoading = false
 }) => {
-  const { selectedExam, gradeData, isLoading } = useGradeAnalysis();
   const [selectedClass, setSelectedClass] = useState<string>('all');
 
   // 确定要分析的考试ID
-  const analysisExamId = examId || selectedExam?.id;
+  const analysisExamId = examId || gradeData[0]?.exam_id;
 
   // 获取可用班级列表
   const availableClasses = useMemo(() => {
@@ -291,7 +296,7 @@ const ClassBoxPlotChart: React.FC<ClassBoxPlotChartProps> = ({
   }
 
   // 获取考试标题 - 兼容不同的字段名
-  const examTitle = (selectedExam as any)?.title || (selectedExam as any)?.exam_title || '当前考试';
+  const examTitle = (gradeData[0] as any)?.title || (gradeData[0] as any)?.exam_title || '当前考试';
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -302,7 +307,7 @@ const ClassBoxPlotChart: React.FC<ClassBoxPlotChartProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-2">
               <CardTitle className="text-lg">班级成绩箱线图</CardTitle>
-              {selectedExam && (
+              {examId && (
                 <Badge variant="outline" className="text-xs">
                   {examTitle}
                 </Badge>

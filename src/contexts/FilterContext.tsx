@@ -155,11 +155,8 @@ export const filterUtils = {
         if (!searchableContent.includes(searchTerm)) return false;
       }
 
-      // 班级筛选
-      if (filterState.mode === 'single-class' && filterState.selectedClasses.length > 0) {
-        const itemClass = item[classField] || item.students?.[classField];
-        if (itemClass !== filterState.selectedClasses[0]) return false;
-      } else if (filterState.mode === 'multi-class' && filterState.selectedClasses.length > 0) {
+      // 班级筛选 - 修复：在任何模式下都应该应用班级筛选
+      if (filterState.selectedClasses.length > 0) {
         const itemClass = item[classField] || item.students?.[classField];
         if (!filterState.selectedClasses.includes(itemClass)) return false;
       }

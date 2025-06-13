@@ -11,6 +11,10 @@ export interface FieldMapping {
   confidence: number;
 }
 
+/**
+ * 科目成绩数据结构（已废弃，使用 Record<string, any> 替代）
+ * @deprecated 改用 Record<string, any> 以支持更灵活的数据结构
+ */
 export interface SubjectData {
   subject: string;
   score?: number;
@@ -18,6 +22,59 @@ export interface SubjectData {
   rank_in_class?: number;
   rank_in_school?: number;
   rank_in_grade?: number;
+}
+
+/**
+ * 完整的成绩记录接口
+ * 用于宽表格转换后的长表格数据
+ */
+export interface CompleteGradeRecord {
+  // 主键
+  id?: string;
+  
+  // 学生信息
+  student_id: string;
+  name: string;
+  class_name: string;
+  grade?: string;
+  
+  // 考试信息
+  exam_id: string;
+  exam_title: string;
+  exam_type: string;
+  exam_date: string;
+  exam_scope?: string;
+  
+  // 科目成绩
+  subject: string;
+  score?: number;
+  original_grade?: string;
+  grade?: string;
+  computed_grade?: string;
+  
+  // 排名信息
+  rank_in_class?: number;
+  rank_in_grade?: number;
+  rank_in_school?: number;
+  
+  // 其他字段
+  subject_total_score?: number;
+  percentile?: number;
+  z_score?: number;
+  
+  // 状态字段
+  is_analyzed?: boolean;
+  analyzed_at?: string;
+  
+  // 元数据
+  import_strategy?: string;
+  match_type?: string;
+  multiple_matches?: boolean;
+  metadata?: Record<string, any>;
+  
+  // 时间戳
+  created_at?: string;
+  updated_at?: string;
 }
 
 /**
@@ -235,35 +292,75 @@ function identifyField(header: string): FieldMapping | null {
 
 /**
  * 将宽表格数据转换为长表格格式
+ * 修复版本：确保返回完整的grade_data记录，包含学生信息和考试信息
  */
 export function convertWideToLongFormatEnhanced(
   rowData: Record<string, any>,
-  mappings: FieldMapping[],
-  examInfo: {
+  headerAnalysis: {
+    mappings: FieldMapping[];
+    subjects: string[];
+    studentFields: FieldMapping[];
+    confidence: number;
+  },
+  examInfo?: {
     title: string;
     type: string;
     date: string;
     exam_id: string;
   }
-): SubjectData[] {
+): Record<string, any>[] {
   console.log('[增强转换] 开始转换数据行:', rowData);
   
   // 提取学生基本信息
   const studentInfo: Record<string, any> = {};
-  const studentMappings = mappings.filter(m => m.dataType === 'student_info');
   
-  studentMappings.forEach(mapping => {
+  // 处理学生信息字段映射
+  headerAnalysis.studentFields.forEach(mapping => {
     const value = rowData[mapping.originalField];
     if (value !== undefined && value !== null && value !== '') {
-      studentInfo[mapping.mappedField] = value;
+      // 标准化字段名
+      let fieldName = mapping.mappedField;
+      if (fieldName === 'student_id') {
+        studentInfo.student_id = String(value).trim();
+      } else if (fieldName === 'name') {
+        studentInfo.name = String(value).trim();
+      } else if (fieldName === 'class_name') {
+        studentInfo.class_name = String(value).trim();
+      } else if (fieldName === 'grade') {
+        studentInfo.grade = String(value).trim();
+      } else {
+        studentInfo[fieldName] = value;
+      }
     }
   });
   
+  // 确保必要字段有默认值
+  if (!studentInfo.student_id) {
+    // 如果没有学号，尝试从其他字段获取
+    studentInfo.student_id = rowData['学号'] || rowData['student_id'] || rowData['id'] || `temp_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+  }
+  if (!studentInfo.name) {
+    studentInfo.name = rowData['姓名'] || rowData['name'] || rowData['名字'] || '未知学生';
+  }
+  if (!studentInfo.class_name) {
+    studentInfo.class_name = rowData['班级'] || rowData['class_name'] || rowData['班级名称'] || '未知班级';
+  }
+  
   console.log('[增强转换] 提取的学生信息:', studentInfo);
+  
+  // 提取考试信息
+  const examData: Record<string, any> = {};
+  if (examInfo) {
+    examData.exam_id = examInfo.exam_id;
+    examData.exam_title = examInfo.title;
+    examData.exam_type = examInfo.type;
+    examData.exam_date = examInfo.date;
+    examData.exam_scope = 'class'; // 默认班级范围
+  }
   
   // 按科目分组数据
   const subjectGroups: Record<string, Record<string, any>> = {};
-  const subjectMappings = mappings.filter(m => m.subject);
+  const subjectMappings = headerAnalysis.mappings.filter(m => m.subject);
   
   subjectMappings.forEach(mapping => {
     const value = rowData[mapping.originalField];
@@ -285,7 +382,8 @@ export function convertWideToLongFormatEnhanced(
           }
           break;
         case 'grade':
-          subjectGroups[mapping.subject!].grade = String(value).trim();
+          subjectGroups[mapping.subject!].original_grade = String(value).trim();
+          subjectGroups[mapping.subject!].grade = String(value).trim(); // 向后兼容
           console.log(`[增强转换] 设置 ${mapping.subject} 等级: ${value}`);
           break;
         case 'rank_class':
@@ -315,15 +413,44 @@ export function convertWideToLongFormatEnhanced(
     }
   });
   
-  // 生成长表格记录
-  const result: SubjectData[] = [];
+  // 生成完整的成绩记录（每个科目一条记录）
+  const result: Record<string, any>[] = [];
   
-  Object.entries(subjectGroups).forEach(([subject, data]) => {
+  Object.entries(subjectGroups).forEach(([subject, subjectData]) => {
     // 只有当有分数或等级时才创建记录
-    if (data.score !== undefined || data.grade !== undefined) {
-      const record: SubjectData = {
+    if (subjectData.score !== undefined || subjectData.original_grade !== undefined || subjectData.grade !== undefined) {
+      const record: Record<string, any> = {
+        // 学生基本信息
+        ...studentInfo,
+        
+        // 考试信息
+        ...examData,
+        
+        // 科目信息
         subject,
-        ...data
+        
+        // 科目成绩数据
+        ...subjectData,
+        
+        // 默认字段
+        subject_total_score: subjectData.subject_total_score || 100, // 默认满分100
+        computed_grade: null, // 计算等级（由系统自动计算）
+        is_analyzed: false,
+        analyzed_at: null,
+        
+        // 元数据
+        import_strategy: 'wide_table_conversion',
+        match_type: 'enhanced',
+        multiple_matches: false,
+        metadata: {
+          source: 'wide_table',
+          original_row: Object.keys(rowData).length,
+          conversion_time: new Date().toISOString()
+        },
+        
+        // 时间戳
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
       
       result.push(record);
@@ -331,9 +458,14 @@ export function convertWideToLongFormatEnhanced(
   });
   
   console.log('[增强转换] 转换结果:', {
-    科目数量: result.length,
+    原始行: 1,
+    生成记录数: result.length,
     科目列表: result.map(r => r.subject),
-    学生信息: studentInfo
+    学生信息: {
+      student_id: studentInfo.student_id,
+      name: studentInfo.name,
+      class_name: studentInfo.class_name
+    }
   });
   
   return result;

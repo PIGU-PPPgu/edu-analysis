@@ -325,7 +325,13 @@ export const gradeAnalysisService = {
           
           processedData.forEach((row, index) => {
             try {
-              const result = convertWideToLongFormatEnhanced(row, headerAnalysis);
+              // 修复：传递正确的参数，包括examInfo
+              const result = convertWideToLongFormatEnhanced(row, headerAnalysis, {
+                title: examInfo.title,
+                type: examInfo.type,
+                date: examInfo.date,
+                exam_id: examId
+              });
               convertedData.push(...result);
             } catch (error) {
               console.error(`[智能分析] 转换第 ${index + 1} 行数据失败:`, error);
@@ -333,15 +339,13 @@ export const gradeAnalysisService = {
           });
           
           console.log(`[智能分析] 宽表格转换完成: ${processedData.length} 行原始数据 → ${convertedData.length} 行转换后数据`);
+          console.log(`[智能分析] 转换效果: 平均每个学生生成 ${(convertedData.length / processedData.length).toFixed(1)} 条科目记录`);
           processedData = convertedData;
         }
       }
       
-      // 添加考试ID到每条数据
-      const gradeDataWithExamId = processedData.map(item => ({
-        ...item,
-        exam_id: examId
-      }));
+      // 已经包含完整的考试信息，不需要重复添加exam_id
+      const gradeDataWithExamId = processedData;
       
       console.log(`[性能优化] 处理 ${gradeDataWithExamId.length} 条成绩数据`);
       
