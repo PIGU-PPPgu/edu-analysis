@@ -87,8 +87,8 @@ const AISettings: React.FC = () => {
   // 获取提供商的友好显示名称
   const getProviderDisplayName = (providerId: string): string => {
     const displayNames: Record<string, string> = {
-      'openai': 'OpenAI',
-      'anthropic': 'Anthropic Claude',
+      'openai': '智能语言模型',
+      'anthropic': '对话助手模型',
       'deepseek': 'DeepSeek',
       'baichuan': '百川大模型',
       'qwen': '通义千问',
@@ -326,11 +326,11 @@ const AISettings: React.FC = () => {
             <h4 className="font-medium">推荐模型</h4>
             <ul className="space-y-2 text-sm">
               <li className="flex items-start">
-                <span className="font-semibold inline-block w-64">gpt-4o</span>
+                <span className="font-semibold inline-block w-64">智能模型-旗舰版</span>
                 <span>最新的多模态模型，支持图像和文本分析</span>
               </li>
               <li className="flex items-start">
-                <span className="font-semibold inline-block w-64">gpt-4-turbo</span>
+                <span className="font-semibold inline-block w-64">智能模型-增强版</span>
                 <span>功能强大的大型语言模型，适合复杂任务</span>
               </li>
             </ul>
@@ -583,9 +583,9 @@ const AISettings: React.FC = () => {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <Card className="p-4">
-                  <h3 className="font-semibold mb-2">OpenAI</h3>
-                  <p className="text-sm text-gray-600 mb-2">提供GPT系列模型，支持多种语言的文本分析和生成。</p>
-                  <div className="text-xs text-gray-500">支持版本: gpt-4o, gpt-4-turbo, gpt-3.5-turbo</div>
+                                  <h3 className="font-semibold mb-2">智能语言模型</h3>
+                <p className="text-sm text-gray-600 mb-2">提供先进的语言模型，支持多种语言的文本分析和生成。</p>
+                <div className="text-xs text-gray-500">支持版本: 旗舰版, 增强版, 标准版</div>
                 </Card>
                 
                 <Card className="p-4">

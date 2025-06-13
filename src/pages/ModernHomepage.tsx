@@ -98,7 +98,7 @@ const ModernHomepage = () => {
       title: "AI预警预测系统",
       description: "基于机器学习的风险预测模型",
       path: "/warning-analysis",
-      aiModel: "GPT-4 + DeepSeek",
+      aiModel: "智能模型 + DeepSeek",
       capabilities: [
         "行为模式异常检测",
         "成绩趋势预测分析",
@@ -132,7 +132,7 @@ const ModernHomepage = () => {
       title: "智能作业批改",
       description: "AI辅助的自动批改与评价系统",
       path: "/homework",
-      aiModel: "Claude + DeepSeek",
+      aiModel: "对话助手 + DeepSeek",
       capabilities: [
         "智能错误识别定位",
         "个性化评语生成",
@@ -156,13 +156,13 @@ const ModernHomepage = () => {
     },
     {
       icon: <Bot className="w-6 h-6 text-gray-700" />,
-      title: "GPT-4 Turbo", 
+              title: "智能模型-增强版", 
       description: "语言理解分析",
       detail: "自然语言处理，学生行为分析"
     },
     {
       icon: <Network className="w-6 h-6 text-[#B9FF66]" />,
-      title: "Claude-3.5",
+              title: "对话助手-专业版",
       description: "内容生成助手",
       detail: "报告生成，个性化建议输出"
     },
@@ -188,7 +188,7 @@ const ModernHomepage = () => {
       title: "AI分析",
       description: "多模型协同深度分析",
       icon: Brain,
-      details: "DeepSeek推理 + GPT理解 + Claude生成"
+              details: "DeepSeek推理 + 智能理解 + 对话生成"
     },
     {
       step: "03",
@@ -274,7 +274,7 @@ const ModernHomepage = () => {
             </h1>
             
             <p className="text-xl md:text-2xl text-gray-600 mb-12 max-w-4xl mx-auto leading-relaxed">
-              集成DeepSeek、GPT-4、Claude等顶级AI模型，构建全球领先的教育AI平台
+              集成DeepSeek、智能大模型、对话助手等顶级AI模型，构建全球领先的教育AI平台
               <br />
               让每一个教学决策都有AI智慧支撑
             </p>
@@ -287,11 +287,11 @@ const ModernHomepage = () => {
               </div>
               <div className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-200 rounded-full shadow-sm">
                 <Bot className="w-5 h-5 text-gray-600" />
-                <span className="font-semibold text-gray-700">GPT-4 Turbo</span>
+                <span className="font-semibold text-gray-700">智能模型-增强版</span>
               </div>
               <div className="flex items-center gap-2 px-6 py-3 bg-[#B9FF66]/10 border border-[#B9FF66]/30 rounded-full">
                 <Network className="w-5 h-5 text-gray-700" />
-                <span className="font-semibold text-gray-700">Claude-3.5</span>
+                <span className="font-semibold text-gray-700">对话助手-专业版</span>
               </div>
               <div className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-200 rounded-full shadow-sm">
                 <Sparkles className="w-5 h-5 text-gray-600" />
@@ -581,7 +581,7 @@ const ModernHomepage = () => {
               开启AI教育新时代
             </h2>
             <p className="text-xl md:text-2xl text-gray-300 mb-12">
-              让DeepSeek、GPT-4等顶级AI模型为您的教学赋能
+              让DeepSeek、智能大模型等顶级AI模型为您的教学赋能
               <br />
               体验前所未有的智能化教育管理
             </p>

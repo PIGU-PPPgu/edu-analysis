@@ -1282,7 +1282,7 @@ const GradeAnalysisContent: React.FC = () => {
                 <BrainCircuit className="h-4 w-4 text-blue-500" />
                 <AlertTitle className="text-blue-700">AI智能分析</AlertTitle>
                 <AlertDescription className="text-blue-600">
-                  <p>集成多种AI模型，为您的成绩数据提供专业的智能分析和教学建议。支持GPT-4、通义千问等多种AI模型。</p>
+                  <p>集成多种AI模型，为您的成绩数据提供专业的智能分析和教学建议。支持智能大模型、通义千问等多种AI模型。</p>
                 </AlertDescription>
               </Alert>
               

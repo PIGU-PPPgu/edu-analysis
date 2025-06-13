@@ -171,9 +171,9 @@ const AISettingsPage: React.FC = () => {
                         <SelectValue placeholder="选择AI提供商" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="openai">OpenAI</SelectItem>
-                        <SelectItem value="azure">Azure OpenAI</SelectItem>
-                        <SelectItem value="anthropic">Anthropic Claude</SelectItem>
+                                        <SelectItem value="openai">智能语言模型</SelectItem>
+                <SelectItem value="azure">云端智能模型</SelectItem>
+                <SelectItem value="anthropic">对话助手模型</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -190,21 +190,21 @@ const AISettingsPage: React.FC = () => {
                       <SelectContent>
                         {modelConfig.provider === 'openai' && (
                           <>
-                            <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
-                            <SelectItem value="gpt-4">GPT-4</SelectItem>
-                            <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
+                                              <SelectItem value="gpt-3.5-turbo">智能模型-标准版</SelectItem>
+                  <SelectItem value="gpt-4">智能模型-专业版</SelectItem>
+                  <SelectItem value="gpt-4-turbo">智能模型-增强版</SelectItem>
                           </>
                         )}
                         {modelConfig.provider === 'azure' && (
                           <>
-                            <SelectItem value="gpt-35-turbo">Azure GPT-3.5</SelectItem>
-                            <SelectItem value="gpt-4">Azure GPT-4</SelectItem>
+                                              <SelectItem value="gpt-35-turbo">云端智能模型-标准版</SelectItem>
+                  <SelectItem value="gpt-4">云端智能模型-专业版</SelectItem>
                           </>
                         )}
                         {modelConfig.provider === 'anthropic' && (
                           <>
-                            <SelectItem value="claude-2.1">Claude 2.1</SelectItem>
-                            <SelectItem value="claude-instant-1.2">Claude Instant</SelectItem>
+                                              <SelectItem value="claude-2.1">对话助手-专业版</SelectItem>
+                  <SelectItem value="claude-instant-1.2">对话助手-快速版</SelectItem>
                           </>
                         )}
                       </SelectContent>
@@ -339,9 +339,9 @@ const AISettingsPage: React.FC = () => {
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="space-y-4">
-                    <h3 className="font-medium">获取OpenAI API密钥</h3>
+                    <h3 className="font-medium">获取智能模型API密钥</h3>
                     <ol className="list-decimal pl-5 space-y-2 text-sm">
-                      <li>访问 <a href="https://platform.openai.com/signup" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">OpenAI平台</a> 注册账号</li>
+                      <li>访问 <a href="https://platform.openai.com/signup" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">智能模型平台</a> 注册账号</li>
                       <li>登录后，点击右上角头像，选择"View API keys"</li>
                       <li>点击"Create new secret key"创建新密钥</li>
                       <li>复制生成的API密钥（以sk-开头的字符串）</li>
@@ -370,7 +370,7 @@ const AISettingsPage: React.FC = () => {
                       </div>
                       <div>
                         <dt className="font-medium">模型版本</dt>
-                        <dd className="text-muted-foreground">选择不同能力和成本的AI模型。GPT-4功能更强但费用更高。</dd>
+                        <dd className="text-muted-foreground">选择不同能力和成本的AI模型。专业版功能更强但费用更高。</dd>
                       </div>
                       <div>
                         <dt className="font-medium">温度</dt>

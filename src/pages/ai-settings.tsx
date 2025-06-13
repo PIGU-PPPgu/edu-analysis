@@ -26,17 +26,17 @@ interface APIProvider {
 }
 
 const API_PROVIDERS: APIProvider[] = [
-  {
-    id: "openai",
-    name: "OpenAI",
-    logoUrl: "/images/openai-logo.png",
-    description: "ChatGPT和GPT-4模型",
+      {
+      id: "openai",
+      name: "智能语言模型",
+      logoUrl: "/images/openai-logo.png",
+      description: "先进的对话和文本生成模型",
     sampleApiKey: "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
     apiKeyFormat: "以sk-开头的51个字符",
     versions: [
-      { id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo", description: "经济实惠的通用模型" },
-      { id: "gpt-4", name: "GPT-4", description: "功能更强大的大模型" },
-      { id: "gpt-4o", name: "GPT-4o", description: "最新的GPT-4 Omni模型" }
+              { id: "gpt-3.5-turbo", name: "智能模型-标准版", description: "经济实惠的通用模型" },
+        { id: "gpt-4", name: "智能模型-专业版", description: "功能更强大的大模型" },
+        { id: "gpt-4o", name: "智能模型-旗舰版", description: "最新的多模态智能模型" }
     ]
   },
   {
