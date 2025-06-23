@@ -66,25 +66,54 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
 
   // 本地状态
   const [activeTab, setActiveTab] = useState<string>('upload');
+  const [fullFileData, setFullFileData] = useState<any>(null); // 保存完整的文件数据（包含AI解析结果）
 
   // ==================== 步骤处理函数 ====================
 
-  // 1. 文件上传完成
-  const handleFileUploaded = useCallback((fileData: any, fileInfo: any) => {
+  // 1. 文件上传完成（智能处理）
+  const handleFileUploaded = useCallback(async (fileData: any, fileInfo: any) => {
     console.log('文件上传完成:', fileData, fileInfo);
-    console.log('actions 对象:', actions);
-    console.log('actions.setFileData 函数:', actions.setFileData);
-    console.log('actions.setFileData 类型:', typeof actions.setFileData);
     
     // 检查 setFileData 是否存在
     if (typeof actions.setFileData === 'function') {
+      // 保存完整的文件数据（包含AI解析结果）
+      setFullFileData(fileData);
+      
       // 直接使用 actions.setFileData 方法设置数据
       actions.setFileData(fileData.data || [], fileInfo.name);
       
-      // 更新步骤
-      actions.setCurrentStep('mapping');
-    setActiveTab('mapping');
-      toast.success('文件上传成功，请进行字段映射');
+      // 🤖 检查是否有AI解析结果，且置信度足够高可以自动处理
+      const hasHighConfidenceAI = fileData.aiAnalysis && 
+                                 fileData.aiAnalysis.confidence && 
+                                 fileData.aiAnalysis.confidence > 0.85 && 
+                                 !fileData.aiAnalysis.processing?.requiresUserInput;
+      
+      if (hasHighConfidenceAI) {
+        console.log('[GradeImporter] 🚀 AI置信度足够高，启动自动处理流程');
+        
+        // 自动跳过字段映射，直接进入验证步骤
+        actions.setCurrentStep('validation');
+        setActiveTab('validation');
+        
+        toast.success(
+          `AI智能处理完成！置信度: ${Math.round(fileData.aiAnalysis.confidence * 100)}%，已自动进入验证步骤`,
+          { duration: 4000 }
+        );
+        
+        // 可选：如果验证也能自动通过，可以直接进入导入步骤
+        // 这里暂时保留验证步骤让用户确认
+        
+      } else {
+        // 标准流程：进入字段映射步骤
+        actions.setCurrentStep('mapping');
+        setActiveTab('mapping');
+        
+        const message = fileData.aiAnalysis?.confidence 
+          ? `文件上传成功，AI识别置信度: ${Math.round(fileData.aiAnalysis.confidence * 100)}%，请确认字段映射`
+          : '文件上传成功，请进行字段映射';
+        
+        toast.success(message);
+      }
     } else {
       console.error('actions.setFileData 不是一个函数:', typeof actions.setFileData);
       toast.error('文件上传处理失败：setFileData 方法不可用');
@@ -299,6 +328,7 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
                 toast.error('字段映射失败: ' + error);
               }}
               loading={isProcessing}
+              fileData={fullFileData} // 传递完整的文件数据，包含AI解析结果
             />
           ) : (
             <Alert>

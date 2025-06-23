@@ -167,6 +167,7 @@ export class AIEnhancedFileParser {
    * 📝 构建全面的AI提示词 - 核心优化
    * 提供丰富的上下文信息，让AI充分发挥语义理解能力
    * 特别优化长表格vs宽表格的识别逻辑
+   * 融合n8n配置文件的详细字段映射规则
    */
   private buildComprehensivePrompt(request: AIFileAnalysisRequest): string {
     const { filename, headers, sampleRows, totalRows } = request;
@@ -214,7 +215,7 @@ ${this.formatSampleData(headers, sampleRows)}
 ### 2. 🎯 考试信息推断
 根据文件名和数据内容，推断考试的基本信息：
 - **考试名称**：从文件名提取（如：九年级上学期期中考试、907九下月考）
-- **考试类型**：月考/期中/期末/模拟/单元测试
+- **考试类型**：月考/期中考试/期末考试/模拟考试/单元测试
 - **考试日期**：YYYY-MM-DD格式，如无法确定使用当前日期
 - **年级信息**：如：九年级、初三、高一等
 - **考试范围**：
@@ -222,26 +223,76 @@ ${this.formatSampleData(headers, sampleRows)}
   * grade: 年级考试（文件名包含年级信息）
   * school: 全校考试（文件名包含"全校"或涉及多个年级）
 
-### 3. 🗺️ 字段智能映射
-分析每个字段的含义并映射到标准字段：
+### 3. 🗺️ 精准字段映射（基于n8n配置规则）
 
-**基础字段**：
-- student_id: 学号/编号/考号
-- name: 学生姓名/姓名
-- class_name: 班级信息/班级
+**🔸 学生身份识别字段（必需）**：
+- **学号/编号** → student_id：
+  * 候选模式：学号、student_id、学生学号、学生编号、id、studentId、考生号、准考证号、学籍号、编号、学生ID
+  * 验证规则：必须非空，通常为字母数字组合
+  
+- **姓名** → name：
+  * 候选模式：name、姓名、学生姓名、名称、studentName、考生姓名、学生、真实姓名、学员姓名
+  * 验证规则：必须非空，1-100个字符
 
-**成绩字段**：
-- [科目]_score: 各科分数（如：语文_score, 数学_score）
-- [科目]_grade: 各科等级（如：语文_grade）
-- [科目]_rank_class: 班级排名（如：语文_rank_class）
-- [科目]_rank_grade: 年级排名（如：语文_rank_grade）
-- total_score: 总分/合计
+**🔸 班级信息字段（可选但重要）**：
+- **班级** → class_name：
+  * 候选模式：class_name、班级、行政班级、教学班、现班、所在班级、class、className、classname、班级名称、班次、班别、年级班级、班组、分班、班
+  * 标准化规则：统一为"初三7班"、"高二3班"格式
 
-### 4. 📚 科目识别
-识别文件中包含的所有科目：
-**常见科目**：语文、数学、英语、物理、化学、生物、政治、历史、地理、道德与法治、总分
+**🔸 科目成绩字段（核心数据）**：
 
-### 5. 👥 人数统计验证
+**主要科目（满分150分）**：
+- **语文** → chinese_score：语文、语文分数、语文成绩、chinese、chinese_score
+- **数学** → math_score：数学、数学分数、数学成绩、math、math_score  
+- **英语** → english_score：英语、英语分数、英语成绩、english、english_score
+
+**理科科目（满分100分）**：
+- **物理** → physics_score：物理、物理分数、物理成绩、physics、physics_score
+- **化学** → chemistry_score：化学、化学分数、化学成绩、chemistry、chemistry_score
+- **生物** → biology_score：生物、生物分数、生物成绩、biology、biology_score
+
+**文科科目（满分100分）**：
+- **政治** → politics_score：政治、政治分数、政治成绩、道法、道法分数、道法成绩、politics、politics_score
+- **历史** → history_score：历史、历史分数、历史成绩、history、history_score
+- **地理** → geography_score：地理、地理分数、地理成绩、geography、geography_score
+
+**统计字段**：
+- **总分** → total_score：总分、总分分数、总成绩、total、total_score、总计、合计
+
+**🔸 等级字段**：
+- **[科目]等级** → [科目]_grade：如"语文等级" → chinese_grade
+- 有效等级：A+、A、A-、B+、B、B-、C+、C、C-、D+、D、E
+
+**🔸 排名字段**：
+- **班级排名** → rank_in_class：班级排名、班名、班内排名、class_rank、班排名、[科目]班级排名
+- **年级排名** → rank_in_grade：年级排名、年名、年级内排名、grade_rank、年排名、[科目]年级排名
+- **学校排名** → rank_in_school：学校排名、校排名、全校排名
+
+### 4. 📚 智能科目识别
+识别文件中包含的所有科目（基于字段模式匹配）：
+**核心科目**：语文、数学、英语、物理、化学、生物、政治、历史、地理
+**其他科目**：体育、音乐、美术、信息技术、通用技术
+**特殊字段**：总分、平均分
+
+### 5. 🔧 数据清洗和验证规则
+
+**分数范围验证**：
+- 语文/数学/英语：0-150分
+- 其他科目：0-100分
+- 总分：0-1000分
+- 无效数据（空值、"-"、"缺考"、"作弊"）设为null
+
+**排名范围验证**：
+- 必须为正整数
+- 合理范围：1-1000
+
+**班级名称标准化**：
+- "1班" → "初三1班"（需要根据上下文推断年级）
+- "七年级1班" → "初一1班"
+- "八年级1班" → "初二1班" 
+- "九年级1班" → "初三1班"
+
+### 6. 👥 人数统计验证
 **根据数据结构计算实际学生人数：**
 - 宽表格式：学生人数 = 数据行数
 - 长表格式：学生人数 = 数据行数 ÷ 科目数
@@ -249,12 +300,12 @@ ${this.formatSampleData(headers, sampleRows)}
 
 ## 📋 输出要求
 
-请以JSON格式返回分析结果，特别注意数据结构的准确识别：
+请以JSON格式返回分析结果，严格按照以下格式：
 
 \`\`\`json
 {
   "examInfo": {
-    "title": "907九下月考成绩",
+    "title": "九年级下学期月考",
     "type": "月考",
     "date": "2024-11-15",
     "grade": "九年级",
@@ -262,13 +313,22 @@ ${this.formatSampleData(headers, sampleRows)}
   },
   "fieldMappings": {
     "学号": "student_id",
-    "姓名": "name",
+    "姓名": "name", 
     "班级": "class_name",
-    "语文": "语文_score",
-    "数学": "数学_score",
-    "语文班名": "语文_rank_class"
+    "语文": "chinese_score",
+    "数学": "math_score",
+    "英语": "english_score",
+    "物理": "physics_score",
+    "化学": "chemistry_score",
+    "政治": "politics_score",
+    "历史": "history_score",
+    "生物": "biology_score",
+    "地理": "geography_score",
+    "总分": "total_score",
+    "班级排名": "rank_in_class",
+    "年级排名": "rank_in_grade"
   },
-  "subjects": ["语文", "数学", "英语", "物理"],
+  "subjects": ["语文", "数学", "英语", "物理", "化学", "政治", "历史", "生物", "地理"],
   "dataStructure": "wide",
   "confidence": 0.95,
   "processing": {
@@ -276,19 +336,24 @@ ${this.formatSampleData(headers, sampleRows)}
     "issues": [],
     "suggestions": [
       "检测到宽表格式，预计学生人数: ${totalRows}人",
-      "数据质量良好，可以直接处理"
+      "识别到9个科目，数据结构清晰",
+      "字段映射置信度高，建议直接处理"
     ]
   }
 }
 \`\`\`
 
-## 🔍 分析重点提醒
+## 🎯 分析质量要求
 
-1. **数据结构判断是关键**：仔细观察样本数据，判断是宽表还是长表
-2. **人数统计要准确**：根据数据结构正确计算学生人数
-3. **语义理解优先**：重点关注字段的语义含义，不仅仅是关键词匹配
-4. **上下文关联**：结合文件名、字段组合、数据模式进行综合判断
-5. **教育领域知识**：运用教育测评和成绩管理的专业知识
+1. **精准字段识别**：使用上述详细的字段模式进行匹配，优先语义理解
+2. **数据结构判断**：准确区分宽表、长表、混合格式
+3. **完整性检查**：确保所有重要字段都被正确映射
+4. **置信度评估**：
+   - 0.9-1.0：字段完全匹配，数据结构清晰
+   - 0.7-0.9：大部分字段匹配，结构基本清晰
+   - 0.5-0.7：部分字段匹配，需要用户确认
+   - 0-0.5：字段匹配度低，需要人工干预
+5. **错误预防**：标记可能的数据质量问题和异常情况
 
 请开始分析并返回JSON结果。
 `;
@@ -299,24 +364,34 @@ ${this.formatSampleData(headers, sampleRows)}
    */
   private getSystemPrompt(): string {
     return `
-你是一位资深的教育数据分析专家，具备以下专业能力：
+你是一位资深的教育数据分析专家，专门负责成绩数据的智能解析和处理，具备以下核心专业能力：
 
-1. **教育领域专业知识**
-   - 熟悉中小学教学体系和考试制度
-   - 了解成绩管理和学生评价方法
-   - 掌握教育统计和数据分析技术
+## 🎓 教育领域专业知识
+- **考试体系**：深度理解中小学月考、期中、期末、模拟考试等评价体系
+- **成绩管理**：熟悉学生成绩记录、班级排名、年级排名的管理模式
+- **教育评价**：掌握分数制、等级制、百分位等多种评价方法
+- **学校组织**：了解班级、年级、学校的组织结构和数据关联关系
 
-2. **数据处理专业技能**
-   - 精通各种数据格式和结构分析
-   - 能够识别数据质量问题
-   - 擅长字段语义理解和映射
+## 📊 数据处理专业技能
+- **格式识别**：精通Excel、CSV等文件格式的结构分析
+- **数据结构**：能够准确区分宽表格式、长表格式、混合格式
+- **字段映射**：基于语义理解进行精准的字段识别和映射
+- **数据清洗**：识别和处理缺失值、异常值、格式错误等数据质量问题
+- **验证规则**：应用教育数据的业务规则进行数据验证
 
-3. **智能分析能力**
-   - 能够从文件名和数据中推断考试信息
-   - 善于识别隐含的数据关系和模式
-   - 可以提供数据处理的最佳实践建议
+## 🧠 智能分析能力
+- **上下文理解**：从文件名、表头、数据内容综合推断考试信息
+- **模式识别**：识别隐含的数据组织模式和关联关系
+- **质量评估**：准确评估数据质量并给出置信度分数
+- **建议生成**：提供专业的数据处理建议和改进方案
 
-请基于这些专业能力，对用户提供的教育数据文件进行全面、准确的分析。
+## 🎯 分析标准和要求
+- **准确性优先**：确保字段映射的准确性，避免数据误解
+- **完整性保证**：全面识别所有重要字段，不遗漏关键信息  
+- **一致性维护**：保持字段命名和数据格式的一致性
+- **可用性优化**：生成易于系统处理的标准化结果
+
+请运用这些专业能力，对教育数据文件进行深度分析，确保结果的准确性和可用性。
 `;
   }
   
@@ -372,8 +447,121 @@ ${this.formatSampleData(headers, sampleRows)}
   
   /**
    * ✅ 验证和增强AI分析结果
+   * 基于n8n配置规则进行二次验证和优化
    */
   private validateAndEnhanceAIResult(result: any): AIAnalysisResult {
+    console.log('[AIEnhancedFileParser] 🔍 开始验证和增强AI结果...');
+    
+    // 标准字段映射表（基于n8n配置）
+    const standardFieldMappings: Record<string, string> = {
+      // 学生信息
+      '学号': 'student_id', '姓名': 'name', '班级': 'class_name',
+      'student_id': 'student_id', 'name': 'name', 'class_name': 'class_name',
+      
+      // 主要科目
+      '语文': 'chinese_score', '数学': 'math_score', '英语': 'english_score',
+      'chinese': 'chinese_score', 'math': 'math_score', 'english': 'english_score',
+      
+      // 理科科目
+      '物理': 'physics_score', '化学': 'chemistry_score', '生物': 'biology_score',
+      'physics': 'physics_score', 'chemistry': 'chemistry_score', 'biology': 'biology_score',
+      
+      // 文科科目
+      '政治': 'politics_score', '历史': 'history_score', '地理': 'geography_score',
+      'politics': 'politics_score', 'history': 'history_score', 'geography': 'geography_score',
+      '道法': 'politics_score', '道德与法治': 'politics_score',
+      
+      // 统计字段
+      '总分': 'total_score', '合计': 'total_score', '总成绩': 'total_score',
+      'total': 'total_score', 'total_score': 'total_score',
+      
+      // 排名字段
+      '班级排名': 'rank_in_class', '年级排名': 'rank_in_grade', '学校排名': 'rank_in_school',
+      '班排名': 'rank_in_class', '年排名': 'rank_in_grade', '校排名': 'rank_in_school'
+    };
+    
+    // 科目列表
+    const standardSubjects = ['语文', '数学', '英语', '物理', '化学', '生物', '政治', '历史', '地理'];
+    
+    // 验证和修正字段映射
+    const validatedMappings: Record<string, string> = {};
+    const detectedSubjects: string[] = [];
+    let mappingScore = 0;
+    let totalFields = 0;
+    
+    if (result.fieldMappings) {
+      Object.entries(result.fieldMappings).forEach(([originalField, mappedField]) => {
+        totalFields++;
+        
+        // 检查是否为标准映射
+        const standardMapping = standardFieldMappings[originalField.toLowerCase()] || 
+                               standardFieldMappings[originalField];
+        
+        if (standardMapping) {
+          validatedMappings[originalField] = standardMapping;
+          mappingScore++;
+          
+          // 检测科目
+          if (standardMapping.endsWith('_score')) {
+            const subject = this.extractSubjectFromField(originalField);
+            if (subject && standardSubjects.includes(subject) && !detectedSubjects.includes(subject)) {
+              detectedSubjects.push(subject);
+            }
+          }
+        } else if (typeof mappedField === 'string' && mappedField.length > 0) {
+          // 保留AI的映射，但标记为需要验证
+          validatedMappings[originalField] = mappedField as string;
+          mappingScore += 0.5; // 部分分数
+        }
+      });
+    }
+    
+    // 计算置信度
+    const baseMappingConfidence = totalFields > 0 ? mappingScore / totalFields : 0;
+    const originalConfidence = result.confidence || 0.5;
+    const adjustedConfidence = Math.min(Math.max(
+      (baseMappingConfidence * 0.7) + (originalConfidence * 0.3), 0
+    ), 1);
+    
+    // 生成处理建议
+    const issues: string[] = [];
+    const suggestions: string[] = [];
+    
+    // 检查必需字段
+    const hasStudentId = Object.values(validatedMappings).includes('student_id');
+    const hasName = Object.values(validatedMappings).includes('name');
+    
+    if (!hasName) {
+      issues.push('缺少学生姓名字段，这是必需的字段');
+    }
+    if (!hasStudentId) {
+      suggestions.push('建议提供学号字段以提高学生匹配准确性');
+    }
+    
+    // 检查科目数量
+    if (detectedSubjects.length === 0) {
+      issues.push('未检测到任何科目成绩字段');
+    } else if (detectedSubjects.length < 3) {
+      suggestions.push(`检测到${detectedSubjects.length}个科目，数据可能不完整`);
+    } else {
+      suggestions.push(`检测到${detectedSubjects.length}个科目: ${detectedSubjects.join('、')}`);
+    }
+    
+    // 数据结构验证
+    const dataStructure = result.dataStructure || 'wide';
+    if (detectedSubjects.length > 3 && dataStructure === 'wide') {
+      suggestions.push('检测到宽表格式，将自动转换为标准格式');
+    }
+    
+    // 置信度建议
+    if (adjustedConfidence > 0.85) {
+      suggestions.push('字段映射置信度高，建议自动处理');
+    } else if (adjustedConfidence > 0.6) {
+      suggestions.push('字段映射基本准确，建议用户确认后处理');
+    } else {
+      issues.push('字段映射置信度较低，需要用户手动调整');
+    }
+    
     const enhanced: AIAnalysisResult = {
       examInfo: {
         title: result.examInfo?.title || '未命名考试',
@@ -382,19 +570,53 @@ ${this.formatSampleData(headers, sampleRows)}
         grade: result.examInfo?.grade,
         scope: result.examInfo?.scope || 'class'
       },
-      fieldMappings: result.fieldMappings || {},
-      subjects: result.subjects || [],
-      dataStructure: result.dataStructure || 'wide',
-      confidence: Math.min(Math.max(result.confidence || 0.5, 0), 1),
+      fieldMappings: validatedMappings,
+      subjects: detectedSubjects.length > 0 ? detectedSubjects : (result.subjects || []),
+      dataStructure: dataStructure,
+      confidence: adjustedConfidence,
       processing: {
-        requiresUserInput: result.processing?.requiresUserInput || false,
-        issues: result.processing?.issues || [],
-        suggestions: result.processing?.suggestions || []
+        requiresUserInput: adjustedConfidence < 0.8 || issues.length > 0,
+        issues,
+        suggestions
       }
     };
     
-    console.log('[AIEnhancedFileParser] ✅ AI结果验证完成:', enhanced);
+    console.log('[AIEnhancedFileParser] ✅ AI结果验证完成:', {
+      originalConfidence: originalConfidence,
+      adjustedConfidence: adjustedConfidence,
+      mappingScore: `${mappingScore}/${totalFields}`,
+      detectedSubjects: detectedSubjects.length,
+      issues: issues.length,
+      suggestions: suggestions.length
+    });
+    
     return enhanced;
+  }
+  
+  /**
+   * 🔍 从字段名提取科目名称
+   */
+  private extractSubjectFromField(fieldName: string): string | null {
+    const subjectPatterns: Record<string, string> = {
+      '语文': '语文', 'chinese': '语文',
+      '数学': '数学', 'math': '数学',
+      '英语': '英语', 'english': '英语',
+      '物理': '物理', 'physics': '物理',
+      '化学': '化学', 'chemistry': '化学',
+      '生物': '生物', 'biology': '生物',
+      '政治': '政治', 'politics': '政治', '道法': '政治',
+      '历史': '历史', 'history': '历史',
+      '地理': '地理', 'geography': '地理'
+    };
+    
+    const lowerField = fieldName.toLowerCase();
+    for (const [pattern, subject] of Object.entries(subjectPatterns)) {
+      if (lowerField.includes(pattern.toLowerCase())) {
+        return subject;
+      }
+    }
+    
+    return null;
   }
   
   /**
@@ -571,4 +793,7 @@ ${this.formatSampleData(headers, sampleRows)}
       }
     };
   }
-} 
+}
+
+// 创建并导出实例
+export const aiEnhancedFileParser = new AIEnhancedFileParser(); 

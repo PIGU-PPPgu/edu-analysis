@@ -18,6 +18,9 @@ import { useDropzone } from 'react-dropzone';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 import { cn } from '@/lib/utils';
+// 导入AI解析服务
+import { aiEnhancedFileParser } from '@/services/aiEnhancedFileParser';
+import { initDefaultAIConfig } from '@/utils/userAuth';
 
 // 文件数据接口
 export interface FileDataForReview {
@@ -27,6 +30,25 @@ export interface FileDataForReview {
   fileName?: string;
   fileSize?: number;
   totalRows?: number;
+  // AI解析结果
+  aiAnalysis?: {
+    examInfo?: {
+      title: string;
+      type: string;
+      date: string;
+      scope: string;
+    };
+    fieldMappings?: Record<string, string>;
+    subjects?: string[];
+    dataStructure?: 'wide' | 'long' | 'mixed';
+    confidence?: number;
+    autoProcessed?: boolean;
+    processing?: {
+      requiresUserInput: boolean;
+      issues: string[];
+      suggestions: string[];
+    };
+  };
 }
 
 // FileUploader 组件属性
@@ -241,7 +263,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({
       }
       
       clearInterval(progressInterval);
-      setUploadProgress(100);
+      setUploadProgress(90);
       
       // 验证解析结果
       if (!fileData.headers || fileData.headers.length === 0) {
@@ -252,7 +274,48 @@ const FileUploader: React.FC<FileUploaderProps> = ({
         throw new Error('文件没有有效的数据行');
       }
       
-      toast.success(`文件上传成功！解析了 ${fileData.totalRows} 行数据`);
+      // 🤖 尝试AI智能解析增强
+      try {
+        console.log('[FileUploader] 🚀 尝试AI智能解析增强...');
+        
+        // 确保AI配置已初始化
+        await initDefaultAIConfig(false);
+        
+        // 调用AI解析服务
+        const aiResult = await aiEnhancedFileParser.oneClickParse(file);
+        
+        if (aiResult && aiResult.metadata) {
+          // 将AI解析结果合并到文件数据中
+          fileData.aiAnalysis = {
+            examInfo: aiResult.metadata.examInfo,
+            fieldMappings: aiResult.metadata.suggestedMappings,
+            subjects: aiResult.metadata.detectedSubjects,
+            dataStructure: aiResult.metadata.detectedStructure,
+            confidence: aiResult.metadata.confidence,
+            autoProcessed: aiResult.metadata.autoProcessed,
+            processing: {
+              requiresUserInput: (aiResult.metadata.confidence || 0) < 0.8,
+              issues: aiResult.metadata.unknownFields?.map(field => `未识别字段: ${field}`) || [],
+              suggestions: []
+            }
+          };
+          
+          console.log(`[FileUploader] ✅ AI解析成功，置信度: ${aiResult.metadata.confidence}`);
+          toast.success(`AI智能解析完成！置信度: ${Math.round((aiResult.metadata.confidence || 0) * 100)}%`);
+        }
+      } catch (aiError) {
+        console.warn('[FileUploader] ⚠️ AI解析失败，使用基础解析:', aiError);
+        // AI解析失败不影响基础功能，只是缺少智能增强
+        toast.info('文件解析成功，AI增强功能暂时不可用');
+      }
+      
+      setUploadProgress(100);
+      
+      const successMessage = fileData.aiAnalysis?.autoProcessed 
+        ? `AI智能解析完成！自动识别了 ${fileData.aiAnalysis.subjects?.length || 0} 个科目`
+        : `文件上传成功！解析了 ${fileData.totalRows} 行数据`;
+      
+      toast.success(successMessage);
       
       onFileUploaded(fileData, {
         name: file.name,

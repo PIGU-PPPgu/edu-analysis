@@ -89,6 +89,26 @@ interface DataMapperProps {
   onError: (error: string) => void;
   loading?: boolean;
   initialMapping?: Record<string, string>;
+  fileData?: {
+    aiAnalysis?: {
+      examInfo?: {
+        title: string;
+        type: string;
+        date: string;
+        scope: string;
+      };
+      fieldMappings?: Record<string, string>;
+      subjects?: string[];
+      dataStructure?: 'wide' | 'long' | 'mixed';
+      confidence?: number;
+      autoProcessed?: boolean;
+      processing?: {
+        requiresUserInput: boolean;
+        issues: string[];
+        suggestions: string[];
+      };
+    };
+  };
 }
 
 const DataMapper: React.FC<DataMapperProps> = ({
@@ -97,7 +117,8 @@ const DataMapper: React.FC<DataMapperProps> = ({
   onMappingConfigured,
   onError,
   loading = false,
-  initialMapping = {}
+  initialMapping = {},
+  fileData
 }) => {
   const [fieldMappings, setFieldMappings] = useState<Record<string, string>>(initialMapping);
   const [customFields, setCustomFields] = useState<Record<string, string>>({});
@@ -127,91 +148,164 @@ const DataMapper: React.FC<DataMapperProps> = ({
     if (headers.length > 0) {
       performAutoMapping();
     }
-  }, [headers]);
+  }, [headers, fileData]);
 
   // 执行自动映射分析
   const performAutoMapping = async () => {
     setAiAnalyzing(true);
     try {
-      // 使用智能字段映射器分析表头
-      const headerAnalysis = analyzeCSVHeaders(headers);
-      const mappingSuggestions = generateMappingSuggestions(headers);
+      let headerAnalysis: any;
+      let mappingSuggestions: any;
+      let useAIResults = false;
       
-      // 设置AI建议
-      setAiSuggestions({
-        confidence: mappingSuggestions.confidence,
-        suggestions: mappingSuggestions.suggestions,
-        issues: mappingSuggestions.issues
-      });
-      
-      // 检查是否为宽表格格式
-      if (headerAnalysis.subjects.length > 1) {
-        setWideTableAnalysis({
-          detected: true,
-          subjects: headerAnalysis.subjects,
-          confidence: headerAnalysis.confidence,
-          mappings: headerAnalysis.mappings,
-          studentFields: headerAnalysis.studentFields
+      // 🤖 首先尝试使用AI解析结果（如果有的话）
+      if (fileData?.aiAnalysis && fileData.aiAnalysis.confidence && fileData.aiAnalysis.confidence > 0.5) {
+        console.log('[DataMapper] 🚀 使用AI解析结果进行字段映射');
+        
+        useAIResults = true;
+        
+        // 设置AI建议（基于AI解析结果）
+        setAiSuggestions({
+          confidence: fileData.aiAnalysis.confidence,
+          suggestions: fileData.aiAnalysis.fieldMappings || {},
+          issues: fileData.aiAnalysis.processing?.issues || []
         });
+        
+        // 检查是否为宽表格格式
+        if (fileData.aiAnalysis.dataStructure === 'wide' && fileData.aiAnalysis.subjects) {
+          setWideTableAnalysis({
+            detected: true,
+            subjects: fileData.aiAnalysis.subjects,
+            confidence: fileData.aiAnalysis.confidence,
+            mappings: [], // AI结果会在下面处理
+            studentFields: []
+          });
+        }
+        
+        // 模拟header分析结构以保持兼容性
+        headerAnalysis = {
+          subjects: fileData.aiAnalysis.subjects || [],
+          confidence: fileData.aiAnalysis.confidence,
+          mappings: [],
+          studentFields: []
+        };
+        
+        mappingSuggestions = {
+          confidence: fileData.aiAnalysis.confidence,
+          suggestions: fileData.aiAnalysis.fieldMappings || {},
+          issues: fileData.aiAnalysis.processing?.issues || []
+        };
+        
+      } else {
+        // 🔧 降级到传统智能字段映射器分析
+        console.log('[DataMapper] 🔧 使用传统字段映射分析');
+        
+        headerAnalysis = analyzeCSVHeaders(headers);
+        mappingSuggestions = generateMappingSuggestions(headers);
+        
+        // 设置AI建议
+        setAiSuggestions({
+          confidence: mappingSuggestions.confidence,
+          suggestions: mappingSuggestions.suggestions,
+          issues: mappingSuggestions.issues
+        });
+        
+        // 检查是否为宽表格格式
+        if (headerAnalysis.subjects.length > 1) {
+          setWideTableAnalysis({
+            detected: true,
+            subjects: headerAnalysis.subjects,
+            confidence: headerAnalysis.confidence,
+            mappings: headerAnalysis.mappings,
+            studentFields: headerAnalysis.studentFields
+          });
+        }
       }
       
       // 应用建议的映射
       const newMappings: Record<string, string> = {};
+      const newCustomFields: Record<string, string> = {};
       
-      // 首先映射学生信息字段
-      headerAnalysis.studentFields.forEach(mapping => {
-        const originalField = mapping.originalField;
-        const mappedField = mapping.mappedField;
-        if (SYSTEM_FIELDS[mappedField]) {
-          newMappings[originalField] = mappedField;
-        }
-      });
-      
-      // 然后处理科目字段 - 支持所有类型（分数、等级、排名）
-      headerAnalysis.mappings.forEach(mapping => {
-        if (mapping.subject) {
-          let customFieldKey: string;
-          let customFieldName: string;
-          
-          // 根据数据类型创建不同的自定义字段
-          switch (mapping.dataType) {
-            case 'score':
-              customFieldKey = `${mapping.subject}_score`;
-              customFieldName = `${mapping.subject}分数`;
-              break;
-            case 'grade':
-              customFieldKey = `${mapping.subject}_grade`;
-              customFieldName = `${mapping.subject}等级`;
-              break;
-            case 'rank_class':
-              customFieldKey = `${mapping.subject}_rank_class`;
-              customFieldName = `${mapping.subject}班级排名`;
-              break;
-            case 'rank_school':
-              customFieldKey = `${mapping.subject}_rank_school`;
-              customFieldName = `${mapping.subject}学校排名`;
-              break;
-            case 'rank_grade':
-              customFieldKey = `${mapping.subject}_rank_grade`;
-              customFieldName = `${mapping.subject}年级排名`;
-              break;
-            default:
-              customFieldKey = `${mapping.subject}_${mapping.dataType}`;
-              customFieldName = `${mapping.subject}${mapping.dataType}`;
+      if (useAIResults && fileData?.aiAnalysis?.fieldMappings) {
+        // 🤖 使用AI解析结果
+        Object.entries(fileData.aiAnalysis.fieldMappings).forEach(([originalField, mappedField]) => {
+          if (SYSTEM_FIELDS[mappedField]) {
+            // 系统字段直接映射
+            newMappings[originalField] = mappedField;
+          } else if (fileData.aiAnalysis?.subjects) {
+            // 科目字段处理
+            const subject = fileData.aiAnalysis.subjects.find(s => originalField.includes(s));
+            if (subject) {
+              const customFieldKey = `${subject}_score`;
+              const customFieldName = `${subject}分数`;
+              newCustomFields[customFieldKey] = customFieldName;
+              newMappings[originalField] = customFieldKey;
+            }
           }
-          
-          setCustomFields(prev => ({
-            ...prev,
-            [customFieldKey]: customFieldName
-          }));
-          newMappings[mapping.originalField] = customFieldKey;
-        }
-      });
+        });
+        
+        setCustomFields(newCustomFields);
+        
+      } else {
+        // 🔧 使用传统分析结果
+        
+        // 首先映射学生信息字段
+        headerAnalysis.studentFields.forEach(mapping => {
+          const originalField = mapping.originalField;
+          const mappedField = mapping.mappedField;
+          if (SYSTEM_FIELDS[mappedField]) {
+            newMappings[originalField] = mappedField;
+          }
+        });
+        
+        // 然后处理科目字段 - 支持所有类型（分数、等级、排名）
+        headerAnalysis.mappings.forEach(mapping => {
+          if (mapping.subject) {
+            let customFieldKey: string;
+            let customFieldName: string;
+            
+            // 根据数据类型创建不同的自定义字段
+            switch (mapping.dataType) {
+              case 'score':
+                customFieldKey = `${mapping.subject}_score`;
+                customFieldName = `${mapping.subject}分数`;
+                break;
+              case 'grade':
+                customFieldKey = `${mapping.subject}_grade`;
+                customFieldName = `${mapping.subject}等级`;
+                break;
+              case 'rank_class':
+                customFieldKey = `${mapping.subject}_rank_class`;
+                customFieldName = `${mapping.subject}班级排名`;
+                break;
+              case 'rank_school':
+                customFieldKey = `${mapping.subject}_rank_school`;
+                customFieldName = `${mapping.subject}学校排名`;
+                break;
+              case 'rank_grade':
+                customFieldKey = `${mapping.subject}_rank_grade`;
+                customFieldName = `${mapping.subject}年级排名`;
+                break;
+              default:
+                customFieldKey = `${mapping.subject}_${mapping.dataType}`;
+                customFieldName = `${mapping.subject}${mapping.dataType}`;
+            }
+            
+            newCustomFields[customFieldKey] = customFieldName;
+            newMappings[mapping.originalField] = customFieldKey;
+          }
+        });
+        
+        setCustomFields(newCustomFields);
+      }
       
       setFieldMappings(newMappings);
       
       if (Object.keys(newMappings).length > 0) {
-        toast.success(`AI自动识别了 ${Object.keys(newMappings).length} 个字段映射`);
+        const successMessage = useAIResults 
+          ? `AI智能识别了 ${Object.keys(newMappings).length} 个字段映射 (置信度: ${Math.round((fileData?.aiAnalysis?.confidence || 0) * 100)}%)`
+          : `自动识别了 ${Object.keys(newMappings).length} 个字段映射`;
+        toast.success(successMessage);
       }
       
     } catch (error) {
