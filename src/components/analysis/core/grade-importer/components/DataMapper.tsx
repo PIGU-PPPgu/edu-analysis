@@ -45,8 +45,19 @@ const SYSTEM_FIELDS: Record<string, string> = {
   'grade': '旧等级',
   'rank_in_class': '班级排名',
   'rank_in_grade': '年级排名/校排名',
+  'rank_in_school': '学校排名',
   'percentile': '百分位数',
-  'z_score': '标准分'
+  'z_score': '标准分',
+  // 等级字段
+  'chinese_grade': '语文等级',
+  'math_grade': '数学等级', 
+  'english_grade': '英语等级',
+  'physics_grade': '物理等级',
+  'chemistry_grade': '化学等级',
+  'biology_grade': '生物等级',
+  'politics_grade': '政治等级',
+  'history_grade': '历史等级',
+  'geography_grade': '地理等级'
 };
 
 // 字段映射配置接口
@@ -148,7 +159,7 @@ const DataMapper: React.FC<DataMapperProps> = ({
     if (headers.length > 0) {
       performAutoMapping();
     }
-  }, [headers, fileData]);
+  }, [headers]); // 移除fileData依赖，避免重复执行
 
   // 执行自动映射分析
   const performAutoMapping = async () => {

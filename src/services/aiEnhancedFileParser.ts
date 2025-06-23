@@ -513,7 +513,13 @@ ${this.formatSampleData(headers, sampleRows)}
       
       // 排名字段
       '班级排名': 'rank_in_class', '年级排名': 'rank_in_grade', '学校排名': 'rank_in_school',
-      '班排名': 'rank_in_class', '年排名': 'rank_in_grade', '校排名': 'rank_in_school'
+      '班排名': 'rank_in_class', '年排名': 'rank_in_grade', '校排名': 'rank_in_school',
+      
+      // 等级字段
+      '等级': 'original_grade', '评级': 'original_grade', '成绩等级': 'original_grade',
+      '语文等级': 'chinese_grade', '数学等级': 'math_grade', '英语等级': 'english_grade',
+      '物理等级': 'physics_grade', '化学等级': 'chemistry_grade', '生物等级': 'biology_grade',
+      '政治等级': 'politics_grade', '历史等级': 'history_grade', '地理等级': 'geography_grade'
     };
     
     // 科目列表
