@@ -52,7 +52,7 @@ const useGradeData = (examId?: string, classFilter?: string) => {
         query = query.eq('exam_id', examId);
       }
       
-      if (classFilter) {
+          if (classFilter && classFilter !== '__all_classes__') {
         query = query.eq('class_name', classFilter);
       }
 
@@ -182,7 +182,7 @@ const GradeTable: React.FC<{ data: GradeData[]; isLoading: boolean }> = ({
 // 主组件
 const EnhancedGradeAnalysis: React.FC = () => {
   const [selectedExam, setSelectedExam] = useState<string>('');
-  const [classFilter, setClassFilter] = useState<string>('');
+  const [classFilter, setClassFilter] = useState<string>('__all_classes__');
   const { toast } = useToast();
 
   // 数据查询
@@ -312,7 +312,7 @@ const EnhancedGradeAnalysis: React.FC = () => {
                   <SelectValue placeholder="全部班级" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">全部班级</SelectItem>
+                  <SelectItem value="__all_classes__">全部班级</SelectItem>
                   <SelectItem value="初三7班">初三7班</SelectItem>
                   <SelectItem value="初三8班">初三8班</SelectItem>
                 </SelectContent>

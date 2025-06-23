@@ -1,0 +1,523 @@
+{
+  "version": "1.0",
+  "description": "n8n智能成绩解析工作流字段映射配置",
+  "database_schema": {
+    "students_table": {
+      "table_name": "students",
+      "primary_key": "id",
+      "business_key": "student_id",
+      "required_fields": ["student_id", "name"],
+      "optional_fields": ["class_name", "grade", "gender", "admission_year", "contact_phone", "contact_email"],
+      "field_types": {
+        "student_id": "TEXT",
+        "name": "TEXT", 
+        "class_name": "TEXT",
+        "grade": "TEXT",
+        "gender": "TEXT",
+        "admission_year": "TEXT",
+        "contact_phone": "TEXT",
+        "contact_email": "TEXT"
+      }
+    },
+    "grade_data_table": {
+      "table_name": "grade_data",
+      "primary_key": "id",
+      "unique_constraint": ["exam_id", "student_id", "subject"],
+      "required_fields": ["exam_id", "student_id", "name"],
+      "optional_fields": ["class_name", "subject", "score", "total_score", "grade", "rank_in_class", "rank_in_grade"],
+      "field_types": {
+        "exam_id": "UUID",
+        "student_id": "TEXT",
+        "name": "TEXT",
+        "class_name": "TEXT", 
+        "subject": "TEXT",
+        "score": "NUMERIC",
+        "total_score": "NUMERIC",
+        "grade": "TEXT",
+        "rank_in_class": "INTEGER",
+        "rank_in_grade": "INTEGER"
+      }
+    },
+    "exams_table": {
+      "table_name": "exams",
+      "primary_key": "id",
+      "required_fields": ["title", "type", "date"],
+      "optional_fields": ["subject", "scope"],
+      "field_types": {
+        "title": "TEXT",
+        "type": "TEXT", 
+        "date": "DATE",
+        "subject": "TEXT",
+        "scope": "TEXT"
+      }
+    }
+  },
+  "field_mapping_rules": {
+    "student_identification": {
+      "target_field": "student_id",
+      "source_patterns": [
+        "student_id", "学号", "学生学号", "学生编号", "id", "studentId",
+        "考生号", "准考证号", "学籍号", "编号", "学生ID"
+      ],
+      "validation": {
+        "required": true,
+        "type": "string",
+        "min_length": 1,
+        "max_length": 50,
+        "pattern": "^[A-Za-z0-9]+$"
+      }
+    },
+    "student_name": {
+      "target_field": "name",
+      "source_patterns": [
+        "name", "姓名", "学生姓名", "名称", "studentName",
+        "考生姓名", "学生", "真实姓名", "学员姓名"
+      ],
+      "validation": {
+        "required": true,
+        "type": "string",
+        "min_length": 1,
+        "max_length": 100
+      }
+    },
+    "class_information": {
+      "target_field": "class_name", 
+      "source_patterns": [
+        "class_name", "班级", "行政班级", "教学班", "现班", "所在班级",
+        "class", "className", "classname", "班级名称", "班次", "班别",
+        "年级班级", "班组", "分班", "班"
+      ],
+      "validation": {
+        "required": false,
+        "type": "string",
+        "max_length": 100,
+        "default": "未知班级"
+      }
+    },
+    "subject_scores": {
+      "语文": {
+        "target_field": "score",
+        "subject_name": "语文",
+        "source_patterns": ["语文", "语文分数", "语文成绩", "chinese", "chinese_score"],
+        "validation": {
+          "type": "number",
+          "min": 0,
+          "max": 150
+        }
+      },
+      "数学": {
+        "target_field": "score",
+        "subject_name": "数学", 
+        "source_patterns": ["数学", "数学分数", "数学成绩", "math", "math_score"],
+        "validation": {
+          "type": "number",
+          "min": 0,
+          "max": 150
+        }
+      },
+      "英语": {
+        "target_field": "score",
+        "subject_name": "英语",
+        "source_patterns": ["英语", "英语分数", "英语成绩", "english", "english_score"],
+        "validation": {
+          "type": "number",
+          "min": 0,
+          "max": 150
+        }
+      },
+      "物理": {
+        "target_field": "score", 
+        "subject_name": "物理",
+        "source_patterns": ["物理", "物理分数", "物理成绩", "physics", "physics_score"],
+        "validation": {
+          "type": "number",
+          "min": 0,
+          "max": 100
+        }
+      },
+      "化学": {
+        "target_field": "score",
+        "subject_name": "化学",
+        "source_patterns": ["化学", "化学分数", "化学成绩", "chemistry", "chemistry_score"],
+        "validation": {
+          "type": "number",
+          "min": 0,
+          "max": 100
+        }
+      },
+      "生物": {
+        "target_field": "score",
+        "subject_name": "生物", 
+        "source_patterns": ["生物", "生物分数", "生物成绩", "biology", "biology_score"],
+        "validation": {
+          "type": "number",
+          "min": 0,
+          "max": 100
+        }
+      },
+      "政治": {
+        "target_field": "score",
+        "subject_name": "政治",
+        "source_patterns": ["政治", "政治分数", "政治成绩", "道法", "道法分数", "politics", "politics_score"],
+        "validation": {
+          "type": "number",
+          "min": 0,
+          "max": 100
+        }
+      },
+      "历史": {
+        "target_field": "score",
+        "subject_name": "历史",
+        "source_patterns": ["历史", "历史分数", "历史成绩", "history", "history_score"],
+        "validation": {
+          "type": "number",
+          "min": 0,
+          "max": 100
+        }
+      },
+      "地理": {
+        "target_field": "score",
+        "subject_name": "地理",
+        "source_patterns": ["地理", "地理分数", "地理成绩", "geography", "geography_score"],
+        "validation": {
+          "type": "number",
+          "min": 0,
+          "max": 100
+        }
+      },
+      "总分": {
+        "target_field": "total_score",
+        "subject_name": "总分",
+        "source_patterns": ["总分", "总分分数", "总成绩", "total", "total_score", "总计", "合计"],
+        "validation": {
+          "type": "number",
+          "min": 0,
+          "max": 1000
+        }
+      }
+    },
+    "ranking_information": {
+      "class_rank": {
+        "target_field": "rank_in_class",
+        "source_patterns": ["班级排名", "班名", "班内排名", "class_rank", "班排名"],
+        "validation": {
+          "type": "integer",
+          "min": 1
+        }
+      },
+      "grade_rank": {
+        "target_field": "rank_in_grade", 
+        "source_patterns": ["年级排名", "年名", "年级内排名", "grade_rank", "年排名"],
+        "validation": {
+          "type": "integer",
+          "min": 1
+        }
+      }
+    }
+  },
+  "data_transformation_rules": {
+    "score_normalization": {
+      "description": "分数标准化规则",
+      "rules": [
+        {
+          "condition": "score > 100 && score <= 150",
+          "action": "keep_original",
+          "note": "语数英满分150分"
+        },
+        {
+          "condition": "score > 100 && score <= 120", 
+          "action": "keep_original",
+          "note": "部分科目满分120分"
+        },
+        {
+          "condition": "score > 150",
+          "action": "flag_error",
+          "note": "分数异常，需要人工检查"
+        }
+      ]
+    },
+    "class_name_standardization": {
+      "description": "班级名称标准化",
+      "rules": [
+        {
+          "pattern": "^(\\d+)班$",
+          "replacement": "初三$1班",
+          "note": "补充年级信息"
+        },
+        {
+          "pattern": "^七年级(\\d+)班$",
+          "replacement": "初一$1班", 
+          "note": "统一年级表达"
+        },
+        {
+          "pattern": "^八年级(\\d+)班$",
+          "replacement": "初二$1班",
+          "note": "统一年级表达"
+        },
+        {
+          "pattern": "^九年级(\\d+)班$",
+          "replacement": "初三$1班",
+          "note": "统一年级表达"
+        }
+      ]
+    }
+  },
+  "validation_rules": {
+    "required_field_check": {
+      "student_id": "学号不能为空",
+      "name": "姓名不能为空"
+    },
+    "data_type_validation": {
+      "score": "分数必须是数字",
+      "rank_in_class": "班级排名必须是正整数",
+      "rank_in_grade": "年级排名必须是正整数"
+    },
+    "business_logic_validation": {
+      "score_range": "分数必须在合理范围内",
+      "student_id_uniqueness": "同一考试中学号不能重复",
+      "class_consistency": "同一学生的班级信息应保持一致"
+    }
+  },
+  "error_handling": {
+    "missing_required_field": {
+      "action": "reject_record",
+      "message": "缺少必填字段，记录被拒绝"
+    },
+    "invalid_data_type": {
+      "action": "attempt_conversion",
+      "fallback": "flag_for_review",
+      "message": "数据类型不匹配，尝试转换或标记审查"
+    },
+    "duplicate_record": {
+      "action": "merge_or_update",
+      "strategy": "keep_latest",
+      "message": "发现重复记录，保留最新数据"
+    }
+  },
+  "output_format": {
+    "success_response": {
+      "status": "success",
+      "data": {
+        "exam_info": "考试信息对象",
+        "student_records": "学生成绩记录数组",
+        "summary": {
+          "total_records": "总记录数",
+          "successful_records": "成功处理记录数", 
+          "failed_records": "失败记录数",
+          "warnings": "警告信息数组"
+        }
+      }
+    },
+    "error_response": {
+      "status": "error",
+      "error": {
+        "code": "错误代码",
+        "message": "错误信息",
+        "details": "详细错误信息"
+      }
+    }
+  },
+  "fieldMapping": {
+    "基础信息字段": {
+      "学号": "student_id",
+      "姓名": "name",
+      "班级": "class_name",
+      "年级": "grade",
+      "性别": "gender"
+    },
+    "科目成绩字段": {
+      "语文": "chinese",
+      "数学": "math",
+      "英语": "english",
+      "物理": "physics",
+      "化学": "chemistry",
+      "政治": "politics",
+      "历史": "history",
+      "生物": "biology",
+      "地理": "geography",
+      "体育": "pe",
+      "音乐": "music",
+      "美术": "art",
+      "信息技术": "it",
+      "通用技术": "general_tech"
+    },
+    "科目等级字段": {
+      "语文等级": "chinese_grade",
+      "数学等级": "math_grade", 
+      "英语等级": "english_grade",
+      "物理等级": "physics_grade",
+      "化学等级": "chemistry_grade",
+      "政治等级": "politics_grade",
+      "历史等级": "history_grade",
+      "生物等级": "biology_grade",
+      "地理等级": "geography_grade",
+      "体育等级": "pe_grade",
+      "音乐等级": "music_grade",
+      "美术等级": "art_grade",
+      "信息技术等级": "it_grade",
+      "通用技术等级": "general_tech_grade"
+    },
+    "科目班级排名字段": {
+      "语文班级排名": "chinese_class_rank",
+      "数学班级排名": "math_class_rank",
+      "英语班级排名": "english_class_rank", 
+      "物理班级排名": "physics_class_rank",
+      "化学班级排名": "chemistry_class_rank",
+      "政治班级排名": "politics_class_rank",
+      "历史班级排名": "history_class_rank",
+      "生物班级排名": "biology_class_rank",
+      "地理班级排名": "geography_class_rank",
+      "体育班级排名": "pe_class_rank",
+      "音乐班级排名": "music_class_rank",
+      "美术班级排名": "art_class_rank",
+      "信息技术班级排名": "it_class_rank",
+      "通用技术班级排名": "general_tech_class_rank"
+    },
+    "科目年级排名字段": {
+      "语文年级排名": "chinese_grade_rank",
+      "数学年级排名": "math_grade_rank",
+      "英语年级排名": "english_grade_rank",
+      "物理年级排名": "physics_grade_rank", 
+      "化学年级排名": "chemistry_grade_rank",
+      "政治年级排名": "politics_grade_rank",
+      "历史年级排名": "history_grade_rank",
+      "生物年级排名": "biology_grade_rank",
+      "地理年级排名": "geography_grade_rank",
+      "体育年级排名": "pe_grade_rank",
+      "音乐年级排名": "music_grade_rank",
+      "美术年级排名": "art_grade_rank",
+      "信息技术年级排名": "it_grade_rank",
+      "通用技术年级排名": "general_tech_grade_rank"
+    },
+    "统计字段": {
+      "总分": "total_score",
+      "平均分": "average_score",
+      "班级排名": "rank_in_class",
+      "年级排名": "rank_in_grade",
+      "校内排名": "rank_in_school",
+      "总分等级": "total_grade"
+    },
+    "考试信息字段": {
+      "考试名称": "exam_title",
+      "考试类型": "exam_type", 
+      "考试日期": "exam_date",
+      "考试范围": "exam_scope"
+    }
+  },
+  "flatMapping": {
+    "学号": "student_id",
+    "姓名": "name",
+    "班级": "class_name",
+    "年级": "grade",
+    "性别": "gender",
+    
+    "语文": "chinese",
+    "数学": "math",
+    "英语": "english",
+    "物理": "physics",
+    "化学": "chemistry",
+    "政治": "politics",
+    "历史": "history",
+    "生物": "biology",
+    "地理": "geography",
+    "体育": "pe",
+    "音乐": "music",
+    "美术": "art",
+    "信息技术": "it",
+    "通用技术": "general_tech",
+    
+    "语文等级": "chinese_grade",
+    "数学等级": "math_grade",
+    "英语等级": "english_grade",
+    "物理等级": "physics_grade",
+    "化学等级": "chemistry_grade",
+    "政治等级": "politics_grade",
+    "历史等级": "history_grade",
+    "生物等级": "biology_grade",
+    "地理等级": "geography_grade",
+    "体育等级": "pe_grade",
+    "音乐等级": "music_grade",
+    "美术等级": "art_grade",
+    "信息技术等级": "it_grade",
+    "通用技术等级": "general_tech_grade",
+    
+    "语文班级排名": "chinese_class_rank",
+    "数学班级排名": "math_class_rank",
+    "英语班级排名": "english_class_rank",
+    "物理班级排名": "physics_class_rank",
+    "化学班级排名": "chemistry_class_rank",
+    "政治班级排名": "politics_class_rank",
+    "历史班级排名": "history_class_rank",
+    "生物班级排名": "biology_class_rank",
+    "地理班级排名": "geography_class_rank",
+    "体育班级排名": "pe_class_rank",
+    "音乐班级排名": "music_class_rank",
+    "美术班级排名": "art_class_rank",
+    "信息技术班级排名": "it_class_rank",
+    "通用技术班级排名": "general_tech_class_rank",
+    
+    "语文年级排名": "chinese_grade_rank",
+    "数学年级排名": "math_grade_rank",
+    "英语年级排名": "english_grade_rank",
+    "物理年级排名": "physics_grade_rank",
+    "化学年级排名": "chemistry_grade_rank",
+    "政治年级排名": "politics_grade_rank",
+    "历史年级排名": "history_grade_rank",
+    "生物年级排名": "biology_grade_rank",
+    "地理年级排名": "geography_grade_rank",
+    "体育年级排名": "pe_grade_rank",
+    "音乐年级排名": "music_grade_rank",
+    "美术年级排名": "art_grade_rank",
+    "信息技术年级排名": "it_grade_rank",
+    "通用技术年级排名": "general_tech_grade_rank",
+    
+    "总分": "total_score",
+    "平均分": "average_score",
+    "班级排名": "rank_in_class",
+    "年级排名": "rank_in_grade",
+    "校内排名": "rank_in_school",
+    "总分等级": "total_grade",
+    
+    "考试名称": "exam_title",
+    "考试类型": "exam_type",
+    "考试日期": "exam_date",
+    "考试范围": "exam_scope"
+  },
+  "validationRules": {
+    "required": ["student_id", "name"],
+    "scoreFields": [
+      "chinese", "math", "english", "physics", "chemistry", 
+      "politics", "history", "biology", "geography", "pe", 
+      "music", "art", "it", "general_tech", "total_score", "average_score"
+    ],
+    "gradeFields": [
+      "chinese_grade", "math_grade", "english_grade", "physics_grade", 
+      "chemistry_grade", "politics_grade", "history_grade", "biology_grade", 
+      "geography_grade", "pe_grade", "music_grade", "art_grade", 
+      "it_grade", "general_tech_grade", "total_grade"
+    ],
+    "rankFields": [
+      "chinese_class_rank", "math_class_rank", "english_class_rank", 
+      "physics_class_rank", "chemistry_class_rank", "politics_class_rank", 
+      "history_class_rank", "biology_class_rank", "geography_class_rank", 
+      "pe_class_rank", "music_class_rank", "art_class_rank", 
+      "it_class_rank", "general_tech_class_rank",
+      "chinese_grade_rank", "math_grade_rank", "english_grade_rank", 
+      "physics_grade_rank", "chemistry_grade_rank", "politics_grade_rank", 
+      "history_grade_rank", "biology_grade_rank", "geography_grade_rank", 
+      "pe_grade_rank", "music_grade_rank", "art_grade_rank", 
+      "it_grade_rank", "general_tech_grade_rank",
+      "rank_in_class", "rank_in_grade", "rank_in_school"
+    ],
+    "scoreRange": {
+      "min": 0,
+      "max": 150
+    },
+    "gradeValues": ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D+", "D", "E"],
+    "rankRange": {
+      "min": 1,
+      "max": 1000
+    }
+  },
+  "description": "完整的教育数据字段映射配置，支持各科目成绩、等级、班级排名、年级排名等字段的智能识别和转换"
+} 

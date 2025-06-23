@@ -73,7 +73,7 @@ const ConfigManager: React.FC<ConfigManagerProps> = ({
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<ConfigTemplate | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterTag, setFilterTag] = useState('');
+  const [filterTag, setFilterTag] = useState('__all_tags__');
   
   // 新模板表单状态
   const [newTemplate, setNewTemplate] = useState({
@@ -385,7 +385,7 @@ const ConfigManager: React.FC<ConfigManagerProps> = ({
   const filteredTemplates = templates.filter(template => {
     const matchesSearch = template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          template.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesTag = !filterTag || template.tags.includes(filterTag);
+    const matchesTag = filterTag === '__all_tags__' || template.tags.includes(filterTag);
     return matchesSearch && matchesTag;
   });
 
@@ -419,7 +419,7 @@ const ConfigManager: React.FC<ConfigManagerProps> = ({
               <SelectValue placeholder="筛选标签" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">全部标签</SelectItem>
+              <SelectItem value="__all_tags__">全部标签</SelectItem>
               {allTags.map(tag => (
                 <SelectItem key={tag} value={tag}>{tag}</SelectItem>
               ))}

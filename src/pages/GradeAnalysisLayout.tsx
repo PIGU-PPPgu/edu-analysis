@@ -47,7 +47,8 @@ import {
   Brain,
   CheckCircle,
   Calendar,
-  AlertTriangle
+  AlertTriangle,
+  Upload
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -70,7 +71,7 @@ import ClassBoxPlotChart from "@/components/analysis/comparison/ClassBoxPlotChar
 // import DataTypeAnalyzer from "@/components/analysis/subject/DataTypeAnalyzer"; // 已删除
 // import SubjectComparisonAnalysis from "@/components/analysis/subject/SubjectComparisonAnalysis"; // 已删除
 // import IntelligentDataAnalyzer from "@/components/analysis/subject/IntelligentDataAnalyzer"; // 已删除
-import PerformanceMonitor from '@/components/ui/performance-monitor';
+// import PerformanceMonitor from '@/components/ui/performance-monitor'; // 移除系统性能监控，不适合用户界面
 import { getGradeLevelInfo } from '@/utils/gradeUtils';
 // import ClassSelector from "@/components/analysis/ClassSelector"; // 已删除
 import ClassComparisonChart from "@/components/analysis/comparison/ClassComparisonChart";
@@ -850,8 +851,8 @@ const GradeAnalysisContent: React.FC = () => {
         >
           <TabsList className="bg-white border shadow-sm mb-6">
             <TabsTrigger value="dashboard" className="gap-2 data-[state=active]:bg-[#fafafa]">
-              <BarChartBig className="h-4 w-4" />
-              数据看板
+          <Upload className="h-4 w-4" />
+          数据导入
             </TabsTrigger>
             <TabsTrigger value="class" className="gap-2 data-[state=active]:bg-[#fafafa]">
               <School className="h-4 w-4" />
@@ -897,10 +898,7 @@ const GradeAnalysisContent: React.FC = () => {
               <BrainCircuit className="h-4 w-4" />
               AI智能分析
             </TabsTrigger>
-            <TabsTrigger value="performance" className="gap-2 data-[state=active]:bg-[#fafafa]">
-              <Settings2 className="h-4 w-4" />
-              性能监控
-            </TabsTrigger>
+            {/* 性能监控Tab已移除 - 不适合普通用户 */}
           </TabsList>
           
           <TabsContent value="dashboard" className="space-y-6">
@@ -1321,25 +1319,7 @@ const GradeAnalysisContent: React.FC = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="performance">
-            <div className="space-y-6">
-              <Alert className="bg-blue-50 border-blue-200">
-                <Settings2 className="h-4 w-4 text-blue-500" />
-                <AlertTitle className="text-blue-700">系统性能监控</AlertTitle>
-                <AlertDescription className="text-blue-600">
-                  <p>实时监控系统性能指标，包括页面加载速度、内存使用、数据库查询等，帮助优化用户体验。</p>
-                </AlertDescription>
-              </Alert>
-              
-              <PerformanceMonitor 
-                showAdvanced={true}
-                onOptimize={() => {
-                  // 实际的性能优化逻辑
-                  toast.success('已应用性能优化设置');
-                }}
-              />
-            </div>
-          </TabsContent>
+          {/* 性能监控内容已移除 - 这类技术性功能不适合在用户界面中展示 */}
         </Tabs>
       </div>
     </div>

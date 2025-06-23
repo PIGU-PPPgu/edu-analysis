@@ -5,11 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc && vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "dev:no-hmr": "vite --config vite.no-hmr.config.ts"
+    "dev:no-hmr": "vite --config vite.no-hmr.config.ts",
+    "db:init": "node reinitialize-database.js",
+    "db:reset": "echo 'Setting up database with user isolation...' && node reinitialize-database.js",
+    "python:deps": "cd python-data-processor && pip install -r requirements.txt",
+    "python:start": "cd python-data-processor && python app.py",
+    "setup:auth": "npm run db:reset && npm run python:deps"
   },
   "dependencies": {
     "@ant-design/icons": "^6.0.0",
@@ -69,6 +74,7 @@
     "dotenv": "^16.5.0",
     "embla-carousel-react": "^8.3.0",
     "file-saver": "^2.0.5",
+    "form-data": "^4.0.3",
     "framer-motion": "^12.16.0",
     "input-otp": "^1.2.4",
     "lodash": "^4.17.21",
@@ -77,6 +83,7 @@
     "nanoid": "^5.1.5",
     "next": "^15.3.1",
     "next-themes": "^0.3.0",
+    "node-fetch": "^3.3.2",
     "openai": "^4.96.0",
     "papaparse": "^5.5.3",
     "react": "^18.3.1",
@@ -93,6 +100,7 @@
     "sonner": "^1.7.4",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
+    "task-master-ai": "^0.17.1",
     "vaul": "^0.9.3",
     "xlsx": "^0.18.5",
     "zod": "^3.24.3"

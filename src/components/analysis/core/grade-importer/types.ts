@@ -374,16 +374,18 @@ export interface ValidationResult {
 
 // 导入选项接口
 export interface ImportOptions {
-  examInfo: ExamInfo;
-  mappingConfig: MappingConfig;
-  validationConfig: {
+  batchSize: number;
+  createMissingStudents: boolean;
+  updateExistingData: boolean;
+  skipDuplicates: boolean;
+  enableBackup: boolean;
+  enableRollback: boolean;
+  parallelImport: boolean;
     strictMode: boolean;
-    skipInvalidRows: boolean;
+  validateDuplicates: boolean;
+  validateStudentMatch: boolean;
+  requireScores: boolean;
     maxErrors: number;
-  };
-  mergeStrategy: 'replace' | 'merge' | 'append';
-  newStudentStrategy: 'create' | 'ignore' | 'prompt';
-  examScope: 'class' | 'grade' | 'school';
 }
 
 // 导入进度接口

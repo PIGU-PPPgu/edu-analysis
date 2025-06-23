@@ -36,7 +36,18 @@ import {
 } from '../types';
 import { saveExamData } from '@/services/examDataService';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuthContext } from '@/contexts/AuthContext';
+import { examDuplicateChecker, type ExamInfo as DuplicateExamInfo } from '@/services/examDuplicateChecker';
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 // 导入配置接口
 export interface ImportConfig {
@@ -68,7 +79,7 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
   onError,
   loading = false
 }) => {
-  const { user } = useAuth(); // 获取当前用户信息
+  const { user } = useAuthContext(); // 获取当前用户信息
   const [importing, setImporting] = useState(false);
   const [paused, setPaused] = useState(false);
   const [importConfig, setImportConfig] = useState<ImportConfig>({
@@ -98,13 +109,22 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [activeTab, setActiveTab] = useState('config');
   
+  // 考试信息确认对话框状态
+  const [showExamDialog, setShowExamDialog] = useState(false);
+  const [tempExamInfo, setTempExamInfo] = useState({
+    title: examInfo.title || '未命名考试',
+    type: examInfo.type || '月考',
+    date: examInfo.date || new Date().toISOString().split('T')[0],
+    subject: examInfo.subject || ''
+  });
+  
   // 导入控制
   const abortControllerRef = useRef<AbortController | null>(null);
   const importTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 初始化进度
   useEffect(() => {
-    if (validData.length > 0) {
+    if (validData && validData.length > 0) {
       const totalBatches = Math.ceil(validData.length / importConfig.batchSize);
       setImportProgress(prev => ({
         ...prev,
@@ -122,13 +142,20 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
     }
   }, [validData, importConfig.batchSize]);
 
-  // 开始导入
+  // 开始导入 - 先显示考试确认对话框
   const startImport = async () => {
-    if (validData.length === 0) {
+    if (!validData || validData.length === 0) {
       toast.error('没有有效数据可以导入');
       return;
     }
 
+    // 显示考试信息确认对话框
+    setShowExamDialog(true);
+  };
+
+  // 确认考试信息后执行导入
+  const executeImport = async () => {
+    setShowExamDialog(false);
     setImporting(true);
     setPaused(false);
     setActiveTab('progress');
@@ -300,9 +327,9 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
           rank_in_class: record.rank_in_class,
           rank_in_grade: record.rank_in_grade,
           grade_level: record.grade_level,
-          exam_title: examInfo.title,
-          exam_type: examInfo.type,
-          exam_date: examInfo.date,
+          exam_title: tempExamInfo.title,
+          exam_type: tempExamInfo.type,
+          exam_date: tempExamInfo.date,
           metadata: record.metadata || {}
         };
 
@@ -344,9 +371,9 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
           rank_in_class: record.rank_in_class,
           rank_in_grade: record.rank_in_grade,
           grade_level: record.grade_level,
-          exam_title: examInfo.title,
-          exam_type: examInfo.type,
-          exam_date: examInfo.date,
+          exam_title: tempExamInfo.title,
+          exam_type: tempExamInfo.type,
+          exam_date: tempExamInfo.date,
           metadata: record.metadata || {}
         };
 
@@ -397,29 +424,113 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
     return { successCount, failedCount, errors, warnings, processedIds };
   };
 
-  // 创建考试记录
+  // 创建考试记录 - 使用智能重复检查
   const createExamRecord = async () => {
-    const { data, error } = await supabase
-      .from('exams')
-      .insert({
-        title: examInfo.title,
-        type: examInfo.type,
-        date: examInfo.date,
-        subject: examInfo.subject,
-        scope: 'class'
-      })
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(`创建考试记录失败: ${error.message}`);
+    // 检查用户认证状态
+    if (!user) {
+      throw new Error('用户未登录，无法创建考试记录');
     }
 
-    return data;
+    console.log('创建考试记录，用户信息:', { userId: user.id, email: user.email });
+
+    try {
+      // 构建考试信息对象 - 使用用户确认的信息
+      const examInfoForCheck: DuplicateExamInfo = {
+        title: tempExamInfo.title,
+        type: tempExamInfo.type,
+        date: tempExamInfo.date,
+        subject: tempExamInfo.subject,
+        scope: 'class'
+      };
+
+      // 使用智能重复检查服务
+      examDuplicateChecker.setStrategy('auto_merge'); // 设置为自动合并策略
+      const duplicateResult = await examDuplicateChecker.checkDuplicate(examInfoForCheck);
+      
+      if (duplicateResult.isDuplicate) {
+        console.log('检测到重复考试，使用智能解决方案:', duplicateResult);
+        
+        // 显示重复提示给用户
+        toast.info(`检测到相似考试"${duplicateResult.existingExam?.title}"，自动合并数据`);
+        
+        // 智能解决重复冲突
+        const resolution = await examDuplicateChecker.resolveDuplicate(
+          examInfoForCheck, 
+          duplicateResult
+        );
+        
+        console.log('重复冲突解决结果:', resolution);
+        toast.success(resolution.message);
+        
+        // 返回解决后的考试ID
+        return { id: resolution.examId };
+      }
+
+      // 先检查是否存在相同考试（基于用户隔离）
+      const { data: existingExam } = await supabase
+        .from('exams')
+        .select('id, title, date, type')
+        .eq('title', tempExamInfo.title)
+        .eq('date', tempExamInfo.date)
+        .eq('type', tempExamInfo.type)
+        .eq('created_by', user.id)
+        .maybeSingle();
+
+      if (existingExam) {
+        console.log('找到现有考试记录，重用:', existingExam);
+        toast.info(`使用现有考试记录: ${existingExam.title}`);
+        return existingExam;
+      }
+
+      // 没有重复，直接创建新考试
+      const { data, error } = await supabase
+        .from('exams')
+        .insert({
+          title: tempExamInfo.title,
+          type: tempExamInfo.type,
+          date: tempExamInfo.date,
+          subject: tempExamInfo.subject,
+          description: `自动导入 - ${new Date().toLocaleString()}`,
+          created_by: user.id
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('创建考试记录失败:', error);
+        
+        // 处理409重复键错误
+        if (error.code === '23505') {
+          throw new Error('考试记录已存在，请检查考试信息或删除重复记录后重试');
+        }
+        
+        throw new Error(`创建考试记录失败: ${error.message}`);
+      }
+
+      console.log('考试记录创建成功:', data);
+      toast.success('考试记录创建成功');
+      return data;
+
+    } catch (error) {
+      console.error('考试记录处理失败:', error);
+      
+      // 如果智能处理失败，提供用户选择
+      if (error.message.includes('duplicate key value violates unique constraint')) {
+        toast.error('检测到重复考试，请检查考试信息或选择不同的名称');
+        throw new Error('考试已存在，请修改考试标题、日期或类型后重试');
+      }
+      
+      throw error;
+    }
   };
 
   // 确保学生存在
   const ensureStudentExists = async (record: any) => {
+    // 检查用户认证状态
+    if (!user) {
+      throw new Error('用户未登录，无法创建学生记录');
+    }
+
     const { data: existingStudent } = await supabase
       .from('students')
       .select('id')
@@ -427,6 +538,12 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
       .single();
 
     if (!existingStudent) {
+      console.log('创建新学生记录:', {
+        student_id: record.student_id,
+        name: record.name,
+        class_name: record.class_name
+      });
+
       const { error } = await supabase
         .from('students')
         .insert({
@@ -437,38 +554,71 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
         });
 
       if (error) {
+        console.error('创建学生记录失败:', error);
         throw new Error(`创建学生记录失败: ${error.message}`);
       }
+      
+      console.log('学生记录创建成功');
     }
   };
 
-  // 插入成绩数据
+  // 插入成绩数据 - 改进版本，处理重复数据
   const insertGradeData = async (gradeData: any) => {
-    const { error } = await supabase
-      .from('grade_data')
-      .insert(gradeData);
+    try {
+      // 首先检查是否存在相同记录
+      const { data: existingData } = await supabase
+        .from('grade_data')
+        .select('id')
+        .eq('exam_id', gradeData.exam_id)
+        .eq('student_id', gradeData.student_id)
+        .eq('subject', gradeData.subject || '')
+        .single();
 
-    if (error) {
-      if (error.code === '23505' && importConfig.skipDuplicates) {
-        // 跳过重复数据
-        return;
-      }
-      
-      if (importConfig.updateExistingData && error.code === '23505') {
-        // 更新现有数据
-        const { error: updateError } = await supabase
-          .from('grade_data')
-          .update(gradeData)
-          .eq('exam_id', gradeData.exam_id)
-          .eq('student_id', gradeData.student_id)
-          .eq('subject', gradeData.subject);
-
-        if (updateError) {
-          throw new Error(`更新数据失败: ${updateError.message}`);
+      if (existingData) {
+        // 如果配置为跳过重复数据
+        if (importConfig.skipDuplicates) {
+          console.log(`跳过重复数据: 学号${gradeData.student_id}, 科目${gradeData.subject || '总分'}`);
+          return;
         }
-      } else {
+        
+        // 如果配置为更新现有数据
+        if (importConfig.updateExistingData) {
+          const { error: updateError } = await supabase
+            .from('grade_data')
+            .update({
+              score: gradeData.score,
+              total_score: gradeData.total_score,
+              grade: gradeData.grade,
+              rank_in_class: gradeData.rank_in_class,
+              rank_in_grade: gradeData.rank_in_grade,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existingData.id);
+
+          if (updateError) {
+            throw new Error(`更新数据失败: ${updateError.message}`);
+          }
+          
+          console.log(`更新现有数据: 学号${gradeData.student_id}, 科目${gradeData.subject || '总分'}`);
+          return;
+        }
+        
+        // 默认情况下抛出错误
+        throw new Error(`数据已存在: 学号${gradeData.student_id}, 科目${gradeData.subject || '总分'}`);
+      }
+
+      // 插入新数据
+      const { error } = await supabase
+        .from('grade_data')
+        .insert(gradeData);
+
+      if (error) {
         throw new Error(`插入数据失败: ${error.message}`);
       }
+      
+    } catch (error) {
+      console.error('插入成绩数据失败:', error);
+      throw error;
     }
   };
 
@@ -540,9 +690,9 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
 
     const report = {
       考试信息: {
-        标题: examInfo.title,
-        类型: examInfo.type,
-        日期: examInfo.date
+        标题: tempExamInfo.title,
+        类型: tempExamInfo.type,
+        日期: tempExamInfo.date
       },
       导入统计: {
         总记录数: importResult.totalCount,
@@ -564,7 +714,7 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `导入报告_${examInfo.title}_${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `导入报告_${tempExamInfo.title}_${new Date().toISOString().split('T')[0]}.json`;
     link.click();
     URL.revokeObjectURL(url);
 
@@ -588,16 +738,90 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Upload className="w-5 h-5" />
-          数据导入处理
-        </CardTitle>
-        <CardDescription>
-          配置导入参数，执行数据导入，监控导入进度
-        </CardDescription>
-      </CardHeader>
+    <>
+      {/* 考试信息确认对话框 */}
+      <Dialog open={showExamDialog} onOpenChange={setShowExamDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>确认考试信息</DialogTitle>
+            <DialogDescription>
+              请确认或修改考试信息，确保数据导入的准确性
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="exam-title">考试标题</Label>
+              <Input
+                id="exam-title"
+                value={tempExamInfo.title}
+                onChange={(e) => setTempExamInfo(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="请输入考试标题"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="exam-type">考试类型</Label>
+              <Select
+                value={tempExamInfo.type}
+                onValueChange={(value) => setTempExamInfo(prev => ({ ...prev, type: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="选择考试类型" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="月考">月考</SelectItem>
+                  <SelectItem value="期中考试">期中考试</SelectItem>
+                  <SelectItem value="期末考试">期末考试</SelectItem>
+                  <SelectItem value="模拟考试">模拟考试</SelectItem>
+                  <SelectItem value="单元测试">单元测试</SelectItem>
+                  <SelectItem value="其他">其他</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="exam-date">考试日期</Label>
+              <Input
+                id="exam-date"
+                type="date"
+                value={tempExamInfo.date}
+                onChange={(e) => setTempExamInfo(prev => ({ ...prev, date: e.target.value }))}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="exam-subject">科目 (可选)</Label>
+              <Input
+                id="exam-subject"
+                value={tempExamInfo.subject}
+                onChange={(e) => setTempExamInfo(prev => ({ ...prev, subject: e.target.value }))}
+                placeholder="如果是单科考试，请输入科目名称"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowExamDialog(false)}>
+              取消
+            </Button>
+            <Button onClick={executeImport}>
+              确认并开始导入
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Upload className="w-5 h-5" />
+            数据导入处理
+          </CardTitle>
+          <CardDescription>
+            配置导入参数，执行数据导入，监控导入进度
+          </CardDescription>
+        </CardHeader>
       
       <CardContent className="space-y-6">
         {/* 导入概览 */}
@@ -606,7 +830,7 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
             <div className="flex items-center gap-2">
               <Database className="w-5 h-5 text-blue-600" />
               <div>
-                <p className="text-2xl font-bold">{validData.length}</p>
+                <p className="text-2xl font-bold">{validData ? validData.length : 0}</p>
                 <p className="text-sm text-gray-600">待导入记录</p>
               </div>
             </div>
@@ -958,7 +1182,7 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
             {!importing && !importResult && (
               <Button
                 onClick={startImport}
-                disabled={validData.length === 0 || loading}
+                disabled={!validData || validData.length === 0 || loading}
               >
                 <PlayCircle className="w-4 h-4 mr-2" />
                 开始导入
@@ -1005,6 +1229,7 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
         </div>
       </CardContent>
     </Card>
+    </>
   );
 };
 

@@ -114,9 +114,9 @@ export const OptimizedGradeDataTable: React.FC<OptimizedGradeDataTableProps> = (
   const [currentPage, setCurrentPage] = useState(1);
   const [filters, setFilters] = useState<FilterOptions>({
     search: '',
-    classFilter: '',
-    subjectFilter: '',
-    examFilter: examId || '',
+    classFilter: '__all_classes__',
+    subjectFilter: '__all_subjects__',
+    examFilter: examId || '__all_exams__',
     scoreRange: [0, 100]
   });
 
@@ -153,8 +153,8 @@ export const OptimizedGradeDataTable: React.FC<OptimizedGradeDataTableProps> = (
       const { data, error, count } = await DatabaseOptimizer.getGradeDataPaginated(
         currentPage,
         pageSize,
-        filters.examFilter || undefined,
-        filters.classFilter || undefined
+        filters.examFilter && filters.examFilter !== '__all_exams__' ? filters.examFilter : undefined,
+        filters.classFilter && filters.classFilter !== '__all_classes__' ? filters.classFilter : undefined
       );
 
       if (error) throw error;
@@ -169,7 +169,7 @@ export const OptimizedGradeDataTable: React.FC<OptimizedGradeDataTableProps> = (
       }
 
       // 科目过滤
-      if (filters.subjectFilter) {
+      if (filters.subjectFilter && filters.subjectFilter !== '__all_subjects__') {
         filteredData = filteredData.filter(item => item.subject === filters.subjectFilter);
       }
 
@@ -322,9 +322,9 @@ export const OptimizedGradeDataTable: React.FC<OptimizedGradeDataTableProps> = (
   const handleReset = useCallback(() => {
     setFilters({
       search: '',
-      classFilter: '',
-      subjectFilter: '',
-      examFilter: examId || '',
+      classFilter: '__all_classes__',
+      subjectFilter: '__all_subjects__',
+      examFilter: examId || '__all_exams__',
       scoreRange: [0, 100]
     });
     setCurrentPage(1);
@@ -443,7 +443,7 @@ export const OptimizedGradeDataTable: React.FC<OptimizedGradeDataTableProps> = (
               <SelectValue placeholder="选择班级" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">所有班级</SelectItem>
+                              <SelectItem value="__all_classes__">所有班级</SelectItem>
               {filterOptions?.classes?.map(cls => (
                 <SelectItem key={cls} value={cls}>{cls}</SelectItem>
               ))}
@@ -458,7 +458,7 @@ export const OptimizedGradeDataTable: React.FC<OptimizedGradeDataTableProps> = (
               <SelectValue placeholder="选择科目" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">所有科目</SelectItem>
+                              <SelectItem value="__all_subjects__">所有科目</SelectItem>
               {filterOptions?.subjects?.map(subject => (
                 <SelectItem key={subject} value={subject}>{subject}</SelectItem>
               ))}
@@ -473,7 +473,7 @@ export const OptimizedGradeDataTable: React.FC<OptimizedGradeDataTableProps> = (
               <SelectValue placeholder="选择考试" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">所有考试</SelectItem>
+                              <SelectItem value="__all_exams__">所有考试</SelectItem>
               {filterOptions?.exams?.map(exam => (
                 <SelectItem key={exam.id} value={exam.id}>{exam.title}</SelectItem>
               ))}

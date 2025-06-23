@@ -20,7 +20,8 @@ import {
   Loader2,
   FileCheck,
   Users,
-  BookOpen
+  BookOpen,
+  Upload
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { 
@@ -32,6 +33,7 @@ import {
   StudentMatchResult 
 } from '../types';
 import { enhancedStudentMatcher } from '@/services/enhancedStudentMatcher';
+import { convertWideToLongFormatEnhanced } from '@/services/intelligentFieldMapper';
 import { gradeSchema } from '../types';
 
 // 数据验证配置接口
@@ -42,6 +44,9 @@ export interface ValidationConfig {
   validateDuplicates: boolean;
   validateStudentMatch: boolean;
   requireScores: boolean;
+  requireStudentId: boolean;        // 新增：是否要求学号
+  autoGenerateStudentId: boolean;   // 新增：自动生成学号
+  allowShortStudentId: boolean;     // 新增：允许短学号
 }
 
 // DataValidator 组件属性
@@ -70,7 +75,10 @@ const DataValidator: React.FC<DataValidatorProps> = ({
     maxErrors: 100,
     validateDuplicates: true,
     validateStudentMatch: true,
-    requireScores: false
+    requireScores: false,
+    requireStudentId: false,        // 默认不要求学号
+    autoGenerateStudentId: true,    // 默认自动生成学号
+    allowShortStudentId: true       // 默认允许短学号
   });
   const [previewData, setPreviewData] = useState<any[]>([]);
   const [studentMatches, setStudentMatches] = useState<Record<string, StudentMatchResult>>({});
@@ -78,7 +86,7 @@ const DataValidator: React.FC<DataValidatorProps> = ({
 
   // 执行数据验证
   useEffect(() => {
-    if (data.length > 0 && mappingConfig.fieldMappings) {
+    if (data && data.length > 0 && mappingConfig && mappingConfig.fieldMappings) {
       performValidation();
     }
   }, [data, mappingConfig, validationConfig]);
@@ -124,6 +132,11 @@ const DataValidator: React.FC<DataValidatorProps> = ({
     let errorRows = 0;
     let warningRows = 0;
     
+    // 安全检查
+    if (!data || !Array.isArray(data)) {
+      throw new Error('数据无效或为空');
+    }
+    
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
       const rowNumber = i + 1;
@@ -132,18 +145,26 @@ const DataValidator: React.FC<DataValidatorProps> = ({
       
       // 映射数据到系统字段
       const mappedRow: any = {};
+      if (mappingConfig && mappingConfig.fieldMappings) {
       Object.entries(mappingConfig.fieldMappings).forEach(([originalField, mappedField]) => {
         mappedRow[mappedField] = row[originalField];
       });
+      }
       
       // 补充考试信息
+      if (examInfo) {
       mappedRow.exam_title = examInfo.title;
       mappedRow.exam_type = examInfo.type;
       mappedRow.exam_date = examInfo.date;
+      }
       
       try {
-        // 验证必需字段
-        const requiredFields = ['student_id', 'name', 'class_name'];
+        // 验证必需字段 - 根据配置决定是否要求学号
+        const requiredFields = ['name', 'class_name'];
+        if (validationConfig.requireStudentId) {
+          requiredFields.push('student_id');
+        }
+        
         requiredFields.forEach(field => {
           const value = mappedRow[field];
           if (!value || String(value).trim() === '') {
@@ -157,6 +178,38 @@ const DataValidator: React.FC<DataValidatorProps> = ({
             hasError = true;
           }
         });
+        
+        // 处理学号 - 如果没有学号且启用自动生成
+        if (!mappedRow.student_id || String(mappedRow.student_id).trim() === '') {
+          if (validationConfig.autoGenerateStudentId) {
+            // 生成临时学号：temp_行号_时间戳后4位
+            const timestamp = Date.now().toString().slice(-4);
+            mappedRow.student_id = `temp_${rowNumber}_${timestamp}`;
+            warnings.push({
+              row: rowNumber,
+              field: 'student_id',
+              value: mappedRow.student_id,
+              warning: '已自动生成临时学号',
+              suggestion: '建议后续更新为正式学号'
+            });
+            hasWarning = true;
+          } else if (!validationConfig.requireStudentId) {
+            // 如果不要求学号，生成一个基于姓名和班级的临时学号
+            const name = String(mappedRow.name || '').trim();
+            const className = String(mappedRow.class_name || '').trim();
+            if (name && className) {
+              mappedRow.student_id = `${className}_${name}_${rowNumber}`;
+              warnings.push({
+                row: rowNumber,
+                field: 'student_id',
+                value: mappedRow.student_id,
+                warning: '已基于姓名和班级生成临时学号',
+                suggestion: '建议后续更新为正式学号'
+              });
+              hasWarning = true;
+            }
+          }
+        }
         
         // 验证分数字段
         if (mappedRow.score !== undefined && mappedRow.score !== null && mappedRow.score !== '') {
@@ -216,16 +269,16 @@ const DataValidator: React.FC<DataValidatorProps> = ({
           }
         }
         
-        // 验证学号格式
+        // 验证学号格式 - 根据配置决定是否允许短学号
         if (mappedRow.student_id) {
           const studentId = String(mappedRow.student_id).trim();
-          if (studentId.length < 3) {
+          if (studentId.length < 3 && !validationConfig.allowShortStudentId) {
             warnings.push({
               row: rowNumber,
               field: 'student_id',
               value: studentId,
               warning: '学号长度较短',
-              suggestion: '确认学号格式是否正确'
+              suggestion: '确认学号格式是否正确，或在验证设置中允许短学号'
             });
             hasWarning = true;
           }
@@ -312,18 +365,83 @@ const DataValidator: React.FC<DataValidatorProps> = ({
 
   // 处理数据用于预览
   const processDataForPreview = async (): Promise<any[]> => {
+    if (!data || !Array.isArray(data)) {
+      return [];
+    }
+    
+    // 检查是否为宽表格格式
+    const isWideTable = mappingConfig?.wideTableFormat?.detected && mappingConfig?.headerAnalysis;
+    
+    if (isWideTable && mappingConfig.headerAnalysis) {
+      // 宽表格转长表格处理
+      console.log('[数据验证] 检测到宽表格，开始转换为长表格格式');
+      
+      const allRecords: any[] = [];
+      
+      data.forEach((row, index) => {
+        try {
+          const longFormatRecords = convertWideToLongFormatEnhanced(
+            row,
+            mappingConfig.headerAnalysis!,
+            {
+              title: examInfo.title,
+              type: examInfo.type,
+              date: examInfo.date,
+              exam_id: examInfo.exam_id || `exam_${Date.now()}`
+            }
+          );
+          
+          // 为每条记录添加行索引
+          longFormatRecords.forEach((record, recordIndex) => {
+            allRecords.push({
+              ...record,
+              _rowIndex: `${index + 1}-${recordIndex + 1}`,
+              _originalRowIndex: index + 1
+            });
+          });
+          
+        } catch (error) {
+          console.error(`[数据验证] 第${index + 1}行转换失败:`, error);
+          // 转换失败时，使用原始映射方式
+          const mappedRow: any = { 
+            _rowIndex: index + 1,
+            _originalRowIndex: index + 1,
+            _conversionError: error.message
+          };
+          
+          if (mappingConfig.fieldMappings) {
+            Object.entries(mappingConfig.fieldMappings).forEach(([originalField, mappedField]) => {
+              mappedRow[mappedField] = row[originalField];
+            });
+          }
+          
+          allRecords.push(mappedRow);
+        }
+      });
+      
+      console.log(`[数据验证] 宽表转长表完成: ${data.length}行 → ${allRecords.length}条记录`);
+      return allRecords;
+      
+    } else {
+      // 普通表格处理（原有逻辑）
+      console.log('[数据验证] 使用普通表格映射模式');
+      
     return data.map((row, index) => {
       const mappedRow: any = { _rowIndex: index + 1 };
       
       // 映射字段
+        if (mappingConfig && mappingConfig.fieldMappings) {
       Object.entries(mappingConfig.fieldMappings).forEach(([originalField, mappedField]) => {
         mappedRow[mappedField] = row[originalField];
       });
+        }
       
       // 添加考试信息
+        if (examInfo) {
       mappedRow.exam_title = examInfo.title;
       mappedRow.exam_type = examInfo.type;
       mappedRow.exam_date = examInfo.date;
+        }
       
       // 处理分数
       if (mappedRow.score) {
@@ -335,6 +453,7 @@ const DataValidator: React.FC<DataValidatorProps> = ({
       
       return mappedRow;
     });
+    }
   };
 
   // 执行学生匹配
@@ -349,7 +468,7 @@ const DataValidator: React.FC<DataValidatorProps> = ({
       };
       
       try {
-        const matchResult = await enhancedStudentMatcher.matchStudent(studentInfo);
+        const matchResult = await enhancedStudentMatcher.matchSingleStudent(studentInfo);
         matches[`${row.student_id}_${row.name}`] = matchResult;
       } catch (error) {
         console.error('学生匹配失败:', error);
@@ -459,7 +578,51 @@ const DataValidator: React.FC<DataValidatorProps> = ({
 
         {/* 验证配置 */}
         <Card className="p-4 bg-gray-50">
-          <h4 className="font-medium mb-3">验证配置</h4>
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="font-medium">验证配置</h4>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setValidationConfig({
+                    strictMode: false,
+                    skipInvalidRows: true,
+                    maxErrors: 100,
+                    validateDuplicates: false,
+                    validateStudentMatch: false,
+                    requireScores: false,
+                    requireStudentId: false,
+                    autoGenerateStudentId: true,
+                    allowShortStudentId: true
+                  });
+                  toast.success('已切换到宽松模式');
+                }}
+              >
+                宽松模式
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setValidationConfig({
+                    strictMode: true,
+                    skipInvalidRows: false,
+                    maxErrors: 50,
+                    validateDuplicates: true,
+                    validateStudentMatch: true,
+                    requireScores: true,
+                    requireStudentId: true,
+                    autoGenerateStudentId: false,
+                    allowShortStudentId: false
+                  });
+                  toast.success('已切换到严格模式');
+                }}
+              >
+                严格模式
+              </Button>
+            </div>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div className="flex items-center space-x-2">
               <Switch
@@ -510,6 +673,46 @@ const DataValidator: React.FC<DataValidatorProps> = ({
               />
               <Label className="text-sm">必须有分数</Label>
             </div>
+            
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={validationConfig.requireStudentId}
+                onCheckedChange={(checked) => 
+                  setValidationConfig(prev => ({ ...prev, requireStudentId: checked }))
+                }
+              />
+              <Label className="text-sm">必须有学号</Label>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={validationConfig.autoGenerateStudentId}
+                onCheckedChange={(checked) => 
+                  setValidationConfig(prev => ({ ...prev, autoGenerateStudentId: checked }))
+                }
+              />
+              <Label className="text-sm">自动生成学号</Label>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={validationConfig.allowShortStudentId}
+                onCheckedChange={(checked) => 
+                  setValidationConfig(prev => ({ ...prev, allowShortStudentId: checked }))
+                }
+              />
+              <Label className="text-sm">允许短学号</Label>
+            </div>
+          </div>
+          
+          {/* 学号配置说明 */}
+          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+            <h5 className="text-sm font-medium text-blue-800 mb-2">学号配置说明</h5>
+            <ul className="text-xs text-blue-700 space-y-1">
+              <li>• <strong>必须有学号</strong>：开启后，没有学号的行将被标记为错误</li>
+              <li>• <strong>自动生成学号</strong>：为没有学号的行自动生成临时学号</li>
+              <li>• <strong>允许短学号</strong>：允许长度小于3位的学号（如：1、2、3）</li>
+            </ul>
           </div>
         </Card>
 
@@ -560,6 +763,28 @@ const DataValidator: React.FC<DataValidatorProps> = ({
                 </div>
               </Card>
             </div>
+            
+            {/* 准备导入的数据统计 */}
+            {validationResult && previewData.length > 0 && (
+              <Card className="p-4 bg-blue-50 border-blue-200">
+                <div className="flex items-center gap-2">
+                  <Upload className="w-5 h-5 text-blue-600" />
+                  <div>
+                    <p className="text-2xl font-bold text-blue-800">
+                      {validationConfig.skipInvalidRows 
+                        ? validationStats.validRows 
+                        : validationStats.totalRows}
+                    </p>
+                    <p className="text-sm text-blue-600">准备导入</p>
+                  </div>
+                </div>
+                <p className="text-xs text-blue-700 mt-2">
+                  {validationConfig.skipInvalidRows 
+                    ? '将跳过错误行，仅导入有效数据' 
+                    : '将导入所有数据（包括有错误的行）'}
+                </p>
+              </Card>
+            )}
             
             {/* 验证进度条 */}
             <div className="space-y-2">
@@ -851,14 +1076,31 @@ const DataValidator: React.FC<DataValidatorProps> = ({
             <Button
               onClick={() => {
                 if (validationResult && previewData.length > 0) {
+                  // 直接使用已经验证和处理过的数据，避免重新过滤
+                  // 这样可以避免缓存延迟和重复处理
                   const validData = previewData.filter((_, index) => {
                     const hasErrors = validationResult.errors.some(error => error.row === index + 1);
-                    return !hasErrors || !validationConfig.skipInvalidRows;
+                    // 如果启用跳过无效行，则过滤掉有错误的行
+                    // 否则保留所有行（包括有错误的行）
+                    return validationConfig.skipInvalidRows ? !hasErrors : true;
                   });
+                  
+                  console.log('确认验证结果 - 传递数据:', {
+                    originalCount: previewData.length,
+                    validCount: validData.length,
+                    errorCount: validationResult.errors.length,
+                    skipInvalidRows: validationConfig.skipInvalidRows
+                  });
+                  
+                  // 立即传递数据，不需要等待缓存
                   onValidationComplete(validationResult, validData);
+                  
+                  toast.success(`验证完成！准备导入 ${validData.length} 条记录`);
+                } else {
+                  toast.error('没有可用的验证数据，请重新验证');
                 }
               }}
-              disabled={!validationResult || validating || loading}
+              disabled={!validationResult || validating || loading || previewData.length === 0}
             >
               <CheckCircle className="w-4 h-4 mr-2" />
               确认验证结果

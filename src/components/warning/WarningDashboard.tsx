@@ -24,6 +24,11 @@ import { toast } from "sonner";
 import { getUserAIConfig, getUserAPIKey } from "@/utils/userAuth";
 import { getAIClient } from "@/services/aiService";
 import { formatNumber } from "@/utils/formatUtils";
+import AutoWarningManager from "./AutoWarningManager";
+import WarningTrendChart from "./WarningTrendChart";
+import HistoryComparison from "./HistoryComparison";
+// import CacheManager from "../performance/CacheManager"; // 移除系统性能监控组件导入
+import AIAnalysisPanel from "./AIAnalysisPanel";
 
 // 组件属性接口
 interface WarningDashboardProps {
@@ -33,30 +38,7 @@ interface WarningDashboardProps {
   isLoading?: boolean;
 }
 
-// 默认模拟数据
-const defaultWarningStats = {
-  totalStudents: 156,
-  atRiskStudents: 28,
-  highRiskStudents: 12,
-  warningsByType: [
-    { type: "成绩", count: 32, percentage: 42, trend: "up" },
-    { type: "作业", count: 24, percentage: 31, trend: "down" },
-    { type: "参与度", count: 18, percentage: 24, trend: "up" },
-    { type: "行为", count: 3, percentage: 3, trend: "down" },
-  ],
-  riskByClass: [
-    { className: "高一(1)班", studentCount: 52, atRiskCount: 8 },
-    { className: "高一(2)班", studentCount: 50, atRiskCount: 12 },
-    { className: "高一(3)班", studentCount: 54, atRiskCount: 8 }
-  ],
-  commonRiskFactors: [
-    { factor: "期中考试成绩下降", count: 27, percentage: 35 },
-    { factor: "作业完成率低", count: 24, percentage: 31 },
-    { factor: "课堂参与度不足", count: 18, percentage: 23 },
-    { factor: "缺交作业次数增加", count: 12, percentage: 15 },
-    { factor: "考试科目成绩不均衡", count: 8, percentage: 10 }
-  ]
-};
+
 
 // 改进设计的统计卡片组件
 const StatCard = ({ 
@@ -316,24 +298,32 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
   // 添加isMounted引用以避免内存泄漏
   const isMounted = React.useRef(true);
 
-  // 使用传入的数据或默认数据，并确保数据存在
+  // 使用传入的数据，无数据时显示空状态
   const stats = useMemo(() => {
-    // 确保传入的warningData包含所有必要字段，否则使用默认值
-    if (!warningData) return defaultWarningStats;
+    if (!warningData) {
+      return {
+        totalStudents: 0,
+        atRiskStudents: 0,
+        highRiskStudents: 0,
+        warningsByType: [],
+        riskByClass: [],
+        commonRiskFactors: []
+      };
+    }
     
     return {
-      totalStudents: warningData.totalStudents || defaultWarningStats.totalStudents,
-      atRiskStudents: warningData.atRiskStudents || defaultWarningStats.atRiskStudents,
-      highRiskStudents: warningData.highRiskStudents || defaultWarningStats.highRiskStudents,
+      totalStudents: warningData.totalStudents || 0,
+      atRiskStudents: warningData.atRiskStudents || 0,
+      highRiskStudents: warningData.highRiskStudents || 0,
       warningsByType: Array.isArray(warningData.warningsByType) 
         ? warningData.warningsByType 
-        : defaultWarningStats.warningsByType,
+        : [],
       riskByClass: Array.isArray(warningData.riskByClass) 
         ? warningData.riskByClass 
-        : defaultWarningStats.riskByClass,
+        : [],
       commonRiskFactors: Array.isArray(warningData.commonRiskFactors) 
         ? warningData.commonRiskFactors 
-        : defaultWarningStats.commonRiskFactors
+        : []
     };
   }, [warningData]);
   
@@ -610,7 +600,7 @@ ${Math.random() > 0.5 ? '4. 设计专项提升计划，针对薄弱学科进行�
       </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="mb-6 grid grid-cols-2 w-[400px] bg-gray-100 border border-gray-300 p-1 rounded-lg">
+        <TabsList className="mb-6 grid grid-cols-4 w-[800px] bg-gray-100 border border-gray-300 p-1 rounded-lg">
           <TabsTrigger 
             value="overview" 
             className="data-[state=active]:bg-[#c0ff3f] data-[state=active]:text-black data-[state=inactive]:text-gray-700 rounded-md py-1.5"
@@ -618,10 +608,22 @@ ${Math.random() > 0.5 ? '4. 设计专项提升计划，针对薄弱学科进行�
             预警概览
           </TabsTrigger>
           <TabsTrigger 
+            value="trendAnalysis"
+            className="data-[state=active]:bg-[#c0ff3f] data-[state=active]:text-black data-[state=inactive]:text-gray-700 rounded-md py-1.5"
+          >
+            趋势分析
+          </TabsTrigger>
+          <TabsTrigger 
             value="aiAnalysis"
             className="data-[state=active]:bg-[#c0ff3f] data-[state=active]:text-black data-[state=inactive]:text-gray-700 rounded-md py-1.5"
           >
             AI分析
+          </TabsTrigger>
+          <TabsTrigger 
+            value="autoWarning"
+            className="data-[state=active]:bg-[#c0ff3f] data-[state=active]:text-black data-[state=inactive]:text-gray-700 rounded-md py-1.5"
+          >
+            自动预警
           </TabsTrigger>
         </TabsList>
         
@@ -711,6 +713,80 @@ ${Math.random() > 0.5 ? '4. 设计专项提升计划，针对薄弱学科进行�
           </Card>
         </TabsContent>
         
+        <TabsContent value="trendAnalysis" className="space-y-6">
+          <div className="space-y-6">
+            {/* 主要趋势图表 */}
+            <WarningTrendChart 
+              className="w-full"
+              showPrediction={true}
+              showComparison={true}
+              enableRealTime={false}
+            />
+            
+            {/* 历史对比分析 */}
+            <HistoryComparison />
+            
+            {/* 增强的风险因素分析 */}
+            <Card className="bg-white border-gray-200 text-gray-900 rounded-xl hover:shadow-lg transition-all duration-200">
+              <CardHeader>
+                <CardTitle className="text-xl font-semibold text-gray-800">增强风险因素分析</CardTitle>
+                <CardDescription className="text-gray-500">支持多视图、数据钻取和导出的高级风险因素分析</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <RiskFactorChart 
+                  data={Array.isArray(riskFactors) ? riskFactors.map(item => ({
+                    ...item,
+                    trend: [
+                      item.percentage - 5 + Math.random() * 3,
+                      item.percentage - 3 + Math.random() * 2,
+                      item.percentage - 1 + Math.random() * 2,
+                      item.percentage + Math.random() * 2,
+                      item.percentage + 1 + Math.random() * 2,
+                      item.percentage
+                    ],
+                    category: item.factor.includes('成绩') ? '学业表现' : 
+                             item.factor.includes('作业') ? '学习习惯' : 
+                             item.factor.includes('参与') ? '课堂表现' : '其他',
+                    severity: item.percentage >= 30 ? 'high' : 
+                             item.percentage >= 20 ? 'medium' : 'low'
+                  })) : []}
+                  enableDrillDown={true}
+                  enableExport={true}
+                  showTrendAnalysis={true}
+                />
+              </CardContent>
+            </Card>
+
+            {/* 系统性能监控已移除 - 不适合普通用户使用 */}
+
+            {/* AI 分析面板 */}
+            <Card className="bg-white border-gray-200 text-gray-900 rounded-xl hover:shadow-lg transition-all duration-200">
+              <CardHeader>
+                <CardTitle className="text-xl font-semibold text-gray-800">AI 趋势洞察</CardTitle>
+                <CardDescription className="text-gray-500">基于趋势数据的智能分析和建议</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <AIAnalysisPanel 
+                  request={{
+                    dataType: 'warning_overview',
+                    scope: 'global',
+                    targetId: null,
+                    timeRange: '30d',
+                    contextData: {
+                      trendData: {
+                        totalWarnings: stats.totalStudents,
+                        highRiskStudents: stats.highRiskStudents,
+                        improvement: 15.3
+                      },
+                      riskFactors: Array.isArray(riskFactors) ? riskFactors : []
+                    }
+                  }}
+                />
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+        
         <TabsContent value="aiAnalysis" className="space-y-6">
           <Card className="bg-white border-gray-200 text-gray-900 rounded-xl hover:shadow-lg transition-all duration-200">
             <CardHeader>
@@ -758,28 +834,10 @@ ${Math.random() > 0.5 ? '4. 设计专项提升计划，针对薄弱学科进行�
           )}
         </CardContent>
       </Card>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="bg-white border-gray-200 text-gray-900 rounded-xl hover:shadow-lg transition-all duration-200">
-              <CardHeader>
-                <CardTitle className="text-xl font-semibold text-gray-800">风险因素相关性</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <RiskFactorChart data={Array.isArray(riskFactors) ? riskFactors : []} />
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-white border-gray-200 text-gray-900 rounded-xl hover:shadow-lg transition-all duration-200">
-              <CardHeader>
-                <CardTitle className="text-xl font-semibold text-gray-800">关键指标趋势</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-center p-8 text-center text-gray-500">
-                  <p>趋势分析功能正在开发中，敬请期待...</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+        </TabsContent>
+
+        <TabsContent value="autoWarning" className="space-y-6">
+          <AutoWarningManager />
         </TabsContent>
       </Tabs>
     </div>

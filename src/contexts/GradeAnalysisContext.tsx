@@ -6,6 +6,7 @@ import {
   GradeFilter,
   Subject 
 } from "@/types/grade";
+import { supabase } from "@/integrations/supabase/client";
 
 // 图表数据接口
 export interface ChartData {
@@ -227,37 +228,30 @@ export const GradeAnalysisProvider: React.FC<{ children: ReactNode }> = ({ child
   const loadExamList = async () => {
     setLoading(true);
     try {
-      // 模拟API调用，需要替换为实际后端调用
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // 从 Supabase 获取真实考试数据
+      const { data: examData, error } = await supabase
+        .from('exams')
+        .select('*')
+        .order('date', { ascending: false });
+
+      if (error) {
+        console.error('获取考试列表失败:', error);
+        throw error;
+      }
+
+      const exams: ExamInfo[] = examData?.map(exam => ({
+        id: exam.id,
+        name: exam.title,
+        type: exam.type,
+        date: exam.date,
+        subjects: [Subject.TOTAL, Subject.CHINESE, Subject.MATH] // 根据实际需要调整
+      })) || [];
       
-      // 模拟数据
-      const mockExams: ExamInfo[] = [
-        { 
-          id: '1', 
-          name: '期中考试', 
-          type: '期中', 
-          date: '2023-10-15', 
-          subjects: [Subject.TOTAL, Subject.CHINESE, Subject.MATH] 
-        },
-        { 
-          id: '2', 
-          name: '月考', 
-          type: '月考', 
-          date: '2023-09-20', 
-          subjects: [Subject.TOTAL, Subject.CHINESE, Subject.MATH] 
-        },
-        { 
-          id: '3', 
-          name: '单元测试', 
-          type: '单元', 
-          date: '2023-08-25', 
-          subjects: [Subject.CHINESE] 
-        }
-      ];
-      
-      setExamList(mockExams);
-      if (mockExams.length > 0) {
-        setCurrentExam(mockExams[0]);
+      setExamList(exams);
+      if (exams.length > 0) {
+        setCurrentExam(exams[0]);
+        // 自动加载第一个考试的数据
+        await loadExamData(exams[0].id);
       }
     } catch (error) {
       console.error('获取考试列表失败:', error);
@@ -269,21 +263,38 @@ export const GradeAnalysisProvider: React.FC<{ children: ReactNode }> = ({ child
   const loadExamData = async (examId: string) => {
     setLoading(true);
     try {
-      // 模拟API调用，需要替换为实际后端调用
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      console.log('正在加载考试数据, examId:', examId);
       
-      // 模拟数据
-      const mockGradeData: GradeRecord[] = Array(30).fill(null).map((_, index) => ({
-        id: `s${index + 1}`,
-        student_id: `S${10000 + index}`,
-        student_name: `学生${index + 1}`,
-        class_name: `班级${Math.floor(index / 10) + 1}`,
-        subject: Subject.TOTAL,
-        score: Math.floor(60 + Math.random() * 40),
-        exam_id: examId
-      }));
+      // 从 Supabase 获取真实成绩数据
+      const { data: gradeDataFromDB, error } = await supabase
+        .from('grade_data')
+        .select('*')
+        .eq('exam_id', examId);
+
+      if (error) {
+        console.error('获取成绩数据失败:', error);
+        throw error;
+      }
+
+      console.log('获取到的成绩数据:', gradeDataFromDB);
+
+      // 转换数据格式以匹配 GradeRecord 接口
+      const gradeRecords: GradeRecord[] = gradeDataFromDB?.map(record => ({
+        id: record.id,
+        student_id: record.student_id,
+        student_name: record.name,
+        class_name: record.class_name || '未分班',
+        subject: record.subject || Subject.TOTAL,
+        score: record.score || 0,
+        exam_id: record.exam_id,
+        grade_level: record.grade_level,
+        rank_in_class: record.rank_in_class,
+        rank_in_grade: record.rank_in_grade
+      })) || [];
       
-      setExamData(mockGradeData);
+      console.log('转换后的成绩记录:', gradeRecords);
+      setExamData(gradeRecords);
+      setGradeData(gradeRecords); // 同时更新主要的成绩数据
     } catch (error) {
       console.error('获取成绩数据失败:', error);
     } finally {

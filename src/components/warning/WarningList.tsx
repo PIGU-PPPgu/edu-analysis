@@ -6,12 +6,29 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, Filter, AlertTriangle, RefreshCw, ChevronRight, ArrowRight, ExternalLink } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { 
+  Search, Filter, AlertTriangle, RefreshCw, ChevronRight, ArrowRight, ExternalLink,
+  ArrowUpDown, Calendar, Clock, CheckCircle, XCircle, MoreHorizontal, History
+} from "lucide-react";
 import { toast } from "sonner";
 
 // 导入学生画像组件
 import StudentWarningProfile from "./StudentWarningProfile";
 import { getWarningRecords, WarningRecord, updateWarningStatus } from "@/services/warningService";
+
+// 新增：排序选项类型
+type SortOption = 'created_at' | 'severity' | 'student_name' | 'status';
+type SortDirection = 'asc' | 'desc';
+
+// 新增：批量操作状态
+interface BatchOperationState {
+  selectedIds: Set<string>;
+  isSelectAll: boolean;
+  showBatchModal: boolean;
+  batchAction: 'resolve' | 'dismiss' | 'reactivate' | null;
+}
 
 const WarningBadge = ({ level }: { level: string }) => {
   const colorMap: Record<string, string> = {
@@ -67,9 +84,21 @@ const WarningList: React.FC<WarningListProps> = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [filterClass, setFilterClass] = useState("all");
   const [filterLevel, setFilterLevel] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all"); // 新增：状态筛选
+  const [filterDateRange, setFilterDateRange] = useState("all"); // 新增：时间范围筛选
+  const [sortBy, setSortBy] = useState<SortOption>('created_at'); // 新增：排序字段
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc'); // 新增：排序方向
   const [isLoading, setIsLoading] = useState(false);
   const [warningRecords, setWarningRecords] = useState<WarningRecord[]>([]);
   const [classOptions, setClassOptions] = useState<{value: string, label: string}[]>([]);
+  
+  // 新增：批量操作状态
+  const [batchState, setBatchState] = useState<BatchOperationState>({
+    selectedIds: new Set(),
+    isSelectAll: false,
+    showBatchModal: false,
+    batchAction: null
+  });
   
   // 新增状态用于学生画像模态框
   const [selectedStudentUuid, setSelectedStudentUuid] = useState<string | null>(null);
@@ -101,7 +130,7 @@ const WarningList: React.FC<WarningListProps> = ({
     
     try {
       setIsLoading(true);
-      const records = await getWarningRecords(true);
+      const records = await getWarningRecords();
       
       if (isMounted.current) {
         setWarningRecords(records);
@@ -166,10 +195,83 @@ const WarningList: React.FC<WarningListProps> = ({
   // 处理刷新
   const handleRefresh = () => {
     fetchWarningRecords();
+    // 清空批量选择
+    setBatchState(prev => ({
+      ...prev,
+      selectedIds: new Set(),
+      isSelectAll: false
+    }));
+  };
+
+  // 新增：处理排序
+  const handleSort = (field: SortOption) => {
+    if (sortBy === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortDirection('desc');
+    }
+  };
+
+  // 新增：获取排序后的数据
+  const getSortedData = (data: WarningRecord[]) => {
+    return [...data].sort((a, b) => {
+      let aValue: any, bValue: any;
+      
+      switch (sortBy) {
+        case 'created_at':
+          aValue = new Date(a.created_at).getTime();
+          bValue = new Date(b.created_at).getTime();
+          break;
+        case 'severity':
+          const severityOrder = { high: 3, medium: 2, low: 1 };
+          aValue = severityOrder[a.rule?.severity as keyof typeof severityOrder] || 0;
+          bValue = severityOrder[b.rule?.severity as keyof typeof severityOrder] || 0;
+          break;
+        case 'student_name':
+          aValue = a.student?.name || '';
+          bValue = b.student?.name || '';
+          break;
+        case 'status':
+          const statusOrder = { active: 3, resolved: 2, dismissed: 1 };
+          aValue = statusOrder[a.status as keyof typeof statusOrder] || 0;
+          bValue = statusOrder[b.status as keyof typeof statusOrder] || 0;
+          break;
+        default:
+          return 0;
+      }
+      
+      if (sortDirection === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+  };
+
+  // 新增：时间范围过滤
+  const filterByDateRange = (record: WarningRecord) => {
+    if (filterDateRange === 'all') return true;
+    
+    const recordDate = new Date(record.created_at);
+    const now = new Date();
+    
+    switch (filterDateRange) {
+      case 'today':
+        return recordDate.toDateString() === now.toDateString();
+      case 'week':
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        return recordDate >= weekAgo;
+      case 'month':
+        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        return recordDate >= monthAgo;
+      default:
+        return true;
+    }
   };
   
   // 过滤逻辑
-  const filteredWarnings = warningRecords.filter(record => {
+  const filteredWarnings = getSortedData(warningRecords.filter(record => {
     // 搜索名字
     const matchesSearch = record.student?.name?.includes(searchTerm) || 
                          record.student?.student_id?.includes(searchTerm) ||
@@ -181,11 +283,97 @@ const WarningList: React.FC<WarningListProps> = ({
     // 过滤风险等级
     const matchesLevel = filterLevel === "all" || (record.rule?.severity || 'medium') === filterLevel;
     
-    return matchesSearch && matchesClass && matchesLevel;
-  });
+    // 新增：过滤状态
+    const matchesStatus = filterStatus === "all" || record.status === filterStatus;
+    
+    // 新增：过滤时间范围
+    const matchesDateRange = filterByDateRange(record);
+    
+    return matchesSearch && matchesClass && matchesLevel && matchesStatus && matchesDateRange;
+  }));
 
   // 应用限制条数
   const displayedWarnings = limit ? filteredWarnings.slice(0, limit) : filteredWarnings;
+
+  // 新增：批量选择处理
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = new Set(displayedWarnings.map(record => record.id));
+      setBatchState(prev => ({
+        ...prev,
+        selectedIds: allIds,
+        isSelectAll: true
+      }));
+    } else {
+      setBatchState(prev => ({
+        ...prev,
+        selectedIds: new Set(),
+        isSelectAll: false
+      }));
+    }
+  };
+
+  const handleSelectRecord = (recordId: string, checked: boolean) => {
+    setBatchState(prev => {
+      const newSelectedIds = new Set(prev.selectedIds);
+      if (checked) {
+        newSelectedIds.add(recordId);
+      } else {
+        newSelectedIds.delete(recordId);
+      }
+      
+      return {
+        ...prev,
+        selectedIds: newSelectedIds,
+        isSelectAll: newSelectedIds.size === displayedWarnings.length
+      };
+    });
+  };
+
+  // 新增：批量操作处理
+  const handleBatchAction = (action: 'resolve' | 'dismiss' | 'reactivate') => {
+    setBatchState(prev => ({
+      ...prev,
+      batchAction: action,
+      showBatchModal: true
+    }));
+  };
+
+  const executeBatchAction = async () => {
+    if (!batchState.batchAction) return;
+    
+    try {
+      const promises = Array.from(batchState.selectedIds).map(id => 
+        updateWarningStatus(id, batchState.batchAction!)
+      );
+      
+      await Promise.all(promises);
+      
+      // 更新本地状态
+      setWarningRecords(prev => 
+        prev.map(record => 
+          batchState.selectedIds.has(record.id) 
+            ? { ...record, status: batchState.batchAction! }
+            : record
+        )
+      );
+      
+      const actionText = batchState.batchAction === 'resolve' ? '解决' : 
+                        batchState.batchAction === 'dismiss' ? '忽略' : '重新激活';
+      toast.success(`批量${actionText}操作完成，共处理 ${batchState.selectedIds.size} 条预警`);
+      
+      // 清空选择
+      setBatchState({
+        selectedIds: new Set(),
+        isSelectAll: false,
+        showBatchModal: false,
+        batchAction: null
+      });
+    } catch (error) {
+      console.error('批量操作失败:', error);
+      toast.error('批量操作失败');
+    }
+  };
 
   // 格式化警告类型
   const getWarningTypes = (record: WarningRecord): string[] => {
@@ -323,63 +511,149 @@ const WarningList: React.FC<WarningListProps> = ({
             <CardTitle className="text-xl font-semibold flex items-center">
               <AlertTriangle className="h-5 w-5 text-amber-500 mr-2" />
               学生预警列表
+              {batchState.selectedIds.size > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  已选择 {batchState.selectedIds.size} 项
+                </Badge>
+              )}
             </CardTitle>
             <CardDescription>
-              显示所有具有预警状态的学生，可根据班级、风险等级和姓名进行筛选
+              显示所有具有预警状态的学生，可根据多种条件进行筛选和排序
             </CardDescription>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleRefresh}
-            disabled={isLoading}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            刷新
-          </Button>
+          <div className="flex items-center space-x-2">
+            {/* 批量操作按钮 */}
+            {batchState.selectedIds.size > 0 && (
+              <>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleBatchAction('resolve')}
+                  className="text-green-600 border-green-200 hover:bg-green-50"
+                >
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  批量解决
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleBatchAction('dismiss')}
+                  className="text-gray-600 border-gray-200 hover:bg-gray-50"
+                >
+                  <XCircle className="h-4 w-4 mr-1" />
+                  批量忽略
+                </Button>
+              </>
+            )}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRefresh}
+              disabled={isLoading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              刷新
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
-        {/* 筛选工具栏 */}
-        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 mb-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="搜索学生姓名或学号..."
-              className="pl-8"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+        {/* 增强的筛选工具栏 */}
+        <div className="space-y-3 mb-4">
+          {/* 第一行：搜索和基础筛选 */}
+          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+            <div className="flex-1 relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="搜索学生姓名或学号..."
+                className="pl-8"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="flex space-x-2">
+              <Select value={filterClass} onValueChange={setFilterClass}>
+                <SelectTrigger className="w-[140px]">
+                  <div className="flex items-center">
+                    <Filter className="mr-2 h-4 w-4" />
+                    <SelectValue placeholder="班级" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {classOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={filterLevel} onValueChange={setFilterLevel}>
+                <SelectTrigger className="w-[120px]">
+                  <div className="flex items-center">
+                    <AlertTriangle className="mr-2 h-4 w-4" />
+                    <SelectValue placeholder="风险级别" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">所有风险</SelectItem>
+                  <SelectItem value="high">高风险</SelectItem>
+                  <SelectItem value="medium">中风险</SelectItem>
+                  <SelectItem value="low">低风险</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div className="flex space-x-2">
-            <Select value={filterClass} onValueChange={setFilterClass}>
-              <SelectTrigger className="w-[140px]">
-                <div className="flex items-center">
-                  <Filter className="mr-2 h-4 w-4" />
-                  <SelectValue placeholder="班级" />
-                </div>
+
+          {/* 第二行：状态筛选、时间筛选和排序 */}
+          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="状态" />
               </SelectTrigger>
               <SelectContent>
-                {classOptions.map(option => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
+                <SelectItem value="all">所有状态</SelectItem>
+                <SelectItem value="active">未处理</SelectItem>
+                <SelectItem value="resolved">已解决</SelectItem>
+                <SelectItem value="dismissed">已忽略</SelectItem>
               </SelectContent>
             </Select>
 
-            <Select value={filterLevel} onValueChange={setFilterLevel}>
+            <Select value={filterDateRange} onValueChange={setFilterDateRange}>
               <SelectTrigger className="w-[120px]">
                 <div className="flex items-center">
-                  <AlertTriangle className="mr-2 h-4 w-4" />
-                  <SelectValue placeholder="风险级别" />
+                  <Calendar className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="时间范围" />
                 </div>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">所有风险</SelectItem>
-                <SelectItem value="high">高风险</SelectItem>
-                <SelectItem value="medium">中风险</SelectItem>
-                <SelectItem value="low">低风险</SelectItem>
+                <SelectItem value="all">所有时间</SelectItem>
+                <SelectItem value="today">今天</SelectItem>
+                <SelectItem value="week">最近一周</SelectItem>
+                <SelectItem value="month">最近一月</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={`${sortBy}-${sortDirection}`} onValueChange={(value) => {
+              const [field, direction] = value.split('-') as [SortOption, SortDirection];
+              setSortBy(field);
+              setSortDirection(direction);
+            }}>
+              <SelectTrigger className="w-[140px]">
+                <div className="flex items-center">
+                  <ArrowUpDown className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="排序" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="created_at-desc">时间↓</SelectItem>
+                <SelectItem value="created_at-asc">时间↑</SelectItem>
+                <SelectItem value="severity-desc">风险↓</SelectItem>
+                <SelectItem value="severity-asc">风险↑</SelectItem>
+                <SelectItem value="student_name-asc">姓名A-Z</SelectItem>
+                <SelectItem value="student_name-desc">姓名Z-A</SelectItem>
+                <SelectItem value="status-desc">状态↓</SelectItem>
+                <SelectItem value="status-asc">状态↑</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -401,6 +675,13 @@ const WarningList: React.FC<WarningListProps> = ({
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={batchState.isSelectAll}
+                      onCheckedChange={handleSelectAll}
+                      aria-label="选择全部"
+                    />
+                  </TableHead>
                   <TableHead>学生</TableHead>
                   <TableHead>预警类型</TableHead>
                   <TableHead>风险级别</TableHead>
@@ -413,6 +694,13 @@ const WarningList: React.FC<WarningListProps> = ({
               <TableBody>
                 {displayedWarnings.map((record) => (
                   <TableRow key={record.id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={batchState.selectedIds.has(record.id)}
+                        onCheckedChange={(checked) => handleSelectRecord(record.id, checked as boolean)}
+                        aria-label={`选择 ${record.student?.name || '学生'}`}
+                      />
+                    </TableCell>
                     <TableCell>
                       <div 
                         className="flex items-center space-x-3 cursor-pointer" 
@@ -440,7 +728,10 @@ const WarningList: React.FC<WarningListProps> = ({
                       <WarningBadge level={record.rule?.severity || 'medium'} />
                     </TableCell>
                     <TableCell>
-                      {formatDate(record.created_at)}
+                      <div className="flex items-center text-sm">
+                        <Clock className="h-3 w-3 mr-1 text-gray-400" />
+                        {formatDate(record.created_at)}
+                      </div>
                     </TableCell>
                     <TableCell className="max-w-[200px]">
                       <p className="truncate text-sm" title={getWarningDetails(record)}>
@@ -455,7 +746,7 @@ const WarningList: React.FC<WarningListProps> = ({
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end space-x-2">
+                      <div className="flex justify-end space-x-1">
                         {record.status === 'active' ? (
                           <>
                             <Button 
@@ -511,6 +802,33 @@ const WarningList: React.FC<WarningListProps> = ({
           </div>
         )}
       </CardContent>
+      
+      {/* 批量操作确认对话框 */}
+      <Dialog open={batchState.showBatchModal} onOpenChange={(open) => 
+        setBatchState(prev => ({ ...prev, showBatchModal: open }))
+      }>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认批量操作</DialogTitle>
+            <DialogDescription>
+              您即将对 {batchState.selectedIds.size} 条预警记录执行
+              {batchState.batchAction === 'resolve' ? '解决' : 
+               batchState.batchAction === 'dismiss' ? '忽略' : '重新激活'}
+              操作，此操作不可撤销。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => 
+              setBatchState(prev => ({ ...prev, showBatchModal: false, batchAction: null }))
+            }>
+              取消
+            </Button>
+            <Button onClick={executeBatchAction}>
+              确认操作
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       {/* 学生画像模态框 */}
       {selectedStudentUuid && (

@@ -2,6 +2,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { ParsedFileResult, FieldType } from './intelligentFileParser';
 import { parseCSV } from '@/utils/fileParsingUtils';
 import * as XLSX from 'xlsx';
+// 导入AI服务相关功能
+import { getAIClient } from './aiService';
+import { getUserAIConfig, getUserAPIKey } from '@/utils/userAuth';
 
 // AI分析结果接口
 export interface AIAnalysisResult {
@@ -92,31 +95,72 @@ export class AIEnhancedFileParser {
   private async aiAnalyzeCompleteFile(request: AIFileAnalysisRequest): Promise<AIAnalysisResult> {
     console.log('[AIEnhancedFileParser] 🧠 开始AI全局分析...');
     
-    const prompt = this.buildComprehensivePrompt(request);
-    
-    const { data, error } = await supabase.functions.invoke('proxy-ai-request', {
-      body: {
-        messages: [
-          {
-            role: 'system',
-            content: this.getSystemPrompt()
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        model: 'gpt-4',  // 使用更强的模型
-        temperature: 0.1,
-        max_tokens: 2000
+    try {
+      // 1. 获取用户AI配置
+      const aiConfig = await getUserAIConfig();
+      if (!aiConfig || !aiConfig.enabled) {
+        throw new Error('AI分析功能未启用，请先在AI设置中配置并启用');
       }
-    });
-    
-    if (error) {
-      throw new Error(`AI分析失败: ${error.message}`);
+      
+      console.log(`[AIEnhancedFileParser] 📋 使用AI配置: ${aiConfig.provider} - ${aiConfig.version}`);
+      
+      // 2. 获取API密钥
+      const apiKey = await getUserAPIKey(aiConfig.provider);
+      if (!apiKey) {
+        throw new Error(`未找到${aiConfig.provider}的API密钥，请在AI设置中配置`);
+      }
+      
+             // 3. 创建AI客户端
+       const client = await getAIClient(aiConfig.provider, aiConfig.version, false);
+       if (!client) {
+         throw new Error(`无法创建${aiConfig.provider}的AI客户端，请检查配置`);
+       }
+      
+      console.log('[AIEnhancedFileParser] 🤖 AI客户端创建成功，开始分析...');
+      
+      // 4. 构建提示词
+      const systemPrompt = this.getSystemPrompt();
+      const userPrompt = this.buildComprehensivePrompt(request);
+      
+      // 5. 发送AI请求
+      let response;
+      if ('sendRequest' in client) {
+        // 使用GenericAIClient
+        response = await client.sendRequest([
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ], {
+          temperature: 0.1,
+          maxTokens: 2000
+        });
+      } else {
+        // 使用OpenAI原生客户端
+        response = await client.chat.completions.create({
+          model: aiConfig.version,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          temperature: 0.1,
+          max_tokens: 2000
+        });
+      }
+      
+      // 6. 解析AI响应
+      const content = response.choices[0]?.message?.content || '';
+      if (!content) {
+        throw new Error('AI返回内容为空');
+      }
+      
+      console.log('[AIEnhancedFileParser] ✅ AI分析完成，解析响应...');
+      console.log('[AIEnhancedFileParser] 📄 AI响应预览:', content.substring(0, 200) + '...');
+      
+      return this.parseAIAnalysisResponse(content);
+      
+    } catch (error) {
+      console.error('[AIEnhancedFileParser] ❌ AI分析过程出错:', error);
+      throw error;
     }
-    
-    return this.parseAIAnalysisResponse(data.content);
   }
   
   /**
@@ -361,7 +405,7 @@ ${this.formatSampleData(headers, sampleRows)}
     
     if (fileType === 'csv') {
       const text = await this.readFileAsText(file);
-      const { data, headers } = parseCSV(text, { hasHeader: true });
+      const { data, headers } = parseCSV(text);
       return { data, headers };
     } else if (fileType === 'xlsx' || fileType === 'xls') {
       return this.parseExcelFile(file);

@@ -7,7 +7,7 @@ const Footer: React.FC = () => {
         <div className="w-full max-w-[1121px] max-md:max-w-full">
           <div className="flex w-full items-center gap-[40px_155px] flex-wrap max-md:max-w-full">
             <div className="aspect-[6.21] w-[180px] self-stretch shrink-0 my-auto flex items-center">
-              <h2 className="text-white text-2xl font-bold">Intelliclass.online</h2>
+              <h2 className="text-white text-2xl font-bold">Positivus</h2>
             </div>
             <nav className="self-stretch flex min-w-60 gap-10 text-lg text-white font-normal underline flex-wrap my-auto max-md:max-w-full">
               <a
@@ -51,12 +51,7 @@ const Footer: React.FC = () => {
 
           <div className="flex gap-[40px_154px] flex-wrap mt-[66px] max-md:max-w-full max-md:mt-10">
             <div className="flex min-w-60 flex-col items-stretch">
-              <div className="text-xl text-black font-medium">
-                <div className="bg-[#B9FF66] px-[7px] rounded-[7px]">
-                  ⚠️待审核完成后，我会按要求完善网站信息，并马上开启登陆功能，同时继续加强数据库安全工作，请耐心等待。
-                </div>
-              </div>
-              <div className="text-lg text-white font-normal mt-[27px]">
+              <div className="text-lg text-white font-normal">
                 <div>
                   <a
                     href="mailto:734738695@qq.com"
@@ -81,35 +76,13 @@ const Footer: React.FC = () => {
         <div className="flex w-full max-w-[1120px] flex-col items-stretch text-lg text-white font-normal leading-loose mt-[50px] max-md:max-w-full max-md:mt-10">
           <div className="border min-h-px w-full border-white border-solid" />
           
-          {/* 重要备案信息区域 - 突出显示 */}
-          <div className="bg-red-600 text-white p-4 rounded-lg mt-6 mb-6">
-            <div className="text-center">
-              <h3 className="text-xl font-bold mb-2">⚠️ 重要提醒：致审核人员</h3>
-              <p className="text-sm mb-3">
-                本网站为<strong>个人非商业性网站</strong>，仅供开发者个人工作使用，暂不对外开放
-              </p>
-              <a
-                href="/icp-notice"
-                className="inline-block bg-white text-red-600 px-6 py-2 rounded font-bold hover:bg-gray-100 transition-colors"
-              >
-                📋 查看详细备案说明
-              </a>
-            </div>
-          </div>
-          
           <div className="flex gap-10 flex-wrap mt-[50px] max-md:max-w-full max-md:mt-10">
-            <div>© 2025 Intelliclass.online. 保留所有权利.</div>
+            <div>© 2025 Positivus. 保留所有权利.</div>
             <a
               href="/privacy"
               className="underline hover:text-[#B9FF66] transition-colors"
             >
               隐私政策
-            </a>
-            <a
-              href="/icp-notice"
-              className="underline text-[#B9FF66] font-semibold hover:text-white transition-colors"
-            >
-              ICP备案说明
             </a>
             <a
               href="https://beian.miit.gov.cn/"
@@ -118,6 +91,15 @@ const Footer: React.FC = () => {
               className="hover:text-[#B9FF66] transition-colors"
             >
               粤ICP备2025392229号
+            </a>
+            <a
+              href="https://beian.mps.gov.cn/#/query/webSearch?code=44030002007214"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-[#B9FF66] transition-colors flex items-center gap-1"
+            >
+              <img src="/备案图标.png" alt="公安备案" className="w-4 h-4" />
+              粤公网安备44030002007214号
             </a>
           </div>
         </div>

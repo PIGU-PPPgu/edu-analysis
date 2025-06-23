@@ -10,7 +10,7 @@ import {
   ImportOptions,
   ImportStep 
 } from '../types';
-import { parseExcelFile, parseCSVFile } from '@/services/fileParsingService';
+import { parseExcelFile, parseCSVFile } from '@/services/intelligentFileParser';
 import { analyzeCSVHeaders, generateMappingSuggestions } from '@/services/intelligentFieldMapper';
 import { enhancedStudentMatcher } from '@/services/enhancedStudentMatcher';
 
@@ -67,6 +67,7 @@ export interface GradeImporterHook {
     // 文件处理
     uploadFile: (file: File) => Promise<void>;
     clearFile: () => void;
+    setFileData: (data: any[], fileName?: string) => void;
     
     // 字段映射
     setMappingConfig: (config: MappingConfig) => void;
@@ -75,6 +76,7 @@ export interface GradeImporterHook {
     
     // 数据验证
     validateData: () => Promise<void>;
+    setValidationResult: (result: ValidationResult, validData: any[]) => void;
     
     // 导入处理
     startImport: () => Promise<void>;
@@ -283,6 +285,24 @@ export const useGradeImporter = (): GradeImporterHook => {
     });
   }, [updateState]);
 
+  // 直接设置文件数据（用于外部已解析的数据）
+  const setFileData = useCallback((data: any[], fileName?: string) => {
+    updateState({
+      fileData: data,
+      parseProgress: 100,
+      parseError: null,
+      loading: false
+    });
+    
+    if (fileName) {
+      // 创建一个虚拟的 File 对象用于记录
+      const virtualFile = new File([''], fileName, { type: 'application/octet-stream' });
+      updateState({ selectedFile: virtualFile });
+    }
+    
+    toast.success(`文件数据已加载，共 ${data.length} 条记录`);
+  }, [updateState]);
+
   // 字段映射
   const setMappingConfig = useCallback((config: MappingConfig) => {
     updateState({ mappingConfig: config });
@@ -387,6 +407,13 @@ export const useGradeImporter = (): GradeImporterHook => {
       toast.error(errorMessage);
     }
   }, [state.fileData, state.mappingConfig, validateMapping, updateState]);
+
+  const setValidationResult = useCallback((result: ValidationResult, validData: any[]) => {
+    updateState({
+      validationResult: result,
+      validData: validData
+    });
+  }, [updateState]);
 
   // 导入处理
   const startImport = useCallback(async () => {
@@ -582,10 +609,12 @@ export const useGradeImporter = (): GradeImporterHook => {
       resetImport,
       uploadFile,
       clearFile,
+      setFileData,
       setMappingConfig,
       generateMapping,
       validateMapping,
       validateData,
+      setValidationResult,
       startImport,
       pauseImport,
       resumeImport,

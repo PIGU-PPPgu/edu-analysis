@@ -9,15 +9,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertTriangle, Plus, Trash2, Edit, RefreshCw, ChevronRight, ExternalLink } from "lucide-react";
+import { AlertTriangle, Plus, Trash2, Edit, RefreshCw, ChevronRight, ExternalLink, Filter, Search, Wand2 } from "lucide-react";
 import { toast } from 'sonner';
-import { getWarningRules, createWarningRule, updateWarningRule, deleteWarningRule, WarningRule } from '@/services/warningService';
+import { 
+  getWarningRules, 
+  createWarningRule, 
+  updateWarningRule, 
+  deleteWarningRule, 
+  toggleRuleStatus,
+  getWarningRuleTemplates,
+  WarningRule, 
+  RuleFilter,
+  RuleTemplate 
+} from '@/services/warningService';
 
 interface WarningRulesProps {
-  simplified?: boolean; // 是否为简化模式
-  limit?: number; // 显示条数限制
-  showViewAllButton?: boolean; // 是否显示"查看全部"按钮
-  onViewAllClick?: () => void; // "查看全部"按钮点击回调
+  simplified?: boolean;
+  limit?: number;
+  showViewAllButton?: boolean;
+  onViewAllClick?: () => void;
 }
 
 const WarningRules: React.FC<WarningRulesProps> = ({
@@ -27,27 +37,38 @@ const WarningRules: React.FC<WarningRulesProps> = ({
   onViewAllClick
 }) => {
   const [rules, setRules] = useState<WarningRule[]>([]);
+  const [filteredRules, setFilteredRules] = useState<WarningRule[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedRule, setSelectedRule] = useState<WarningRule | null>(null);
   
+  // 筛选状态
+  const [filter, setFilter] = useState<RuleFilter>({});
+  const [searchTerm, setSearchTerm] = useState('');
+  
   // 表单状态
   const [ruleName, setRuleName] = useState('');
   const [ruleDescription, setRuleDescription] = useState('');
   const [ruleSeverity, setRuleSeverity] = useState<'low' | 'medium' | 'high'>('medium');
+  const [ruleScope, setRuleScope] = useState<'global' | 'exam' | 'class' | 'student'>('global');
+  const [ruleCategory, setRuleCategory] = useState<'grade' | 'attendance' | 'behavior' | 'progress' | 'homework' | 'composite'>('grade');
+  const [rulePriority, setRulePriority] = useState(5);
   const [ruleConditions, setRuleConditions] = useState<any>({
     type: '成绩',
     threshold: 60,
     operator: '<',
-    subject: '全部',
-    factors: []
+    subject: '全部'
   });
+  const [autoTrigger, setAutoTrigger] = useState(true);
+  const [notificationEnabled, setNotificationEnabled] = useState(true);
+
+  // 模板选择状态
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [templates] = useState<RuleTemplate[]>(getWarningRuleTemplates());
   
-  // 添加isMounted引用以防止内存泄漏
   const isMounted = useRef(true);
   
-  // 组件卸载时清理
   useEffect(() => {
     fetchRules();
     
@@ -55,6 +76,33 @@ const WarningRules: React.FC<WarningRulesProps> = ({
       isMounted.current = false;
     };
   }, []);
+
+  // 应用筛选
+  useEffect(() => {
+    let filtered = rules;
+    
+    if (filter.scope) {
+      filtered = filtered.filter(rule => rule.scope === filter.scope);
+    }
+    if (filter.category) {
+      filtered = filtered.filter(rule => rule.category === filter.category);
+    }
+    if (filter.severity) {
+      filtered = filtered.filter(rule => rule.severity === filter.severity);
+    }
+    if (filter.is_active !== undefined) {
+      filtered = filtered.filter(rule => rule.is_active === filter.is_active);
+    }
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(rule => 
+        rule.name.toLowerCase().includes(term) ||
+        (rule.description && rule.description.toLowerCase().includes(term))
+      );
+    }
+    
+    setFilteredRules(filtered);
+  }, [rules, filter, searchTerm]);
   
   // 获取预警规则
   const fetchRules = async () => {
@@ -92,23 +140,27 @@ const WarningRules: React.FC<WarningRulesProps> = ({
       name: ruleName,
       description: ruleDescription,
       severity: ruleSeverity,
+      scope: ruleScope,
+      category: ruleCategory,
+      priority: rulePriority,
       conditions: ruleConditions,
       is_active: true,
       is_system: false,
-      created_by: null // 应该从认证系统获取当前用户ID
+      auto_trigger: autoTrigger,
+      notification_enabled: notificationEnabled,
+      created_by: null
     };
     
     try {
       if (isEditMode && selectedRule) {
         await updateWarningRule(selectedRule.id, ruleData);
+        toast.success('规则已更新');
       } else {
         await createWarningRule(ruleData);
+        toast.success('规则已创建');
       }
       
-      // 刷新规则列表
       await fetchRules();
-      
-      // 关闭对话框并重置表单
       setIsDialogOpen(false);
       resetForm();
     } catch (error) {
@@ -136,9 +188,8 @@ const WarningRules: React.FC<WarningRulesProps> = ({
   // 切换规则状态
   const handleToggleActive = async (rule: WarningRule, active: boolean) => {
     try {
-      await updateWarningRule(rule.id, { is_active: active });
+      await toggleRuleStatus(rule.id, active);
       
-      // 更新本地状态而不是重新获取
       setRules(prev => prev.map(r => 
         r.id === rule.id ? { ...r, is_active: active } : r
       ));
@@ -156,7 +207,12 @@ const WarningRules: React.FC<WarningRulesProps> = ({
     setRuleName(rule.name);
     setRuleDescription(rule.description || '');
     setRuleSeverity(rule.severity);
+    setRuleScope(rule.scope);
+    setRuleCategory(rule.category);
+    setRulePriority(rule.priority || 5);
     setRuleConditions(rule.conditions);
+    setAutoTrigger(rule.auto_trigger || true);
+    setNotificationEnabled(rule.notification_enabled || true);
     setIsEditMode(true);
     setIsDialogOpen(true);
   };
@@ -168,19 +224,45 @@ const WarningRules: React.FC<WarningRulesProps> = ({
     setIsDialogOpen(true);
   };
 
+  // 从模板创建规则
+  const handleCreateFromTemplate = (template: RuleTemplate) => {
+    setRuleName(template.name);
+    setRuleDescription(template.description);
+    setRuleSeverity(template.severity);
+    setRuleScope(template.scope);
+    setRuleCategory(template.category);
+    setRulePriority(template.priority);
+    setRuleConditions(template.conditions);
+    setAutoTrigger(true);
+    setNotificationEnabled(true);
+    setIsEditMode(false);
+    setShowTemplates(false);
+    setIsDialogOpen(true);
+  };
+
   // 重置表单
   const resetForm = () => {
     setRuleName('');
     setRuleDescription('');
     setRuleSeverity('medium');
+    setRuleScope('global');
+    setRuleCategory('grade');
+    setRulePriority(5);
     setRuleConditions({
       type: '成绩',
       threshold: 60,
       operator: '<',
-      subject: '全部',
-      factors: []
+      subject: '全部'
     });
+    setAutoTrigger(true);
+    setNotificationEnabled(true);
     setSelectedRule(null);
+  };
+
+  // 清除筛选
+  const clearFilters = () => {
+    setFilter({});
+    setSearchTerm('');
   };
 
   // 获取严重程度标签样式
@@ -195,6 +277,34 @@ const WarningRules: React.FC<WarningRulesProps> = ({
       default:
         return <Badge variant="outline">未知</Badge>;
     }
+  };
+
+  // 获取范围标签
+  const getScopeBadge = (scope: string) => {
+    const scopeMap = {
+      global: { label: '全局', className: 'bg-purple-100 text-purple-800 border-purple-200' },
+      exam: { label: '考试', className: 'bg-green-100 text-green-800 border-green-200' },
+      class: { label: '班级', className: 'bg-blue-100 text-blue-800 border-blue-200' },
+      student: { label: '学生', className: 'bg-orange-100 text-orange-800 border-orange-200' }
+    };
+    
+    const config = scopeMap[scope as keyof typeof scopeMap] || { label: scope, className: '' };
+    return <Badge variant="outline" className={config.className}>{config.label}</Badge>;
+  };
+
+  // 获取分类标签
+  const getCategoryBadge = (category: string) => {
+    const categoryMap = {
+      grade: { label: '成绩', className: 'bg-red-100 text-red-800 border-red-200' },
+      progress: { label: '进步', className: 'bg-green-100 text-green-800 border-green-200' },
+      homework: { label: '作业', className: 'bg-blue-100 text-blue-800 border-blue-200' },
+      attendance: { label: '出勤', className: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+      behavior: { label: '行为', className: 'bg-purple-100 text-purple-800 border-purple-200' },
+      composite: { label: '综合', className: 'bg-gray-100 text-gray-800 border-gray-200' }
+    };
+    
+    const config = categoryMap[category as keyof typeof categoryMap] || { label: category, className: '' };
+    return <Badge variant="outline" className={config.className}>{config.label}</Badge>;
   };
   
   // 格式化规则条件
@@ -231,7 +341,7 @@ const WarningRules: React.FC<WarningRulesProps> = ({
   };
   
   // 限制显示的规则数量
-  const displayedRules = limit ? rules.slice(0, limit) : rules;
+  const displayedRules = limit ? filteredRules.slice(0, limit) : filteredRules;
 
   // 简化版的规则列表
   if (simplified) {
@@ -264,6 +374,7 @@ const WarningRules: React.FC<WarningRulesProps> = ({
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-sm">{rule.name}</span>
                       {getSeverityBadge(rule.severity)}
+                      {getScopeBadge(rule.scope)}
                       <Switch 
                         checked={rule.is_active} 
                         onCheckedChange={(checked) => {
@@ -313,7 +424,7 @@ const WarningRules: React.FC<WarningRulesProps> = ({
             </CardDescription>
           </div>
           <div className="flex gap-2">
-              <Button 
+            <Button 
               variant="outline"
               size="sm"
               onClick={fetchRules}
@@ -321,6 +432,14 @@ const WarningRules: React.FC<WarningRulesProps> = ({
             >
               <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
               {isLoading ? '刷新中...' : '刷新'}
+            </Button>
+            <Button 
+              variant="outline"
+              size="sm"
+              onClick={() => setShowTemplates(true)}
+            >
+              <Wand2 className="h-4 w-4 mr-1" />
+              模板
             </Button>
             <Button onClick={handleCreateRule}>
               <Plus className="h-4 w-4 mr-1" />
@@ -330,13 +449,83 @@ const WarningRules: React.FC<WarningRulesProps> = ({
         </div>
       </CardHeader>
       <CardContent>
+        {/* 筛选器 */}
+        <div className="mb-4 space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <div className="flex-1 min-w-[200px]">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="搜索规则名称或描述..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <Select value={filter.scope || ''} onValueChange={(value) => setFilter({...filter, scope: value || undefined})}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="范围" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部范围</SelectItem>
+                <SelectItem value="global">全局</SelectItem>
+                <SelectItem value="exam">考试</SelectItem>
+                <SelectItem value="class">班级</SelectItem>
+                <SelectItem value="student">学生</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filter.category || ''} onValueChange={(value) => setFilter({...filter, category: value || undefined})}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="分类" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部分类</SelectItem>
+                <SelectItem value="grade">成绩</SelectItem>
+                <SelectItem value="progress">进步</SelectItem>
+                <SelectItem value="homework">作业</SelectItem>
+                <SelectItem value="attendance">出勤</SelectItem>
+                <SelectItem value="behavior">行为</SelectItem>
+                <SelectItem value="composite">综合</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filter.severity || ''} onValueChange={(value) => setFilter({...filter, severity: value || undefined})}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="严重程度" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部等级</SelectItem>
+                <SelectItem value="high">高</SelectItem>
+                <SelectItem value="medium">中</SelectItem>
+                <SelectItem value="low">低</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filter.is_active?.toString() || ''} onValueChange={(value) => setFilter({...filter, is_active: value ? value === 'true' : undefined})}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="状态" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部状态</SelectItem>
+                <SelectItem value="true">已启用</SelectItem>
+                <SelectItem value="false">已禁用</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" onClick={clearFilters}>
+              <Filter className="h-4 w-4 mr-1" />
+              清除
+            </Button>
+          </div>
+        </div>
+
         <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>规则名称</TableHead>
+                <TableHead>范围</TableHead>
+                <TableHead>分类</TableHead>
                 <TableHead>严重程度</TableHead>
-                <TableHead>描述</TableHead>
+                <TableHead>优先级</TableHead>
                 <TableHead>条件</TableHead>
                 <TableHead className="w-[100px]">状态</TableHead>
                 <TableHead className="text-right">操作</TableHead>
@@ -345,27 +534,42 @@ const WarningRules: React.FC<WarningRulesProps> = ({
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
+                  <TableCell colSpan={8} className="h-24 text-center">
                     <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2" />
                     <p>加载中...</p>
                   </TableCell>
                 </TableRow>
               ) : displayedRules.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                     暂无预警规则
                   </TableCell>
                 </TableRow>
               ) : (
                 displayedRules.map((rule) => (
                   <TableRow key={rule.id}>
-                    <TableCell className="font-medium">{rule.name}</TableCell>
-                    <TableCell>{getSeverityBadge(rule.severity)}</TableCell>
-                    <TableCell className="max-w-[200px] truncate" title={rule.description || ''}>
-                      {rule.description || '无描述'}
+                    <TableCell className="font-medium">
+                      <div>
+                        <div>{rule.name}</div>
+                        {rule.description && (
+                          <div className="text-sm text-gray-500 mt-1 max-w-[200px] truncate" title={rule.description}>
+                            {rule.description}
+                          </div>
+                        )}
+                      </div>
                     </TableCell>
+                    <TableCell>{getScopeBadge(rule.scope)}</TableCell>
+                    <TableCell>{getCategoryBadge(rule.category)}</TableCell>
+                    <TableCell>{getSeverityBadge(rule.severity)}</TableCell>
                     <TableCell>
-                      {formatConditions(rule.conditions)}
+                      <Badge variant="outline" className="text-xs">
+                        {rule.priority || 5}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="max-w-[200px]">
+                      <div className="truncate" title={formatConditions(rule.conditions)}>
+                        {formatConditions(rule.conditions)}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Switch 
@@ -394,148 +598,201 @@ const WarningRules: React.FC<WarningRulesProps> = ({
         </div>
         
         {/* 限制数量时显示查看全部按钮 */}
-        {limit && rules.length > limit && showViewAllButton && (
+        {limit && filteredRules.length > limit && showViewAllButton && (
           <div className="mt-4 text-center">
             <Button variant="outline" onClick={onViewAllClick}>
-              查看全部 ({rules.length}) 条规则
-              <ChevronRight className="ml-2 h-4 w-4" />
-              </Button>
+              查看全部 ({filteredRules.length}) 条规则
+              <ExternalLink className="ml-2 h-4 w-4" />
+            </Button>
           </div>
         )}
       </CardContent>
 
-      {/* 新增/编辑预警规则对话框 */}
+      {/* 创建/编辑规则对话框 */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <form onSubmit={handleSubmit}>
-              <DialogHeader>
-              <DialogTitle>{isEditMode ? '编辑预警规则' : '新增预警规则'}</DialogTitle>
-                <DialogDescription>
-                定义自动触发学生预警的条件规则，系统将根据这些规则识别风险学生
-                </DialogDescription>
-              </DialogHeader>
-            
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                  <Label htmlFor="rule-name">规则名称</Label>
-                  <Input 
-                    id="rule-name" 
-                  value={ruleName} 
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {isEditMode ? '编辑预警规则' : '创建预警规则'}
+            </DialogTitle>
+            <DialogDescription>
+              配置预警规则的基本信息和触发条件
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="ruleName">规则名称 *</Label>
+                <Input
+                  id="ruleName"
+                  value={ruleName}
                   onChange={(e) => setRuleName(e.target.value)}
-                  placeholder="例如: 低分预警、出勤问题等"
+                  placeholder="输入规则名称"
+                  required
                 />
               </div>
-              
-              <div className="grid gap-2">
-                <Label htmlFor="rule-description">规则描述</Label>
-                <Textarea 
-                  id="rule-description" 
-                  value={ruleDescription} 
-                  onChange={(e) => setRuleDescription(e.target.value)}
-                  placeholder="详细描述该规则的触发条件和目的"
-                  rows={3}
-                  />
-                </div>
-                
-              <div className="grid gap-2">
-                <Label htmlFor="rule-severity">严重程度</Label>
-                <Select value={ruleSeverity} onValueChange={(value: any) => setRuleSeverity(value)}>
-                    <SelectTrigger>
-                    <SelectValue placeholder="选择严重程度" />
-                    </SelectTrigger>
-                    <SelectContent>
-                    <SelectItem value="high">高风险</SelectItem>
-                    <SelectItem value="medium">中风险</SelectItem>
-                    <SelectItem value="low">低风险</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-              <div className="grid gap-4">
-                <Label>规则条件</Label>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="rule-type" className="text-sm">预警类型</Label>
-                    <Select 
-                      value={ruleConditions.type} 
-                      onValueChange={(value) => setRuleConditions({...ruleConditions, type: value})}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="选择预警类型" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="成绩">成绩预警</SelectItem>
-                        <SelectItem value="出勤">出勤预警</SelectItem>
-                        <SelectItem value="作业">作业预警</SelectItem>
-                        <SelectItem value="行为">行为预警</SelectItem>
-                        <SelectItem value="参与度">课堂参与度</SelectItem>
-                      </SelectContent>
-                    </Select>
-                </div>
-                
-                  <div>
-                    <Label htmlFor="rule-subject" className="text-sm">科目</Label>
-                  <Select 
-                      value={ruleConditions.subject} 
-                      onValueChange={(value) => setRuleConditions({...ruleConditions, subject: value})}
-                  >
-                    <SelectTrigger>
-                        <SelectValue placeholder="选择科目" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="全部">全部科目</SelectItem>
-                        <SelectItem value="数学">数学</SelectItem>
-                        <SelectItem value="语文">语文</SelectItem>
-                        <SelectItem value="英语">英语</SelectItem>
-                        <SelectItem value="物理">物理</SelectItem>
-                        <SelectItem value="化学">化学</SelectItem>
-                        <SelectItem value="生物">生物</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="rule-operator" className="text-sm">操作符</Label>
-                    <Select 
-                      value={ruleConditions.operator} 
-                      onValueChange={(value) => setRuleConditions({...ruleConditions, operator: value})}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="选择操作符" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="<">小于 (&lt;)</SelectItem>
-                        <SelectItem value="<=">小于等于 (&le;)</SelectItem>
-                        <SelectItem value=">">大于 (&gt;)</SelectItem>
-                        <SelectItem value=">=">大于等于 (&ge;)</SelectItem>
-                        <SelectItem value="==">等于 (=)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="rule-threshold" className="text-sm">阈值</Label>
-                    <Input 
-                      id="rule-threshold" 
-                      type="number"
-                      value={ruleConditions.threshold} 
-                      onChange={(e) => setRuleConditions({
-                        ...ruleConditions, 
-                        threshold: parseInt(e.target.value)
-                      })}
-                    />
-                  </div>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="rulePriority">优先级</Label>
+                <Input
+                  id="rulePriority"
+                  type="number"
+                  min="1"
+                  max="10"
+                  value={rulePriority}
+                  onChange={(e) => setRulePriority(Number(e.target.value))}
+                />
               </div>
-        </div>
-            
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                取消
-        </Button>
-              <Button type="submit">保存规则</Button>
-            </DialogFooter>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="ruleDescription">规则描述</Label>
+              <Textarea
+                id="ruleDescription"
+                value={ruleDescription}
+                onChange={(e) => setRuleDescription(e.target.value)}
+                placeholder="描述此规则的作用和触发条件"
+                rows={3}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="ruleScope">适用范围</Label>
+                <Select value={ruleScope} onValueChange={(value: any) => setRuleScope(value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="global">全局范围</SelectItem>
+                    <SelectItem value="exam">考试级别</SelectItem>
+                    <SelectItem value="class">班级级别</SelectItem>
+                    <SelectItem value="student">学生级别</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ruleCategory">规则分类</Label>
+                <Select value={ruleCategory} onValueChange={(value: any) => setRuleCategory(value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="grade">成绩相关</SelectItem>
+                    <SelectItem value="progress">进步相关</SelectItem>
+                    <SelectItem value="homework">作业相关</SelectItem>
+                    <SelectItem value="attendance">出勤相关</SelectItem>
+                    <SelectItem value="behavior">行为相关</SelectItem>
+                    <SelectItem value="composite">综合评估</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="ruleSeverity">严重程度</Label>
+              <Select value={ruleSeverity} onValueChange={(value: any) => setRuleSeverity(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">低风险</SelectItem>
+                  <SelectItem value="medium">中风险</SelectItem>
+                  <SelectItem value="high">高风险</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>触发条件</Label>
+              <Textarea
+                value={JSON.stringify(ruleConditions, null, 2)}
+                onChange={(e) => {
+                  try {
+                    setRuleConditions(JSON.parse(e.target.value));
+                  } catch (err) {
+                    // 无效JSON时不更新
+                  }
+                }}
+                placeholder="输入JSON格式的触发条件"
+                rows={4}
+                className="font-mono text-sm"
+              />
+            </div>
+
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <Switch 
+                  id="autoTrigger"
+                  checked={autoTrigger}
+                  onCheckedChange={setAutoTrigger}
+                  className="data-[state=checked]:bg-[#c0ff3f]"
+                />
+                <Label htmlFor="autoTrigger">自动触发</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch 
+                  id="notificationEnabled"
+                  checked={notificationEnabled}
+                  onCheckedChange={setNotificationEnabled}
+                  className="data-[state=checked]:bg-[#c0ff3f]"
+                />
+                <Label htmlFor="notificationEnabled">启用通知</Label>
+              </div>
+            </div>
           </form>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleSubmit}>
+              {isEditMode ? '更新规则' : '创建规则'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 模板选择对话框 */}
+      <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>选择预警规则模板</DialogTitle>
+            <DialogDescription>
+              选择一个预设模板快速创建预警规则，您可以在创建后进行进一步自定义
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
+            {templates.map((template, index) => (
+              <Card key={index} className="cursor-pointer hover:shadow-md transition-shadow border" onClick={() => handleCreateFromTemplate(template)}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center justify-between">
+                    {template.name}
+                    <div className="flex gap-1">
+                      {getScopeBadge(template.scope)}
+                      {getSeverityBadge(template.severity)}
+                    </div>
+                  </CardTitle>
+                  <CardDescription className="text-sm">
+                    {template.description}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>分类: {getCategoryBadge(template.category)}</span>
+                    <span>优先级: {template.priority}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTemplates(false)}>
+              取消
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </Card>

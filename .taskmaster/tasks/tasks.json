@@ -1,0 +1,255 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": "1",
+        "title": "清理模拟数据并实现真实数据接口",
+        "description": "移除WarningDashboard和WarningStatistics组件中的所有模拟数据，确保预警分析完全基于真实数据库数据",
+        "status": "done",
+        "priority": "high",
+        "details": {
+          "implementation": [
+            "删除src/components/warning/WarningDashboard.tsx中的defaultWarningStats",
+            "删除src/services/warningService.ts中的mockWarningStats",
+            "完善getWarningStatistics函数，确保返回真实数据库数据",
+            "修改WarningDashboard组件，移除fallback数据逻辑",
+            "测试数据接口，确保所有统计数据正确显示"
+          ],
+          "test_strategy": "创建单元测试验证数据接口正确性，确保无模拟数据残留"
+        },
+        "dependencies": [],
+        "subtasks": []
+      },
+      {
+        "id": "2",
+        "title": "开发考试选择器组件",
+        "description": "创建考试选择器组件，支持用户选择特定考试进行预警分析",
+        "status": "done",
+        "priority": "high",
+        "details": {
+          "implementation": [
+            "创建ExamSelector组件，基于现有UI风格",
+            "实现getExamList API接口，获取可用考试列表",
+            "支持考试搜索和过滤功能",
+            "集成到WarningAnalysis主界面",
+            "添加考试选择状态管理"
+          ],
+          "test_strategy": "测试考试列表加载、选择交互、状态同步"
+        },
+        "dependencies": [
+          "1"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "3",
+        "title": "实现考试级预警分析功能",
+        "description": "开发针对特定考试的预警分析，包括成绩异常检测和学科风险分析",
+        "status": "done",
+        "priority": "high",
+        "details": {
+          "implementation": [
+            "创建ExamWarningView组件",
+            "实现getExamWarningAnalysis API接口",
+            "开发成绩异常检测算法",
+            "创建学科风险分析图表",
+            "实现考试数据可视化组件"
+          ],
+          "test_strategy": "测试异常检测准确性，验证图表数据正确性"
+        },
+        "dependencies": [
+          "2"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "4",
+        "title": "完善预警规则管理系统",
+        "description": "统一管理整体预警和考试级预警规则，支持规则范围分类和智能推荐",
+        "status": "done",
+        "priority": "medium",
+        "details": {
+          "implementation": [
+            "扩展warning_rules表，添加scope字段",
+            "修改WarningRules组件，支持规则范围管理",
+            "实现规则范围的UI标识（标签、图标）",
+            "添加规则智能推荐功能",
+            "优化规则创建和编辑流程"
+          ],
+          "test_strategy": "测试规则创建、编辑、分类功能的完整性"
+        },
+        "dependencies": [
+          "1"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "5",
+        "title": "实现历史对比分析功能",
+        "description": "开发考试间的历史对比分析，显示学生成绩和排名的变化趋势",
+        "status": "done",
+        "priority": "medium",
+        "details": {
+          "implementation": [
+            "设计历史对比数据结构",
+            "实现getExamTrendAnalysis API接口",
+            "创建趋势对比可视化组件",
+            "添加排名变化指示器",
+            "实现成绩波动分析算法"
+          ],
+          "test_strategy": "验证历史数据准确性，测试趋势计算逻辑"
+        },
+        "dependencies": [
+          "3"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "6",
+        "title": "实现缓存策略和性能优化",
+        "description": "建立分层缓存机制，优化数据查询性能，提升用户体验",
+        "status": "done",
+        "priority": "medium",
+        "details": {
+          "implementation": [
+            "设计分层缓存策略（整体统计、考试分析、学生预警）",
+            "优化数据库查询，添加必要索引",
+            "实现智能缓存刷新机制",
+            "添加数据更新时间显示",
+            "优化组件渲染性能"
+          ],
+          "test_strategy": "性能测试，验证缓存有效性和查询响应时间"
+        },
+        "dependencies": [
+          "1",
+          "3"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "7",
+        "title": "开发AI分析基础层功能",
+        "description": "实现AI预警分析的基础层，提供快速风险摘要和关键模式识别",
+        "status": "done",
+        "priority": "medium",
+        "details": {
+          "implementation": [
+            "设计AI分析数据结构（BasicAIAnalysis）",
+            "实现基础AI分析接口，集成现有AI服务",
+            "创建AI分析结果展示组件",
+            "添加分析进度和加载状态",
+            "实现AI分析缓存策略"
+          ],
+          "test_strategy": "测试AI分析准确性，验证结果展示和用户体验"
+        },
+        "dependencies": [
+          "3",
+          "6"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "8",
+        "title": "优化预警趋势可视化",
+        "description": "改进预警数据的图表展示，增强数据可读性和交互体验",
+        "status": "done",
+        "priority": "low",
+        "details": {
+          "implementation": [
+            "升级现有RiskFactorChart组件",
+            "添加交互式趋势图表",
+            "实现数据钻取功能",
+            "优化图表响应式设计",
+            "添加图表数据导出功能"
+          ],
+          "test_strategy": "测试图表交互功能，验证各设备兼容性"
+        },
+        "dependencies": [
+          "5",
+          "7"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "9",
+        "title": "完善预警记录管理功能",
+        "description": "优化预警记录的查看、状态管理和处理流程",
+        "status": "done",
+        "priority": "low",
+        "details": {
+          "implementation": [
+            "优化WarningList组件的筛选和排序功能",
+            "实现预警状态批量操作",
+            "添加预警处理历史记录",
+            "创建预警效果跟踪机制",
+            "优化预警通知和提醒功能"
+          ],
+          "test_strategy": "测试记录管理的完整工作流程"
+        },
+        "dependencies": [
+          "4"
+        ],
+        "subtasks": []
+      },
+      {
+        "id": "10",
+        "title": "增强AI详细分析功能",
+        "description": "实现AI分析的详细层，提供个性化建议和干预措施",
+        "status": "done",
+        "priority": "low",
+        "details": {
+          "implementation": [
+            "设计DetailedAIAnalysis数据结构",
+            "实现学科分析和学生建议算法",
+            "创建干预措施推荐系统",
+            "添加AI分析结果的可解释性",
+            "实现分析结果的个性化定制"
+          ],
+          "test_strategy": "验证AI建议的实用性和准确性"
+        },
+        "dependencies": [
+          "7"
+        ],
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "project_name": "学生预警分析系统完善",
+      "created_at": "2024-12-28",
+      "total_tasks": 10,
+      "phases": {
+        "phase_1": {
+          "name": "核心功能开发",
+          "tasks": [
+            "1",
+            "2",
+            "3",
+            "4"
+          ],
+          "duration": "2周",
+          "priority": "high"
+        },
+        "phase_2": {
+          "name": "增强功能开发",
+          "tasks": [
+            "5",
+            "6",
+            "7",
+            "8"
+          ],
+          "duration": "2周",
+          "priority": "medium"
+        },
+        "phase_3": {
+          "name": "高级功能开发",
+          "tasks": [
+            "9",
+            "10"
+          ],
+          "duration": "按需",
+          "priority": "low"
+        }
+      }
+    }
+  }
+}

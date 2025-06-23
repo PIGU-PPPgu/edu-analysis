@@ -277,9 +277,29 @@ function identifyField(header: string): FieldMapping | null {
         }
       }
       
+      // 根据数据类型映射到正确的系统字段
+      let mappedField: string;
+      switch (dataType) {
+        case 'grade':
+          mappedField = 'original_grade'; // 映射到等级字段
+          break;
+        case 'score':
+          mappedField = subject === '总分' ? 'total_score' : 'score';
+          break;
+        case 'rank_class':
+          mappedField = 'rank_in_class';
+          break;
+        case 'rank_school':
+        case 'rank_grade':
+          mappedField = 'rank_in_grade';
+          break;
+        default:
+          mappedField = `${subject}_${dataType}`;
+      }
+      
       return {
         originalField: header,
-        mappedField: `${subject}_${dataType}`,
+        mappedField,
         subject,
         dataType,
         confidence

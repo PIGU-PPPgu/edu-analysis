@@ -73,6 +73,12 @@ export interface MappingConfig {
     subjects: string[];
     confidence: number;
   };
+  headerAnalysis?: {
+    mappings: any[];
+    subjects: string[];
+    studentFields: any[];
+    confidence: number;
+  };
 }
 
 // DataMapper 组件属性
@@ -106,10 +112,12 @@ const DataMapper: React.FC<DataMapperProps> = ({
     detected: boolean;
     subjects: string[];
     confidence: number;
+    mappings?: any[];
+    studentFields?: any[];
   } | null>(null);
 
-  // 必需字段
-  const requiredFields = ['student_id', 'name', 'class_name'];
+  // 必需字段（学生匹配只需要学号、姓名、班级中的任意两个）
+  const requiredFields = ['name']; // 姓名是唯一必需字段，学号和班级可选但建议有
   
   // 可选字段
   const optionalFields = Object.keys(SYSTEM_FIELDS).filter(field => !requiredFields.includes(field));
@@ -141,7 +149,9 @@ const DataMapper: React.FC<DataMapperProps> = ({
         setWideTableAnalysis({
           detected: true,
           subjects: headerAnalysis.subjects,
-          confidence: headerAnalysis.confidence
+          confidence: headerAnalysis.confidence,
+          mappings: headerAnalysis.mappings,
+          studentFields: headerAnalysis.studentFields
         });
       }
       
@@ -157,14 +167,42 @@ const DataMapper: React.FC<DataMapperProps> = ({
         }
       });
       
-      // 然后处理科目字段
+      // 然后处理科目字段 - 支持所有类型（分数、等级、排名）
       headerAnalysis.mappings.forEach(mapping => {
-        if (mapping.subject && mapping.dataType === 'score') {
-          // 对于科目分数，创建自定义字段
-          const customFieldKey = `${mapping.subject}_score`;
+        if (mapping.subject) {
+          let customFieldKey: string;
+          let customFieldName: string;
+          
+          // 根据数据类型创建不同的自定义字段
+          switch (mapping.dataType) {
+            case 'score':
+              customFieldKey = `${mapping.subject}_score`;
+              customFieldName = `${mapping.subject}分数`;
+              break;
+            case 'grade':
+              customFieldKey = `${mapping.subject}_grade`;
+              customFieldName = `${mapping.subject}等级`;
+              break;
+            case 'rank_class':
+              customFieldKey = `${mapping.subject}_rank_class`;
+              customFieldName = `${mapping.subject}班级排名`;
+              break;
+            case 'rank_school':
+              customFieldKey = `${mapping.subject}_rank_school`;
+              customFieldName = `${mapping.subject}学校排名`;
+              break;
+            case 'rank_grade':
+              customFieldKey = `${mapping.subject}_rank_grade`;
+              customFieldName = `${mapping.subject}年级排名`;
+              break;
+            default:
+              customFieldKey = `${mapping.subject}_${mapping.dataType}`;
+              customFieldName = `${mapping.subject}${mapping.dataType}`;
+          }
+          
           setCustomFields(prev => ({
             ...prev,
-            [customFieldKey]: `${mapping.subject}分数`
+            [customFieldKey]: customFieldName
           }));
           newMappings[mapping.originalField] = customFieldKey;
         }
@@ -268,7 +306,14 @@ const DataMapper: React.FC<DataMapperProps> = ({
       fieldMappings,
       customFields,
       aiSuggestions: aiSuggestions || undefined,
-      wideTableFormat: wideTableAnalysis || undefined
+      wideTableFormat: wideTableAnalysis || undefined,
+      // 添加完整的表头分析结果，用于后续的宽表转长表处理
+      headerAnalysis: wideTableAnalysis ? {
+        mappings: wideTableAnalysis.mappings || [],
+        subjects: wideTableAnalysis.subjects || [],
+        studentFields: wideTableAnalysis.studentFields || [],
+        confidence: wideTableAnalysis.confidence || 0
+      } : undefined
     };
     
     onMappingConfigured(config);
@@ -444,14 +489,14 @@ const DataMapper: React.FC<DataMapperProps> = ({
                             <SelectValue placeholder="选择映射字段" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="" disabled>
+                            <SelectItem value="__placeholder__" disabled>
                               -- 请选择 --
                             </SelectItem>
                             
                             {/* 必需字段 */}
                             {requiredFields.filter(field => availableOptions.system.includes(field)).length > 0 && (
                               <>
-                                <SelectItem value="" disabled className="font-semibold">
+                                <SelectItem value="__required_header__" disabled className="font-semibold">
                                   必需字段
                                 </SelectItem>
                                 {requiredFields
@@ -468,7 +513,7 @@ const DataMapper: React.FC<DataMapperProps> = ({
                             {/* 可选字段 */}
                             {availableOptions.system.filter(field => !requiredFields.includes(field)).length > 0 && (
                               <>
-                                <SelectItem value="" disabled className="font-semibold">
+                                <SelectItem value="__optional_header__" disabled className="font-semibold">
                                   可选字段
                                 </SelectItem>
                                 {availableOptions.system
@@ -485,7 +530,7 @@ const DataMapper: React.FC<DataMapperProps> = ({
                             {/* 自定义字段 */}
                             {availableOptions.custom.length > 0 && (
                               <>
-                                <SelectItem value="" disabled className="font-semibold">
+                                <SelectItem value="__custom_header__" disabled className="font-semibold">
                                   自定义字段
                                 </SelectItem>
                                 {availableOptions.custom.map(field => (
@@ -603,6 +648,19 @@ const DataMapper: React.FC<DataMapperProps> = ({
             确认映射 ({mappingProgress.requiredPercentage}%)
           </Button>
         </div>
+
+        {/* 学生匹配说明 */}
+        <Alert>
+          <Info className="w-4 h-4" />
+          <AlertDescription>
+            <strong>智能学生匹配规则：</strong>
+            <br />• <strong>学号匹配</strong>：有学号时优先精确匹配（推荐）
+            <br />• <strong>姓名+班级匹配</strong>：无学号时使用姓名和班级组合匹配
+            <br />• <strong>姓名匹配</strong>：仅有姓名时，如果系统中唯一则自动匹配
+            <br />• <strong>模糊匹配</strong>：支持相似姓名的智能识别
+            <br />• <strong>最低要求</strong>：只需要姓名字段，学号和班级为可选但建议提供
+          </AlertDescription>
+        </Alert>
 
         {/* 映射验证提示 */}
         {mappingProgress.requiredPercentage < 100 && (

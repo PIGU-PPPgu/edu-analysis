@@ -181,31 +181,43 @@ export class IntelligentFileParser {
     console.log('[IntelligentFileParser] 开始智能字段映射分析...');
     const intelligentAnalysis = analyzeCSVHeaders(headers);
     
-    console.log('[IntelligentFileParser] 智能分析结果:', {
-      confidence: intelligentAnalysis.confidence,
-      mappedFields: intelligentAnalysis.mappings.length,
+    // 尝试使用AI增强分析（如果配置了AI）
+    let aiEnhancedAnalysis = intelligentAnalysis;
+    try {
+      const aiAnalysis = await this.performAIAnalysis(headers, cleanedData.slice(0, 3));
+      if (aiAnalysis && aiAnalysis.confidence > intelligentAnalysis.confidence) {
+        console.log('[IntelligentFileParser] AI分析结果更优，使用AI分析结果');
+        aiEnhancedAnalysis = aiAnalysis;
+      }
+    } catch (error) {
+      console.warn('[IntelligentFileParser] AI分析失败，使用规则分析结果:', error.message);
+    }
+    
+    console.log('[IntelligentFileParser] 最终分析结果:', {
+      confidence: aiEnhancedAnalysis.confidence,
+      mappedFields: aiEnhancedAnalysis.mappings.length,
       totalFields: headers.length,
-      subjects: intelligentAnalysis.subjects,
-      mappings: intelligentAnalysis.mappings
+      subjects: aiEnhancedAnalysis.subjects,
+      mappings: aiEnhancedAnalysis.mappings
     });
     
     // 转换映射格式
     const suggestedMappings: Record<string, string> = {};
-    intelligentAnalysis.mappings.forEach(mapping => {
+    aiEnhancedAnalysis.mappings.forEach(mapping => {
       suggestedMappings[mapping.originalField] = mapping.mappedField;
     });
     
-    // 科目检测（使用智能分析结果）
-    const detectedSubjects = intelligentAnalysis.subjects;
+    // 科目检测（使用AI增强分析结果）
+    const detectedSubjects = aiEnhancedAnalysis.subjects;
     
     // 考试信息推断
     const examInfo = this.inferExamInfo(file.name, headers, cleanedData);
     
-    // 识别未知字段（基于智能分析结果）
+    // 识别未知字段（基于AI增强分析结果）
     const unknownFields = this.identifyUnknownFields(headers, cleanedData, suggestedMappings);
     
-    // 使用智能分析的置信度
-    const confidence = intelligentAnalysis.confidence;
+    // 使用AI增强分析的置信度
+    const confidence = aiEnhancedAnalysis.confidence;
     
     // 判断是否可以自动处理（置信度高于80%且包含基本字段）
     const hasBasicFields = this.checkBasicFields(suggestedMappings);
@@ -228,6 +240,81 @@ export class IntelligentFileParser {
         unknownFields
       }
     };
+  }
+  
+  /**
+   * 使用AI进行字段分析（真正的AI调用）
+   */
+  private async performAIAnalysis(headers: string[], sampleData: any[]): Promise<{
+    mappings: Array<{
+      originalField: string;
+      mappedField: string;
+      subject?: string;
+      dataType: string;
+      confidence: number;
+    }>;
+    subjects: string[];
+    confidence: number;
+  } | null> {
+    try {
+      // 检查是否有AI配置
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.log('[AI分析] 用户未登录，跳过AI分析');
+        return null;
+      }
+
+      // 获取用户AI配置
+      const { data: aiConfig } = await supabase
+        .from('user_ai_configs')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('enabled', true)
+        .single();
+
+      if (!aiConfig) {
+        console.log('[AI分析] 未找到AI配置，跳过AI分析');
+        return null;
+      }
+
+      console.log('[AI分析] 开始调用AI服务进行字段分析...');
+
+      // 准备AI分析的数据
+      const analysisData = {
+        headers,
+        sampleData: sampleData.slice(0, 3), // 只取前3行作为样本
+        context: '这是一个学生成绩数据文件，请分析字段含义并映射到标准字段'
+      };
+
+      // 调用Supabase Edge Function进行AI分析
+      const { data: aiResult, error } = await supabase.functions.invoke('ai-field-analysis', {
+        body: {
+          provider: aiConfig.provider,
+          data: analysisData
+        }
+      });
+
+      if (error) {
+        console.error('[AI分析] AI服务调用失败:', error);
+        return null;
+      }
+
+      if (aiResult && aiResult.success) {
+        console.log('[AI分析] AI分析成功:', aiResult);
+        return {
+          mappings: aiResult.mappings || [],
+          subjects: aiResult.subjects || [],
+          confidence: aiResult.confidence || 0.7
+        };
+      }
+
+      return null;
+    } catch (error) {
+      console.error('[AI分析] AI分析过程出错:', error);
+      return null;
+    }
   }
   
   /**
@@ -522,3 +609,14 @@ export class IntelligentFileParser {
 
 // 导出单例实例
 export const intelligentFileParser = new IntelligentFileParser(); 
+
+// 导出便捷函数供其他模块使用
+export const parseExcelFile = async (file: File): Promise<{ data: any[], headers: string[] }> => {
+  const parser = new IntelligentFileParser();
+  return parser['parseExcelFile'](file);
+};
+
+export const parseCSVFile = async (file: File): Promise<{ data: any[], headers: string[] }> => {
+  const parser = new IntelligentFileParser();
+  return parser['parseCSVFile'](file);
+}; 

@@ -69,7 +69,7 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true }) => {
             <img
               src="https://cdn.builder.io/api/v1/image/assets/TEMP/5404ad9ad18a6dff6da5f0646acd0f77aa36f47d?placeholderIfAbsent=true"
               className="h-8 w-auto"
-              alt="教师分析平台"
+              alt="Positivus"
             />
           </Link>
         </div>
@@ -85,7 +85,7 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true }) => {
               首页
             </Link>
             
-            {/* 审核模式：始终显示完整导航，便于公安部门审核所有功能 */}
+            {isAuthReady && user && (
             <>
               <Link
                 to="/dashboard"
@@ -144,6 +144,7 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true }) => {
                 AI设置
               </Link>
             </>
+            )}
           </nav>
         )}
         
@@ -185,16 +186,10 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true }) => {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            // 审核模式：显示审核标识而不是登录按钮
-            <div className="flex items-center gap-2">
-              <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
-                审核模式
-              </span>
-              <Button variant="outline" size="sm" onClick={() => navigate('/login')}>
-                <User className="mr-2 h-4 w-4" />
-                登录
-              </Button>
-            </div>
+            <Button variant="outline" size="sm" onClick={() => navigate('/login')}>
+              <User className="mr-2 h-4 w-4" />
+              登录
+            </Button>
           )}
         </div>
       </div>

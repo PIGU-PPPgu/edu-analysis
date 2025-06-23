@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -26,6 +26,18 @@ interface ImportReviewDialogProps {
   onNewCustomFieldCreated?: (fieldName: string) => void; // 新增回调：通知父组件创建了新的自定义字段
 }
 
+interface SystemField {
+  id: string;
+  name: string;
+}
+
+interface StudentToImport {
+  name: string;
+  className: string;
+  isExisting: boolean;
+  data: Record<string, any>;
+}
+
 export const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
   isOpen,
   onClose,
@@ -47,6 +59,7 @@ export const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
   const [rawFileData, setRawFileData] = useState<Record<string, string>[]>([]);
   const [isFetchingPreview, setIsFetchingPreview] = useState(false);
 
+  const [currentStep, setCurrentStep] = useState(0);
   const [fileHeaders, setFileHeaders] = useState<string[]>([]);
   const [parsedDataForReview, setParsedDataForReview] = useState<Record<string, string>[] | null>(null);
   const [userConfirmedMappings, setUserConfirmedMappings] = useState<Record<string, string>>({});
@@ -124,7 +137,6 @@ export const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
 
   const handleNextStep = async () => {
     setError(null);
-// ... existing code ...
     if (currentStep === 0) { // User confirmed raw data preview, proceed to AI parsing (Step 2)
       console.log('[ImportReviewDialog] Proceeding from Step 1 (Raw Preview) to Step 2 (AI Parsing).');
       if (!fileToProcess) {
@@ -173,10 +185,23 @@ export const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
         console.error('[ImportReviewDialog] parsedDataForReview is null when proceeding to student check.');
         return;
       }
-// ... existing code ...
+      
+      setIsCheckingStudents(true);
+      try {
+        const students = await onCheckStudents(parsedDataForReview, userConfirmedMappings);
+        setStudentsForImport(students);
+        setCurrentStep(2);
+      } catch (e) {
+        console.error('[ImportReviewDialog Step 3] Student check error:', e);
+        setError('学生信息检查失败，请重试。');
+      } finally {
+        setIsCheckingStudents(false);
+      }
+    } else if (currentStep === 2) { // Student check completed, proceed to final confirmation
+      setCurrentStep(3);
+    }
   };
 
-// ... existing code ...
   const handleMappingChange = (originalHeader: string, newMapping: string) => {
     console.log(`[ImportReviewDialog Step 2] handleMappingChange called. Header: ${originalHeader}, New Mapping: ${newMapping}`);
     if (newMapping === 'NEW_FIELD') {
@@ -225,14 +250,130 @@ export const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
 
   const resetDialog = useCallback(() => {
     console.log('[ImportReviewDialog] Resetting dialog state.');
-// ... existing code ...
+    setCurrentStep(0);
+    setFileHeaders([]);
+    setParsedDataForReview(null);
+    setUserConfirmedMappings({});
+    setEditingField(null);
+    setNewFieldName('');
+    setAiProcessing(false);
+    setStudentsForImport([]);
+    setIsCheckingStudents(false);
+    setIsImporting(false);
+    setError(null);
+    setImportSuccess(false);
     setRawFileHeaders([]);
     setRawFileData([]);
     setIsFetchingPreview(false);
     setInitialMappingsApplied(false);
-  }, [onClose]);
+  }, []);
 
-// ... existing code ...
+  const handlePrevStep = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+      setError(null);
+    }
+  };
+
+  const canProceedToNextStep = () => {
+    switch (currentStep) {
+      case 0: // Raw data preview
+        return rawFileData.length > 0;
+      case 1: // AI mapping confirmation
+        return Object.keys(userConfirmedMappings).length > 0;
+      case 2: // Student check
+        return studentsForImport.length > 0;
+      case 3: // Final confirmation
+        return true;
+      default:
+        return false;
+    }
+  };
+
+  const handleFinalImport = async () => {
+    if (studentsForImport.length === 0) {
+      setError('没有学生数据可导入');
+      return;
+    }
+
+    setIsImporting(true);
+    setError(null);
+
+    try {
+      await onConfirmImport(studentsForImport, userConfirmedMappings);
+      setImportSuccess(true);
+      setTimeout(() => {
+        onClose();
+        resetDialog();
+      }, 2000);
+    } catch (error) {
+      console.error('导入失败:', error);
+      setError('导入失败，请重试');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const renderStep2Content = () => (
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold">第三步：学生信息合并</h3>
+      <p>检查学生信息匹配结果，确认无误后进行导入。</p>
+      {isCheckingStudents && (
+        <div className="flex items-center space-x-2">
+          <Loader2 className="animate-spin" />
+          <span>正在检查学生信息...</span>
+        </div>
+      )}
+      {studentsForImport.length > 0 && (
+        <div className="overflow-auto max-h-60 border rounded-md">
+          <table className="min-w-full divide-y divide-gray-200 text-xs">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-3 py-2 text-left font-medium text-gray-600">学生姓名</th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600">班级</th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600">状态</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {studentsForImport.map((student, index) => (
+                <tr key={index}>
+                  <td className="px-3 py-2">{student.name}</td>
+                  <td className="px-3 py-2">{student.className}</td>
+                  <td className="px-3 py-2">
+                    {student.isExisting ? '已存在' : '新增'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderStep3Content = () => (
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold">第四步：最终确认导入</h3>
+      <p>请确认以下信息无误后点击"确认导入"。</p>
+      <div className="bg-gray-50 p-4 rounded-md">
+        <p><strong>文件名：</strong>{fileName}</p>
+        <p><strong>学生数量：</strong>{studentsForImport.length}</p>
+        <p><strong>字段映射：</strong>{Object.keys(userConfirmedMappings).length} 个字段</p>
+      </div>
+      {isImporting && (
+        <div className="flex items-center space-x-2">
+          <Loader2 className="animate-spin" />
+          <span>正在导入数据...</span>
+        </div>
+      )}
+      {importSuccess && (
+        <div className="text-green-600 flex items-center space-x-2">
+          <span>✓ 导入成功！</span>
+        </div>
+      )}
+    </div>
+  );
+
   // Render logic for Step 1 (Raw Data Preview)
   const renderStep0Content = () => (
     <div className="space-y-4">
@@ -406,17 +547,81 @@ export const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
       {!aiProcessing && !error && (!parsedDataForReview || fileHeaders.length === 0) && <p>AI解析后无数据显示。请检查文件或尝试重新解析。</p>}
     </div>
   );
-// ... existing code ...
+
   const steps = [
     { title: '数据预览', content: renderStep0Content(), id: 'preview' },
     { title: 'AI匹配与确认', content: renderStep1Content(), id: 'map' },
     { title: '学生信息合并', content: renderStep2Content(), id: 'merge' },
     { title: '最终确认导入', content: renderStep3Content(), id: 'confirm' },
   ];
-// ... existing code ...
-// Ensure props are correctly destructured and passed down
-// export const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({...}) => {
-// ...
-// }
-// No change needed at the export if props are handled as above.
-} 
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>导入作业数据 - {fileName}</DialogTitle>
+          <DialogDescription>
+            文件大小: {(fileSize / 1024).toFixed(2)} KB
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* 步骤指示器 */}
+          <div className="flex items-center space-x-4">
+            {steps.map((step, index) => (
+              <div key={step.id} className="flex items-center">
+                <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
+                  index === currentStep ? 'bg-blue-500 text-white' : 
+                  index < currentStep ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
+                }`}>
+                  {index + 1}
+                </div>
+                <span className={`ml-2 text-sm ${
+                  index === currentStep ? 'font-medium text-blue-600' : 
+                  index < currentStep ? 'text-green-600' : 'text-gray-500'
+                }`}>
+                  {step.title}
+                </span>
+                {index < steps.length - 1 && (
+                  <div className={`w-8 h-0.5 mx-4 ${
+                    index < currentStep ? 'bg-green-500' : 'bg-gray-200'
+                  }`} />
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* 当前步骤内容 */}
+          <div className="border rounded-lg p-6">
+            {steps[currentStep]?.content}
+          </div>
+
+          {/* 导航按钮 */}
+          <div className="flex justify-between">
+            <Button
+              variant="outline"
+              onClick={handlePrevStep}
+              disabled={currentStep === 0}
+            >
+              上一步
+            </Button>
+            <div className="space-x-2">
+              <Button variant="outline" onClick={onClose}>
+                取消
+              </Button>
+              {currentStep < steps.length - 1 ? (
+                <Button onClick={handleNextStep} disabled={!canProceedToNextStep()}>
+                  下一步
+                </Button>
+              ) : (
+                <Button onClick={handleFinalImport} disabled={!canProceedToNextStep()}>
+                  确认导入
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}; 

@@ -3,9 +3,11 @@ import Navbar from "@/components/shared/Navbar";
 import WarningDashboard from "@/components/warning/WarningDashboard";
 import WarningRules from "@/components/warning/WarningRules";
 import WarningList from "@/components/warning/WarningList";
+import ExamWarningAnalysis from "@/components/warning/ExamWarningAnalysis";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "react-router-dom";
-import { Settings, AlertTriangle, RefreshCcw } from "lucide-react";
+import { Settings, AlertTriangle, RefreshCcw, BarChart3, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { getWarningStatistics, WarningStats } from "@/services/warningService";
 
@@ -14,6 +16,7 @@ const WarningAnalysis = () => {
   const isMountedRef = useRef(true);
   const [isLoading, setIsLoading] = useState(false);
   const [warningStats, setWarningStats] = useState<WarningStats | null>(null);
+  const [activeTab, setActiveTab] = useState("overall");
   
   // 清理任何潜在的副作用
   useEffect(() => {
@@ -91,21 +94,44 @@ const WarningAnalysis = () => {
               <h4 className="font-medium">预警系统说明</h4>
               <p className="text-sm mt-1">
                 本系统通过分析多种维度的学生数据，识别潜在风险因素并生成预警。
-                您可以设置基于不同数据维度（成绩、出勤率、作业完成情况等）的预警规则，
-                系统将自动评估并向您提供学生风险分析。
+                您可以查看整体预警统计，也可以针对特定考试进行详细的预警分析。
+                系统将自动评估并向您提供学生风险分析和干预建议。
               </p>
             </div>
           </div>
         </div>
         
-        <div className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2 bg-gray-100">
+            <TabsTrigger 
+              value="overall" 
+              className="flex items-center gap-2 data-[state=active]:bg-[#c0ff3f] data-[state=active]:text-black"
+            >
+              <BarChart3 className="h-4 w-4" />
+              整体预警分析
+            </TabsTrigger>
+            <TabsTrigger 
+              value="exam" 
+              className="flex items-center gap-2 data-[state=active]:bg-[#c0ff3f] data-[state=active]:text-black"
+            >
+              <Calendar className="h-4 w-4" />
+              考试级预警分析
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overall" className="space-y-6">
           <WarningDashboard 
             warningData={warningStats}
             factorStats={warningStats?.commonRiskFactors}
           />
           <WarningList />
           <WarningRules />
-        </div>
+          </TabsContent>
+
+          <TabsContent value="exam" className="space-y-6">
+            <ExamWarningAnalysis />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

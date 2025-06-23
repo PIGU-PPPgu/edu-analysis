@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 interface AuthContextType {
   user: User | null;
   session: Session | null;
+  userRole: string | null;
   isAuthReady: boolean;
   signIn: (email: string, password: string) => Promise<{ error?: any }>;
   signUp: (email: string, password: string) => Promise<{ error?: any }>;
@@ -16,7 +17,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // 🔧 开发模式配置
 const DEV_MODE = {
-  enabled: false, // ✅ 关闭开发模式，注册问题已解决
+  enabled: false, // 🔧 关闭开发模式，启用真实用户认证
   mockUser: {
     id: 'dev-user-123',
     email: 'dev@teacher.com',
@@ -34,6 +35,7 @@ const DEV_MODE = {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
 
   useEffect(() => {
@@ -64,6 +66,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else if (session) {
           setUser(session.user);
           setSession(session);
+          // 为所有登录用户默认设置teacher角色，确保可以访问功能
+          setUserRole('teacher');
         }
       } catch (error) {
         console.error('认证初始化失败:', error);
@@ -83,9 +87,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (session) {
         setUser(session.user);
         setSession(session);
+        setUserRole('teacher'); // 为所有登录用户设置teacher角色
       } else {
         setUser(null);
         setSession(null);
+        setUserRole(null);
       }
       
       setIsAuthReady(true);
@@ -190,6 +196,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const value: AuthContextType = {
     user,
     session,
+    userRole,
     isAuthReady,
     signIn,
     signUp,

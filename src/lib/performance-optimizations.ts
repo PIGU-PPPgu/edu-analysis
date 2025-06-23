@@ -110,7 +110,7 @@ export function withPerformanceOptimization<T extends object>(
   Component: React.ComponentType<T>
 ): React.ComponentType<T> {
   const OptimizedComponent = React.memo((props: T) => {
-    return <Component {...props} />;
+    return React.createElement(Component, props);
   });
 
   OptimizedComponent.displayName = `Optimized${Component.displayName || Component.name}`;

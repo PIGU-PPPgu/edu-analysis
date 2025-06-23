@@ -10,6 +10,7 @@
  */
 
 import React, { useState, useCallback } from 'react';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -50,28 +51,18 @@ import type {
 
 const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
   // 使用重构后的hook
+  const { state, actions } = useGradeImporter();
+  
+  // 解构状态
   const {
-    // 状态
     currentStep,
-    isProcessing,
-    progress,
-    
-    // 数据
-    uploadedData,
+    loading: isProcessing,
+    fileData: uploadedData,
     mappingConfig,
     validationResult,
     importResult,
-    
-    // 操作方法
-    actions: {
-      setCurrentStep,
-      setUploadedData,
-      setMappingConfig,
-      setValidationResult,
-      setImportResult,
-      reset: resetState
-    }
-  } = useGradeImporter();
+    importProgress: progress
+  } = state;
 
   // 本地状态
   const [activeTab, setActiveTab] = useState<string>('upload');
@@ -79,44 +70,68 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
   // ==================== 步骤处理函数 ====================
 
   // 1. 文件上传完成
-  const handleFileUploaded = useCallback((data: ParsedData) => {
-    setUploadedData(data);
-    setCurrentStep('mapping');
+  const handleFileUploaded = useCallback((fileData: any, fileInfo: any) => {
+    console.log('文件上传完成:', fileData, fileInfo);
+    console.log('actions 对象:', actions);
+    console.log('actions.setFileData 函数:', actions.setFileData);
+    console.log('actions.setFileData 类型:', typeof actions.setFileData);
+    
+    // 检查 setFileData 是否存在
+    if (typeof actions.setFileData === 'function') {
+      // 直接使用 actions.setFileData 方法设置数据
+      actions.setFileData(fileData.data || [], fileInfo.name);
+      
+      // 更新步骤
+      actions.setCurrentStep('mapping');
     setActiveTab('mapping');
-  }, [setUploadedData, setCurrentStep]);
+      toast.success('文件上传成功，请进行字段映射');
+    } else {
+      console.error('actions.setFileData 不是一个函数:', typeof actions.setFileData);
+      toast.error('文件上传处理失败：setFileData 方法不可用');
+    }
+  }, [actions]);
 
   // 2. 字段映射完成
-  const handleMappingCompleted = useCallback((config: MappingConfig) => {
-    setMappingConfig(config);
-    setCurrentStep('validation');
+  const handleMappingComplete = useCallback((config: any) => {
+    actions.setMappingConfig(config);
+    actions.setCurrentStep('validation');
     setActiveTab('validation');
-  }, [setMappingConfig, setCurrentStep]);
+  }, [actions]);
 
   // 3. 数据验证完成
-  const handleValidationCompleted = useCallback((result: ValidationResult) => {
-    setValidationResult(result);
-    if (result.isValid || result.errors.length === 0) {
-      setCurrentStep('import');
-      setActiveTab('import');
-    }
-  }, [setValidationResult, setCurrentStep]);
-
-  // 4. 导入完成
-  const handleImportCompleted = useCallback((result: ImportResult) => {
-    setImportResult(result);
+  const handleValidationComplete = useCallback(async (result: ValidationResult, validData: any[]) => {
+    // 保存验证结果
+    actions.setValidationResult(result, validData);
     
-    if (result.success) {
-      setCurrentStep('completed');
-      // 通知父组件导入成功
-      onDataImported?.(uploadedData?.data || []);
+    // 更新状态
+    actions.setCurrentStep('import');
+      setActiveTab('import');
+    
+    // 显示验证结果
+    if (result.summary.errorRows > 0) {
+      toast.warning(`数据验证完成，发现 ${result.summary.errorRows} 行错误数据`);
+    } else {
+      toast.success(`数据验证完成，共 ${result.summary.validRows} 行有效数据`);
     }
-  }, [setImportResult, setCurrentStep, onDataImported, uploadedData]);
+  }, [actions]);
+
+  // 4. 开始导入
+  const handleStartImport = useCallback(async () => {
+    try {
+      await actions.startImport();
+      if (onDataImported && importResult) {
+        onDataImported(importResult);
+    }
+    } catch (error) {
+      console.error('导入失败:', error);
+    }
+  }, [actions, onDataImported, importResult]);
 
   // 重置整个流程
   const handleReset = useCallback(() => {
-    resetState();
+    actions.resetImport();
     setActiveTab('upload');
-  }, [resetState]);
+  }, [actions]);
 
   // ==================== 步骤状态计算 ====================
 
@@ -262,17 +277,28 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
         <TabsContent value="upload" className="space-y-4">
           <FileUploader
             onFileUploaded={handleFileUploaded}
-            enableAIEnhancement={true}
-            isLoading={isLoading}
+            onError={(error) => {
+              console.error('文件上传错误:', error);
+              toast.error('文件上传失败: ' + error);
+            }}
+            disabled={isProcessing}
+            acceptedFormats={['.xlsx', '.xls', '.csv']}
+            maxFileSize={10}
           />
         </TabsContent>
 
         {/* 字段映射 */}
         <TabsContent value="mapping" className="space-y-4">
-          {uploadedData ? (
+          {uploadedData && uploadedData.length > 0 ? (
             <DataMapper 
-              uploadedData={uploadedData}
-              onMappingCompleted={handleMappingCompleted}
+              headers={Object.keys(uploadedData[0] || {})}
+              sampleData={uploadedData.slice(0, 5)}
+              onMappingConfigured={handleMappingComplete}
+              onError={(error) => {
+                console.error('字段映射错误:', error);
+                toast.error('字段映射失败: ' + error);
+              }}
+              loading={isProcessing}
             />
           ) : (
             <Alert>
@@ -288,9 +314,15 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
         <TabsContent value="validation" className="space-y-4">
           {uploadedData && mappingConfig ? (
             <DataValidator 
-              uploadedData={uploadedData}
+              data={uploadedData}
               mappingConfig={mappingConfig}
-              onValidationCompleted={handleValidationCompleted}
+              examInfo={state.examInfo || { title: '未命名考试', type: '月考', date: new Date().toISOString().split('T')[0] }}
+              onValidationComplete={handleValidationComplete}
+              onError={(error) => {
+                console.error('数据验证错误:', error);
+                toast.error('数据验证失败: ' + error);
+              }}
+              loading={isProcessing}
             />
           ) : (
             <Alert>
@@ -304,12 +336,17 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
 
         {/* 数据导入 */}
         <TabsContent value="import" className="space-y-4">
-          {uploadedData && mappingConfig && validationResult ? (
+          {state.validData && state.validData.length > 0 && mappingConfig && validationResult ? (
             <ImportProcessor 
-              uploadedData={uploadedData}
-              mappingConfig={mappingConfig}
+              validData={state.validData}
+              examInfo={state.examInfo || { title: '未命名考试', type: '月考', date: new Date().toISOString().split('T')[0] }}
               validationResult={validationResult}
-              onImportCompleted={handleImportCompleted}
+              onImportComplete={handleStartImport}
+              onError={(error) => {
+                console.error('数据导入错误:', error);
+                toast.error('数据导入失败: ' + error);
+              }}
+              loading={isProcessing}
             />
           ) : (
             <Alert>
@@ -323,7 +360,14 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
 
         {/* 配置管理 */}
         <TabsContent value="config" className="space-y-4">
-          <ConfigManager />
+          <ConfigManager 
+            currentConfig={state.importOptions}
+            currentMappingConfig={mappingConfig}
+            currentExamInfo={state.examInfo}
+            onConfigChange={actions.setImportOptions}
+            onMappingConfigChange={(config) => setMappingConfig(config)}
+            onExamInfoChange={(info) => actions.setExamInfo(info)}
+          />
         </TabsContent>
       </Tabs>
 
