@@ -36,7 +36,8 @@ export interface FileDataForReview {
       title: string;
       type: string;
       date: string;
-      scope: string;
+      grade?: string;
+      scope: 'class' | 'grade' | 'school';
     };
     fieldMappings?: Record<string, string>;
     subjects?: string[];

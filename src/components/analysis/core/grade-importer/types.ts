@@ -192,6 +192,7 @@ export interface ValidationError {
   value: any;
   message: string;
   severity: 'error' | 'warning';
+  error?: string; // 添加缺少的error属性
 }
 
 export interface ValidationWarning {
@@ -200,6 +201,7 @@ export interface ValidationWarning {
   value: any;
   message: string;
   suggestion?: string;
+  warning?: string; // 添加缺少的warning属性
 }
 
 export interface ValidationStatistics {
