@@ -490,7 +490,7 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
           type: tempExamInfo.type,
           date: tempExamInfo.date,
           subject: tempExamInfo.subject,
-          description: `自动导入 - ${new Date().toLocaleString()}`,
+          scope: tempExamInfo.scope || 'class',
           created_by: user.id
         })
         .select()

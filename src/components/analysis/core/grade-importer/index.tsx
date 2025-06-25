@@ -14,6 +14,8 @@ export {
 
 // 主组件导出
 export { default as GradeImporter } from './GradeImporter';
+export { default as FlexibleGradeImporter } from './FlexibleGradeImporter';
+export { default as SimpleGradeImporter } from './SimpleGradeImporter';
 
 // 类型导出
 export type {

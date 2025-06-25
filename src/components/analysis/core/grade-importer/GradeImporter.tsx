@@ -32,7 +32,8 @@ import {
 // 导入重构后的子组件
 import { 
   FileUploader,
-  DataMapper, 
+  DataMapper,
+  UserFriendlyDataMapper,
   DataValidator,
   ImportProcessor,
   ConfigManager
@@ -67,6 +68,7 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
   // 本地状态
   const [activeTab, setActiveTab] = useState<string>('upload');
   const [fullFileData, setFullFileData] = useState<any>(null); // 保存完整的文件数据（包含AI解析结果）
+  const [userInterfaceMode, setUserInterfaceMode] = useState<'simple' | 'advanced'>('simple'); // 用户界面模式
 
   // ==================== 步骤处理函数 ====================
 
@@ -319,17 +321,78 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
         {/* 字段映射 */}
         <TabsContent value="mapping" className="space-y-4">
           {uploadedData && uploadedData.length > 0 ? (
-            <DataMapper 
-              headers={Object.keys(uploadedData[0] || {})}
-              sampleData={uploadedData.slice(0, 5)}
-              onMappingConfigured={handleMappingComplete}
-              onError={(error) => {
-                console.error('字段映射错误:', error);
-                toast.error('字段映射失败: ' + error);
-              }}
-              loading={isProcessing}
-              fileData={fullFileData} // 传递完整的文件数据，包含AI解析结果
-            />
+            <div className="space-y-4">
+              {/* 界面模式选择 */}
+              <Card>
+                <CardContent className="pt-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-medium">数据确认模式</h3>
+                      <p className="text-xs text-gray-600 mt-1">
+                        选择适合您的操作方式
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant={userInterfaceMode === 'simple' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setUserInterfaceMode('simple')}
+                        className="flex items-center gap-2"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        智能模式
+                      </Button>
+                      <Button
+                        variant={userInterfaceMode === 'advanced' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setUserInterfaceMode('advanced')}
+                        className="flex items-center gap-2"
+                      >
+                        <Settings className="w-4 h-4" />
+                        高级模式
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {/* 模式说明 */}
+                  <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-700">
+                      {userInterfaceMode === 'simple' 
+                        ? '🤖 智能模式：系统自动识别数据，用简单的方式确认即可，适合大多数用户' 
+                        : '⚙️ 高级模式：提供详细的字段映射控制，适合有经验的用户进行精确配置'
+                      }
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 根据模式显示不同的组件 */}
+              {userInterfaceMode === 'simple' ? (
+                <UserFriendlyDataMapper
+                  headers={Object.keys(uploadedData[0] || {})}
+                  sampleData={uploadedData.slice(0, 5)}
+                  onMappingConfigured={handleMappingComplete}
+                  onError={(error) => {
+                    console.error('数据确认错误:', error);
+                    toast.error('数据确认失败: ' + error);
+                  }}
+                  loading={isProcessing}
+                  fileData={fullFileData} // 传递完整的文件数据，包含AI解析结果
+                />
+              ) : (
+                <DataMapper 
+                  headers={Object.keys(uploadedData[0] || {})}
+                  sampleData={uploadedData.slice(0, 5)}
+                  onMappingConfigured={handleMappingComplete}
+                  onError={(error) => {
+                    console.error('字段映射错误:', error);
+                    toast.error('字段映射失败: ' + error);
+                  }}
+                  loading={isProcessing}
+                  fileData={fullFileData} // 传递完整的文件数据，包含AI解析结果
+                />
+              )}
+            </div>
           ) : (
             <Alert>
               <AlertTriangle className="h-4 w-4" />
