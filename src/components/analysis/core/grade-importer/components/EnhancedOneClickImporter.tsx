@@ -42,14 +42,14 @@ interface ImportResult {
   strategy?: string;
 }
 
-interface OneClickImporterProps {
+interface EnhancedOneClickImporterProps {
   onFileSelected: (file: File) => void;
   onImportComplete: (result: ImportResult, missingFields: string[]) => void;
   onError: (error: string) => void;
   disabled?: boolean;
 }
 
-const OneClickImporter: React.FC<OneClickImporterProps> = ({
+const EnhancedOneClickImporter: React.FC<EnhancedOneClickImporterProps> = ({
   onFileSelected,
   onImportComplete,
   onError,
@@ -422,4 +422,4 @@ const OneClickImporter: React.FC<OneClickImporterProps> = ({
   );
 };
 
-export default OneClickImporter;
+export default EnhancedOneClickImporter;
