@@ -5,6 +5,8 @@ import * as XLSX from 'xlsx';
 // 导入AI服务相关功能
 import { getAIClient } from './aiService';
 import { getUserAIConfig, getUserAPIKey } from '@/utils/userAuth';
+// 导入数据类型检测工具
+import { detectFieldType, FieldTypeDetectionResult, analyzeCSVFieldTypes } from '@/utils/dataTypeConverter';
 
 // AI分析结果接口
 export interface AIAnalysisResult {
@@ -102,56 +104,121 @@ export class AIEnhancedFileParser {
   }
   
   /**
-   * ⚡ 算法快速解析 - 高性能模式识别
+   * ⚡ 算法快速解析 - 高性能模式识别 + 数据类型检测
    */
   private async algorithmQuickParse(headers: string[], sampleData: any[]) {
     const mappings = new Map<string, string>();
+    const dataTypeAnalysis = new Map<string, FieldTypeDetectionResult>();
+    
+    // 🔧 添加数据类型检测
+    try {
+      const fieldAnalysis = analyzeCSVFieldTypes(headers, sampleData);
+      fieldAnalysis.forEach(analysis => {
+        dataTypeAnalysis.set(analysis.fieldName, analysis);
+      });
+      console.log('[AIEnhancedFileParser] ✅ 数据类型分析完成');
+    } catch (error) {
+      console.warn('[AIEnhancedFileParser] ⚠️ 数据类型分析失败，使用备用方案:', error);
+    }
+    
     const patterns = {
       // 学生信息
       student_id: [/学号|student_?id|学生学号|学生编号|编号|考生号|id$/i],
       name: [/姓名|name|学生姓名|真实姓名$/i],
       class_name: [/班级|class|所在班级|行政班级$/i],
       
-      // 科目分数 (主科150分)
-      chinese_score: [/^语文|语文分数|语文成绩$/i],
-      math_score: [/^数学|数学分数|数学成绩$/i],
-      english_score: [/^英语|英语分数|英语成绩$/i],
-      physics_score: [/^物理|物理分数|物理成绩$/i],
-      chemistry_score: [/^化学|化学分数|化学成绩$/i],
-      biology_score: [/^生物|生物分数|生物成绩$/i],
-      politics_score: [/^政治|道法|政治分数|道法分数$/i],
-      history_score: [/^历史|历史分数|历史成绩$/i],
-      geography_score: [/^地理|地理分数|地理成绩$/i],
+      // 🔧 智能分数字段识别 - 区分分数和等级
+      chinese_score: [/语文分数|语文成绩|^语文(?!等级|级别|班名|校名|级名)$/i],
+      math_score: [/数学分数|数学成绩|^数学(?!等级|级别|班名|校名|级名)$/i],
+      english_score: [/英语分数|英语成绩|^英语(?!等级|级别|班名|校名|级名)$/i],
+      physics_score: [/物理分数|物理成绩|^物理(?!等级|级别|班名|校名|级名)$/i],
+      chemistry_score: [/化学分数|化学成绩|^化学(?!等级|级别|班名|校名|级名)$/i],
+      biology_score: [/生物分数|生物成绩|^生物(?!等级|级别|班名|校名|级名)$/i],
+      politics_score: [/政治分数|道法分数|^(政治|道法)(?!等级|级别|班名|校名|级名)$/i],
+      history_score: [/历史分数|历史成绩|^历史(?!等级|级别|班名|校名|级名)$/i],
+      geography_score: [/地理分数|地理成绩|^地理(?!等级|级别|班名|校名|级名)$/i],
       
-      // 等级
+      // 🔧 总分字段 - 明确区分分数和等级
+      total_score: [/总分分数|总成绩|^总分(?!等级|级别|班名|校名|级名)$/i],
+      
+      // 🔧 等级字段 - 明确识别
       chinese_grade: [/语文等级|语文级别$/i],
       math_grade: [/数学等级|数学级别$/i],
       english_grade: [/英语等级|英语级别$/i],
+      physics_grade: [/物理等级|物理级别$/i],
+      chemistry_grade: [/化学等级|化学级别$/i],
+      biology_grade: [/生物等级|生物级别$/i],
+      politics_grade: [/政治等级|道法等级$/i],
+      history_grade: [/历史等级|历史级别$/i],
+      geography_grade: [/地理等级|地理级别$/i],
+      total_grade: [/总分等级|总等级$/i],
       
-      // 排名
-      rank_in_class: [/班级排名|班排$/i],
-      rank_in_grade: [/年级排名|级排|区排$/i],
-      rank_in_school: [/校排名|校排$/i],
+      // 🔧 排名字段 - 重新优化匹配规则
+      rank_in_class: [/班级排名|班排|总分班排|总分班级排名|班名$/i],
+      rank_in_grade: [/年级排名|级排|区排|总分级排|总分年级排名|级名$/i], 
+      rank_in_school: [/校排名|校排|总分校排|总分学校排名|校名$/i],
       
-      // 总分
-      total_score: [/总分|总成绩|合计$/i],
-      total_grade: [/总分等级|总等级$/i]
+      // 特殊排名字段处理
+      total_class_rank: [/总分班名$/i],
+      total_grade_rank: [/总分级名$/i],
+      total_school_rank: [/总分校名$/i]
     };
     
-    // 高速模式匹配
+    // 🔧 高速模式匹配 + 数据类型验证
     for (const header of headers) {
+      let bestMatch = null;
+      let bestScore = 0;
+      
       for (const [fieldName, patterns_list] of Object.entries(patterns)) {
         if (patterns_list.some(pattern => pattern.test(header))) {
-          mappings.set(header, fieldName);
-          break;
+          // 基础匹配得分
+          let score = 1;
+          
+          // 🔧 数据类型验证加分
+          const analysis = dataTypeAnalysis.get(header);
+          if (analysis) {
+            // 验证字段名和数据类型的一致性
+            if (fieldName.includes('score') && analysis.recommendedAction === 'use_as_score') {
+              score += 0.5; // 分数字段且数据为数字，加分
+            } else if (fieldName.includes('grade') && analysis.detectedType.type === 'grade') {
+              score += 0.5; // 等级字段且数据为等级，加分
+            } else if (fieldName.includes('rank') && analysis.detectedType.type === 'rank') {
+              score += 0.5; // 排名字段且数据为排名，加分
+            } else if (fieldName.includes('score') && analysis.detectedType.type === 'grade') {
+              score -= 0.3; // 分数字段但数据是等级，减分但仍可匹配（需要转换）
+              console.warn(`[字段验证] "${header}": 分数字段包含等级数据，需要转换`);
+            }
+          }
+          
+          if (score > bestScore) {
+            bestScore = score;
+            bestMatch = fieldName;
+          }
+        }
+      }
+      
+      if (bestMatch) {
+        mappings.set(header, bestMatch);
+        
+        // 记录数据类型信息，供后续处理使用
+        const analysis = dataTypeAnalysis.get(header);
+        if (analysis) {
+          mappings.set(`${header}_type_info`, {
+            detectedType: analysis.detectedType.type,
+            recommendedAction: analysis.recommendedAction,
+            confidence: analysis.detectedType.confidence
+          });
         }
       }
     }
     
+    console.log(`[AIEnhancedFileParser] ✅ 算法匹配完成: ${mappings.size / 2}/${headers.length} 字段`);
+    
     return {
       mappings,
-      confidence: mappings.size / headers.length,
-      method: 'algorithm' as const
+      confidence: (mappings.size / 2) / headers.length, // 除以2是因为包含了类型信息
+      method: 'algorithm' as const,
+      dataTypeAnalysis // 传递数据类型分析结果
     };
   }
 
@@ -291,14 +358,17 @@ export class AIEnhancedFileParser {
   }
 
   /**
-   * 📚 提取科目列表
+   * 📚 提取科目列表 - 🔧 修复field.split错误
    */
-  private extractSubjects(mappings: Record<string, string>) {
+  private extractSubjects(mappings: Record<string, string | any>) {
     const subjects = new Set<string>();
     Object.values(mappings).forEach(field => {
-      const subject = field.split('_')[0];
-      if (['chinese', 'math', 'english', 'physics', 'chemistry', 'biology', 'politics', 'history', 'geography'].includes(subject)) {
-        subjects.add(subject);
+      // 🔧 只处理字符串字段，跳过类型信息对象
+      if (typeof field === 'string' && field.includes('_')) {
+        const subject = field.split('_')[0];
+        if (['chinese', 'math', 'english', 'physics', 'chemistry', 'biology', 'politics', 'history', 'geography'].includes(subject)) {
+          subjects.add(subject);
+        }
       }
     });
     return Array.from(subjects);

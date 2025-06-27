@@ -113,8 +113,8 @@ export const ENHANCED_FIELD_PATTERNS: Record<string, FieldMappingConfig> = {
   // 排名字段
   rank_in_class: {
     confidence: 0.80,
-    alternatives: ['班级排名', '班内排名', '班排名', '班级名次', 'class_rank'],
-    contextClues: ['班级', '排名', '名次'],
+    alternatives: ['班级排名', '班内排名', '班排名', '班级名次', 'class_rank', '总分班排', '总分班级排名', '总分班名'],
+    contextClues: ['班级', '排名', '名次', '总分'],
     validationRules: [
       { pattern: /^\d{1,3}$/, dataType: 'number' }
     ]
@@ -122,10 +122,19 @@ export const ENHANCED_FIELD_PATTERNS: Record<string, FieldMappingConfig> = {
   
   rank_in_grade: {
     confidence: 0.80,
-    alternatives: ['年级排名', '年级名次', '级排名', 'grade_rank'],
-    contextClues: ['年级', '排名', '名次'],
+    alternatives: ['年级排名', '年级名次', '级排名', 'grade_rank', '总分级排', '总分年级排名', '总分级名'],
+    contextClues: ['年级', '排名', '名次', '总分'],
     validationRules: [
       { pattern: /^\d{1,3}$/, dataType: 'number' }
+    ]
+  },
+  
+  rank_in_school: {
+    confidence: 0.80,
+    alternatives: ['校排名', '学校排名', '校内排名', 'school_rank', '总分校排', '总分学校排名', '总分校名'],
+    contextClues: ['学校', '校内', '排名', '名次', '总分'],
+    validationRules: [
+      { pattern: /^\d{1,4}$/, dataType: 'number' }
     ]
   },
   
@@ -136,6 +145,16 @@ export const ENHANCED_FIELD_PATTERNS: Record<string, FieldMappingConfig> = {
     contextClues: ['总分', '总计', '合计'],
     validationRules: [
       { pattern: /^\d{1,4}(\.\d{1,2})?$/, dataType: 'number' }
+    ]
+  },
+  
+  // 总分等级 (匹配数据库的grade_level字段)
+  grade_level: {
+    confidence: 0.80,
+    alternatives: ['总分等级', '总等级', '总分级别', 'total_grade', 'grade_level'],
+    contextClues: ['等级', '级别', '总分'],
+    validationRules: [
+      { pattern: /^[A-F]$|^优秀|良好|中等|及格|不及格$/, dataType: 'string' }
     ]
   }
 };

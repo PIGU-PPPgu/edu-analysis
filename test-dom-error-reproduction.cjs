@@ -1,4 +1,63 @@
-// 🔧 终极修复版本 - 移除Radix UI Tabs，使用纯div实现
+#!/usr/bin/env node
+
+/**
+ * 🔧 DOM错误自动化测试和修复
+ * 重现并解决React DOM removeChild错误
+ */
+
+const fs = require('fs');
+const path = require('path');
+
+console.log('🧪 开始DOM错误诊断和修复...\n');
+
+// 1. 检查错误堆栈中的关键组件
+console.log('📋 分析错误堆栈:');
+console.log('- 错误发生在 FileUploader 组件内部');
+console.log('- 涉及 Radix UI Tabs 的 Presence 组件');
+console.log('- 问题出现在 card.tsx Text 组件');
+console.log('- 根本原因: React DOM reconciliation 冲突\n');
+
+// 2. 检查当前修复状态
+const gradeImporterPath = 'src/components/analysis/core/grade-importer/GradeImporter.tsx';
+console.log('🔍 检查当前修复状态...');
+
+try {
+  const content = fs.readFileSync(gradeImporterPath, 'utf8');
+  
+  // 检查是否有条件渲染
+  const hasConditionalRendering = content.includes('activeTab === \'upload\'');
+  console.log(`- 条件渲染修复: ${hasConditionalRendering ? '✅ 已应用' : '❌ 未应用'}`);
+  
+  // 检查是否移除了AI自动跳转
+  const hasDisabledAutoJump = content.includes('临时禁用AI自动跳转');
+  console.log(`- AI自动跳转禁用: ${hasDisabledAutoJump ? '✅ 已应用' : '❌ 未应用'}`);
+  
+  if (hasConditionalRendering && hasDisabledAutoJump) {
+    console.log('⚠️  所有已知修复都已应用，但错误仍然存在');
+    console.log('需要更深层的解决方案...\n');
+  }
+} catch (error) {
+  console.log('❌ 无法读取文件:', error.message);
+}
+
+// 3. 分析根本原因
+console.log('🔬 深度分析根本原因:');
+console.log('1. Radix UI Tabs 使用 Presence 组件进行动画');
+console.log('2. Presence 会延迟DOM节点的移除');
+console.log('3. React 18 的并发模式可能导致状态更新冲突');
+console.log('4. 多个嵌套Tabs组件可能产生DOM树冲突\n');
+
+// 4. 提供终极解决方案
+console.log('💡 终极解决方案:');
+console.log('方案1: 完全重写GradeImporter，移除Radix UI Tabs');
+console.log('方案2: 使用React.memo和useMemo避免不必要的重渲染');
+console.log('方案3: 添加key属性强制重新挂载组件');
+console.log('方案4: 使用纯div替代Tabs组件\n');
+
+// 5. 生成修复代码
+console.log('🔧 生成修复代码...');
+
+const simplifiedGradeImporterCode = `// 🔧 终极修复版本 - 移除Radix UI Tabs，使用纯div实现
 import React, { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -147,7 +206,7 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
       setActiveStepIndex(1);
       
       const message = fileData.aiAnalysis?.confidence 
-        ? `文件上传成功，AI识别置信度: ${Math.round(fileData.aiAnalysis.confidence * 100)}%，请确认字段映射`
+        ? \`文件上传成功，AI识别置信度: \${Math.round(fileData.aiAnalysis.confidence * 100)}%，请确认字段映射\`
         : '文件上传成功，请进行字段映射';
       
       toast.success(message);
@@ -175,9 +234,9 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
     
     // 显示验证结果
     if (result.summary.errorRows > 0) {
-      toast.warning(`数据验证完成，发现 ${result.summary.errorRows} 行错误数据`);
+      toast.warning(\`数据验证完成，发现 \${result.summary.errorRows} 行错误数据\`);
     } else {
-      toast.success(`数据验证完成，共 ${result.summary.validRows} 行有效数据`);
+      toast.success(\`数据验证完成，共 \${result.summary.validRows} 行有效数据\`);
     }
   }, [actions]);
 
@@ -252,13 +311,13 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
                     onClick={() => handleStepClick(index)}
                   >
                     {getStepIcon(index)}
-                    <span className={`text-sm ${
+                    <span className={\`text-sm \${
                       getStepStatus(index) === 'active' 
                         ? 'font-semibold text-blue-600' 
                         : getStepStatus(index) === 'completed'
                           ? 'text-green-600'
                           : 'text-gray-500'
-                    }`}>
+                    }\`}>
                       {step.label}
                     </span>
                     {index < 3 && (
@@ -549,4 +608,87 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
   );
 };
 
-export default GradeImporter;
+export default GradeImporter;`;
+
+// 将修复代码写入文件
+const fixedFilePath = 'src/components/analysis/core/grade-importer/GradeImporter.FIXED.tsx';
+try {
+  fs.writeFileSync(fixedFilePath, simplifiedGradeImporterCode);
+  console.log(`✅ 修复代码已生成: ${fixedFilePath}`);
+} catch (error) {
+  console.log('❌ 无法写入修复文件:', error.message);
+}
+
+// 6. 生成测试脚本
+console.log('\n🧪 生成测试脚本...');
+
+const testScript = `#!/bin/bash
+
+# 测试DOM错误修复
+echo "🧪 测试DOM错误修复..."
+
+# 1. 备份原文件
+cp "${gradeImporterPath}" "${gradeImporterPath}.backup"
+echo "✅ 已备份原文件"
+
+# 2. 应用修复
+cp "${fixedFilePath}" "${gradeImporterPath}"
+echo "✅ 已应用修复代码"
+
+# 3. 启动测试
+echo "🚀 启动开发服务器进行测试..."
+npm run dev &
+DEV_PID=$!
+
+# 4. 等待服务器启动
+sleep 5
+
+# 5. 测试文件上传
+echo "📁 测试文件上传功能..."
+echo "请手动访问 http://localhost:8080 并上传 907九下月考成绩.csv 文件"
+echo "观察是否还有DOM错误..."
+
+# 6. 等待用户测试
+read -p "测试完成后按回车键继续..."
+
+# 7. 恢复原文件（如果需要）
+read -p "是否恢复原文件？(y/n): " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    cp "${gradeImporterPath}.backup" "${gradeImporterPath}"
+    echo "✅ 已恢复原文件"
+else
+    echo "✅ 保留修复版本"
+fi
+
+# 8. 清理
+kill $DEV_PID
+echo "🧹 测试完成"
+`;
+
+try {
+  fs.writeFileSync('test-dom-fix.sh', testScript);
+  fs.chmodSync('test-dom-fix.sh', 0o755);
+  console.log('✅ 测试脚本已生成: test-dom-fix.sh');
+} catch (error) {
+  console.log('❌ 无法生成测试脚本:', error.message);
+}
+
+console.log('\n📋 下一步操作:');
+console.log('1. 运行测试脚本: ./test-dom-fix.sh');
+console.log('2. 手动测试上传功能');
+console.log('3. 如果修复有效，替换原文件');
+console.log('4. 测试所有功能以确保兼容性\n');
+
+console.log('🏆 修复方案总结:');
+console.log('- 移除 Radix UI Tabs，使用纯div + 条件渲染');
+console.log('- 使用数字索引代替字符串状态，避免状态冲突');
+console.log('- 每个步骤独立渲染，避免DOM树复杂度');
+console.log('- 保留所有原有功能，只是改变了实现方式');
+console.log('- 添加手动步骤切换，用户控制流程进度\n');
+
+console.log('✨ 预期效果:');
+console.log('- ✅ 消除 removeChild DOM错误');
+console.log('- ✅ 保持用户体验一致');
+console.log('- ✅ 修复 ImportProcessor 中的 getTime 错误');
+console.log('- ✅ 提高组件渲染性能');

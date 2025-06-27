@@ -392,16 +392,18 @@ export interface ImportOptions {
 
 // 导入进度接口
 export interface ImportProgress {
-  stage: 'analyzing' | 'validating' | 'importing' | 'completed' | 'error';
-  current: number;
   total: number;
-  message: string;
-  details?: {
-    processed: number;
-    successful: number;
-    failed: number;
-    warnings: number;
-  };
+  processed: number;
+  successful: number;
+  failed: number;
+  percentage: number;
+  currentBatch: number;
+  totalBatches: number;
+  status: 'pending' | 'importing' | 'paused' | 'completed' | 'failed' | 'cancelled';
+  startTime: Date | null;
+  endTime: Date | null;
+  errors: string[];
+  warnings: string[];
 }
 
 // 导入结果接口

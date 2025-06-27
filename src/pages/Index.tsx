@@ -181,7 +181,7 @@ const Index = () => {
           </Alert>
         )}
         
-        <Tabs defaultValue="students" className="w-full">
+        <Tabs key="main-tabs" defaultValue="students" className="w-full">
           <TabsList className="mb-6 bg-white border shadow-sm">
             <TabsTrigger value="students" className="gap-2 data-[state=active]:bg-[#F2FCE2]">
               <Users className="h-4 w-4" />
@@ -236,7 +236,7 @@ const Index = () => {
                 </CardHeader>
                 <CardContent>
                   {/* 简化的成绩导入 */}
-                  <Tabs defaultValue="import" className="w-full" onValueChange={setGradesActiveTab} value={gradesActiveTab}>
+                  <Tabs key="grades-tabs" defaultValue="import" className="w-full" onValueChange={setGradesActiveTab} value={gradesActiveTab}>
                     <TabsList className="mb-6 w-full justify-start">
                       <TabsTrigger value="import" className="flex items-center gap-1">
                         <FileInput className="h-4 w-4" />
