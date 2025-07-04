@@ -77,6 +77,7 @@ const QuickFixSuggestions: React.FC<QuickFixSuggestionsProps> = ({
 
   // 生成快速修复建议
   const generateQuickFixes = (): QuickFixAction[] => {
+    console.log('[QuickFixSuggestions] 生成修复建议:', { currentMapping });
     const fixes: QuickFixAction[] = [];
     const fieldMappings = currentMapping.fieldMappings || {};
     const customFields = currentMapping.customFields || {};
@@ -108,9 +109,10 @@ const QuickFixSuggestions: React.FC<QuickFixSuggestionsProps> = ({
     }
 
     // 2. 检查常见科目字段的智能分组
-    const subjectFields = Object.entries(fieldMappings).filter(([_, mapped]) => 
-      mapped.includes('score') || mapped.includes('grade')
-    );
+    const subjectFields = Object.entries(fieldMappings).filter(([_, mapped]) => {
+      const mappedStr = String(mapped || '');
+      return mappedStr.includes('score') || mappedStr.includes('grade');
+    });
     
     if (subjectFields.length >= 3) {
       const unorganizedSubjects = checkSubjectOrganization(subjectFields);
@@ -355,6 +357,7 @@ const QuickFixSuggestions: React.FC<QuickFixSuggestionsProps> = ({
 
   // 应用修复
   const handleApplyFix = (action: QuickFixAction) => {
+    console.log('[QuickFixSuggestions] 开始应用修复:', { actionId: action.id, action });
     const updatedMapping: MappingConfig = { ...currentMapping };
 
     switch (action.fix.type) {
@@ -395,6 +398,7 @@ const QuickFixSuggestions: React.FC<QuickFixSuggestionsProps> = ({
     }
 
     setAppliedFixes(prev => new Set([...prev, action.id]));
+    console.log('[QuickFixSuggestions] 修复完成，调用回调:', { updatedMapping, actionId: action.id });
     onApplyFix(updatedMapping, action.id);
   };
 

@@ -460,6 +460,10 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
                 validData={state.validData}
                 examInfo={state.examInfo || { title: '未命名考试', type: '月考', date: new Date().toISOString().split('T')[0] }}
                 validationResult={validationResult}
+                headers={uploadedData && uploadedData.length > 0 ? Object.keys(uploadedData[0]) : []}
+                sampleData={uploadedData?.slice(0, 5) || []}
+                currentMapping={mappingConfig?.fieldMappings || {}}
+                aiAnalysis={fullFileData?.aiAnalysis}
                 onImportComplete={handleStartImport}
                 onError={(error) => {
                   console.error('数据导入错误:', error);

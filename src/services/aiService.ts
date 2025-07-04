@@ -1867,31 +1867,22 @@ export async function testProviderConnection(
       }
     };
     
-    // 豆包API特殊处理 - 使用代理服务器
+    // 豆包API测试连接 - 直接调用API
     if (provider.toLowerCase() === 'doubao') {
       try {
-        logInfo('通过代理服务器测试豆包API连接');
+        logInfo('直接测试豆包API连接');
         
-        // 使用本地代理服务
-        const proxyUrl = 'http://localhost:3001/api/proxy/doubao';
+        // 使用EnhancedAIClient进行测试
+        const aiClient = new EnhancedAIClient(apiKey, provider, modelToUse, true);
         
-        // 确保使用正确的模型ID
-        if (!modelToUse || modelToUse.trim() === '') {
-          logError('测试连接时模型ID为空');
-        }
-        
-        // 记录实际使用的模型ID
-        logInfo(`测试连接使用模型: ${modelToUse}`);
-        
-        const response = await axios.post(proxyUrl, {
-          model: modelToUse,  // 直接使用传入的modelId
-          messages: [{ role: 'system', content: 'Hello' }],
-          apiKey: apiKey,
-          apiId: apiId,
-          max_tokens: 5
+        // 发送测试请求
+        const response = await aiClient.chat.completions.create({
+          messages: [{ role: 'user', content: '你好' }],
+          max_tokens: 10,
+          temperature: 0.7
         });
         
-        if (response.data) {
+        if (response && response.choices && response.choices.length > 0) {
           logInfo('豆包API测试连接成功');
           return {
             success: true,

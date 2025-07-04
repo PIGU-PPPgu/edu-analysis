@@ -1,0 +1,373 @@
+{
+  "name": "豆包分镜5分钟视频制作工作流",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
+      },
+      "id": "daily-trigger",
+      "name": "每日触发器",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [100, 200],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "model": "deepseek-chat",
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 2000
+        },
+        "messages": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "你是一个专业的青少年读书推荐专家。请为13-18岁的青少年推荐一本适合的书籍，并生成详细的5分钟视频脚本。"
+            },
+            {
+              "role": "user",
+              "content": "请推荐一本适合青少年的书籍，并生成一个5分钟的视频脚本。脚本需要分成12个场景，每个场景25秒钟。格式要求：1. 书籍基本信息 2. 推荐理由 3. 12个场景的详细描述（每个场景包含：时间、画面描述、解说词）"
+            }
+          ]
+        }
+      },
+      "id": "book-recommendation-ai",
+      "name": "AI书籍推荐与脚本生成",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [320, 200],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "// 解析AI生成的脚本，提取书籍信息和12个场景（每个场景需要生成5个5秒片段）\nconst aiResponse = $input.first().json.response;\n\n// 提取书籍信息\nconst bookMatch = aiResponse.match(/书名：(.+)/);\nconst authorMatch = aiResponse.match(/作者：(.+)/);\nconst reasonMatch = aiResponse.match(/推荐理由：([\\s\\S]*?)(?=场景1：|$)/);\n\n// 提取12个场景，每个场景拆分成5个5秒片段\nconst videoClips = [];\nfor (let i = 1; i <= 12; i++) {\n  const sceneRegex = new RegExp(`场景${i}：([\\s\\S]*?)(?=场景${i+1}：|$)`);\n  const sceneMatch = aiResponse.match(sceneRegex);\n  if (sceneMatch) {\n    const sceneContent = sceneMatch[1].trim();\n    // 每个25秒场景拆分成5个5秒片段\n    for (let j = 1; j <= 5; j++) {\n      const clipNumber = (i-1) * 5 + j;\n      videoClips.push({\n        clipNumber: clipNumber,\n        sceneNumber: i,\n        subClipNumber: j,\n        description: `场景${i}-片段${j}: ${sceneContent}`,\n        prompt: `为青少年书籍推荐视频生成5秒片段：${sceneContent}。要求：画面清晰、色彩温暖、适合青少年观看。`,\n        startTime: (clipNumber-1) * 5,\n        endTime: clipNumber * 5\n      });\n    }\n  }\n}\n\nreturn {\n  bookInfo: {\n    title: bookMatch ? bookMatch[1] : '未知书籍',\n    author: authorMatch ? authorMatch[1] : '未知作者',\n    reason: reasonMatch ? reasonMatch[1].trim() : '推荐理由未提取'\n  },\n  videoClips: videoClips,\n  totalClips: videoClips.length,\n  fullScript: aiResponse\n};"
+      },
+      "id": "script-parser",
+      "name": "脚本解析器",
+      "type": "n8n-nodes-base.code",
+      "position": [540, 200],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "batchSize": 3,
+        "options": {}
+      },
+      "id": "clip-splitter",
+      "name": "视频片段分批处理",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [760, 200],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "jsCode": "// 为当前批次的每个片段准备豆包API请求\nconst inputData = $input.first().json;\n\n// 获取当前批次的片段\nconst currentClip = inputData;\n\nreturn {\n  clipNumber: currentClip.clipNumber,\n  sceneNumber: currentClip.sceneNumber,\n  subClipNumber: currentClip.subClipNumber,\n  description: currentClip.description,\n  prompt: currentClip.prompt,\n  startTime: currentClip.startTime,\n  endTime: currentClip.endTime,\n  doubaoRequest: {\n    model: 'doubao-seedance-1-0-pro-250528',\n    content: [{\n      type: 'text',\n      text: currentClip.prompt\n    }],\n    duration: 5,\n    width: 1920,\n    height: 1080,\n    fps: 30\n  }\n};"
+      },
+      "id": "prepare-video-requests",
+      "name": "准备视频请求",
+      "type": "n8n-nodes-base.code",
+      "position": [980, 200],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "url": "https://ark.cn-beijing.volces.com/api/v3/video/generation",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $credentials.doubao_api_key }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ $json.doubaoRequest }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "doubao-video-generation",
+      "name": "豆包视频生成",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1200, 200],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "jsCode": "// 处理豆包API响应，提取视频URL\nconst response = $input.first().json;\nconst requestData = $input.first().json;\n\nlet videoUrl = null;\nlet status = 'failed';\n\n// 根据豆包API实际响应格式调整\nif (response.data && response.data.video_url) {\n  videoUrl = response.data.video_url;\n  status = 'success';\n} else if (response.choices && response.choices[0]) {\n  // 备用解析方式\n  const content = response.choices[0].message?.content;\n  const urlMatch = content?.match(/https?:\\/\\/[^\\s]+\\.(mp4|avi|mov)/);\n  if (urlMatch) {\n    videoUrl = urlMatch[0];\n    status = 'success';\n  }\n}\n\nreturn {\n  clipNumber: requestData.clipNumber,\n  sceneNumber: requestData.sceneNumber,\n  subClipNumber: requestData.subClipNumber,\n  videoUrl: videoUrl,\n  description: requestData.description,\n  startTime: requestData.startTime,\n  endTime: requestData.endTime,\n  status: status,\n  response: response\n};"
+      },
+      "id": "process-video-response",
+      "name": "处理视频响应",
+      "type": "n8n-nodes-base.code",
+      "position": [1420, 200],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "batch-complete",
+              "leftValue": "={{ $('clip-splitter').item.json.done }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-batch-complete",
+      "name": "检查批次完成",
+      "type": "n8n-nodes-base.if",
+      "position": [1640, 200],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "url": "https://api.elevenlabs.io/v1/text-to-speech/zh-CN-XiaoxiaoNeural",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "xi-api-key",
+              "value": "{{ $credentials.elevenlabs_api_key }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": {
+          "text": "={{ $('script-parser').item.json.fullScript }}",
+          "voice_settings": {
+            "speed": 1.0,
+            "pitch": 0
+          }
+        }
+      },
+      "id": "generate-audio",
+      "name": "生成音频解说",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1860, 100],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "jsCode": "// 生成SRT字幕文件\nconst bookInfo = $('script-parser').item.json.bookInfo;\nconst fullScript = $('script-parser').item.json.fullScript;\n\n// 简单的字幕生成（每25秒一个字幕块）\nlet srtContent = '';\nconst scenes = fullScript.split('场景').slice(1);\n\nscenes.forEach((scene, index) => {\n  const sceneNumber = index + 1;\n  const startTime = (sceneNumber - 1) * 25;\n  const endTime = sceneNumber * 25;\n  \n  const dialogMatch = scene.match(/解说：(.+)/);\n  const dialog = dialogMatch ? dialogMatch[1] : `第${sceneNumber}个场景`;\n  \n  srtContent += `${sceneNumber}\\n`;\n  srtContent += `${formatTime(startTime)} --> ${formatTime(endTime)}\\n`;\n  srtContent += `${dialog}\\n\\n`;\n});\n\nfunction formatTime(seconds) {\n  const hours = Math.floor(seconds / 3600);\n  const minutes = Math.floor((seconds % 3600) / 60);\n  const secs = seconds % 60;\n  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')},000`;\n}\n\nreturn {\n  srtContent: srtContent,\n  bookTitle: bookInfo.title,\n  totalDuration: 300\n};"
+      },
+      "id": "generate-subtitles",
+      "name": "生成字幕",
+      "type": "n8n-nodes-base.code",
+      "position": [1860, 200],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// 收集所有视频片段URL并准备FFmpeg合并命令\nconst videoClips = $input.all().map(item => item.json);\nconst successfulClips = videoClips.filter(clip => clip.status === 'success');\n\n// 按照clipNumber排序\nsuccessfulClips.sort((a, b) => a.clipNumber - b.clipNumber);\n\n// 生成FFmpeg合并命令\nconst inputFiles = successfulClips.map((clip, index) => {\n  return `-i ${clip.videoUrl}`;\n}).join(' ');\n\nconst filterComplex = successfulClips.map((clip, index) => {\n  return `[${index}:v]`;\n}).join('') + `concat=n=${successfulClips.length}:v=1:a=0[outv]`;\n\nconst ffmpegCommand = `ffmpeg ${inputFiles} -filter_complex \"${filterComplex}\" -map \"[outv]\" -c:v libx264 -preset fast -crf 23 output_video.mp4`;\n\nreturn {\n  totalClips: successfulClips.length,\n  ffmpegCommand: ffmpegCommand,\n  videoClips: successfulClips,\n  bookTitle: $('script-parser').item.json.bookInfo.title\n};"
+      },
+      "id": "prepare-merge-command",
+      "name": "准备合并命令",
+      "type": "n8n-nodes-base.code",
+      "position": [1860, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "command": "={{ $json.ffmpegCommand }}",
+        "options": {}
+      },
+      "id": "merge-videos",
+      "name": "合并视频",
+      "type": "n8n-nodes-base.executeCommand",
+      "position": [2080, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "{{ $credentials.google_sheet_id }}",
+        "sheetName": "视频制作记录",
+        "columnNames": "日期,书籍名称,作者,视频片段数,状态,文件路径",
+        "values": {
+          "日期": "={{ new Date().toISOString().split('T')[0] }}",
+          "书籍名称": "={{ $('script-parser').item.json.bookInfo.title }}",
+          "作者": "={{ $('script-parser').item.json.bookInfo.author }}",
+          "视频片段数": "={{ $('prepare-merge-command').item.json.totalClips }}",
+          "状态": "完成",
+          "文件路径": "output_video.mp4"
+        }
+      },
+      "id": "save-to-sheets",
+      "name": "保存到Google表格",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [2300, 300],
+      "typeVersion": 4
+    }
+  ],
+  "connections": {
+    "daily-trigger": {
+      "main": [
+        [
+          {
+            "node": "book-recommendation-ai",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "book-recommendation-ai": {
+      "main": [
+        [
+          {
+            "node": "script-parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "script-parser": {
+      "main": [
+        [
+          {
+            "node": "clip-splitter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "clip-splitter": {
+      "main": [
+        [
+          {
+            "node": "prepare-video-requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare-video-requests": {
+      "main": [
+        [
+          {
+            "node": "doubao-video-generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "doubao-video-generation": {
+      "main": [
+        [
+          {
+            "node": "process-video-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process-video-response": {
+      "main": [
+        [
+          {
+            "node": "check-batch-complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check-batch-complete": {
+      "main": [
+        [
+          {
+            "node": "generate-audio",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "generate-subtitles",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "prepare-merge-command",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "clip-splitter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare-merge-command": {
+      "main": [
+        [
+          {
+            "node": "merge-videos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "merge-videos": {
+      "main": [
+        [
+          {
+            "node": "save-to-sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-01-15T10:00:00.000Z",
+  "versionId": "1"
+} 

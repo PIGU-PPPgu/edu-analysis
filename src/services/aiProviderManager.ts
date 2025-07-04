@@ -225,6 +225,7 @@ export function getProviderEndpoint(providerId: string, baseUrl: string, modelId
         ? `${baseUrl}/services/aigc/text-generation/generation` 
         : `${baseUrl}/api/v1/services/aigc/text-generation/generation`;
     case 'doubao':
+      // 豆包应该使用模型特定的endpointPath，这里作为备选
       return `${baseUrl}/chat/completions`;
     default:
       // 默认尝试补全为OpenAI格式

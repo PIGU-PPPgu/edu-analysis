@@ -127,19 +127,19 @@ export class AIEnhancedFileParser {
       name: [/姓名|name|学生姓名|真实姓名$/i],
       class_name: [/班级|class|所在班级|行政班级$/i],
       
-      // 🔧 智能分数字段识别 - 区分分数和等级
-      chinese_score: [/语文分数|语文成绩|^语文(?!等级|级别|班名|校名|级名)$/i],
-      math_score: [/数学分数|数学成绩|^数学(?!等级|级别|班名|校名|级名)$/i],
-      english_score: [/英语分数|英语成绩|^英语(?!等级|级别|班名|校名|级名)$/i],
-      physics_score: [/物理分数|物理成绩|^物理(?!等级|级别|班名|校名|级名)$/i],
-      chemistry_score: [/化学分数|化学成绩|^化学(?!等级|级别|班名|校名|级名)$/i],
-      biology_score: [/生物分数|生物成绩|^生物(?!等级|级别|班名|校名|级名)$/i],
-      politics_score: [/政治分数|道法分数|^(政治|道法)(?!等级|级别|班名|校名|级名)$/i],
-      history_score: [/历史分数|历史成绩|^历史(?!等级|级别|班名|校名|级名)$/i],
-      geography_score: [/地理分数|地理成绩|^地理(?!等级|级别|班名|校名|级名)$/i],
+      // 🔧 智能分数字段识别 - 更灵活的匹配，优先个别科目
+      chinese_score: [/语文(?!等级|级别|班名|校名|级名)|chinese/i],
+      math_score: [/数学(?!等级|级别|班名|校名|级名)|mathematics|math/i],
+      english_score: [/英语(?!等级|级别|班名|校名|级名)|english/i],
+      physics_score: [/物理(?!等级|级别|班名|校名|级名)|physics/i],
+      chemistry_score: [/化学(?!等级|级别|班名|校名|级名)|chemistry/i],
+      biology_score: [/生物(?!等级|级别|班名|校名|级名)|biology/i],
+      politics_score: [/(政治|道法)(?!等级|级别|班名|校名|级名)|politics/i],
+      history_score: [/历史(?!等级|级别|班名|校名|级名)|history/i],
+      geography_score: [/地理(?!等级|级别|班名|校名|级名)|geography/i],
       
-      // 🔧 总分字段 - 明确区分分数和等级
-      total_score: [/总分分数|总成绩|^总分(?!等级|级别|班名|校名|级名)$/i],
+      // 🔧 总分字段 - 更严格匹配，避免与个别科目冲突
+      total_score: [/总分(?!等级|级别|班名|校名|级名)|总成绩|合计(?!等级|级别)|总计(?!等级|级别)|total.?score/i],
       
       // 🔧 等级字段 - 明确识别
       chinese_grade: [/语文等级|语文级别$/i],
@@ -164,7 +164,7 @@ export class AIEnhancedFileParser {
       total_school_rank: [/总分校名$/i]
     };
     
-    // 🔧 高速模式匹配 + 数据类型验证
+    // 🔧 高速模式匹配 + 数据类型验证 + 优先级系统
     for (const header of headers) {
       let bestMatch = null;
       let bestScore = 0;
@@ -173,6 +173,17 @@ export class AIEnhancedFileParser {
         if (patterns_list.some(pattern => pattern.test(header))) {
           // 基础匹配得分
           let score = 1;
+          
+          // 🔧 优先级加分 - 个别科目优先于总分
+          if (fieldName.includes('chinese_score') || fieldName.includes('math_score') || 
+              fieldName.includes('english_score') || fieldName.includes('physics_score') ||
+              fieldName.includes('chemistry_score') || fieldName.includes('biology_score') ||
+              fieldName.includes('politics_score') || fieldName.includes('history_score') ||
+              fieldName.includes('geography_score')) {
+            score += 1.0; // 个别科目优先级更高
+          } else if (fieldName === 'total_score') {
+            score += 0.2; // 总分优先级较低
+          }
           
           // 🔧 数据类型验证加分
           const analysis = dataTypeAnalysis.get(header);
@@ -200,6 +211,14 @@ export class AIEnhancedFileParser {
       if (bestMatch) {
         mappings.set(header, bestMatch);
         
+        // 🔧 详细日志记录 - 追踪科目识别
+        if (bestMatch.includes('_score')) {
+          const subjectName = bestMatch.replace('_score', '');
+          console.log(`[科目识别] ✅ "${header}" → ${bestMatch} (${subjectName}科目, 得分: ${bestScore.toFixed(2)})`);
+        } else {
+          console.log(`[字段识别] ✅ "${header}" → ${bestMatch} (得分: ${bestScore.toFixed(2)})`);
+        }
+        
         // 记录数据类型信息，供后续处理使用
         const analysis = dataTypeAnalysis.get(header);
         if (analysis) {
@@ -209,10 +228,22 @@ export class AIEnhancedFileParser {
             confidence: analysis.detectedType.confidence
           });
         }
+      } else {
+        console.log(`[字段识别] ❌ "${header}" 未找到匹配`);
       }
     }
     
+    // 🔧 统计科目识别结果
+    const subjectScores = Array.from(mappings.values()).filter(v => 
+      typeof v === 'string' && v.includes('_score') && v !== 'total_score'
+    );
+    const totalScores = Array.from(mappings.values()).filter(v => 
+      typeof v === 'string' && v === 'total_score'
+    );
+    
     console.log(`[AIEnhancedFileParser] ✅ 算法匹配完成: ${mappings.size / 2}/${headers.length} 字段`);
+    console.log(`[科目统计] 📊 个别科目: ${subjectScores.length} 个, 总分: ${totalScores.length} 个`);
+    console.log(`[科目详情] 📋 已识别科目: ${subjectScores.join(', ')}`);
     
     return {
       mappings,

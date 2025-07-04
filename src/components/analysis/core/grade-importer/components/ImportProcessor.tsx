@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
@@ -49,6 +50,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import SimplePostImportReview from './SimplePostImportReview';
 
 // 🚑 修复函数 - 解决406错误和字段映射问题
 const checkExamDuplicateSafe = async (examInfo: ExamInfo) => {
@@ -101,7 +103,8 @@ const checkGradeDataDuplicateSafe = async (examId: string, studentId: string) =>
 
 const insertGradeDataSafe = async (gradeRecord: any) => {
   try {
-    console.log('安全插入成绩数据，学生:', gradeRecord.student_id);
+    console.log('🔧 安全插入成绩数据，学生:', gradeRecord.student_id);
+    console.log('🔧 输入数据字段:', Object.keys(gradeRecord));
     
     // 🔧 数据类型转换和清洗
     const cleanScore = (value: any): number | null => {
@@ -119,88 +122,217 @@ const insertGradeDataSafe = async (gradeRecord: any) => {
       return null;
     };
 
-    // 安全转换total_score - 这是关键的数字字段
-    let totalScore = null;
-    const scoreCandidate = gradeRecord.total_score || gradeRecord.score || gradeRecord['总分分数'] || gradeRecord['总分'];
+    // 🔧 智能字段检测 - 基于实际数据字段动态构建记录
+    const recordsToInsert = [];
     
-    if (scoreCandidate !== null && scoreCandidate !== undefined && scoreCandidate !== '') {
-      totalScore = cleanScore(scoreCandidate);
-      
-      if (totalScore === null) {
-        console.warn(`total_score转换失败，原始值: "${scoreCandidate}"`);
-        // 如果是等级，尝试记录到metadata并使用默认分数
-        if (typeof scoreCandidate === 'string' && GRADE_TO_SCORE_MAP[scoreCandidate]) {
-          totalScore = GRADE_TO_SCORE_MAP[scoreCandidate];
-          console.log(`等级"${scoreCandidate}"转换为分数: ${totalScore}`);
-        }
+    // 1. 检测总分字段（多种可能的命名）
+    const totalScoreFields = ['total_score', 'score', '总分', '总分分数', '总成绩'];
+    const totalGradeFields = ['grade', 'original_grade', '总分等级', '等级'];
+    const classRankFields = ['rank_in_class', '班级排名', '班排名', '总分班名'];
+    const gradeRankFields = ['rank_in_grade', '年级排名', '级排名', '总分级名'];
+    const schoolRankFields = ['rank_in_school', '学校排名', '校排名', '总分校名'];
+    
+    let totalScore = null;
+    let totalGrade = null;
+    let classRank = null;
+    let gradeRank = null;
+    let schoolRank = null;
+    
+    // 查找总分
+    for (const field of totalScoreFields) {
+      if (gradeRecord[field] !== undefined && gradeRecord[field] !== null && gradeRecord[field] !== '') {
+        totalScore = cleanScore(gradeRecord[field]);
+        if (totalScore !== null) break;
       }
     }
     
-    // 构建安全的数据记录，只使用确认存在的字段
-    const safeRecord = {
-      exam_id: gradeRecord.exam_id,
-      student_id: gradeRecord.student_id,
-      name: gradeRecord.name,
-      class_name: gradeRecord.class_name,
+    // 查找等级
+    for (const field of totalGradeFields) {
+      if (gradeRecord[field] !== undefined && gradeRecord[field] !== null && gradeRecord[field] !== '') {
+        totalGrade = String(gradeRecord[field]).trim();
+        break;
+      }
+    }
+    
+    // 查找排名
+    for (const field of classRankFields) {
+      if (gradeRecord[field] !== undefined) {
+        classRank = cleanScore(gradeRecord[field]);
+        if (classRank !== null) break;
+      }
+    }
+    
+    for (const field of gradeRankFields) {
+      if (gradeRecord[field] !== undefined) {
+        gradeRank = cleanScore(gradeRecord[field]);
+        if (gradeRank !== null) break;
+      }
+    }
+    
+    for (const field of schoolRankFields) {
+      if (gradeRecord[field] !== undefined) {
+        schoolRank = cleanScore(gradeRecord[field]);
+        if (schoolRank !== null) break;
+      }
+    }
+    
+    // 如果有总分，创建总分记录
+    if (totalScore !== null || totalGrade !== null) {
+      const totalRecord = {
+        exam_id: gradeRecord.exam_id,
+        student_id: gradeRecord.student_id,
+        name: gradeRecord.name,
+        class_name: gradeRecord.class_name,
+        subject: '总分',
+        score: totalScore,
+        grade: totalGrade,
+        rank_in_class: classRank,
+        rank_in_grade: gradeRank,
+        rank_in_school: schoolRank,
+        grade_level: gradeRecord.grade_level || null,
+        exam_date: gradeRecord.exam_date || null,
+        exam_type: gradeRecord.exam_type || null,
+        exam_title: gradeRecord.exam_title || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      recordsToInsert.push(totalRecord);
+      console.log('✅ 创建总分记录:', { score: totalScore, grade: totalGrade });
+    }
+
+    // 2. 动态检测科目成绩字段
+    const subjectMappings = {
+      // 分数字段映射
+      'chinese_score': { name: '语文', gradeKey: 'chinese_grade' },
+      'math_score': { name: '数学', gradeKey: 'math_grade' },
+      'english_score': { name: '英语', gradeKey: 'english_grade' },
+      'physics_score': { name: '物理', gradeKey: 'physics_grade' },
+      'chemistry_score': { name: '化学', gradeKey: 'chemistry_grade' },
+      'biology_score': { name: '生物', gradeKey: 'biology_grade' },
+      'politics_score': { name: '政治', gradeKey: 'politics_grade' },
+      'history_score': { name: '历史', gradeKey: 'history_grade' },
+      'geography_score': { name: '地理', gradeKey: 'geography_grade' },
       
-      // 🔧 关键修复：确保total_score为数字类型
-      total_score: totalScore,
+      // 中文字段映射
+      '语文': { name: '语文', gradeKey: '语文等级' },
+      '数学': { name: '数学', gradeKey: '数学等级' },
+      '英语': { name: '英语', gradeKey: '英语等级' },
+      '物理': { name: '物理', gradeKey: '物理等级' },
+      '化学': { name: '化学', gradeKey: '化学等级' },
+      '生物': { name: '生物', gradeKey: '生物等级' },
+      '政治': { name: '政治', gradeKey: '政治等级' },
+      '历史': { name: '历史', gradeKey: '历史等级' },
+      '地理': { name: '地理', gradeKey: '地理等级' },
       
-      // 元数据 - 保存原始等级信息
-      metadata: {
-        ...(gradeRecord.metadata || {}),
-        // 保存原始等级数据
-        original_grades: {
-          total_grade: gradeRecord['总分等级'] || gradeRecord.grade || null,
-          chinese_grade: gradeRecord['语文等级'] || null,
-          math_grade: gradeRecord['数学等级'] || null,
-          english_grade: gradeRecord['英语等级'] || null,
-          physics_grade: gradeRecord['物理等级'] || null,
-          chemistry_grade: gradeRecord['化学等级'] || null
-        },
-        // 保存排名数据
-        ranks: {
-          class_rank: gradeRecord['总分班名'] || gradeRecord.rank_in_class || null,
-          school_rank: gradeRecord['总分校名'] || gradeRecord.rank_in_school || null,
-          grade_rank: gradeRecord['总分级名'] || gradeRecord.rank_in_grade || null
-        },
-        // 记录原始数据以便调试
-        raw_total_score: scoreCandidate
-      },
-      
-      // 时间戳
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      // 分数字段映射（中文后缀）
+      '语文分数': { name: '语文', gradeKey: '语文等级' },
+      '数学分数': { name: '数学', gradeKey: '数学等级' },
+      '英语分数': { name: '英语', gradeKey: '英语等级' },
+      '物理分数': { name: '物理', gradeKey: '物理等级' },
+      '化学分数': { name: '化学', gradeKey: '化学等级' },
+      '生物分数': { name: '生物', gradeKey: '生物等级' },
+      '政治分数': { name: '政治', gradeKey: '政治等级' },
+      '历史分数': { name: '历史', gradeKey: '历史等级' },
+      '地理分数': { name: '地理', gradeKey: '地理等级' }
     };
 
-    // 验证关键字段
-    if (!safeRecord.student_id || !safeRecord.name) {
-      throw new Error(`缺少必要字段 - 学号: ${safeRecord.student_id}, 姓名: ${safeRecord.name}`);
+    // 检测并创建科目记录
+    for (const [fieldKey, mapping] of Object.entries(subjectMappings)) {
+      if (gradeRecord[fieldKey] !== undefined && gradeRecord[fieldKey] !== null && gradeRecord[fieldKey] !== '') {
+        const score = cleanScore(gradeRecord[fieldKey]);
+        if (score !== null) {
+          const subjectGrade = gradeRecord[mapping.gradeKey] || null;
+          
+          const subjectRecord = {
+            exam_id: gradeRecord.exam_id,
+            student_id: gradeRecord.student_id,
+            name: gradeRecord.name,
+            class_name: gradeRecord.class_name,
+            subject: mapping.name,
+            score: score,
+            grade: subjectGrade ? String(subjectGrade).trim() : null,
+            grade_level: gradeRecord.grade_level || null,
+            exam_date: gradeRecord.exam_date || null,
+            exam_type: gradeRecord.exam_type || null,
+            exam_title: gradeRecord.exam_title || null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          recordsToInsert.push(subjectRecord);
+          console.log(`✅ 创建${mapping.name}记录:`, { score, grade: subjectGrade });
+        }
+      }
     }
 
-    console.log('准备插入的安全记录:', {
-      student_id: safeRecord.student_id,
-      name: safeRecord.name,
-      total_score: safeRecord.total_score,
-      original_value: scoreCandidate
-    });
+    // 3. 如果没有任何成绩数据，至少创建一条基本记录
+    if (recordsToInsert.length === 0) {
+      console.warn('⚠️ 没有检测到有效的成绩数据，创建基本记录');
+      const basicRecord = {
+        exam_id: gradeRecord.exam_id,
+        student_id: gradeRecord.student_id,
+        name: gradeRecord.name,
+        class_name: gradeRecord.class_name,
+        subject: '总分',
+        score: null,
+        grade: totalGrade,
+        grade_level: gradeRecord.grade_level || null,
+        exam_date: gradeRecord.exam_date || null,
+        exam_type: gradeRecord.exam_type || null,
+        exam_title: gradeRecord.exam_title || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      recordsToInsert.push(basicRecord);
+    }
+
+    console.log(`🚀 准备插入 ${recordsToInsert.length} 条成绩记录，学生: ${gradeRecord.student_id}`);
     
+    // 批量插入 - 使用 upsert 避免重复
     const { data, error } = await supabase
       .from('grade_data')
-      .insert(safeRecord)
-      .select('id, student_id, name, total_score')
-      .single();
+      .upsert(recordsToInsert, { 
+        onConflict: 'exam_id,student_id,subject',
+        ignoreDuplicates: false 
+      })
+      .select('id, student_id, name, subject, score, grade');
     
     if (error) {
-      console.error('成绩插入失败:', error);
-      return { data: null, error };
+      console.error('❌ 成绩批量插入失败:', error);
+      // 如果批量插入失败，尝试逐条插入
+      let successCount = 0;
+      let lastError = null;
+      
+      for (const record of recordsToInsert) {
+        try {
+          const { error: singleError } = await supabase
+            .from('grade_data')
+            .upsert(record, { onConflict: 'exam_id,student_id,subject' });
+          
+          if (singleError) {
+            console.error(`❌ 单条插入失败:`, singleError);
+            lastError = singleError;
+          } else {
+            successCount++;
+          }
+        } catch (err) {
+          console.error(`❌ 单条插入异常:`, err);
+          lastError = err;
+        }
+      }
+      
+      if (successCount > 0) {
+        console.log(`✅ 部分成功插入 ${successCount}/${recordsToInsert.length} 条记录`);
+        return { data: { count: successCount }, error: lastError };
+      }
+      
+      return { data: null, error: lastError || error };
     }
     
-    console.log('成绩插入成功:', data);
+    console.log(`✅ 成绩批量插入成功: ${data.length} 条记录`);
     return { data, error: null };
     
   } catch (err) {
-    console.error('成绩插入异常:', err);
+    console.error('❌ 成绩插入异常:', err);
     return { data: null, error: err };
   }
 };
@@ -255,6 +387,10 @@ interface ImportProcessorProps {
   validData: any[];
   examInfo: ExamInfo;
   validationResult: ValidationResult;
+  headers: string[];
+  sampleData: any[];
+  currentMapping: Record<string, string>;
+  aiAnalysis?: any;
   onImportComplete: (result: ImportResult) => void;
   onError: (error: string) => void;
   loading?: boolean;
@@ -264,6 +400,10 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
   validData,
   examInfo,
   validationResult,
+  headers,
+  sampleData,
+  currentMapping,
+  aiAnalysis,
   onImportComplete,
   onError,
   loading = false
@@ -296,6 +436,8 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
     warnings: []
   });
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [showPostImportReview, setShowPostImportReview] = useState(false);
+  const [updatedMapping, setUpdatedMapping] = useState<Record<string, string>>(currentMapping);
   const [activeTab, setActiveTab] = useState('config');
   
   // 考试信息确认对话框状态
@@ -344,7 +486,12 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
 
   // 确认考试信息后执行导入
   const executeImport = async () => {
+    // 先关闭对话框，等待DOM更新完成
     setShowExamDialog(false);
+    
+    // 等待一个渲染周期，确保Dialog正确卸载
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     setImporting(true);
     setPaused(false);
     setActiveTab('progress');
@@ -365,9 +512,16 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
     try {
       const result = await performImport();
       setImportResult(result);
-      onImportComplete(result);
       
-      toast.success(`导入完成！成功 ${result.successCount} 条，失败 ${result.failedCount} 条`);
+      // 🔧 导入成功后显示字段检查界面，而不是直接完成
+      if (result.successCount > 0) {
+        setShowPostImportReview(true);
+        setActiveTab('review');
+        toast.success(`导入完成！成功 ${result.successCount} 条，失败 ${result.failedCount} 条。请检查字段映射。`);
+      } else {
+        onImportComplete(result);
+        toast.error('导入失败，没有成功导入任何记录');
+      }
       
     } catch (error) {
       console.error('导入失败:', error);
@@ -389,6 +543,19 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
   const performImport = async (): Promise<ImportResult> => {
     const { batchSize, parallelImport, enableBackup } = importConfig;
     const totalBatches = Math.ceil(validData.length / batchSize);
+    
+    // 🔧 初始化进度状态
+    setImportProgress(prev => ({
+      ...prev,
+      total: validData.length,
+      totalBatches,
+      processed: 0,
+      successful: 0,
+      failed: 0,
+      percentage: 0,
+      currentBatch: 0,
+      status: 'importing'
+    }));
     
     let successCount = 0;
     let failedCount = 0;
@@ -503,7 +670,7 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
 
     for (const record of batch) {
       try {
-        // 准备数据
+        // 准备数据 - 使用已映射的字段数据
         const gradeData = {
           exam_id: examId,
           student_id: record.student_id,
@@ -512,14 +679,26 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
           subject: record.subject,
           score: record.score,
           total_score: record.total_score,
-          grade: record.original_grade,
+          grade: record.original_grade || record.grade, // 支持两种字段名
           rank_in_class: record.rank_in_class,
           rank_in_grade: record.rank_in_grade,
           grade_level: record.grade_level,
           exam_title: tempExamInfo.title,
           exam_type: tempExamInfo.type,
           exam_date: tempExamInfo.date,
-          metadata: record.metadata || {}
+          metadata: record.metadata || {},
+          
+          // 🔧 支持更多字段映射结果
+          chinese_score: record.chinese_score,
+          math_score: record.math_score,
+          english_score: record.english_score,
+          physics_score: record.physics_score,
+          chemistry_score: record.chemistry_score,
+          biology_score: record.biology_score,
+          politics_score: record.politics_score,
+          history_score: record.history_score,
+          geography_score: record.geography_score,
+          rank_in_school: record.rank_in_school
         };
 
         // 处理学生信息
@@ -547,7 +726,7 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
   const processBatchParallel = async (batch: any[], examId: string) => {
     const promises = batch.map(async (record) => {
       try {
-        // 准备数据
+        // 准备数据 - 使用已映射的字段数据
         const gradeData = {
           exam_id: examId,
           student_id: record.student_id,
@@ -556,10 +735,22 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
           subject: record.subject,
           score: record.score,
           total_score: record.total_score,
-          grade: record.original_grade,
+          grade: record.original_grade || record.grade, // 支持两种字段名
           rank_in_class: record.rank_in_class,
           rank_in_grade: record.rank_in_grade,
           grade_level: record.grade_level,
+          
+          // 🔧 支持更多字段映射结果
+          chinese_score: record.chinese_score,
+          math_score: record.math_score,
+          english_score: record.english_score,
+          physics_score: record.physics_score,
+          chemistry_score: record.chemistry_score,
+          biology_score: record.biology_score,
+          politics_score: record.politics_score,
+          history_score: record.history_score,
+          geography_score: record.geography_score,
+          rank_in_school: record.rank_in_school,
           exam_title: tempExamInfo.title,
           exam_type: tempExamInfo.type,
           exam_date: tempExamInfo.date,
@@ -802,6 +993,8 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
     setImporting(false);
     setPaused(false);
     setImportResult(null);
+    setShowPostImportReview(false);
+    setUpdatedMapping(currentMapping);
     setImportProgress(prev => ({
       ...prev,
       processed: 0,
@@ -816,6 +1009,20 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
       warnings: []
     }));
     setActiveTab('config');
+  };
+
+  // 确认并前往分析
+  const handleConfirmAndProceed = () => {
+    if (importResult) {
+      onImportComplete(importResult);
+      window.location.href = '/grade-analysis';
+    }
+  };
+
+  // 重新导入
+  const handleReimport = () => {
+    setShowPostImportReview(false);
+    resetImport();
   };
 
   // 导出导入报告
@@ -874,8 +1081,8 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
   return (
     <>
       {/* 考试信息确认对话框 */}
-      <Dialog open={showExamDialog} onOpenChange={setShowExamDialog}>
-        <DialogContent className="max-w-md">
+      <Dialog key="exam-dialog" open={showExamDialog} onOpenChange={setShowExamDialog}>
+        <DialogContent key="exam-dialog-content" className="max-w-md">
           <DialogHeader>
             <DialogTitle>确认考试信息</DialogTitle>
             <DialogDescription>
@@ -1005,10 +1212,11 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
 
         {/* 标签页 */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="config">导入配置</TabsTrigger>
             <TabsTrigger value="progress">导入进度</TabsTrigger>
             <TabsTrigger value="result">导入结果</TabsTrigger>
+            <TabsTrigger value="review" disabled={!showPostImportReview}>字段检查</TabsTrigger>
           </TabsList>
           
           {/* 导入配置 */}
@@ -1308,6 +1516,19 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
               )}
             </div>
           </TabsContent>
+          
+          {/* 字段检查和映射编辑 */}
+          <TabsContent value="review">
+            {showPostImportReview && (
+              <SimplePostImportReview
+                headers={headers}
+                sampleData={sampleData}
+                currentMapping={updatedMapping}
+                onConfirmAndProceed={handleConfirmAndProceed}
+                onReimport={handleReimport}
+              />
+            )}
+          </TabsContent>
         </Tabs>
 
         {/* 操作按钮 */}
@@ -1353,6 +1574,15 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
           </div>
           
           <div className="flex gap-2">
+            {importResult && importResult.successCount > 0 && !showPostImportReview && (
+              <Button 
+                onClick={() => window.location.href = '/grade-analysis'}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <BookOpen className="w-4 h-4 mr-2" />
+                前往成绩分析
+              </Button>
+            )}
             {importResult && (
               <Button variant="outline" onClick={exportImportReport}>
                 <Download className="w-4 h-4 mr-2" />

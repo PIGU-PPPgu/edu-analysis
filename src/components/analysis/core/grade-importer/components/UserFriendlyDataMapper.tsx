@@ -31,6 +31,7 @@ import DataPreviewCard from './DataPreviewCard';
 import SmartConfirmationDialog from './SmartConfirmationDialog';
 import MissingDataDetector from './MissingDataDetector';
 import QuickFixSuggestions from './QuickFixSuggestions';
+import UnmappedFieldsOnly from './UnmappedFieldsOnly';
 
 // 使用现有的类型定义
 import type { 
@@ -171,17 +172,9 @@ const UserFriendlyDataMapper: React.FC<UserFriendlyDataMapperProps> = ({
     setWorkingMapping(confirmedMapping);
     setCompletedSteps(prev => new Set([...prev, 'preview']));
     
-    // 检查是否有严重问题需要确认
-    const issues = detectDataQualityIssues(confirmedMapping);
-    const seriousIssues = issues.filter(issue => issue.severity === 'high');
-    
-    if (seriousIssues.length > 0) {
-      setDetectedIssues(seriousIssues);
-      setShowConfirmDialog(true);
-    } else {
-      // 没有严重问题，进入增强步骤
-      setCurrentStep('enhance');
-    }
+    // 简化流程：直接进入确认步骤，不显示复杂的问题检测对话框
+    setCurrentStep('enhance');
+    toast.success('数据识别完成，请确认后继续');
   };
 
   // 处理需要帮助
@@ -227,8 +220,23 @@ const UserFriendlyDataMapper: React.FC<UserFriendlyDataMapperProps> = ({
 
   // 处理快速修复
   const handleQuickFix = (updatedMapping: MappingConfig, actionId: string) => {
+    console.log('[UserFriendlyDataMapper] 应用快速修复:', { actionId, updatedMapping });
+    
+    // 更新映射配置
     setWorkingMapping(updatedMapping);
-    toast.success('修复已应用');
+    
+    // 重新检测问题
+    const newIssues = detectDataQualityIssues(updatedMapping);
+    setDetectedIssues(newIssues);
+    
+    // 显示成功消息
+    toast.success(`快速修复已应用: ${actionId}`);
+    
+    // 如果所有问题都解决了，可以自动进入下一步
+    if (newIssues.length === 0) {
+      setCompletedSteps(prev => new Set([...prev, 'enhance']));
+      toast.info('所有问题已解决，可以进行最终确认了！');
+    }
   };
 
   // 最终确认配置
@@ -258,9 +266,9 @@ const UserFriendlyDataMapper: React.FC<UserFriendlyDataMapperProps> = ({
   // 获取当前步骤描述
   const getCurrentStepDescription = (): string => {
     switch (currentStep) {
-      case 'preview': return '确认智能识别的数据';
+      case 'preview': return '处理未映射字段 - 仅显示需要处理的问题';
       case 'confirm': return '解决发现的问题';
-      case 'enhance': return '检查是否有遗漏的数据';
+      case 'enhance': return '最终确认映射结果';
       case 'advanced': return '高级字段映射设置';
       case 'complete': return '完成数据确认';
       default: return '准备数据';
@@ -289,52 +297,69 @@ const UserFriendlyDataMapper: React.FC<UserFriendlyDataMapperProps> = ({
 
       {/* 主要内容区域 */}
       <div className="space-y-6">
-        {/* 步骤1: 数据预览确认 */}
+        {/* 步骤1: 仅显示未映射字段 - 根据用户明确要求 */}
         {currentStep === 'preview' && (
-          <DataPreviewCard
+          <UnmappedFieldsOnly
             headers={headers}
             sampleData={sampleData}
+            initialMapping={workingMapping.fieldMappings}
             aiAnalysis={fileData?.aiAnalysis}
-            onDataConfirmed={handleDataConfirmed}
-            onNeedHelp={handleNeedHelp}
-            onShowAdvanced={handleShowAdvanced}
+            onMappingConfigured={handleDataConfirmed}
+            onError={(error) => {
+              console.error('字段映射错误:', error);
+              toast.error('字段映射失败: ' + error);
+            }}
+            loading={loading}
           />
         )}
 
-        {/* 步骤2: 数据增强 */}
+        {/* 步骤2: 简化的数据确认 - 不显示成功映射详情 */}
         {currentStep === 'enhance' && (
-          <Tabs defaultValue="missing" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="missing" className="flex items-center gap-2">
-                <Search className="w-4 h-4" />
-                检查缺失数据
-              </TabsTrigger>
-              <TabsTrigger value="optimize" className="flex items-center gap-2">
-                <Zap className="w-4 h-4" />
-                优化建议
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="missing">
-              <MissingDataDetector
-                headers={headers}
-                sampleData={sampleData}
-                currentMapping={workingMapping}
-                onDataFound={handleMissingDataFound}
-                onSkip={() => setCurrentStep('complete')}
-              />
-            </TabsContent>
-            
-            <TabsContent value="optimize">
-              <QuickFixSuggestions
-                headers={headers}
-                sampleData={sampleData}
-                currentMapping={workingMapping}
-                onApplyFix={handleQuickFix}
-                onDismiss={() => {}}
-              />
-            </TabsContent>
-          </Tabs>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+                字段映射完成
+              </CardTitle>
+              <CardDescription>
+                所有字段处理完毕，可以继续数据导入
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* 简化的统计信息 - 只显示数量，不显示具体成功映射 */}
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                  <h4 className="font-medium text-green-800">映射统计</h4>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600 mb-1">
+                    {Object.keys(workingMapping.fieldMappings || {}).length}
+                  </div>
+                  <div className="text-sm text-gray-600">个字段已完成映射</div>
+                </div>
+              </div>
+
+              {/* 操作按钮 */}
+              <div className="flex justify-between items-center pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={handleShowAdvanced}
+                  className="flex items-center gap-2"
+                >
+                  <Settings className="w-4 h-4" />
+                  需要调整设置
+                </Button>
+                <Button 
+                  onClick={handleFinalConfirm}
+                  className="flex items-center gap-2 px-8"
+                >
+                  <ArrowRight className="w-4 h-4" />
+                  确认无误，开始导入
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* 步骤3: 高级设置 (如果用户选择) */}
@@ -389,9 +414,9 @@ const UserFriendlyDataMapper: React.FC<UserFriendlyDataMapperProps> = ({
                 <div className="bg-gray-50 p-4 rounded-lg text-left max-w-md mx-auto">
                   <h4 className="font-medium mb-2">导入摘要</h4>
                   <ul className="text-sm space-y-1">
-                    <li>• 学生信息字段: {Object.values(workingMapping.fieldMappings).filter(v => ['name', 'student_id', 'class_name'].includes(v)).length} 个</li>
-                    <li>• 成绩数据字段: {Object.values(workingMapping.fieldMappings).filter(v => v.includes('score')).length} 个</li>
-                    <li>• 排名数据字段: {Object.values(workingMapping.fieldMappings).filter(v => v.includes('rank')).length} 个</li>
+                    <li>• 学生信息字段: {Object.values(workingMapping.fieldMappings || {}).filter(v => ['name', 'student_id', 'class_name'].includes(String(v || ''))).length} 个</li>
+                    <li>• 成绩数据字段: {Object.values(workingMapping.fieldMappings || {}).filter(v => String(v || '').includes('score')).length} 个</li>
+                    <li>• 排名数据字段: {Object.values(workingMapping.fieldMappings || {}).filter(v => String(v || '').includes('rank')).length} 个</li>
                     <li>• 其他数据字段: {Object.keys(workingMapping.customFields || {}).length} 个</li>
                   </ul>
                 </div>
@@ -428,24 +453,15 @@ const UserFriendlyDataMapper: React.FC<UserFriendlyDataMapperProps> = ({
           <CardContent className="pt-4">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Eye className="w-4 h-4" />
-                随时可以切换到
+                <HelpCircle className="w-4 h-4" />
+                如果数据识别有误，可以点击
                 <Button 
                   variant="link" 
                   className="p-0 h-auto text-sm"
                   onClick={handleShowAdvanced}
                 >
-                  高级设置
+                  手动调整
                 </Button>
-                进行精确控制
-              </div>
-              
-              <div className="flex gap-2">
-                {currentStep === 'enhance' && (
-                  <Button onClick={handleFinalConfirm}>
-                    完成确认
-                  </Button>
-                )}
               </div>
             </div>
           </CardContent>

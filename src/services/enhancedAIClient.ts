@@ -49,11 +49,14 @@ export class EnhancedAIClient {
       completions: {
         create: async (params: any) => {
           try {
+            // 获取正确的端点URL
+            const endpointUrl = this.getEndpointUrl();
+            
             // 格式化请求
             const requestData = this.provider.requestFormat(params, this.model);
             
             if (this.debugMode) {
-              console.log(`正在发送请求到 ${this.provider.baseUrl}/chat/completions`);
+              console.log(`正在发送请求到 ${endpointUrl}`);
               console.log('请求数据:', JSON.stringify(requestData, null, 2));
               console.log('使用模型:', this.model);
             }
@@ -83,7 +86,7 @@ export class EnhancedAIClient {
             
             // 发送请求
             const response = await axios.post(
-              `${this.provider.baseUrl}/chat/completions`, 
+              endpointUrl, 
               requestData,
               requestConfig
             );
@@ -167,5 +170,30 @@ export class EnhancedAIClient {
    */
   getAvailableModels() {
     return this.provider.models;
+  }
+
+  /**
+   * 获取正确的API端点URL
+   * 支持模型特定的端点路径（如豆包的不同端点）
+   */
+  private getEndpointUrl(): string {
+    // 查找当前模型的配置
+    const modelInfo = this.provider.models.find(m => m.id === this.model);
+    
+    // 如果模型有特定的端点路径，使用它
+    if (modelInfo?.endpointPath) {
+      const fullUrl = `${this.provider.baseUrl}${modelInfo.endpointPath}`;
+      if (this.debugMode) {
+        console.log(`使用模型特定端点: ${fullUrl}`);
+      }
+      return fullUrl;
+    }
+    
+    // 否则使用默认的chat/completions端点
+    const defaultUrl = `${this.provider.baseUrl}/chat/completions`;
+    if (this.debugMode) {
+      console.log(`使用默认端点: ${defaultUrl}`);
+    }
+    return defaultUrl;
   }
 } 

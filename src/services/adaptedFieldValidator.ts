@@ -18,7 +18,15 @@ export const ADAPTED_DATABASE_FIELDS = {
     total_score: { name: '总分', type: 'number', range: [0, 900], dbColumn: 'total_score' },
     score: { name: '分数', type: 'number', range: [0, 150], dbColumn: 'score' },
     // 临时使用custom字段存储各科成绩
-    chinese_score: { name: '语文分数', type: 'number', range: [0, 150], dbColumn: 'total_score' },\n    math_score: { name: '数学分数', type: 'number', range: [0, 150], dbColumn: 'subject' },\n    english_score: { name: '英语分数', type: 'number', range: [0, 150], dbColumn: 'custom_1d8d05c1-e4d7-4c79-ab48-f3063656be90' },\n    physics_score: { name: 'physics分数', type: 'number', range: [0, 150], dbColumn: 'custom_c316f6bf-684e-4d2a-b510-2ab1e33911e2' },\n    chemistry_score: { name: 'chemistry分数', type: 'number', range: [0, 150], dbColumn: 'custom_0afe3098-4bc1-498f-8b66-9cdc19039acf' },\n    biology_score: { name: 'biology分数', type: 'number', range: [0, 150], dbColumn: 'custom_eb526d63-5745-48af-ab96-02e4820bbf36' },\n    politics_score: { name: 'politics分数', type: 'number', range: [0, 150], dbColumn: 'custom_df6ffec1-7cc9-47e8-8273-a06c5b852382' },\n    history_score: { name: 'history分数', type: 'number', range: [0, 150], dbColumn: 'custom_95a679a2-a689-4cd2-8e6d-74569b8fa325' },\n    geography_score: { name: 'geography分数', type: 'number', range: [0, 150], dbColumn: 'custom_7433e86d-1005-478d-9923-1bff62e1e16e' }
+    chinese_score: { name: '语文分数', type: 'number', range: [0, 150], dbColumn: 'total_score' },
+    math_score: { name: '数学分数', type: 'number', range: [0, 150], dbColumn: 'subject' },
+    english_score: { name: '英语分数', type: 'number', range: [0, 150], dbColumn: 'custom_1d8d05c1-e4d7-4c79-ab48-f3063656be90' },
+    physics_score: { name: '物理分数', type: 'number', range: [0, 150], dbColumn: 'custom_c316f6bf-684e-4d2a-b510-2ab1e33911e2' },
+    chemistry_score: { name: '化学分数', type: 'number', range: [0, 150], dbColumn: 'custom_0afe3098-4bc1-498f-8b66-9cdc19039acf' },
+    biology_score: { name: '生物分数', type: 'number', range: [0, 150], dbColumn: 'custom_eb526d63-5745-48af-ab96-02e4820bbf36' },
+    politics_score: { name: '政治分数', type: 'number', range: [0, 150], dbColumn: 'custom_df6ffec1-7cc9-47e8-8273-a06c5b852382' },
+    history_score: { name: '历史分数', type: 'number', range: [0, 150], dbColumn: 'custom_95a679a2-a689-4cd2-8e6d-74569b8fa325' },
+    geography_score: { name: '地理分数', type: 'number', range: [0, 150], dbColumn: 'custom_7433e86d-1005-478d-9923-1bff62e1e16e' }
   },
   
   // 其他字段

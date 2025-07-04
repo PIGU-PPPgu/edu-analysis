@@ -1,0 +1,380 @@
+{
+  "name": "豆包分镜视频-骨架版",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
+      },
+      "id": "daily-trigger",
+      "name": "每日触发器",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [
+        -20,
+        240
+      ],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "model": "deepseek-chat",
+        "options": {
+          "temperature": 0.8,
+          "maxTokens": 4000
+        },
+        "messages": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "你是一位专业的青少年读书推荐博主。请为13-18岁的青少年推荐一本适合的书籍，并为其生成一个详细的、长度为5分钟（300秒）的视频脚本。\\n\\n**要求**：\\n1. **脚本分段**：必须将脚本精确地分为60个场景，每个场景严格对应5秒的视频内容。\\n2. **内容连贯**：所有场景要无缝衔接，共同构成一个完整、流畅的故事线。\\n3. **格式清晰**：每个场景都必须包含"场景编号"、"画面描述"和"解说词"三个部分。\\n\\n请严格按照以下格式输出：\\n\\n**书籍信息**：\\n- 书名：《[书名]》\\n- 作者：[作者]\\n\\n**推荐理由**：\\n[此处是推荐理由的详细文本]\\n\\n**视频脚本**：\\n场景1：\\n- 画面描述：[此处是第1个5秒的画面描述]\\n- 解说词：[此处是第1个5秒的解说词]\\n\\n场景2：\\n- 画面描述：[此处是第2个5秒的画面描述]\\n- 解说词：[此处是第2个5秒的解说词]\\n\\n... (直到) ...\\n\\n场景60：\\n- 画面描述：[此处是第60个5秒的画面描述]\\n- 解说词：[此处是第60个5秒的解说词]"
+            }
+          ]
+        }
+      },
+      "id": "book-recommendation-ai",
+      "name": "AI书籍推荐与脚本生成",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        200,
+        240
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "return {};"
+      },
+      "id": "script-parser",
+      "name": "脚本解析器",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        420,
+        240
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "batchSize": 5,
+        "options": {}
+      },
+      "id": "clip-splitter",
+      "name": "视频片段分批处理",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [
+        640,
+        -40
+      ],
+      "typeVersion": 3,
+      "webhookId": "f7ef3c42-881c-43f9-864a-2975fe1a8677"
+    },
+    {
+      "parameters": {
+        "url": "https://ark.cn-beijing.volces.com/api/v3/video/generation",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $credentials.doubao_api_key }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ { \\\"model\\\": \\\"doubao-seedance-1-0-pro-250528\\\", \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": $json.prompt}], \\\"duration\\\": 5, \\\"width\\\": 1920, \\\"height\\\": 1080, \\\"fps\\\": 30 } }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "doubao-video-generation",
+      "name": "豆包视频生成",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        860,
+        -40
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "jsCode": "return {};"
+      },
+      "id": "process-video-response",
+      "name": "处理视频响应",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1080,
+        -40
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "url": "https://api.elevenlabs.io/v1/text-to-speech/zh-CN-XiaoxiaoNeural",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "headerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xi-api-key",
+              "value": "{{ $credentials.elevenlabs_api_key }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ { \\\"text\\\": $json.fullNarration, \\\"voice_settings\\\": { \\\"speed\\\": 1.0, \\\"pitch\\\": 0 } } }}",
+        "options": {
+          "response": {
+            "response": {
+              "return": "file"
+            }
+          }
+        }
+      },
+      "id": "generate-audio",
+      "name": "生成音频解说",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        640,
+        240
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "jsCode": "return {};"
+      },
+      "id": "generate-subtitles",
+      "name": "生成字幕",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        640,
+        480
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "Merge-Results",
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.merge",
+      "position": [
+        1320,
+        240
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "return {};"
+      },
+      "id": "prepare-merge-command",
+      "name": "准备合并数据",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1540,
+        240
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "command": "echo '视频合并逻辑需要在此实现。'",
+        "options": {}
+      },
+      "id": "merge-videos",
+      "name": "合并视频",
+      "type": "n8n-nodes-base.executeCommand",
+      "position": [
+        1760,
+        240
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "视频制作记录",
+        "columnNames": "日期,书名,状态,视频路径",
+        "values": {
+          "日期": "={{ new Date().toISOString().split('T')[0] }}",
+          "书名": "={{ $json.bookInfo.title }}",
+          "状态": "已完成",
+          "视频路径": "final_video.mp4"
+        }
+      },
+      "id": "save-to-sheets",
+      "name": "保存到Google表格",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        1980,
+        240
+      ],
+      "typeVersion": 4
+    }
+  ],
+  "connections": {
+    "daily-trigger": {
+      "main": [
+        [
+          {
+            "node": "book-recommendation-ai",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "book-recommendation-ai": {
+      "main": [
+        [
+          {
+            "node": "script-parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "script-parser": {
+      "main": [
+        [
+          {
+            "node": "clip-splitter",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "generate-audio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "generate-subtitles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "clip-splitter": {
+      "main": [
+        [
+          {
+            "node": "doubao-video-generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "doubao-video-generation": {
+      "main": [
+        [
+          {
+            "node": "process-video-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process-video-response": {
+      "main": [
+        [
+          {
+            "node": "Merge-Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate-audio": {
+      "main": [
+        [
+          {
+            "node": "Merge-Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "generate-subtitles": {
+      "main": [
+        [
+          {
+            "node": "Merge-Results",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge-Results": {
+      "main": [
+        [
+          {
+            "node": "prepare-merge-command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare-merge-command": {
+      "main": [
+        [
+          {
+            "node": "merge-videos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "merge-videos": {
+      "main": [
+        [
+          {
+            "node": "save-to-sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-07-26T00:00:00.000Z",
+  "versionId": "skeleton-v1"
+} 

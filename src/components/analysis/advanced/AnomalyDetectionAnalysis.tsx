@@ -152,30 +152,60 @@ const detectAnomalies = (gradeData: GradeRecord[]): AnomalyData[] => {
   return anomalies.sort((a, b) => Math.abs(b.z_score) - Math.abs(a.z_score));
 };
 
-// 获取异常类型的颜色和图标
+// 🎨 获取Positivus风格异常类型的颜色和图标
 const getAnomalyStyle = (type: AnomalyData['anomaly_type'], severity: AnomalyData['severity']) => {
   const baseStyles = {
-    outlier_high: { color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', icon: TrendingUp },
-    outlier_low: { color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', icon: TrendingDown },
-    sudden_rise: { color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', icon: TrendingUp },
-    sudden_drop: { color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200', icon: TrendingDown },
-    missing_pattern: { color: 'text-gray-600', bg: 'bg-gray-50', border: 'border-gray-200', icon: AlertCircle }
+    outlier_high: { 
+      color: 'text-[#191A23]', 
+      bg: 'bg-[#B9FF66]/20', 
+      border: 'border-[#B9FF66] border-2', 
+      cardStyle: 'shadow-[4px_4px_0px_0px_#B9FF66]',
+      icon: TrendingUp 
+    },
+    outlier_low: { 
+      color: 'text-white', 
+      bg: 'bg-[#B9FF66]/20', 
+      border: 'border-[#B9FF66] border-2', 
+      cardStyle: 'shadow-[4px_4px_0px_0px_#B9FF66]',
+      icon: TrendingDown 
+    },
+    sudden_rise: { 
+      color: 'text-[#191A23]', 
+      bg: 'bg-[#B9FF66]/10', 
+      border: 'border-[#B9FF66] border-2', 
+      cardStyle: 'shadow-[4px_4px_0px_0px_#B9FF66]',
+      icon: TrendingUp 
+    },
+    sudden_drop: { 
+      color: 'text-white', 
+      bg: 'bg-[#B9FF66]/20', 
+      border: 'border-[#B9FF66] border-2', 
+      cardStyle: 'shadow-[4px_4px_0px_0px_#B9FF66]',
+      icon: TrendingDown 
+    },
+    missing_pattern: { 
+      color: 'text-[#191A23]', 
+      bg: 'bg-[#9C88FF]/20', 
+      border: 'border-[#9C88FF] border-2', 
+      cardStyle: 'shadow-[4px_4px_0px_0px_#9C88FF]',
+      icon: AlertCircle 
+    }
   };
 
   return baseStyles[type] || baseStyles.missing_pattern;
 };
 
-// 获取严重程度的样式
+// 🎨 获取Positivus风格严重程度的样式
 const getSeverityBadge = (severity: AnomalyData['severity']) => {
   switch (severity) {
     case 'high':
-      return <Badge variant="destructive">高风险</Badge>;
+      return <Badge className="bg-[#B9FF66] text-white border-2 border-black font-black shadow-[2px_2px_0px_0px_#191A23]">🚨 高风险</Badge>;
     case 'medium':
-      return <Badge variant="secondary">中风险</Badge>;
+      return <Badge className="bg-[#B9FF66] text-white border-2 border-black font-black shadow-[2px_2px_0px_0px_#191A23]">⚠️ 中风险</Badge>;
     case 'low':
-      return <Badge variant="outline">低风险</Badge>;
+      return <Badge className="bg-[#B9FF66] text-[#191A23] border-2 border-black font-black shadow-[2px_2px_0px_0px_#191A23]">✅ 低风险</Badge>;
     default:
-      return <Badge variant="outline">未知</Badge>;
+      return <Badge className="bg-[#F3F3F3] text-[#191A23] border-2 border-black font-black shadow-[2px_2px_0px_0px_#191A23]">❓ 未知</Badge>;
   }
 };
 
@@ -262,11 +292,13 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
 
   if (subjects.length === 0) {
     return (
-      <Card className={className}>
-        <CardContent className="p-8 text-center">
-          <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-          <p className="text-lg font-medium text-gray-600">暂无成绩数据</p>
-          <p className="text-sm text-gray-500 mt-1">请先导入学生成绩数据进行异常检测</p>
+      <Card className={`bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] ${className}`}>
+        <CardContent className="p-12 text-center">
+          <div className="p-4 bg-[#B9FF66] rounded-full border-2 border-black mx-auto mb-6 w-fit">
+            <AlertTriangle className="h-16 w-16 text-white" />
+          </div>
+          <p className="text-2xl font-black text-[#191A23] uppercase tracking-wide mb-3">📊 暂无成绩数据</p>
+          <p className="text-[#191A23]/70 font-medium">请先导入学生成绩数据进行异常检测</p>
         </CardContent>
       </Card>
     );
@@ -274,117 +306,188 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* 标题和统计摘要 */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <AlertTriangle className="h-6 w-6 text-orange-600" />
-            {title}
-          </h2>
-          <p className="text-sm text-gray-600 mt-1">
-            检测 {stats.totalStudents} 名学生在 {subjects.length} 个科目中的异常表现
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Badge variant="outline" className="bg-orange-50 text-orange-700">
-            <AlertTriangle className="h-3 w-3 mr-1" />
-            {stats.totalAnomalies} 个异常
-          </Badge>
-          <Button variant="outline" size="sm" onClick={handleExportData}>
-            <Download className="h-4 w-4 mr-1" />
-            导出报告
-          </Button>
-        </div>
-      </div>
-
-      {/* 分析说明 */}
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertTitle>异常检测说明</AlertTitle>
-        <AlertDescription>
-          <div className="space-y-1 text-sm">
-            <p>• <strong>检测方法</strong>: 基于Z分数统计方法，识别偏离正常范围的成绩</p>
-            <p>• <strong>异常阈值</strong>: Z分数绝对值 &gt; 2.5 为异常，&gt; 3.0 为极端异常</p>
-            <p>• <strong>风险等级</strong>: 高风险需要立即关注，中风险建议跟进</p>
-            <p>• <strong>应用建议</strong>: 结合学生具体情况分析，避免单纯依赖数据判断</p>
+      {/* 🎨 Positivus风格标题和控制面板 */}
+      <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#B9FF66]">
+        <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-[#191A23] rounded-full border-2 border-black">
+                <AlertTriangle className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-2xl font-black text-white uppercase tracking-wide">
+                  🔍 {title}
+                </CardTitle>
+                <p className="text-white/90 font-medium mt-1">
+                  检测 {stats.totalStudents} 名学生在 {subjects.length} 个科目中的异常表现
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex flex-wrap gap-3">
+              <Badge className="bg-[#B9FF66] text-white border-2 border-black font-bold shadow-[2px_2px_0px_0px_#191A23] uppercase tracking-wide">
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                {stats.totalAnomalies} 个异常
+              </Badge>
+              <Button 
+                onClick={handleExportData}
+                className="border-2 border-black bg-[#B9FF66] hover:bg-[#A8E055] text-[#191A23] font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all uppercase tracking-wide"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                导出报告
+              </Button>
+            </div>
           </div>
-        </AlertDescription>
-      </Alert>
+        </CardHeader>
+      </Card>
 
-      {/* 统计概览 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-blue-600">{stats.totalStudents}</div>
-            <div className="text-sm text-gray-600">总学生数</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-orange-600">{stats.affectedStudents}</div>
-            <div className="text-sm text-gray-600">异常学生数</div>
-            <div className="text-xs text-gray-500">({stats.affectedRate.toFixed(1)}%)</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-red-600">{stats.highRiskCount}</div>
-            <div className="text-sm text-gray-600">高风险异常</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-yellow-600">{stats.mediumRiskCount}</div>
-            <div className="text-sm text-gray-600">中风险异常</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 科目异常统计 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            各科目异常统计
+      {/* 🎨 Positivus风格分析说明 */}
+      <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#9C88FF]">
+        <CardHeader className="bg-[#9C88FF] border-b-2 border-black py-4">
+          <CardTitle className="text-white font-black uppercase tracking-wide flex items-center gap-2">
+            <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
+              <Info className="h-4 w-4 text-white" />
+            </div>
+            📊 异常检测说明
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="h-64">
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 bg-[#9C88FF]/10 border-2 border-[#9C88FF] rounded-lg">
+              <p className="font-black text-[#191A23] mb-2">🔬 检测方法</p>
+              <p className="text-sm text-[#191A23]/80">基于Z分数统计方法，识别偏离正常范围的成绩</p>
+            </div>
+            <div className="p-4 bg-[#B9FF66]/10 border-2 border-[#B9FF66] rounded-lg">
+              <p className="font-black text-[#191A23] mb-2">📏 异常阈值</p>
+              <p className="text-sm text-[#191A23]/80">Z分数绝对值 &gt; 2.5 为异常，&gt; 3.0 为极端异常</p>
+            </div>
+            <div className="p-4 bg-[#B9FF66]/10 border-2 border-[#B9FF66] rounded-lg">
+              <p className="font-black text-[#191A23] mb-2">⚠️ 风险等级</p>
+              <p className="text-sm text-[#191A23]/80">高风险需要立即关注，中风险建议跟进</p>
+            </div>
+            <div className="p-4 bg-[#B9FF66]/10 border-2 border-[#B9FF66] rounded-lg">
+              <p className="font-black text-[#191A23] mb-2">💡 应用建议</p>
+              <p className="text-sm text-[#191A23]/80">结合学生具体情况分析，避免单纯依赖数据判断</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 🎨 Positivus风格统计概览 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#9C88FF] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#9C88FF]">
+          <CardContent className="p-6 text-center">
+            <div className="text-3xl font-black text-[#191A23] mb-2">{stats.totalStudents}</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">👥 总学生数</div>
+          </CardContent>
+        </Card>
+        
+        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#B9FF66]">
+          <CardContent className="p-6 text-center">
+            <div className="text-3xl font-black text-[#191A23] mb-2">{stats.affectedStudents}</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">🔍 异常学生数</div>
+            <div className="text-xs font-medium text-[#191A23]/70 mt-1">({stats.affectedRate.toFixed(1)}%)</div>
+          </CardContent>
+        </Card>
+        
+        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#B9FF66]">
+          <CardContent className="p-6 text-center">
+            <div className="text-3xl font-black text-[#191A23] mb-2">{stats.highRiskCount}</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">🚨 高风险异常</div>
+          </CardContent>
+        </Card>
+        
+        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#B9FF66]">
+          <CardContent className="p-6 text-center">
+            <div className="text-3xl font-black text-[#191A23] mb-2">{stats.mediumRiskCount}</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">⚠️ 中风险异常</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 🎨 Positivus风格科目异常统计 */}
+      <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]">
+        <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
+          <CardTitle className="text-white font-black uppercase tracking-wide flex items-center gap-2">
+            <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
+              <BarChart3 className="h-5 w-5 text-white" />
+            </div>
+            📊 各科目异常统计
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={subjectAnomalies}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="subject" />
-                <YAxis />
+                <CartesianGrid strokeDasharray="3 3" stroke="#191A23" strokeOpacity={0.3} />
+                <XAxis 
+                  dataKey="subject" 
+                  stroke="#191A23" 
+                  fontSize={12} 
+                  fontWeight="bold"
+                />
+                <YAxis 
+                  stroke="#191A23" 
+                  fontSize={12} 
+                  fontWeight="bold"
+                />
                 <Tooltip 
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: '2px solid #191A23',
+                    borderRadius: '8px',
+                    boxShadow: '4px 4px 0px 0px #191A23',
+                    fontWeight: 'bold'
+                  }}
                   formatter={(value: any, name: string) => [
                     name === 'anomalies' ? `${value} 个异常` : `${value} 名学生`,
                     name === 'anomalies' ? '异常数量' : '学生总数'
                   ]}
                 />
-                <Legend />
-                <Bar dataKey="anomalies" fill="#f59e0b" name="异常数量" />
-                <Bar dataKey="students" fill="#3b82f6" name="学生总数" />
+                <Legend 
+                  wrapperStyle={{ fontWeight: 'bold', color: '#191A23' }}
+                />
+                <Bar 
+                  dataKey="anomalies" 
+                  fill="#B9FF66" 
+                  name="异常数量" 
+                  stroke="#191A23" 
+                  strokeWidth={2}
+                  radius={[4, 4, 0, 0]}
+                />
+                <Bar 
+                  dataKey="students" 
+                  fill="#B9FF66" 
+                  name="学生总数" 
+                  stroke="#191A23" 
+                  strokeWidth={2}
+                  radius={[4, 4, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </CardContent>
       </Card>
 
-      {/* 异常详情列表 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Eye className="h-5 w-5" />
-            异常详情列表
+      {/* 🎨 Positivus风格异常详情列表 */}
+      <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#9C88FF]">
+        <CardHeader className="bg-[#9C88FF] border-b-2 border-black">
+          <CardTitle className="text-white font-black uppercase tracking-wide flex items-center gap-2">
+            <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
+              <Eye className="h-5 w-5 text-white" />
+            </div>
+            🔍 异常详情列表
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
+        <CardContent className="p-6">
+          <div className="space-y-4">
             {anomalies.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                <p>未检测到异常成绩</p>
-                <p className="text-sm">所有学生成绩都在正常范围内</p>
+              <div className="text-center py-12">
+                <div className="p-4 bg-[#9C88FF] rounded-full border-2 border-black mx-auto mb-6 w-fit">
+                  <AlertTriangle className="h-12 w-12 text-white" />
+                </div>
+                <p className="text-xl font-black text-[#191A23] uppercase tracking-wide mb-2">✅ 未检测到异常成绩</p>
+                <p className="text-[#191A23]/70 font-medium">所有学生成绩都在正常范围内</p>
               </div>
             ) : (
               anomalies.map((anomaly, index) => {
@@ -392,35 +495,49 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
                 const IconComponent = style.icon;
                 
                 return (
-                  <div key={index} className={`flex items-center justify-between p-4 border rounded-lg ${style.bg} ${style.border} hover:shadow-sm transition-shadow`}>
-                    <div className="flex items-center gap-3">
-                      <IconComponent className={`w-5 h-5 ${style.color}`} />
-                      <div>
-                        <p className="font-medium">
-                          {anomaly.name} ({anomaly.student_id})
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {anomaly.class_name} • {anomaly.subject} • 
-                          实际: {anomaly.score}分 • 预期: {anomaly.expected_score.toFixed(1)}分
-                        </p>
-                        <p className="text-sm text-gray-500 mt-1">
-                          {anomaly.description}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-3">
-                      <div className="text-right">
-                        <div className={`text-sm font-medium ${style.color}`}>
-                          Z分数: {anomaly.z_score.toFixed(2)}
+                  <Card key={index} className={`${style.border} ${style.cardStyle} transition-all hover:translate-x-[-2px] hover:translate-y-[-2px]`}>
+                    <CardContent className={`p-4 ${style.bg}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className={`p-2 rounded-full border-2 border-black ${
+                            anomaly.anomaly_type === 'outlier_high' ? 'bg-[#B9FF66]' :
+                            anomaly.anomaly_type === 'outlier_low' ? 'bg-[#B9FF66]' :
+                            anomaly.anomaly_type === 'sudden_rise' ? 'bg-[#B9FF66]' :
+                            anomaly.anomaly_type === 'sudden_drop' ? 'bg-[#B9FF66]' :
+                            'bg-[#9C88FF]'
+                          }`}>
+                            <IconComponent className={`w-5 h-5 ${
+                              anomaly.anomaly_type === 'outlier_low' || anomaly.anomaly_type === 'sudden_drop' ? 'text-white' : 'text-[#191A23]'
+                            }`} />
+                          </div>
+                          <div>
+                            <p className="font-black text-[#191A23] text-lg">
+                              {anomaly.name} ({anomaly.student_id})
+                            </p>
+                            <p className="text-sm font-medium text-[#191A23]/80">
+                              {anomaly.class_name} • {anomaly.subject} • 
+                              实际: <span className="font-bold text-[#B9FF66]">{anomaly.score}分</span> • 预期: <span className="font-bold text-[#9C88FF]">{anomaly.expected_score.toFixed(1)}分</span>
+                            </p>
+                            <p className="text-sm font-medium text-[#191A23] mt-2 leading-relaxed">
+                              📝 {anomaly.description}
+                            </p>
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-500">
-                          偏差: {anomaly.deviation > 0 ? '+' : ''}{anomaly.deviation.toFixed(1)}分
+                        
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <div className="text-sm font-black text-[#191A23] px-3 py-1 bg-white rounded-lg border-2 border-black">
+                              Z分数: {anomaly.z_score.toFixed(2)}
+                            </div>
+                            <div className="text-xs font-bold text-[#191A23]/70 mt-1">
+                              偏差: {anomaly.deviation > 0 ? '+' : ''}{anomaly.deviation.toFixed(1)}分
+                            </div>
+                          </div>
+                          {getSeverityBadge(anomaly.severity)}
                         </div>
                       </div>
-                      {getSeverityBadge(anomaly.severity)}
-                    </div>
-                  </div>
+                    </CardContent>
+                  </Card>
                 );
               })
             )}
@@ -428,50 +545,66 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
         </CardContent>
       </Card>
 
-      {/* 建议和行动指南 */}
+      {/* 🎨 Positivus风格建议和行动指南 */}
       {stats.totalAnomalies > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-blue-600" />
-              建议和行动指南
+        <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]">
+          <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
+            <CardTitle className="text-[#191A23] font-black uppercase tracking-wide flex items-center gap-2">
+              <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
+                <Users className="h-5 w-5 text-white" />
+              </div>
+              💡 建议和行动指南
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-6">
             <div className="space-y-4">
               {stats.highRiskCount > 0 && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="font-medium text-red-800">
-                    🚨 高风险异常 ({stats.highRiskCount} 个)
-                  </p>
-                  <p className="text-sm text-red-700 mt-1">
-                    建议立即与相关学生和家长沟通，了解具体情况，制定针对性的帮扶措施。
-                  </p>
-                </div>
+                <Card className="border-2 border-[#B9FF66] shadow-[4px_4px_0px_0px_#B9FF66]">
+                  <CardContent className="p-4 bg-[#B9FF66]/20">
+                    <p className="font-black text-[#191A23] text-lg mb-2">
+                      🚨 高风险异常 ({stats.highRiskCount} 个)
+                    </p>
+                    <p className="font-medium text-[#191A23] leading-relaxed">
+                      建议立即与相关学生和家长沟通，了解具体情况，制定针对性的帮扶措施。
+                    </p>
+                  </CardContent>
+                </Card>
               )}
               
               {stats.mediumRiskCount > 0 && (
-                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="font-medium text-yellow-800">
-                    ⚠️ 中风险异常 ({stats.mediumRiskCount} 个)
-                  </p>
-                  <p className="text-sm text-yellow-700 mt-1">
-                    建议持续关注这些学生的学习状态，适时提供额外的学习支持和指导。
-                  </p>
-                </div>
+                <Card className="border-2 border-[#B9FF66] shadow-[4px_4px_0px_0px_#B9FF66]">
+                  <CardContent className="p-4 bg-[#B9FF66]/20">
+                    <p className="font-black text-[#191A23] text-lg mb-2">
+                      ⚠️ 中风险异常 ({stats.mediumRiskCount} 个)
+                    </p>
+                    <p className="font-medium text-[#191A23] leading-relaxed">
+                      建议持续关注这些学生的学习状态，适时提供额外的学习支持和指导。
+                    </p>
+                  </CardContent>
+                </Card>
               )}
               
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="font-medium text-blue-800">
-                  💡 总体建议
-                </p>
-                <ul className="text-sm text-blue-700 mt-1 space-y-1">
-                  <li>• 结合学生平时表现和学习态度综合分析</li>
-                  <li>• 关注是否存在考试作弊或数据录入错误</li>
-                  <li>• 对于成绩突然提升的学生，了解学习方法的改进</li>
-                  <li>• 对于成绩下降的学生，及时提供学习帮助</li>
-                </ul>
-              </div>
+              <Card className="border-2 border-[#9C88FF] shadow-[4px_4px_0px_0px_#9C88FF]">
+                <CardContent className="p-4 bg-[#9C88FF]/20">
+                  <p className="font-black text-[#191A23] text-lg mb-3">
+                    💡 总体建议
+                  </p>
+                  <div className="space-y-2">
+                    <div className="p-2 bg-white border border-[#9C88FF] rounded-lg">
+                      <p className="text-sm font-medium text-[#191A23]">• 结合学生平时表现和学习态度综合分析</p>
+                    </div>
+                    <div className="p-2 bg-white border border-[#9C88FF] rounded-lg">
+                      <p className="text-sm font-medium text-[#191A23]">• 关注是否存在考试作弊或数据录入错误</p>
+                    </div>
+                    <div className="p-2 bg-white border border-[#9C88FF] rounded-lg">
+                      <p className="text-sm font-medium text-[#191A23]">• 对于成绩突然提升的学生，了解学习方法的改进</p>
+                    </div>
+                    <div className="p-2 bg-white border border-[#9C88FF] rounded-lg">
+                      <p className="text-sm font-medium text-[#191A23]">• 对于成绩下降的学生，及时提供学习帮助</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </CardContent>
         </Card>

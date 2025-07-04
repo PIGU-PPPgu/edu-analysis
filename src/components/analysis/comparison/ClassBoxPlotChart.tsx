@@ -43,7 +43,7 @@ interface ProcessedBoxPlotData {
 // 自定义组件
 // ============================================================================
 
-// 自定义箱线图组件
+// 🎨 Positivus风格自定义箱线图组件
 const BoxPlot = (props: any) => {
   const { x, y, width, height, payload, fill } = props;
   const data = payload || {};
@@ -56,34 +56,37 @@ const BoxPlot = (props: any) => {
   const mean = Math.min(Math.max(data.mean || 0, min), max);
   
   const getYPosition = (value: number) => y + height - (height * value / 100);
-  const strokeWidth = 2;
+  const strokeWidth = 3; // Positivus风格加粗线条
 
   return (
     <>
-      {/* 最小值到最大值的垂直线 */}
+      {/* 📏 最小值到最大值的垂直线 - Positivus风格 */}
       <line
-        stroke="#666"
+        stroke="#191A23"
         strokeWidth={strokeWidth}
-        strokeDasharray="3 3"
+        strokeDasharray="6 6"
         x1={x + width / 2}
         y1={getYPosition(min)}
         x2={x + width / 2}
         y2={getYPosition(max)}
       />
       
-      {/* 箱体 */}
+      {/* 🟦 Positivus风格箱体 */}
       <rect
-        fill={fill || "#3B82F6"}
-        opacity={0.6}
+        fill={fill || "#B9FF66"}
+        stroke="#191A23"
+        strokeWidth={2}
+        opacity={0.8}
         x={x + width * 0.25}
         y={getYPosition(q3)}
         width={width * 0.5}
         height={getYPosition(q1) - getYPosition(q3)}
+        rx={4} // 圆角
       />
       
-      {/* 中位数线 */}
+      {/* 📋 中位数线 - Positivus风格 */}
       <line
-        stroke="#333"
+        stroke="#191A23"
         strokeWidth={strokeWidth + 1}
         x1={x + width * 0.25}
         y1={getYPosition(median)}
@@ -91,9 +94,9 @@ const BoxPlot = (props: any) => {
         y2={getYPosition(median)}
       />
       
-      {/* 最小值横线 */}
+      {/* 🔻 最小值横线 - Positivus风格 */}
       <line
-        stroke="#666"
+        stroke="#191A23"
         strokeWidth={strokeWidth}
         x1={x + width * 0.35}
         y1={getYPosition(min)}
@@ -101,9 +104,9 @@ const BoxPlot = (props: any) => {
         y2={getYPosition(min)}
       />
       
-      {/* 最大值横线 */}
+      {/* 🔺 最大值横线 - Positivus风格 */}
       <line
-        stroke="#666"
+        stroke="#191A23"
         strokeWidth={strokeWidth}
         x1={x + width * 0.35}
         y1={getYPosition(max)}
@@ -111,44 +114,72 @@ const BoxPlot = (props: any) => {
         y2={getYPosition(max)}
       />
       
-      {/* 平均值点 */}
+      {/* 🎯 Positivus风格平均值点 */}
       <circle
-        fill="red"
+        fill="#B9FF66"
+        stroke="#191A23"
+        strokeWidth={2}
         cx={x + width * 0.5}
         cy={getYPosition(mean)}
-        r={3}
+        r={4}
       />
     </>
   );
 };
 
-// 自定义提示框
+// 🎨 Positivus风格自定义提示框
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div className="bg-white p-4 border shadow-md rounded-md">
-        <p className="font-bold">{data.subject}</p>
-        <p>最小值: {data.min}</p>
-        <p>第一四分位数 (Q1): {data.q1}</p>
-        <p>中位数: {data.median}</p>
-        <p>第三四分位数 (Q3): {data.q3}</p>
-        <p>最大值: {data.max}</p>
-        <p className="text-red-500">平均值: {data.mean.toFixed(1)}</p>
-        {data.outliers && data.outliers.length > 0 && (
-          <div className="mt-2">
-            <p className="font-semibold">异常值 ({data.outliers.length}):</p>
-            <ul className="pl-4 text-sm text-gray-600">
-              {data.outliers.slice(0, 5).map((outlier: any, index: number) => (
-                <li key={index}>
-                  {outlier.studentName}: {outlier.value}分
-                </li>
-              ))}
-              {data.outliers.length > 5 && <li>...还有{data.outliers.length - 5}个</li>}
-            </ul>
+      <Card className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_#191A23] p-4">
+        <CardContent className="p-0">
+          <p className="font-black text-[#191A23] mb-3 text-lg uppercase tracking-wide">📋 {data.subject}</p>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center p-2 bg-[#FF6B6B]/20 border border-[#FF6B6B] rounded">
+              <span className="font-bold text-[#191A23]">🔻 最小值:</span>
+              <span className="font-black text-[#191A23]">{data.min}</span>
+            </div>
+            <div className="flex justify-between items-center p-2 bg-[#B9FF66]/20 border border-[#B9FF66] rounded">
+              <span className="font-bold text-[#191A23]">📏 Q1:</span>
+              <span className="font-black text-[#191A23]">{data.q1}</span>
+            </div>
+            <div className="flex justify-between items-center p-2 bg-[#B9FF66]/20 border border-[#B9FF66] rounded">
+              <span className="font-bold text-[#191A23]">📋 中位数:</span>
+              <span className="font-black text-[#191A23]">{data.median}</span>
+            </div>
+            <div className="flex justify-between items-center p-2 bg-[#B9FF66]/20 border border-[#B9FF66] rounded">
+              <span className="font-bold text-[#191A23]">📏 Q3:</span>
+              <span className="font-black text-[#191A23]">{data.q3}</span>
+            </div>
+            <div className="flex justify-between items-center p-2 bg-[#B9FF66]/20 border border-[#B9FF66] rounded">
+              <span className="font-bold text-[#191A23]">🔺 最大值:</span>
+              <span className="font-black text-[#191A23]">{data.max}</span>
+            </div>
+            <div className="flex justify-between items-center p-2 bg-[#B9FF66]/20 border border-[#B9FF66] rounded">
+              <span className="font-bold text-[#191A23]">🎯 平均值:</span>
+              <span className="font-black text-[#B9FF66]">{data.mean.toFixed(1)}</span>
+            </div>
+            {data.outliers && data.outliers.length > 0 && (
+              <div className="mt-3 p-2 bg-[#FF6B6B]/20 border border-[#FF6B6B] rounded">
+                <p className="font-black text-[#191A23] mb-2">🚨 异常值 ({data.outliers.length}):</p>
+                <div className="space-y-1">
+                  {data.outliers.slice(0, 3).map((outlier: any, index: number) => (
+                    <div key={index} className="text-sm font-medium text-[#191A23]">
+                      • {outlier.studentName}: <span className="font-black text-[#FF6B6B]">{outlier.value}分</span>
+                    </div>
+                  ))}
+                  {data.outliers.length > 3 && (
+                    <div className="text-xs font-bold text-[#191A23]/70">
+                      ...还有{data.outliers.length - 3}个
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </CardContent>
+      </Card>
     );
   }
   return null;
@@ -252,44 +283,61 @@ const ClassBoxPlotChart: React.FC<ClassBoxPlotChartProps> = ({
     }).filter(data => data.min > 0 || data.max > 0); // 过滤掉无效数据
   }, [gradeData, selectedClass]);
 
-  // 加载状态
+  // 🎨 Positivus风格加载状态
   if (isLoading) {
     return (
-      <Card className={className}>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-            <span className="ml-2 text-gray-600">正在加载箱线图数据...</span>
+      <Card className={`bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] ${className}`}>
+        <CardContent className="p-12 text-center">
+          <div className="p-4 bg-[#B9FF66] rounded-full border-2 border-black mx-auto mb-6 w-fit">
+            <div className="w-12 h-12 border-4 border-[#191A23] border-t-transparent rounded-full animate-spin" />
           </div>
+          <p className="text-xl font-black text-[#191A23] uppercase tracking-wide">📏 正在加载箱线图数据...</p>
         </CardContent>
       </Card>
     );
   }
 
-  // 无数据状态
+  // 🎨 Positivus风格无数据状态
   if (availableClasses.length <= 1) {
     return (
-      <Card className={className}>
-        <CardHeader>
-          <CardTitle>班级成绩箱线图</CardTitle>
-          <CardDescription>分析各班级成绩分布情况</CardDescription>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-            <div className="flex items-center">
-              <AlertTriangle className="h-5 w-5 text-yellow-400 mr-3" />
-              <div>
-                <p className="text-sm text-yellow-700">
-                  未找到班级数据，请检查：
-                </p>
-                <ul className="list-disc pl-5 mt-1 text-sm text-yellow-700">
-                  <li>是否正确导入了成绩数据</li>
-                  <li>导入时是否映射了班级字段</li>
-                  <li>数据中是否包含班级信息</li>
-                </ul>
-              </div>
+      <Card className={`bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] ${className}`}>
+        <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-[#191A23] rounded-full border-2 border-black">
+              <AlertTriangle className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <CardTitle className="text-2xl font-black text-white uppercase tracking-wide">📏 班级成绩箱线图</CardTitle>
+              <CardDescription className="text-white/90 font-medium mt-1">分析各班级成绩分布情况</CardDescription>
             </div>
           </div>
+        </CardHeader>
+        <CardContent className="p-6">
+          <Card className="border-2 border-[#B9FF66] shadow-[4px_4px_0px_0px_#B9FF66]">
+            <CardContent className="p-6 bg-[#B9FF66]/20">
+              <div className="flex items-start gap-4">
+                <div className="p-2 bg-[#B9FF66] rounded-full border-2 border-black">
+                  <AlertTriangle className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <p className="font-black text-[#191A23] text-lg mb-3 uppercase tracking-wide">
+                    ⚠️ 未找到班级数据，请检查：
+                  </p>
+                  <div className="space-y-2">
+                    <div className="p-2 bg-white border border-[#B9FF66] rounded-lg">
+                      <p className="text-sm font-medium text-[#191A23]">• 是否正确导入了成绩数据</p>
+                    </div>
+                    <div className="p-2 bg-white border border-[#B9FF66] rounded-lg">
+                      <p className="text-sm font-medium text-[#191A23]">• 导入时是否映射了班级字段</p>
+                    </div>
+                    <div className="p-2 bg-white border border-[#B9FF66] rounded-lg">
+                      <p className="text-sm font-medium text-[#191A23]">• 数据中是否包含班级信息</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </CardContent>
       </Card>
     );
@@ -399,38 +447,51 @@ const ClassBoxPlotChart: React.FC<ClassBoxPlotChartProps> = ({
         </CardContent>
       </Card>
 
-      {/* 统计摘要 */}
+      {/* 🎨 Positivus风格统计摘要 */}
       {boxPlotData.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">统计摘要</CardTitle>
+        <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]">
+          <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-[#191A23] rounded-full border-2 border-black">
+                <Download className="h-6 w-6 text-white" />
+              </div>
+              <CardTitle className="text-2xl font-black text-white uppercase tracking-wide">
+                📊 统计摘要
+              </CardTitle>
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {boxPlotData.map((data, index) => (
-                <div key={data.subject} className="p-4 border rounded-lg bg-gray-50">
-                  <h4 className="font-semibold text-gray-900 mb-2">{data.subject}</h4>
-                  <div className="space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">平均分:</span>
-                      <span className="font-medium">{data.mean.toFixed(1)}</span>
+                <Card key={data.subject} className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#B9FF66]">
+                  <CardHeader className="bg-[#B9FF66] border-b-2 border-black py-3">
+                    <CardTitle className="font-black text-[#191A23] text-lg uppercase tracking-wide">
+                      📋 {data.subject}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex justify-between items-center p-2 bg-[#B9FF66]/20 border border-[#B9FF66] rounded">
+                      <span className="font-bold text-[#191A23]">🎯 平均分:</span>
+                      <span className="font-black text-[#B9FF66]">{data.mean.toFixed(1)}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">中位数:</span>
-                      <span className="font-medium">{data.median}</span>
+                    <div className="flex justify-between items-center p-2 bg-[#B9FF66]/20 border border-[#B9FF66] rounded">
+                      <span className="font-bold text-[#191A23]">📋 中位数:</span>
+                      <span className="font-black text-[#191A23]">{data.median}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">分数范围:</span>
-                      <span className="font-medium">{data.min} - {data.max}</span>
+                    <div className="flex justify-between items-center p-2 bg-[#B9FF66]/20 border border-[#B9FF66] rounded">
+                      <span className="font-bold text-[#191A23]">📏 分数范围:</span>
+                      <span className="font-black text-[#191A23]">{data.min} - {data.max}</span>
                     </div>
                     {data.outliers.length > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">异常值:</span>
-                        <span className="font-medium text-orange-600">{data.outliers.length}个</span>
+                      <div className="flex justify-between items-center p-2 bg-[#FF6B6B]/20 border border-[#FF6B6B] rounded">
+                        <span className="font-bold text-[#191A23]">🚨 异常值:</span>
+                        <Badge className="bg-[#FF6B6B] text-white border border-black font-bold">
+                          {data.outliers.length}个
+                        </Badge>
                       </div>
                     )}
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           </CardContent>

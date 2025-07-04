@@ -267,43 +267,69 @@ export const LearningBehaviorAnalysis: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Activity className="h-5 w-5" />
-            <span>学习行为分析</span>
+      <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#B9FF66]">
+        <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
+          <CardTitle className="flex items-center space-x-3 text-[#191A23] font-black uppercase tracking-wide">
+            <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
+              <Activity className="h-5 w-5 text-white" />
+            </div>
+            <span>🧠 学习行为分析</span>
           </CardTitle>
-          <CardDescription>
-            深度分析学生的学习模式、认知风格和行为特征
+          <CardDescription className="text-[#191A23]/80 font-medium mt-2">
+            深度分析学生的学习模式、认知风格和行为特征，提供个性化教学建议
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select value={selectedStudent} onValueChange={setSelectedStudent}>
-              <SelectTrigger>
-                <SelectValue placeholder="选择学生" />
+              <SelectTrigger className="bg-white border-2 border-black font-medium text-[#191A23] focus:border-[#F7931E] focus:ring-2 focus:ring-[#F7931E] shadow-[2px_2px_0px_0px_#191A23] transition-all">
+                <SelectValue placeholder="🎯 选择学生进行分析" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="border-2 border-black shadow-[4px_4px_0px_0px_#191A23]">
                 {allStudents.map(student => (
                   <SelectItem key={student.student_id} value={student.student_id}>
-                    {student.name} ({student.class_name})
+                    <div className="flex items-center gap-2">
+                      <Users className="w-4 h-4 text-[#191A23]" />
+                      <span className="font-medium">{student.name}</span>
+                      <Badge className="bg-[#9C88FF] text-white border border-black text-xs font-bold">
+                        {student.class_name}
+                      </Badge>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
-            <Button onClick={analyzeLearningBehavior} disabled={isLoading}>
-              {isLoading ? '分析中...' : '开始行为分析'}
+            <Button 
+              onClick={analyzeLearningBehavior} 
+              disabled={isLoading}
+              className="border-2 border-black bg-[#F7931E] hover:bg-[#E8821C] text-white font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all uppercase tracking-wide"
+            >
+              {isLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  分析中...
+                </>
+              ) : (
+                <>
+                  <Brain className="w-4 h-4 mr-2" />
+                  开始行为分析
+                </>
+              )}
             </Button>
           </div>
         </CardContent>
       </Card>
 
       {isLoading && (
-        <Card>
+        <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#9C88FF]">
           <CardContent className="p-8 text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-solid border-blue-500 border-r-transparent mb-4"></div>
-            <p>正在进行深度行为分析，请稍候...</p>
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-solid border-[#9C88FF] border-r-transparent mb-6"></div>
+            <p className="text-xl font-black text-[#191A23] uppercase tracking-wide mb-2">🧠 AI分析进行中</p>
+            <p className="text-[#191A23]/70 font-medium">正在深度分析学习行为模式，请稍候...</p>
+            <div className="mt-4 w-64 bg-[#F3F3F3] rounded-full h-3 mx-auto border-2 border-black">
+              <div className="bg-[#9C88FF] h-full rounded-full transition-all duration-1000 animate-pulse" style={{ width: '75%' }}></div>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -311,136 +337,264 @@ export const LearningBehaviorAnalysis: React.FC = () => {
       {patterns.length > 0 && (
         <div className="space-y-6">
           {patterns.map((pattern) => (
-            <Card key={pattern.studentId}>
-              <CardHeader>
+            <Card key={pattern.studentId} className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#B9FF66]">
+              <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
                 <CardTitle className="flex items-center justify-between">
-                  <span>{pattern.studentName} - 学习行为档案</span>
-                  <Badge variant="outline">{pattern.learnerType}</Badge>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
+                      <Users className="h-5 w-5 text-white" />
+                    </div>
+                    <span className="text-xl font-black text-[#191A23] uppercase tracking-wide">
+                      📋 {pattern.studentName} - 学习行为档案
+                    </span>
+                  </div>
+                  <Badge className="bg-[#F7931E] text-white border-2 border-black font-bold shadow-[2px_2px_0px_0px_#191A23] uppercase tracking-wide">
+                    {pattern.learnerType}
+                  </Badge>
                 </CardTitle>
-                <CardDescription>
-                  班级: {pattern.className}
+                <CardDescription className="text-[#191A23]/80 font-medium mt-2">
+                  🏫 班级: {pattern.className} | 📊 基于AI算法的综合行为分析报告
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-6">
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
-                  <TabsList className="grid w-full grid-cols-4">
-                    <TabsTrigger value="overview">总览</TabsTrigger>
-                    <TabsTrigger value="cognitive">认知风格</TabsTrigger>
-                    <TabsTrigger value="social">社交学习</TabsTrigger>
-                    <TabsTrigger value="strategies">学习策略</TabsTrigger>
+                  <TabsList className="grid w-full grid-cols-4 bg-white border-2 border-black shadow-[4px_4px_0px_0px_#F7931E] p-1">
+                    <TabsTrigger 
+                      value="overview"
+                      className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-black font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide"
+                    >
+                      <Activity className="w-4 h-4" />
+                      总览
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="cognitive"
+                      className="flex items-center gap-2 data-[state=active]:bg-[#F7931E] data-[state=active]:text-white font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide"
+                    >
+                      <Brain className="w-4 h-4" />
+                      认知
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="social"
+                      className="flex items-center gap-2 data-[state=active]:bg-[#9C88FF] data-[state=active]:text-white font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide"
+                    >
+                      <Users className="w-4 h-4" />
+                      社交
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="strategies"
+                      className="flex items-center gap-2 data-[state=active]:bg-[#FF6B6B] data-[state=active]:text-white font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide"
+                    >
+                      <Target className="w-4 h-4" />
+                      策略
+                    </TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="overview" className="space-y-4">
+                  <TabsContent value="overview" className="space-y-6 mt-6">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      <div>
-                        <h4 className="text-lg font-semibold mb-4">能力雷达图</h4>
-                        {renderRadarChart(pattern)}
-                      </div>
+                      <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#9C88FF]">
+                        <CardHeader className="bg-[#9C88FF] border-b-2 border-black">
+                          <CardTitle className="text-white font-black uppercase tracking-wide flex items-center gap-2">
+                            <Activity className="w-5 h-5" />
+                            📊 能力雷达图
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-4">
+                          {renderRadarChart(pattern)}
+                        </CardContent>
+                      </Card>
+                      
                       <div className="space-y-4">
-                        <div>
-                          <h4 className="text-sm font-semibold mb-2 flex items-center text-green-600">
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            学习优势
-                          </h4>
-                          <div className="space-y-1">
-                            {pattern.strengths.map((strength, index) => (
-                              <Badge key={index} variant="outline" className="text-xs mr-1">
-                                {strength}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
+                        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66]">
+                          <CardHeader className="bg-[#B9FF66] border-b-2 border-black py-3">
+                            <CardTitle className="text-sm font-black text-[#191A23] uppercase tracking-wide flex items-center gap-2">
+                              <CheckCircle className="h-4 w-4" />
+                              ✨ 学习优势
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="p-4">
+                            <div className="flex flex-wrap gap-2">
+                              {pattern.strengths.map((strength, index) => (
+                                <Badge key={index} className="bg-[#B9FF66] text-[#191A23] border-2 border-black font-bold shadow-[2px_2px_0px_0px_#191A23] text-xs">
+                                  🌟 {strength}
+                                </Badge>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
                         
-                        <div>
-                          <h4 className="text-sm font-semibold mb-2 flex items-center text-orange-600">
-                            <AlertTriangle className="h-4 w-4 mr-1" />
-                            改进空间
-                          </h4>
-                          <div className="space-y-1">
-                            {pattern.challenges.map((challenge, index) => (
-                              <Badge key={index} variant="outline" className="text-xs mr-1">
-                                {challenge}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
+                        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#F7931E]">
+                          <CardHeader className="bg-[#F7931E] border-b-2 border-black py-3">
+                            <CardTitle className="text-sm font-black text-white uppercase tracking-wide flex items-center gap-2">
+                              <AlertTriangle className="h-4 w-4" />
+                              ⚡ 改进空间
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="p-4">
+                            <div className="flex flex-wrap gap-2">
+                              {pattern.challenges.map((challenge, index) => (
+                                <Badge key={index} className="bg-[#F7931E] text-white border-2 border-black font-bold shadow-[2px_2px_0px_0px_#191A23] text-xs">
+                                  🎯 {challenge}
+                                </Badge>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
 
-                        <div>
-                          <h4 className="text-sm font-semibold mb-2 flex items-center">
-                            <BookOpen className="h-4 w-4 mr-1" />
-                            个性化建议
-                          </h4>
-                          <div className="space-y-2">
+                        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#FF6B6B]">
+                          <CardHeader className="bg-[#FF6B6B] border-b-2 border-black py-3">
+                            <CardTitle className="text-sm font-black text-white uppercase tracking-wide flex items-center gap-2">
+                              <BookOpen className="h-4 w-4" />
+                              💡 个性化建议
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="p-4 space-y-3">
                             {pattern.recommendations.map((rec, index) => (
-                              <Alert key={index}>
-                                <AlertDescription className="text-sm">
-                                  {rec}
-                                </AlertDescription>
-                              </Alert>
+                              <div key={index} className="p-3 bg-[#FF6B6B]/10 border-2 border-[#FF6B6B] rounded-lg">
+                                <p className="text-sm font-medium text-[#191A23]">
+                                  📝 {rec}
+                                </p>
+                              </div>
                             ))}
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="cognitive" className="space-y-6 mt-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#B9FF66]">
+                        <CardContent className="p-6 text-center">
+                          <div className="p-3 bg-[#B9FF66] rounded-full border-2 border-black mx-auto mb-4 w-fit">
+                            <Brain className="h-8 w-8 text-[#191A23]" />
                           </div>
-                        </div>
-                      </div>
+                          <p className="text-lg font-black text-[#191A23] uppercase tracking-wide mb-2">🧠 学习类型</p>
+                          <div className="px-3 py-2 bg-[#B9FF66] border-2 border-black rounded-lg">
+                            <p className="font-bold text-[#191A23]">{pattern.cognitiveStyle.learningType}</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#F7931E] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#F7931E]">
+                        <CardContent className="p-6 text-center">
+                          <div className="p-3 bg-[#F7931E] rounded-full border-2 border-black mx-auto mb-4 w-fit">
+                            <Clock className="h-8 w-8 text-white" />
+                          </div>
+                          <p className="text-lg font-black text-[#191A23] uppercase tracking-wide mb-2">⚡ 处理速度</p>
+                          <div className="px-3 py-2 bg-[#F7931E] border-2 border-black rounded-lg">
+                            <p className="font-bold text-white">{pattern.cognitiveStyle.processingSpeed}</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#9C88FF] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#9C88FF]">
+                        <CardContent className="p-6 text-center">
+                          <div className="p-3 bg-[#9C88FF] rounded-full border-2 border-black mx-auto mb-4 w-fit">
+                            <Award className="h-8 w-8 text-white" />
+                          </div>
+                          <p className="text-lg font-black text-[#191A23] uppercase tracking-wide mb-3">🏆 记忆力</p>
+                          <div className="space-y-2">
+                            <div className="w-full bg-[#F3F3F3] rounded-full h-4 border-2 border-black">
+                              <div 
+                                className="bg-[#9C88FF] h-full rounded-full transition-all duration-500 border-r-2 border-black" 
+                                style={{ width: `${pattern.cognitiveStyle.memoryStrength}%` }}
+                              />
+                            </div>
+                            <p className="font-bold text-[#191A23] text-xl">{pattern.cognitiveStyle.memoryStrength.toFixed(0)}%</p>
+                          </div>
+                        </CardContent>
+                      </Card>
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="cognitive" className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <Card>
-                        <CardContent className="p-4 text-center">
-                          <Brain className="h-8 w-8 mx-auto mb-2 text-blue-500" />
-                          <p className="text-sm font-medium">学习类型</p>
-                          <p className="text-xs text-gray-600">{pattern.cognitiveStyle.learningType}</p>
+                  <TabsContent value="social" className="space-y-6 mt-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66]">
+                        <CardHeader className="bg-[#B9FF66] border-b-2 border-black py-3">
+                          <CardTitle className="text-sm font-black text-[#191A23] uppercase tracking-wide flex items-center gap-2">
+                            <Users className="h-4 w-4" />
+                            🤝 协作偏好
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-4">
+                          <div className="space-y-3">
+                            <div className="w-full bg-[#F3F3F3] rounded-full h-6 border-2 border-black">
+                              <div 
+                                className="bg-[#B9FF66] h-full rounded-full transition-all duration-500 border-r-2 border-black flex items-center justify-end pr-2" 
+                                style={{ width: `${pattern.socialLearning.collaborationPreference}%` }}
+                              >
+                                <span className="text-xs font-bold text-[#191A23]">
+                                  {pattern.socialLearning.collaborationPreference.toFixed(0)}%
+                                </span>
+                              </div>
+                            </div>
+                          </div>
                         </CardContent>
                       </Card>
-                      <Card>
-                        <CardContent className="p-4 text-center">
-                          <Clock className="h-8 w-8 mx-auto mb-2 text-green-500" />
-                          <p className="text-sm font-medium">处理速度</p>
-                          <p className="text-xs text-gray-600">{pattern.cognitiveStyle.processingSpeed}</p>
+                      
+                      <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#F7931E]">
+                        <CardHeader className="bg-[#F7931E] border-b-2 border-black py-3">
+                          <CardTitle className="text-sm font-black text-white uppercase tracking-wide flex items-center gap-2">
+                            <Users className="h-4 w-4" />
+                            👥 同伴互动
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-4">
+                          <div className="space-y-3">
+                            <div className="w-full bg-[#F3F3F3] rounded-full h-6 border-2 border-black">
+                              <div 
+                                className="bg-[#F7931E] h-full rounded-full transition-all duration-500 border-r-2 border-black flex items-center justify-end pr-2" 
+                                style={{ width: `${pattern.socialLearning.peerInteraction}%` }}
+                              >
+                                <span className="text-xs font-bold text-white">
+                                  {pattern.socialLearning.peerInteraction.toFixed(0)}%
+                                </span>
+                              </div>
+                            </div>
+                          </div>
                         </CardContent>
                       </Card>
-                      <Card>
-                        <CardContent className="p-4 text-center">
-                          <Award className="h-8 w-8 mx-auto mb-2 text-yellow-500" />
-                          <p className="text-sm font-medium">记忆力</p>
-                          <Progress value={pattern.cognitiveStyle.memoryStrength} className="mt-2" />
+                      
+                      <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#9C88FF]">
+                        <CardHeader className="bg-[#9C88FF] border-b-2 border-black py-3">
+                          <CardTitle className="text-sm font-black text-white uppercase tracking-wide flex items-center gap-2">
+                            <Award className="h-4 w-4" />
+                            👑 领导倾向
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-4">
+                          <div className="space-y-3">
+                            <div className="w-full bg-[#F3F3F3] rounded-full h-6 border-2 border-black">
+                              <div 
+                                className="bg-[#9C88FF] h-full rounded-full transition-all duration-500 border-r-2 border-black flex items-center justify-end pr-2" 
+                                style={{ width: `${pattern.socialLearning.leadershipTendency}%` }}
+                              >
+                                <span className="text-xs font-bold text-white">
+                                  {pattern.socialLearning.leadershipTendency.toFixed(0)}%
+                                </span>
+                              </div>
+                            </div>
+                          </div>
                         </CardContent>
                       </Card>
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="social" className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <p className="text-sm font-medium mb-2">协作偏好</p>
-                        <Progress value={pattern.socialLearning.collaborationPreference} />
-                        <p className="text-xs text-gray-600 mt-1">
-                          {pattern.socialLearning.collaborationPreference.toFixed(0)}%
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium mb-2">同伴互动</p>
-                        <Progress value={pattern.socialLearning.peerInteraction} />
-                        <p className="text-xs text-gray-600 mt-1">
-                          {pattern.socialLearning.peerInteraction.toFixed(0)}%
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium mb-2">领导倾向</p>
-                        <Progress value={pattern.socialLearning.leadershipTendency} />
-                        <p className="text-xs text-gray-600 mt-1">
-                          {pattern.socialLearning.leadershipTendency.toFixed(0)}%
-                        </p>
-                      </div>
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="strategies" className="space-y-4">
-                    <div>
-                      <h4 className="text-lg font-semibold mb-4">学习策略能力</h4>
-                      {renderStrategiesChart(pattern)}
-                    </div>
+                  <TabsContent value="strategies" className="space-y-6 mt-6">
+                    <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#FF6B6B]">
+                      <CardHeader className="bg-[#FF6B6B] border-b-2 border-black">
+                        <CardTitle className="text-white font-black uppercase tracking-wide flex items-center gap-2">
+                          <Target className="w-5 h-5" />
+                          🎯 学习策略能力分析
+                        </CardTitle>
+                        <CardDescription className="text-white/90 font-medium mt-2">
+                          多维度评估学习策略的运用能力和效果
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-6">
+                        {renderStrategiesChart(pattern)}
+                      </CardContent>
+                    </Card>
                   </TabsContent>
                 </Tabs>
               </CardContent>
@@ -450,10 +604,17 @@ export const LearningBehaviorAnalysis: React.FC = () => {
       )}
 
       {patterns.length === 0 && !isLoading && (
-        <Card>
-          <CardContent className="p-8 text-center text-gray-500">
-            <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>选择学生开始学习行为分析</p>
+        <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]">
+          <CardContent className="p-12 text-center">
+            <div className="p-4 bg-[#B9FF66] rounded-full border-2 border-black mx-auto mb-6 w-fit">
+              <Activity className="h-16 w-16 text-[#191A23]" />
+            </div>
+            <p className="text-2xl font-black text-[#191A23] uppercase tracking-wide mb-3">
+              🚀 准备开始分析
+            </p>
+            <p className="text-[#191A23]/70 font-medium">
+              选择学生，开启AI驱动的学习行为深度分析之旅
+            </p>
           </CardContent>
         </Card>
       )}

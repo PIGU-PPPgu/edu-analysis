@@ -1,0 +1,1204 @@
+{
+    "nodes": [
+      {
+        "parameters": {
+          "content": "# ✅ 图书推荐 + 视频描绘工作流",
+          "height": 400,
+          "width": 1200
+        },
+        "id": "ad7a8c87-1bea-4b5a-96e3-cd30c7bee07e",
+        "name": "工作流说明",
+        "type": "n8n-nodes-base.stickyNote",
+        "position": [
+          -860,
+          -140
+        ],
+        "typeVersion": 1
+      },
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "hours",
+                "hoursInterval": 24
+              }
+            ]
+          }
+        },
+        "id": "305a1650-5121-4018-a3a8-71f8b7436b23",
+        "name": "每日触发器",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "position": [
+          -700,
+          -40
+        ],
+        "typeVersion": 1.2
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "为13-18岁青少年推荐一本优质图书，要求适合他们的认知水平和兴趣爱好，请推荐国内外的中文书，",
+          "hasOutputParser": true,
+          "options": {
+            "systemMessage": "=你是一位专业的青少年阅读指导专家。请根据以下要求为青少年推荐图书并生成视频描述。\n\n输出要求（必须是JSON格式），内容也要是中文：\n{\n  \"bookTitle\": \"图书标题\",\n  \"author\": \"作者姓名\",\n  \"targetAge\": \"适合年龄段\",\n  \"genre\": \"图书类型\",\n  \"description\": \"100字内的图书简介\",\n  \"why_recommend\": \"推荐理由\",\n  \"key_themes\": [\"主要主题1\", \"主要主题2\", \"主要主题3\"],\n  \"video_prompt\": \"5分钟视频提示词，描述书中场景或主题的视觉化呈现\",\n  \"caption\": \"社交媒体标题，包含相关话题标签\",\n\"created_at\":\"{{ $json[\"Readable date\"] }}\",\n\"task_id\":\"\",\n\"video_url\": \"\"\n}"
+          }
+        },
+        "id": "4729bd67-6ce8-4f80-8fbd-13ed20d42941",
+        "name": "AI图书推荐生成",
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "position": [
+          -540,
+          -40
+        ],
+        "typeVersion": 1.9
+      },
+      {
+        "parameters": {
+          "schemaType": "manual",
+          "inputSchema": "{\n  \"book_title\": \"{{ $json.bookTitle }}\",\n  \"author\": \"{{ $json.author }}\",\n  \"target_age\": \"{{ $json.targetAge }}\",\n  \"genre\": \"{{ $json.genre }}\",\n  \"description\": \"{{ $json.description }}\",\n  \"why_recommend\": \"{{ $json.whyRecommend }}\",\n  \"key_themes\": \"{{ $json.keyThemes.join(', ') }}\",\n  \"video_prompt\": \"{{ $json.videoPrompt }}\",\n  \"caption\": \"{{ $json.caption }}\",\n  \"created_at\": \"{{ $now }}\",\n  \"task_id\": \"\",\n  \"video_url\": \"\"\n}"
+        },
+        "id": "51075888-1e76-4e89-be7c-ded4cac13723",
+        "name": "解析图书JSON",
+        "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+        "position": [
+          -360,
+          180
+        ],
+        "typeVersion": 1.2
+      },
+      {
+        "parameters": {
+          "operation": "append",
+          "documentId": {
+            "__rl": true,
+            "value": "=1LYA16arR5h1f8bgSOc9OOZVhkxhJfmP52gCg0eqqsos",
+            "mode": "id"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "=1209065493",
+            "mode": "id"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "book_title": "={{ $json.output.bookTitle }}",
+              "author": "={{ $json.output.author }}",
+              "target_age": "={{ $json.output.targetAge }}",
+              "genre": "={{ $json.output.genre }}",
+              "description": "={{ $json.output.description }}",
+              "why_recommend": "={{ $json.output.why_recommend }}",
+              "key_themes": "={{ $json.output.key_themes }}",
+              "video_prompt": "={{ $json.output.video_prompt }}",
+              "caption": "={{ $json.output.caption }}",
+              "created_at": "={{ $json.output.created_at }}"
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "book_title",
+                "displayName": "book_title",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "author",
+                "displayName": "author",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "target_age",
+                "displayName": "target_age",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "genre",
+                "displayName": "genre",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "description",
+                "displayName": "description",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "why_recommend",
+                "displayName": "why_recommend",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "key_themes",
+                "displayName": "key_themes",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "video_prompt",
+                "displayName": "video_prompt",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "caption",
+                "displayName": "caption",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "task_id",
+                "displayName": "task_id",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "video_url",
+                "displayName": "video_url",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "created_at",
+                "displayName": "created_at",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "status",
+                "displayName": "status",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "id": "79df08eb-c662-4fc9-a611-7761e3801df2",
+        "name": "保存到Google Sheets",
+        "type": "n8n-nodes-base.googleSheets",
+        "position": [
+          -220,
+          -20
+        ],
+        "typeVersion": 4.5,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "AEBVTa1qLGHhXH8v",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "=将以下图书推荐转换为适合豆包Seedance视频模型的详细提示词，要求有5分钟的内容：\n\n图书：{{ $json.book_title }}\n作者：{{ $json.author }}\n视频概念：{{ $json.video_prompt }}\n主题：{{ $json.key_themes }}",
+          "options": {
+            "systemMessage": "你是豆包Seedance视频模型的提示词生成器。严格按照以下要求输出：\n\n【重要】：你的输出必须是一段连续的文字，不能有任何换行符、标题格式、分段、列表或特殊符号。\n\n任务：将用户的创意转换为视频描述。\n\n输出要求：\n1. 只输出一行连续文字\n2. 不使用任何格式符号（如**、---、#等）\n3. 不分段，不换行\n4. 描述具体的画面、动作、色彩和氛围"
+          }
+        },
+        "id": "a6c8fcd0-b287-413d-b2b1-0e7f36ab1114",
+        "name": "视频提示词生成器",
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "position": [
+          -60,
+          -40
+        ],
+        "typeVersion": 1.9
+      },
+      {
+        "parameters": {
+          "model": {
+            "__rl": true,
+            "value": "Pro/deepseek-ai/DeepSeek-V3",
+            "mode": "list",
+            "cachedResultName": "Pro/deepseek-ai/DeepSeek-V3"
+          },
+          "options": {}
+        },
+        "id": "7c89ca5a-3392-4ac7-89d3-12a73dcd838a",
+        "name": "视频提示词LLM",
+        "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "position": [
+          -140,
+          160
+        ],
+        "typeVersion": 1.2,
+        "credentials": {
+          "openAiApi": {
+            "id": "6ipTlUdfMPg4vJRv",
+            "name": "Deepseek"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Authorization",
+                "value": "Bearer 4ae99bb8-5924-47c8-a759-f837c0a6a16a"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "{\n  \"model\": \"doubao-seedance-1-0-pro-250528\",\n  \"content\": [\n    {\n      \"type\": \"text\",\n      \"text\": \"{{ $json.output }}\"\n    }\n  ],\n  \"duration\": 300,\n  \"width\": 1920,\n  \"height\": 1080,\n  \"fps\": 30\n}",
+          "options": {}
+        },
+        "id": "b2d2eedb-82a4-444c-bcb3-051f8cdc3616",
+        "name": "豆包视频生成API",
+        "type": "n8n-nodes-base.httpRequest",
+        "position": [
+          -800,
+          520
+        ],
+        "typeVersion": 4.2
+      },
+      {
+        "parameters": {
+          "operation": "update",
+          "documentId": {
+            "__rl": true,
+            "value": "1LYA16arR5h1f8bgSOc9OOZVhkxhJfmP52gCg0eqqsos",
+            "mode": "id"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "1209065493",
+            "mode": "id"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "task_id": "={{ $json.id }}",
+              "video_url": "={{ $json.content }}"
+            },
+            "matchingColumns": [
+              "book_title"
+            ],
+            "schema": [
+              {
+                "id": "book_title",
+                "displayName": "book_title",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "author",
+                "displayName": "author",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "target_age",
+                "displayName": "target_age",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "genre",
+                "displayName": "genre",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "description",
+                "displayName": "description",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "why_recommend",
+                "displayName": "why_recommend",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "key_themes",
+                "displayName": "key_themes",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "video_prompt",
+                "displayName": "video_prompt",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "caption",
+                "displayName": "caption",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "created_at",
+                "displayName": "created_at",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "task_id",
+                "displayName": "task_id",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "video_url",
+                "displayName": "video_url",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "row_number",
+                "displayName": "row_number",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "readOnly": true,
+                "removed": true
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "id": "b0a993b3-fabb-41d8-baaa-c1791330680b",
+        "name": "更新结果到Sheets",
+        "type": "n8n-nodes-base.googleSheets",
+        "position": [
+          500,
+          0
+        ],
+        "typeVersion": 4.5,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "AEBVTa1qLGHhXH8v",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "description": "=Use the tool to think about something. It will not obtain new information or change the database, but just append the thought to the log. Use it when complex reasoning or some cache memory is needed."
+        },
+        "id": "7360a73d-2a00-4b1d-87b6-5dca9645c2ed",
+        "name": "Tool: Inject Creativity",
+        "type": "@n8n/n8n-nodes-langchain.toolThink",
+        "position": [
+          -500,
+          160
+        ],
+        "typeVersion": 1
+      },
+      {
+        "parameters": {},
+        "type": "@n8n/n8n-nodes-langchain.toolThink",
+        "typeVersion": 1,
+        "position": [
+          140,
+          180
+        ],
+        "id": "e31d42ed-8271-4cb1-b83c-c58a1b60034b",
+        "name": "Think"
+      },
+      {
+        "parameters": {
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatDeepSeek",
+        "typeVersion": 1,
+        "position": [
+          -600,
+          160
+        ],
+        "id": "0a414cdb-bbdf-4c1d-90f3-4c12c428b59f",
+        "name": "DeepSeek Chat Model",
+        "credentials": {
+          "deepSeekApi": {
+            "id": "EriBj5p7vLUecFo7",
+            "name": "DeepSeek account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "amount": 30
+        },
+        "id": "85bcef1b-b3c2-4f33-9dea-c2a1fed9dbde",
+        "name": "初始等待30秒",
+        "type": "n8n-nodes-base.wait",
+        "position": [
+          -580,
+          540
+        ],
+        "typeVersion": 1.1,
+        "webhookId": "2772572d-b522-4ed5-b72e-f30c5d701c84"
+      },
+      {
+        "parameters": {
+          "url": "=https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks/{{ $('豆包视频生成API').first().json.id }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Authorization",
+                "value": "Bearer 4ae99bb8-5924-47c8-a759-f837c0a6a16a"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "128c7352-bdc3-4931-8158-32c70e7686eb",
+        "name": "检查视频状态",
+        "type": "n8n-nodes-base.httpRequest",
+        "position": [
+          -260,
+          540
+        ],
+        "typeVersion": 4.2
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 1
+            },
+            "conditions": [
+              {
+                "id": "c6d4cd5c-2a3d-4db5-88b1-e1f5b6c4d9a8",
+                "leftValue": "={{ $json.status }}",
+                "rightValue": "succeeded",
+                "operator": {
+                  "type": "string",
+                  "operation": "equals"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "2a4085ce-8cf0-41cb-90c9-cb0aa1baf85b",
+        "name": "判断视频是否完成",
+        "type": "n8n-nodes-base.if",
+        "position": [
+          -20,
+          540
+        ],
+        "typeVersion": 2
+      },
+      {
+        "parameters": {
+          "amount": 45
+        },
+        "id": "9e4a126f-0a63-4a18-8a5a-f1616ae875f7",
+        "name": "等待45秒重试",
+        "type": "n8n-nodes-base.wait",
+        "position": [
+          -240,
+          740
+        ],
+        "typeVersion": 1.1,
+        "webhookId": "1e9d920d-229d-4447-abab-f9ea8364bffa"
+      },
+      {
+        "parameters": {
+          "operation": "update",
+          "documentId": {
+            "__rl": true,
+            "value": "1LYA16arR5h1f8bgSOc9OOZVhkxhJfmP52gCg0eqqsos",
+            "mode": "id"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "1209065493",
+            "mode": "id"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "task_id": "={{ $json.id }}",
+              "video_url": "={{ $json.content.video_url }}",
+              "status": "={{ $json.status }}"
+            },
+            "matchingColumns": [
+              "task_id"
+            ],
+            "schema": [
+              {
+                "id": "book_title",
+                "displayName": "book_title",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "author",
+                "displayName": "author",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "target_age",
+                "displayName": "target_age",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "genre",
+                "displayName": "genre",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "description",
+                "displayName": "description",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "why_recommend",
+                "displayName": "why_recommend",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "key_themes",
+                "displayName": "key_themes",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "video_prompt",
+                "displayName": "video_prompt",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "caption",
+                "displayName": "caption",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "task_id",
+                "displayName": "task_id",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "video_url",
+                "displayName": "video_url",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "created_at",
+                "displayName": "created_at",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": true
+              },
+              {
+                "id": "status",
+                "displayName": "status",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "row_number",
+                "displayName": "row_number",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "readOnly": true,
+                "removed": true
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "id": "38a82c1f-d8fe-4b99-bb2f-522989b94830",
+        "name": "更新表格-成功",
+        "type": "n8n-nodes-base.googleSheets",
+        "position": [
+          500,
+          520
+        ],
+        "typeVersion": 4.5,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "AEBVTa1qLGHhXH8v",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 1
+            },
+            "conditions": [
+              {
+                "id": "retry-limit",
+                "leftValue": "={{ $('check-status').itemMatching(0).$position }}",
+                "rightValue": "20",
+                "operator": {
+                  "type": "number",
+                  "operation": "smaller"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "9d47d5aa-1366-4012-92c5-dee9b218b2a1",
+        "name": "检查重试次数",
+        "type": "n8n-nodes-base.if",
+        "position": [
+          -60,
+          740
+        ],
+        "typeVersion": 2
+      },
+      {
+        "parameters": {
+          "operation": "update",
+          "documentId": {
+            "__rl": true,
+            "value": "1LYA16arR5h1f8bgSOc9OOZVhkxhJfmP52gCg0eqqsos",
+            "mode": "id"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "1209065493",
+            "mode": "id"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {},
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "book_title",
+                "displayName": "book_title",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "author",
+                "displayName": "author",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "target_age",
+                "displayName": "target_age",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "genre",
+                "displayName": "genre",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "description",
+                "displayName": "description",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "why_recommend",
+                "displayName": "why_recommend",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "key_themes",
+                "displayName": "key_themes",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "video_prompt",
+                "displayName": "video_prompt",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "caption",
+                "displayName": "caption",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "task_id",
+                "displayName": "task_id",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "video_url",
+                "displayName": "video_url",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "created_at",
+                "displayName": "created_at",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "status",
+                "displayName": "status",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "row_number",
+                "displayName": "row_number",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "readOnly": true,
+                "removed": true
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "id": "ab627e66-166f-4cfc-af81-73feacc2f427",
+        "name": "更新表格-超时",
+        "type": "n8n-nodes-base.googleSheets",
+        "position": [
+          480,
+          760
+        ],
+        "typeVersion": 4.5,
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "AEBVTa1qLGHhXH8v",
+            "name": "Google Sheets account"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "每日触发器": {
+        "main": [
+          [
+            {
+              "node": "AI图书推荐生成",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "AI图书推荐生成": {
+        "main": [
+          [
+            {
+              "node": "保存到Google Sheets",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "解析图书JSON": {
+        "ai_outputParser": [
+          [
+            {
+              "node": "AI图书推荐生成",
+              "type": "ai_outputParser",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "保存到Google Sheets": {
+        "main": [
+          [
+            {
+              "node": "视频提示词生成器",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "更新结果到Sheets",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "视频提示词生成器": {
+        "main": [
+          [
+            {
+              "node": "豆包视频生成API",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "视频提示词LLM": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "视频提示词生成器",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "豆包视频生成API": {
+        "main": [
+          [
+            {
+              "node": "初始等待30秒",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Tool: Inject Creativity": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI图书推荐生成",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Think": {
+        "ai_tool": [
+          [
+            {
+              "node": "视频提示词生成器",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "DeepSeek Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "AI图书推荐生成",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "初始等待30秒": {
+        "main": [
+          [
+            {
+              "node": "检查视频状态",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "检查视频状态": {
+        "main": [
+          [
+            {
+              "node": "判断视频是否完成",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "判断视频是否完成": {
+        "main": [
+          [
+            {
+              "node": "更新表格-成功",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "等待45秒重试",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "等待45秒重试": {
+        "main": [
+          [
+            {
+              "node": "检查重试次数",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "检查重试次数": {
+        "main": [
+          [
+            {
+              "node": "检查视频状态",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "更新表格-超时",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "pinData": {},
+    "meta": {
+      "templateCredsSetupCompleted": true,
+      "instanceId": "cb2bc585ed282cc751a3b2bcdeaae79c7faf24459fd024a3cdc8a5aaacb19f3a"
+    }
+  }

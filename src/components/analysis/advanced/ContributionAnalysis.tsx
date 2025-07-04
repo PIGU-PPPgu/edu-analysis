@@ -238,11 +238,13 @@ const ContributionAnalysis: React.FC<ContributionAnalysisProps> = ({
   // 如果没有数据
   if (!gradeData || gradeData.length === 0) {
     return (
-      <Card className={className}>
-        <CardContent className="p-8 text-center">
-          <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-          <p className="text-lg font-medium text-gray-600">暂无学生数据</p>
-          <p className="text-sm text-gray-500 mt-1">需要学生成绩数据进行贡献度分析</p>
+      <Card className={`bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] ${className}`}>
+        <CardContent className="p-12 text-center">
+          <div className="p-4 bg-[#B9FF66] rounded-full border-2 border-black mx-auto mb-6 w-fit">
+            <Users className="h-16 w-16 text-white" />
+          </div>
+          <p className="text-2xl font-black text-[#191A23] uppercase tracking-wide mb-3">📊 暂无学生数据</p>
+          <p className="text-[#191A23]/70 font-medium">需要学生成绩数据进行贡献度分析</p>
         </CardContent>
       </Card>
     );
@@ -250,206 +252,278 @@ const ContributionAnalysis: React.FC<ContributionAnalysisProps> = ({
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* 标题和控制面板 */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <Target className="h-6 w-6 text-blue-600" />
-            {title}
-          </h2>
-          <p className="text-sm text-gray-600 mt-1">
-            分析 {stats.totalStudents} 名学生在各科目相对于班级的表现贡献度
-          </p>
-        </div>
-        
-        <div className="flex flex-wrap gap-2">
-          <Select value={selectedClass} onValueChange={setSelectedClass}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="选择班级" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">所有班级</SelectItem>
-              {availableClasses.map(className => (
-                <SelectItem key={className} value={className}>{className}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          <Select value={selectedStudent} onValueChange={setSelectedStudent}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="选择学生" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">所有学生</SelectItem>
-              {availableStudents.map(student => (
-                <SelectItem key={student.id} value={student.id}>{student.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          <Button variant="outline" size="sm" onClick={handleExportData}>
-            <Download className="h-4 w-4 mr-1" />
-            导出数据
-          </Button>
-        </div>
-      </div>
-
-      {/* 分析说明 */}
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertTitle>贡献度分析说明</AlertTitle>
-        <AlertDescription>
-          <div className="space-y-1 text-sm">
-            <p>• <strong>贡献度计算</strong>: (学生分数 - 班级平均分) / 班级平均分 × 100%</p>
-            <p>• <strong>正值</strong>: 表示高于班级平均水平，对班级成绩有正向贡献</p>
-            <p>• <strong>负值</strong>: 表示低于班级平均水平，需要重点关注和帮助</p>
+      {/* 🎨 Positivus风格标题和控制面板 */}
+      <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#B9FF66]">
+        <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-[#191A23] rounded-full border-2 border-black">
+                <Target className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-2xl font-black text-white uppercase tracking-wide">
+                  🎯 {title}
+                </CardTitle>
+                <p className="text-white/90 font-medium mt-1">
+                  分析 {stats.totalStudents} 名学生在各科目相对于班级的表现贡献度
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex flex-wrap gap-3">
+              <Select value={selectedClass} onValueChange={setSelectedClass}>
+                <SelectTrigger className="w-[140px] bg-white border-2 border-black font-medium text-[#191A23] focus:border-[#B9FF66] focus:ring-2 focus:ring-[#B9FF66] shadow-[2px_2px_0px_0px_#191A23] transition-all">
+                  <SelectValue placeholder="🏫 选择班级" />
+                </SelectTrigger>
+                <SelectContent className="border-2 border-black shadow-[4px_4px_0px_0px_#191A23]">
+                  <SelectItem value="all">全部班级</SelectItem>
+                  {availableClasses.map(className => (
+                    <SelectItem key={className} value={className}>
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4 text-[#191A23]" />
+                        <span className="font-medium">{className}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Select value={selectedStudent} onValueChange={setSelectedStudent}>
+                <SelectTrigger className="w-[140px] bg-white border-2 border-black font-medium text-[#191A23] focus:border-[#B9FF66] focus:ring-2 focus:ring-[#B9FF66] shadow-[2px_2px_0px_0px_#191A23] transition-all">
+                  <SelectValue placeholder="👤 选择学生" />
+                </SelectTrigger>
+                <SelectContent className="border-2 border-black shadow-[4px_4px_0px_0px_#191A23]">
+                  <SelectItem value="all">全部学生</SelectItem>
+                  {availableStudents.map(student => (
+                    <SelectItem key={student.id} value={student.id}>
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4 text-[#191A23]" />
+                        <span className="font-medium">{student.name}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Button 
+                onClick={handleExportData}
+                className="border-2 border-black bg-[#B9FF66] hover:bg-[#A8E055] text-[#191A23] font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all uppercase tracking-wide"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                导出数据
+              </Button>
+            </div>
           </div>
-        </AlertDescription>
-      </Alert>
+        </CardHeader>
+      </Card>
 
-      {/* 统计概览 */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-blue-600">{stats.totalStudents}</div>
-            <div className="text-sm text-gray-600">总学生数</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-green-600">{stats.topPerformers}</div>
-            <div className="text-sm text-gray-600">优秀学生</div>
-            <div className="text-xs text-gray-500">贡献度&gt;10%</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-yellow-600">{stats.balancedStudents}</div>
-            <div className="text-sm text-gray-600">均衡学生</div>
-            <div className="text-xs text-gray-500">-10%≤贡献度≤10%</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-red-600">{stats.needsSupport}</div>
-            <div className="text-sm text-gray-600">需要帮助</div>
-            <div className="text-xs text-gray-500">贡献度&lt;-10%</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-purple-600">{stats.avgContribution}%</div>
-            <div className="text-sm text-gray-600">平均贡献度</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 学生贡献度排行 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            学生总贡献度排行
+      {/* 🎨 Positivus风格分析说明 */}
+      <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]">
+        <CardHeader className="bg-[#B9FF66] border-b-2 border-black py-4">
+          <CardTitle className="text-[#191A23] font-black uppercase tracking-wide flex items-center gap-2">
+            <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
+              <Info className="h-4 w-4 text-white" />
+            </div>
+            📊 贡献度分析说明
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 bg-[#B9FF66]/10 border-2 border-[#B9FF66] rounded-lg">
+              <p className="font-black text-[#191A23] mb-2">🧮 贡献度计算</p>
+              <p className="text-sm text-[#191A23]/80">(学生分数 - 班级平均分) / 班级平均分 × 100%</p>
+            </div>
+            <div className="p-4 bg-[#B9FF66]/10 border-2 border-[#B9FF66] rounded-lg">
+              <p className="font-black text-[#191A23] mb-2">✅ 正值含义</p>
+              <p className="text-sm text-[#191A23]/80">表示高于班级平均水平，对班级成绩有正向贡献</p>
+            </div>
+            <div className="p-4 bg-[#FF6B6B]/10 border-2 border-[#FF6B6B] rounded-lg">
+              <p className="font-black text-[#191A23] mb-2">⚠️ 负值含义</p>
+              <p className="text-sm text-[#191A23]/80">表示低于班级平均水平，需要重点关注和帮助</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 🎨 Positivus风格统计概览 */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#B9FF66]">
+          <CardContent className="p-6 text-center">
+            <div className="text-3xl font-black text-[#191A23] mb-2">{stats.totalStudents}</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">👥 总学生数</div>
+          </CardContent>
+        </Card>
+        
+        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#B9FF66]">
+          <CardContent className="p-6 text-center">
+            <div className="text-3xl font-black text-[#191A23] mb-2">{stats.topPerformers}</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">🌟 优秀学生</div>
+            <div className="text-xs font-medium text-[#191A23]/70 mt-1">贡献度&gt;10%</div>
+          </CardContent>
+        </Card>
+        
+        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#B9FF66]">
+          <CardContent className="p-6 text-center">
+            <div className="text-3xl font-black text-[#191A23] mb-2">{stats.balancedStudents}</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">⚖️ 均衡学生</div>
+            <div className="text-xs font-medium text-[#191A23]/70 mt-1">-10%≤贡献度≤10%</div>
+          </CardContent>
+        </Card>
+        
+        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#FF6B6B] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#FF6B6B]">
+          <CardContent className="p-6 text-center">
+            <div className="text-3xl font-black text-[#191A23] mb-2">{stats.needsSupport}</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">🆘 需要帮助</div>
+            <div className="text-xs font-medium text-[#191A23]/70 mt-1">贡献度&lt;-10%</div>
+          </CardContent>
+        </Card>
+        
+        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#B9FF66]">
+          <CardContent className="p-6 text-center">
+            <div className="text-3xl font-black text-[#191A23] mb-2">{stats.avgContribution}%</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">📊 平均贡献度</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 🎨 Positivus风格学生贡献度排行 */}
+      <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]">
+        <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
+          <CardTitle className="text-white font-black uppercase tracking-wide flex items-center gap-2">
+            <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
+              <BarChart3 className="h-5 w-5 text-white" />
+            </div>
+            🏆 学生总贡献度排行
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="space-y-4">
             {filteredStudents.slice(0, 10).map((student, index) => (
-              <div key={`${student.student_id}-${student.class_name}`} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                    index < 3 ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-600'
-                  }`}>
-                    {index + 1}
+              <Card key={`${student.student_id}-${student.class_name}`} className="border-2 border-black shadow-[2px_2px_0px_0px_#191A23] transition-all hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_0px_#191A23]">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-black border-2 border-black ${
+                        index === 0 ? 'bg-[#B9FF66] text-[#191A23]' : 
+                        index === 1 ? 'bg-[#B9FF66] text-white' : 
+                        index === 2 ? 'bg-[#B9FF66] text-white' : 
+                        'bg-[#F3F3F3] text-[#191A23]'
+                      }`}>
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className="font-black text-[#191A23] text-lg">{student.name}</p>
+                        <p className="font-medium text-[#191A23]/70">{student.class_name}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <Badge className={`border-2 border-black font-bold shadow-[2px_2px_0px_0px_#191A23] text-lg px-4 py-2 ${
+                        student.totalContribution > 0 ? 'bg-[#B9FF66] text-[#191A23]' : 'bg-[#FF6B6B] text-white'
+                      }`}>
+                        {student.totalContribution > 0 ? '+' : ''}{student.totalContribution}%
+                      </Badge>
+                      <p className="text-xs font-bold text-[#191A23] mt-1 uppercase tracking-wide">总贡献度</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium">{student.name}</p>
-                    <p className="text-sm text-gray-600">{student.class_name}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <Badge variant={student.totalContribution > 0 ? "default" : "destructive"}>
-                    {student.totalContribution > 0 ? '+' : ''}{student.totalContribution}%
-                  </Badge>
-                  <p className="text-xs text-gray-500 mt-1">总贡献度</p>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </CardContent>
       </Card>
 
-      {/* 学生详细信息 */}
+      {/* 🎨 Positivus风格学生详细信息 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {filteredStudents.slice(0, 6).map((student) => (
-          <Card key={`${student.student_id}-${student.class_name}`}>
-            <CardHeader>
+          <Card key={`${student.student_id}-${student.class_name}`} className="border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#B9FF66]">
+            <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
               <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  {student.name}
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
+                    <Users className="h-5 w-5 text-white" />
+                  </div>
+                  <span className="text-white font-black uppercase tracking-wide">{student.name}</span>
                 </div>
-                <Badge variant={student.averageContribution > 5 ? "default" : student.averageContribution < -5 ? "destructive" : "secondary"}>
+                <Badge className={`border-2 border-black font-bold shadow-[2px_2px_0px_0px_#191A23] ${
+                  student.averageContribution > 5 ? 'bg-[#B9FF66] text-[#191A23]' : 
+                  student.averageContribution < -5 ? 'bg-[#FF6B6B] text-white' : 
+                  'bg-[#B9FF66] text-white'
+                }`}>
                   {student.averageContribution > 0 ? '+' : ''}{student.averageContribution}%
                 </Badge>
               </CardTitle>
-              <p className="text-sm text-gray-600">
-                {student.class_name} | 学号: {student.student_id}
+              <p className="text-white/90 font-medium">
+                📚 {student.class_name} | 🆔 学号: {student.student_id}
               </p>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
+            <CardContent className="p-6">
+              <div className="space-y-6">
                 {/* 科目贡献度列表 */}
-                <div className="space-y-2">
-                  {student.subjects.map((subject) => (
-                    <div key={subject.subject} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                      <div className="flex items-center gap-2">
-                        <BookOpen className="h-4 w-4 text-gray-500" />
-                        <span className="font-medium">{subject.subject}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-600">
-                          {subject.score}分 (班均{subject.classAverage.toFixed(1)})
-                        </span>
-                        <Badge 
-                          variant={subject.contribution > 0 ? "default" : "destructive"}
-                          className="text-xs"
-                        >
-                          {subject.contribution > 0 ? '+' : ''}{subject.contribution}%
-                        </Badge>
-                      </div>
-                    </div>
+                <div className="space-y-3">
+                  <h4 className="font-black text-[#191A23] uppercase tracking-wide mb-3">📊 科目贡献度详情</h4>
+                  {student.subjects.map((subject, index) => (
+                    <Card key={`${student.student_id}-${subject.subject}-${index}`} className="border-2 border-black shadow-[2px_2px_0px_0px_#191A23]">
+                      <CardContent className="p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="p-1 bg-[#B9FF66] rounded border border-black">
+                              <BookOpen className="h-4 w-4 text-white" />
+                            </div>
+                            <span className="font-bold text-[#191A23]">{subject.subject}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm font-medium text-[#191A23]">
+                              {subject.score}分 <span className="text-[#191A23]/60">(班均{subject.classAverage.toFixed(1)})</span>
+                            </span>
+                            <Badge className={`border-2 border-black font-bold shadow-[1px_1px_0px_0px_#191A23] ${
+                              subject.contribution > 0 ? 'bg-[#B9FF66] text-[#191A23]' : 'bg-[#FF6B6B] text-white'
+                            }`}>
+                              {subject.contribution > 0 ? '+' : ''}{subject.contribution}%
+                            </Badge>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
                 
                 {/* 优势和劣势科目 */}
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-green-700 mb-1 flex items-center gap-1">
-                      <Star className="h-3 w-3" />
-                      优势科目
-                    </p>
-                    <div className="space-y-1">
-                      {student.strongSubjects.map(subject => (
-                        <Badge key={subject} variant="outline" className="text-xs">
-                          {subject}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-red-700 mb-1 flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3" />
-                      需要提升
-                    </p>
-                    <div className="space-y-1">
-                      {student.weakSubjects.map(subject => (
-                        <Badge key={subject} variant="outline" className="text-xs">
-                          {subject}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
+                  <Card className="border-2 border-black shadow-[2px_2px_0px_0px_#B9FF66]">
+                    <CardHeader className="bg-[#B9FF66] border-b-2 border-black py-2">
+                      <CardTitle className="text-xs font-black text-[#191A23] uppercase tracking-wide flex items-center gap-1">
+                        <Star className="h-3 w-3" />
+                        ✨ 优势科目
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3">
+                      <div className="flex flex-wrap gap-1">
+                        {student.strongSubjects.map((subject, index) => (
+                          <Badge key={`${student.student_id}-strong-${subject}-${index}`} className="bg-[#B9FF66] text-[#191A23] border border-black font-bold text-xs">
+                            {subject}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="border-2 border-black shadow-[2px_2px_0px_0px_#FF6B6B]">
+                    <CardHeader className="bg-[#FF6B6B] border-b-2 border-black py-2">
+                      <CardTitle className="text-xs font-black text-white uppercase tracking-wide flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        🎯 需要提升
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3">
+                      <div className="flex flex-wrap gap-1">
+                        {student.weakSubjects.map((subject, index) => (
+                          <Badge key={`${student.student_id}-weak-${subject}-${index}`} className="bg-[#FF6B6B] text-white border border-black font-bold text-xs">
+                            {subject}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               </div>
             </CardContent>

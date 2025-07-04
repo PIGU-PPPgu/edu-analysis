@@ -203,61 +203,99 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
 
   const getRiskBadgeColor = (riskLevel: string) => {
     switch (riskLevel) {
-      case 'low': return 'bg-green-100 text-green-800 border-green-300';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      case 'high': return 'bg-orange-100 text-orange-800 border-orange-300';
-      case 'critical': return 'bg-red-100 text-red-800 border-red-300';
-      default: return 'bg-gray-100 text-gray-800 border-gray-300';
+      case 'low': return 'bg-[#B9FF66] text-[#191A23] border-2 border-black font-black shadow-[2px_2px_0px_0px_#191A23]';
+      case 'medium': return 'bg-[#B9FF66] text-white border-2 border-black font-black shadow-[2px_2px_0px_0px_#191A23]';
+      case 'high': return 'bg-[#FF6B6B] text-white border-2 border-black font-black shadow-[2px_2px_0px_0px_#191A23]';
+      case 'critical': return 'bg-[#191A23] text-white border-2 border-black font-black shadow-[2px_2px_0px_0px_#FF6B6B]';
+      default: return 'bg-[#F3F3F3] text-[#191A23] border-2 border-black font-bold shadow-[2px_2px_0px_0px_#191A23]';
     }
   };
 
   const getTrendIcon = (trend: string) => {
     switch (trend) {
-      case 'improving': return <TrendingUp className="h-4 w-4 text-green-600" />;
-      case 'declining': return <TrendingDown className="h-4 w-4 text-red-600" />;
-      default: return <div className="h-4 w-4 rounded-full bg-blue-600" />;
+      case 'improving': return (
+        <div className="p-1 bg-[#B9FF66] rounded-full border-2 border-black">
+          <TrendingUp className="h-4 w-4 text-[#191A23]" />
+        </div>
+      );
+      case 'declining': return (
+        <div className="p-1 bg-[#FF6B6B] rounded-full border-2 border-black">
+          <TrendingDown className="h-4 w-4 text-white" />
+        </div>
+      );
+      default: return (
+        <div className="p-1 bg-[#9C88FF] rounded-full border-2 border-black">
+          <div className="h-4 w-4 rounded-full bg-white" />
+        </div>
+      );
     }
   };
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Brain className="h-5 w-5" />
-            <span>智能预测分析</span>
+      <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#9C88FF] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#9C88FF]">
+        <CardHeader className="bg-[#9C88FF] border-b-2 border-black">
+          <CardTitle className="flex items-center space-x-3 text-white font-black uppercase tracking-wide">
+            <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
+              <Brain className="h-5 w-5 text-white" />
+            </div>
+            <span>🤖 AI智能预测分析</span>
           </CardTitle>
-          <CardDescription>
-            基于历史数据预测学生成绩趋势，提供个性化学习建议
+          <CardDescription className="text-white/90 font-medium mt-2">
+            基于机器学习算法分析学生成绩趋势，提供个性化学习建议和风险预警
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select value={selectedStudent} onValueChange={setSelectedStudent}>
-              <SelectTrigger>
-                <SelectValue placeholder="选择学生" />
+              <SelectTrigger className="bg-white border-2 border-black font-medium text-[#191A23] focus:border-[#B9FF66] focus:ring-2 focus:ring-[#B9FF66] shadow-[2px_2px_0px_0px_#191A23] transition-all">
+                <SelectValue placeholder="🎯 选择学生进行分析" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="border-2 border-black shadow-[4px_4px_0px_0px_#191A23]">
                 {allStudents.map(student => (
                   <SelectItem key={student.student_id} value={student.student_id}>
-                    {student.name} ({student.class_name})
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-[#9C88FF] rounded-full border border-black"></div>
+                      <span className="font-medium">{student.name}</span>
+                      <Badge className="bg-[#B9FF66] text-[#191A23] border border-black text-xs font-bold">
+                        {student.class_name}
+                      </Badge>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
-            <Button onClick={generatePredictions} disabled={isLoading}>
-              {isLoading ? '分析中...' : '开始预测分析'}
+            <Button 
+              onClick={generatePredictions} 
+              disabled={isLoading}
+              className="border-2 border-black bg-[#B9FF66] hover:bg-[#A8E55C] text-white font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all uppercase tracking-wide"
+            >
+              {isLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  AI分析中...
+                </>
+              ) : (
+                <>
+                  <Brain className="w-4 h-4 mr-2" />
+                  开始智能预测
+                </>
+              )}
             </Button>
           </div>
         </CardContent>
       </Card>
 
       {isLoading && (
-        <Card>
+        <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]">
           <CardContent className="p-8 text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-solid border-blue-500 border-r-transparent mb-4"></div>
-            <p>正在进行智能分析，请稍候...</p>
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-solid border-[#B9FF66] border-r-transparent mb-6"></div>
+            <p className="text-xl font-black text-[#191A23] uppercase tracking-wide mb-2">🤖 AI分析进行中</p>
+            <p className="text-[#191A23]/70 font-medium">正在运用机器学习算法深度分析学习数据，请稍候...</p>
+            <div className="mt-4 w-64 bg-[#F3F3F3] rounded-full h-3 mx-auto border-2 border-black">
+              <div className="bg-[#B9FF66] h-full rounded-full transition-all duration-1000 animate-pulse" style={{ width: '70%' }}></div>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -265,93 +303,124 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
       {predictions.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {predictions.map((prediction) => (
-            <Card key={prediction.studentId}>
-              <CardHeader>
+            <Card key={prediction.studentId} className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#B9FF66]">
+              <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center space-x-2">
-                    <span>{prediction.studentName}</span>
+                  <CardTitle className="flex items-center space-x-3">
+                    <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
+                      <LineChart className="h-5 w-5 text-white" />
+                    </div>
+                    <span className="font-black text-[#191A23] uppercase tracking-wide">{prediction.studentName}</span>
                     {getTrendIcon(prediction.trendDirection)}
                   </CardTitle>
                   <Badge className={getRiskBadgeColor(prediction.riskLevel)}>
-                    风险等级: {prediction.riskLevel}
+                    风险: {prediction.riskLevel === 'low' ? '低' : prediction.riskLevel === 'medium' ? '中' : prediction.riskLevel === 'high' ? '高' : '极高'}
                   </Badge>
                 </div>
-                <CardDescription>
-                  当前平均分: {prediction.currentAverage.toFixed(1)}
+                <CardDescription className="text-[#191A23]/80 font-medium mt-2">
+                  📊 当前平均分: <span className="font-black text-[#B9FF66]">{prediction.currentAverage.toFixed(1)}分</span>
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {/* 科目预测 */}
-                <div>
-                  <h4 className="text-sm font-semibold mb-2 flex items-center">
-                    <Target className="h-4 w-4 mr-1" />
-                    各科目预测
-                  </h4>
-                  <div className="space-y-2">
-                    {prediction.predictedScores.map((pred) => (
-                      <div key={pred.subject} className="flex items-center justify-between">
-                        <span className="text-sm">{pred.subject}</span>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium">{pred.predicted}</span>
-                          <Progress 
-                            value={pred.confidence * 100} 
-                            className="w-16 h-2"
-                          />
-                          <span className="text-xs text-gray-500">
-                            {(pred.confidence * 100).toFixed(0)}%
-                          </span>
+              <CardContent className="p-6 space-y-6">
+                {/* 🎯 科目预测 */}
+                <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66]">
+                  <CardHeader className="bg-[#B9FF66] border-b-2 border-black py-3">
+                    <CardTitle className="text-sm font-black text-white uppercase tracking-wide flex items-center gap-2">
+                      <Target className="h-4 w-4" />
+                      🎯 科目成绩预测
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <div className="space-y-3">
+                      {prediction.predictedScores.map((pred) => (
+                        <div key={pred.subject} className="p-3 bg-[#B9FF66]/10 border border-[#B9FF66] rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-bold text-[#191A23]">{pred.subject}</span>
+                            <Badge className="bg-[#B9FF66] text-white border border-black font-bold text-sm">
+                              {pred.predicted}分
+                            </Badge>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-[#191A23]/70">置信度</span>
+                            <div className="flex items-center gap-2">
+                              <div className="w-16 bg-[#F3F3F3] rounded-full h-2 border border-black">
+                                <div 
+                                  className="bg-[#B9FF66] h-full rounded-full transition-all duration-500"
+                                  style={{ width: `${pred.confidence * 100}%` }}
+                                />
+                              </div>
+                              <span className="text-xs font-bold text-[#191A23] w-8">
+                                {(pred.confidence * 100).toFixed(0)}%
+                              </span>
+                            </div>
+                          </div>
                         </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* 🎨 优势与劣势分析 */}
+                <div className="grid grid-cols-2 gap-4">
+                  <Card className="border-2 border-black shadow-[2px_2px_0px_0px_#B9FF66]">
+                    <CardHeader className="bg-[#B9FF66] border-b-2 border-black py-2">
+                      <CardTitle className="text-xs font-black text-[#191A23] uppercase tracking-wide flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3" />
+                        ✨ 优势科目
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3">
+                      <div className="flex flex-wrap gap-1">
+                        {prediction.strengths.slice(0, 3).map((strength) => (
+                          <Badge key={strength} className="bg-[#B9FF66] text-[#191A23] border border-black font-bold text-xs">
+                            {strength}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="border-2 border-black shadow-[2px_2px_0px_0px_#FF6B6B]">
+                    <CardHeader className="bg-[#FF6B6B] border-b-2 border-black py-2">
+                      <CardTitle className="text-xs font-black text-white uppercase tracking-wide flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        🎯 薄弱科目
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3">
+                      <div className="flex flex-wrap gap-1">
+                        {prediction.weaknesses.slice(0, 3).map((weakness) => (
+                          <Badge key={weakness} className="bg-[#FF6B6B] text-white border border-black font-bold text-xs">
+                            {weakness}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* 💡 AI个性化建议 */}
+                <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#9C88FF]">
+                  <CardHeader className="bg-[#9C88FF] border-b-2 border-black py-3">
+                    <CardTitle className="text-sm font-black text-white uppercase tracking-wide flex items-center gap-2">
+                      <BookOpen className="h-4 w-4" />
+                      💡 AI个性化建议
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 space-y-3">
+                    {prediction.recommendations.slice(0, 3).map((rec, index) => (
+                      <div key={index} className={`p-3 border-2 rounded-lg ${
+                        rec.type === 'urgent' ? 'bg-[#FF6B6B]/10 border-[#FF6B6B]' :
+                        rec.type === 'warning' ? 'bg-[#B9FF66]/10 border-[#B9FF66]' :
+                        'bg-[#B9FF66]/10 border-[#B9FF66]'
+                      }`}>
+                        <p className="text-sm font-medium text-[#191A23] leading-relaxed">
+                          📝 {rec.description}
+                        </p>
                       </div>
                     ))}
-                  </div>
-                </div>
-
-                {/* 优势与劣势 */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h4 className="text-sm font-semibold mb-2 flex items-center text-green-600">
-                      <CheckCircle className="h-4 w-4 mr-1" />
-                      优势科目
-                    </h4>
-                    <div className="space-y-1">
-                      {prediction.strengths.slice(0, 3).map((strength) => (
-                        <Badge key={strength} variant="outline" className="text-xs">
-                          {strength}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-semibold mb-2 flex items-center text-orange-600">
-                      <AlertTriangle className="h-4 w-4 mr-1" />
-                      薄弱科目
-                    </h4>
-                    <div className="space-y-1">
-                      {prediction.weaknesses.slice(0, 3).map((weakness) => (
-                        <Badge key={weakness} variant="outline" className="text-xs">
-                          {weakness}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 学习建议 */}
-                <div>
-                  <h4 className="text-sm font-semibold mb-2 flex items-center">
-                    <BookOpen className="h-4 w-4 mr-1" />
-                    个性化建议
-                  </h4>
-                  <div className="space-y-2">
-                    {prediction.recommendations.slice(0, 3).map((rec, index) => (
-                      <Alert key={index}>
-                        <AlertDescription className="text-sm">
-                          {rec.description}
-                        </AlertDescription>
-                      </Alert>
-                    ))}
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               </CardContent>
             </Card>
           ))}
@@ -359,10 +428,17 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
       )}
 
       {predictions.length === 0 && !isLoading && (
-        <Card>
-          <CardContent className="p-8 text-center text-gray-500">
-            <Brain className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>选择学生开始智能预测分析</p>
+        <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#9C88FF]">
+          <CardContent className="p-12 text-center">
+            <div className="p-4 bg-[#9C88FF] rounded-full border-2 border-black mx-auto mb-6 w-fit">
+              <Brain className="h-16 w-16 text-white" />
+            </div>
+            <p className="text-2xl font-black text-[#191A23] uppercase tracking-wide mb-3">
+              🚀 准备开始分析
+            </p>
+            <p className="text-[#191A23]/70 font-medium">
+              选择学生，开启AI驱动的成绩预测与学习建议之旅
+            </p>
           </CardContent>
         </Card>
       )}

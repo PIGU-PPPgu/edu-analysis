@@ -11,10 +11,15 @@ import { configureLowResourceMode } from "@/config/networkConfig";
 export const initGlobalErrorHandlers = (): void => {
   // 设置全局未捕获异常处理器
   window.addEventListener('error', (event) => {
+    // 忽略ResizeObserver错误，这是浏览器的常见错误，不影响功能
+    const errorMessage = (event.error?.message || event.message || '').toLowerCase();
+    if (errorMessage.includes('resizeobserver loop completed') || 
+        errorMessage.includes('resizeobserver loop limit exceeded')) {
+      return false;
+    }
+    
     console.error('全局错误:', event.error || event.message);
     
-    // 检测特定错误
-    const errorMessage = (event.error?.message || event.message || '').toLowerCase();
     const errorStack = (event.error?.stack || '').toLowerCase();
     
     // 检查是否是资源不足错误

@@ -377,9 +377,18 @@ const FileUploader: React.FC<FileUploaderProps> = ({
       link.setAttribute('href', url);
       link.setAttribute('download', '成绩导入模板.csv');
       link.style.visibility = 'hidden';
+      
+      // 使用更安全的异步DOM操作
       document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      requestAnimationFrame(() => {
+        link.click();
+        requestAnimationFrame(() => {
+          if (link.parentNode) {
+            document.body.removeChild(link);
+          }
+          URL.revokeObjectURL(url);
+        });
+      });
     }
     
     toast.success(`${type === 'excel' ? 'Excel' : 'CSV'} 模板下载成功`);
@@ -420,25 +429,25 @@ const FileUploader: React.FC<FileUploaderProps> = ({
             )} />
             
             {isProcessing ? (
-              <div className="space-y-2">
-                <p className="text-sm text-gray-600">正在处理文件...</p>
+              <div key="processing" className="space-y-2">
+                <p key="processing-text" className="text-sm text-gray-600">正在处理文件...</p>
                 <div className="w-64 bg-gray-200 rounded-full h-2">
                   <div 
                     className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
-                <p className="text-xs text-gray-500">{uploadProgress}%</p>
+                <p key="processing-progress" className="text-xs text-gray-500">{uploadProgress}%</p>
               </div>
             ) : isDragActive ? (
               isDragReject ? (
-                <p className="text-red-600">不支持的文件格式</p>
+                <p key="drag-reject" className="text-red-600">不支持的文件格式</p>
               ) : (
-                <p className="text-blue-600">放开以上传文件</p>
+                <p key="drag-active" className="text-blue-600">放开以上传文件</p>
               )
             ) : (
-              <div className="space-y-2">
-                <p className="text-gray-600">
+              <div key="idle" className="space-y-2">
+                <p key="idle-text" className="text-gray-600">
                   拖拽文件到这里，或者
                   <span className="text-blue-600 underline ml-1">点击浏览</span>
                 </p>
@@ -449,7 +458,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({
                     </Badge>
                   ))}
                 </div>
-                <p className="text-xs text-gray-500">
+                <p key="idle-size" className="text-xs text-gray-500">
                   最大文件大小: {maxFileSize}MB
                 </p>
               </div>

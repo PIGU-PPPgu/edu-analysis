@@ -199,17 +199,19 @@ const DataPreviewCard: React.FC<DataPreviewProps> = ({
   };
 
   // 根据字段类型分类
-  const categorizeFieldByType = (mappedField: string): DataCategory['type'] => {
-    if (['student_id', 'name', 'class_name', 'grade_level'].includes(mappedField)) {
+  const categorizeFieldByType = (mappedField: any): DataCategory['type'] => {
+    const fieldStr = String(mappedField || '');
+    
+    if (['student_id', 'name', 'class_name', 'grade_level'].includes(fieldStr)) {
       return 'student_info';
     }
-    if (mappedField.includes('score') || mappedField.includes('grade')) {
+    if (fieldStr.includes('score') || fieldStr.includes('grade')) {
       return 'subject_scores';
     }
-    if (mappedField.includes('rank')) {
+    if (fieldStr.includes('rank')) {
       return 'rankings';
     }
-    if (['exam_title', 'exam_date', 'exam_type'].includes(mappedField)) {
+    if (['exam_title', 'exam_date', 'exam_type'].includes(fieldStr)) {
       return 'metadata';
     }
     return 'other';

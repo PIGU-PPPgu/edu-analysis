@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 文件上传测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        input[type="file"] { margin: 10px 0; }
+        .result { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>🔧 文件上传测试页面</h1>
+    <p>测试不同的文件上传方式，找出问题所在</p>
+
+    <div class="test-section">
+        <h3>测试1: 最基础的 HTML input</h3>
+        <input type="file" id="basic-input" accept=".xlsx,.xls,.csv">
+        <div id="basic-result" class="result">等待选择文件...</div>
+    </div>
+
+    <div class="test-section">
+        <h3>测试2: 通过按钮触发 input.click()</h3>
+        <input type="file" id="hidden-input" style="display: none;" accept=".xlsx,.xls,.csv">
+        <button onclick="document.getElementById('hidden-input').click()">选择文件</button>
+        <div id="hidden-result" class="result">等待选择文件...</div>
+    </div>
+
+    <div class="test-section">
+        <h3>测试3: 使用 FileReader API</h3>
+        <input type="file" id="reader-input" accept=".xlsx,.xls,.csv">
+        <div id="reader-result" class="result">等待选择文件...</div>
+    </div>
+
+    <div class="test-section">
+        <h3>测试4: 检查浏览器权限</h3>
+        <button onclick="checkPermissions()">检查文件访问权限</button>
+        <div id="permission-result" class="result">点击检查权限...</div>
+    </div>
+
+    <div class="test-section">
+        <h3>测试5: 拖拽上传</h3>
+        <div id="drop-zone" style="border: 2px dashed #ccc; padding: 40px; text-align: center; margin: 10px 0;">
+            拖拽文件到这里
+        </div>
+        <div id="drop-result" class="result">等待拖拽文件...</div>
+    </div>
+
+    <script>
+        console.log('🔧 文件上传测试页面加载完成');
+
+        // 测试1: 基础input
+        document.getElementById('basic-input').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            console.log('基础input选择文件:', file);
+            document.getElementById('basic-result').textContent = 
+                file ? `✅ 选择了文件: ${file.name} (${file.size} bytes)` : '❌ 没有选择文件';
+        });
+
+        // 测试2: 隐藏input
+        document.getElementById('hidden-input').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            console.log('隐藏input选择文件:', file);
+            document.getElementById('hidden-result').textContent = 
+                file ? `✅ 选择了文件: ${file.name} (${file.size} bytes)` : '❌ 没有选择文件';
+        });
+
+        // 测试3: FileReader
+        document.getElementById('reader-input').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            console.log('FileReader input选择文件:', file);
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    console.log('FileReader读取完成, 数据长度:', event.target.result.byteLength);
+                    document.getElementById('reader-result').textContent = 
+                        `✅ 文件读取成功: ${file.name}, 数据长度: ${event.target.result.byteLength} bytes`;
+                };
+                reader.onerror = function() {
+                    console.error('FileReader读取失败');
+                    document.getElementById('reader-result').textContent = '❌ 文件读取失败';
+                };
+                reader.readAsArrayBuffer(file);
+            } else {
+                document.getElementById('reader-result').textContent = '❌ 没有选择文件';
+            }
+        });
+
+        // 测试4: 权限检查
+        function checkPermissions() {
+            console.log('检查浏览器权限...');
+            
+            // 检查File API支持
+            const fileApiSupported = !!(window.File && window.FileReader && window.FileList && window.Blob);
+            console.log('File API 支持:', fileApiSupported);
+            
+            // 检查用户代理
+            console.log('User Agent:', navigator.userAgent);
+            
+            // 检查安全上下文
+            console.log('安全上下文 (isSecureContext):', window.isSecureContext);
+            
+            document.getElementById('permission-result').innerHTML = `
+                File API 支持: ${fileApiSupported ? '✅' : '❌'}<br>
+                安全上下文: ${window.isSecureContext ? '✅' : '❌'}<br>
+                浏览器: ${navigator.userAgent.includes('Chrome') ? 'Chrome' : navigator.userAgent.includes('Safari') ? 'Safari' : '其他'}<br>
+                协议: ${location.protocol}
+            `;
+        }
+
+        // 测试5: 拖拽
+        const dropZone = document.getElementById('drop-zone');
+        
+        dropZone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            console.log('拖拽悬停');
+            dropZone.style.backgroundColor = '#e3f2fd';
+        });
+        
+        dropZone.addEventListener('dragleave', function(e) {
+            console.log('拖拽离开');
+            dropZone.style.backgroundColor = '';
+        });
+        
+        dropZone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            console.log('拖拽放置');
+            dropZone.style.backgroundColor = '';
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                const file = files[0];
+                console.log('拖拽文件:', file);
+                document.getElementById('drop-result').textContent = 
+                    `✅ 拖拽文件: ${file.name} (${file.size} bytes)`;
+            } else {
+                document.getElementById('drop-result').textContent = '❌ 没有拖拽文件';
+            }
+        });
+
+        // 页面加载时立即检查权限
+        window.addEventListener('load', function() {
+            setTimeout(checkPermissions, 1000);
+        });
+    </script>
+</body>
+</html>
