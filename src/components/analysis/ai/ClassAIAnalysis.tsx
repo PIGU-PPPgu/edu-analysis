@@ -249,9 +249,59 @@ const ClassAIAnalysis: React.FC<ClassAIAnalysisProps> = ({
     setAnalysisComplete(true);
   };
 
-  const exportReport = () => {
-    // TODO: 实现报告导出功能
-    console.log('导出AI分析报告');
+  const exportReport = async () => {
+    if (!classOverview) return;
+    
+    try {
+      // 创建Excel工作簿
+      const XLSX = await import('xlsx');
+      
+      // 班级概况数据
+      const overviewData = [
+        ['班级AI智能分析报告', ''],
+        ['生成时间', new Date().toLocaleString()],
+        ['', ''],
+        ['班级基本情况', ''],
+        ['学生总数', classOverview.students],
+        ['科目数量', classOverview.subjects],
+        ['班级平均分', classOverview.averageScore.toFixed(1)],
+        ['及格率', `${classOverview.passRate.toFixed(1)}%`],
+        ['班级等级', classOverview.classLevel],
+        ['', ''],
+        ['班级描述', classOverview.classDescription]
+      ];
+      
+      // 学科分析数据
+      const subjectHeaders = ['科目', '平均分', '及格率', '优秀率', '趋势', '教学建议'];
+      const subjectData = subjectAnalysis.map(subject => [
+        subject.subject,
+        subject.averageScore.toFixed(1),
+        `${subject.passRate.toFixed(1)}%`,
+        `${subject.excellentRate.toFixed(1)}%`,
+        subject.trend === 'improving' ? '上升' : subject.trend === 'declining' ? '下降' : '稳定',
+        subject.teachingAdvice.join('; ')
+      ]);
+      
+      // 创建工作表
+      const wb = XLSX.utils.book_new();
+      
+      // 添加班级概况工作表
+      const overviewWS = XLSX.utils.aoa_to_sheet(overviewData);
+      XLSX.utils.book_append_sheet(wb, overviewWS, '班级概况');
+      
+      // 添加学科分析工作表
+      const subjectWS = XLSX.utils.aoa_to_sheet([subjectHeaders, ...subjectData]);
+      XLSX.utils.book_append_sheet(wb, subjectWS, '学科分析');
+      
+      // 导出文件
+      const fileName = `班级AI分析报告_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      
+      // 显示成功提示
+      console.log('AI分析报告导出成功:', fileName);
+    } catch (error) {
+      console.error('导出报告失败:', error);
+    }
   };
 
   const getInsightIcon = (type: ClassInsight['type']) => {

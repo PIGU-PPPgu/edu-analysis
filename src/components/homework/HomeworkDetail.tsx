@@ -112,12 +112,44 @@ import { KnowledgePointManager } from "@/components/homework/KnowledgePointManag
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from "@/lib/utils";
 
+// 🎨 Positivus设计常量
+const POSITIVUS_COLORS = {
+  primary: '#B9FF66',
+  secondary: '#191A23', 
+  accent: '#F7931E',
+  white: '#FFFFFF',
+  gray: '#F3F3F3'
+} as const;
+
+const POSITIVUS_STYLES = {
+  // 主要按钮样式
+  primaryButton: "bg-[#B9FF66] text-[#191A23] border-2 border-[#191A23] rounded-xl font-black uppercase tracking-wide shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-1 hover:translate-y-1 hover:shadow-[2px_2px_0px_0px_#191A23] transition-all duration-200",
+  
+  // 次要按钮样式
+  secondaryButton: "bg-white text-[#191A23] border-2 border-[#191A23] rounded-xl font-black uppercase tracking-wide shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-1 hover:translate-y-1 hover:shadow-[2px_2px_0px_0px_#191A23] transition-all duration-200",
+  
+  // 卡片样式
+  card: "bg-white border-2 border-[#191A23] rounded-xl shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-1 hover:translate-y-1 hover:shadow-[2px_2px_0px_0px_#191A23] transition-all duration-200",
+  
+  // 小卡片样式
+  smallCard: "bg-[#F3F3F3] border-2 border-[#191A23] rounded-lg shadow-[2px_2px_0px_0px_#191A23] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[1px_1px_0px_0px_#191A23] transition-all duration-200",
+  
+  // 选项卡样式
+  tab: "data-[state=active]:bg-[#B9FF66] data-[state=active]:text-[#191A23] border-2 border-[#191A23] rounded-lg font-black uppercase tracking-wide shadow-[2px_2px_0px_0px_#191A23] data-[state=active]:shadow-[2px_2px_0px_0px_#191A23]",
+  
+  // 徽章样式
+  badge: "bg-[#B9FF66] text-[#191A23] border-2 border-[#191A23] rounded-lg font-black uppercase tracking-wide shadow-[2px_2px_0px_0px_#191A23]",
+  
+  // 输入框样式
+  input: "border-2 border-[#191A23] rounded-lg focus:border-[#B9FF66] focus:ring-[#B9FF66] shadow-[2px_2px_0px_0px_#191A23]"
+} as const;
+
 const statusMap = {
-  pending: { label: "待完成", icon: Clock, color: "bg-yellow-100 text-yellow-800" },
-  submitted: { label: "已提交", icon: CheckCircle, color: "bg-blue-100 text-blue-800" },
-  graded: { label: "已批改", icon: Award, color: "bg-green-100 text-green-800" },
-  not_submitted: { label: "未交作业", icon: XCircle, color: "bg-gray-100 text-gray-800" },
-  absent: { label: "请假", icon: Calendar, color: "bg-purple-100 text-purple-800" },
+  pending: { label: "待完成", icon: Clock, color: "bg-[#F7931E] text-[#191A23] border-2 border-[#191A23] shadow-[2px_2px_0px_0px_#191A23]" },
+  submitted: { label: "已提交", icon: CheckCircle, color: "bg-blue-100 text-[#191A23] border-2 border-[#191A23] shadow-[2px_2px_0px_0px_#191A23]" },
+  graded: { label: "已批改", icon: Award, color: "bg-[#B9FF66] text-[#191A23] border-2 border-[#191A23] shadow-[2px_2px_0px_0px_#191A23]" },
+  not_submitted: { label: "未交作业", icon: XCircle, color: "bg-red-100 text-[#191A23] border-2 border-[#191A23] shadow-[2px_2px_0px_0px_#191A23]" },
+  absent: { label: "请假", icon: Calendar, color: "bg-purple-100 text-[#191A23] border-2 border-[#191A23] shadow-[2px_2px_0px_0px_#191A23]" },
 };
 
 // 视图模式类型
@@ -1803,382 +1835,395 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
 
   return (
     <div className={`space-y-6 ${isMobileView ? 'pb-16' : ''}`}>
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleBack}
-          className="h-8 w-8"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <h1 className="text-2xl font-bold">作业详情</h1>
-        
-        {/* 添加实时更新切换按钮 */}
-        <div className="ml-auto flex items-center">
-          <div className="flex items-center mr-3">
-            <span className="text-sm text-muted-foreground mr-2">实时更新</span>
-            <button 
-              onClick={() => setRealtimeEnabled(prev => !prev)}
-              className={`relative inline-flex h-5 w-10 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${realtimeEnabled ? 'bg-green-500' : 'bg-gray-200'}`}
-            >
-              <span 
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 ease-in-out ${realtimeEnabled ? 'translate-x-5' : 'translate-x-0'}`} 
-              />
-            </button>
+      {/* 🎨 Positivus风格页面头部 */}
+      <Card className={cn(POSITIVUS_STYLES.card, "mb-6")}>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleBack}
+                className={cn(POSITIVUS_STYLES.iconButton, "h-10 w-10")}
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+              <h1 className="text-3xl font-black text-[#191A23] uppercase tracking-wide">作业详情</h1>
+            </div>
+            
+            {/* 🎨 Positivus风格实时更新控制 */}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-[#191A23] uppercase tracking-wide">实时更新</span>
+                <button 
+                  onClick={() => setRealtimeEnabled(prev => !prev)}
+                  className={cn(
+                    "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-[#191A23] transition-colors duration-200 ease-in-out focus:outline-none shadow-[2px_2px_0px_0px_#191A23]",
+                    realtimeEnabled ? "bg-[#B9FF66]" : "bg-white"
+                  )}
+                >
+                  <span className={cn(
+                    "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-[#191A23] shadow transition duration-200 ease-in-out",
+                    realtimeEnabled ? "translate-x-5" : "translate-x-0"
+                  )} />
+                </button>
+              </div>
+              
+              <Card className={cn(POSITIVUS_STYLES.smallCard, "px-3 py-2")}>
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-[#191A23]" />
+                  <span className="text-sm font-black text-[#191A23] uppercase tracking-wide">
+                    {new Date().toLocaleTimeString()}
+                  </span>
+                </div>
+              </Card>
+            </div>
           </div>
-          
-          {lastUpdate && (
-            <span className="text-xs text-muted-foreground">
-              最后更新: {lastUpdate.toLocaleTimeString()}
-            </span>
-          )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-start">
+      {/* 🎨 Positivus风格主要内容卡片 */}
+      <Card className={POSITIVUS_STYLES.card}>
+        <CardHeader className="pb-4">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <div>
-              <CardTitle className="text-xl">{homework.title}</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-2xl font-black text-[#191A23] uppercase tracking-wide">
+                {homework.title}
+              </CardTitle>
+              <CardDescription className="text-[#191A23] font-bold mt-2">
                 {homework.classes.subject} - {homework.classes.name}
               </CardDescription>
             </div>
-            <div className="flex flex-col items-end">
-              <Badge variant="outline" className="mb-2">
-                截止日期: {formatDate(homework.due_date)}
+            <div className="flex flex-col items-end gap-2">
+              <Badge className={cn(POSITIVUS_STYLES.badge, "font-black uppercase tracking-wide")}>
+                截止: {formatDate(homework.due_date)}
               </Badge>
-              <p className="text-sm text-muted-foreground">
-                由 {homework.teachers.name} 创建于{" "}
-                {formatDate(homework.created_at)}
-              </p>
+              <Card className={cn(POSITIVUS_STYLES.smallCard, "px-3 py-2")}>
+                <p className="text-sm font-bold text-[#191A23]">
+                  由 {homework.teachers.name} 创建于 {formatDate(homework.created_at)}
+                </p>
+              </Card>
             </div>
           </div>
         </CardHeader>
+        
         <CardContent>
           <Tabs value={currentTab} onValueChange={(value) => setCurrentTab(value as "details" | "submissions" | "analysis")}>
-            <TabsList className="mb-4">
-              <TabsTrigger value="details">
-                <BookOpen className="h-4 w-4 mr-2" />
+            <TabsList className="grid w-full grid-cols-3 bg-[#F7F7F7] border-2 border-[#191A23] rounded-lg p-1">
+              <TabsTrigger 
+                value="details" 
+                className="data-[state=active]:bg-[#B9FF66] data-[state=active]:text-[#191A23] data-[state=active]:border-2 data-[state=active]:border-[#191A23] data-[state=active]:shadow-[2px_2px_0px_0px_#191A23] font-black uppercase tracking-wide"
+              >
                 作业详情
               </TabsTrigger>
-              <TabsTrigger value="submissions">
-                <PenLine className="h-4 w-4 mr-2" />
+              <TabsTrigger 
+                value="submissions" 
+                className="data-[state=active]:bg-[#B9FF66] data-[state=active]:text-[#191A23] data-[state=active]:border-2 data-[state=active]:border-[#191A23] data-[state=active]:shadow-[2px_2px_0px_0px_#191A23] font-black uppercase tracking-wide"
+              >
                 学生作业
               </TabsTrigger>
-              <TabsTrigger value="analysis">
-                <ChartPieIcon className="h-4 w-4 mr-2" />
+              <TabsTrigger 
+                value="analysis" 
+                className="data-[state=active]:bg-[#B9FF66] data-[state=active]:text-[#191A23] data-[state=active]:border-2 data-[state=active]:border-[#191A23] data-[state=active]:shadow-[2px_2px_0px_0px_#191A23] font-black uppercase tracking-wide"
+              >
                 数据分析
               </TabsTrigger>
             </TabsList>
 
-            {/* Details Tab Content */}
-            <TabsContent value="details" className="space-y-4">
-              <div>
-                <h3 className="font-medium mb-2">作业说明</h3>
-                <div className="whitespace-pre-wrap text-sm bg-muted p-4 rounded-md">
-                  {homework.description}
-                </div>
-              </div>
-
-              {/* 知识点分析部分 - 移动到作业详情中 */}
-              <div className="mt-6">
-                <div className="flex justify-between items-center">
-                  <h3 className="font-medium mb-2 flex items-center">
-                    <BrainCircuit className="h-4 w-4 mr-2" />
-                    知识点分析
-                  </h3>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleAIExtractKnowledgePoints}
-                    disabled={isLoading}
-                    className="flex items-center gap-1"
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    AI分析知识点
-                  </Button>
-                </div>
-                
-                {isAiAnalyzing ? (
-                  <div className="p-8 text-center">
-                    <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
-                    <p className="text-sm text-muted-foreground mt-2">
-                      AI正在分析作业内容，识别知识点...
-                    </p>
+            {/* 🎨 Positivus风格作业详情TabsContent */}
+            <TabsContent value="details" className="space-y-6 mt-6">
+              <Card className={POSITIVUS_STYLES.card}>
+                <CardHeader>
+                  <CardTitle className="text-xl font-black text-[#191A23] uppercase tracking-wide">作业说明</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="whitespace-pre-wrap text-sm bg-[#F7F7F7] p-4 rounded-lg border-2 border-[#191A23] shadow-[2px_2px_0px_0px_#191A23]">
+                    {homework.description}
                   </div>
-                ) : (
-                  <div>
-                    {knowledgePoints.length === 0 ? (
-                      <div className="bg-muted/50 rounded-md p-8 text-center border border-dashed">
-                        <p className="text-sm text-muted-foreground">
-                          尚未发现知识点，点击"AI分析知识点"按钮使用AI分析作业内容
+                </CardContent>
+              </Card>
+
+              {/* 🎨 Positivus风格知识点分析卡片 */}
+              <Card className={POSITIVUS_STYLES.card}>
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-xl font-black text-[#191A23] uppercase tracking-wide flex items-center gap-2">
+                      <BrainCircuit className="h-5 w-5" />
+                      知识点分析
+                    </CardTitle>
+                    <Button
+                      onClick={handleAIExtractKnowledgePoints}
+                      disabled={isLoading}
+                      className={cn(POSITIVUS_STYLES.primaryButton, "font-black uppercase tracking-wide")}
+                    >
+                      {isLoading ? (
+                        <>
+                          <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-[#191A23] border-t-transparent"></div>
+                          AI分析中...
+                        </>
+                      ) : (
+                        <>
+                          <BrainCircuit className="h-4 w-4 mr-2" />
+                          AI分析知识点
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {isAiAnalyzing ? (
+                    <div className="p-8 text-center">
+                      <div className="animate-spin h-8 w-8 border-2 border-[#B9FF66] border-t-transparent rounded-full mx-auto"></div>
+                      <p className="text-sm font-bold text-[#191A23] mt-2 uppercase tracking-wide">
+                        AI正在分析作业内容，识别知识点...
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      {knowledgePoints.length === 0 ? (
+                        <div className="bg-[#F7F7F7] rounded-lg p-8 text-center border-2 border-dashed border-[#191A23]">
+                          <p className="text-sm font-bold text-[#191A23] uppercase tracking-wide">
+                            尚未发现知识点，点击"AI分析知识点"按钮使用AI分析作业内容
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {knowledgePoints.map((kp) => (
+                            <Card key={kp.id} className={cn(POSITIVUS_STYLES.smallCard, "p-3")}>
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <div className="p-1 bg-[#B9FF66] border border-[#191A23] rounded">
+                                    <BrainCircuit className="h-3 w-3 text-[#191A23]" />
+                                  </div>
+                                  <span className="text-sm font-bold text-[#191A23]">{kp.name}</span>
+                                </div>
+                              </div>
+                              {kp.description && (
+                                <p className="text-xs text-[#191A23] mt-2 font-medium">{kp.description}</p>
+                              )}
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* 🎨 Positivus风格作业图片卡片 */}
+              <Card className={POSITIVUS_STYLES.card}>
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-xl font-black text-[#191A23] uppercase tracking-wide">作业图片</CardTitle>
+                    <Button 
+                      onClick={handleUploadHomeworkImage}
+                      className={cn(POSITIVUS_STYLES.primaryButton, "font-black uppercase tracking-wide")}
+                    >
+                      <ImagePlus className="h-4 w-4 mr-2" />
+                      上传图片
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div 
+                    className="bg-[#F7F7F7] rounded-lg p-8 text-center border-2 border-dashed border-[#191A23] cursor-pointer hover:bg-[#B9FF66] hover:shadow-[4px_4px_0px_0px_#191A23] transition-all duration-200 hover:-translate-y-1 hover:translate-x-1"
+                    onClick={handleUploadHomeworkImage}
+                    onDragOver={handleDragOver}
+                    onDrop={handleDrop}
+                  >
+                    {isUploadingImage ? (
+                      <div className="space-y-3">
+                        <div className="h-8 w-8 border-2 border-[#B9FF66] border-t-transparent rounded-full animate-spin mx-auto"></div>
+                        <p className="text-sm font-bold text-[#191A23] uppercase tracking-wide">上传中...</p>
+                      </div>
+                    ) : homeworkImages.length > 0 ? (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {homeworkImages.map((image, index) => (
+                            <Card key={index} className={cn(POSITIVUS_STYLES.smallCard, "p-2")}>
+                              <img 
+                                src={image} 
+                                alt={`作业图片 ${index + 1}`}
+                                className="w-full h-32 object-cover rounded border-2 border-[#191A23]"
+                              />
+                            </Card>
+                          ))}
+                        </div>
+                        <p className="text-sm font-bold text-[#191A23] uppercase tracking-wide">
+                          点击或拖拽添加更多图片
                         </p>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
-                        {knowledgePoints.map((kp) => (
-                          <Card key={kp.id} className="bg-muted/30">
-                            <CardHeader className="p-3 pb-2">
-                              <CardTitle className="text-base">{kp.name}</CardTitle>
-                              {kp.description && (
-                                <CardDescription className="text-xs line-clamp-2">
-                                  {kp.description}
-                                </CardDescription>
-                              )}
-                            </CardHeader>
-                          </Card>
-                        ))}
+                      <div className="space-y-3">
+                        <ImagePlus className="h-12 w-12 mx-auto text-[#191A23]" />
+                        <p className="text-sm font-bold text-[#191A23] uppercase tracking-wide">
+                          点击或拖拽上传作业图片
+                        </p>
                       </div>
                     )}
                   </div>
-                )}
-              </div>
-
-              <div className="flex justify-between items-center mt-4">
-                <h3 className="font-medium">作业图片</h3>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="flex items-center gap-1"
-                  onClick={handleUploadHomeworkImage}
-                >
-                  <ImagePlus className="h-4 w-4" />
-                  上传作业图片
-                </Button>
-              </div>
-              
-              <div 
-                className="bg-muted/50 rounded-md p-8 text-center border border-dashed cursor-pointer hover:bg-muted/70 transition-colors"
-                onClick={handleUploadHomeworkImage}
-                onDragOver={handleDragOver}
-                onDrop={handleDrop}
-              >
-                {isUploadingImage ? (
-                  <div className="space-y-3">
-                    <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
-                    <p className="text-sm text-muted-foreground">正在上传图片...</p>
-                  </div>
-                ) : homeworkImages.length > 0 ? (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {homeworkImages.map((image, index) => (
-                        <div key={index} className="relative group">
-                          <div className={`relative h-32 w-full overflow-hidden rounded-md ${image.status === 'uploading' ? 'bg-muted animate-pulse' : ''}`}>
-                          <img 
-                            src={image.url} 
-                            alt={image.name} 
-                              className={`h-full w-full object-cover rounded-md ${image.status === 'uploading' ? 'opacity-50' : ''}`}
-                            />
-                            {image.status === 'uploading' && (
-                              <div className="absolute inset-0 flex items-center justify-center">
-                                <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full"></div>
-                              </div>
-                            )}
-                            {image === lastUploadedImage && (
-                              <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
-                                新上传
-                              </div>
-                            )}
-                          </div>
-                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-md">
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="text-white"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setHomeworkImages(prev => prev.filter((_, i) => i !== index));
-                                if (lastUploadedImage && lastUploadedImage.url === image.url) {
-                                  setLastUploadedImage(null);
-                                }
-                                toast({
-                                  title: "已删除",
-                                  description: "作业图片已删除"
-                                });
-                              }}
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                      <div 
-                        className="h-32 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center hover:border-primary transition-colors"
-                        onClick={handleUploadHomeworkImage}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8 text-gray-400"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
-                      </div>
-                    </div>
-                    <p className="text-sm text-muted-foreground">点击添加更多图片或拖放图片到此处</p>
-                  </div>
-                ) : (
-                  <>
-                    <FileUp className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                    <p className="text-sm text-muted-foreground">点击上传作业图片供AI分析</p>
-                  </>
-                )}
-              </div>
-
-              {knowledgePoints.length > 0 && (
-                <div>
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-medium mb-2">相关知识点</h3>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={handleAIExtractKnowledgePoints}
-                    >
-                      <BrainCircuit className="h-4 w-4 mr-1" />
-                      AI提取知识点
-                    </Button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {knowledgePoints.map((kp) => (
-                      <div key={kp.id} className="flex items-center">
-                        <Badge variant="secondary" className="mr-1">
-                          <BrainCircuit className="h-3 w-3 mr-1" />
-                          {kp.name}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                </CardContent>
+              </Card>
             </TabsContent>
 
-            {/* Submissions Tab Content - Ensure this one is closed correctly */ }
-            <TabsContent value="submissions">
-              <div className="space-y-4"> {/* This div starts at L1611 */} 
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-medium">学生作业情况</h3>
-                    <div className="flex gap-2">
-                      <Button
-                        variant={viewMode === "cards" ? "default" : "outline"}
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onClick={() => setViewMode("cards")}
-                        title="卡片视图"
-                      >
-                        <Grid2X2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant={viewMode === "table" ? "default" : "outline"}
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onClick={() => setViewMode("table")}
-                        title="表格视图"
-                      >
-                        <ListIcon className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant={viewMode === "ai" ? "default" : "outline"}
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onClick={() => setViewMode("ai")}
-                        title="AI批改"
-                      >
-                        <BrainCircuit className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
-                    <div className="relative w-full sm:w-64">
-                      <Input
-                        placeholder="搜索学生..."
-                        value={searchQuery}
-                        onChange={handleSearchChange}
-                        className="pl-8"
-                      />
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                        />
-                      </svg>
+            {/* 🎨 Positivus风格学生作业TabsContent */}
+            <TabsContent value="submissions" className="space-y-6 mt-6">
+              {/* 工具栏卡片 */}
+              <Card className={POSITIVUS_STYLES.card}>
+                <CardContent className="p-4">
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div className="flex items-center gap-4">
+                      <h3 className="text-xl font-black text-[#191A23] uppercase tracking-wide">学生作业情况</h3>
+                      <div className="flex gap-2">
+                        <Button
+                          className={cn(
+                            viewMode === "cards" ? POSITIVUS_STYLES.primaryButton : POSITIVUS_STYLES.secondaryButton,
+                            "h-10 w-10 p-0"
+                          )}
+                          onClick={() => setViewMode("cards")}
+                          title="卡片视图"
+                        >
+                          <Grid2X2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          className={cn(
+                            viewMode === "table" ? POSITIVUS_STYLES.primaryButton : POSITIVUS_STYLES.secondaryButton,
+                            "h-10 w-10 p-0"
+                          )}
+                          onClick={() => setViewMode("table")}
+                          title="表格视图"
+                        >
+                          <ListIcon className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          className={cn(
+                            viewMode === "ai" ? POSITIVUS_STYLES.primaryButton : POSITIVUS_STYLES.secondaryButton,
+                            "h-10 w-10 p-0"
+                          )}
+                          onClick={() => setViewMode("ai")}
+                          title="AI批改"
+                        >
+                          <BrainCircuit className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                     
-                    <Select
-                      value={statusFilter.join(",")}
-                      onValueChange={(value) => {
-                        setStatusFilter(value.split(","));
-                      }}
-                    >
-                      <SelectTrigger className="w-full sm:w-[140px]">
-                        <SelectValue placeholder="筛选状态" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">所有状态</SelectItem>
-                        <SelectItem value="graded">已批改</SelectItem>
-                        <SelectItem value="submitted">已提交</SelectItem>
-                        <SelectItem value="pending">待完成</SelectItem>
-                        <SelectItem value="not_submitted">未交作业</SelectItem>
-                        <SelectItem value="absent">请假</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button size="sm" variant="outline">
-                          <Filter className="h-4 w-4 mr-2" />
-                          操作
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuLabel>批量操作</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          onClick={handleExportResults}
-                          disabled={isExporting}
+                    {/* 🎨 Positivus风格搜索和筛选工具 */}
+                    <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                      <div className="relative w-full sm:w-64">
+                        <Input
+                          placeholder="搜索学生..."
+                          value={searchQuery}
+                          onChange={handleSearchChange}
+                          className={cn(POSITIVUS_STYLES.input, "pl-10 font-medium")}
+                        />
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="absolute left-3 top-3 h-4 w-4 text-[#191A23]"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
                         >
-                          {isExporting ? (
-                            <>
-                              <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-                              导出中...
-                            </>
-                          ) : (
-                            <>
-                          <Download className="h-4 w-4 mr-2" />
-                              导出Excel
-                            </>
-                          )}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleUploadScans}>
-                          <Upload className="h-4 w-4 mr-2" />
-                          上传扫描件
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                          />
+                        </svg>
+                      </div>
+                      
+                      <Select
+                        value={statusFilter.join(",")}
+                        onValueChange={(value) => {
+                          setStatusFilter(value.split(","));
+                        }}
+                      >
+                        <SelectTrigger className={cn(POSITIVUS_STYLES.input, "w-full sm:w-[140px] font-black uppercase tracking-wide")}>
+                          <SelectValue placeholder="筛选状态" />
+                        </SelectTrigger>
+                        <SelectContent className="border-2 border-[#191A23] rounded-lg shadow-[4px_4px_0px_0px_#191A23]">
+                          <SelectItem value="all" className="font-black uppercase tracking-wide">所有状态</SelectItem>
+                          <SelectItem value="graded" className="font-black uppercase tracking-wide">已批改</SelectItem>
+                          <SelectItem value="submitted" className="font-black uppercase tracking-wide">已提交</SelectItem>
+                          <SelectItem value="pending" className="font-black uppercase tracking-wide">待完成</SelectItem>
+                          <SelectItem value="not_submitted" className="font-black uppercase tracking-wide">未交作业</SelectItem>
+                          <SelectItem value="absent" className="font-black uppercase tracking-wide">请假</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button className={cn(POSITIVUS_STYLES.primaryButton, "flex items-center gap-2")}>
+                            <Filter className="h-4 w-4" />
+                            操作
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="border-2 border-[#191A23] rounded-lg shadow-[4px_4px_0px_0px_#191A23] bg-white">
+                          <DropdownMenuLabel className="font-black text-[#191A23] uppercase tracking-wide">批量操作</DropdownMenuLabel>
+                          <DropdownMenuSeparator className="bg-[#191A23]" />
+                          <DropdownMenuItem 
+                            onClick={handleExportResults}
+                            disabled={isExporting}
+                            className="font-bold text-[#191A23] hover:bg-[#B9FF66] hover:text-[#191A23]"
+                          >
+                            {isExporting ? (
+                              <>
+                                <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-[#B9FF66] border-t-transparent"></div>
+                                导出中...
+                              </>
+                            ) : (
+                              <>
+                                <Download className="h-4 w-4 mr-2" />
+                                导出Excel
+                              </>
+                            )}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={handleUploadScans}
+                            className="font-bold text-[#191A23] hover:bg-[#B9FF66] hover:text-[#191A23]"
+                          >
+                            <Upload className="h-4 w-4 mr-2" />
+                            上传扫描件
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
-                </div>
+                </CardContent>
+              </Card>
 
-                {/* 添加批改模式说明 */}
-                <div className="mb-4 px-4 py-2 bg-muted/40 rounded-md text-sm text-muted-foreground">
-                  <p>
-                    {viewMode === "cards" ? (
-                      <span><b>卡片视图</b>: 提供直观的滑块评分界面，适合批量快速批改</span>
-                    ) : viewMode === "table" ? (
-                      <span><b>表格视图</b>: 提供详细的评估界面，适合进行深度评价和知识点分析</span>
-                    ) : (
-                      <span><b>AI批改</b>: 使用人工智能自动识别和批改作业内容</span>
-                    )}
-                  </p>
-                </div>
+              {/* 🎨 Positivus风格批改模式说明 */}
+              <Card className={POSITIVUS_STYLES.smallCard}>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-[#B9FF66] border-2 border-[#191A23] rounded-lg shadow-[2px_2px_0px_0px_#191A23]">
+                      {viewMode === "cards" ? (
+                        <Grid2X2 className="h-5 w-5 text-[#191A23]" />
+                      ) : viewMode === "table" ? (
+                        <ListIcon className="h-5 w-5 text-[#191A23]" />
+                      ) : (
+                        <BrainCircuit className="h-5 w-5 text-[#191A23]" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-[#191A23] font-black uppercase tracking-wide">
+                        {viewMode === "cards" ? (
+                          <span>卡片视图: 提供直观的滑块评分界面，适合批量快速批改</span>
+                        ) : viewMode === "table" ? (
+                          <span>表格视图: 提供详细的评估界面，适合进行深度评价和知识点分析</span>
+                        ) : (
+                          <span>AI批改: 使用人工智能自动识别和批改作业内容</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-                {/* Container for different view modes */}
-                <div ref={submissionsContainerRef}>
-                  {/* Cards View */}
+              {/* Container for different view modes */}
+              <div ref={submissionsContainerRef}>
+                {/* Cards View */}
                 {viewMode === "cards" && (
                   filteredSubmissions.length > 0 ? (
                     <GradeCardView 
@@ -2215,351 +2260,212 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
                           const result = await gradeHomework(gradeData);
                           
                           if (result.success) {
-                            const updatedSubmissionId = result.submissionId || submissionId;
-                            const studentName = currentSubmission?.students?.name || '未知学生';
+                            toast.success("批改成功！");
                             
-                            // 直接更新本地状态，避免重新获取数据
+                            // 更新本地状态
                             setSubmissions(prev => 
-                              prev.map(s => {
-                                if (s.id === submissionId) {
-                                  // 使用传入的status或默认为"graded"
-                                  const newStatus = status || "graded";
-                                  return {
-                                    ...s,
-                                    id: updatedSubmissionId,
-                                    status: newStatus,
-                                    score: score,
-                                    teacher_feedback: feedback,
-                                    updated_at: new Date().toISOString(), 
-                                    knowledge_points_assessed: result.knowledgePointsAssessed, 
-                                  };
-                                }
-                                return s; 
-                              })
-                            );
-                            
-                            toast({
-                              title: "批改成功",
-                              description: status === "absent" ? 
-                                `已将 ${studentName} 标记为缺勤` :
-                                status === "not_submitted" ? 
-                                  `已将 ${studentName} 标记为未交作业` :
-                                  `学生 ${studentName} 的评分已成功保存。`,
-                            });
-
-                            setFilteredSubmissions(prev => 
-                              prev.map(s => s.id === submissionId ? 
-                                {...s, 
-                                  id: updatedSubmissionId,
-                                  status: status || "graded", 
-                                  score: score,
-                                  teacher_feedback: feedback,
-                                  updated_at: new Date().toISOString(),
-                                  knowledge_points_assessed: result.knowledgePointsAssessed
-                                } : s
+                              prev.map(sub => 
+                                sub.id === submissionId 
+                                  ? { ...sub, score, feedback, status: status || sub.status }
+                                  : sub
                               )
                             );
-                                  
-                            const finalSubmissionId = result.submissionId || submissionId;
-                            setLastGradedSubmissionId(finalSubmissionId);
-
-                            setTimeout(() => {
-                              const cardElement = submissionsContainerRef.current?.querySelector(`[data-submission-id="${finalSubmissionId}"]`);
-                              cardElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                            }, 100);
-
+                            
+                            // 重新获取数据以保持同步
+                            await fetchSubmissions(false, homework);
                           } else {
                             toast({
                               variant: "destructive",
                               title: "批改失败",
-                              description: result.error || "保存评分时发生未知错误。",
+                              description: result.error || "保存评分时发生错误",
                             });
                           }
-                        } catch (error: any) {
-                          console.error("评分处理异常:", error);
+                        } catch (error) {
+                          console.error("批改失败:", error);
                           toast({
                             variant: "destructive",
-                            title: "批改异常",
-                            description: error.message || "处理评分时发生严重错误。",
+                            title: "批改失败",
+                            description: "网络错误，请稍后再试",
                           });
                         } finally {
                           setIsSubmitting(false);
                         }
                       }}
-                      onBatchGraded={async (submissionIds, score, feedback) => {
-                        // 实现批量评分的本地状态更新
-                        setSubmissions(prev => 
-                          prev.map(s => {
-                            if (submissionIds.includes(s.id)) {
-                              return {
-                                ...s,
-                                status: "graded",
-                                score: score,
-                                teacher_feedback: feedback,
-                                updated_at: new Date().toISOString(),
-                              };
-                            }
-                            return s;
-                          })
-                        );
-                        
-                        // 同样更新过滤后的列表
-                        setFilteredSubmissions(prev => 
-                          prev.map(s => {
-                            if (submissionIds.includes(s.id)) {
-                              return {
-                                ...s,
-                                status: "graded",
-                                score: score,
-                                teacher_feedback: feedback,
-                                updated_at: new Date().toISOString(),
-                              };
-                            }
-                            return s;
-                          })
-                        );
-                        
-                        toast({
-                          title: "批量批改成功",
-                          description: `已批改 ${submissionIds.length} 份作业`,
-                        });
-                        
-                        setLastGradedSubmissionId(null);
-                      }}
-                      lastGradedSubmissionId={lastGradedSubmissionId}
+                      onOpenGradeDialog={handleOpenGradeDialog}
+                      renderScoreDisplayOptions={renderScoreDisplayOptions}
+                      isMobileView={isMobileView}
                     />
                   ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      没有找到符合条件的学生
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">没有找到符合条件的作业</p>
                     </div>
                   )
                 )}
 
-                  {/* Table View */} 
+                {/* Table View */}
                 {viewMode === "table" && (
                   filteredSubmissions.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>学生</TableHead>
-                          <TableHead>状态</TableHead>
-                          <TableHead>分数</TableHead>
-                          <TableHead>批改日期</TableHead>
-                          <TableHead>知识点掌握情况</TableHead>
-                          <TableHead>操作</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredSubmissions.map((submission) => {
-                          const status = statusMap[submission.status as keyof typeof statusMap];
-                          const StatusIcon = status.icon;
-                          return (
-                              <TableRow key={submission.id} data-submission-id={submission.id}> {/* Add data-submission-id here too */}
-                              <TableCell>{submission.students.name}</TableCell>
-                              <TableCell>
-                                <div className="flex items-center">
-                                  <Badge
-                                    variant="outline"
-                                    className={`flex items-center gap-1 ${status.color}`}
-                                  >
-                                    <StatusIcon className="h-3 w-3" />
-                                    {status.label}
-                                  </Badge>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                {submission.status === "graded"
-                                  ? `${submission.score}/100`
-                                  : "-"}
-                              </TableCell>
-                              <TableCell>
-                                  {submission.status === "graded" && submission.updated_at
-                                    ? formatDate(submission.updated_at)
-                                    : submission.submitted_at
-                                      ? formatDate(submission.submitted_at)
-                                  : "-"}
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex flex-wrap gap-1 max-w-[200px]">
-                                    {(submission.student_knowledge_mastery?.length > 0) ? (
-                                      // 使用新表获取知识点评估数据
-                                      submission.student_knowledge_mastery.map(
-                                        (evaluation) => {
-                                          // 确保评估对象具有必要字段
-                                          const masteryLevel = evaluation.mastery_level;
-                                          const knowledgePtName = evaluation.knowledge_points?.name || "未知知识点";
-                                          // 获取掌握等级
-                                          const masteryGrade = evaluation.mastery_grade || 
-                                            masteryLevelToGrade(masteryLevel);
-
-                                          // 根据等级确定颜色
-                                          const gradeColor = 
-                                            masteryGrade === 'A' ? 'bg-green-100 text-green-800 border-green-200' : 
-                                            masteryGrade === 'B' ? 'bg-blue-100 text-blue-800 border-blue-200' : 
-                                            masteryGrade === 'C' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 
-                                            masteryGrade === 'D' ? 'bg-orange-100 text-orange-800 border-orange-200' : 
-                                            'bg-red-100 text-red-800 border-red-200';
-
-                                            return (
-                                      <Badge
-                                        key={evaluation.id}
-                                        variant="outline"
-                                            className={cn(
-                                              "px-2 py-0.5",
-                                              gradeColor
-                                            )}
-                                          >
-                                            <span className="flex items-center gap-1">
-                                              {knowledgePtName}: {masteryGrade} ({masteryLevel}%)
-                                            </span>
-                                      </Badge>
-                                        );
-                                      }
-                                    )
-                                  ) : (
-                                    <span className="text-muted-foreground">未评估</span>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleOpenGradeDialog(submission.students.id)}
-                                >
-                                  <PenLine className="h-3.5 w-3.5 mr-1" />
-                                  详细批改
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
+                    <Card className={POSITIVUS_STYLES.card}>
+                      <CardContent className="p-0">
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-[#B9FF66] hover:bg-[#B9FF66] border-b-2 border-[#191A23]">
+                                <TableHead className="text-[#191A23] font-black uppercase tracking-wide">学生</TableHead>
+                                <TableHead className="text-[#191A23] font-black uppercase tracking-wide">状态</TableHead>
+                                <TableHead className="text-[#191A23] font-black uppercase tracking-wide">分数</TableHead>
+                                <TableHead className="text-[#191A23] font-black uppercase tracking-wide">提交时间</TableHead>
+                                <TableHead className="text-[#191A23] font-black uppercase tracking-wide">操作</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {filteredSubmissions.map((submission) => (
+                                <TableRow key={submission.id} className="border-b border-[#191A23]/20 hover:bg-[#B9FF66]/20">
+                                  <TableCell className="font-bold text-[#191A23]">{submission.students.name}</TableCell>
+                                  <TableCell>
+                                    <Badge className={cn(
+                                      "font-black uppercase tracking-wide",
+                                      submission.status === "graded" ? "bg-green-100 text-green-800 border-green-200" :
+                                      submission.status === "submitted" ? "bg-blue-100 text-blue-800 border-blue-200" :
+                                      submission.status === "pending" ? "bg-yellow-100 text-yellow-800 border-yellow-200" :
+                                      "bg-gray-100 text-gray-800 border-gray-200"
+                                    )}>
+                                      {submission.status === "graded" ? "已批改" :
+                                       submission.status === "submitted" ? "已提交" :
+                                       submission.status === "pending" ? "待完成" :
+                                       submission.status === "not_submitted" ? "未交作业" :
+                                       submission.status === "absent" ? "请假" : "未知"}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="font-bold text-[#191A23]">
+                                    {submission.score ? getScoreDisplay(submission.score) : "-"}
+                                  </TableCell>
+                                  <TableCell className="font-medium text-[#191A23]">
+                                    {submission.submitted_at ? formatDate(submission.submitted_at) : "-"}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleOpenGradeDialog(submission.students.id)}
+                                      className={cn(POSITIVUS_STYLES.primaryButton, "text-xs")}
+                                    >
+                                      批改
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </CardContent>
+                    </Card>
                   ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      没有找到符合条件的学生
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">没有找到符合条件的作业</p>
                     </div>
                   )
                 )}
 
-                {/* AI View */} 
+                {/* AI View */}
                 {viewMode === "ai" && (
-                  <div className="mt-6">
-                    <div className="bg-muted p-6 rounded-lg border border-dashed text-center">
-                      <BrainCircuit className="h-12 w-12 mx-auto mb-4 text-primary/60" />
-                      <h3 className="text-lg font-medium mb-2">AI批改助手</h3>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        上传学生作业的扫描件，AI将自动识别内容并批改
-                      </p>
-                      <Button onClick={handleUploadScans}>
-                        <Upload className="h-4 w-4 mr-2" />
-                        上传扫描件
-                      </Button>
-                    </div>
-                  </div>
+                  <Card className={POSITIVUS_STYLES.card}>
+                    <CardContent className="p-6">
+                      <div className="text-center py-8">
+                        <BrainCircuit className="h-16 w-16 mx-auto text-[#B9FF66] mb-4" />
+                        <h3 className="text-xl font-black text-[#191A23] uppercase tracking-wide mb-2">
+                          AI批改功能
+                        </h3>
+                        <p className="text-[#191A23] font-medium mb-4">
+                          使用人工智能自动识别和批改作业内容
+                        </p>
+                        <Button className={cn(POSITIVUS_STYLES.primaryButton, "font-black uppercase tracking-wide")}>
+                          启动AI批改
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
                 )}
 
                 {/* Scoring display options */} 
                 {renderScoreDisplayOptions()}
-                </div>
               </div>
             </TabsContent>
 
-            {/* Analysis Tab Content - Start with only the first three cards uncommented */}
-            <TabsContent value="analysis">
+            {/* Analysis Tab Content */}
+            <TabsContent value="analysis" className="space-y-6 mt-6">
               <div className="flex justify-end mb-4">
-                {/* ... Tab controls (numeric/letter score mode buttons) ... */}
-                <div className="bg-muted p-1 rounded-md flex">
+                <div className="bg-[#F7F7F7] p-1 rounded-lg border-2 border-[#191A23] flex">
                   <Button 
-                    variant={scoreDisplayMode === "numeric" ? "default" : "ghost"} 
-                    size="sm"
+                    className={cn(
+                      scoreDisplayMode === "numeric" ? POSITIVUS_STYLES.primaryButton : POSITIVUS_STYLES.secondaryButton,
+                      "text-xs h-8 font-black uppercase tracking-wide"
+                    )}
                     onClick={() => setScoreDisplayMode("numeric")}
-                    className="text-xs h-8"
                   >
                     分数模式
                   </Button>
                   <Button 
-                    variant={scoreDisplayMode === "letter" ? "default" : "ghost"} 
-                    size="sm"
+                    className={cn(
+                      scoreDisplayMode === "letter" ? POSITIVUS_STYLES.primaryButton : POSITIVUS_STYLES.secondaryButton,
+                      "text-xs h-8 font-black uppercase tracking-wide"
+                    )}
                     onClick={() => setScoreDisplayMode("letter")}
-                    className="text-xs h-8"
                   >
                     等级模式
                   </Button>
                 </div>
               </div>
                 
-              {/* 1. Card: 数据概览卡片 */}
-              <Card className="mb-6">
-                  <CardHeader className="pb-2">
-                  <CardTitle className="text-base">数据概览</CardTitle>
-                  <CardDescription>当前作业的关键指标</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                      {/* ... Grid items for stats ... */}
-                      <div className="bg-muted/50 rounded-md p-3 text-center">
-                        <div className="text-3xl font-bold text-primary">
-                          {submissions.filter(s => s.status === "graded").length > 0 
-                            ? (scoreDisplayMode === "numeric" 
-                               ? (submissions.filter(s => s.status === "graded").reduce((sum, s) => sum + (s.score || 0), 0) / 
-                                 submissions.filter(s => s.status === "graded").length).toFixed(1)
-                               : scoreToGrade(submissions.filter(s => s.status === "graded").reduce((sum, s) => sum + (s.score || 0), 0) / 
-                                 submissions.filter(s => s.status === "graded").length))
-                            : "-"}
-                        </div>
-                        <div className="text-sm text-muted-foreground mt-1">平均{scoreDisplayMode === "numeric" ? "分" : "等级"}</div>
+              {/* 数据概览卡片 */}
+              <Card className={POSITIVUS_STYLES.card}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xl font-black text-[#191A23] uppercase tracking-wide">数据概览</CardTitle>
+                  <CardDescription className="text-[#191A23] font-medium">当前作业的关键指标</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-[#B9FF66] rounded-lg p-4 text-center border-2 border-[#191A23] shadow-[2px_2px_0px_0px_#191A23]">
+                      <div className="text-3xl font-black text-[#191A23]">
+                        {submissions.filter(s => s.status === "graded").length > 0 
+                          ? (scoreDisplayMode === "numeric" 
+                             ? (submissions.filter(s => s.status === "graded").reduce((sum, s) => sum + (s.score || 0), 0) / 
+                               submissions.filter(s => s.status === "graded").length).toFixed(1)
+                             : scoreToGrade(submissions.filter(s => s.status === "graded").reduce((sum, s) => sum + (s.score || 0), 0) / 
+                               submissions.filter(s => s.status === "graded").length))
+                          : "-"}
                       </div>
-                      <div className="bg-muted/50 rounded-md p-3 text-center">
-                        <div className="text-3xl font-bold text-primary">
-                          {submissions.length > 0
-                            ? `${((submissions.filter(s => s.status === "graded" || s.status === "submitted").length / 
-                              submissions.filter(s => s.status !== "not_submitted" && s.status !== "absent").length) * 100).toFixed(0)}%`
-                            : "-"}
-                        </div>
-                        <div className="text-sm text-muted-foreground mt-1">提交率</div>
-                      </div>
-                      <div className="bg-muted/50 rounded-md p-3 text-center">
-                        <div className="text-3xl font-bold text-primary">
-                          {submissions.filter(s => s.status === "graded").length}
-                        </div>
-                        <div className="text-sm text-muted-foreground mt-1">已批改</div>
-                      </div>
-                      <div className="bg-muted/50 rounded-md p-3 text-center">
-                        <div className="text-3xl font-bold text-primary">
-                          {submissions.filter(s => s.status === "pending").length}
-                        </div>
-                        <div className="text-sm text-muted-foreground mt-1">待提交</div>
-                      </div>
-                      <div className="bg-muted/50 rounded-md p-3 text-center">
-                        <div className="text-3xl font-bold text-primary">
-                          {submissions.filter(s => s.status === "not_submitted").length}
-                        </div>
-                        <div className="text-sm text-muted-foreground mt-1">未交作业</div>
-                      </div>
-                      <div className="bg-muted/50 rounded-md p-3 text-center">
-                        <div className="text-3xl font-bold text-primary">
-                          {submissions.filter(s => s.status === "absent").length}
-                        </div>
-                        <div className="text-sm text-muted-foreground mt-1">请假</div>
-                      </div>
-                      <div className="bg-muted/50 rounded-md p-3 text-center">
-                        <div className="text-3xl font-bold text-primary">
-                          {knowledgePoints.length}
-                        </div>
-                        <div className="text-sm text-muted-foreground mt-1">知识点数</div>
+                      <div className="text-sm text-[#191A23] font-black uppercase tracking-wide mt-1">
+                        平均{scoreDisplayMode === "numeric" ? "分" : "等级"}
                       </div>
                     </div>
-                  </CardContent>
+                    <div className="bg-[#F7F7F7] rounded-lg p-4 text-center border-2 border-[#191A23] shadow-[2px_2px_0px_0px_#191A23]">
+                      <div className="text-3xl font-black text-[#191A23]">
+                        {submissions.filter(s => s.status === "graded").length}
+                      </div>
+                      <div className="text-sm text-[#191A23] font-black uppercase tracking-wide mt-1">已批改</div>
+                    </div>
+                    <div className="bg-[#F7F7F7] rounded-lg p-4 text-center border-2 border-[#191A23] shadow-[2px_2px_0px_0px_#191A23]">
+                      <div className="text-3xl font-black text-[#191A23]">
+                        {submissions.filter(s => s.status === "pending").length}
+                      </div>
+                      <div className="text-sm text-[#191A23] font-black uppercase tracking-wide mt-1">待提交</div>
+                    </div>
+                    <div className="bg-[#F7F7F7] rounded-lg p-4 text-center border-2 border-[#191A23] shadow-[2px_2px_0px_0px_#191A23]">
+                      <div className="text-3xl font-black text-[#191A23]">
+                        {knowledgePoints.length}
+                      </div>
+                      <div className="text-sm text-[#191A23] font-black uppercase tracking-wide mt-1">知识点数</div>
+                    </div>
+                  </div>
+                </CardContent>
               </Card>
 
-              {/* 2. Card: 分数分布图表 */}
+              {/* 分数分布图表 */}
               {submissions.filter(s => s.status === "graded").length > 0 && (
-                <Card className="mb-6">
+                <Card className={POSITIVUS_STYLES.card}>
                   <CardHeader>
-                    <CardTitle className="text-base">分数分布</CardTitle>
-                    <CardDescription>已批改作业的分数分布情况</CardDescription>
+                    <CardTitle className="text-xl font-black text-[#191A23] uppercase tracking-wide">分数分布</CardTitle>
+                    <CardDescription className="text-[#191A23] font-medium">已批改作业的分数分布情况</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <ResponsiveContainer width="100%" height={300}>
@@ -2569,151 +2475,18 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
                         <YAxis allowDecimals={false} />
                         <Tooltip />
                         <Legend />
-                        <Bar dataKey="学生人数" fill="#8884d8" />
+                        <Bar dataKey="学生人数" fill="#B9FF66" stroke="#191A23" strokeWidth={2} />
                       </BarChart>
                     </ResponsiveContainer>
                   </CardContent>
                 </Card>
               )}
-
-              {/* 3. Card: 知识点掌握度雷达图/柱状图 */}
-              {knowledgePoints.length > 0 && (
-                <Card className="mb-6">
-                  <CardHeader>
-                    <CardTitle className="text-base">知识点平均掌握度</CardTitle>
-                    <CardDescription>各知识点的平均掌握情况</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={400}>
-                      <RadarChart cx="50%" cy="50%" outerRadius="80%" data={knowledgePointAverageMasteryData}>
-                        <PolarGrid />
-                        <PolarAngleAxis dataKey="name" />
-                        <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                        <Radar name="平均掌握度" dataKey="averageMastery" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
-                        <Legend />
-                        <Tooltip formatter={(value) => `${value}%`} />
-                      </RadarChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* 4. Card: 知识点掌握水平分布 - UNCOMMENTING THIS CARD */}
-              {knowledgePointDistributionData.length > 0 && (
-                <Card className="mb-6">
-                  <CardHeader>
-                    <CardTitle className="text-base">知识点掌握水平分布</CardTitle>
-                    <CardDescription>各知识点不同掌握水平的学生人数</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                      {/* Ensure knowledgePointDistributionData is defined via useMemo */}
-                      <BarChart data={knowledgePointDistributionData} layout="vertical">
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis type="number" allowDecimals={false} />
-                        <YAxis dataKey="name" type="category" width={120} />
-                        <Tooltip />
-                        <Legend />
-                        <Bar dataKey="优秀" stackId="a" fill="#82ca9d" />
-                        <Bar dataKey="良好" stackId="a" fill="#8884d8" />
-                        <Bar dataKey="中等" stackId="a" fill="#ffc658" />
-                        <Bar dataKey="不及格" stackId="a" fill="#ff8042" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* 5. Card: 学生个人成绩与知识点掌握情况列表 - UNCOMMENTING THIS CARD */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">学生表现概览</CardTitle>
-                  <CardDescription>每位学生的总分及各知识点掌握情况</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {submissions.filter(s => s.status === "graded").length > 0 ? (
-                    <div className="space-y-4">
-                      {submissions
-                        .filter(s => s.status === "graded")
-                        .sort((a, b) => (b.score || 0) - (a.score || 0)) // Sort by score descending
-                        .slice(0, 5) // Add slice to get only the top 5
-                        .map((studentSubmission, index) => {
-                          const studentName = studentSubmission.students.name;
-                          const overallScore = studentSubmission.score || 0;
-                          const rank = index + 1;
-
-                          let badgeColor = "bg-gray-100 text-gray-800";
-                          let performanceIcon = <Award className="h-4 w-4 text-gray-500" />;
-                          if (overallScore >= 90) {
-                            badgeColor = "bg-green-100 text-green-800";
-                            performanceIcon = <Award className="h-4 w-4 text-green-500" />;
-                          } else if (overallScore >= 75) {
-                            badgeColor = "bg-blue-100 text-blue-800";
-                            performanceIcon = <CheckCircle className="h-4 w-4 text-blue-500" />;
-                          } else if (overallScore >= 60) {
-                            badgeColor = "bg-yellow-100 text-yellow-800";
-                            performanceIcon = <Clock className="h-4 w-4 text-yellow-500" />;
-                          } else {
-                            badgeColor = "bg-red-100 text-red-800";
-                            performanceIcon = <Sparkles className="h-4 w-4 text-red-500" />;
-                          }
-
-                          return (
-                            <details key={studentSubmission.id} className="group bg-muted/30 p-3 rounded-lg">
-                              <summary className="flex justify-between items-center cursor-pointer list-none">
-                                <div className="flex items-center space-x-3">
-                                  <span className={`flex items-center justify-center h-8 w-8 rounded-full text-xs font-semibold ${badgeColor}`}>
-                                    {rank}
-                                  </span>
-                                  <span className="font-medium">{studentName}</span>
-                                  {performanceIcon}
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                  <span className="text-sm text-muted-foreground">总分:</span>
-                                  <span className={`font-semibold ${overallScore < 60 ? 'text-red-600' : 'text-primary'}`}>
-                                    {getScoreDisplay(overallScore)}
-                                  </span>
-                                  <ChevronDown className="h-4 w-4 transition-transform duration-200 group-open:rotate-180" />
-                                </div>
-                              </summary>
-                              <div className="mt-3 pt-3 border-t border-border/60">
-                                <h4 className="text-sm font-medium mb-2">知识点掌握情况:</h4>
-                                {studentSubmission.student_knowledge_mastery && studentSubmission.student_knowledge_mastery.length > 0 ? (
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                                    {studentSubmission.student_knowledge_mastery.map(kp => {
-                                      const masteryGrade = masteryLevelToGrade(kp.mastery_level);
-                                      const gradeColor = 
-                                        masteryGrade === 'A' ? 'bg-green-100 text-green-800 border-green-200' : 
-                                        masteryGrade === 'B' ? 'bg-blue-100 text-blue-800 border-blue-200' : 
-                                        masteryGrade === 'C' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 
-                                        masteryGrade === 'D' ? 'bg-orange-100 text-orange-800 border-orange-200' : 
-                                        'bg-red-100 text-red-800 border-red-200';
-                                      return (
-                                        <Badge key={kp.id} variant="outline" className={cn("px-2 py-1 text-xs justify-between", gradeColor)}>
-                                          <span>{kp.knowledge_points?.name || "未知知识点"}</span>
-                                          <span>{masteryGrade} ({kp.mastery_level}%)</span>
-                                        </Badge>
-                                      );
-                                    })}
-                                  </div>
-                                ) : (
-                                  <p className="text-sm text-muted-foreground">无知识点评估数据。</p>
-                                )}
-                              </div>
-                            </details>
-                          );
-                        })}
-                    </div>
-                  ) : (
-                    <p className="text-center text-muted-foreground py-4">尚无已批改的作业可供分析。</p>
-                  )}
-                </CardContent>
-              </Card>
             </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
 
+      {/* 对话框组件 */}
       {isGradeDialogOpen && (
         <TeacherGradeHomeworkDialog
           homeworkId={homeworkId}
@@ -2728,12 +2501,14 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
         />
       )}
       
-      {/* 添加知识点确认对话框 */}
+      {/* 知识点确认对话框 */}
       <AlertDialog open={showKnowledgePointDialog} onOpenChange={setShowKnowledgePointDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="border-2 border-[#191A23] shadow-[4px_4px_0px_0px_#191A23]">
           <AlertDialogHeader>
-            <AlertDialogTitle>确认保存新知识点</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-xl font-black text-[#191A23] uppercase tracking-wide">
+              确认保存新知识点
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-[#191A23] font-medium">
               AI分析发现了以下新知识点，请确认是否保存到数据库。
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -2741,15 +2516,15 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
           <div className="max-h-80 overflow-y-auto my-4">
             <div className="space-y-3">
               {aiKnowledgePoints.map((kp, index) => (
-                <div key={kp.id} className="p-3 bg-muted rounded-md">
+                <div key={kp.id} className="p-3 bg-[#F7F7F7] rounded-lg border-2 border-[#191A23]">
                   <div className="flex items-center justify-between">
-                    <span className="font-medium">{index + 1}. {kp.name}</span>
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                    <span className="font-bold text-[#191A23]">{index + 1}. {kp.name}</span>
+                    <Badge className={cn(POSITIVUS_STYLES.badge, "font-black uppercase tracking-wide")}>
                       新知识点
                     </Badge>
                   </div>
                   {kp.description && (
-                    <p className="text-sm text-muted-foreground mt-1">{kp.description}</p>
+                    <p className="text-sm text-[#191A23] font-medium mt-1">{kp.description}</p>
                   )}
                 </div>
               ))}
@@ -2757,8 +2532,16 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
           </div>
           
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleCancelSaveKnowledgePoints}>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmSaveKnowledgePoints}>
+            <AlertDialogCancel 
+              onClick={handleCancelSaveKnowledgePoints}
+              className={cn(POSITIVUS_STYLES.secondaryButton, "font-black uppercase tracking-wide")}
+            >
+              取消
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmSaveKnowledgePoints}
+              className={cn(POSITIVUS_STYLES.primaryButton, "font-black uppercase tracking-wide")}
+            >
               确认保存
             </AlertDialogAction>
           </AlertDialogFooter>

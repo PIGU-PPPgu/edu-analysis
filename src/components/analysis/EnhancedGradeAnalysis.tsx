@@ -8,6 +8,21 @@ import { Badge } from '@/components/ui/badge';
 import { RefreshCw, Download, Filter, TrendingUp, Users, BookOpen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+// 导入图表组件
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend
+} from 'recharts';
+
 // 导入UX增强组件
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
 import { 
@@ -193,6 +208,52 @@ const EnhancedGradeAnalysis: React.FC = () => {
     refetch: refetchGrades 
   } = useGradeData(selectedExam, classFilter);
 
+  // 计算成绩分布数据
+  const gradeDistributionData = React.useMemo(() => {
+    if (!gradeData || gradeData.length === 0) return [];
+    
+    const ranges = [
+      { range: '90-100', min: 90, max: 100, count: 0 },
+      { range: '80-89', min: 80, max: 89, count: 0 },
+      { range: '70-79', min: 70, max: 79, count: 0 },
+      { range: '60-69', min: 60, max: 69, count: 0 },
+      { range: '0-59', min: 0, max: 59, count: 0 }
+    ];
+    
+    gradeData.forEach(grade => {
+      const range = ranges.find(r => grade.score >= r.min && grade.score <= r.max);
+      if (range) range.count++;
+    });
+    
+    return ranges;
+  }, [gradeData]);
+
+  // 计算班级对比数据
+  const classComparisonData = React.useMemo(() => {
+    if (!gradeData || gradeData.length === 0) return [];
+    
+    const classStats = new Map();
+    
+    gradeData.forEach(grade => {
+      const className = grade.class_name;
+      if (!classStats.has(className)) {
+        classStats.set(className, {
+          className,
+          totalScore: 0,
+          count: 0,
+          averageScore: 0
+        });
+      }
+      
+      const stats = classStats.get(className);
+      stats.totalScore += grade.score;
+      stats.count++;
+      stats.averageScore = Math.round((stats.totalScore / stats.count) * 10) / 10;
+    });
+    
+    return Array.from(classStats.values());
+  }, [gradeData]);
+
   // 计算统计数据
   const stats = React.useMemo(() => {
     if (!gradeData || gradeData.length === 0) {
@@ -361,8 +422,41 @@ const EnhancedGradeAnalysis: React.FC = () => {
               {gradeLoading ? (
                 <ChartSkeleton />
               ) : (
-                <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
-                  <p className="text-gray-500">图表组件待实现</p>
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={gradeDistributionData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                      <XAxis 
+                        dataKey="range" 
+                        stroke="#374151"
+                        fontSize={12}
+                        fontWeight="500"
+                      />
+                      <YAxis 
+                        stroke="#374151"
+                        fontSize={12}
+                        fontWeight="500"
+                      />
+                      <Tooltip 
+                        contentStyle={{
+                          backgroundColor: '#FFFFFF',
+                          border: '2px solid #000000',
+                          borderRadius: '8px',
+                          boxShadow: '2px 2px 0px 0px #000',
+                          color: '#000000',
+                          fontWeight: '500'
+                        }}
+                        labelStyle={{ color: '#000000', fontWeight: 'bold' }}
+                      />
+                      <Bar 
+                        dataKey="count" 
+                        fill="#B9FF66" 
+                        stroke="#000000"
+                        strokeWidth={2}
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               )}
             </MobileCard>
@@ -371,8 +465,45 @@ const EnhancedGradeAnalysis: React.FC = () => {
               {gradeLoading ? (
                 <ChartSkeleton />
               ) : (
-                <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
-                  <p className="text-gray-500">图表组件待实现</p>
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={classComparisonData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                      <XAxis 
+                        dataKey="className" 
+                        stroke="#374151"
+                        fontSize={12}
+                        fontWeight="500"
+                        angle={-45}
+                        textAnchor="end"
+                        height={80}
+                      />
+                      <YAxis 
+                        stroke="#374151"
+                        fontSize={12}
+                        fontWeight="500"
+                      />
+                      <Tooltip 
+                        contentStyle={{
+                          backgroundColor: '#FFFFFF',
+                          border: '2px solid #000000',
+                          borderRadius: '8px',
+                          boxShadow: '2px 2px 0px 0px #000',
+                          color: '#000000',
+                          fontWeight: '500'
+                        }}
+                        labelStyle={{ color: '#000000', fontWeight: 'bold' }}
+                        formatter={(value: number) => [`${value}分`, '平均分']}
+                      />
+                      <Bar 
+                        dataKey="averageScore" 
+                        fill="#B9FF66" 
+                        stroke="#000000"
+                        strokeWidth={2}
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               )}
             </MobileCard>

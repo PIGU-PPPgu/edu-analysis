@@ -34,4 +34,9 @@ node_modules/
 .cursor/mcp.json
 # OS specific
 # API密钥配置文件
-.env.example
+# .env.example 应该被提交以供参考
+# .env 包含实际密钥，不应提交
+
+# Task files
+# tasks.json
+# tasks/ 

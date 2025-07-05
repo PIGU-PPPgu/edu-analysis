@@ -128,23 +128,43 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
       // 直接使用 actions.setFileData 方法设置数据
       actions.setFileData(fileData.data || [], fileInfo.name);
       
-      // 🔧 临时禁用AI自动跳转以修复DOM冲突
-      // 所有文件都进入手动字段映射步骤，避免状态冲突
-      console.log('[GradeImporter] 🔧 使用手动流程，避免DOM冲突');
-      
-      // 🔧 从AI分析结果中提取映射配置（仅用于预填充，不自动跳转）
+      // ✅ 恢复AI智能流程 - 根据置信度智能决策
       if (fileData.aiAnalysis) {
+        const confidence = fileData.aiAnalysis.confidence || 0;
         const autoMappingConfig = extractMappingFromAI(fileData.aiAnalysis);
+        
+        console.log('[GradeImporter] AI分析置信度:', confidence);
+        
         if (autoMappingConfig) {
-          // 预设映射配置，但不自动跳转
           actions.setMappingConfig(autoMappingConfig);
-          console.log('[GradeImporter] ✅ 预设AI映射配置，等待用户确认');
+          
+          // 智能决策：高置信度自动跳转，低置信度手动确认
+          if (confidence >= 0.85) {
+            console.log('[GradeImporter] ✅ 高置信度AI映射，自动跳转到验证步骤');
+            actions.setCurrentStep('validation');
+            setActiveStepIndex(2);
+            toast.success(`AI自动映射完成 (置信度: ${Math.round(confidence * 100)}%)，请检查数据验证结果`);
+          } else if (confidence >= 0.70) {
+            console.log('[GradeImporter] ⚠️ 中等置信度AI映射，进入映射确认');
+            actions.setCurrentStep('mapping');
+            setActiveStepIndex(1);
+            toast.warning(`AI映射置信度: ${Math.round(confidence * 100)}%，请确认字段映射`);
+          } else {
+            console.log('[GradeImporter] ❌ 低置信度AI映射，进入手动映射');
+            actions.setCurrentStep('mapping');
+            setActiveStepIndex(1);
+            toast.info(`AI映射置信度较低 (${Math.round(confidence * 100)}%)，请手动确认映射`);
+          }
+        } else {
+          // AI解析失败，进入手动流程
+          actions.setCurrentStep('mapping');
+          setActiveStepIndex(1);
         }
+      } else {
+        // 无AI分析结果，进入手动流程
+        actions.setCurrentStep('mapping');
+        setActiveStepIndex(1);
       }
-      
-      // 统一进入字段映射步骤（手动流程）
-      actions.setCurrentStep('mapping');
-      setActiveStepIndex(1);
       
       const message = fileData.aiAnalysis?.confidence 
         ? `文件上传成功，AI识别置信度: ${Math.round(fileData.aiAnalysis.confidence * 100)}%，请确认字段映射`

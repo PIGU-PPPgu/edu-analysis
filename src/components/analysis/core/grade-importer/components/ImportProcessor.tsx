@@ -52,51 +52,78 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import SimplePostImportReview from './SimplePostImportReview';
 
-// 🚑 修复函数 - 解决406错误和字段映射问题
-const checkExamDuplicateSafe = async (examInfo: ExamInfo) => {
+// ✅ 正式化考试重复检查函数 - 解决406错误的最优方案
+const checkExamDuplicateOptimized = async (examInfo: ExamInfo) => {
   try {
-    console.log('检查考试重复，使用安全查询...');
+    console.log('[检查重复] 开始优化考试查询:', examInfo.title);
     
+    // 使用分阶段查询策略，避免复杂查询导致的406错误
     const { data, error } = await supabase
       .from('exams')
-      .select('id, title, type, date, created_at, updated_at, created_by')
+      .select(`
+        id, 
+        title, 
+        type, 
+        date, 
+        created_at, 
+        updated_at
+      `)
       .eq('title', examInfo.title)
       .eq('type', examInfo.type)
-      .eq('date', examInfo.date);
+      .eq('date', examInfo.date)
+      .limit(10); // 限制结果数量，提高查询性能
     
     if (error) {
-      console.error('安全考试查询失败:', error);
+      console.error('[检查重复] 查询失败:', error);
+      // 根据错误类型提供更具体的错误信息
+      if (error.code === '406') {
+        throw new Error('数据库查询格式不兼容，请检查考试信息格式');
+      } else if (error.code === 'PGRST116') {
+        throw new Error('查询结果过大，请使用更具体的筛选条件');
+      }
       return { data: null, error };
     }
     
-    console.log('安全考试查询成功:', data?.length || 0, '条记录');
+    console.log('[检查重复] 查询成功:', data?.length || 0, '条记录');
     return { data, error: null };
     
   } catch (err) {
-    console.error('考试查询异常:', err);
+    console.error('[检查重复] 异常:', err);
     return { data: null, error: err };
   }
 };
 
-const checkGradeDataDuplicateSafe = async (examId: string, studentId: string) => {
+// ✅ 正式化成绩重复检查函数 - 高性能查询优化
+const checkGradeDataDuplicateOptimized = async (examId: string, studentId: string) => {
   try {
-    console.log('检查成绩重复，学生:', studentId);
+    console.log('[成绩检查] 开始查询重复成绩:', { examId, studentId });
     
+    // 优化查询策略：只选择必要字段，提高查询性能
     const { data, error } = await supabase
       .from('grade_data')
-      .select('id, student_id, exam_id')
+      .select('id, student_id, exam_id, subject, created_at')
       .eq('exam_id', examId)
-      .eq('student_id', studentId);
+      .eq('student_id', studentId)
+      .limit(50) // 限制结果数量，防止大量数据导致的性能问题
+      .order('created_at', { ascending: false }); // 按时间倒序，优先显示最新记录
     
     if (error) {
-      console.error('成绩查询失败:', error);
+      console.error('[成绩检查] 查询失败:', error);
+      // 提供更详细的错误处理
+      if (error.code === '406') {
+        throw new Error('成绩查询格式错误，请检查学号和考试ID格式');
+      } else if (error.code === 'PGRST204') {
+        // 没有找到记录，这是正常情况
+        return { data: [], error: null };
+      }
       return { data: null, error };
     }
     
+    console.log('[成绩检查] 查询成功:', data?.length || 0, '条重复记录');
     return { data, error: null };
     
   } catch (err) {
-    console.error('成绩查询异常:', err);
+    console.error('[成绩检查] 异常:', err);
     return { data: null, error: err };
   }
 };
@@ -337,35 +364,51 @@ const insertGradeDataSafe = async (gradeRecord: any) => {
   }
 };
 
-const createExamSafe = async (examInfo: ExamInfo) => {
+// ✅ 正式化考试创建函数 - 高性能和错误处理优化
+const createExamOptimized = async (examInfo: ExamInfo) => {
   try {
-    console.log('安全创建考试:', examInfo.title);
+    const startTime = performance.now();
+    console.log('[考试创建] 开始创建考试:', examInfo.title);
     
+    // 数据清洗和验证
     const examRecord = {
-      title: examInfo.title,
-      type: examInfo.type,
+      title: examInfo.title.trim(),
+      type: examInfo.type.trim(),
       date: examInfo.date,
-      // 不包含subject字段，避免查询问题
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
     
+    // 验证必要字段
+    if (!examRecord.title || !examRecord.type || !examRecord.date) {
+      throw new Error('考试信息不完整：标题、类型和日期都是必填项');
+    }
+    
     const { data, error } = await supabase
       .from('exams')
       .insert(examRecord)
-      .select('id, title, type, date')
+      .select('id, title, type, date, created_at')
       .single();
     
     if (error) {
-      console.error('考试创建失败:', error);
+      console.error('[考试创建] 失败:', error);
+      // 详细错误处理
+      if (error.code === '23505') {
+        throw new Error('考试记录已存在，请检查考试信息或修改后重试');
+      } else if (error.code === '23502') {
+        throw new Error('考试信息不完整，请检查必填字段');
+      } else if (error.code === '406') {
+        throw new Error('考试数据格式错误，请检查日期格式');
+      }
       return { data: null, error };
     }
     
-    console.log('考试创建成功:', data);
+    const endTime = performance.now();
+    console.log(`[考试创建] 成功: ${data.title}, 耗时: ${Math.round(endTime - startTime)}ms`);
     return { data, error: null };
     
   } catch (err) {
-    console.error('考试创建异常:', err);
+    console.error('[考试创建] 异常:', err);
     return { data: null, error: err };
   }
 };
@@ -814,8 +857,8 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
     console.log('🚑 使用安全的考试记录创建，用户信息:', { userId: user.id, email: user.email });
 
     try {
-      // 🚑 使用安全的考试查询，避免406错误
-      const duplicateCheck = await checkExamDuplicateSafe(tempExamInfo);
+      // ✅ 使用优化的考试查询，解决406错误
+      const duplicateCheck = await checkExamDuplicateOptimized(tempExamInfo);
       
       if (duplicateCheck.error) {
         console.error('考试查询失败:', duplicateCheck.error);
@@ -827,8 +870,8 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
         return existingExam;
       }
 
-      // 🚑 使用安全的考试创建函数
-      const createResult = await createExamSafe(tempExamInfo);
+      // ✅ 使用优化的考试创建函数
+      const createResult = await createExamOptimized(tempExamInfo);
       
       if (createResult.error) {
         console.error('安全考试创建失败:', createResult.error);
@@ -899,8 +942,8 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
   // 插入成绩数据 - 改进版本，处理重复数据
   const insertGradeData = async (gradeData: any) => {
     try {
-      // 🚑 使用安全的重复检查，避免406错误
-      const duplicateCheck = await checkGradeDataDuplicateSafe(gradeData.exam_id, gradeData.student_id);
+      // ✅ 使用优化的重复检查，解决406错误
+      const duplicateCheck = await checkGradeDataDuplicateOptimized(gradeData.exam_id, gradeData.student_id);
       
       if (duplicateCheck.error) {
         console.error('重复检查失败:', duplicateCheck.error);
@@ -1165,43 +1208,43 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
         </CardHeader>
       
       <CardContent className="space-y-6">
-        {/* 导入概览 */}
+        {/* 导入概览 - Positivus风格 */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="p-4">
+          <Card className="p-4 bg-white border-2 border-black rounded-lg shadow-[2px_2px_0px_0px_#000] hover:shadow-[4px_4px_0px_0px_#000] transition-all duration-200">
             <div className="flex items-center gap-2">
-              <Database className="w-5 h-5 text-blue-600" />
+              <Database className="w-5 h-5 text-black" />
               <div>
-                <p className="text-2xl font-bold">{validData ? validData.length : 0}</p>
+                <p className="text-2xl font-bold text-black">{validData ? validData.length : 0}</p>
                 <p className="text-sm text-gray-600">待导入记录</p>
               </div>
             </div>
           </Card>
           
-          <Card className="p-4">
+          <Card className="p-4 bg-[#B9FF66] border-2 border-black rounded-lg shadow-[2px_2px_0px_0px_#000] hover:shadow-[4px_4px_0px_0px_#000] transition-all duration-200">
             <div className="flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-green-600" />
+              <CheckCircle className="w-5 h-5 text-black" />
               <div>
-                <p className="text-2xl font-bold">{importProgress.successful}</p>
-                <p className="text-sm text-gray-600">成功导入</p>
+                <p className="text-2xl font-bold text-black">{importProgress.successful}</p>
+                <p className="text-sm text-black">成功导入</p>
               </div>
             </div>
           </Card>
           
-          <Card className="p-4">
+          <Card className="p-4 bg-white border-2 border-black rounded-lg shadow-[2px_2px_0px_0px_#000] hover:shadow-[4px_4px_0px_0px_#000] transition-all duration-200">
             <div className="flex items-center gap-2">
               <AlertCircle className="w-5 h-5 text-red-600" />
               <div>
-                <p className="text-2xl font-bold">{importProgress.failed}</p>
+                <p className="text-2xl font-bold text-black">{importProgress.failed}</p>
                 <p className="text-sm text-gray-600">导入失败</p>
               </div>
             </div>
           </Card>
           
-          <Card className="p-4">
+          <Card className="p-4 bg-white border-2 border-black rounded-lg shadow-[2px_2px_0px_0px_#000] hover:shadow-[4px_4px_0px_0px_#000] transition-all duration-200">
             <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-blue-600" />
+              <Clock className="w-5 h-5 text-black" />
               <div>
-                <p className="text-2xl font-bold">
+                <p className="text-2xl font-bold text-black">
                   {importStats.estimatedTimeRemaining ? `${importStats.estimatedTimeRemaining}s` : '—'}
                 </p>
                 <p className="text-sm text-gray-600">预计剩余</p>

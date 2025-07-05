@@ -32,6 +32,7 @@ import SmartConfirmationDialog from './SmartConfirmationDialog';
 import MissingDataDetector from './MissingDataDetector';
 import QuickFixSuggestions from './QuickFixSuggestions';
 import UnmappedFieldsOnly from './UnmappedFieldsOnly';
+import CompleteMappingViewer from './CompleteMappingViewer';
 
 // 使用现有的类型定义
 import type { 
@@ -41,7 +42,7 @@ import type {
 } from '../types';
 
 // 用户友好的流程步骤
-type UserFlowStep = 'preview' | 'confirm' | 'enhance' | 'advanced' | 'complete';
+type UserFlowStep = 'preview' | 'confirm' | 'enhance' | 'advanced' | 'complete' | 'full_view';
 
 // 检测到的问题类型
 interface DetectedIssue {
@@ -299,18 +300,66 @@ const UserFriendlyDataMapper: React.FC<UserFriendlyDataMapperProps> = ({
       <div className="space-y-6">
         {/* 步骤1: 仅显示未映射字段 - 根据用户明确要求 */}
         {currentStep === 'preview' && (
-          <UnmappedFieldsOnly
-            headers={headers}
-            sampleData={sampleData}
-            initialMapping={workingMapping.fieldMappings}
-            aiAnalysis={fileData?.aiAnalysis}
-            onMappingConfigured={handleDataConfirmed}
-            onError={(error) => {
-              console.error('字段映射错误:', error);
-              toast.error('字段映射失败: ' + error);
-            }}
-            loading={loading}
-          />
+          <div className="space-y-4">
+            {/* 视图切换按钮 */}
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-medium">字段映射确认</h3>
+                <p className="text-sm text-gray-600">请确认需要处理的字段映射</p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => setCurrentStep('full_view')}
+                className="flex items-center gap-2"
+              >
+                <Eye className="w-4 h-4" />
+                查看完整映射结果
+              </Button>
+            </div>
+            
+            <UnmappedFieldsOnly
+              headers={headers}
+              sampleData={sampleData}
+              initialMapping={workingMapping.fieldMappings}
+              aiAnalysis={fileData?.aiAnalysis}
+              onMappingConfigured={handleDataConfirmed}
+              onError={(error) => {
+                console.error('字段映射错误:', error);
+                toast.error('字段映射失败: ' + error);
+              }}
+              loading={loading}
+            />
+          </div>
+        )}
+
+        {/* 完整映射结果查看器 */}
+        {currentStep === 'full_view' && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-medium">完整映射结果</h3>
+                <p className="text-sm text-gray-600">查看所有字段的映射状态和AI识别结果</p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => setCurrentStep('preview')}
+                className="flex items-center gap-2"
+              >
+                <ArrowRight className="w-4 h-4 rotate-180" />
+                返回简化视图
+              </Button>
+            </div>
+            
+            <CompleteMappingViewer
+              headers={headers}
+              mappingConfig={workingMapping}
+              aiAnalysis={fileData?.aiAnalysis}
+              onMappingUpdate={(mapping) => {
+                setWorkingMapping(mapping);
+              }}
+              onConfirm={handleDataConfirmed}
+            />
+          </div>
         )}
 
         {/* 步骤2: 简化的数据确认 - 不显示成功映射详情 */}

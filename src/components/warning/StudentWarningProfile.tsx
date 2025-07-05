@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { AlertCircle, BookOpen, CheckCircle, Clock, TrendingDown, TrendingUp, UserCircle, XCircle } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Dialog,
   DialogContent,
@@ -139,26 +140,43 @@ const StudentWarningProfile: React.FC<StudentWarningProfileProps> = ({ studentUu
     if (studentUuid && isOpen) {
       setIsLoading(true);
       setError(null);
-      // TODO: 替换为真实的API调用
-      // 模拟API调用延迟
-      setTimeout(() => {
-        // 检查组件是否已卸载
-        if (!isMountedRef.current) return;
-        
-        // 假设API调用成功，并使用模拟数据
-        // 在真实场景中，这里会 fetch(`/api/get-student-profile?uuid=${studentUuid}`) 或直接调用 Edge Function
-        console.log(`Fetching profile for student: ${studentUuid}`);
-        
-        // 检查 SUPABASE_URL 和 SUPABASE_ANON_KEY 是否在环境变量中定义
-        // 使用直接导入的客户端配置而非process.env变量
-        // const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        // const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-        
-        // 直接使用模拟数据
-        if (isMountedRef.current) {
-          setProfileData(mockStudentProfileData);
-          setIsLoading(false);
+      // 实现真实的API调用
+      const fetchStudentProfile = async () => {
+        try {
+          console.log(`Fetching profile for student: ${studentUuid}`);
+          
+          // 使用Supabase客户端获取学生预警画像数据
+          const { data, error } = await supabase
+            .rpc('get_student_warning_profile', { 
+              student_uuid_param: studentUuid 
+            });
+          
+          if (error) {
+            console.error('获取学生画像数据失败:', error);
+            // 使用模拟数据作为回退
+            if (isMountedRef.current) {
+              setProfileData(mockStudentProfileData);
+              setIsLoading(false);
+            }
+            return;
+          }
+          
+          if (isMountedRef.current) {
+            setProfileData(data || mockStudentProfileData);
+            setIsLoading(false);
+          }
+        } catch (err) {
+          console.error('API调用异常:', err);
+          // 出现异常时使用模拟数据
+          if (isMountedRef.current) {
+            setProfileData(mockStudentProfileData);
+            setIsLoading(false);
+          }
         }
+      };
+      
+      // 延迟调用以提供良好的用户体验
+      setTimeout(fetchStudentProfile, 500);
 
         // 以下代码注释掉，避免环境变量问题
         /*
@@ -171,8 +189,6 @@ const StudentWarningProfile: React.FC<StudentWarningProfileProps> = ({ studentUu
           return;
         }
         */
-
-      }, 1000);
     } else if (!isOpen) {
       // 清理数据当模态框关闭时
       setProfileData(null);

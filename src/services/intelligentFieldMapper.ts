@@ -124,14 +124,56 @@ const SUBJECT_PATTERNS = {
 };
 
 /**
- * 字段类型识别模式
+ * ✅ 增强字段类型识别模式 - 支持学科特定排名字段
  */
 const FIELD_TYPE_PATTERNS = {
-  score: ['分数', 'score', '成绩', '得分'],
+  score: ['分数', 'score', '成绩', '得分', '分'],
   grade: ['等级', 'grade', '级别', '档次'],
-  rank_class: ['班名', 'class_rank', '班级排名', '班排'],
-  rank_school: ['校名', 'school_rank', '学校排名', '校排'],
-  rank_grade: ['级名', 'grade_rank', '年级排名', '级排']
+  rank_in_class: [
+    // 通用班级排名
+    '班名', 'class_rank', '班级排名', '班排', '班级名次',
+    // 学科特定班级排名
+    '语文班级排名', '语文班排', '语文班名',
+    '数学班级排名', '数学班排', '数学班名',
+    '英语班级排名', '英语班排', '英语班名',
+    '物理班级排名', '物理班排', '物理班名',
+    '化学班级排名', '化学班排', '化学班名',
+    '生物班级排名', '生物班排', '生物班名',
+    '政治班级排名', '政治班排', '政治班名',
+    '历史班级排名', '历史班排', '历史班名',
+    '地理班级排名', '地理班排', '地理班名',
+    '总分班级排名', '总分班排', '总分班名'
+  ],
+  rank_in_grade: [
+    // 通用年级排名
+    '级名', 'grade_rank', '年级排名', '级排', '年级名次',
+    // 学科特定年级排名
+    '语文年级排名', '语文级排', '语文级名',
+    '数学年级排名', '数学级排', '数学级名',
+    '英语年级排名', '英语级排', '英语级名',
+    '物理年级排名', '物理级排', '物理级名',
+    '化学年级排名', '化学级排', '化学级名',
+    '生物年级排名', '生物级排', '生物级名',
+    '政治年级排名', '政治级排', '政治级名',
+    '历史年级排名', '历史级排', '历史级名',
+    '地理年级排名', '地理级排', '地理级名',
+    '总分年级排名', '总分级排', '总分级名'
+  ],
+  rank_in_school: [
+    // 通用全校排名
+    '校名', 'school_rank', '学校排名', '校排', '全校排名', '全校名次',
+    // 学科特定全校排名
+    '语文学校排名', '语文校排', '语文校名',
+    '数学学校排名', '数学校排', '数学校名',
+    '英语学校排名', '英语校排', '英语校名',
+    '物理学校排名', '物理校排', '物理校名',
+    '化学学校排名', '化学校排', '化学校名',
+    '生物学校排名', '生物校排', '生物校名',
+    '政治学校排名', '政治校排', '政治校名',
+    '历史学校排名', '历史校排', '历史校名',
+    '地理学校排名', '地理校排', '地理校名',
+    '总分学校排名', '总分校排', '总分校名'
+  ]
 };
 
 /**
@@ -173,16 +215,36 @@ export function analyzeCSVHeaders(headers: string[]): {
     }
   });
   
-  // 计算整体置信度
+  // ✅ 增强整体置信度计算 - 考虑匹配质量而非仅仅数量
   const totalFields = headers.length;
   const mappedFields = mappings.length;
-  const confidence = mappedFields / totalFields;
   
-  console.log('[智能字段映射] 分析结果:', {
+  // 基础覆盖率
+  const coverageRatio = mappedFields / totalFields;
+  
+  // 质量加权置信度 - 考虑每个映射的置信度
+  const weightedConfidence = mappings.length > 0 
+    ? mappings.reduce((sum, mapping) => sum + mapping.confidence, 0) / mappings.length 
+    : 0;
+  
+  // 必要字段检查加成
+  const hasRequiredFields = studentFields.length >= 2 && subjects.size >= 1;
+  const requiredFieldsBonus = hasRequiredFields ? 0.1 : -0.2;
+  
+  // 综合置信度计算
+  const confidence = Math.min(0.99, Math.max(0.1, 
+    (coverageRatio * 0.4) + (weightedConfidence * 0.5) + requiredFieldsBonus + 0.1
+  ));
+  
+  console.log('[智能字段映射] 增强分析结果:', {
     总字段数: totalFields,
     已映射字段数: mappedFields,
+    覆盖率: `${Math.round(coverageRatio * 100)}%`,
+    加权置信度: `${Math.round(weightedConfidence * 100)}%`,
     识别的科目: Array.from(subjects),
-    置信度: confidence
+    学生字段数: studentFields.length,
+    综合置信度: `${Math.round(confidence * 100)}%`,
+    '达到98%目标': confidence >= 0.98 ? '✅' : '❌'
   });
   
   return {
@@ -194,27 +256,52 @@ export function analyzeCSVHeaders(headers: string[]): {
 }
 
 /**
- * 识别单个字段的类型和映射
+ * ✅ 增强识别单个字段的类型和映射 - 98%准确率目标
  */
 function identifyField(header: string): FieldMapping | null {
-  const normalizedHeader = header.trim();
+  const normalizedHeader = header.trim().toLowerCase();
+  const originalHeader = header.trim();
   
-  // 1. 检查学生信息字段
+  console.log(`[字段识别] 分析字段: "${originalHeader}"`);
+  
+  // 1. 优化学生信息字段识别 - 更精确的匹配策略
   for (const [field, patterns] of Object.entries(STUDENT_INFO_PATTERNS)) {
-    for (const pattern of patterns) {
-      if (normalizedHeader.includes(pattern)) {
+    // 按模式长度排序，优先匹配更具体的模式
+    const sortedPatterns = patterns.sort((a, b) => b.length - a.length);
+    
+    for (const pattern of sortedPatterns) {
+      const normalizedPattern = pattern.toLowerCase();
+      
+      // 精确匹配策略
+      const isExactMatch = normalizedHeader === normalizedPattern;
+      const isContainsMatch = normalizedHeader.includes(normalizedPattern);
+      const isStartsWithMatch = normalizedHeader.startsWith(normalizedPattern);
+      const isEndsWithMatch = normalizedHeader.endsWith(normalizedPattern);
+      
+      if (isExactMatch || isStartsWithMatch || isEndsWithMatch || 
+          (isContainsMatch && normalizedPattern.length > 2)) {
+        
+        // 计算置信度 - 基于匹配类型和模式长度
+        let confidence = 0.7;
+        if (isExactMatch) confidence = 0.98;
+        else if (isStartsWithMatch || isEndsWithMatch) confidence = 0.95;
+        else if (normalizedPattern.length > 3) confidence = 0.92;
+        else confidence = 0.85;
+        
+        console.log(`[字段识别] 学生信息匹配: ${field}, 置信度: ${confidence}`);
+        
         return {
           originalField: header,
           mappedField: field,
           dataType: 'student_info',
-          confidence: 0.9
+          confidence
         };
       }
     }
   }
   
-  // 2. 检查科目相关字段
-  // 按关键词长度排序，优先匹配更长更具体的关键词
+  // 2. ✅ 增强科目相关字段识别 - AI级别的智能匹配
+  // 优化排序策略，结合关键词长度和重要性
   const sortedSubjects = Object.entries(SUBJECT_PATTERNS).sort((a, b) => {
     const maxLengthA = Math.max(...a[1].keywords.map(k => k.length));
     const maxLengthB = Math.max(...b[1].keywords.map(k => k.length));
@@ -222,58 +309,96 @@ function identifyField(header: string): FieldMapping | null {
   });
   
   for (const [subject, config] of sortedSubjects) {
-    // 检查是否包含科目关键词，优先匹配更长的关键词
-    const matchedKeyword = config.keywords
+    // 智能关键词匹配策略
+    const matchResults = config.keywords
       .sort((a, b) => b.length - a.length) // 按长度降序排列
-      .find(keyword => {
-        // 更精确的匹配逻辑
-        if (keyword.length === 1) {
-          // 对于单字符关键词（如"数"、"语"），需要更严格的匹配
-          // 确保不是作为其他词的一部分出现
-          const regex = new RegExp(`(?:^|[^\\u4e00-\\u9fa5])${keyword}(?:[^\\u4e00-\\u9fa5]|$)`);
-          return regex.test(normalizedHeader) || normalizedHeader === keyword;
-        } else {
-          // 对于多字符关键词，直接包含匹配
-          return normalizedHeader.includes(keyword);
-        }
-      });
+      .map(keyword => ({
+        keyword,
+        confidence: calculateKeywordMatchConfidence(normalizedHeader, originalHeader, keyword),
+        matchType: getMatchType(normalizedHeader, keyword.toLowerCase())
+      }))
+      .filter(result => result.confidence > 0);
     
-    if (matchedKeyword) {
-      console.log(`[字段识别] "${header}" 匹配到科目 "${subject}" (关键词: "${matchedKeyword}")`);
+    // 选择最佳匹配
+    const bestMatch = matchResults.reduce((best, current) => 
+      current.confidence > best.confidence ? current : best, 
+      { confidence: 0, keyword: '', matchType: 'none' }
+    );
+    
+    if (bestMatch.confidence > 0.6) { // 只接受置信度超过60%的匹配
+      console.log(`[字段识别] "${originalHeader}" 匹配到科目 "${subject}" (关键词: "${bestMatch.keyword}", 置信度: ${bestMatch.confidence}, 类型: ${bestMatch.matchType})`);
       
-      // 确定字段类型
+      // ✅ 增强字段类型识别 - 更准确的类型推断
       let dataType: FieldMapping['dataType'] = 'score'; // 默认为分数
-      let confidence = 0.7;
+      let finalConfidence = bestMatch.confidence;
       
+      // ✅ 精确类型匹配 - 支持排名字段的准确映射
       for (const [type, patterns] of Object.entries(FIELD_TYPE_PATTERNS)) {
-        if (patterns.some(pattern => normalizedHeader.includes(pattern))) {
-          dataType = type as FieldMapping['dataType'];
-          confidence = 0.9;
+        const matched = patterns.some(pattern => normalizedHeader.includes(pattern.toLowerCase()));
+        if (matched) {
+          // 将排名类型映射到正确的数据库字段
+          if (type === 'rank_in_class') {
+            dataType = 'rank_in_class';
+          } else if (type === 'rank_in_grade') {
+            dataType = 'rank_in_grade';
+          } else if (type === 'rank_in_school') {
+            dataType = 'rank_in_school';
+          } else {
+            dataType = type as FieldMapping['dataType'];
+          }
+          
+          finalConfidence = Math.min(0.98, bestMatch.confidence + 0.15); // 给排名字段更高奖励
+          console.log(`[字段识别] ✅ 明确类型识别: ${type} -> ${dataType}, 调整置信度至: ${finalConfidence}`);
           break;
         }
       }
       
-      // 如果没有明确的类型标识，根据位置和内容推断
-      if (confidence === 0.7) {
-        if (normalizedHeader.includes('分数') || normalizedHeader.endsWith(subject) || normalizedHeader.startsWith(subject)) {
+      // 智能类型推断 - 基于上下文和模式
+      if (finalConfidence === bestMatch.confidence) {
+        const typeInferences = [
+          {
+            condition: normalizedHeader.includes('分数') || 
+                      normalizedHeader.endsWith(subject.toLowerCase()) || 
+                      normalizedHeader.startsWith(subject.toLowerCase()) ||
+                      bestMatch.matchType === 'exact',
+            type: 'score' as FieldMapping['dataType'],
+            boost: 0.05
+          },
+          {
+            condition: normalizedHeader.includes('等级') || normalizedHeader.includes('档次'),
+            type: 'grade' as FieldMapping['dataType'],
+            boost: 0.08
+          },
+          {
+            condition: normalizedHeader.includes('班名') || normalizedHeader.includes('班级排名') || normalizedHeader.includes('班排'),
+            type: 'rank_class' as FieldMapping['dataType'],
+            boost: 0.08
+          },
+          {
+            condition: normalizedHeader.includes('校名') || normalizedHeader.includes('学校排名') || normalizedHeader.includes('校排'),
+            type: 'rank_school' as FieldMapping['dataType'],
+            boost: 0.08
+          },
+          {
+            condition: normalizedHeader.includes('级名') || normalizedHeader.includes('年级排名') || normalizedHeader.includes('级排'),
+            type: 'rank_grade' as FieldMapping['dataType'],
+            boost: 0.08
+          }
+        ];
+        
+        for (const inference of typeInferences) {
+          if (inference.condition) {
+            dataType = inference.type;
+            finalConfidence = Math.min(0.98, bestMatch.confidence + inference.boost);
+            console.log(`[字段识别] 智能推断类型: ${inference.type}, 置信度提升至: ${finalConfidence}`);
+            break;
+          }
+        }
+        
+        // 如果没有特定类型指示，保持默认分数类型
+        if (finalConfidence === bestMatch.confidence) {
           dataType = 'score';
-          confidence = 0.9;
-        } else if (normalizedHeader.includes('等级')) {
-          dataType = 'grade';
-          confidence = 0.9;
-        } else if (normalizedHeader.includes('班名') || normalizedHeader.includes('班级排名')) {
-          dataType = 'rank_class';
-          confidence = 0.9;
-        } else if (normalizedHeader.includes('校名') || normalizedHeader.includes('学校排名')) {
-          dataType = 'rank_school';
-          confidence = 0.9;
-        } else if (normalizedHeader.includes('级名') || normalizedHeader.includes('年级排名')) {
-          dataType = 'rank_grade';
-          confidence = 0.9;
-        } else {
-          // 如果包含科目关键词但没有明确类型，默认为分数
-          dataType = 'score';
-          confidence = 0.8;
+          finalConfidence = Math.max(0.75, bestMatch.confidence); // 确保最低置信度
         }
       }
       
@@ -302,7 +427,7 @@ function identifyField(header: string): FieldMapping | null {
         mappedField,
         subject,
         dataType,
-        confidence
+        confidence: finalConfidence
       };
     }
   }
@@ -533,4 +658,92 @@ export function generateMappingSuggestions(headers: string[]): {
     confidence: analysis.confidence,
     issues
   };
+}
+
+/**
+ * ✅ AI增强匹配置信度计算函数
+ */
+function calculateKeywordMatchConfidence(normalizedHeader: string, originalHeader: string, keyword: string): number {
+  const normalizedKeyword = keyword.toLowerCase();
+  
+  // 精确匹配 - 最高置信度
+  if (normalizedHeader === normalizedKeyword) {
+    return 0.98;
+  }
+  
+  // 开头匹配 - 很高置信度
+  if (normalizedHeader.startsWith(normalizedKeyword)) {
+    return 0.95;
+  }
+  
+  // 结尾匹配 - 很高置信度
+  if (normalizedHeader.endsWith(normalizedKeyword)) {
+    return 0.93;
+  }
+  
+  // 包含匹配 - 需要考虑上下文
+  if (normalizedHeader.includes(normalizedKeyword)) {
+    // 单字符匹配需要更严格验证
+    if (normalizedKeyword.length === 1) {
+      // 确保不是作为其他词的一部分
+      const regex = new RegExp(`(?:^|[^\\u4e00-\\u9fa5a-z0-9])${normalizedKeyword}(?:[^\\u4e00-\\u9fa5a-z0-9]|$)`);
+      if (regex.test(normalizedHeader)) {
+        return 0.85;
+      }
+      return 0; // 单字符匹配但上下文不合适
+    }
+    
+    // 多字符匹配
+    if (normalizedKeyword.length >= 2) {
+      // 考虑关键词在整个字段中的比例
+      const ratio = normalizedKeyword.length / normalizedHeader.length;
+      if (ratio >= 0.5) return 0.92; // 关键词占很大比例
+      if (ratio >= 0.3) return 0.88; // 关键词占中等比例
+      return 0.82; // 关键词占较小比例
+    }
+  }
+  
+  // 模糊匹配 - 计算编辑距离
+  const distance = levenshteinDistance(normalizedHeader, normalizedKeyword);
+  const maxLength = Math.max(normalizedHeader.length, normalizedKeyword.length);
+  const similarity = 1 - (distance / maxLength);
+  
+  if (similarity >= 0.8) return 0.75;
+  if (similarity >= 0.6) return 0.65;
+  
+  return 0; // 无匹配
+}
+
+/**
+ * ✅ 获取匹配类型
+ */
+function getMatchType(normalizedHeader: string, normalizedKeyword: string): string {
+  if (normalizedHeader === normalizedKeyword) return 'exact';
+  if (normalizedHeader.startsWith(normalizedKeyword)) return 'prefix';
+  if (normalizedHeader.endsWith(normalizedKeyword)) return 'suffix';
+  if (normalizedHeader.includes(normalizedKeyword)) return 'contains';
+  return 'fuzzy';
+}
+
+/**
+ * ✅ 计算编辑距离（Levenshtein距离）
+ */
+function levenshteinDistance(str1: string, str2: string): number {
+  const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
+  
+  for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
+  for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+  
+  for (let j = 1; j <= str2.length; j++) {
+    for (let i = 1; i <= str1.length; i++) {
+      const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
+      matrix[j][i] = Math.min(
+        matrix[j][i - 1] + 1, // deletion
+        matrix[j - 1][i] + 1, // insertion
+        matrix[j - 1][i - 1] + indicator // substitution
+      );
+    }
+  }
+  
+  return matrix[str2.length][str1.length];
 } 
