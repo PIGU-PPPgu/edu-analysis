@@ -1,1 +1,0 @@
-{"success":true,"message":"文件处理完成","data":{"processedRows":"{{ $json.length }}","examInfo":{"examTitle":"{{ $('Code').first().json.exam_title }}","examType":"{{ $('Code').first().json.exam_type }}","examDate":"{{ $('Code').first().json.exam_date }}"}}}

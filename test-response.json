@@ -1,1 +1,0 @@
-{"success":true,"message":"文件处理完成","data":{"fileType":"{{ $('Code').first().json.fileType }}","fileName":"{{ $('Code').first().json.fileName }}","totalRows":"{{ $('Code').first().json.totalRows }}","processedRows":"{{ $json.processedData.length }}","examInfo":"{{ $json.examInfo }}"}}
