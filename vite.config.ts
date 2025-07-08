@@ -34,4 +34,30 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // 处理动态导入
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom')) {
+              return 'vendor';
+            }
+            if (id.includes('recharts') || id.includes('@nivo')) {
+              return 'charts';
+            }
+            if (id.includes('lodash') || id.includes('date-fns')) {
+              return 'utils-lib';
+            }
+            return 'vendor';
+          }
+        }
+      }
+    },
+    // 优化构建
+    target: 'es2015',
+    minify: 'esbuild', // 使用 esbuild 而不是 terser
+    sourcemap: false,
+    chunkSizeWarningLimit: 1000,
+  }
 }));
