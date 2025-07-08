@@ -1,5 +1,5 @@
 /**
- * 🎨 完整分析仪表板 - Positivus风格
+ * 完整分析仪表板 - Positivus风格
  * 集成所有高级分析组件，包括热力图、关联分析、学习行为分析等
  */
 
@@ -60,7 +60,7 @@ import IntelligentPortraitAnalysis from '@/components/portrait/advanced/Intellig
 import EnhancedStudentPortrait from '@/components/portrait/advanced/EnhancedStudentPortrait';
 import AbilityRadar from '@/components/profile/AbilityRadar';
 
-// 🎨 Positivus设计风格配色主题
+// Positivus设计风格配色主题
 const POSITIVUS_COLORS = {
   primary: '#B9FF66',
   secondary: '#191A23',
@@ -131,7 +131,7 @@ interface StatCardProps {
   className?: string;
 }
 
-// 🎨 Positivus风格统计卡片
+// Positivus风格统计卡片
 const StatCard: React.FC<StatCardProps> = ({
   title,
   value,
@@ -304,7 +304,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
 
   return (
     <div className="space-y-8 p-6 bg-[#F3F3F3] min-h-screen">
-      {/* 🎨 Positivus风格页面标题 */}
+      {/* Positivus风格页面标题 */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
         <div className="space-y-3">
           <h1 className="text-5xl font-black text-[#191A23] leading-tight">
@@ -314,7 +314,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
             </span>
           </h1>
           <p className="text-lg text-[#191A23]/80 font-medium max-w-2xl">
-            🚀 深度分析学生表现，发现隐藏模式和关联关系
+             深度分析学生表现，发现隐藏模式和关联关系
           </p>
         </div>
         
@@ -389,7 +389,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* 🎯 高级分析标签页 */}
+      {/*  高级分析标签页 */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
         <div className="overflow-x-auto">
           <TabsList className="grid w-fit grid-cols-6 bg-white border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] p-1">

@@ -182,7 +182,7 @@ const CrossAnalysis: React.FC<CrossAnalysisProps> = ({
           <div className="p-4 bg-[#F7931E] rounded-full border-2 border-black mx-auto mb-6 w-fit">
             <Grid className="h-16 w-16 text-white" />
           </div>
-          <p className="text-2xl font-black text-[#191A23] uppercase tracking-wide mb-3">⚠️ 数据不足</p>
+          <p className="text-2xl font-black text-[#191A23] uppercase tracking-wide mb-3">数据不足</p>
           <p className="text-[#191A23]/70 font-medium">需要至少2个班级和2个科目的数据进行交叉分析</p>
         </CardContent>
       </Card>
@@ -191,7 +191,7 @@ const CrossAnalysis: React.FC<CrossAnalysisProps> = ({
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* 🎨 Positivus风格标题和控制面板 */}
+      {/* Positivus风格标题和控制面板 */}
       <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#F7931E] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#F7931E]">
         <CardHeader className="bg-[#F7931E] border-b-2 border-black">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -212,7 +212,7 @@ const CrossAnalysis: React.FC<CrossAnalysisProps> = ({
             <div className="flex flex-wrap gap-3">
               <Select value={selectedClass} onValueChange={setSelectedClass}>
                 <SelectTrigger className="w-[140px] bg-white border-2 border-black font-medium text-[#191A23] focus:border-[#B9FF66] focus:ring-2 focus:ring-[#B9FF66] shadow-[2px_2px_0px_0px_#191A23] transition-all">
-                  <SelectValue placeholder="🏫 选择班级" />
+                  <SelectValue placeholder="选择班级" />
                 </SelectTrigger>
                 <SelectContent className="border-2 border-black shadow-[4px_4px_0px_0px_#191A23]">
                   <SelectItem value="all">全部班级</SelectItem>
@@ -229,7 +229,7 @@ const CrossAnalysis: React.FC<CrossAnalysisProps> = ({
               
               <Select value={selectedSubject} onValueChange={setSelectedSubject}>
                 <SelectTrigger className="w-[140px] bg-white border-2 border-black font-medium text-[#191A23] focus:border-[#9C88FF] focus:ring-2 focus:ring-[#9C88FF] shadow-[2px_2px_0px_0px_#191A23] transition-all">
-                  <SelectValue placeholder="📚 选择科目" />
+                  <SelectValue placeholder="选择科目" />
                 </SelectTrigger>
                 <SelectContent className="border-2 border-black shadow-[4px_4px_0px_0px_#191A23]">
                   <SelectItem value="all">全部科目</SelectItem>
@@ -256,87 +256,87 @@ const CrossAnalysis: React.FC<CrossAnalysisProps> = ({
         </CardHeader>
       </Card>
 
-      {/* 🎨 Positivus风格分析说明 */}
+      {/* Positivus风格分析说明 */}
       <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]">
         <CardHeader className="bg-[#B9FF66] border-b-2 border-black py-4">
           <CardTitle className="text-[#191A23] font-black uppercase tracking-wide flex items-center gap-2">
             <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
               <Info className="h-4 w-4 text-white" />
             </div>
-            📊 交叉分析说明
+            交叉分析说明
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-4 bg-[#F7931E]/10 border-2 border-[#F7931E] rounded-lg">
-              <p className="font-black text-[#191A23] mb-2">🎯 班级-科目分析</p>
+              <p className="font-black text-[#191A23] mb-2">班级-科目分析</p>
               <p className="text-sm text-[#191A23]/80">展示不同班级在各科目的表现差异</p>
             </div>
             <div className="p-4 bg-[#9C88FF]/10 border-2 border-[#9C88FF] rounded-lg">
-              <p className="font-black text-[#191A23] mb-2">📈 数据完整度</p>
+              <p className="font-black text-[#191A23] mb-2">数据完整度</p>
               <p className="text-sm text-[#191A23]/80">当前数据覆盖率为 {stats.dataCompleteness.toFixed(1)}%</p>
             </div>
             <div className="p-4 bg-[#FF6B6B]/10 border-2 border-[#FF6B6B] rounded-lg">
-              <p className="font-black text-[#191A23] mb-2">💡 应用建议</p>
+              <p className="font-black text-[#191A23] mb-2">应用建议</p>
               <p className="text-sm text-[#191A23]/80">识别教学重点，优化资源配置，实现精准教学</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* 🎨 Positivus风格统计概览 */}
+      {/* Positivus风格统计概览 */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#B9FF66]">
           <CardContent className="p-6 text-center">
             <div className="text-3xl font-black text-[#191A23] mb-2">{stats.totalClasses}</div>
-            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">🏫 班级数</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">班级数</div>
           </CardContent>
         </Card>
         
         <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#F7931E] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#F7931E]">
           <CardContent className="p-6 text-center">
             <div className="text-3xl font-black text-[#191A23] mb-2">{stats.totalSubjects}</div>
-            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">📚 科目数</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">科目数</div>
           </CardContent>
         </Card>
         
         <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#9C88FF] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#9C88FF]">
           <CardContent className="p-6 text-center">
             <div className="text-3xl font-black text-[#191A23] mb-2">{stats.totalStudents}</div>
-            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">👥 学生数</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">学生数</div>
           </CardContent>
         </Card>
         
         <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#FF6B6B] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#FF6B6B]">
           <CardContent className="p-6 text-center">
             <div className="text-3xl font-black text-[#191A23] mb-2">{stats.totalRecords}</div>
-            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">📊 成绩记录</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">成绩记录</div>
           </CardContent>
         </Card>
         
         <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#B9FF66]">
           <CardContent className="p-6 text-center">
             <div className="text-3xl font-black text-[#191A23] mb-2">{stats.avgClassSize.toFixed(1)}</div>
-            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">📏 平均班级规模</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">平均班级规模</div>
           </CardContent>
         </Card>
         
         <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#F7931E] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#F7931E]">
           <CardContent className="p-6 text-center">
             <div className="text-3xl font-black text-[#191A23] mb-2">{stats.dataCompleteness.toFixed(1)}%</div>
-            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">✅ 数据完整度</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">数据完整度</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* 🎨 Positivus风格班级-科目表现图表 */}
+      {/* Positivus风格班级-科目表现图表 */}
       <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#9C88FF]">
         <CardHeader className="bg-[#9C88FF] border-b-2 border-black">
           <CardTitle className="text-white font-black uppercase tracking-wide flex items-center gap-2">
             <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
               <BarChart3 className="h-5 w-5 text-white" />
             </div>
-            📊 班级-科目平均分对比
+            班级-科目平均分对比
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
@@ -374,14 +374,14 @@ const CrossAnalysis: React.FC<CrossAnalysisProps> = ({
         </CardContent>
       </Card>
 
-      {/* 🎨 Positivus风格详细数据表 */}
+      {/* Positivus风格详细数据表 */}
       <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]">
         <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
           <CardTitle className="text-[#191A23] font-black uppercase tracking-wide flex items-center gap-2">
             <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
               <Grid className="h-5 w-5 text-white" />
             </div>
-            📋 详细数据表
+            详细数据表
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
@@ -389,13 +389,13 @@ const CrossAnalysis: React.FC<CrossAnalysisProps> = ({
             <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-[#191A23]">
-                  <th className="border-2 border-black px-4 py-3 text-left text-white font-black uppercase tracking-wide">🏫 班级</th>
-                  <th className="border-2 border-black px-4 py-3 text-left text-white font-black uppercase tracking-wide">📚 科目</th>
-                  <th className="border-2 border-black px-4 py-3 text-right text-white font-black uppercase tracking-wide">📊 平均分</th>
-                  <th className="border-2 border-black px-4 py-3 text-right text-white font-black uppercase tracking-wide">👥 学生数</th>
-                  <th className="border-2 border-black px-4 py-3 text-right text-white font-black uppercase tracking-wide">🔝 最高分</th>
-                  <th className="border-2 border-black px-4 py-3 text-right text-white font-black uppercase tracking-wide">🔻 最低分</th>
-                  <th className="border-2 border-black px-4 py-3 text-right text-white font-black uppercase tracking-wide">📏 标准差</th>
+                  <th className="border-2 border-black px-4 py-3 text-left text-white font-black uppercase tracking-wide">班级</th>
+                  <th className="border-2 border-black px-4 py-3 text-left text-white font-black uppercase tracking-wide">科目</th>
+                  <th className="border-2 border-black px-4 py-3 text-right text-white font-black uppercase tracking-wide">平均分</th>
+                  <th className="border-2 border-black px-4 py-3 text-right text-white font-black uppercase tracking-wide">学生数</th>
+                  <th className="border-2 border-black px-4 py-3 text-right text-white font-black uppercase tracking-wide">最高分</th>
+                  <th className="border-2 border-black px-4 py-3 text-right text-white font-black uppercase tracking-wide">最低分</th>
+                  <th className="border-2 border-black px-4 py-3 text-right text-white font-black uppercase tracking-wide">标准差</th>
                 </tr>
               </thead>
               <tbody>
@@ -424,14 +424,14 @@ const CrossAnalysis: React.FC<CrossAnalysisProps> = ({
         </CardContent>
       </Card>
 
-      {/* 🎨 Positivus风格分析洞察 */}
+      {/* Positivus风格分析洞察 */}
       <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#FF6B6B]">
         <CardHeader className="bg-[#FF6B6B] border-b-2 border-black">
           <CardTitle className="text-white font-black uppercase tracking-wide flex items-center gap-2">
             <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
               <Target className="h-5 w-5 text-white" />
             </div>
-            🎯 分析洞察
+            分析洞察
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
@@ -441,7 +441,7 @@ const CrossAnalysis: React.FC<CrossAnalysisProps> = ({
               <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66]">
                 <CardContent className="p-4 bg-[#B9FF66]/20">
                   <p className="font-black text-[#191A23] text-lg mb-2">
-                    🏆 最佳表现: {filteredClassSubjectData[0].class_name} - {filteredClassSubjectData[0].subject}
+                    最佳表现: {filteredClassSubjectData[0].class_name} - {filteredClassSubjectData[0].subject}
                   </p>
                   <p className="font-medium text-[#191A23]">
                     平均分: <span className="font-black text-[#F7931E]">{filteredClassSubjectData[0].average}分</span>，
@@ -456,7 +456,7 @@ const CrossAnalysis: React.FC<CrossAnalysisProps> = ({
               <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#F7931E]">
                 <CardContent className="p-4 bg-[#F7931E]/20">
                   <p className="font-black text-[#191A23] text-lg mb-2">
-                    ⚠️ 需要关注: {filteredClassSubjectData[filteredClassSubjectData.length - 1].class_name} - {filteredClassSubjectData[filteredClassSubjectData.length - 1].subject}
+                    需要关注: {filteredClassSubjectData[filteredClassSubjectData.length - 1].class_name} - {filteredClassSubjectData[filteredClassSubjectData.length - 1].subject}
                   </p>
                   <p className="font-medium text-[#191A23]">
                     平均分: <span className="font-black text-[#FF6B6B]">{filteredClassSubjectData[filteredClassSubjectData.length - 1].average}分</span>，
@@ -469,7 +469,7 @@ const CrossAnalysis: React.FC<CrossAnalysisProps> = ({
             <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#9C88FF]">
               <CardHeader className="bg-[#9C88FF] border-b-2 border-black py-3">
                 <CardTitle className="text-white font-black uppercase tracking-wide">
-                  💡 教学建议
+                  教学建议
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 bg-[#9C88FF]/10">

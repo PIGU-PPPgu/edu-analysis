@@ -1,6 +1,6 @@
 /**
- * 🎨 现代化成绩分析仪表板
- * 参照 Figma Positivus 设计风格
+ * 现代化成绩分析仪表板
+ * 应用4色设计系统
  */
 
 import React, { useState, useMemo } from 'react';
@@ -59,31 +59,28 @@ import ClassBoxPlotChart from '@/components/analysis/comparison/ClassBoxPlotChar
 import { PredictiveAnalysis } from '@/components/analysis/advanced/PredictiveAnalysis';
 import AnomalyDetectionAnalysis from '@/components/analysis/advanced/AnomalyDetectionAnalysis';
 import SubjectCorrelationAnalysis from '@/components/analysis/advanced/SubjectCorrelationAnalysis';
+import EnhancedSubjectCorrelationMatrix from '@/components/analysis/advanced/EnhancedSubjectCorrelationMatrix';
+import CorrelationAnalysisDashboard from '@/components/analysis/dashboard/CorrelationAnalysisDashboard';
 import StatisticsOverview from '@/components/analysis/statistics/StatisticsOverview';
 import DataExport from '@/components/ui/data-export';
 import ChartExportButton from '@/components/ui/ChartExportButton';
 
-// 🎨 Positivus设计风格配色主题
+// 4色设计系统
 const POSITIVUS_COLORS = {
-  primary: '#B9FF66',    // Positivus经典亮绿色
-  secondary: '#191A23',  // 深色文字
-  accent: '#FED7D7',     // 粉红色
-  yellow: '#F7931E',     // 橙黄色
-  dark: '#191A23',       // 深灰色
-  light: '#F3F3F3',      // 浅灰背景
-  white: '#FFFFFF',      // 纯白色
+  primary: '#B9FF66',    // 绿色
+  secondary: '#191A23',  // 黑色
+  accent: '#6B7280',     // 灰色
+  white: '#FFFFFF',      // 白色
 }
 
 const CHART_COLORS = {
-  primary: '#B9FF66',    // Positivus绿色
-  secondary: '#191A23',  // 深色
-  accent: '#F7931E',     // 橙色
-  danger: '#FF6B6B',     // 红色
-  purple: '#9C88FF',     // 紫色
-  pink: '#FED7D7'        // 粉色
+  primary: '#B9FF66',    // 绿色
+  secondary: '#191A23',  // 黑色
+  accent: '#6B7280',     // 灰色
+  background: '#FFFFFF'  // 白色
 };
 
-const GRADE_COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+const GRADE_COLORS = ['#B9FF66', '#191A23', '#6B7280', '#FFFFFF'];
 
 interface StatCardProps {
   title: string;
@@ -92,11 +89,11 @@ interface StatCardProps {
   icon: React.ElementType;
   trend?: 'up' | 'down' | 'neutral';
   trendValue?: string;
-  color?: 'green' | 'blue' | 'yellow' | 'red' | 'purple';
+  color?: 'green' | 'black' | 'gray' | 'white';
   className?: string;
 }
 
-// 🎨 Positivus风格统计卡片
+// Positivus风格统计卡片
 const StatCard: React.FC<StatCardProps> = ({
   title,
   value,
@@ -104,32 +101,29 @@ const StatCard: React.FC<StatCardProps> = ({
   icon: Icon,
   trend,
   trendValue,
-  color = 'blue',
+  color = 'green',
   className
 }) => {
-  // Positivus风格的卡片样式
+  // 4色设计系统的卡片样式
   const positivusColorClasses = {
     green: 'bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]',
-    blue: 'bg-white border-2 border-black shadow-[6px_6px_0px_0px_#191A23]',
-    yellow: 'bg-white border-2 border-black shadow-[6px_6px_0px_0px_#F7931E]',
-    red: 'bg-white border-2 border-black shadow-[6px_6px_0px_0px_#FF6B6B]',
-    purple: 'bg-white border-2 border-black shadow-[6px_6px_0px_0px_#9C88FF]'
+    black: 'bg-white border-2 border-black shadow-[6px_6px_0px_0px_#191A23]',
+    gray: 'bg-white border-2 border-black shadow-[6px_6px_0px_0px_#6B7280]',
+    white: 'bg-white border-2 border-black shadow-[6px_6px_0px_0px_#6B7280]'
   };
 
   const iconBgClasses = {
     green: 'bg-[#B9FF66]',
-    blue: 'bg-[#191A23]',
-    yellow: 'bg-[#F7931E]',
-    red: 'bg-[#FF6B6B]',
-    purple: 'bg-[#9C88FF]'
+    black: 'bg-[#191A23]',
+    gray: 'bg-[#6B7280]',
+    white: 'bg-white'
   };
 
   const iconColorClasses = {
     green: 'text-black',
-    blue: 'text-white',
-    yellow: 'text-white',
-    red: 'text-white',
-    purple: 'text-white'
+    black: 'text-white',
+    gray: 'text-white',
+    white: 'text-black'
   };
 
   return (
@@ -161,8 +155,8 @@ const StatCard: React.FC<StatCardProps> = ({
                 <div className={cn(
                   "inline-flex items-center gap-1 px-3 py-1 rounded-full border-2 border-black text-sm font-bold",
                   trend === 'up' && "bg-[#B9FF66] text-black",
-                  trend === 'down' && "bg-[#FF6B6B] text-white",
-                  trend === 'neutral' && "bg-[#F3F3F3] text-black"
+                  trend === 'down' && "bg-[#6B7280] text-white",
+                  trend === 'neutral' && "bg-white text-black"
                 )}>
                   {trend === 'up' && <ArrowUpRight className="w-4 h-4" />}
                   {trend === 'down' && <ArrowDownRight className="w-4 h-4" />}
@@ -174,7 +168,7 @@ const StatCard: React.FC<StatCardProps> = ({
 
             {/* 副标题 */}
             {subtitle && (
-              <p className="text-sm text-[#191A23]/70 font-medium leading-relaxed">
+              <p className="text-sm text-[#6B7280] font-medium leading-relaxed">
                 {subtitle}
               </p>
             )}
@@ -268,8 +262,8 @@ const ModernGradeAnalysisDashboard: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center space-y-4">
-          <RefreshCw className="w-8 h-8 animate-spin text-blue-600 mx-auto" />
-          <p className="text-gray-600">正在加载成绩数据...</p>
+          <RefreshCw className="w-8 h-8 animate-spin text-[#B9FF66] mx-auto" />
+          <p className="text-[#6B7280]">正在加载成绩数据...</p>
         </div>
       </div>
     );
@@ -295,8 +289,8 @@ const ModernGradeAnalysisDashboard: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8 p-6 bg-[#F3F3F3] min-h-screen">
-      {/* 🎨 Positivus风格页面标题和操作栏 */}
+    <div className="space-y-8 p-6 bg-white min-h-screen">
+      {/* Positivus风格页面标题和操作栏 */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
         <div className="space-y-3">
           <h1 className="text-5xl font-black text-[#191A23] leading-tight">
@@ -305,15 +299,15 @@ const ModernGradeAnalysisDashboard: React.FC = () => {
               ANALYSIS
             </span>
           </h1>
-          <p className="text-lg text-[#191A23]/80 font-medium max-w-2xl">
-            🚀 全面分析学生成绩表现，发现学习趋势和改进机会
+          <p className="text-lg text-[#6B7280] font-medium max-w-2xl">
+            全面分析学生成绩表现，发现学习趋势和改进机会
           </p>
         </div>
         
         <div className="flex items-center gap-4">
           <Button
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 border-2 border-black bg-white hover:bg-[#F3F3F3] text-black font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all"
+            className="flex items-center gap-2 border-2 border-black bg-white hover:bg-white text-black font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all"
           >
             <Filter className="w-4 h-4" />
             筛选器
@@ -326,13 +320,13 @@ const ModernGradeAnalysisDashboard: React.FC = () => {
           
           <Button
             onClick={refreshData}
-            className="flex items-center gap-2 border-2 border-black bg-[#F7931E] hover:bg-[#E8821C] text-white font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all"
+            className="flex items-center gap-2 border-2 border-black bg-[#B9FF66] hover:bg-[#B9FF66] text-black font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all"
           >
             <RefreshCw className="w-4 h-4" />
             刷新
           </Button>
           
-          <Button className="flex items-center gap-2 border-2 border-black bg-[#B9FF66] hover:bg-[#A8E055] text-black font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all">
+          <Button className="flex items-center gap-2 border-2 border-black bg-[#6B7280] hover:bg-[#6B7280] text-white font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all">
             <Download className="w-4 h-4" />
             导出报告
           </Button>
@@ -362,7 +356,7 @@ const ModernGradeAnalysisDashboard: React.FC = () => {
             value={statistics.totalStudents}
             subtitle="参与分析的学生数量"
             icon={Users}
-            color="blue"
+            color="black"
           />
           
           <StatCard
@@ -380,7 +374,7 @@ const ModernGradeAnalysisDashboard: React.FC = () => {
             value={`${Math.round(statistics.passRate * 10) / 10}%`}
             subtitle="分数 ≥ 60分的比例"
             icon={Target}
-            color="purple"
+            color="gray"
             trend={statistics.passRate >= 80 ? 'up' : statistics.passRate >= 60 ? 'neutral' : 'down'}
             trendValue={statistics.passRate >= 80 ? '良好' : '需改进'}
           />
@@ -390,14 +384,14 @@ const ModernGradeAnalysisDashboard: React.FC = () => {
             value={`${Math.round(statistics.excellentRate * 10) / 10}%`}
             subtitle="分数 ≥ 90分的比例"
             icon={Award}
-            color="yellow"
+            color="white"
             trend={statistics.excellentRate >= 20 ? 'up' : statistics.excellentRate >= 10 ? 'neutral' : 'down'}
             trendValue={statistics.excellentRate >= 20 ? '优秀' : '有潜力'}
           />
         </div>
       )}
 
-      {/* 🎯 Positivus风格主要分析内容 */}
+      {/*  Positivus风格主要分析内容 */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
         <div className="overflow-x-auto">
           <TabsList className="grid w-fit grid-cols-8 bg-white border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] p-1">
@@ -490,7 +484,7 @@ const ModernGradeAnalysisDashboard: React.FC = () => {
                           return (
                             <div className="bg-white p-3 shadow-lg rounded-lg border">
                               <p className="font-medium">{label}分</p>
-                              <p className="text-blue-600">
+                              <p className="text-[#B9FF66]">
                                 {payload[0].value}人 ({Math.round(Number(payload[0].payload.percentage) * 10) / 10}%)
                               </p>
                             </div>
@@ -514,7 +508,7 @@ const ModernGradeAnalysisDashboard: React.FC = () => {
               <Card className="shadow-lg border-0">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Award className="w-5 h-5 text-purple-600" />
+                    <Award className="w-5 h-5 text-[#B9FF66]" />
                     等级分布
                   </CardTitle>
                 </CardHeader>
@@ -539,7 +533,7 @@ const ModernGradeAnalysisDashboard: React.FC = () => {
                             return (
                               <div className="bg-white p-3 shadow-lg rounded-lg border">
                                 <p className="font-medium">{payload[0].payload.grade}等级</p>
-                                <p className="text-blue-600">
+                                <p className="text-[#B9FF66]">
                                   {payload[0].value}人 ({Math.round(payload[0].payload.percentage * 10) / 10}%)
                                 </p>
                               </div>
@@ -611,7 +605,7 @@ const ModernGradeAnalysisDashboard: React.FC = () => {
               selectedClasses: availableClasses,
               selectedSubjects: availableSubjects
             }}
-            className="border-2 border-black shadow-[6px_6px_0px_0px_#F7931E]"
+            className="border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]"
           />
         </TabsContent>
 
@@ -620,21 +614,25 @@ const ModernGradeAnalysisDashboard: React.FC = () => {
           <StatisticsOverview 
             gradeData={filteredGradeData}
             examList={examList}
-            className="border-2 border-black shadow-[6px_6px_0px_0px_#F7931E]"
+            className="border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]"
           />
         </TabsContent>
 
         {/* 高级分析标签页 */}
         <TabsContent value="advanced" className="space-y-6">
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            {/* 科目相关性分析 */}
-            <SubjectCorrelationAnalysis 
-              gradeData={filteredGradeData}
-              className="border-2 border-black shadow-[6px_6px_0px_0px_#9C88FF]"
+          {/* 增强版相关性分析仪表板 */}
+          <CorrelationAnalysisDashboard className="w-full" />
+          
+          {/* 传统高级分析组件 */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-8">
+            {/* 班级箱线图对比 */}
+            <ClassBoxPlotChart 
+              data={filteredGradeData}
+              className="border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]"
             />
             
-            {/* 班级箱线图 */}
-            <ClassBoxPlotChart 
+            {/* 班级综合对比 */}
+            <ClassComparisonChart 
               data={filteredGradeData}
               className="border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]"
             />
@@ -667,12 +665,12 @@ const ModernGradeAnalysisDashboard: React.FC = () => {
                 <DataExport 
                   data={filteredGradeData}
                   filename="成绩数据"
-                  className="border-2 border-black bg-[#B9FF66] hover:bg-[#A8E055] text-black font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23]"
+                  className="border-2 border-black bg-[#B9FF66] hover:bg-[#B9FF66] text-black font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23]"
                 />
                 <ChartExportButton 
                   chartId="grade-analysis-charts"
                   filename="成绩分析图表"
-                  className="border-2 border-black bg-[#F7931E] hover:bg-[#E8821C] text-white font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23]"
+                  className="border-2 border-black bg-[#6B7280] hover:bg-[#6B7280] text-white font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23]"
                 />
               </div>
             </div>

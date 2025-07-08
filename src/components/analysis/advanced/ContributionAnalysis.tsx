@@ -243,7 +243,7 @@ const ContributionAnalysis: React.FC<ContributionAnalysisProps> = ({
           <div className="p-4 bg-[#B9FF66] rounded-full border-2 border-black mx-auto mb-6 w-fit">
             <Users className="h-16 w-16 text-white" />
           </div>
-          <p className="text-2xl font-black text-[#191A23] uppercase tracking-wide mb-3">📊 暂无学生数据</p>
+          <p className="text-2xl font-black text-[#191A23] uppercase tracking-wide mb-3">暂无学生数据</p>
           <p className="text-[#191A23]/70 font-medium">需要学生成绩数据进行贡献度分析</p>
         </CardContent>
       </Card>
@@ -252,7 +252,7 @@ const ContributionAnalysis: React.FC<ContributionAnalysisProps> = ({
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* 🎨 Positivus风格标题和控制面板 */}
+      {/* Positivus风格标题和控制面板 */}
       <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#B9FF66]">
         <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -262,7 +262,7 @@ const ContributionAnalysis: React.FC<ContributionAnalysisProps> = ({
               </div>
               <div>
                 <CardTitle className="text-2xl font-black text-white uppercase tracking-wide">
-                  🎯 {title}
+                  {title}
                 </CardTitle>
                 <p className="text-white/90 font-medium mt-1">
                   分析 {stats.totalStudents} 名学生在各科目相对于班级的表现贡献度
@@ -273,7 +273,7 @@ const ContributionAnalysis: React.FC<ContributionAnalysisProps> = ({
             <div className="flex flex-wrap gap-3">
               <Select value={selectedClass} onValueChange={setSelectedClass}>
                 <SelectTrigger className="w-[140px] bg-white border-2 border-black font-medium text-[#191A23] focus:border-[#B9FF66] focus:ring-2 focus:ring-[#B9FF66] shadow-[2px_2px_0px_0px_#191A23] transition-all">
-                  <SelectValue placeholder="🏫 选择班级" />
+                  <SelectValue placeholder="选择班级" />
                 </SelectTrigger>
                 <SelectContent className="border-2 border-black shadow-[4px_4px_0px_0px_#191A23]">
                   <SelectItem value="all">全部班级</SelectItem>
@@ -290,7 +290,7 @@ const ContributionAnalysis: React.FC<ContributionAnalysisProps> = ({
               
               <Select value={selectedStudent} onValueChange={setSelectedStudent}>
                 <SelectTrigger className="w-[140px] bg-white border-2 border-black font-medium text-[#191A23] focus:border-[#B9FF66] focus:ring-2 focus:ring-[#B9FF66] shadow-[2px_2px_0px_0px_#191A23] transition-all">
-                  <SelectValue placeholder="👤 选择学生" />
+                  <SelectValue placeholder=" 选择学生" />
                 </SelectTrigger>
                 <SelectContent className="border-2 border-black shadow-[4px_4px_0px_0px_#191A23]">
                   <SelectItem value="all">全部学生</SelectItem>
@@ -317,47 +317,47 @@ const ContributionAnalysis: React.FC<ContributionAnalysisProps> = ({
         </CardHeader>
       </Card>
 
-      {/* 🎨 Positivus风格分析说明 */}
+      {/* Positivus风格分析说明 */}
       <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]">
         <CardHeader className="bg-[#B9FF66] border-b-2 border-black py-4">
           <CardTitle className="text-[#191A23] font-black uppercase tracking-wide flex items-center gap-2">
             <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
               <Info className="h-4 w-4 text-white" />
             </div>
-            📊 贡献度分析说明
+            贡献度分析说明
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-4 bg-[#B9FF66]/10 border-2 border-[#B9FF66] rounded-lg">
-              <p className="font-black text-[#191A23] mb-2">🧮 贡献度计算</p>
+              <p className="font-black text-[#191A23] mb-2">贡献度计算</p>
               <p className="text-sm text-[#191A23]/80">(学生分数 - 班级平均分) / 班级平均分 × 100%</p>
             </div>
             <div className="p-4 bg-[#B9FF66]/10 border-2 border-[#B9FF66] rounded-lg">
-              <p className="font-black text-[#191A23] mb-2">✅ 正值含义</p>
+              <p className="font-black text-[#191A23] mb-2">正值含义</p>
               <p className="text-sm text-[#191A23]/80">表示高于班级平均水平，对班级成绩有正向贡献</p>
             </div>
             <div className="p-4 bg-[#FF6B6B]/10 border-2 border-[#FF6B6B] rounded-lg">
-              <p className="font-black text-[#191A23] mb-2">⚠️ 负值含义</p>
+              <p className="font-black text-[#191A23] mb-2">负值含义</p>
               <p className="text-sm text-[#191A23]/80">表示低于班级平均水平，需要重点关注和帮助</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* 🎨 Positivus风格统计概览 */}
+      {/* Positivus风格统计概览 */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#B9FF66]">
           <CardContent className="p-6 text-center">
             <div className="text-3xl font-black text-[#191A23] mb-2">{stats.totalStudents}</div>
-            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">👥 总学生数</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">总学生数</div>
           </CardContent>
         </Card>
         
         <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#B9FF66]">
           <CardContent className="p-6 text-center">
             <div className="text-3xl font-black text-[#191A23] mb-2">{stats.topPerformers}</div>
-            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">🌟 优秀学生</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">优秀学生</div>
             <div className="text-xs font-medium text-[#191A23]/70 mt-1">贡献度&gt;10%</div>
           </CardContent>
         </Card>
@@ -365,7 +365,7 @@ const ContributionAnalysis: React.FC<ContributionAnalysisProps> = ({
         <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#B9FF66]">
           <CardContent className="p-6 text-center">
             <div className="text-3xl font-black text-[#191A23] mb-2">{stats.balancedStudents}</div>
-            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">⚖️ 均衡学生</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">均衡学生</div>
             <div className="text-xs font-medium text-[#191A23]/70 mt-1">-10%≤贡献度≤10%</div>
           </CardContent>
         </Card>
@@ -373,7 +373,7 @@ const ContributionAnalysis: React.FC<ContributionAnalysisProps> = ({
         <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#FF6B6B] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#FF6B6B]">
           <CardContent className="p-6 text-center">
             <div className="text-3xl font-black text-[#191A23] mb-2">{stats.needsSupport}</div>
-            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">🆘 需要帮助</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">需要帮助</div>
             <div className="text-xs font-medium text-[#191A23]/70 mt-1">贡献度&lt;-10%</div>
           </CardContent>
         </Card>
@@ -381,19 +381,19 @@ const ContributionAnalysis: React.FC<ContributionAnalysisProps> = ({
         <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#B9FF66]">
           <CardContent className="p-6 text-center">
             <div className="text-3xl font-black text-[#191A23] mb-2">{stats.avgContribution}%</div>
-            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">📊 平均贡献度</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">平均贡献度</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* 🎨 Positivus风格学生贡献度排行 */}
+      {/* Positivus风格学生贡献度排行 */}
       <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]">
         <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
           <CardTitle className="text-white font-black uppercase tracking-wide flex items-center gap-2">
             <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
               <BarChart3 className="h-5 w-5 text-white" />
             </div>
-            🏆 学生总贡献度排行
+            学生总贡献度排行
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
@@ -432,7 +432,7 @@ const ContributionAnalysis: React.FC<ContributionAnalysisProps> = ({
         </CardContent>
       </Card>
 
-      {/* 🎨 Positivus风格学生详细信息 */}
+      {/* Positivus风格学生详细信息 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {filteredStudents.slice(0, 6).map((student) => (
           <Card key={`${student.student_id}-${student.class_name}`} className="border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#B9FF66]">
@@ -453,14 +453,14 @@ const ContributionAnalysis: React.FC<ContributionAnalysisProps> = ({
                 </Badge>
               </CardTitle>
               <p className="text-white/90 font-medium">
-                📚 {student.class_name} | 🆔 学号: {student.student_id}
+                {student.class_name} | 学号: {student.student_id}
               </p>
             </CardHeader>
             <CardContent className="p-6">
               <div className="space-y-6">
                 {/* 科目贡献度列表 */}
                 <div className="space-y-3">
-                  <h4 className="font-black text-[#191A23] uppercase tracking-wide mb-3">📊 科目贡献度详情</h4>
+                  <h4 className="font-black text-[#191A23] uppercase tracking-wide mb-3">科目贡献度详情</h4>
                   {student.subjects.map((subject, index) => (
                     <Card key={`${student.student_id}-${subject.subject}-${index}`} className="border-2 border-black shadow-[2px_2px_0px_0px_#191A23]">
                       <CardContent className="p-3">
@@ -493,7 +493,7 @@ const ContributionAnalysis: React.FC<ContributionAnalysisProps> = ({
                     <CardHeader className="bg-[#B9FF66] border-b-2 border-black py-2">
                       <CardTitle className="text-xs font-black text-[#191A23] uppercase tracking-wide flex items-center gap-1">
                         <Star className="h-3 w-3" />
-                        ✨ 优势科目
+                        优势科目
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="p-3">
@@ -511,7 +511,7 @@ const ContributionAnalysis: React.FC<ContributionAnalysisProps> = ({
                     <CardHeader className="bg-[#FF6B6B] border-b-2 border-black py-2">
                       <CardTitle className="text-xs font-black text-white uppercase tracking-wide flex items-center gap-1">
                         <AlertTriangle className="h-3 w-3" />
-                        🎯 需要提升
+                        需要提升
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="p-3">

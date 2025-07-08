@@ -75,7 +75,7 @@ const calculateStandardDeviation = (values: number[], mean: number): number => {
   return Math.sqrt(variance);
 };
 
-// ✅ 增强异常检测算法 - 多维度异常检测，提升精度和减少误报
+// 增强异常检测算法 - 多维度异常检测，提升精度和减少误报
 const detectAnomalies = (gradeData: GradeRecord[]): AnomalyData[] => {
   const anomalies: AnomalyData[] = [];
   
@@ -122,7 +122,7 @@ const detectAnomalies = (gradeData: GradeRecord[]): AnomalyData[] => {
   return anomalies.sort((a, b) => getAnomalyPriority(b) - getAnomalyPriority(a));
 };
 
-// ✅ 数据预处理增强
+// 数据预处理增强
 const preprocessAnomalyData = (gradeData: GradeRecord[]) => {
   return gradeData
     .filter(record => record.subject && record.score && !isNaN(Number(record.score)))
@@ -135,7 +135,7 @@ const preprocessAnomalyData = (gradeData: GradeRecord[]) => {
     .sort((a, b) => a.examDate.getTime() - b.examDate.getTime());
 };
 
-// ✅ 分组数据用于异常检测
+// 分组数据用于异常检测
 const groupDataForAnomalyDetection = (processedData: any[]) => {
   const groups: Record<string, any[]> = {};
   
@@ -149,7 +149,7 @@ const groupDataForAnomalyDetection = (processedData: any[]) => {
   return groups;
 };
 
-// ✅ 统计异常检测（增强版）
+// 统计异常检测（增强版）
 const detectStatisticalAnomalies = (subject: string, records: any[]): AnomalyData[] => {
   const anomalies: AnomalyData[] = [];
   const scores = records.map(r => r.score);
@@ -188,7 +188,7 @@ const detectStatisticalAnomalies = (subject: string, records: any[]): AnomalyDat
   return anomalies;
 };
 
-// ✅ 趋势异常检测
+// 趋势异常检测
 const detectTrendAnomalies = (subject: string, records: any[]): AnomalyData[] => {
   const anomalies: AnomalyData[] = [];
   
@@ -228,7 +228,7 @@ const detectTrendAnomalies = (subject: string, records: any[]): AnomalyData[] =>
   return anomalies;
 };
 
-// ✅ 个人历史异常检测
+// 个人历史异常检测
 const detectPersonalAnomalies = (subject: string, records: any[]): AnomalyData[] => {
   const anomalies: AnomalyData[] = [];
   const studentGroups = groupRecordsByStudent(records);
@@ -264,7 +264,7 @@ const detectPersonalAnomalies = (subject: string, records: any[]): AnomalyData[]
   return anomalies;
 };
 
-// ✅ 上下文感知异常检测
+// 上下文感知异常检测
 const detectContextualAnomalies = (subject: string, records: any[]): AnomalyData[] => {
   const anomalies: AnomalyData[] = [];
   
@@ -301,7 +301,7 @@ const detectContextualAnomalies = (subject: string, records: any[]): AnomalyData
   return anomalies;
 };
 
-// ✅ 模式异常检测
+// 模式异常检测
 const detectPatternAnomalies = (subject: string, records: any[]): AnomalyData[] => {
   const anomalies: AnomalyData[] = [];
   
@@ -338,7 +338,7 @@ const detectPatternAnomalies = (subject: string, records: any[]): AnomalyData[] 
   return anomalies;
 };
 
-// ✅ 辅助函数实现
+// 辅助函数实现
 
 const calculateEnhancedStatistics = (scores: number[]) => {
   const sorted = [...scores].sort((a, b) => a - b);
@@ -461,7 +461,7 @@ const getAnomalyPriority = (anomaly: AnomalyData) => {
   return Math.abs(anomaly.z_score) * severityWeight[anomaly.severity] * typeWeight[anomaly.anomaly_type];
 };
 
-// 🎨 获取Positivus风格异常类型的颜色和图标
+// 获取Positivus风格异常类型的颜色和图标
 const getAnomalyStyle = (type: AnomalyData['anomaly_type'], severity: AnomalyData['severity']) => {
   const baseStyles = {
     outlier_high: { 
@@ -504,17 +504,17 @@ const getAnomalyStyle = (type: AnomalyData['anomaly_type'], severity: AnomalyDat
   return baseStyles[type] || baseStyles.missing_pattern;
 };
 
-// 🎨 获取Positivus风格严重程度的样式
+// 获取Positivus风格严重程度的样式
 const getSeverityBadge = (severity: AnomalyData['severity']) => {
   switch (severity) {
     case 'high':
-      return <Badge className="bg-[#B9FF66] text-white border-2 border-black font-black shadow-[2px_2px_0px_0px_#191A23]">🚨 高风险</Badge>;
+      return <Badge className="bg-[#B9FF66] text-white border-2 border-black font-black shadow-[2px_2px_0px_0px_#191A23]">高风险</Badge>;
     case 'medium':
-      return <Badge className="bg-[#B9FF66] text-white border-2 border-black font-black shadow-[2px_2px_0px_0px_#191A23]">⚠️ 中风险</Badge>;
+      return <Badge className="bg-[#B9FF66] text-white border-2 border-black font-black shadow-[2px_2px_0px_0px_#191A23]">中风险</Badge>;
     case 'low':
-      return <Badge className="bg-[#B9FF66] text-[#191A23] border-2 border-black font-black shadow-[2px_2px_0px_0px_#191A23]">✅ 低风险</Badge>;
+      return <Badge className="bg-[#B9FF66] text-[#191A23] border-2 border-black font-black shadow-[2px_2px_0px_0px_#191A23]">低风险</Badge>;
     default:
-      return <Badge className="bg-[#F3F3F3] text-[#191A23] border-2 border-black font-black shadow-[2px_2px_0px_0px_#191A23]">❓ 未知</Badge>;
+      return <Badge className="bg-[#F3F3F3] text-[#191A23] border-2 border-black font-black shadow-[2px_2px_0px_0px_#191A23]">未知</Badge>;
   }
 };
 
@@ -606,7 +606,7 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
           <div className="p-4 bg-[#B9FF66] rounded-full border-2 border-black mx-auto mb-6 w-fit">
             <AlertTriangle className="h-16 w-16 text-white" />
           </div>
-          <p className="text-2xl font-black text-[#191A23] uppercase tracking-wide mb-3">📊 暂无成绩数据</p>
+          <p className="text-2xl font-black text-[#191A23] uppercase tracking-wide mb-3">暂无成绩数据</p>
           <p className="text-[#191A23]/70 font-medium">请先导入学生成绩数据进行异常检测</p>
         </CardContent>
       </Card>
@@ -615,7 +615,7 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* 🎨 Positivus风格标题和控制面板 */}
+      {/* Positivus风格标题和控制面板 */}
       <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#B9FF66]">
         <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -625,7 +625,7 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
               </div>
               <div>
                 <CardTitle className="text-2xl font-black text-white uppercase tracking-wide">
-                  🔍 {title}
+                  {title}
                 </CardTitle>
                 <p className="text-white/90 font-medium mt-1">
                   检测 {stats.totalStudents} 名学生在 {subjects.length} 个科目中的异常表现
@@ -650,51 +650,51 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
         </CardHeader>
       </Card>
 
-      {/* 🎨 Positivus风格分析说明 */}
+      {/* Positivus风格分析说明 */}
       <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#9C88FF]">
         <CardHeader className="bg-[#9C88FF] border-b-2 border-black py-4">
           <CardTitle className="text-white font-black uppercase tracking-wide flex items-center gap-2">
             <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
               <Info className="h-4 w-4 text-white" />
             </div>
-            📊 异常检测说明
+            异常检测说明
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="p-4 bg-[#9C88FF]/10 border-2 border-[#9C88FF] rounded-lg">
-              <p className="font-black text-[#191A23] mb-2">🔬 检测方法</p>
+              <p className="font-black text-[#191A23] mb-2">检测方法</p>
               <p className="text-sm text-[#191A23]/80">基于Z分数统计方法，识别偏离正常范围的成绩</p>
             </div>
             <div className="p-4 bg-[#B9FF66]/10 border-2 border-[#B9FF66] rounded-lg">
-              <p className="font-black text-[#191A23] mb-2">📏 异常阈值</p>
+              <p className="font-black text-[#191A23] mb-2">异常阈值</p>
               <p className="text-sm text-[#191A23]/80">Z分数绝对值 &gt; 2.5 为异常，&gt; 3.0 为极端异常</p>
             </div>
             <div className="p-4 bg-[#B9FF66]/10 border-2 border-[#B9FF66] rounded-lg">
-              <p className="font-black text-[#191A23] mb-2">⚠️ 风险等级</p>
+              <p className="font-black text-[#191A23] mb-2">风险等级</p>
               <p className="text-sm text-[#191A23]/80">高风险需要立即关注，中风险建议跟进</p>
             </div>
             <div className="p-4 bg-[#B9FF66]/10 border-2 border-[#B9FF66] rounded-lg">
-              <p className="font-black text-[#191A23] mb-2">💡 应用建议</p>
+              <p className="font-black text-[#191A23] mb-2">应用建议</p>
               <p className="text-sm text-[#191A23]/80">结合学生具体情况分析，避免单纯依赖数据判断</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* 🎨 Positivus风格统计概览 */}
+      {/* Positivus风格统计概览 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#9C88FF] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#9C88FF]">
           <CardContent className="p-6 text-center">
             <div className="text-3xl font-black text-[#191A23] mb-2">{stats.totalStudents}</div>
-            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">👥 总学生数</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">总学生数</div>
           </CardContent>
         </Card>
         
         <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#B9FF66]">
           <CardContent className="p-6 text-center">
             <div className="text-3xl font-black text-[#191A23] mb-2">{stats.affectedStudents}</div>
-            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">🔍 异常学生数</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">异常学生数</div>
             <div className="text-xs font-medium text-[#191A23]/70 mt-1">({stats.affectedRate.toFixed(1)}%)</div>
           </CardContent>
         </Card>
@@ -702,26 +702,26 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
         <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#B9FF66]">
           <CardContent className="p-6 text-center">
             <div className="text-3xl font-black text-[#191A23] mb-2">{stats.highRiskCount}</div>
-            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">🚨 高风险异常</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">高风险异常</div>
           </CardContent>
         </Card>
         
         <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#B9FF66]">
           <CardContent className="p-6 text-center">
             <div className="text-3xl font-black text-[#191A23] mb-2">{stats.mediumRiskCount}</div>
-            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">⚠️ 中风险异常</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">中风险异常</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* 🎨 Positivus风格科目异常统计 */}
+      {/* Positivus风格科目异常统计 */}
       <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]">
         <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
           <CardTitle className="text-white font-black uppercase tracking-wide flex items-center gap-2">
             <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
               <BarChart3 className="h-5 w-5 text-white" />
             </div>
-            📊 各科目异常统计
+            各科目异常统计
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
@@ -778,14 +778,14 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
         </CardContent>
       </Card>
 
-      {/* 🎨 Positivus风格异常详情列表 */}
+      {/* Positivus风格异常详情列表 */}
       <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#9C88FF]">
         <CardHeader className="bg-[#9C88FF] border-b-2 border-black">
           <CardTitle className="text-white font-black uppercase tracking-wide flex items-center gap-2">
             <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
               <Eye className="h-5 w-5 text-white" />
             </div>
-            🔍 异常详情列表
+            异常详情列表
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
@@ -795,7 +795,7 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
                 <div className="p-4 bg-[#9C88FF] rounded-full border-2 border-black mx-auto mb-6 w-fit">
                   <AlertTriangle className="h-12 w-12 text-white" />
                 </div>
-                <p className="text-xl font-black text-[#191A23] uppercase tracking-wide mb-2">✅ 未检测到异常成绩</p>
+                <p className="text-xl font-black text-[#191A23] uppercase tracking-wide mb-2">未检测到异常成绩</p>
                 <p className="text-[#191A23]/70 font-medium">所有学生成绩都在正常范围内</p>
               </div>
             ) : (
@@ -828,7 +828,7 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
                               实际: <span className="font-bold text-[#B9FF66]">{anomaly.score}分</span> • 预期: <span className="font-bold text-[#9C88FF]">{anomaly.expected_score.toFixed(1)}分</span>
                             </p>
                             <p className="text-sm font-medium text-[#191A23] mt-2 leading-relaxed">
-                              📝 {anomaly.description}
+                              {anomaly.description}
                             </p>
                           </div>
                         </div>
@@ -854,7 +854,7 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
         </CardContent>
       </Card>
 
-      {/* 🎨 Positivus风格建议和行动指南 */}
+      {/* Positivus风格建议和行动指南 */}
       {stats.totalAnomalies > 0 && (
         <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]">
           <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
@@ -862,7 +862,7 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
               <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
                 <Users className="h-5 w-5 text-white" />
               </div>
-              💡 建议和行动指南
+              建议和行动指南
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
@@ -871,7 +871,7 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
                 <Card className="border-2 border-[#B9FF66] shadow-[4px_4px_0px_0px_#B9FF66]">
                   <CardContent className="p-4 bg-[#B9FF66]/20">
                     <p className="font-black text-[#191A23] text-lg mb-2">
-                      🚨 高风险异常 ({stats.highRiskCount} 个)
+                      高风险异常 ({stats.highRiskCount} 个)
                     </p>
                     <p className="font-medium text-[#191A23] leading-relaxed">
                       建议立即与相关学生和家长沟通，了解具体情况，制定针对性的帮扶措施。
@@ -884,7 +884,7 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
                 <Card className="border-2 border-[#B9FF66] shadow-[4px_4px_0px_0px_#B9FF66]">
                   <CardContent className="p-4 bg-[#B9FF66]/20">
                     <p className="font-black text-[#191A23] text-lg mb-2">
-                      ⚠️ 中风险异常 ({stats.mediumRiskCount} 个)
+                      中风险异常 ({stats.mediumRiskCount} 个)
                     </p>
                     <p className="font-medium text-[#191A23] leading-relaxed">
                       建议持续关注这些学生的学习状态，适时提供额外的学习支持和指导。
@@ -896,7 +896,7 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
               <Card className="border-2 border-[#9C88FF] shadow-[4px_4px_0px_0px_#9C88FF]">
                 <CardContent className="p-4 bg-[#9C88FF]/20">
                   <p className="font-black text-[#191A23] text-lg mb-3">
-                    💡 总体建议
+                    总体建议
                   </p>
                   <div className="space-y-2">
                     <div className="p-2 bg-white border border-[#9C88FF] rounded-lg">

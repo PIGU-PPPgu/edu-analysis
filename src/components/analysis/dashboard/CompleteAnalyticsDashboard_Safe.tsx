@@ -1,6 +1,6 @@
 /**
- * 🎨 完整分析仪表板 - 安全版本 
- * 集成所有确认可用的高级分析组件，应用Positivus风格
+ * 完整分析仪表板 - 安全版本 
+ * 集成所有确认可用的高级分析组件，应用4色设计系统
  */
 
 import React, { useState, useMemo } from 'react';
@@ -59,6 +59,8 @@ import {
 import { useModernGradeAnalysis } from '@/contexts/ModernGradeAnalysisContext';
 import ModernGradeFilters from '@/components/analysis/filters/ModernGradeFilters';
 import SimpleGradeDataTable from '@/components/analysis/SimpleGradeDataTable';
+import OptimizedDataTable from '@/components/performance/OptimizedDataTable';
+import ErrorBoundary from '@/components/performance/ErrorBoundary';
 import { toast } from 'sonner';
 
 // 导入确认存在的高级分析组件 - 包含我们已改造的Positivus风格组件
@@ -77,29 +79,26 @@ import ClassAIAnalysis from '@/components/analysis/ai/ClassAIAnalysis';
 import ClassAIDiagnostician from '@/components/analysis/ai/ClassAIDiagnostician';
 import StudentAIAdvisor from '@/components/analysis/ai/StudentAIAdvisor';
 import GradeLevelDistribution from '@/components/analysis/charts/GradeLevelDistribution';
+// 新增强组件
+import EnhancedSubjectCorrelationMatrix from '@/components/analysis/advanced/EnhancedSubjectCorrelationMatrix';
+import StudentTrendAnalysis from '@/components/analysis/advanced/StudentTrendAnalysis';
+import MultiDimensionalRankingSystem from '@/components/analysis/advanced/MultiDimensionalRankingSystem';
 import ChartGallery from '@/components/analysis/charts/ChartGallery';
 
-// 🎨 Positivus设计风格配色主题
-const POSITIVUS_COLORS = {
-  primary: '#B9FF66',
-  secondary: '#191A23', 
-  accent: '#FED7D7',
-  yellow: '#F7931E',
-  dark: '#191A23',
-  light: '#F3F3F3',
+
+// 严格4色设计系统：绿、黑、白、灰
+const SIMPLE_COLORS = {
+  green: '#B9FF66',
+  black: '#191A23',
   white: '#FFFFFF',
-  purple: '#9C88FF',
-  red: '#FF6B6B',
-  blue: '#3B82F6'
+  gray: '#6B7280'
 };
 
 const CHART_COLORS = {
   primary: '#B9FF66',
   secondary: '#191A23',
-  accent: '#F7931E', 
-  danger: '#FF6B6B',
-  purple: '#9C88FF',
-  pink: '#FED7D7'
+  accent: '#6B7280', 
+  background: '#FFFFFF'
 };
 
 interface StatCardProps {
@@ -109,11 +108,11 @@ interface StatCardProps {
   icon: React.ElementType;
   trend?: 'up' | 'down' | 'neutral';
   trendValue?: string;
-  color?: 'green' | 'blue' | 'yellow' | 'red' | 'purple';
+  color?: 'green' | 'black' | 'white' | 'gray';
   className?: string;
 }
 
-// 🎨 Positivus风格统计卡片
+// Positivus风格统计卡片
 const StatCard: React.FC<StatCardProps> = ({
   title,
   value,
@@ -121,37 +120,34 @@ const StatCard: React.FC<StatCardProps> = ({
   icon: Icon,
   trend,
   trendValue,
-  color = 'blue',
+  color = 'green',
   className
 }) => {
-  const positivusColorClasses = {
+  const colorClasses = {
     green: 'bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]',
-    blue: 'bg-white border-2 border-black shadow-[6px_6px_0px_0px_#191A23]',
-    yellow: 'bg-white border-2 border-black shadow-[6px_6px_0px_0px_#F7931E]',
-    red: 'bg-white border-2 border-black shadow-[6px_6px_0px_0px_#FF6B6B]',
-    purple: 'bg-white border-2 border-black shadow-[6px_6px_0px_0px_#9C88FF]'
+    black: 'bg-white border-2 border-black shadow-[6px_6px_0px_0px_#191A23]',
+    gray: 'bg-white border-2 border-black shadow-[6px_6px_0px_0px_#6B7280]',
+    white: 'bg-white border-2 border-black shadow-[6px_6px_0px_0px_#6B7280]'
   };
 
   const iconBgClasses = {
     green: 'bg-[#B9FF66]',
-    blue: 'bg-[#191A23]',
-    yellow: 'bg-[#F7931E]',
-    red: 'bg-[#FF6B6B]',
-    purple: 'bg-[#9C88FF]'
+    black: 'bg-[#191A23]',
+    gray: 'bg-[#6B7280]',
+    white: 'bg-white'
   };
 
   const iconColorClasses = {
     green: 'text-black',
-    blue: 'text-white',
-    yellow: 'text-white',
-    red: 'text-white',
-    purple: 'text-white'
+    black: 'text-white',
+    gray: 'text-white',
+    white: 'text-black'
   };
 
   return (
     <Card className={cn(
       'transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_currentColor]',
-      positivusColorClasses[color], 
+      colorClasses[color], 
       className
     )}>
       <CardContent className="p-6">
@@ -164,16 +160,16 @@ const StatCard: React.FC<StatCardProps> = ({
               )}>
                 <Icon className={cn('w-5 h-5', iconColorClasses[color])} />
               </div>
-              <p className="text-base font-bold text-[#191A23] uppercase tracking-wide">{title}</p>
+              <p className="text-base font-bold text-black uppercase tracking-wide">{title}</p>
             </div>
             <div className="space-y-2">
-              <h3 className="text-4xl font-black text-[#191A23] leading-none">{value}</h3>
+              <h3 className="text-4xl font-black text-black leading-none">{value}</h3>
               {trend && trendValue && (
                 <div className={cn(
                   "inline-flex items-center gap-1 px-3 py-1 rounded-full border-2 border-black text-sm font-bold",
                   trend === 'up' && "bg-[#B9FF66] text-black",
-                  trend === 'down' && "bg-[#FF6B6B] text-white",
-                  trend === 'neutral' && "bg-[#F3F3F3] text-black"
+                  trend === 'down' && "bg-[#6B7280] text-white",
+                  trend === 'neutral' && "bg-white text-black"
                 )}>
                   {trend === 'up' && <ArrowUpRight className="w-4 h-4" />}
                   {trend === 'down' && <ArrowDownRight className="w-4 h-4" />}
@@ -183,7 +179,7 @@ const StatCard: React.FC<StatCardProps> = ({
               )}
             </div>
             {subtitle && (
-              <p className="text-sm text-[#191A23]/70 font-medium leading-relaxed">
+              <p className="text-sm text-[#6B7280] font-medium leading-relaxed">
                 {subtitle}
               </p>
             )}
@@ -215,9 +211,9 @@ const CorrelationHeatmap: React.FC<{ data: any[] }> = ({ data }) => {
   const heatmapData = generateHeatmapData();
 
   return (
-    <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#F7931E]">
-      <CardHeader className="bg-[#F7931E] border-b-2 border-black">
-        <CardTitle className="text-white font-black flex items-center gap-2">
+    <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]">
+      <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
+        <CardTitle className="text-black font-black flex items-center gap-2">
           <Grid className="w-5 h-5" />
           科目相关性热力图
         </CardTitle>
@@ -230,7 +226,7 @@ const CorrelationHeatmap: React.FC<{ data: any[] }> = ({ data }) => {
               className="aspect-square border border-black flex items-center justify-center text-xs font-bold"
               style={{
                 backgroundColor: `rgba(185, 255, 102, ${cell.correlation})`,
-                color: cell.correlation > 0.5 ? '#191A23' : '#666'
+                color: cell.correlation > 0.5 ? '#191A23' : '#6B7280'
               }}
             >
               {cell.correlation.toFixed(2)}
@@ -259,9 +255,9 @@ const TrendAnalysis: React.FC<{ data: any[] }> = ({ data }) => {
   }, []);
 
   return (
-    <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#9C88FF]">
-      <CardHeader className="bg-[#9C88FF] border-b-2 border-black">
-        <CardTitle className="text-white font-black flex items-center gap-2">
+    <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]">
+      <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
+        <CardTitle className="text-black font-black flex items-center gap-2">
           <TrendingUp className="w-5 h-5" />
           成绩趋势分析
         </CardTitle>
@@ -281,8 +277,8 @@ const TrendAnalysis: React.FC<{ data: any[] }> = ({ data }) => {
               }}
             />
             <Line type="monotone" dataKey="avgScore" stroke="#B9FF66" strokeWidth={3} />
-            <Line type="monotone" dataKey="passRate" stroke="#F7931E" strokeWidth={3} />
-            <Line type="monotone" dataKey="excellentRate" stroke="#9C88FF" strokeWidth={3} />
+            <Line type="monotone" dataKey="passRate" stroke="#6B7280" strokeWidth={3} />
+            <Line type="monotone" dataKey="excellentRate" stroke="#191A23" strokeWidth={3} />
           </RechartsLineChart>
         </ResponsiveContainer>
       </CardContent>
@@ -301,8 +297,8 @@ const ScatterAnalysis: React.FC<{ data: any[] }> = ({ data }) => {
   }, []);
 
   return (
-    <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#FF6B6B]">
-      <CardHeader className="bg-[#FF6B6B] border-b-2 border-black">
+    <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#6B7280]">
+      <CardHeader className="bg-[#6B7280] border-b-2 border-black">
         <CardTitle className="text-white font-black flex items-center gap-2">
           <Activity className="w-5 h-5" />
           数学vs语文散点图
@@ -328,10 +324,10 @@ const ScatterAnalysis: React.FC<{ data: any[] }> = ({ data }) => {
                 backgroundColor: 'white',
                 border: '2px solid black',
                 borderRadius: '8px',
-                boxShadow: '4px 4px 0px 0px #FF6B6B'
+                boxShadow: '4px 4px 0px 0px #6B7280'
               }}
             />
-            <Scatter dataKey="chinese" fill="#FF6B6B" />
+            <Scatter dataKey="chinese" fill="#6B7280" />
           </ScatterChart>
         </ResponsiveContainer>
       </CardContent>
@@ -341,6 +337,8 @@ const ScatterAnalysis: React.FC<{ data: any[] }> = ({ data }) => {
 
 const CompleteAnalyticsDashboard: React.FC = () => {
   const {
+    allGradeData,
+    wideGradeData,
     filteredGradeData,
     examList,
     statistics,
@@ -358,7 +356,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [showFilters, setShowFilters] = useState(false);
   
-  // 🔧 考试管理功能
+  // 考试管理功能
   const handleExamDelete = async (examId: string) => {
     try {
       // 这里应该调用examService的删除功能
@@ -389,7 +387,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
 
   if (error) {
     return (
-      <Alert variant="destructive" className="max-w-2xl mx-auto border-2 border-black shadow-[6px_6px_0px_0px_#FF6B6B]">
+      <Alert variant="destructive" className="max-w-2xl mx-auto border-2 border-black shadow-[6px_6px_0px_0px_#6B7280]">
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
           <span className="font-bold">{error}</span>
@@ -397,7 +395,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
             variant="outline" 
             size="sm" 
             onClick={refreshData}
-            className="ml-4 border-2 border-black bg-[#FF6B6B] text-white font-bold hover:bg-[#E55555]"
+            className="ml-4 border-2 border-black bg-[#6B7280] text-white font-bold hover:bg-[#6B7280]"
           >
             重试
           </Button>
@@ -407,8 +405,8 @@ const CompleteAnalyticsDashboard: React.FC = () => {
   }
 
   return (
-    <div className="space-y-10 p-8 bg-[#E8E8E8] min-h-screen">
-      {/* 🎨 Positivus风格页面标题 */}
+    <div className="space-y-10 p-8 bg-white min-h-screen">
+      {/* Positivus风格页面标题 */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
         <div className="space-y-3">
           <h1 className="text-5xl font-black text-[#191A23] leading-tight">
@@ -417,8 +415,8 @@ const CompleteAnalyticsDashboard: React.FC = () => {
               ADVANCED
             </span>
           </h1>
-          <p className="text-lg text-[#191A23]/80 font-medium max-w-2xl">
-            🚀 深度分析学生表现，发现隐藏模式和关联关系
+          <p className="text-lg text-[#6B7280] font-medium max-w-2xl">
+            深度分析学生表现，发现隐藏模式和关联关系
           </p>
         </div>
         
@@ -433,7 +431,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
           
           <Button
             onClick={refreshData}
-            className="flex items-center gap-2 border-2 border-black bg-[#F7931E] hover:bg-[#E8821C] text-white font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all"
+            className="flex items-center gap-2 border-2 border-black bg-[#B9FF66] hover:bg-[#B9FF66] text-black font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all"
           >
             <RefreshCw className="w-4 h-4" />
             刷新
@@ -441,7 +439,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* 🎛️ Positivus风格筛选器 */}
+      {/* Positivus风格筛选器 */}
       {showFilters && (
         <ModernGradeFilters
           filter={filter}
@@ -459,7 +457,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
         />
       )}
 
-      {/* 🎯 简化的主导航 - 移到指标卡片上方 */}
+      {/* 简化的主导航 - 移到指标卡片上方 */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
         <div className="overflow-x-auto">
           <TabsList className="grid w-fit grid-cols-4 bg-white border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] p-1">
@@ -468,35 +466,35 @@ const CompleteAnalyticsDashboard: React.FC = () => {
               className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-black font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide px-6 py-3"
             >
               <Eye className="w-5 h-5" />
-              <span>📊 概览</span>
+              <span>概览</span>
             </TabsTrigger>
             <TabsTrigger 
               value="ai-analysis" 
               className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-black font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide px-6 py-3"
             >
               <Brain className="w-5 h-5" />
-              <span>🤖 AI分析</span>
+              <span>AI分析</span>
             </TabsTrigger>
             <TabsTrigger 
               value="deep-analysis" 
               className="flex items-center gap-2 data-[state=active]:bg-[#F7931E] data-[state=active]:text-white font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide px-6 py-3"
             >
               <BarChart3 className="w-5 h-5" />
-              <span>🔍 深度分析</span>
+              <span>深度分析</span>
             </TabsTrigger>
             <TabsTrigger 
               value="data-details" 
               className="flex items-center gap-2 data-[state=active]:bg-[#9C88FF] data-[state=active]:text-white font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide px-6 py-3"
             >
               <FileText className="w-5 h-5" />
-              <span>📋 数据详情</span>
+              <span>数据详情</span>
             </TabsTrigger>
           </TabsList>
         </div>
 
-        {/* 📊 概览页面 - 一目了然的等级分布 */}
+        {/* 概览页面 - 一目了然的等级分布 */}
         <TabsContent value="overview" className="space-y-6">
-          {/* 📊 关键指标卡片区域 - 只在概览页面显示 */}
+          {/* 关键指标卡片区域 - 只在概览页面显示 */}
           {statistics && (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
               <StatCard
@@ -516,7 +514,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
                 icon={CheckCircle}
                 trend={statistics.passRateComparison > 0 ? 'up' : statistics.passRateComparison < 0 ? 'down' : 'neutral'}
                 trendValue={`${statistics.passRateComparison > 0 ? '+' : ''}${(statistics.passRateComparison || 0).toFixed(1)}%`}
-                color="blue"
+                color="black"
               />
               
               <StatCard
@@ -524,7 +522,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
                 value={statistics.atRiskStudents || 0}
                 subtitle={`共 ${statistics.totalStudents} 名学生`}
                 icon={AlertTriangle}
-                color="red"
+                color="gray"
               />
               
               <StatCard
@@ -532,7 +530,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
                 value={statistics.topSubject || '暂无'}
                 subtitle={`平均分 ${Math.round(statistics.topSubjectScore || 0)} 分`}
                 icon={Award}
-                color="yellow"
+                color="white"
               />
             </div>
           )}
@@ -542,12 +540,12 @@ const CompleteAnalyticsDashboard: React.FC = () => {
             className=""
           />
 
-          {/* 💡 智能教学洞察区域 */}
+          {/* 智能教学洞察区域 */}
           <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#B9FF66]">
             <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
               <CardTitle className="text-[#191A23] font-black uppercase tracking-wide flex items-center gap-2">
                 <Brain className="w-5 h-5" />
-                💡 智能教学洞察与建议
+                智能教学洞察与建议
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
@@ -556,7 +554,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
                 <div className="p-4 bg-[#B9FF66]/20 border-2 border-[#B9FF66] rounded-lg">
                   <h4 className="font-black text-[#191A23] mb-3 flex items-center gap-2">
                     <CheckCircle className="w-5 h-5" />
-                    ✨ 教学亮点
+                    教学亮点
                   </h4>
                   <ul className="space-y-2 text-sm">
                     <li className="flex items-start gap-2">
@@ -575,20 +573,20 @@ const CompleteAnalyticsDashboard: React.FC = () => {
                 </div>
                 
                 {/* 改进建议 */}
-                <div className="p-4 bg-[#F7931E]/20 border-2 border-[#F7931E] rounded-lg">
+                <div className="p-4 bg-[#6B7280]/20 border-2 border-[#6B7280] rounded-lg">
                   <h4 className="font-black text-[#191A23] mb-3 flex items-center gap-2">
                     <Target className="w-5 h-5" />
-                    🎯 改进建议
+                    改进建议
                   </h4>
                   <ul className="space-y-2 text-sm">
                     <li className="flex items-start gap-2">
-                      <div className="w-2 h-2 bg-[#F7931E] rounded-full mt-2 flex-shrink-0 border border-black"></div>
+                      <div className="w-2 h-2 bg-[#6B7280] rounded-full mt-2 flex-shrink-0 border border-black"></div>
                       <span className="text-[#191A23] font-medium">
                         关注 {statistics?.atRiskStudents || 0} 名学困生，建议个性化辅导
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <div className="w-2 h-2 bg-[#F7931E] rounded-full mt-2 flex-shrink-0 border border-black"></div>
+                      <div className="w-2 h-2 bg-[#6B7280] rounded-full mt-2 flex-shrink-0 border border-black"></div>
                       <span className="text-[#191A23] font-medium">
                         加强薄弱科目教学，提升整体均衡性
                       </span>
@@ -597,10 +595,10 @@ const CompleteAnalyticsDashboard: React.FC = () => {
                 </div>
 
                 {/* 学困生预警 */}
-                <div className="p-4 bg-[#FF6B6B]/20 border-2 border-[#FF6B6B] rounded-lg">
+                <div className="p-4 bg-[#6B7280]/20 border-2 border-[#6B7280] rounded-lg">
                   <h4 className="font-black text-[#191A23] mb-3 flex items-center gap-2">
                     <AlertTriangle className="w-5 h-5" />
-                    🆘 学困生预警
+                    学困生预警
                   </h4>
                   <div className="space-y-2">
                     {filteredGradeData
@@ -610,9 +608,9 @@ const CompleteAnalyticsDashboard: React.FC = () => {
                       })
                       .slice(0, 3)
                       .map((record, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-[#FF6B6B]/10 border border-[#FF6B6B] rounded text-xs">
+                        <div key={index} className="flex items-center justify-between p-2 bg-[#6B7280]/10 border border-[#6B7280] rounded text-xs">
                           <span className="font-bold text-[#191A23]">{record.name}</span>
-                          <Badge className="bg-[#FF6B6B] text-white border border-black font-bold">
+                          <Badge className="bg-[#6B7280] text-white border border-black font-bold">
                             {record.score || record.total_score}分
                           </Badge>
                         </div>
@@ -623,7 +621,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
                     }).length === 0 && (
                       <div className="text-center py-2">
                         <CheckCircle className="w-6 h-6 text-[#B9FF66] mx-auto mb-1" />
-                        <p className="text-xs font-bold text-[#191A23]">🎉 暂无学困生</p>
+                        <p className="text-xs font-bold text-[#191A23]">暂无学困生</p>
                       </div>
                     )}
                   </div>
@@ -633,22 +631,22 @@ const CompleteAnalyticsDashboard: React.FC = () => {
           </Card>
         </TabsContent>
 
-        {/* 🤖 AI智能分析页面 - 方案1: 按用户角色重组 */}
+        {/* AI智能分析页面 - 按用户角色重组 */}
         <TabsContent value="ai-analysis" className="space-y-6">
-          {/* 🏫 班级AI诊断师 - 我的班级怎么样？ */}
+          {/* 班级AI诊断师 - 我的班级怎么样？ */}
           <ClassAIDiagnostician 
             gradeData={filteredGradeData}
             className=""
           />
           
-          {/* 👥 学生AI顾问 - 我的学生需要什么？ */}
+          {/* 学生AI顾问 - 我的学生需要什么？ */}
           <StudentAIAdvisor 
             gradeData={filteredGradeData}
             className=""
           />
         </TabsContent>
 
-        {/* 🔍 深度分析页面 - 重构为子模块导航 */}
+        {/* 深度分析页面 - 重构为子模块导航 */}
         <TabsContent value="deep-analysis" className="space-y-8">
           <Tabs defaultValue="data-analysis" className="w-full">
             <div className="overflow-x-auto">
@@ -658,48 +656,56 @@ const CompleteAnalyticsDashboard: React.FC = () => {
                   className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-[#191A23] font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide px-4 py-2"
                 >
                   <BarChart3 className="w-4 h-4" />
-                  📊 数据分析
+                  数据分析
                 </TabsTrigger>
                 <TabsTrigger 
                   value="student-analysis" 
                   className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-[#191A23] font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide px-4 py-2"
                 >
                   <Users className="w-4 h-4" />
-                  👥 学生对比
+                  学生对比
                 </TabsTrigger>
                 <TabsTrigger 
                   value="chart-gallery" 
                   className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-[#191A23] font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide px-4 py-2"
                 >
                   <PieChart className="w-4 h-4" />
-                  📈 图表展示
+                  图表展示
                 </TabsTrigger>
               </TabsList>
             </div>
 
-            {/* 📊 数据分析模块 */}
+            {/* 数据分析模块 */}
             <TabsContent value="data-analysis" className="space-y-6">
-              {/* 成绩趋势分析 */}
-              <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]">
-                <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
-                  <CardTitle className="text-[#191A23] font-black uppercase tracking-wide flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5" />
-                    📈 成绩趋势分析
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6">
-                  <TrendAnalysis data={filteredGradeData} />
-                </CardContent>
-              </Card>
+              {/* 增强版科目相关性矩阵 */}
+              <EnhancedSubjectCorrelationMatrix
+                gradeData={wideGradeData || []}
+                title="科目相关性分析"
+                className="w-full"
+                showHeatMap={true}
+                filterSignificance="all"
+              />
 
-              {/* 科目相关性分析 */}
+              {/* 个人趋势分析 */}
+              <StudentTrendAnalysis 
+                gradeData={wideGradeData || []}
+                className="w-full"
+              />
+
+              {/* 多维度班级排名系统 */}
+              <MultiDimensionalRankingSystem 
+                gradeData={wideGradeData || []}
+                className="w-full"
+              />
+
+              {/* 传统相关性分析（保持兼容） */}
               <SubjectCorrelationAnalysis 
                 gradeData={filteredGradeData}
                 className=""
               />
             </TabsContent>
 
-            {/* 👥 学生对比模块 */}
+            {/* 学生对比模块 */}
             <TabsContent value="student-analysis" className="space-y-6">
               {/* 班级对比分析 */}
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -728,7 +734,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
               />
             </TabsContent>
 
-            {/* 📈 图表展示模块 */}
+            {/* 图表展示模块 */}
             <TabsContent value="chart-gallery" className="space-y-6">
               <ChartGallery 
                 gradeData={filteredGradeData}
@@ -739,18 +745,134 @@ const CompleteAnalyticsDashboard: React.FC = () => {
 
         </TabsContent>
 
-        {/* 📋 数据详情页面 - 统计概览和数据表格 */}
+
+        {/* 数据详情页面 - 统计概览和优化数据表格 */}
         <TabsContent value="data-details" className="space-y-6">
-          <StatisticsOverview 
-            className=""
-          />
+          <ErrorBoundary 
+            componentName="StatisticsOverview"
+            enableRecovery={true}
+            showErrorDetails={true}
+          >
+            <StatisticsOverview 
+              className=""
+            />
+          </ErrorBoundary>
           
-          <SimpleGradeDataTable 
-            className=""
-            pageSize={25}
-          />
+          <ErrorBoundary 
+            componentName="OptimizedDataTable"
+            enableRecovery={true}
+            showErrorDetails={true}
+          >
+            <OptimizedDataTable
+              data={filteredGradeData}
+              columns={[
+                {
+                  key: 'name',
+                  title: '姓名',
+                  dataIndex: 'name',
+                  width: 120,
+                  sortable: true,
+                  fixed: 'left'
+                },
+                {
+                  key: 'class_name',
+                  title: '班级',
+                  dataIndex: 'class_name',
+                  width: 100,
+                  sortable: true,
+                  filterable: true
+                },
+                {
+                  key: 'subject',
+                  title: '科目',
+                  dataIndex: 'subject',
+                  width: 80,
+                  sortable: true,
+                  filterable: true
+                },
+                {
+                  key: 'score',
+                  title: '分数',
+                  dataIndex: 'score',
+                  width: 80,
+                  sortable: true,
+                  align: 'center',
+                  render: (value: number) => (
+                    <Badge className={cn(
+                      "font-bold border-2 border-black",
+                      value >= 90 ? "bg-[#B9FF66] text-black" :
+                      value >= 80 ? "bg-[#6B7280] text-white" :
+                      value >= 60 ? "bg-[#F59E0B] text-white" :
+                      "bg-[#EF4444] text-white"
+                    )}>
+                      {value}分
+                    </Badge>
+                  )
+                },
+                {
+                  key: 'exam_title',
+                  title: '考试',
+                  dataIndex: 'exam_title',
+                  width: 150,
+                  sortable: true,
+                  ellipsis: true
+                },
+                {
+                  key: 'exam_date',
+                  title: '考试日期',
+                  dataIndex: 'exam_date',
+                  width: 120,
+                  sortable: true,
+                  render: (value: string) => value ? new Date(value).toLocaleDateString() : '-'
+                },
+                {
+                  key: 'exam_type',
+                  title: '考试类型',
+                  dataIndex: 'exam_type',
+                  width: 100,
+                  filterable: true,
+                  render: (value: string) => (
+                    <Badge variant="outline" className="border-2 border-black font-bold">
+                      {value || '常规'}
+                    </Badge>
+                  )
+                }
+              ]}
+              config={{
+                virtual: filteredGradeData.length > 1000, // 大数据时启用虚拟滚动
+                itemHeight: 60,
+                pageSize: 50,
+                showPagination: true,
+                showSearch: true,
+                showFilter: true,
+                showColumnSettings: true,
+                searchKeys: ['name', 'class_name', 'subject', 'exam_title'],
+                stickyHeader: true,
+                bordered: true,
+                striped: true,
+                compact: false
+              }}
+              title="成绩数据详情"
+              showExport={true}
+              loading={loading}
+              emptyText="暂无成绩数据"
+              rowKey="id"
+              onRowClick={(record) => {
+                toast.info(`查看 ${record.name} 的 ${record.subject} 成绩: ${record.score}分`);
+              }}
+              className=""
+            />
+          </ErrorBoundary>
         </TabsContent>
       </Tabs>
+
+      {/* 帮助说明 - 小字体放置底部 */}
+      <div className="mt-8 pt-4 border-t border-[#6B7280]">
+        <p className="text-xs text-[#6B7280] text-center leading-relaxed">
+          增强功能说明：科目相关性分析使用95%置信区间；个人趋势分析支持线性回归预测；多维度排名包含学术、稳定性、进步性、均衡性四个维度。
+          数据基于Wide-Table结构优化，提供更快的查询性能。
+        </p>
+      </div>
     </div>
   );
 };

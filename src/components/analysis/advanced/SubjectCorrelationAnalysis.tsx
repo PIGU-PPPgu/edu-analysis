@@ -193,11 +193,11 @@ const SubjectCorrelationAnalysis: React.FC<SubjectCorrelationAnalysisProps> = ({
     return (
       <Card className={`bg-white border-2 border-black shadow-[6px_6px_0px_0px_#F7931E] ${className}`}>
         <CardContent className="p-12 text-center">
-          <div className="p-4 bg-[#F7931E] rounded-full border-2 border-black mx-auto mb-6 w-fit">
-            <Grid className="h-16 w-16 text-white" />
+          <div className="p-4 bg-[#B9FF66] rounded-full border-2 border-black mx-auto mb-6 w-fit">
+            <Grid className="h-16 w-16 text-black" />
           </div>
-          <p className="text-2xl font-black text-[#191A23] uppercase tracking-wide mb-3">📊 数据不足</p>
-          <p className="text-[#191A23]/70 font-medium">需要至少2个科目的成绩数据进行相关性分析</p>
+          <p className="text-2xl font-black text-[#191A23] uppercase tracking-wide mb-3">数据不足</p>
+          <p className="text-[#6B7280] font-medium">需要至少2个科目的成绩数据进行相关性分析</p>
         </CardContent>
       </Card>
     );
@@ -205,19 +205,19 @@ const SubjectCorrelationAnalysis: React.FC<SubjectCorrelationAnalysisProps> = ({
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* 🎨 Positivus风格标题和控制面板 */}
-      <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#F7931E] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#F7931E]">
-        <CardHeader className="bg-[#F7931E] border-b-2 border-black">
+      {/* Positivus风格标题和控制面板 */}
+      <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#B9FF66]">
+        <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-[#191A23] rounded-full border-2 border-black">
                 <Grid className="h-6 w-6 text-white" />
               </div>
               <div>
-                <CardTitle className="text-2xl font-black text-white uppercase tracking-wide">
-                  📊 {title}
+                <CardTitle className="text-2xl font-black text-black uppercase tracking-wide">
+                  {title}
                 </CardTitle>
-                <p className="text-white/90 font-medium mt-1">
+                <p className="text-black font-medium mt-1">
                   分析 {subjects.length} 个科目间的相关性 | {correlations.length} 个科目对 | 平均相关性 {averageCorrelation.toFixed(3)}
                 </p>
               </div>
@@ -240,88 +240,88 @@ const SubjectCorrelationAnalysis: React.FC<SubjectCorrelationAnalysisProps> = ({
         </CardHeader>
       </Card>
 
-      {/* 🎨 Positivus风格分析说明 */}
+      {/* Positivus风格分析说明 */}
       <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]">
         <CardHeader className="bg-[#B9FF66] border-b-2 border-black py-4">
           <CardTitle className="text-[#191A23] font-black uppercase tracking-wide flex items-center gap-2">
             <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
               <Info className="h-4 w-4 text-white" />
             </div>
-            📊 相关性分析说明
+            相关性分析说明
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="p-4 bg-[#B9FF66]/10 border-2 border-[#B9FF66] rounded-lg">
-              <p className="font-black text-[#191A23] mb-2">📎 相关系数范围</p>
-              <p className="text-sm text-[#191A23]/80">-1 到 1，绝对值越大相关性越强</p>
+              <p className="font-black text-[#191A23] mb-2">相关系数范围</p>
+              <p className="text-sm text-[#6B7280]">-1 到 1，绝对值越大相关性越强</p>
             </div>
-            <div className="p-4 bg-[#F7931E]/10 border-2 border-[#F7931E] rounded-lg">
-              <p className="font-black text-[#191A23] mb-2">✅ 正相关含义</p>
-              <p className="text-sm text-[#191A23]/80">一个科目分数高，另一个科目分数也倾向于高</p>
+            <div className="p-4 bg-[#B9FF66]/10 border-2 border-[#B9FF66] rounded-lg">
+              <p className="font-black text-[#191A23] mb-2">正相关含义</p>
+              <p className="text-sm text-[#6B7280]">一个科目分数高，另一个科目分数也倾向于高</p>
             </div>
-            <div className="p-4 bg-[#FF6B6B]/10 border-2 border-[#FF6B6B] rounded-lg">
-              <p className="font-black text-[#191A23] mb-2">⚠️ 负相关含义</p>
-              <p className="text-sm text-[#191A23]/80">一个科目分数高，另一个科目分数倾向于低</p>
+            <div className="p-4 bg-[#6B7280]/10 border-2 border-[#6B7280] rounded-lg">
+              <p className="font-black text-[#191A23] mb-2">负相关含义</p>
+              <p className="text-sm text-[#6B7280]">一个科目分数高，另一个科目分数倾向于低</p>
             </div>
-            <div className="p-4 bg-[#9C88FF]/10 border-2 border-[#9C88FF] rounded-lg">
-              <p className="font-black text-[#191A23] mb-2">📊 显著性标准</p>
-              <p className="text-sm text-[#191A23]/80">基于p值判断，p&lt;0.05为显著相关</p>
+            <div className="p-4 bg-[#6B7280]/10 border-2 border-[#6B7280] rounded-lg">
+              <p className="font-black text-[#191A23] mb-2">显著性标准</p>
+              <p className="text-sm text-[#6B7280]">基于p值判断，p&lt;0.05为显著相关</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* 🎨 Positivus风格统计概览 */}
+      {/* Positivus风格统计概览 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#B9FF66]">
           <CardContent className="p-6 text-center">
             <div className="text-3xl font-black text-[#191A23] mb-2">{subjects.length}</div>
-            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">📚 分析科目数</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">分析科目数</div>
           </CardContent>
         </Card>
         
-        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#F7931E] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#F7931E]">
+        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#B9FF66]">
           <CardContent className="p-6 text-center">
             <div className="text-3xl font-black text-[#191A23] mb-2">{correlations.length}</div>
-            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">🔗 科目对数量</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">科目对数量</div>
           </CardContent>
         </Card>
         
-        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#9C88FF] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#9C88FF]">
+        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#B9FF66]">
           <CardContent className="p-6 text-center">
             <div className="text-3xl font-black text-[#191A23] mb-2">{strongCorrelations.length}</div>
-            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">🔥 强相关对数</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">强相关对数</div>
           </CardContent>
         </Card>
         
-        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#FF6B6B] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#FF6B6B]">
+        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#6B7280] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#6B7280]">
           <CardContent className="p-6 text-center">
             <div className="text-3xl font-black text-[#191A23] mb-2">{averageCorrelation.toFixed(3)}</div>
-            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">📊 平均相关性</div>
+            <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">平均相关性</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* 🎨 Positivus风格相关性矩阵 */}
-      <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#9C88FF]">
-        <CardHeader className="bg-[#9C88FF] border-b-2 border-black">
-          <CardTitle className="text-white font-black uppercase tracking-wide flex items-center gap-2">
+      {/* Positivus风格相关性矩阵 */}
+      <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]">
+        <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
+          <CardTitle className="text-black font-black uppercase tracking-wide flex items-center gap-2">
             <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
               <BarChart3 className="h-5 w-5 text-white" />
             </div>
-            📊 科目相关性矩阵
+            科目相关性矩阵
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
           <div className="space-y-4">
             {correlations.length === 0 ? (
               <div className="text-center py-12">
-                <div className="p-4 bg-[#9C88FF] rounded-full border-2 border-black mx-auto mb-6 w-fit">
-                  <Grid className="h-12 w-12 text-white" />
+                <div className="p-4 bg-[#B9FF66] rounded-full border-2 border-black mx-auto mb-6 w-fit">
+                  <Grid className="h-12 w-12 text-black" />
                 </div>
-                <p className="text-xl font-black text-[#191A23] uppercase tracking-wide mb-2">📊 暂无相关性数据</p>
-                <p className="text-[#191A23]/70 font-medium">需要至少3名学生在两个科目都有成绩</p>
+                <p className="text-xl font-black text-[#191A23] uppercase tracking-wide mb-2">暂无相关性数据</p>
+                <p className="text-[#6B7280] font-medium">需要至少3名学生在两个科目都有成绩</p>
               </div>
             ) : (
               correlations.map((corr, index) => (
@@ -331,8 +331,8 @@ const SubjectCorrelationAnalysis: React.FC<SubjectCorrelationAnalysisProps> = ({
                       <div className="flex items-center gap-4">
                         <div className={`p-2 rounded-full border-2 border-black ${
                           corr.correlation > 0.1 ? 'bg-[#B9FF66]' :
-                          corr.correlation < -0.1 ? 'bg-[#FF6B6B]' :
-                          'bg-[#F3F3F3]'
+                          corr.correlation < -0.1 ? 'bg-[#6B7280]' :
+                          'bg-white'
                         }`}>
                           {corr.correlation > 0.1 ? (
                             <TrendingUp className="w-5 h-5 text-[#191A23]" />
@@ -346,7 +346,7 @@ const SubjectCorrelationAnalysis: React.FC<SubjectCorrelationAnalysisProps> = ({
                           <p className="font-black text-[#191A23] text-lg">
                             {corr.subject1} ↔ {corr.subject2}
                           </p>
-                          <p className="text-sm font-medium text-[#191A23]/70">
+                          <p className="text-sm font-medium text-[#6B7280]">
                             样本量: {corr.sampleSize} 名学生 | p值: {corr.pValue.toFixed(4)}
                           </p>
                         </div>
@@ -358,8 +358,8 @@ const SubjectCorrelationAnalysis: React.FC<SubjectCorrelationAnalysisProps> = ({
                         </div>
                         <Badge className={`font-bold shadow-[2px_2px_0px_0px_#191A23] border-2 border-black ${
                           corr.significance === 'high' ? 'bg-[#B9FF66] text-[#191A23]' :
-                          corr.significance === 'medium' ? 'bg-[#F7931E] text-white' :
-                          corr.significance === 'low' ? 'bg-[#9C88FF] text-white' : 'bg-[#FF6B6B] text-white'
+                          corr.significance === 'medium' ? 'bg-[#6B7280] text-white' :
+                          corr.significance === 'low' ? 'bg-[#6B7280] text-white' : 'bg-[#6B7280] text-white'
                         }`}>
                           {corr.significance === 'high' ? '强相关' :
                            corr.significance === 'medium' ? '中等相关' :
@@ -375,7 +375,7 @@ const SubjectCorrelationAnalysis: React.FC<SubjectCorrelationAnalysisProps> = ({
         </CardContent>
       </Card>
 
-      {/* 🎨 Positivus风格分析洞察 */}
+      {/* 分析洞察 */}
       {strongCorrelations.length > 0 && (
         <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]">
           <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
@@ -383,7 +383,7 @@ const SubjectCorrelationAnalysis: React.FC<SubjectCorrelationAnalysisProps> = ({
               <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
                 <TrendingUp className="h-5 w-5 text-white" />
               </div>
-              🔍 关键发现与洞察
+              关键发现与洞察
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
@@ -392,10 +392,10 @@ const SubjectCorrelationAnalysis: React.FC<SubjectCorrelationAnalysisProps> = ({
                 <Card key={index} className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66]">
                   <CardContent className="p-4 bg-[#B9FF66]/20">
                     <p className="font-black text-[#191A23] text-lg mb-2">
-                      🔥 {corr.subject1} 与 {corr.subject2} 存在强{corr.correlation > 0 ? '正' : '负'}相关
+                      {corr.subject1} 与 {corr.subject2} 存在强{corr.correlation > 0 ? '正' : '负'}相关
                     </p>
                     <p className="font-medium text-[#191A23] leading-relaxed">
-                      相关系数: <span className="font-black text-[#F7931E]">{corr.correlation.toFixed(3)}</span> | 
+                      相关系数: <span className="font-black text-[#B9FF66]">{corr.correlation.toFixed(3)}</span> | 
                       这意味着学生在 <span className="font-bold">{corr.subject1}</span> 上的表现与 <span className="font-bold">{corr.subject2}</span> 上的表现
                       <span className="font-black">{corr.correlation > 0 ? '呈正向关联' : '呈反向关联'}</span>
                     </p>

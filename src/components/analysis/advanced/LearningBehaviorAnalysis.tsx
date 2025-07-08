@@ -273,7 +273,7 @@ export const LearningBehaviorAnalysis: React.FC = () => {
             <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
               <Activity className="h-5 w-5 text-white" />
             </div>
-            <span>🧠 学习行为分析</span>
+            <span>学习行为分析</span>
           </CardTitle>
           <CardDescription className="text-[#191A23]/80 font-medium mt-2">
             深度分析学生的学习模式、认知风格和行为特征，提供个性化教学建议
@@ -283,7 +283,7 @@ export const LearningBehaviorAnalysis: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select value={selectedStudent} onValueChange={setSelectedStudent}>
               <SelectTrigger className="bg-white border-2 border-black font-medium text-[#191A23] focus:border-[#F7931E] focus:ring-2 focus:ring-[#F7931E] shadow-[2px_2px_0px_0px_#191A23] transition-all">
-                <SelectValue placeholder="🎯 选择学生进行分析" />
+                <SelectValue placeholder="选择学生进行分析" />
               </SelectTrigger>
               <SelectContent className="border-2 border-black shadow-[4px_4px_0px_0px_#191A23]">
                 {allStudents.map(student => (
@@ -325,7 +325,7 @@ export const LearningBehaviorAnalysis: React.FC = () => {
         <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#9C88FF]">
           <CardContent className="p-8 text-center">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-solid border-[#9C88FF] border-r-transparent mb-6"></div>
-            <p className="text-xl font-black text-[#191A23] uppercase tracking-wide mb-2">🧠 AI分析进行中</p>
+            <p className="text-xl font-black text-[#191A23] uppercase tracking-wide mb-2">AI分析进行中</p>
             <p className="text-[#191A23]/70 font-medium">正在深度分析学习行为模式，请稍候...</p>
             <div className="mt-4 w-64 bg-[#F3F3F3] rounded-full h-3 mx-auto border-2 border-black">
               <div className="bg-[#9C88FF] h-full rounded-full transition-all duration-1000 animate-pulse" style={{ width: '75%' }}></div>
@@ -345,7 +345,7 @@ export const LearningBehaviorAnalysis: React.FC = () => {
                       <Users className="h-5 w-5 text-white" />
                     </div>
                     <span className="text-xl font-black text-[#191A23] uppercase tracking-wide">
-                      📋 {pattern.studentName} - 学习行为档案
+                      {pattern.studentName} - 学习行为档案
                     </span>
                   </div>
                   <Badge className="bg-[#F7931E] text-white border-2 border-black font-bold shadow-[2px_2px_0px_0px_#191A23] uppercase tracking-wide">
@@ -353,7 +353,7 @@ export const LearningBehaviorAnalysis: React.FC = () => {
                   </Badge>
                 </CardTitle>
                 <CardDescription className="text-[#191A23]/80 font-medium mt-2">
-                  🏫 班级: {pattern.className} | 📊 基于AI算法的综合行为分析报告
+                  班级: {pattern.className} | 基于AI算法的综合行为分析报告
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-6">
@@ -395,7 +395,7 @@ export const LearningBehaviorAnalysis: React.FC = () => {
                         <CardHeader className="bg-[#9C88FF] border-b-2 border-black">
                           <CardTitle className="text-white font-black uppercase tracking-wide flex items-center gap-2">
                             <Activity className="w-5 h-5" />
-                            📊 能力雷达图
+                            能力雷达图
                           </CardTitle>
                         </CardHeader>
                         <CardContent className="p-4">
@@ -408,14 +408,14 @@ export const LearningBehaviorAnalysis: React.FC = () => {
                           <CardHeader className="bg-[#B9FF66] border-b-2 border-black py-3">
                             <CardTitle className="text-sm font-black text-[#191A23] uppercase tracking-wide flex items-center gap-2">
                               <CheckCircle className="h-4 w-4" />
-                              ✨ 学习优势
+                              学习优势
                             </CardTitle>
                           </CardHeader>
                           <CardContent className="p-4">
                             <div className="flex flex-wrap gap-2">
                               {pattern.strengths.map((strength, index) => (
                                 <Badge key={index} className="bg-[#B9FF66] text-[#191A23] border-2 border-black font-bold shadow-[2px_2px_0px_0px_#191A23] text-xs">
-                                  🌟 {strength}
+                                  {strength}
                                 </Badge>
                               ))}
                             </div>
@@ -426,14 +426,14 @@ export const LearningBehaviorAnalysis: React.FC = () => {
                           <CardHeader className="bg-[#F7931E] border-b-2 border-black py-3">
                             <CardTitle className="text-sm font-black text-white uppercase tracking-wide flex items-center gap-2">
                               <AlertTriangle className="h-4 w-4" />
-                              ⚡ 改进空间
+                              改进空间
                             </CardTitle>
                           </CardHeader>
                           <CardContent className="p-4">
                             <div className="flex flex-wrap gap-2">
                               {pattern.challenges.map((challenge, index) => (
                                 <Badge key={index} className="bg-[#F7931E] text-white border-2 border-black font-bold shadow-[2px_2px_0px_0px_#191A23] text-xs">
-                                  🎯 {challenge}
+                                  {challenge}
                                 </Badge>
                               ))}
                             </div>
@@ -444,14 +444,14 @@ export const LearningBehaviorAnalysis: React.FC = () => {
                           <CardHeader className="bg-[#FF6B6B] border-b-2 border-black py-3">
                             <CardTitle className="text-sm font-black text-white uppercase tracking-wide flex items-center gap-2">
                               <BookOpen className="h-4 w-4" />
-                              💡 个性化建议
+                              个性化建议
                             </CardTitle>
                           </CardHeader>
                           <CardContent className="p-4 space-y-3">
                             {pattern.recommendations.map((rec, index) => (
                               <div key={index} className="p-3 bg-[#FF6B6B]/10 border-2 border-[#FF6B6B] rounded-lg">
                                 <p className="text-sm font-medium text-[#191A23]">
-                                  📝 {rec}
+                                  {rec}
                                 </p>
                               </div>
                             ))}
@@ -468,7 +468,7 @@ export const LearningBehaviorAnalysis: React.FC = () => {
                           <div className="p-3 bg-[#B9FF66] rounded-full border-2 border-black mx-auto mb-4 w-fit">
                             <Brain className="h-8 w-8 text-[#191A23]" />
                           </div>
-                          <p className="text-lg font-black text-[#191A23] uppercase tracking-wide mb-2">🧠 学习类型</p>
+                          <p className="text-lg font-black text-[#191A23] uppercase tracking-wide mb-2">学习类型</p>
                           <div className="px-3 py-2 bg-[#B9FF66] border-2 border-black rounded-lg">
                             <p className="font-bold text-[#191A23]">{pattern.cognitiveStyle.learningType}</p>
                           </div>
@@ -480,7 +480,7 @@ export const LearningBehaviorAnalysis: React.FC = () => {
                           <div className="p-3 bg-[#F7931E] rounded-full border-2 border-black mx-auto mb-4 w-fit">
                             <Clock className="h-8 w-8 text-white" />
                           </div>
-                          <p className="text-lg font-black text-[#191A23] uppercase tracking-wide mb-2">⚡ 处理速度</p>
+                          <p className="text-lg font-black text-[#191A23] uppercase tracking-wide mb-2">处理速度</p>
                           <div className="px-3 py-2 bg-[#F7931E] border-2 border-black rounded-lg">
                             <p className="font-bold text-white">{pattern.cognitiveStyle.processingSpeed}</p>
                           </div>
@@ -492,7 +492,7 @@ export const LearningBehaviorAnalysis: React.FC = () => {
                           <div className="p-3 bg-[#9C88FF] rounded-full border-2 border-black mx-auto mb-4 w-fit">
                             <Award className="h-8 w-8 text-white" />
                           </div>
-                          <p className="text-lg font-black text-[#191A23] uppercase tracking-wide mb-3">🏆 记忆力</p>
+                          <p className="text-lg font-black text-[#191A23] uppercase tracking-wide mb-3">记忆力</p>
                           <div className="space-y-2">
                             <div className="w-full bg-[#F3F3F3] rounded-full h-4 border-2 border-black">
                               <div 
@@ -513,7 +513,7 @@ export const LearningBehaviorAnalysis: React.FC = () => {
                         <CardHeader className="bg-[#B9FF66] border-b-2 border-black py-3">
                           <CardTitle className="text-sm font-black text-[#191A23] uppercase tracking-wide flex items-center gap-2">
                             <Users className="h-4 w-4" />
-                            🤝 协作偏好
+                            协作偏好
                           </CardTitle>
                         </CardHeader>
                         <CardContent className="p-4">
@@ -536,7 +536,7 @@ export const LearningBehaviorAnalysis: React.FC = () => {
                         <CardHeader className="bg-[#F7931E] border-b-2 border-black py-3">
                           <CardTitle className="text-sm font-black text-white uppercase tracking-wide flex items-center gap-2">
                             <Users className="h-4 w-4" />
-                            👥 同伴互动
+                            同伴互动
                           </CardTitle>
                         </CardHeader>
                         <CardContent className="p-4">
@@ -559,7 +559,7 @@ export const LearningBehaviorAnalysis: React.FC = () => {
                         <CardHeader className="bg-[#9C88FF] border-b-2 border-black py-3">
                           <CardTitle className="text-sm font-black text-white uppercase tracking-wide flex items-center gap-2">
                             <Award className="h-4 w-4" />
-                            👑 领导倾向
+                            领导倾向
                           </CardTitle>
                         </CardHeader>
                         <CardContent className="p-4">
@@ -585,7 +585,7 @@ export const LearningBehaviorAnalysis: React.FC = () => {
                       <CardHeader className="bg-[#FF6B6B] border-b-2 border-black">
                         <CardTitle className="text-white font-black uppercase tracking-wide flex items-center gap-2">
                           <Target className="w-5 h-5" />
-                          🎯 学习策略能力分析
+                          学习策略能力分析
                         </CardTitle>
                         <CardDescription className="text-white/90 font-medium mt-2">
                           多维度评估学习策略的运用能力和效果
@@ -610,7 +610,7 @@ export const LearningBehaviorAnalysis: React.FC = () => {
               <Activity className="h-16 w-16 text-[#191A23]" />
             </div>
             <p className="text-2xl font-black text-[#191A23] uppercase tracking-wide mb-3">
-              🚀 准备开始分析
+              准备开始分析
             </p>
             <p className="text-[#191A23]/70 font-medium">
               选择学生，开启AI驱动的学习行为深度分析之旅

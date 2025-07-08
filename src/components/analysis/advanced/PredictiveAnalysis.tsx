@@ -85,7 +85,7 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
     }
   };
 
-  // ✅ 增强时间序列分析算法 - 提升预测准确率到85%
+  // 增强时间序列分析算法 - 提升预测准确率到85%
   const analyzeSingleStudent = async (studentId: string): Promise<PredictionData | null> => {
     try {
       const student = allStudents.find(s => s.student_id === studentId);
@@ -124,7 +124,7 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
       // 多因子风险评估
       const riskLevel = this.assessMultiFactorRisk(timeSeriesData, trendDirection, currentAverage);
 
-      // ✅ 智能建议生成（基于ML分析结果）
+      // 智能建议生成（基于ML分析结果）
       const recommendations = this.generateIntelligentRecommendations(
         timeSeriesData, 
         trendDirection, 
@@ -133,7 +133,7 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
         predictedScores
       );
 
-      // ✅ 优势和劣势识别（基于多维度分析）
+      // 优势和劣势识别（基于多维度分析）
       const { strengths, weaknesses } = this.identifyStrengthsAndWeaknesses(subjectTimeSeriesMap, predictedScores);
 
       return {
@@ -153,7 +153,7 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
     }
   };
 
-  // ✅ 数据预处理函数
+  // 数据预处理函数
   const preprocessGradeData = (grades: any[]) => {
     return grades
       .filter(g => g.score && g.score > 0) // 过滤无效数据
@@ -167,7 +167,7 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
       .sort((a, b) => a.examDate.getTime() - b.examDate.getTime());
   };
 
-  // ✅ 时间序列数据构建
+  // 时间序列数据构建
   const buildTimeSeriesData = (processedGrades: any[]) => {
     return processedGrades.map((grade, index) => ({
       ...grade,
@@ -178,7 +178,7 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
     }));
   };
 
-  // ✅ 加权平均计算（近期成绩权重更高）
+  // 加权平均计算（近期成绩权重更高）
   const calculateWeightedAverage = (timeSeriesData: any[]) => {
     if (timeSeriesData.length === 0) return 0;
     
@@ -196,7 +196,7 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
     return totalWeight > 0 ? weightedSum / totalWeight : 0;
   };
 
-  // ✅ 按科目分组
+  // 按科目分组
   const groupBySubject = (timeSeriesData: any[]) => {
     const subjectMap: { [key: string]: any[] } = {};
     
@@ -211,7 +211,7 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
     return subjectMap;
   };
 
-  // ✅ 增强预测模型（集成多种算法）
+  // 增强预测模型（集成多种算法）
   const generateEnhancedPredictions = async (subjectTimeSeriesMap: any, timeframe: string) => {
     const predictions: any[] = [];
     
@@ -252,7 +252,7 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
     return predictions;
   };
 
-  // ✅ 线性回归预测
+  // 线性回归预测
   const calculateLinearRegression = (series: any[]) => {
     if (series.length < 2) return series[0]?.normalizedScore || 0;
     
@@ -269,7 +269,7 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
     return slope * n + intercept;
   };
 
-  // ✅ 移动平均预测
+  // 移动平均预测
   const calculateMovingAverage = (series: any[], window: number) => {
     if (series.length < window) return series[series.length - 1]?.normalizedScore || 0;
     
@@ -277,7 +277,7 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
     return recentScores.reduce((sum, score) => sum + score, 0) / window;
   };
 
-  // ✅ 指数平滑预测
+  // 指数平滑预测
   const calculateExponentialSmoothing = (series: any[], alpha: number) => {
     if (series.length === 0) return 0;
     if (series.length === 1) return series[0].normalizedScore;
@@ -290,7 +290,7 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
     return smoothed;
   };
 
-  // ✅ 季节性调整
+  // 季节性调整
   const calculateSeasonalAdjustment = (series: any[]) => {
     // 简化的季节性分析，基于考试类型
     const examTypePattern: { [key: string]: number } = {};
@@ -315,7 +315,7 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
     return typeAvg ? typeAvg.average : series[series.length - 1]?.normalizedScore || 0;
   };
 
-  // ✅ 预测置信度计算
+  // 预测置信度计算
   const calculatePredictionConfidence = (series: any[], prediction: number) => {
     if (series.length < 3) return 0.6;
     
@@ -337,7 +337,7 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
     return Math.min(0.95, confidence);
   };
 
-  // ✅ 增强趋势分析
+  // 增强趋势分析
   const analyzeTrendDirection = (timeSeriesData: any[]) => {
     if (timeSeriesData.length < 3) return 'stable';
     
@@ -366,7 +366,7 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
     return 'stable';
   };
 
-  // ✅ 波动性计算
+  // 波动性计算
   const calculateVolatility = (scores: number[]) => {
     if (scores.length < 2) return 0;
     const mean = scores.reduce((sum, score) => sum + score, 0) / scores.length;
@@ -374,7 +374,7 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
     return Math.sqrt(variance);
   };
 
-  // ✅ 多因子风险评估
+  // 多因子风险评估
   const assessMultiFactorRisk = (timeSeriesData: any[], trendDirection: string, currentAverage: number) => {
     let riskScore = 0;
     
@@ -405,7 +405,7 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
     return 'low';
   };
 
-  // ✅ 智能建议生成
+  // 智能建议生成
   const generateIntelligentRecommendations = (
     timeSeriesData: any[], 
     trendDirection: string, 
@@ -468,7 +468,7 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
     return recommendations.sort((a, b) => a.priority - b.priority);
   };
 
-  // ✅ 优势劣势识别
+  // 优势劣势识别
   const identifyStrengthsAndWeaknesses = (subjectTimeSeriesMap: any, predictedScores: any[]) => {
     const subjectAnalysis = Object.entries(subjectTimeSeriesMap).map(([subject, timeSeries]) => {
       const series = timeSeries as any[];
@@ -530,7 +530,7 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
             <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
               <Brain className="h-5 w-5 text-white" />
             </div>
-            <span>🤖 AI智能预测分析</span>
+            <span>AI智能预测分析</span>
           </CardTitle>
           <CardDescription className="text-white/90 font-medium mt-2">
             基于机器学习算法分析学生成绩趋势，提供个性化学习建议和风险预警
@@ -540,7 +540,7 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select value={selectedStudent} onValueChange={setSelectedStudent}>
               <SelectTrigger className="bg-white border-2 border-black font-medium text-[#191A23] focus:border-[#B9FF66] focus:ring-2 focus:ring-[#B9FF66] shadow-[2px_2px_0px_0px_#191A23] transition-all">
-                <SelectValue placeholder="🎯 选择学生进行分析" />
+                <SelectValue placeholder="选择学生进行分析" />
               </SelectTrigger>
               <SelectContent className="border-2 border-black shadow-[4px_4px_0px_0px_#191A23]">
                 {allStudents.map(student => (
@@ -582,7 +582,7 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
         <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]">
           <CardContent className="p-8 text-center">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-solid border-[#B9FF66] border-r-transparent mb-6"></div>
-            <p className="text-xl font-black text-[#191A23] uppercase tracking-wide mb-2">🤖 AI分析进行中</p>
+            <p className="text-xl font-black text-[#191A23] uppercase tracking-wide mb-2">AI分析进行中</p>
             <p className="text-[#191A23]/70 font-medium">正在运用机器学习算法深度分析学习数据，请稍候...</p>
             <div className="mt-4 w-64 bg-[#F3F3F3] rounded-full h-3 mx-auto border-2 border-black">
               <div className="bg-[#B9FF66] h-full rounded-full transition-all duration-1000 animate-pulse" style={{ width: '70%' }}></div>
@@ -609,16 +609,16 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
                   </Badge>
                 </div>
                 <CardDescription className="text-[#191A23]/80 font-medium mt-2">
-                  📊 当前平均分: <span className="font-black text-[#B9FF66]">{prediction.currentAverage.toFixed(1)}分</span>
+                  当前平均分: <span className="font-black text-[#B9FF66]">{prediction.currentAverage.toFixed(1)}分</span>
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-6 space-y-6">
-                {/* 🎯 科目预测 */}
+                {/* 科目预测 */}
                 <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66]">
                   <CardHeader className="bg-[#B9FF66] border-b-2 border-black py-3">
                     <CardTitle className="text-sm font-black text-white uppercase tracking-wide flex items-center gap-2">
                       <Target className="h-4 w-4" />
-                      🎯 科目成绩预测
+                      科目成绩预测
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-4">
@@ -651,13 +651,13 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
                   </CardContent>
                 </Card>
 
-                {/* 🎨 优势与劣势分析 */}
+                {/* 优势与劣势分析 */}
                 <div className="grid grid-cols-2 gap-4">
                   <Card className="border-2 border-black shadow-[2px_2px_0px_0px_#B9FF66]">
                     <CardHeader className="bg-[#B9FF66] border-b-2 border-black py-2">
                       <CardTitle className="text-xs font-black text-[#191A23] uppercase tracking-wide flex items-center gap-1">
                         <CheckCircle className="h-3 w-3" />
-                        ✨ 优势科目
+                        优势科目
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="p-3">
@@ -675,7 +675,7 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
                     <CardHeader className="bg-[#FF6B6B] border-b-2 border-black py-2">
                       <CardTitle className="text-xs font-black text-white uppercase tracking-wide flex items-center gap-1">
                         <AlertTriangle className="h-3 w-3" />
-                        🎯 薄弱科目
+                        薄弱科目
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="p-3">
@@ -690,12 +690,12 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
                   </Card>
                 </div>
 
-                {/* 💡 AI个性化建议 */}
+                {/* AI个性化建议 */}
                 <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#9C88FF]">
                   <CardHeader className="bg-[#9C88FF] border-b-2 border-black py-3">
                     <CardTitle className="text-sm font-black text-white uppercase tracking-wide flex items-center gap-2">
                       <BookOpen className="h-4 w-4" />
-                      💡 AI个性化建议
+                      AI个性化建议
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-4 space-y-3">
@@ -706,7 +706,7 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
                         'bg-[#B9FF66]/10 border-[#B9FF66]'
                       }`}>
                         <p className="text-sm font-medium text-[#191A23] leading-relaxed">
-                          📝 {rec.description}
+                          {rec.description}
                         </p>
                       </div>
                     ))}
@@ -725,7 +725,7 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
               <Brain className="h-16 w-16 text-white" />
             </div>
             <p className="text-2xl font-black text-[#191A23] uppercase tracking-wide mb-3">
-              🚀 准备开始分析
+              准备开始分析
             </p>
             <p className="text-[#191A23]/70 font-medium">
               选择学生，开启AI驱动的成绩预测与学习建议之旅

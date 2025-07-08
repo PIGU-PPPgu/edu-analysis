@@ -1,5 +1,5 @@
 /**
- * 🎨 现代化成绩分析仪表板 - 安全版本
+ * 现代化成绩分析仪表板 - 安全版本
  * 参照 Figma Positivus 设计风格，移除可能有问题的高级组件
  */
 
@@ -52,7 +52,7 @@ import { useModernGradeAnalysis } from '@/contexts/ModernGradeAnalysisContext';
 import ModernGradeFilters from '@/components/analysis/filters/ModernGradeFilters';
 import SimpleGradeDataTable from '@/components/analysis/SimpleGradeDataTable';
 
-// 🎨 Positivus设计风格配色主题
+// Positivus设计风格配色主题
 const POSITIVUS_COLORS = {
   primary: '#B9FF66',    // Positivus经典亮绿色
   secondary: '#191A23',  // 深色文字
@@ -85,7 +85,7 @@ interface StatCardProps {
   className?: string;
 }
 
-// 🎨 Positivus风格统计卡片
+// Positivus风格统计卡片
 const StatCard: React.FC<StatCardProps> = ({
   title,
   value,
@@ -271,7 +271,7 @@ const ModernGradeAnalysisDashboard: React.FC = () => {
 
   return (
     <div className="space-y-8 p-6 bg-[#F3F3F3] min-h-screen">
-      {/* 🎨 Positivus风格页面标题和操作栏 */}
+      {/* Positivus风格页面标题和操作栏 */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
         <div className="space-y-3">
           <h1 className="text-5xl font-black text-[#191A23] leading-tight">
@@ -281,7 +281,7 @@ const ModernGradeAnalysisDashboard: React.FC = () => {
             </span>
           </h1>
           <p className="text-lg text-[#191A23]/80 font-medium max-w-2xl">
-            🚀 全面分析学生成绩表现，发现学习趋势和改进机会
+             全面分析学生成绩表现，发现学习趋势和改进机会
           </p>
         </div>
         
@@ -372,7 +372,7 @@ const ModernGradeAnalysisDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* 🎯 Positivus风格主要分析内容 */}
+      {/*  Positivus风格主要分析内容 */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
         <div className="overflow-x-auto">
           <TabsList className="grid w-fit grid-cols-4 bg-white border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] p-1">
