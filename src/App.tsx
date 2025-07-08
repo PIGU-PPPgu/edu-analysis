@@ -31,6 +31,10 @@ import CreateWarningTablePage from "./pages/tools/CreateWarningTable";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ICPNotice from "./pages/ICPNotice";
 import { initGlobalErrorHandlers, reduceBrowserWorkload, checkBrowserResources } from "./utils/errorHandlers";
+import ErrorBoundary from "./components/performance/ErrorBoundary";
+import { initializePerformanceOptimizer } from "./utils/performanceOptimizer";
+import SystemMonitor, { LogLevel, LogCategory } from "./utils/systemMonitor";
+import PerformanceMonitoring from "./pages/PerformanceMonitoring";
 
 
 // 全局配置QueryClient
@@ -67,6 +71,28 @@ const DatabaseInitializer = ({ children }: { children: React.ReactNode }) => {
     if (!checkBrowserResources()) {
       reduceBrowserWorkload();
     }
+    
+    // 初始化性能优化系统
+    initializePerformanceOptimizer();
+    
+    // 初始化系统监控
+    const isDev = import.meta.env.DEV;
+    const monitor = SystemMonitor.getInstance({
+      logLevel: isDev ? LogLevel.DEBUG : LogLevel.INFO,
+      enableConsoleOutput: isDev,
+      enableRemoteLogging: !isDev,
+      enablePerformanceMonitoring: true,
+      enableErrorTracking: true,
+      enableUserTracking: true,
+      maxLogEntries: 1000,
+      flushInterval: 30000
+    });
+    
+    monitor.log(LogLevel.INFO, LogCategory.SYSTEM, 'Application initialized successfully', {
+      environment: isDev ? 'development' : 'production',
+      version: import.meta.env.VITE_APP_VERSION || 'unknown',
+      timestamp: Date.now()
+    });
   }, []);
   
   return <>{children}</>;
@@ -80,7 +106,13 @@ function App() {
         <Sonner />
         <AuthProvider>
           <DatabaseInitializer>
-            <BrowserRouter>
+            <ErrorBoundary 
+              componentName="App"
+              enableRecovery={true}
+              showErrorDetails={true}
+              isolateFailures={false}
+            >
+              <BrowserRouter>
           <Routes>
                 {/* 公开路由 */}
                 <Route path="/" element={<ModernHomepage />} />
@@ -94,11 +126,13 @@ function App() {
                 <Route path="/tools/diagnostics" element={<DiagnosticsTool />} />
                 <Route path="/tools/init-tables" element={<InitTables />} />
                 <Route path="/tools/create-warning-table" element={<CreateWarningTablePage />} />
+                <Route path="/performance-monitoring" element={<PerformanceMonitoring />} />
                 
                 {/* 受保护的路由 - 需要登录验证 */}
                 <Route element={<ProtectedRoute />}>
                   <Route path="/dashboard" element={<Index />} />
                   <Route path="/data-import" element={<Index />} />
+                  <Route path="/simple-import" element={<Index />} />
                   <Route path="/profile" element={<ProfilePage />} />
                   
                   <Route element={<ProtectedRoute allowedRoles={['admin', 'teacher']} />}>
@@ -121,8 +155,9 @@ function App() {
                 
                 {/* 默认404路由 */}
                 <Route path="*" element={<NotFound />} />
-          </Routes>
-            </BrowserRouter>
+              </Routes>
+              </BrowserRouter>
+            </ErrorBoundary>
           </DatabaseInitializer>
         </AuthProvider>
       </TooltipProvider>

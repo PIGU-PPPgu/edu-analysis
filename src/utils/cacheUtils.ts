@@ -193,6 +193,6 @@ class RequestCache {
 export const requestCache = new RequestCache();
 
 // 开发环境开启调试
-if (process.env.NODE_ENV === 'development') {
+if (import.meta.env.DEV) {
   requestCache.setDebug(true);
 } 
