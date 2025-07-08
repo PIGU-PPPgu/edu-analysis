@@ -186,7 +186,7 @@ export const AdvancedDashboard: React.FC<AdvancedDashboardProps> = ({
   
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center py-12">
         <div className="flex flex-col items-center">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-solid border-purple-500 border-r-transparent"></div>
           <p className="mt-4 text-gray-600">正在加载分析数据...</p>

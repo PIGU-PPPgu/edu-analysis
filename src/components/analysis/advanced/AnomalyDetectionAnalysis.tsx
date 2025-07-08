@@ -725,7 +725,7 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
-          <div className="h-80">
+          <div className="h-48 sm:h-64 lg:h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={subjectAnomalies}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#191A23" strokeOpacity={0.3} />

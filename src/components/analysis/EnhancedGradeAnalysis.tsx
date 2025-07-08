@@ -427,7 +427,7 @@ const EnhancedGradeAnalysis: React.FC = () => {
               {gradeLoading ? (
                 <ChartSkeleton />
               ) : (
-                <div className="h-64 w-full">
+                <div className="h-64 sm:h-72 lg:h-80 w-full flex items-center">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={gradeDistributionData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
@@ -470,7 +470,7 @@ const EnhancedGradeAnalysis: React.FC = () => {
               {gradeLoading ? (
                 <ChartSkeleton />
               ) : (
-                <div className="h-64 w-full">
+                <div className="h-64 sm:h-72 lg:h-80 w-full flex items-center">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={classComparisonData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />

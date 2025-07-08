@@ -132,8 +132,8 @@ const StatCard: React.FC<StatCardProps> = ({
       positivusColorClasses[color], 
       className
     )}>
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between">
+      <CardContent className="p-6 h-full">
+        <div className="flex items-center justify-between h-full min-h-[120px]">
           <div className="space-y-3 flex-1">
             {/* Positivus风格标题 */}
             <div className="flex items-center gap-2">
@@ -260,7 +260,7 @@ const ModernGradeAnalysisDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center space-y-4">
           <RefreshCw className="w-8 h-8 animate-spin text-[#B9FF66] mx-auto" />
           <p className="text-[#6B7280]">正在加载成绩数据...</p>
@@ -289,7 +289,7 @@ const ModernGradeAnalysisDashboard: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8 p-6 bg-white min-h-screen">
+    <div className="space-y-8 p-6 bg-white">
       {/* Positivus风格页面标题和操作栏 */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
         <div className="space-y-3">

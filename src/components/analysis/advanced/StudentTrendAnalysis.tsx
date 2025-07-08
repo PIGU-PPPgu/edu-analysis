@@ -433,7 +433,7 @@ const StudentTrendAnalysis: React.FC<StudentTrendAnalysisProps> = ({
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="h-96">
+              <div className="h-64 sm:h-80 lg:h-96 flex items-center">
                 {viewMode === 'line' && (
                   <ResponsiveContainer width="100%" height="100%">
                     <RechartsLineChart data={chartData}>

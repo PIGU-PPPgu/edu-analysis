@@ -274,7 +274,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center space-y-4">
           <div className="w-12 h-12 border-4 border-[#B9FF66] border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-[#191A23] font-bold">正在加载高级分析数据...</p>
@@ -303,7 +303,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8 p-6 bg-[#F3F3F3] min-h-screen">
+    <div className="space-y-8 p-6 bg-[#F3F3F3]">
       {/* Positivus风格页面标题 */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
         <div className="space-y-3">

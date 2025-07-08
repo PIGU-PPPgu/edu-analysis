@@ -549,7 +549,7 @@ const MultiDimensionalRankingSystem: React.FC<MultiDimensionalRankingSystemProps
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <div className="h-96">
+            <div className="h-64 sm:h-80 lg:h-96 flex items-center justify-center">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
@@ -586,7 +586,7 @@ const MultiDimensionalRankingSystem: React.FC<MultiDimensionalRankingSystemProps
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <div className="h-96">
+            <div className="h-64 sm:h-80 lg:h-96 flex items-center justify-center">
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart data={radarData}>
                   <PolarGrid stroke="#E5E7EB" />

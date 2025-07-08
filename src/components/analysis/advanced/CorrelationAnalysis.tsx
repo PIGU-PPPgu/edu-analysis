@@ -311,7 +311,7 @@ const CorrelationHeatmap = memo<{
 
   if (heatmapData.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-500">
+      <div className="flex items-center justify-center py-12 text-gray-500">
         <div className="text-center">
           <Grid className="w-8 h-8 mx-auto mb-2 text-gray-300" />
           <p>暂无足够数据生成热力图</p>
@@ -321,7 +321,7 @@ const CorrelationHeatmap = memo<{
   }
 
   return (
-    <div className="h-96">
+    <div className="h-48 sm:h-64 lg:h-80">
       <ResponsiveHeatMap
         data={heatmapData}
         margin={{ top: 60, right: 90, bottom: 60, left: 90 }}
@@ -395,7 +395,7 @@ const ScatterPlotAnalysis = memo<{
 
   if (correlations.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-500">
+      <div className="flex items-center justify-center py-12 text-gray-500">
         <div className="text-center">
           <BarChart3 className="w-8 h-8 mx-auto mb-2 text-gray-300" />
           <p>暂无相关性数据</p>

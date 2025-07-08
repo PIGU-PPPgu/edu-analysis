@@ -486,7 +486,7 @@ const ScoreDistribution: React.FC<ScoreDistributionProps> = ({
           </div>
         </CardHeader>
         <CardContent>
-          <div className="h-80 md:h-96">
+          <div className="h-64 sm:h-80 lg:h-96 flex items-center justify-center">
             {chartType === 'bar' || displayMode === 'bar' ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={processedData.scoreRanges} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
