@@ -200,7 +200,7 @@ serve(async (req) => {
 async function getStudentDetailData(supabase: any, studentId: string): Promise<StudentData> {
   // 获取最近的成绩数据
   const { data: recentGrades } = await supabase
-    .from('grade_data')
+    .from('grade_data_new')
     .select('*')
     .eq('student_id', studentId)
     .order('created_at', { ascending: false })

@@ -25,6 +25,7 @@ ALTER TABLE grades ADD COLUMN IF NOT EXISTS exam_title TEXT;
 -- 4. 创建核心的多科目成绩表
 CREATE TABLE IF NOT EXISTS grade_data (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  exam_id TEXT,                  -- 考试ID关联字段
   student_id TEXT NOT NULL,
   name TEXT,
   class_name TEXT,
@@ -65,10 +66,39 @@ CREATE TABLE IF NOT EXISTS grade_data (
   geography_score NUMERIC,
   geography_grade TEXT,
   
-  -- 排名信息
-  rank_in_class INTEGER,
-  rank_in_grade INTEGER,
-  rank_in_school INTEGER,
+  -- 总分排名信息
+  total_rank_in_class INTEGER,
+  total_rank_in_school INTEGER,
+  total_rank_in_grade INTEGER,
+  
+  -- 各科目排名信息
+  chinese_rank_in_class INTEGER,
+  chinese_rank_in_school INTEGER,
+  chinese_rank_in_grade INTEGER,
+  
+  math_rank_in_class INTEGER,
+  math_rank_in_school INTEGER,
+  math_rank_in_grade INTEGER,
+  
+  english_rank_in_class INTEGER,
+  english_rank_in_school INTEGER,
+  english_rank_in_grade INTEGER,
+  
+  physics_rank_in_class INTEGER,
+  physics_rank_in_school INTEGER,
+  physics_rank_in_grade INTEGER,
+  
+  chemistry_rank_in_class INTEGER,
+  chemistry_rank_in_school INTEGER,
+  chemistry_rank_in_grade INTEGER,
+  
+  politics_rank_in_class INTEGER,
+  politics_rank_in_school INTEGER,
+  politics_rank_in_grade INTEGER,
+  
+  history_rank_in_class INTEGER,
+  history_rank_in_school INTEGER,
+  history_rank_in_grade INTEGER,
   
   -- 基础元数据
   teacher_id TEXT,

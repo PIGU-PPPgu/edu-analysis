@@ -9,21 +9,83 @@ CREATE TABLE IF NOT EXISTS exams (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
--- 创建成绩数据表
+-- 创建成绩数据表（宽表格设计）
 CREATE TABLE IF NOT EXISTS grade_data (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  exam_id UUID NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+  exam_id TEXT,
+  
+  -- 学生基本信息
   student_id TEXT NOT NULL,
   name TEXT,
   class_name TEXT,
-  subject TEXT,
-  total_score NUMERIC,
-  exam_date DATE,
-  exam_type TEXT,
+  
+  -- 考试信息
   exam_title TEXT,
+  exam_type TEXT,
+  exam_date DATE,
+  
+  -- 总分信息
+  total_score NUMERIC,
+  total_grade TEXT,
+  total_rank_in_class INTEGER,
+  total_rank_in_school INTEGER,
+  total_rank_in_grade INTEGER,
+  
+  -- 语文
+  chinese_score NUMERIC,
+  chinese_grade TEXT,
+  chinese_rank_in_class INTEGER,
+  chinese_rank_in_school INTEGER,
+  chinese_rank_in_grade INTEGER,
+  
+  -- 数学
+  math_score NUMERIC,
+  math_grade TEXT,
+  math_rank_in_class INTEGER,
+  math_rank_in_school INTEGER,
+  math_rank_in_grade INTEGER,
+  
+  -- 英语
+  english_score NUMERIC,
+  english_grade TEXT,
+  english_rank_in_class INTEGER,
+  english_rank_in_school INTEGER,
+  english_rank_in_grade INTEGER,
+  
+  -- 物理
+  physics_score NUMERIC,
+  physics_grade TEXT,
+  physics_rank_in_class INTEGER,
+  physics_rank_in_school INTEGER,
+  physics_rank_in_grade INTEGER,
+  
+  -- 化学
+  chemistry_score NUMERIC,
+  chemistry_grade TEXT,
+  chemistry_rank_in_class INTEGER,
+  chemistry_rank_in_school INTEGER,
+  chemistry_rank_in_grade INTEGER,
+  
+  -- 道法
+  politics_score NUMERIC,
+  politics_grade TEXT,
+  politics_rank_in_class INTEGER,
+  politics_rank_in_school INTEGER,
+  politics_rank_in_grade INTEGER,
+  
+  -- 历史
+  history_score NUMERIC,
+  history_grade TEXT,
+  history_rank_in_class INTEGER,
+  history_rank_in_school INTEGER,
+  history_rank_in_grade INTEGER,
+  
+  -- 元数据
   metadata JSONB,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  
+  -- 唯一约束：一个学生在一次考试中只能有一条记录
   UNIQUE(exam_id, student_id)
 );
 
