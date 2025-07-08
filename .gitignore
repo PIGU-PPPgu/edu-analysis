@@ -32,6 +32,8 @@ node_modules/
 .vscode
 # Cursor MCP configuration (contains API keys)
 .cursor/mcp.json
+# Claude Code settings (contains API keys)
+.claude/settings.local.json
 # OS specific
 # API密钥配置文件
 # .env.example 应该被提交以供参考
