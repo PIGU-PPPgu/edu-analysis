@@ -500,8 +500,8 @@ const EnhancedAnalysisHub: React.FC = () => {
                         <p className="text-sm">
                           <span className="text-gray-600">趋势方向:</span>
                           <span className="ml-2 font-medium">
-                            {analysisData.trendAnalysis.trend === 'up' ? '📈 上升趋势' : 
-                             analysisData.trendAnalysis.trend === 'down' ? '📉 下降趋势' : '📊 保持稳定'}
+                            {analysisData.trendAnalysis.trend === 'up' ? ' 上升趋势' : 
+                             analysisData.trendAnalysis.trend === 'down' ? ' 下降趋势' : ' 保持稳定'}
                           </span>
                         </p>
                         <p className="text-sm">
@@ -568,9 +568,9 @@ const EnhancedAnalysisHub: React.FC = () => {
                             )}
                           </div>
                           <Badge variant="secondary">
-                            {insight.type === 'strength' ? '💪 优势' :
-                             insight.type === 'weakness' ? '⚠️ 薄弱' :
-                             insight.type === 'improvement' ? '📈 进步' : '🔍 关注'}
+                            {insight.type === 'strength' ? ' 优势' :
+                             insight.type === 'weakness' ? ' 薄弱' :
+                             insight.type === 'improvement' ? ' 进步' : ' 关注'}
                           </Badge>
                         </div>
                         
@@ -579,7 +579,7 @@ const EnhancedAnalysisHub: React.FC = () => {
                         </h4>
                         
                         <p className="text-sm text-gray-600 bg-gray-50 rounded p-3">
-                          💡 <strong>建议:</strong> {insight.actionSuggestion}
+                           <strong>建议:</strong> {insight.actionSuggestion}
                         </p>
                       </div>
                     ))}
@@ -618,8 +618,8 @@ const EnhancedAnalysisHub: React.FC = () => {
                               variant={warning.severity === 'critical' || warning.severity === 'high' ? 
                                       'destructive' : 'default'}
                             >
-                              {warning.severity === 'critical' ? '🚨 严重' :
-                               warning.severity === 'high' ? '⚠️ 高' :
+                              {warning.severity === 'critical' ? ' 严重' :
+                               warning.severity === 'high' ? ' 高' :
                                warning.severity === 'medium' ? '🟡 中' : '🔵 低'}
                             </Badge>
                           </div>
@@ -634,7 +634,7 @@ const EnhancedAnalysisHub: React.FC = () => {
                   <Alert className="border-green-500 bg-green-50">
                     <Target className="h-4 w-4" />
                     <AlertDescription>
-                      🎉 <strong>表现良好!</strong> 该学生当前没有触发任何预警规则，继续保持！
+                       <strong>表现良好!</strong> 该学生当前没有触发任何预警规则，继续保持！
                     </AlertDescription>
                   </Alert>
                 )}

@@ -137,7 +137,7 @@ const ClassAIDiagnostician: React.FC<ClassAIDiagnosticianProps> = ({
   };
 
   // 调试信息
-  console.log('🔍 ClassAIDiagnostician 渲染状态:', {
+  console.log(' ClassAIDiagnostician 渲染状态:', {
     hasGradeData: !!gradeData && gradeData.length > 0,
     gradeDataCount: gradeData?.length || 0,
     isAnalyzing,
@@ -166,13 +166,13 @@ const ClassAIDiagnostician: React.FC<ClassAIDiagnosticianProps> = ({
       setAiStatus(currentAiStatus);
       
       if (currentAiStatus.isConfigured) {
-        console.info('🤖 正在使用您配置的AI服务进行分析...');
+        console.info(' 正在使用您配置的AI服务进行分析...');
       } else {
-        console.info('🤖 使用基于实际数据的智能模拟分析...');
+        console.info(' 使用基于实际数据的智能模拟分析...');
       }
       
       const result = await aiService.analyzeClass(gradeData);
-      console.log('✅ AI诊断成功，结果:', result);
+      console.log(' AI诊断成功，结果:', result);
       setAnalysisResult(result);
       
       // 保存结果到缓存
@@ -193,7 +193,7 @@ const ClassAIDiagnostician: React.FC<ClassAIDiagnosticianProps> = ({
       const reportContent = `
 # 🏫 班级AI诊断报告
 
-## 📊 整体评估
+##  整体评估
 **班级水平**: ${analysisResult.overall_assessment.level}
 **AI评价**: ${analysisResult.overall_assessment.description}
 **分析置信度**: ${(analysisResult.overall_assessment.confidence * 100).toFixed(1)}%
@@ -211,7 +211,7 @@ ${subject.weaknesses.map((w: string) => `- ${w}`).join('\n')}
 ${subject.teaching_suggestions.map((t: string) => `- ${t}`).join('\n')}
 `).join('\n')}
 
-## 💡 班级管理洞察
+##  班级管理洞察
 ${analysisResult.management_insights.map((insight: any) => `
 ### ${insight.category}
 **发现**: ${insight.insight}
@@ -219,7 +219,7 @@ ${analysisResult.management_insights.map((insight: any) => `
 **影响程度**: ${insight.impact_level}/10
 `).join('\n')}
 
-## 🎯 AI推荐行动计划
+##  AI推荐行动计划
 ### 立即行动
 ${analysisResult.action_plan.immediate_actions.map((action: string) => `- ${action}`).join('\n')}
 
@@ -348,14 +348,14 @@ ${analysisResult.action_plan.success_metrics.map((metric: string) => `- ${metric
                   <>
                     <div className="w-2 h-2 bg-[#B9FF66] rounded-full"></div>
                     <span className="text-sm font-medium text-[#191A23]">
-                      🤖 已配置AI服务 - 将使用您设置的豆包等AI进行真实分析
+                       已配置AI服务 - 将使用您设置的豆包等AI进行真实分析
                     </span>
                   </>
                 ) : (
                   <>
                     <div className="w-2 h-2 bg-[#F7931E] rounded-full"></div>
                     <span className="text-sm font-medium text-[#191A23]">
-                      📊 未配置AI服务 - 将使用基于实际数据的智能模拟分析
+                       未配置AI服务 - 将使用基于实际数据的智能模拟分析
                     </span>
                     <a href="/ai-settings" className="text-[#B9FF66] hover:underline text-sm font-bold">
                       去配置 →
@@ -381,12 +381,12 @@ ${analysisResult.action_plan.success_metrics.map((metric: string) => `- ${metric
         <Card className="border-4 border-[#191A23] shadow-[8px_8px_0px_0px_#B9FF66] bg-white">
           <CardContent className="p-12 text-center">
             <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-solid border-[#B9FF66] border-r-transparent mb-6"></div>
-            <p className="text-2xl font-black text-[#191A23] mb-4">🤖 AI正在深度诊断班级...</p>
+            <p className="text-2xl font-black text-[#191A23] mb-4"> AI正在深度诊断班级...</p>
             <div className="space-y-2 text-[#191A23]/70 font-medium">
-              <p>📊 分析学生成绩分布规律</p>
-              <p>🔍 识别各科目教学重点难点</p>
-              <p>💡 生成个性化教学改进建议</p>
-              <p>🎯 制定科学的班级管理策略</p>
+              <p> 分析学生成绩分布规律</p>
+              <p> 识别各科目教学重点难点</p>
+              <p> 生成个性化教学改进建议</p>
+              <p> 制定科学的班级管理策略</p>
             </div>
             <div className="mt-6 flex items-center justify-center gap-2 text-[#191A23]/60">
               <Clock className="w-4 h-4" />
@@ -407,7 +407,7 @@ ${analysisResult.action_plan.success_metrics.map((metric: string) => `- ${metric
                     <CheckCircle className="w-6 h-6 text-[#191A23]" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-black text-[#191A23]">🎉 AI诊断完成！</h3>
+                    <h3 className="text-xl font-black text-[#191A23]"> AI诊断完成！</h3>
                     <p className="text-[#191A23]/80 font-medium">
                       AI已生成 <span className="font-bold text-[#F7931E]">{analysisResult.subject_analysis?.length || 0}</span> 个科目分析
                       和 <span className="font-bold text-[#9C88FF]">{analysisResult.management_insights?.length || 0}</span> 项管理洞察
@@ -502,7 +502,7 @@ ${analysisResult.action_plan.success_metrics.map((metric: string) => `- ${metric
               <CardHeader className="bg-[#B9FF66]/30 border-b-3 border-[#B9FF66] p-6">
                 <CardTitle className="text-2xl font-bold text-[#191A23] flex items-center gap-3">
                   <Award className="w-6 h-6" />
-                  🤖 AI整体诊断结果
+                   AI整体诊断结果
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-8 bg-white">
@@ -522,7 +522,7 @@ ${analysisResult.action_plan.success_metrics.map((metric: string) => `- ${metric
                   <div className="space-y-4">
                     <h4 className="font-bold text-[#191A23] text-lg flex items-center gap-2">
                       <Brain className="w-5 h-5" />
-                      🤖 AI专业评价
+                       AI专业评价
                     </h4>
                     <div className="p-6 bg-[#F8F8F8] border-2 border-[#B9FF66]/50 rounded-lg">
                       <p className="text-[#191A23] font-medium leading-relaxed">
@@ -547,8 +547,8 @@ ${analysisResult.action_plan.success_metrics.map((metric: string) => `- ${metric
                         {subject.subject}
                       </div>
                       <Badge className={`border-2 border-black ${getPriorityColor(subject.priority)}`}>
-                        {subject.priority === 'high' ? '🔥 高优先级' :
-                         subject.priority === 'medium' ? '⚡ 中优先级' : '💡 低优先级'}
+                        {subject.priority === 'high' ? ' 高优先级' :
+                         subject.priority === 'medium' ? ' 中优先级' : ' 低优先级'}
                       </Badge>
                     </CardTitle>
                   </CardHeader>
@@ -558,7 +558,7 @@ ${analysisResult.action_plan.success_metrics.map((metric: string) => `- ${metric
                       <div>
                         <h5 className="font-bold text-[#191A23] text-sm mb-2 flex items-center gap-1">
                           <CheckCircle className="w-4 h-4 text-[#B9FF66]" />
-                          ✨ AI识别优势
+                           AI识别优势
                         </h5>
                         <ul className="space-y-1">
                           {subject.strengths.map((strength: string, idx: number) => (
@@ -576,7 +576,7 @@ ${analysisResult.action_plan.success_metrics.map((metric: string) => `- ${metric
                       <div>
                         <h5 className="font-bold text-[#191A23] text-sm mb-2 flex items-center gap-1">
                           <AlertTriangle className="w-4 h-4 text-[#FF6B6B]" />
-                          🎯 AI发现问题
+                           AI发现问题
                         </h5>
                         <ul className="space-y-1">
                           {subject.weaknesses.map((weakness: string, idx: number) => (
@@ -593,7 +593,7 @@ ${analysisResult.action_plan.success_metrics.map((metric: string) => `- ${metric
                     <div className="bg-[#F7931E]/10 p-3 border border-[#F7931E] rounded">
                       <h5 className="font-bold text-[#191A23] text-sm mb-2 flex items-center gap-1">
                         <Lightbulb className="w-4 h-4 text-[#F7931E]" />
-                        🤖 AI教学建议
+                         AI教学建议
                       </h5>
                       <ul className="space-y-1">
                         {subject.teaching_suggestions.map((suggestion: string, idx: number) => (
@@ -634,9 +634,9 @@ ${analysisResult.action_plan.success_metrics.map((metric: string) => `- ${metric
                             <span className="text-sm font-bold text-[#191A23]">{insight.impact_level}/10</span>
                           </div>
                         </div>
-                        <p className="text-[#191A23] font-medium mb-3">🔍 {insight.insight}</p>
+                        <p className="text-[#191A23] font-medium mb-3"> {insight.insight}</p>
                         <div className="p-3 bg-white border-2 border-black rounded-lg">
-                          <h5 className="font-bold text-[#191A23] text-sm mb-2">💡 AI建议</h5>
+                          <h5 className="font-bold text-[#191A23] text-sm mb-2"> AI建议</h5>
                           <p className="text-[#191A23] text-sm">{insight.recommendation}</p>
                         </div>
                       </div>
@@ -655,7 +655,7 @@ ${analysisResult.action_plan.success_metrics.map((metric: string) => `- ${metric
                 <CardHeader className="bg-[#FF6B6B]/20 border-b-2 border-[#FF6B6B] p-5">
                   <CardTitle className="font-bold text-[#191A23] flex items-center gap-2">
                     <Zap className="w-5 h-5" />
-                    🚀 立即行动
+                     立即行动
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-5 bg-white space-y-3">
@@ -675,7 +675,7 @@ ${analysisResult.action_plan.success_metrics.map((metric: string) => `- ${metric
                 <CardHeader className="bg-[#F7931E]/20 border-b-2 border-[#F7931E] p-5">
                   <CardTitle className="font-bold text-[#191A23] flex items-center gap-2">
                     <Target className="w-5 h-5" />
-                    📈 长期策略
+                     长期策略
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-5 bg-white space-y-3">
@@ -695,7 +695,7 @@ ${analysisResult.action_plan.success_metrics.map((metric: string) => `- ${metric
                 <CardHeader className="bg-[#B9FF66]/20 border-b-2 border-[#B9FF66] p-5">
                   <CardTitle className="font-bold text-[#191A23] flex items-center gap-2">
                     <TrendingUp className="w-5 h-5" />
-                    🎯 成功指标
+                     成功指标
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-5 bg-white space-y-3">

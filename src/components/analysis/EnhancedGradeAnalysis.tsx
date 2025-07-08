@@ -58,28 +58,33 @@ const useGradeData = (examId?: string, classFilter?: string) => {
   return useQuery({
     queryKey: ['gradeData', examId, classFilter],
     queryFn: async () => {
+      console.log('[调试] 开始查询grade_data_new...', { examId, classFilter });
+      
       let query = supabase
-        .from('grade_data')
+        .from('grade_data_new')
         .select('*')
-        .order('score', { ascending: false });
+        .order('total_score', { ascending: false });
 
       if (examId) {
         query = query.eq('exam_id', examId);
       }
       
-          if (classFilter && classFilter !== '__all_classes__') {
+      if (classFilter && classFilter !== '__all_classes__') {
         query = query.eq('class_name', classFilter);
       }
 
       const { data, error } = await query;
       
+      console.log('[调试] 查询结果:', { data, error, count: data?.length });
+      
       if (error) {
+        console.error('[调试] 查询错误:', error);
         throw new Error(`数据加载失败: ${error.message}`);
       }
       
       return data as GradeData[];
     },
-    enabled: !!examId,
+    enabled: true,
     staleTime: 5 * 60 * 1000,
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),

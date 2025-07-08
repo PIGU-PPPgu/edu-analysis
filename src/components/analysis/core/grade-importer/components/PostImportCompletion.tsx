@@ -1,5 +1,5 @@
 /**
- * 📈 PostImportCompletion - 导入后智能补全组件
+ *  PostImportCompletion - 导入后智能补全组件
  * 
  * 在分析结果页面智能提醒用户补充缺失的重要数据
  * 让用户在看到初步结果后，轻松添加更多有价值的字段
@@ -384,7 +384,7 @@ const PostImportCompletion: React.FC<PostImportCompletionProps> = ({
                         </div>
                         <p className="text-sm text-gray-600">{action.description}</p>
                         <p className="text-xs text-blue-600 mt-1">
-                          ✨ {action.previewBenefit}
+                           {action.previewBenefit}
                         </p>
                       </div>
                       <Button

@@ -1,4 +1,4 @@
-// 🔧 终极修复版本 - 移除Radix UI Tabs，使用纯div实现
+// 终极修复版本 - 移除Radix UI Tabs，使用纯div实现
 import React, { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,7 +42,7 @@ import type {
   ExamInfo
 } from './types';
 
-// 🔧 从AI分析结果中提取映射配置
+// 从AI分析结果中提取映射配置
 const extractMappingFromAI = (aiAnalysis: any): MappingConfig | null => {
   try {
     if (!aiAnalysis?.fieldMappings && !aiAnalysis?.suggestedMappings) {
@@ -128,17 +128,17 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
       // 直接使用 actions.setFileData 方法设置数据
       actions.setFileData(fileData.data || [], fileInfo.name);
       
-      // 🔧 临时禁用AI自动跳转以修复DOM冲突
+      // 临时禁用AI自动跳转以修复DOM冲突
       // 所有文件都进入手动字段映射步骤，避免状态冲突
-      console.log('[GradeImporter] 🔧 使用手动流程，避免DOM冲突');
+      console.log('[GradeImporter] 使用手动流程，避免DOM冲突');
       
-      // 🔧 从AI分析结果中提取映射配置（仅用于预填充，不自动跳转）
+      // 从AI分析结果中提取映射配置（仅用于预填充，不自动跳转）
       if (fileData.aiAnalysis) {
         const autoMappingConfig = extractMappingFromAI(fileData.aiAnalysis);
         if (autoMappingConfig) {
           // 预设映射配置，但不自动跳转
           actions.setMappingConfig(autoMappingConfig);
-          console.log('[GradeImporter] ✅ 预设AI映射配置，等待用户确认');
+          console.log('[GradeImporter]  预设AI映射配置，等待用户确认');
         }
       }
       
@@ -378,8 +378,8 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
                     <div className="mt-3 p-3 bg-gray-50 rounded-lg">
                       <p className="text-sm text-gray-700">
                         {userInterfaceMode === 'simple' 
-                          ? '🤖 智能模式：系统自动识别数据，用简单的方式确认即可，适合大多数用户' 
-                          : '⚙️ 高级模式：提供详细的字段映射控制，适合有经验的用户进行精确配置'
+                          ? '智能模式：系统自动识别数据，用简单的方式确认即可，适合大多数用户' 
+                          : '高级模式：提供详细的字段映射控制，适合有经验的用户进行精确配置'
                         }
                       </p>
                     </div>

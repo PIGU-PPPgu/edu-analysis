@@ -1,5 +1,5 @@
 /**
- * 🎯 UnmappedFieldsOnly - 仅显示未映射字段的组件
+ *  UnmappedFieldsOnly - 仅显示未映射字段的组件
  * 
  * 专门用于第二步字段映射，只显示需要用户处理的问题字段
  * 不显示成功映射的字段，减少信息干扰
@@ -345,7 +345,7 @@ const UnmappedFieldsOnly: React.FC<UnmappedFieldsOnlyProps> = ({
           <CardContent className="pt-6">
             <div className="text-center py-4">
               <div className="text-green-600 mb-2">
-                ✅ 所有字段已完成映射
+                 所有字段已完成映射
               </div>
               <p className="text-sm text-gray-600">
                 共识别 {mappedCount} 个字段，可以继续下一步

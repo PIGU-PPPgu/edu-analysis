@@ -1,5 +1,5 @@
 /**
- * 🎨 Positivus风格成绩趋势分析组件
+ * Positivus风格成绩趋势分析组件
  */
 
 import React, { useMemo } from 'react';
@@ -89,7 +89,7 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({ data, className = "" }) =
           <div className="p-4 bg-[#9C88FF] rounded-full border-2 border-black mx-auto mb-4 w-fit">
             <TrendingUp className="h-8 w-8 text-white" />
           </div>
-          <p className="text-lg font-black text-[#191A23] uppercase tracking-wide">📈 暂无趋势数据</p>
+          <p className="text-lg font-black text-[#191A23] uppercase tracking-wide">暂无趋势数据</p>
           <p className="text-[#191A23]/70 font-medium mt-2">需要多次考试数据来分析趋势</p>
         </CardContent>
       </Card>
@@ -100,7 +100,7 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({ data, className = "" }) =
     <div className={`space-y-4 ${className}`}>
       {/* 趋势概览 */}
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-black text-[#191A23] uppercase tracking-wide">📈 成绩趋势</h3>
+        <h3 className="text-lg font-black text-[#191A23] uppercase tracking-wide">成绩趋势</h3>
         <Badge className={`font-bold border-2 border-black shadow-[2px_2px_0px_0px_#191A23] ${
           trend.direction === 'up' ? 'bg-[#B9FF66] text-[#191A23]' :
           trend.direction === 'down' ? 'bg-[#FF6B6B] text-white' :

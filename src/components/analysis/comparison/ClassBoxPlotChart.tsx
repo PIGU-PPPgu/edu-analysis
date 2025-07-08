@@ -43,7 +43,7 @@ interface ProcessedBoxPlotData {
 // 自定义组件
 // ============================================================================
 
-// 🎨 Positivus风格自定义箱线图组件
+// Positivus风格自定义箱线图组件
 const BoxPlot = (props: any) => {
   const { x, y, width, height, payload, fill } = props;
   const data = payload || {};
@@ -84,7 +84,7 @@ const BoxPlot = (props: any) => {
         rx={4} // 圆角
       />
       
-      {/* 📋 中位数线 - Positivus风格 */}
+      {/* 中位数线 - Positivus风格 */}
       <line
         stroke="#191A23"
         strokeWidth={strokeWidth + 1}
@@ -94,7 +94,7 @@ const BoxPlot = (props: any) => {
         y2={getYPosition(median)}
       />
       
-      {/* 🔻 最小值横线 - Positivus风格 */}
+      {/* 最小值横线 - Positivus风格 */}
       <line
         stroke="#191A23"
         strokeWidth={strokeWidth}
@@ -114,7 +114,7 @@ const BoxPlot = (props: any) => {
         y2={getYPosition(max)}
       />
       
-      {/* 🎯 Positivus风格平均值点 */}
+      {/*  Positivus风格平均值点 */}
       <circle
         fill="#B9FF66"
         stroke="#191A23"
@@ -127,17 +127,17 @@ const BoxPlot = (props: any) => {
   );
 };
 
-// 🎨 Positivus风格自定义提示框
+// Positivus风格自定义提示框
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
       <Card className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_#191A23] p-4">
         <CardContent className="p-0">
-          <p className="font-black text-[#191A23] mb-3 text-lg uppercase tracking-wide">📋 {data.subject}</p>
+          <p className="font-black text-[#191A23] mb-3 text-lg uppercase tracking-wide">{data.subject}</p>
           <div className="space-y-2">
             <div className="flex justify-between items-center p-2 bg-[#FF6B6B]/20 border border-[#FF6B6B] rounded">
-              <span className="font-bold text-[#191A23]">🔻 最小值:</span>
+              <span className="font-bold text-[#191A23]">最小值:</span>
               <span className="font-black text-[#191A23]">{data.min}</span>
             </div>
             <div className="flex justify-between items-center p-2 bg-[#B9FF66]/20 border border-[#B9FF66] rounded">
@@ -145,7 +145,7 @@ const CustomTooltip = ({ active, payload }: any) => {
               <span className="font-black text-[#191A23]">{data.q1}</span>
             </div>
             <div className="flex justify-between items-center p-2 bg-[#B9FF66]/20 border border-[#B9FF66] rounded">
-              <span className="font-bold text-[#191A23]">📋 中位数:</span>
+              <span className="font-bold text-[#191A23]">中位数:</span>
               <span className="font-black text-[#191A23]">{data.median}</span>
             </div>
             <div className="flex justify-between items-center p-2 bg-[#B9FF66]/20 border border-[#B9FF66] rounded">
@@ -157,12 +157,12 @@ const CustomTooltip = ({ active, payload }: any) => {
               <span className="font-black text-[#191A23]">{data.max}</span>
             </div>
             <div className="flex justify-between items-center p-2 bg-[#B9FF66]/20 border border-[#B9FF66] rounded">
-              <span className="font-bold text-[#191A23]">🎯 平均值:</span>
+              <span className="font-bold text-[#191A23]"> 平均值:</span>
               <span className="font-black text-[#B9FF66]">{data.mean.toFixed(1)}</span>
             </div>
             {data.outliers && data.outliers.length > 0 && (
               <div className="mt-3 p-2 bg-[#FF6B6B]/20 border border-[#FF6B6B] rounded">
-                <p className="font-black text-[#191A23] mb-2">🚨 异常值 ({data.outliers.length}):</p>
+                <p className="font-black text-[#191A23] mb-2"> 异常值 ({data.outliers.length}):</p>
                 <div className="space-y-1">
                   {data.outliers.slice(0, 3).map((outlier: any, index: number) => (
                     <div key={index} className="text-sm font-medium text-[#191A23]">
@@ -198,7 +198,7 @@ const ClassBoxPlotChart: React.FC<ClassBoxPlotChartProps> = ({
   const [selectedClass, setSelectedClass] = useState<string>('all');
 
   // 确定要分析的考试ID
-  const analysisExamId = examId || gradeData[0]?.exam_id;
+  const analysisExamId = examId || (gradeData && gradeData.length > 0 ? gradeData[0]?.exam_id : null);
 
   // 获取可用班级列表
   const availableClasses = useMemo(() => {
@@ -283,7 +283,7 @@ const ClassBoxPlotChart: React.FC<ClassBoxPlotChartProps> = ({
     }).filter(data => data.min > 0 || data.max > 0); // 过滤掉无效数据
   }, [gradeData, selectedClass]);
 
-  // 🎨 Positivus风格加载状态
+  // Positivus风格加载状态
   if (isLoading) {
     return (
       <Card className={`bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] ${className}`}>
@@ -297,7 +297,7 @@ const ClassBoxPlotChart: React.FC<ClassBoxPlotChartProps> = ({
     );
   }
 
-  // 🎨 Positivus风格无数据状态
+  // Positivus风格无数据状态
   if (availableClasses.length <= 1) {
     return (
       <Card className={`bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] ${className}`}>
@@ -321,7 +321,7 @@ const ClassBoxPlotChart: React.FC<ClassBoxPlotChartProps> = ({
                 </div>
                 <div>
                   <p className="font-black text-[#191A23] text-lg mb-3 uppercase tracking-wide">
-                    ⚠️ 未找到班级数据，请检查：
+                     未找到班级数据，请检查：
                   </p>
                   <div className="space-y-2">
                     <div className="p-2 bg-white border border-[#B9FF66] rounded-lg">
@@ -447,7 +447,7 @@ const ClassBoxPlotChart: React.FC<ClassBoxPlotChartProps> = ({
         </CardContent>
       </Card>
 
-      {/* 🎨 Positivus风格统计摘要 */}
+      {/* Positivus风格统计摘要 */}
       {boxPlotData.length > 0 && (
         <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]">
           <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
@@ -456,7 +456,7 @@ const ClassBoxPlotChart: React.FC<ClassBoxPlotChartProps> = ({
                 <Download className="h-6 w-6 text-white" />
               </div>
               <CardTitle className="text-2xl font-black text-white uppercase tracking-wide">
-                📊 统计摘要
+                 统计摘要
               </CardTitle>
             </div>
           </CardHeader>
@@ -466,16 +466,16 @@ const ClassBoxPlotChart: React.FC<ClassBoxPlotChartProps> = ({
                 <Card key={data.subject} className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#B9FF66]">
                   <CardHeader className="bg-[#B9FF66] border-b-2 border-black py-3">
                     <CardTitle className="font-black text-[#191A23] text-lg uppercase tracking-wide">
-                      📋 {data.subject}
+                      {data.subject}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-4 space-y-3">
                     <div className="flex justify-between items-center p-2 bg-[#B9FF66]/20 border border-[#B9FF66] rounded">
-                      <span className="font-bold text-[#191A23]">🎯 平均分:</span>
+                      <span className="font-bold text-[#191A23]"> 平均分:</span>
                       <span className="font-black text-[#B9FF66]">{data.mean.toFixed(1)}</span>
                     </div>
                     <div className="flex justify-between items-center p-2 bg-[#B9FF66]/20 border border-[#B9FF66] rounded">
-                      <span className="font-bold text-[#191A23]">📋 中位数:</span>
+                      <span className="font-bold text-[#191A23]">中位数:</span>
                       <span className="font-black text-[#191A23]">{data.median}</span>
                     </div>
                     <div className="flex justify-between items-center p-2 bg-[#B9FF66]/20 border border-[#B9FF66] rounded">
@@ -484,7 +484,7 @@ const ClassBoxPlotChart: React.FC<ClassBoxPlotChartProps> = ({
                     </div>
                     {data.outliers.length > 0 && (
                       <div className="flex justify-between items-center p-2 bg-[#FF6B6B]/20 border border-[#FF6B6B] rounded">
-                        <span className="font-bold text-[#191A23]">🚨 异常值:</span>
+                        <span className="font-bold text-[#191A23]"> 异常值:</span>
                         <Badge className="bg-[#FF6B6B] text-white border border-black font-bold">
                           {data.outliers.length}个
                         </Badge>

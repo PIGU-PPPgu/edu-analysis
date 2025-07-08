@@ -213,7 +213,7 @@ export const OptimizedGradeDataTable: React.FC<OptimizedGradeDataTableProps> = (
           return classes;
         }),
         // 简化查询 - 从成绩数据中获取科目
-        supabase.from('grade_data').select('subject').then(result => {
+        supabase.from('grade_data_new').select('subject').then(result => {
           const subjects = [...new Set(result.data?.map(g => g.subject).filter(Boolean))];
           return subjects;
         }),
@@ -403,7 +403,7 @@ export const OptimizedGradeDataTable: React.FC<OptimizedGradeDataTableProps> = (
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
-            📊 成绩数据表
+             成绩数据表
             {isFetching && <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />}
           </CardTitle>
           <div className="flex items-center gap-2">

@@ -59,7 +59,7 @@ interface PerformanceLevel {
 // ============================================================================
 
 /**
- * 🎨 根据平均分判断整体表现水平（Positivus风格色彩系统）
+ * 根据平均分判断整体表现水平（Positivus风格色彩系统）
  */
 const getPerformanceLevel = (average: number): PerformanceLevel => {
   if (average >= 90) {
@@ -265,7 +265,7 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
     return <StatisticsOverviewSkeleton />;
   }
 
-  // 🎨 Positivus风格错误状态
+  // Positivus风格错误状态
   if (error) {
     return (
       <Card className={`bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] ${className}`}>
@@ -273,14 +273,14 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
           <div className="p-4 bg-[#B9FF66] rounded-full border-2 border-black mx-auto mb-6 w-fit">
             <AlertTriangle className="h-16 w-16 text-white" />
           </div>
-          <p className="text-2xl font-black text-[#191A23] uppercase tracking-wide mb-3">🚨 加载统计数据失败</p>
+          <p className="text-2xl font-black text-[#191A23] uppercase tracking-wide mb-3">加载统计数据失败</p>
           <p className="text-[#191A23]/70 font-medium">{error.message}</p>
         </CardContent>
       </Card>
     );
   }
 
-  // 🎨 Positivus风格无数据状态
+  // Positivus风格无数据状态
   if (overallStatistics.totalRecords === 0) {
     return (
       <Card className={`bg-white border-2 border-black shadow-[6px_6px_0px_0px_#9C88FF] ${className}`}>
@@ -288,7 +288,7 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
           <div className="p-4 bg-[#9C88FF] rounded-full border-2 border-black mx-auto mb-6 w-fit">
             <BarChart3 className="h-16 w-16 text-white" />
           </div>
-          <p className="text-2xl font-black text-[#191A23] uppercase tracking-wide mb-3">📊 暂无成绩数据</p>
+          <p className="text-2xl font-black text-[#191A23] uppercase tracking-wide mb-3">暂无成绩数据</p>
           <p className="text-[#191A23]/70 font-medium">请先导入成绩数据或调整筛选条件</p>
         </CardContent>
       </Card>
@@ -298,7 +298,7 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
   return (
     <div className={`space-y-6 ${className}`}>
       
-      {/* 🎨 Positivus风格整体表现概览卡片 */}
+      {/* Positivus风格整体表现概览卡片 */}
       <Card className={`bg-white ${performanceLevel.borderColor} border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#B9FF66]`}>
         <CardHeader className={`${performanceLevel.bgColor} border-b-2 border-black pb-4`}>
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -307,39 +307,39 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
                 <BarChart3 className="h-6 w-6 text-white" />
               </div>
               <CardTitle className="text-2xl font-black text-[#191A23] uppercase tracking-wide">
-                📋 整体表现概览
+                整体表现概览
               </CardTitle>
             </div>
           </div>
         </CardHeader>
         <CardContent className="p-6 space-y-6">
-          {/* 🎨 Positivus风格表现水平和基础信息 */}
+          {/* Positivus风格表现水平和基础信息 */}
           <div className="flex flex-col lg:flex-row lg:items-center gap-6">
             <div className="flex items-center gap-4">
               <Badge 
                 className={`${performanceLevel.color} ${performanceLevel.textColor} border-2 border-black font-black px-4 py-2 shadow-[2px_2px_0px_0px_#191A23] uppercase tracking-wide`}
               >
-                🏆 {performanceLevel.level}
+                {performanceLevel.level}
               </Badge>
               <div className="text-lg font-black text-[#191A23]">
-                📋 平均分: <span className="text-[#B9FF66]">{formatNumber(overallStatistics.statistics.average)}</span>分
+                平均分: <span className="text-[#B9FF66]">{formatNumber(overallStatistics.statistics.average)}</span>分
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-6 font-bold text-[#191A23]">
               <div className="flex items-center gap-2 bg-[#B9FF66]/20 px-3 py-2 rounded-lg border-2 border-[#B9FF66]">
                 <Users className="h-5 w-5 text-[#191A23]" />
-                👥 共 {overallStatistics.totalStudents} 名学生
+                共 {overallStatistics.totalStudents} 名学生
               </div>
               {classStatistics.length > 1 && (
                 <div className="flex items-center gap-2 bg-[#B9FF66]/20 px-3 py-2 rounded-lg border-2 border-[#B9FF66]">
                   <GraduationCap className="h-5 w-5 text-[#191A23]" />
-                  🏫 {classStatistics.length} 个班级
+                  {classStatistics.length} 个班级
                 </div>
               )}
             </div>
           </div>
 
-          {/* 🎨 Positivus风格关键指标网格 */}
+          {/* Positivus风格关键指标网格 */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#B9FF66]">
               <CardContent className="p-6 text-center">
@@ -348,7 +348,7 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
                 </div>
                 <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide flex items-center justify-center gap-1">
                   <TrendingUp className="h-4 w-4 text-[#B9FF66]" />
-                  🔺 最高分
+                  最高分
                 </div>
               </CardContent>
             </Card>
@@ -360,7 +360,7 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
                 </div>
                 <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide flex items-center justify-center gap-1">
                   <TrendingDown className="h-4 w-4 text-[#B9FF66]" />
-                  🔻 最低分
+                  最低分
                 </div>
               </CardContent>
             </Card>
@@ -372,7 +372,7 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
                 </div>
                 <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide flex items-center justify-center gap-1">
                   <Target className="h-4 w-4 text-[#B9FF66]" />
-                  🎯 及格率
+                  及格率
                 </div>
                 <div className="w-full bg-[#F3F3F3] rounded-full h-2 mt-3 border border-black">
                   <div 
@@ -390,7 +390,7 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
                 </div>
                 <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide flex items-center justify-center gap-1">
                   <Award className="h-4 w-4 text-[#9C88FF]" />
-                  🏆 优秀率
+                  优秀率
                 </div>
                 <div className="w-full bg-[#F3F3F3] rounded-full h-2 mt-3 border border-black">
                   <div 
@@ -404,7 +404,7 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
         </CardContent>
       </Card>
 
-      {/* 🎨 Positivus风格班级表现对比 */}
+      {/* Positivus风格班级表现对比 */}
       {classStatistics.length > 1 && (
         <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#B9FF66]">
           <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
@@ -414,11 +414,11 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
                   <BookOpen className="h-6 w-6 text-white" />
                 </div>
                 <CardTitle className="text-2xl font-black text-white uppercase tracking-wide">
-                  📋 班级表现对比
+                  班级表现对比
                 </CardTitle>
               </div>
               <Badge className="bg-[#B9FF66] text-[#191A23] border-2 border-black font-bold shadow-[2px_2px_0px_0px_#191A23] w-fit uppercase tracking-wide">
-                🏫 {classStatistics.length} 个班级
+                {classStatistics.length} 个班级
               </Badge>
             </div>
           </CardHeader>
@@ -443,10 +443,10 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
                         )}
                         <div>
                           <div className="font-black text-[#191A23] text-lg">
-                            {index === 0 ? '🏆' : '📋'} {classData.className}
+                            {classData.className}
                           </div>
                           <div className="font-medium text-[#191A23]/70">
-                            👥 {classData.studentCount} 名学生
+                            {classData.studentCount} 名学生
                           </div>
                         </div>
                       </div>
@@ -456,7 +456,7 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
                           {formatNumber(classData.averageScore)}分
                         </div>
                         <Badge className="bg-[#9C88FF] text-white border-2 border-black font-bold">
-                          🎯 及格率 {formatPercentage(classData.rates.passRate)}
+                          及格率 {formatPercentage(classData.rates.passRate)}
                         </Badge>
                       </div>
                     </div>
@@ -467,7 +467,7 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
               {classStatistics.length > 5 && (
                 <div className="text-center pt-4">
                   <Button className="border-2 border-black bg-[#B9FF66] hover:bg-[#A8E055] text-[#191A23] font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all uppercase tracking-wide">
-                    🔍 查看全部 {classStatistics.length} 个班级
+                    查看全部 {classStatistics.length} 个班级
                   </Button>
                 </div>
               )}
@@ -476,7 +476,7 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
         </Card>
       )}
 
-      {/* 🎨 Positivus风格数据质量提示 */}
+      {/* Positivus风格数据质量提示 */}
       {overallStatistics.statistics.standardDeviation > 20 && (
         <Card className="bg-white border-2 border-[#B9FF66] shadow-[6px_6px_0px_0px_#B9FF66]">
           <CardContent className="p-6 bg-[#B9FF66]/20">
@@ -485,7 +485,7 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
                 <AlertTriangle className="h-6 w-6 text-white" />
               </div>
               <div className="flex-1">
-                <div className="font-black text-[#191A23] text-lg mb-2 uppercase tracking-wide">⚠️ 数据质量提示</div>
+                <div className="font-black text-[#191A23] text-lg mb-2 uppercase tracking-wide">数据质量提示</div>
                 <p className="font-medium text-[#191A23] leading-relaxed">
                   成绩分布较为分散（标准差: <span className="font-black text-[#B9FF66]">{formatNumber(overallStatistics.statistics.standardDeviation)}</span>），
                   建议关注学习困难学生的辅导需求。

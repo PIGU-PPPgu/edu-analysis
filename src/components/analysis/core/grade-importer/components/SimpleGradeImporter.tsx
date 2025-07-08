@@ -1,5 +1,5 @@
 /**
- * 🚀 简化版成绩导入器
+ *  简化版成绩导入器
  * 一键导入，智能处理，减少用户决策点
  */
 
@@ -61,7 +61,7 @@ const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
 
   // 文件上传完成
   const handleFileUploaded = useCallback(async (fileData: any, fileInfo: any) => {
-    console.log('🚀 文件上传完成:', fileInfo.name);
+    console.log(' 文件上传完成:', fileInfo.name);
     
     updateState({
       step: 'mapping',
@@ -72,7 +72,7 @@ const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
 
     // 检查是否有AI分析结果且置信度高
     if (fileData.aiAnalysis && fileData.aiAnalysis.confidence > 0.8) {
-      console.log('✨ AI分析置信度高，尝试自动导入');
+      console.log(' AI分析置信度高，尝试自动导入');
       
       // 构建映射配置
       const mappingConfig: MappingConfig = {
@@ -92,7 +92,7 @@ const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
       // 直接进入导入步骤
       await handleMappingComplete(mappingConfig);
     } else {
-      console.log('⚠️ AI分析置信度较低，需要用户确认');
+      console.log(' AI分析置信度较低，需要用户确认');
       updateState({
         progress: 50,
         message: '请确认字段映射'
@@ -104,7 +104,7 @@ const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
 
   // 映射完成
   const handleMappingComplete = useCallback(async (mappingConfig: MappingConfig) => {
-    console.log('🔧 开始导入数据...');
+    console.log('开始导入数据...');
     
     updateState({
       step: 'importing',
@@ -138,7 +138,7 @@ const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
       }
 
     } catch (error) {
-      console.error('❌ 导入失败:', error);
+      console.error('导入失败:', error);
       const errorMessage = error instanceof Error ? error.message : '导入失败';
       
       updateState({

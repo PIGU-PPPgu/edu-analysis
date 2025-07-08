@@ -1,5 +1,5 @@
 /**
- * ✅ CompleteMappingViewer - 完整映射结果查看器
+ *  CompleteMappingViewer - 完整映射结果查看器
  * 
  * 显示所有映射结果，包括AI成功映射和用户手动映射
  * 解决用户无法看到AI映射结果的问题

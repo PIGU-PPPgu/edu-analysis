@@ -59,17 +59,17 @@ export function N8nGradeImporter({
     onSuccess: (result) => {
       setParseResult(result);
       if (result.success) {
-        toast.success(`✅ 解析完成！处理了 ${result.summary.processedRows} 条记录`);
+        toast.success(` 解析完成！处理了 ${result.summary.processedRows} 条记录`);
         onImportComplete?.(result);
         queryClient.invalidateQueries({ queryKey: ['grade-data'] });
       } else {
-        toast.error(`❌ 解析失败: ${result.message}`);
+        toast.error(`解析失败: ${result.message}`);
         onError?.(result.message);
       }
     },
     onError: (error) => {
       const errorMessage = error instanceof Error ? error.message : '解析过程中发生未知错误';
-      toast.error(`❌ 解析失败: ${errorMessage}`);
+      toast.error(`解析失败: ${errorMessage}`);
       onError?.(errorMessage);
     }
   });
@@ -293,14 +293,14 @@ export function N8nGradeImporter({
               <Alert>
                 <CheckCircle2 className="w-4 h-4" />
                 <AlertDescription>
-                  ✅ {parseResult.message}
+                   {parseResult.message}
                 </AlertDescription>
               </Alert>
             ) : (
               <Alert variant="destructive">
                 <AlertCircle className="w-4 h-4" />
                 <AlertDescription>
-                  ❌ {parseResult.message}
+                  {parseResult.message}
                 </AlertDescription>
               </Alert>
             )}

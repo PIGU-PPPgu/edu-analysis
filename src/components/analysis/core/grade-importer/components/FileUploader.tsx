@@ -275,9 +275,9 @@ const FileUploader: React.FC<FileUploaderProps> = ({
         throw new Error('文件没有有效的数据行');
       }
       
-      // 🤖 尝试AI智能解析增强
+      //  尝试AI智能解析增强
       try {
-        console.log('[FileUploader] 🚀 尝试AI智能解析增强...');
+        console.log('[FileUploader]  尝试AI智能解析增强...');
         
         // 确保AI配置已初始化
         await initDefaultAIConfig(false);
@@ -301,11 +301,11 @@ const FileUploader: React.FC<FileUploaderProps> = ({
             }
           };
           
-          console.log(`[FileUploader] ✅ AI解析成功，置信度: ${aiResult.metadata.confidence}`);
+          console.log(`[FileUploader]  AI解析成功，置信度: ${aiResult.metadata.confidence}`);
           toast.success(`AI智能解析完成！置信度: ${Math.round((aiResult.metadata.confidence || 0) * 100)}%`);
         }
       } catch (aiError) {
-        console.warn('[FileUploader] ⚠️ AI解析失败，使用基础解析:', aiError);
+        console.warn('[FileUploader]  AI解析失败，使用基础解析:', aiError);
         // AI解析失败不影响基础功能，只是缺少智能增强
         toast.info('文件解析成功，AI增强功能暂时不可用');
       }

@@ -1,5 +1,5 @@
 /**
- * 🤖 班级AI智能分析组件
+ *  班级AI智能分析组件
  * 为老师提供全面的班级学情、学科诊断和教学建议
  */
 
@@ -327,7 +327,7 @@ const ClassAIAnalysis: React.FC<ClassAIAnalysisProps> = ({
       <Card className="border-4 border-[#191A23] shadow-[8px_8px_0px_0px_#B9FF66] bg-white">
         <CardContent className="p-12 text-center">
           <Brain className="h-16 w-16 text-[#B9FF66] mx-auto mb-6" />
-          <p className="text-2xl font-black text-[#191A23] mb-3">🤖 暂无数据</p>
+          <p className="text-2xl font-black text-[#191A23] mb-3"> 暂无数据</p>
           <p className="text-[#191A23]/70 font-medium">需要成绩数据才能进行AI智能分析</p>
         </CardContent>
       </Card>
@@ -346,7 +346,7 @@ const ClassAIAnalysis: React.FC<ClassAIAnalysisProps> = ({
               </div>
               <div>
                 <CardTitle className="text-3xl font-black text-[#191A23]">
-                  🤖 AI班级智能分析师
+                   AI班级智能分析师
                 </CardTitle>
                 <p className="text-[#191A23]/80 font-medium mt-2">
                   专业的班级学情诊断与教学建议助手
@@ -401,12 +401,12 @@ const ClassAIAnalysis: React.FC<ClassAIAnalysisProps> = ({
             <Card className="border-4 border-[#191A23] shadow-[8px_8px_0px_0px_#B9FF66] bg-white">
               <CardContent className="p-12 text-center">
                 <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-solid border-[#B9FF66] border-r-transparent mb-6"></div>
-                <p className="text-2xl font-black text-[#191A23] mb-4">🤖 AI正在深度分析中...</p>
+                <p className="text-2xl font-black text-[#191A23] mb-4"> AI正在深度分析中...</p>
                 <div className="space-y-2 text-[#191A23]/70 font-medium">
-                  <p>🔍 分析学生成绩分布模式</p>
-                  <p>📊 识别各科目教学重点</p>
-                  <p>💡 生成个性化教学建议</p>
-                  <p>🎯 制定班级管理策略</p>
+                  <p> 分析学生成绩分布模式</p>
+                  <p> 识别各科目教学重点</p>
+                  <p> 生成个性化教学建议</p>
+                  <p> 制定班级管理策略</p>
                 </div>
                 <Progress value={75} className="w-64 mx-auto mt-6 h-3 border-2 border-black" />
               </CardContent>
@@ -418,7 +418,7 @@ const ClassAIAnalysis: React.FC<ClassAIAnalysisProps> = ({
                   value="overview"
                   className="data-[state=active]:bg-[#B9FF66] data-[state=active]:text-[#191A23] font-bold border-2 border-transparent data-[state=active]:border-black"
                 >
-                  📊 班级概况
+                   班级概况
                 </TabsTrigger>
                 <TabsTrigger 
                   value="subjects"
@@ -430,7 +430,7 @@ const ClassAIAnalysis: React.FC<ClassAIAnalysisProps> = ({
                   value="insights"
                   className="data-[state=active]:bg-[#B9FF66] data-[state=active]:text-[#191A23] font-bold border-2 border-transparent data-[state=active]:border-black"
                 >
-                  💡 智能建议
+                   智能建议
                 </TabsTrigger>
               </TabsList>
 
@@ -441,7 +441,7 @@ const ClassAIAnalysis: React.FC<ClassAIAnalysisProps> = ({
                     <CardHeader className="bg-[#B9FF66]/30 border-b-3 border-[#B9FF66] p-6">
                       <CardTitle className="text-2xl font-bold text-[#191A23] flex items-center gap-3">
                         <BarChart3 className="w-6 h-6" />
-                        📊 班级整体学情AI分析
+                         班级整体学情AI分析
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="p-8 bg-white">
@@ -486,7 +486,7 @@ const ClassAIAnalysis: React.FC<ClassAIAnalysisProps> = ({
                         <div className="space-y-4">
                           <h4 className="font-bold text-[#191A23] text-lg flex items-center gap-2">
                             <Target className="w-5 h-5" />
-                            🎯 AI推荐行动方案
+                             AI推荐行动方案
                           </h4>
                           {classOverview.urgentActions.map((action, index) => (
                             <Alert key={index} className="border-2 border-[#F7931E] bg-[#F7931E]/10">
@@ -606,8 +606,8 @@ const ClassAIAnalysis: React.FC<ClassAIAnalysisProps> = ({
                                   insight.priority === 'medium' ? 'bg-[#F7931E] text-white' :
                                   'bg-[#9C88FF] text-white'
                                 }`}>
-                                  {insight.priority === 'high' ? '🔥 高' :
-                                   insight.priority === 'medium' ? '⚡ 中' : '💡 低'}优先级
+                                  {insight.priority === 'high' ? ' 高' :
+                                   insight.priority === 'medium' ? ' 中' : ' 低'}优先级
                                 </Badge>
                                 <div className="flex items-center gap-1">
                                   <span className="text-sm font-bold text-[#191A23]">影响力</span>
@@ -623,7 +623,7 @@ const ClassAIAnalysis: React.FC<ClassAIAnalysisProps> = ({
                             </div>
                             <p className="text-[#191A23] font-medium mb-3">{insight.description}</p>
                             <div className="p-3 bg-white border-2 border-black rounded-lg">
-                              <h5 className="font-bold text-[#191A23] text-sm mb-2">💡 AI建议行动</h5>
+                              <h5 className="font-bold text-[#191A23] text-sm mb-2"> AI建议行动</h5>
                               <p className="text-[#191A23] text-sm">{insight.recommendation}</p>
                             </div>
                           </div>

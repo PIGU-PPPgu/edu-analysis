@@ -1,5 +1,5 @@
 /**
- * 🚀 SimpleGradeImporter - 零干预智能导入组件
+ *  SimpleGradeImporter - 零干预智能导入组件
  * 
  * 核心理念：上传即导入，无需任何配置
  * 流程：选择文件 → 自动识别 → 导入成功 → 查看结果 → (可选)补充数据
@@ -76,7 +76,7 @@ const SimpleGradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) =
       setImportStatus('enhancing');
     }
     
-    toast.success('🎉 数据导入成功！', {
+    toast.success(' 数据导入成功！', {
       description: `共导入 ${result.summary.importedRows} 条记录`,
       duration: 4000
     });

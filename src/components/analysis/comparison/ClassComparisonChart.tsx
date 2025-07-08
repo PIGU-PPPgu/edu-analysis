@@ -17,7 +17,7 @@ interface ClassComparisonChartProps {
   className?: string;
 }
 
-// 🎨 Positivus风格颜色方案
+// Positivus风格颜色方案
 const POSITIVUS_COLORS = [
   '#B9FF66', '#B9FF66', '#B9FF66', '#B9FF66', 
   '#191A23', '#FED7D7', '#B9FF66', '#B9FF66'
@@ -34,7 +34,7 @@ export default function ClassComparisonChart({
   // 生成对比数据
   const comparisonData = generateClassComparison(
     data,
-    filterState.selectedClasses.length > 0 ? filterState.selectedClasses : undefined
+    filterState?.selectedClasses?.length > 0 ? filterState.selectedClasses : undefined
   );
   
   // 准备柱状图数据
@@ -91,7 +91,7 @@ export default function ClassComparisonChart({
   const radarData = prepareRadarData();
   const rankingData = prepareRankingData();
   
-  // 🎨 Positivus风格自定义Tooltip
+  // Positivus风格自定义Tooltip
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
@@ -100,12 +100,12 @@ export default function ClassComparisonChart({
             <p className="font-black text-[#191A23] mb-2">{label}</p>
             {payload.map((entry: any, index: number) => (
               <p key={index} className="font-medium text-[#191A23]" style={{ color: entry.color }}>
-                {entry.dataKey === 'average' ? '📋 班级平均分' : '🎯 年级平均分'}: <span className="font-black">{entry.value.toFixed(1)}</span>
+                {entry.dataKey === 'average' ? '班级平均分' : ' 年级平均分'}: <span className="font-black">{entry.value.toFixed(1)}</span>
               </p>
             ))}
             {payload[0]?.payload?.rank && (
               <p className="text-sm font-bold text-[#B9FF66] mt-1">
-                🏆 排名: 第{payload[0].payload.rank}名
+                 排名: 第{payload[0].payload.rank}名
               </p>
             )}
           </CardContent>
@@ -124,7 +124,7 @@ export default function ClassComparisonChart({
               <BarChart3 className="w-6 h-6 text-white" />
             </div>
             <span className="text-2xl font-black text-[#191A23] uppercase tracking-wide">
-              📋 班级对比分析
+              班级对比分析
             </span>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -172,9 +172,9 @@ export default function ClassComparisonChart({
         {chartType === 'bar' && (
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <h3 className="text-xl font-black text-[#191A23] uppercase tracking-wide">📋 {selectedSubject} - 班级平均分对比</h3>
+              <h3 className="text-xl font-black text-[#191A23] uppercase tracking-wide">{selectedSubject} - 班级平均分对比</h3>
               <Badge className="bg-[#B9FF66] text-white border-2 border-black font-bold shadow-[2px_2px_0px_0px_#191A23] w-fit">
-                🎯 年级平均: {barData[0]?.gradeAverage?.toFixed(1) || 'N/A'}
+                 年级平均: {barData[0]?.gradeAverage?.toFixed(1) || 'N/A'}
               </Badge>
             </div>
             
@@ -200,7 +200,7 @@ export default function ClassComparisonChart({
                       <Legend wrapperStyle={{ fontWeight: 'bold', color: '#191A23' }} />
                       <Bar 
                         dataKey="average" 
-                        name="📋 班级平均分"
+                        name="班级平均分"
                         fill="#B9FF66"
                         stroke="#191A23"
                         strokeWidth={2}
@@ -208,7 +208,7 @@ export default function ClassComparisonChart({
                       />
                       <Bar 
                         dataKey="gradeAverage" 
-                        name="🎯 年级平均分"
+                        name=" 年级平均分"
                         fill="#B9FF66"
                         stroke="#191A23"
                         strokeWidth={2}
@@ -244,9 +244,9 @@ export default function ClassComparisonChart({
                         stroke="#191A23"
                       />
                       
-                      {/* 🎯 年级平均线 */}
+                      {/*  年级平均线 */}
                       <Radar
-                        name="🎯 年级平均"
+                        name=" 年级平均"
                         dataKey="年级平均"
                         stroke="#B9FF66"
                         fill="#B9FF66"
@@ -254,11 +254,11 @@ export default function ClassComparisonChart({
                         strokeWidth={3}
                       />
                       
-                      {/* 📋 各班级数据 */}
+                      {/* 各班级数据 */}
                       {comparisonData.classes.slice(0, 6).map((classStats, index) => (
                         <Radar
                           key={classStats.className}
-                          name={`📋 ${classStats.className}`}
+                          name={`${classStats.className}`}
                           dataKey={classStats.className}
                           stroke={POSITIVUS_COLORS[index % POSITIVUS_COLORS.length]}
                           fill={POSITIVUS_COLORS[index % POSITIVUS_COLORS.length]}
@@ -287,7 +287,7 @@ export default function ClassComparisonChart({
         
         {chartType === 'ranking' && (
           <div className="space-y-6">
-            <h3 className="text-xl font-black text-[#191A23] uppercase tracking-wide">🏆 班级排名详情</h3>
+            <h3 className="text-xl font-black text-[#191A23] uppercase tracking-wide"> 班级排名详情</h3>
             
             <Tabs defaultValue={Subject.TOTAL} className="w-full">
               <TabsList className="grid w-full grid-cols-4 bg-[#F3F3F3] border-2 border-black p-1 rounded-lg">
@@ -295,13 +295,13 @@ export default function ClassComparisonChart({
                   value={Subject.TOTAL}
                   className="data-[state=active]:bg-[#B9FF66] data-[state=active]:text-[#191A23] data-[state=active]:border-2 data-[state=active]:border-black data-[state=active]:shadow-[2px_2px_0px_0px_#191A23] font-bold text-[#191A23] transition-all"
                 >
-                  🏆 总分
+                   总分
                 </TabsTrigger>
                 <TabsTrigger 
                   value={Subject.CHINESE}
                   className="data-[state=active]:bg-[#B9FF66] data-[state=active]:text-[#191A23] data-[state=active]:border-2 data-[state=active]:border-black data-[state=active]:shadow-[2px_2px_0px_0px_#191A23] font-bold text-[#191A23] transition-all"
                 >
-                  📝 语文
+                   语文
                 </TabsTrigger>
                 <TabsTrigger 
                   value={Subject.MATH}
@@ -320,43 +320,43 @@ export default function ClassComparisonChart({
               {rankingData.map((rankData) => (
                 <TabsContent key={rankData.subject} value={rankData.subject} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* 🏆 最佳表现 */}
+                    {/*  最佳表现 */}
                     <Card className="border-2 border-[#B9FF66] bg-[#B9FF66]/20 shadow-[4px_4px_0px_0px_#B9FF66]">
                       <CardContent className="p-4">
                         <div className="flex items-center gap-3 mb-3">
                           <div className="p-2 bg-[#B9FF66] rounded-full border-2 border-black">
                             <TrendingUp className="w-5 h-5 text-[#191A23]" />
                           </div>
-                          <span className="font-black text-[#191A23] uppercase tracking-wide">🏆 最佳表现</span>
+                          <span className="font-black text-[#191A23] uppercase tracking-wide"> 最佳表现</span>
                         </div>
                         <p className="text-2xl font-black text-[#191A23] mb-2">{rankData.bestClass}</p>
                         <p className="font-bold text-[#191A23]">
-                          📋 平均分: <span className="text-[#B9FF66]">{rankData.rankings[0]?.average?.toFixed(1) || 'N/A'}</span>
+                          平均分: <span className="text-[#B9FF66]">{rankData.rankings[0]?.average?.toFixed(1) || 'N/A'}</span>
                         </p>
                       </CardContent>
                     </Card>
                     
-                    {/* 🎯 年级平均 */}
+                    {/*  年级平均 */}
                     <Card className="border-2 border-[#B9FF66] bg-[#B9FF66]/20 shadow-[4px_4px_0px_0px_#B9FF66]">
                       <CardContent className="p-4">
                         <div className="flex items-center gap-3 mb-3">
                           <div className="p-2 bg-[#B9FF66] rounded-full border-2 border-black">
                             <Target className="w-5 h-5 text-white" />
                           </div>
-                          <span className="font-black text-[#191A23] uppercase tracking-wide">🎯 年级平均</span>
+                          <span className="font-black text-[#191A23] uppercase tracking-wide"> 年级平均</span>
                         </div>
                         <p className="text-2xl font-black text-[#191A23] mb-2">{rankData.gradeAverage.toFixed(1)}</p>
                         <p className="font-bold text-[#191A23]">
-                          📋 全年级参考标准
+                          全年级参考标准
                         </p>
                       </CardContent>
                     </Card>
                   </div>
                   
-                  {/* 🗺️ 排名列表 */}
+                  {/* 排名列表 */}
                   <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66]">
                     <CardHeader className="bg-[#B9FF66] border-b-2 border-black py-3">
-                      <CardTitle className="text-white font-black uppercase tracking-wide">🗺️ 详细排名</CardTitle>
+                      <CardTitle className="text-white font-black uppercase tracking-wide">详细排名</CardTitle>
                     </CardHeader>
                     <CardContent className="p-4">
                       <div className="space-y-3">
@@ -377,7 +377,7 @@ export default function ClassComparisonChart({
                                       index === 1 ? 'bg-[#B9FF66] shadow-[2px_2px_0px_0px_#191A23]' :
                                       index === 2 ? 'bg-[#B9FF66] shadow-[2px_2px_0px_0px_#191A23]' : 'bg-[#191A23] shadow-[2px_2px_0px_0px_#B9FF66]'
                                     }`}>
-                                      {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : item.rank}
+                                      {index === 0 ? '' : index === 1 ? '' : index === 2 ? '' : item.rank}
                                     </div>
                                     <span className="font-black text-[#191A23] text-lg">{item.className}</span>
                                   </div>

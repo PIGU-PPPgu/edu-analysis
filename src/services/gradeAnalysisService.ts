@@ -286,7 +286,7 @@ export const gradeAnalysisService = {
       // 🚀 智能重复数据检测和处理
       console.log(`[智能检测] 检查考试 ${examId} 是否已有数据...`);
       const { data: existingData, error: checkError } = await supabase
-        .from('grade_data')
+        .from('grade_data_new')
         .select('student_id, subject')
         .eq('exam_id', examId);
         
@@ -356,7 +356,7 @@ export const gradeAnalysisService = {
         
         // 删除该考试的所有现有数据
         const { error: deleteError } = await supabase
-          .from('grade_data')
+          .from('grade_data_new')
           .delete()
           .eq('exam_id', examId);
           
@@ -381,7 +381,7 @@ export const gradeAnalysisService = {
           console.log(`[性能优化] 处理第 ${i+1}/${batches.length} 批数据，共 ${batch.length} 条记录`);
           
           const { error: insertError } = await supabase
-            .from('grade_data')
+            .from('grade_data_new')
             .insert(batch);
             
           if (insertError) {
@@ -413,7 +413,7 @@ export const gradeAnalysisService = {
           
           // 修复：使用正确的约束字段 (exam_id, student_id, subject) 而不是 (exam_id, student_id)
           const { error: upsertError } = await supabase
-            .from('grade_data')
+            .from('grade_data_new')
             .upsert(batch, {
               onConflict: 'exam_id,student_id,subject',  // 修改：包含subject字段，使不同学科成绩可以共存
               ignoreDuplicates: false
@@ -427,7 +427,7 @@ export const gradeAnalysisService = {
             
             // 删除该考试的所有现有数据
             const { error: deleteError } = await supabase
-              .from('grade_data')
+              .from('grade_data_new')
               .delete()
               .eq('exam_id', examId);
               
@@ -438,7 +438,7 @@ export const gradeAnalysisService = {
             
             // 批量插入所有数据
             const { error: insertError } = await supabase
-              .from('grade_data')
+              .from('grade_data_new')
               .insert(gradeDataWithExamId);
               
             if (insertError) {
@@ -475,7 +475,7 @@ export const gradeAnalysisService = {
           
           // 使用upsert但设置ignoreDuplicates为true
           const { error: insertError } = await supabase
-            .from('grade_data')
+            .from('grade_data_new')
             .upsert(batch, {
               onConflict: 'exam_id,student_id,subject',
               ignoreDuplicates: true // 忽略已存在的记录
@@ -539,7 +539,7 @@ export const gradeAnalysisService = {
     return requestCache.get(`exam_results_${examId}`, async () => {
       return safeQuery('grade_data', async () => {
         const { data, error } = await supabase
-          .from('grade_data')
+          .from('grade_data_new')
           .select('*')
           .eq('exam_id', examId);
           
@@ -556,7 +556,7 @@ export const gradeAnalysisService = {
   async getStudentResults(studentId: string) {
     try {
       const { data, error } = await supabase
-        .from('grade_data')
+        .from('grade_data_new')
         .select('*, exams!inner(id, title, type, date, subject, scope)')
         .eq('student_id', studentId)
         .order('exams.date', { ascending: false });
@@ -623,7 +623,7 @@ export const gradeAnalysisService = {
   async getStudentTrend(studentId: string, subjectFilter?: string[]) {
     try {
       let query = supabase
-        .from('grade_data')
+        .from('grade_data_new')
         .select('*, exams!inner(id, title, type, date, subject, scope)')
         .eq('student_id', studentId)
         .order('exams.date', { ascending: true });
@@ -649,7 +649,7 @@ export const gradeAnalysisService = {
   async getClassRanking(examId: string) {
     try {
       const { data, error } = await supabase
-        .from('grade_data')
+        .from('grade_data_new')
         .select('*, exams!inner(*)')
         .eq('exam_id', examId);
         
@@ -713,7 +713,7 @@ export const gradeAnalysisService = {
   async getStudentRanking(examId: string, classFilter?: string) {
     try {
       let query = supabase
-        .from('grade_data')
+        .from('grade_data_new')
         .select('*')
         .eq('exam_id', examId)
         .order('total_score', { ascending: false });
@@ -747,7 +747,7 @@ export const gradeAnalysisService = {
     try {
       // 获取学生最近几次考试成绩
       const { data, error } = await supabase
-        .from('grade_data')
+        .from('grade_data_new')
         .select('*, exams!inner(*)')
         .eq('student_id', studentId)
         .order('exams.date', { ascending: false })
@@ -1025,7 +1025,7 @@ export const gradeAnalysisService = {
       const gradeIds = data.map(item => item.grade_id);
       
       const { data: gradeData, error: gradeError } = await supabase
-        .from('grade_data')
+        .from('grade_data_new')
         .select('*, exams!inner(*)')
         .in('id', gradeIds);
         
@@ -1048,7 +1048,7 @@ export const gradeAnalysisService = {
       }
       
       const { data, error } = await supabase
-        .from('grade_data')
+        .from('grade_data_new')
         .select('*, exams!inner(*)')
         .eq('exam_id', examId)
         .in('class_name', classNames);
@@ -1111,7 +1111,7 @@ export const gradeAnalysisService = {
       
       // 获取考试成绩数据
       const { data: gradeData, error: gradeError } = await supabase
-        .from('grade_data')
+        .from('grade_data_new')
         .select('*')
         .eq('exam_id', examId);
         
@@ -1420,7 +1420,7 @@ export const gradeAnalysisService = {
     try {
       // 简单检查表是否存在
       const { data, error } = await supabase
-        .from('grade_data')
+        .from('grade_data_new')
         .select('id, exam_id')
         .limit(1);
       
@@ -1889,7 +1889,7 @@ export const gradeAnalysisService = {
             // 尝试一下另一种更直接的方式添加列
             try {
               const { data: directData, error: directError } = await supabase
-                .from('grade_data')
+                .from('grade_data_new')
                 .select('count(*)')
                 .limit(1);
               
@@ -2086,7 +2086,7 @@ export const gradeAnalysisService = {
       // 执行级联删除：先删除成绩数据，再删除考试记录
       // 1. 删除相关的成绩数据
       const { error: gradeDeleteError } = await supabase
-        .from('grade_data')
+        .from('grade_data_new')
         .delete()
         .eq('exam_id', examId);
 
@@ -3633,7 +3633,7 @@ export function normalizeSubjectName(subject: string): string {
 export async function getDistinctClassNames(): Promise<string[]> {
   try {
     const { data, error } = await supabase
-      .from('grade_data')
+      .from('grade_data_new')
       .select('class_name')
       .not('class_name', 'is', null)
       .order('class_name');

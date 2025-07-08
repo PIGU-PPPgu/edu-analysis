@@ -117,10 +117,8 @@ const SUBJECT_PATTERNS = {
     keywords: ['地理', '地', 'geography', 'dili'],
     aliases: ['地理分数', '地理等级', '地理班名', '地理校名', '地理级名']
   },
-  '总分': {
-    keywords: ['总分', '总', 'total', '合计', '总成绩'],
-    aliases: ['总分分数', '总分等级', '总分班名', '总分校名', '总分级名']
-  }
+  // 注意：总分不应作为科目处理，而应作为附加字段
+  // '总分' 字段将被特殊处理，添加到每个学生的所有科目记录中
 };
 
 /**
@@ -183,6 +181,16 @@ const STUDENT_INFO_PATTERNS = {
   name: ['姓名', '名字', 'name', '学生姓名'],
   student_id: ['学号', 'student_id', 'id', '学生编号'],
   class_name: ['班级', 'class', 'class_name', '所在班级']
+};
+
+/**
+ * 特殊字段模式 - 总分和排名
+ */
+const SPECIAL_FIELD_PATTERNS = {
+  total_score: ['总分', '总成绩', 'total', '合计', '总分数'],
+  rank_in_class: ['班级排名', '班排', '班内排名', 'class_rank'],
+  rank_in_grade: ['年级排名', '级排', '年级内排名', 'grade_rank'],
+  rank_in_school: ['学校排名', '校排', '全校排名', 'school_rank']
 };
 
 /**
@@ -256,39 +264,33 @@ export function analyzeCSVHeaders(headers: string[]): {
 }
 
 /**
- * ✅ 增强识别单个字段的类型和映射 - 98%准确率目标
+ * ✅ 增强识别单个字段的类型和映射 - 混合策略：算法优先 + AI辅助
  */
 function identifyField(header: string): FieldMapping | null {
   const normalizedHeader = header.trim().toLowerCase();
   const originalHeader = header.trim();
   
-  console.log(`[字段识别] 分析字段: "${originalHeader}"`);
+  console.log(`[混合识别] 分析字段: "${originalHeader}"`);
   
-  // 1. 优化学生信息字段识别 - 更精确的匹配策略
+  // 🎯 第一层：算法100%确定映射 - 高置信度字段
+  
+  // 1.1 学生基础信息 - 算法完全能处理
   for (const [field, patterns] of Object.entries(STUDENT_INFO_PATTERNS)) {
-    // 按模式长度排序，优先匹配更具体的模式
     const sortedPatterns = patterns.sort((a, b) => b.length - a.length);
     
     for (const pattern of sortedPatterns) {
       const normalizedPattern = pattern.toLowerCase();
       
-      // 精确匹配策略
+      // 精确匹配策略 - 算法100%确定
       const isExactMatch = normalizedHeader === normalizedPattern;
-      const isContainsMatch = normalizedHeader.includes(normalizedPattern);
       const isStartsWithMatch = normalizedHeader.startsWith(normalizedPattern);
       const isEndsWithMatch = normalizedHeader.endsWith(normalizedPattern);
       
-      if (isExactMatch || isStartsWithMatch || isEndsWithMatch || 
-          (isContainsMatch && normalizedPattern.length > 2)) {
+      if (isExactMatch || isStartsWithMatch || isEndsWithMatch) {
+        let confidence = 0.99; // 算法高置信度
+        if (isExactMatch) confidence = 1.0; // 完全匹配
         
-        // 计算置信度 - 基于匹配类型和模式长度
-        let confidence = 0.7;
-        if (isExactMatch) confidence = 0.98;
-        else if (isStartsWithMatch || isEndsWithMatch) confidence = 0.95;
-        else if (normalizedPattern.length > 3) confidence = 0.92;
-        else confidence = 0.85;
-        
-        console.log(`[字段识别] 学生信息匹配: ${field}, 置信度: ${confidence}`);
+        console.log(`[算法识别] ✅ 学生信息确定匹配: ${field}, 置信度: ${confidence}`);
         
         return {
           originalField: header,
@@ -300,18 +302,85 @@ function identifyField(header: string): FieldMapping | null {
     }
   }
   
-  // 2. ✅ 增强科目相关字段识别 - AI级别的智能匹配
-  // 优化排序策略，结合关键词长度和重要性
+  // 1.2 特殊字段识别 - 总分、排名等
+  for (const [field, patterns] of Object.entries(SPECIAL_FIELD_PATTERNS)) {
+    for (const pattern of patterns) {
+      const normalizedPattern = pattern.toLowerCase();
+      
+      if (normalizedHeader === normalizedPattern || 
+          normalizedHeader.includes(normalizedPattern)) {
+        
+        console.log(`[算法识别] ✅ 特殊字段确定匹配: ${field}, 置信度: 1.0`);
+        
+        return {
+          originalField: header,
+          mappedField: field,
+          dataType: field.includes('rank') ? 'rank_class' : 'score',
+          confidence: 1.0
+        };
+      }
+    }
+  }
+  
+  // 🎯 第二层：算法标准科目识别 - 高置信度科目字段
+  
+  // 2.1 标准科目完全匹配 - 算法100%确定
+  const standardSubjects = ['语文', '数学', '英语', '物理', '化学', '生物', '政治', '历史', '地理'];
+  
+  for (const subject of standardSubjects) {
+    // 完全匹配科目名
+    if (normalizedHeader === subject) {
+      console.log(`[算法识别] ✅ 标准科目完全匹配: ${subject}, 置信度: 1.0`);
+      
+      return {
+        originalField: header,
+        mappedField: 'score',
+        subject: subject,
+        dataType: 'score',
+        confidence: 1.0
+      };
+    }
+    
+    // 科目+等级模式 - 算法确定
+    if (normalizedHeader === `${subject}等级` || normalizedHeader === `${subject}级别`) {
+      console.log(`[算法识别] ✅ 科目等级完全匹配: ${subject}等级, 置信度: 1.0`);
+      
+      return {
+        originalField: header,
+        mappedField: 'original_grade',
+        subject: subject,
+        dataType: 'grade',
+        confidence: 1.0
+      };
+    }
+    
+    // 科目+分数模式 - 算法确定
+    if (normalizedHeader === `${subject}分数` || normalizedHeader === `${subject}成绩`) {
+      console.log(`[算法识别] ✅ 科目分数完全匹配: ${subject}分数, 置信度: 1.0`);
+      
+      return {
+        originalField: header,
+        mappedField: 'score',
+        subject: subject,
+        dataType: 'score',
+        confidence: 1.0
+      };
+    }
+  }
+  
+  // 🤖 第三层：AI辅助复杂识别 - 算法无法确定的字段
+  // 这部分交给AI来处理复杂的、非标准的、模糊的字段命名
+  
+  // 2.2 复杂科目模糊匹配 - AI辅助区域
   const sortedSubjects = Object.entries(SUBJECT_PATTERNS).sort((a, b) => {
     const maxLengthA = Math.max(...a[1].keywords.map(k => k.length));
     const maxLengthB = Math.max(...b[1].keywords.map(k => k.length));
-    return maxLengthB - maxLengthA; // 降序排列，长的在前
+    return maxLengthB - maxLengthA;
   });
   
   for (const [subject, config] of sortedSubjects) {
-    // 智能关键词匹配策略
     const matchResults = config.keywords
-      .sort((a, b) => b.length - a.length) // 按长度降序排列
+      .sort((a, b) => b.length - a.length)
       .map(keyword => ({
         keyword,
         confidence: calculateKeywordMatchConfidence(normalizedHeader, originalHeader, keyword),
@@ -319,18 +388,17 @@ function identifyField(header: string): FieldMapping | null {
       }))
       .filter(result => result.confidence > 0);
     
-    // 选择最佳匹配
     const bestMatch = matchResults.reduce((best, current) => 
       current.confidence > best.confidence ? current : best, 
       { confidence: 0, keyword: '', matchType: 'none' }
     );
     
-    if (bestMatch.confidence > 0.6) { // 只接受置信度超过60%的匹配
-      console.log(`[字段识别] "${originalHeader}" 匹配到科目 "${subject}" (关键词: "${bestMatch.keyword}", 置信度: ${bestMatch.confidence}, 类型: ${bestMatch.matchType})`);
+    // 降低置信度阈值，标记为AI辅助区域
+    if (bestMatch.confidence > 0.4) { // 不确定的字段，需要AI确认
+      console.log(`[AI辅助区域] "${originalHeader}" 可能匹配科目 "${subject}" (关键词: "${bestMatch.keyword}", 置信度: ${bestMatch.confidence}, 需要AI确认)`);
       
-      // ✅ 增强字段类型识别 - 更准确的类型推断
-      let dataType: FieldMapping['dataType'] = 'score'; // 默认为分数
-      let finalConfidence = bestMatch.confidence;
+      let dataType: FieldMapping['dataType'] = 'score';
+      let finalConfidence = Math.min(0.7, bestMatch.confidence); // 限制算法区域置信度
       
       // ✅ 精确类型匹配 - 支持排名字段的准确映射
       for (const [type, patterns] of Object.entries(FIELD_TYPE_PATTERNS)) {
@@ -436,8 +504,8 @@ function identifyField(header: string): FieldMapping | null {
 }
 
 /**
- * 将宽表格数据转换为长表格格式
- * 修复版本：确保返回完整的grade_data记录，包含学生信息和考试信息
+ * 将宽表格数据转换为单条完整记录（宽表模式）
+ * 完全对接CSV结构：一个学生一次考试一条记录
  */
 export function convertWideToLongFormatEnhanced(
   rowData: Record<string, any>,
@@ -453,167 +521,96 @@ export function convertWideToLongFormatEnhanced(
     date: string;
     exam_id: string;
   }
-): Record<string, any>[] {
-  console.log('[增强转换] 开始转换数据行:', rowData);
+): Record<string, any> {
+  console.log('[兼容映射模式] 开始处理CSV行:', rowData);
   
-  // 提取学生基本信息
-  const studentInfo: Record<string, any> = {};
-  
-  // 处理学生信息字段映射
-  headerAnalysis.studentFields.forEach(mapping => {
-    const value = rowData[mapping.originalField];
-    if (value !== undefined && value !== null && value !== '') {
-      // 标准化字段名
-      let fieldName = mapping.mappedField;
-      if (fieldName === 'student_id') {
-        studentInfo.student_id = String(value).trim();
-      } else if (fieldName === 'name') {
-        studentInfo.name = String(value).trim();
-      } else if (fieldName === 'class_name') {
-        studentInfo.class_name = String(value).trim();
-      } else if (fieldName === 'grade') {
-        studentInfo.grade = String(value).trim();
-      } else {
-        studentInfo[fieldName] = value;
-      }
-    }
-  });
-  
-  // 确保必要字段有默认值
-  if (!studentInfo.student_id) {
-    // 如果没有学号，尝试从其他字段获取
-    studentInfo.student_id = rowData['学号'] || rowData['student_id'] || rowData['id'] || `temp_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-  }
-  if (!studentInfo.name) {
-    studentInfo.name = rowData['姓名'] || rowData['name'] || rowData['名字'] || '未知学生';
-  }
-  if (!studentInfo.class_name) {
-    studentInfo.class_name = rowData['班级'] || rowData['class_name'] || rowData['班级名称'] || '未知班级';
-  }
-  
-  console.log('[增强转换] 提取的学生信息:', studentInfo);
-  
-  // 提取考试信息
-  const examData: Record<string, any> = {};
-  if (examInfo) {
-    examData.exam_id = examInfo.exam_id;
-    examData.exam_title = examInfo.title;
-    examData.exam_type = examInfo.type;
-    examData.exam_date = examInfo.date;
-    examData.exam_scope = 'class'; // 默认班级范围
-  }
-  
-  // 按科目分组数据
-  const subjectGroups: Record<string, Record<string, any>> = {};
-  const subjectMappings = headerAnalysis.mappings.filter(m => m.subject);
-  
-  subjectMappings.forEach(mapping => {
-    const value = rowData[mapping.originalField];
-    console.log(`[增强转换] 处理字段 ${mapping.originalField} (${mapping.subject}-${mapping.dataType}): ${value}`);
+  // 兼容映射：CSV中文字段 → 数据库英文字段
+  const record: Record<string, any> = {
+    // 关联键
+    exam_id: examInfo?.exam_id,
     
-    // 改进值检查逻辑：允许数值0，但排除null、undefined和空字符串
-    if (value !== undefined && value !== null && value !== '') {
-      if (!subjectGroups[mapping.subject!]) {
-        subjectGroups[mapping.subject!] = {};
-      }
-      
-      // 根据数据类型存储值
-      switch (mapping.dataType) {
-        case 'score':
-          const numericValue = parseFloat(value);
-          if (!isNaN(numericValue)) {
-            subjectGroups[mapping.subject!].score = numericValue;
-            console.log(`[增强转换] 设置 ${mapping.subject} 分数: ${numericValue}`);
-          }
-          break;
-        case 'grade':
-          subjectGroups[mapping.subject!].original_grade = String(value).trim();
-          subjectGroups[mapping.subject!].grade = String(value).trim(); // 向后兼容
-          console.log(`[增强转换] 设置 ${mapping.subject} 等级: ${value}`);
-          break;
-        case 'rank_class':
-          const classRank = parseInt(value);
-          if (!isNaN(classRank)) {
-            subjectGroups[mapping.subject!].rank_in_class = classRank;
-            console.log(`[增强转换] 设置 ${mapping.subject} 班级排名: ${classRank}`);
-          }
-          break;
-        case 'rank_school':
-          const schoolRank = parseInt(value);
-          if (!isNaN(schoolRank)) {
-            subjectGroups[mapping.subject!].rank_in_school = schoolRank;
-            console.log(`[增强转换] 设置 ${mapping.subject} 学校排名: ${schoolRank}`);
-          }
-          break;
-        case 'rank_grade':
-          const gradeRank = parseInt(value);
-          if (!isNaN(gradeRank)) {
-            subjectGroups[mapping.subject!].rank_in_grade = gradeRank;
-            console.log(`[增强转换] 设置 ${mapping.subject} 年级排名: ${gradeRank}`);
-          }
-          break;
-      }
-    } else {
-      console.log(`[增强转换] 跳过空值字段 ${mapping.originalField}: ${value}`);
-    }
+    // 学生基本信息映射
+    student_id: rowData['姓名'] || `temp_${Date.now()}`,
+    name: rowData['姓名'] || '未知学生',
+    class_name: rowData['班级'] || '未知班级',
+    
+    // 考试信息
+    exam_title: examInfo?.title,
+    exam_type: examInfo?.type,
+    exam_date: examInfo?.date,
+    
+    // 总分信息映射：CSV中文 → 数据库英文
+    total_score: parseFloat(rowData['总分分数']) || null,
+    total_grade: rowData['总分等级'] || null,
+    total_rank_in_class: parseInt(rowData['总分班名']) || null,
+    total_rank_in_school: parseInt(rowData['总分校名']) || null,
+    total_rank_in_grade: parseInt(rowData['总分级名']) || null,
+    
+    // 各科目映射：CSV中文 → 数据库英文
+    // 语文
+    chinese_score: parseFloat(rowData['语文分数']) || null,
+    chinese_grade: rowData['语文等级'] || null,
+    chinese_rank_in_class: parseInt(rowData['语文班名']) || null,
+    chinese_rank_in_school: parseInt(rowData['语文校名']) || null,
+    chinese_rank_in_grade: parseInt(rowData['语文级名']) || null,
+    
+    // 数学
+    math_score: parseFloat(rowData['数学分数']) || null,
+    math_grade: rowData['数学等级'] || null,
+    math_rank_in_class: parseInt(rowData['数学班名']) || null,
+    math_rank_in_school: parseInt(rowData['数学校名']) || null,
+    math_rank_in_grade: parseInt(rowData['数学级名']) || null,
+    
+    // 英语
+    english_score: parseFloat(rowData['英语分数']) || null,
+    english_grade: rowData['英语等级'] || null,
+    english_rank_in_class: parseInt(rowData['英语班名']) || null,
+    english_rank_in_school: parseInt(rowData['英语校名']) || null,
+    english_rank_in_grade: parseInt(rowData['英语级名']) || null,
+    
+    // 物理
+    physics_score: parseFloat(rowData['物理分数']) || null,
+    physics_grade: rowData['物理等级'] || null,
+    physics_rank_in_class: parseInt(rowData['物理班名']) || null,
+    physics_rank_in_school: parseInt(rowData['物理校名']) || null,
+    physics_rank_in_grade: parseInt(rowData['物理级名']) || null,
+    
+    // 化学
+    chemistry_score: parseFloat(rowData['化学分数']) || null,
+    chemistry_grade: rowData['化学等级'] || null,
+    chemistry_rank_in_class: parseInt(rowData['化学班名']) || null,
+    chemistry_rank_in_school: parseInt(rowData['化学校名']) || null,
+    chemistry_rank_in_grade: parseInt(rowData['化学级名']) || null,
+    
+    // 道法
+    politics_score: parseFloat(rowData['道法分数']) || null,
+    politics_grade: rowData['道法等级'] || null,
+    politics_rank_in_class: parseInt(rowData['道法班名']) || null,
+    politics_rank_in_school: parseInt(rowData['道法校名']) || null,
+    politics_rank_in_grade: parseInt(rowData['道法级名']) || null,
+    
+    // 历史
+    history_score: parseFloat(rowData['历史分数']) || null,
+    history_grade: rowData['历史等级'] || null,
+    history_rank_in_class: parseInt(rowData['历史班名']) || null,
+    history_rank_in_school: parseInt(rowData['历史校名']) || null,
+    history_rank_in_grade: parseInt(rowData['历史级名']) || null,
+    
+    // 时间戳
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+  
+  console.log('[兼容映射模式] 处理结果:', {
+    学生: record.name,
+    班级: record.class_name,
+    总分: record.total_score,
+    语文: record.chinese_score,
+    数学: record.math_score,
+    英语: record.english_score
   });
   
-  // 生成完整的成绩记录（每个科目一条记录）
-  const result: Record<string, any>[] = [];
-  
-  Object.entries(subjectGroups).forEach(([subject, subjectData]) => {
-    // 只有当有分数或等级时才创建记录
-    if (subjectData.score !== undefined || subjectData.original_grade !== undefined || subjectData.grade !== undefined) {
-      const record: Record<string, any> = {
-        // 学生基本信息
-        ...studentInfo,
-        
-        // 考试信息
-        ...examData,
-        
-        // 科目信息
-        subject,
-        
-        // 科目成绩数据
-        ...subjectData,
-        
-        // 默认字段
-        subject_total_score: subjectData.subject_total_score || 100, // 默认满分100
-        computed_grade: null, // 计算等级（由系统自动计算）
-        is_analyzed: false,
-        analyzed_at: null,
-        
-        // 元数据
-        import_strategy: 'wide_table_conversion',
-        match_type: 'enhanced',
-        multiple_matches: false,
-        metadata: {
-          source: 'wide_table',
-          original_row: Object.keys(rowData).length,
-          conversion_time: new Date().toISOString()
-        },
-        
-        // 时间戳
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-      
-      result.push(record);
-    }
-  });
-  
-  console.log('[增强转换] 转换结果:', {
-    原始行: 1,
-    生成记录数: result.length,
-    科目列表: result.map(r => r.subject),
-    学生信息: {
-      student_id: studentInfo.student_id,
-      name: studentInfo.name,
-      class_name: studentInfo.class_name
-    }
-  });
-  
-  return result;
+  return record;
 }
 
 /**

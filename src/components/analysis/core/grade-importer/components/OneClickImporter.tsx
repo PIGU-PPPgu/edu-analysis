@@ -1,5 +1,5 @@
 /**
- * 🚀 EnhancedOneClickImporter - 增强版一键智能导入组件
+ *  EnhancedOneClickImporter - 增强版一键智能导入组件
  * 
  * 新功能：
  * 1. 混合解析引擎（算法+AI）
@@ -234,7 +234,7 @@ const OneClickImporter: React.FC<OneClickImporterProps> = ({
       
       onImportComplete(importResult, []);
       
-      toast.success('🎉 混合解析导入成功！', {
+      toast.success(' 混合解析导入成功！', {
         description: `${importResult.strategy === 'algorithm-dominant' ? '算法主导' : 
                      importResult.strategy === 'hybrid' ? '混合模式' : 'AI主导'} - 共导入 ${importResult.summary.importedRows} 条记录`,
         duration: 4000

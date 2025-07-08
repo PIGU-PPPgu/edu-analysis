@@ -1,5 +1,5 @@
 /**
- * 🎯 成绩等级分布图 - 概览页面核心组件
+ * 成绩等级分布图 - 概览页面核心组件
  */
 
 import React, { useMemo } from 'react';
@@ -42,6 +42,9 @@ const GradeLevelDistribution: React.FC<GradeLevelDistributionProps> = ({
   const distributionData = useMemo((): SubjectDistribution[] => {
     if (!gradeData || gradeData.length === 0) return [];
 
+    // 🔧 调试：打印输入数据结构
+    console.log('📊 GradeLevelDistribution输入数据样本:', gradeData.slice(0, 3));
+
     // 按科目分组，收集实际等级数据
     const subjectGroups = gradeData.reduce((acc, record) => {
       const subject = record.subject || '总分';
@@ -49,13 +52,21 @@ const GradeLevelDistribution: React.FC<GradeLevelDistributionProps> = ({
       if (!acc[subject]) {
         acc[subject] = {
           grades: [],
-          scores: []
+          scores: [],
+          records: [] // 保存原始记录用于调试
         };
       }
       
-      // 收集实际等级数据
-      if (record.grade && record.grade.trim()) {
-        acc[subject].grades.push(record.grade.trim());
+      // 🔧 修复：更严格的等级数据检测
+      const gradeValue = record.grade;
+      if (gradeValue && 
+          typeof gradeValue === 'string' && 
+          gradeValue.trim().length > 0 &&
+          gradeValue.trim() !== 'null' &&
+          gradeValue.trim() !== 'undefined') {
+        const cleanGrade = gradeValue.trim();
+        acc[subject].grades.push(cleanGrade);
+        console.log(`📈 收集等级数据: ${subject} -> ${cleanGrade}`);
       }
       
       // 收集分数数据作为备用
@@ -63,13 +74,33 @@ const GradeLevelDistribution: React.FC<GradeLevelDistributionProps> = ({
       if (score > 0) {
         acc[subject].scores.push(score);
       }
+
+      // 保存记录用于调试
+      acc[subject].records.push({
+        grade: record.grade,
+        score: record.score,
+        total_score: record.total_score
+      });
       
       return acc;
-    }, {} as Record<string, {grades: string[], scores: number[]}>);
+    }, {} as Record<string, {grades: string[], scores: number[], records: any[]}>);
+
+    // 🔧 调试：打印科目分组结果
+    Object.entries(subjectGroups).forEach(([subject, data]) => {
+      console.log(`📋 科目 ${subject}: ${data.grades.length} 个等级, ${data.scores.length} 个分数`);
+      if (data.grades.length > 0) {
+        console.log(`  - 等级样本:`, data.grades.slice(0, 5));
+      }
+      if (data.grades.length === 0 && data.records.length > 0) {
+        console.log(`  - 无等级数据的记录样本:`, data.records.slice(0, 3));
+      }
+    });
 
     // 计算每个科目的等级分布
     const distributions = Object.entries(subjectGroups).map(([subject, data]) => {
       const hasGradeData = data.grades.length > 0;
+      
+      console.log(`🎯 科目 ${subject}: hasGradeData = ${hasGradeData}`);
       
       if (hasGradeData) {
         // 使用实际等级数据
@@ -77,6 +108,8 @@ const GradeLevelDistribution: React.FC<GradeLevelDistributionProps> = ({
         data.grades.forEach(grade => {
           gradeCounts[grade] = (gradeCounts[grade] || 0) + 1;
         });
+        
+        console.log(`✅ ${subject} 使用实际等级数据:`, gradeCounts);
         
         return {
           subject,
@@ -92,6 +125,8 @@ const GradeLevelDistribution: React.FC<GradeLevelDistributionProps> = ({
           '及格(60-79)': data.scores.filter(s => s >= 60 && s < 80).length,
           '不及格(<60)': data.scores.filter(s => s < 60).length
         };
+        
+        console.warn(`⚠️ ${subject} 强制使用预设等级 (这是需要修复的问题):`, gradeCounts);
         
         return {
           subject,
@@ -188,11 +223,11 @@ const GradeLevelDistribution: React.FC<GradeLevelDistributionProps> = ({
                 if (count === 0) return null;
                 
                 const percentage = data.total > 0 ? ((count / data.total) * 100).toFixed(1) : '0.0';
-                const icon = grade.includes('A+') || grade.includes('优秀') ? '🏆' :
-                           grade.includes('A') ? '🥇' :
-                           grade.includes('B') ? '🥈' :
-                           grade.includes('C') ? '🥉' :
-                           grade.includes('不及格') || grade.includes('F') ? '⚠️' : '📊';
+                const icon = grade.includes('A+') || grade.includes('优秀') ? '' :
+                           grade.includes('A') ? '' :
+                           grade.includes('B') ? '' :
+                           grade.includes('C') ? '' :
+                           grade.includes('不及格') || grade.includes('F') ? '' : '';
                            
                 return (
                   <p key={grade} className="text-sm font-medium text-[#191A23]">
@@ -202,12 +237,12 @@ const GradeLevelDistribution: React.FC<GradeLevelDistributionProps> = ({
               })}
               {data.hasGradeData && (
                 <p className="text-xs font-bold text-[#B9FF66] bg-[#191A23] px-2 py-1 rounded mt-2">
-                  📊 使用实际等级数据
+                  使用实际等级数据
                 </p>
               )}
               {!data.hasGradeData && (
                 <p className="text-xs font-bold text-[#F7931E] bg-[#191A23] px-2 py-1 rounded mt-2">
-                  📈 基于分数计算等级
+                  基于分数计算等级
                 </p>
               )}
             </div>
@@ -225,7 +260,7 @@ const GradeLevelDistribution: React.FC<GradeLevelDistributionProps> = ({
           <div className="p-4 bg-[#B9FF66] rounded-full border-2 border-black mx-auto mb-6 w-fit">
             <TrendingUp className="h-16 w-16 text-[#191A23]" />
           </div>
-          <p className="text-2xl font-black text-[#191A23] uppercase tracking-wide mb-3">📊 暂无成绩数据</p>
+          <p className="text-2xl font-black text-[#191A23] uppercase tracking-wide mb-3">暂无成绩数据</p>
           <p className="text-[#191A23]/70 font-medium">需要成绩数据来展示等级分布</p>
         </CardContent>
       </Card>
@@ -240,7 +275,7 @@ const GradeLevelDistribution: React.FC<GradeLevelDistributionProps> = ({
         <CardHeader className="bg-[#B9FF66] border-b-4 border-[#191A23] p-6">
           <CardTitle className="text-2xl font-black text-[#191A23] flex items-center gap-3">
             <TrendingUp className="w-5 h-5" />
-            📊 成绩等级分布一览
+            成绩等级分布一览
           </CardTitle>
         </CardHeader>
         <CardContent className="p-8 bg-white">
@@ -281,21 +316,21 @@ const GradeLevelDistribution: React.FC<GradeLevelDistributionProps> = ({
             <div className="flex justify-center items-center gap-2 mb-2">
               {overallStats.hasAnyGradeData ? (
                 <Badge className="bg-[#B9FF66] text-[#191A23] border border-black text-xs">
-                  📊 使用实际等级数据
+                  使用实际等级数据
                 </Badge>
               ) : (
                 <Badge className="bg-[#F7931E] text-white border border-black text-xs">
-                  📈 基于分数计算等级
+                  基于分数计算等级
                 </Badge>
               )}
             </div>
             <div className="flex justify-center gap-4 flex-wrap">
               {overallStats.allGrades.map((grade, index) => {
-                const icon = grade.includes('A+') || grade.includes('优秀') ? '🏆' :
-                           grade.includes('A') ? '🥇' :
-                           grade.includes('B') ? '🥈' :
-                           grade.includes('C') ? '🥉' :
-                           grade.includes('不及格') || grade.includes('F') ? '⚠️' : '📊';
+                const icon = grade.includes('A+') || grade.includes('优秀') ? '' :
+                           grade.includes('A') ? '' :
+                           grade.includes('B') ? '' :
+                           grade.includes('C') ? '' :
+                           grade.includes('不及格') || grade.includes('F') ? '' : '';
                            
                 return (
                   <div key={grade} className="flex items-center gap-2">
@@ -320,7 +355,7 @@ const GradeLevelDistribution: React.FC<GradeLevelDistributionProps> = ({
       {/* 详细数据表格 - 次要组件 */}
       <Card className="border-3 border-[#B9FF66] shadow-[4px_4px_0px_0px_#191A23] bg-white">
         <CardHeader className="bg-[#B9FF66]/30 border-b-3 border-[#B9FF66] p-5">
-          <CardTitle className="text-xl font-bold text-[#191A23]">📋 详细等级数据</CardTitle>
+          <CardTitle className="text-xl font-bold text-[#191A23]">详细等级数据</CardTitle>
         </CardHeader>
         <CardContent className="p-6 bg-white">
           <div className="space-y-4">
@@ -363,7 +398,7 @@ const GradeLevelDistribution: React.FC<GradeLevelDistributionProps> = ({
                     
                     <div className="text-right">
                       <div className="font-bold text-[#191A23] mb-1">
-                        {item.hasGradeData ? '📊 等级数据' : '📈 分数数据'}
+                        {item.hasGradeData ? '等级数据' : '分数数据'}
                       </div>
                       <div className="text-sm text-[#191A23]/70">
                         总计 {item.total} 人

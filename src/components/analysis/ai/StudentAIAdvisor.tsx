@@ -1,5 +1,5 @@
 /**
- * 👥 学生AI顾问组件 - 真AI版本
+ *  学生AI顾问组件 - 真AI版本
  * 我的学生需要什么？- 让AI为每个学生提供个性化指导
  */
 
@@ -72,9 +72,9 @@ const StudentAIAdvisor: React.FC<StudentAIAdvisorProps> = ({
       // 获取AI状态
       const aiStatus = aiService.getAIStatus();
       if (aiStatus.isConfigured) {
-        console.info('🤖 正在使用您配置的AI服务进行学生指导分析...');
+        console.info(' 正在使用您配置的AI服务进行学生指导分析...');
       } else {
-        console.info('🤖 使用基于实际数据的智能模拟分析...');
+        console.info(' 使用基于实际数据的智能模拟分析...');
       }
       
       const result = await aiService.analyzeStudents(gradeData);
@@ -92,35 +92,35 @@ const StudentAIAdvisor: React.FC<StudentAIAdvisorProps> = ({
 
     try {
       const reportContent = `
-# 👥 学生AI指导报告
+#  学生AI指导报告
 
-## 📊 分析概况
+##  分析概况
 - **分析学生总数**: ${analysisResult.summary.total_analyzed}人
 - **识别学习模式**: ${analysisResult.summary.patterns_identified.join('、')}
 - **生成时间**: ${new Date().toLocaleString()}
 
-## 🤖 AI整体建议
+##  AI整体建议
 ${analysisResult.summary.overall_recommendations.map((rec: string) => `- ${rec}`).join('\n')}
 
-## 👤 学生个性化指导方案
+##  学生个性化指导方案
 
 ${analysisResult.students.map((student: any) => `
 ### ${student.name}
 
-**🧠 AI识别学习模式**
+** AI识别学习模式**
 - **类型**: ${student.learning_pattern.type}
 - **描述**: ${student.learning_pattern.description}
 - **置信度**: ${(student.learning_pattern.confidence * 100).toFixed(1)}%
 
-**🎯 个性化学习计划**
+** 个性化学习计划**
 - **学习目标**: ${student.personalized_plan.goals.join('、')}
 - **推荐方法**: ${student.personalized_plan.methods.join('、')}
 - **时间安排**: ${student.personalized_plan.timeline}
 - **预期效果**: ${student.personalized_plan.expected_outcome}
 
-**⚠️ 关注级别**: ${student.priority_level === 'urgent' ? '🔥 紧急关注' : 
-                   student.priority_level === 'important' ? '⚡ 重点关注' :
-                   student.priority_level === 'normal' ? '📝 正常关注' : '✅ 保持现状'}
+** 关注级别**: ${student.priority_level === 'urgent' ? ' 紧急关注' : 
+                   student.priority_level === 'important' ? ' 重点关注' :
+                   student.priority_level === 'normal' ? ' 正常关注' : ' 保持现状'}
 
 ---
 `).join('\n')}
@@ -154,11 +154,11 @@ ${analysisResult.students.map((student: any) => `
 
   const getPriorityIcon = (priority: string) => {
     switch (priority) {
-      case 'urgent': return '🔥';
-      case 'important': return '⚡';
-      case 'normal': return '📝';
-      case 'maintain': return '✅';
-      default: return '💡';
+      case 'urgent': return '';
+      case 'important': return '';
+      case 'normal': return '';
+      case 'maintain': return '';
+      default: return '';
     }
   };
 
@@ -173,7 +173,7 @@ ${analysisResult.students.map((student: any) => `
       <Card className="border-4 border-[#191A23] shadow-[8px_8px_0px_0px_#B9FF66] bg-white">
         <CardContent className="p-12 text-center">
           <Users className="h-16 w-16 text-[#B9FF66] mx-auto mb-6" />
-          <p className="text-2xl font-black text-[#191A23] mb-3">👥 AI顾问待命中</p>
+          <p className="text-2xl font-black text-[#191A23] mb-3"> AI顾问待命中</p>
           <p className="text-[#191A23]/70 font-medium">需要学生成绩数据才能启动个性化AI指导</p>
         </CardContent>
       </Card>
@@ -192,7 +192,7 @@ ${analysisResult.students.map((student: any) => `
               </div>
               <div>
                 <CardTitle className="text-3xl font-black text-[#191A23]">
-                  👥 AI学生顾问
+                   AI学生顾问
                 </CardTitle>
                 <p className="text-[#191A23]/80 font-medium mt-2">
                   我的学生需要什么？让AI基于成绩数据为每个学生定制方案
@@ -253,12 +253,12 @@ ${analysisResult.students.map((student: any) => `
         <Card className="border-4 border-[#191A23] shadow-[8px_8px_0px_0px_#B9FF66] bg-white">
           <CardContent className="p-12 text-center">
             <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-solid border-[#B9FF66] border-r-transparent mb-6"></div>
-            <p className="text-2xl font-black text-[#191A23] mb-4">🤖 AI正在为每个学生定制方案...</p>
+            <p className="text-2xl font-black text-[#191A23] mb-4"> AI正在为每个学生定制方案...</p>
             <div className="space-y-2 text-[#191A23]/70 font-medium">
-              <p>🔍 分析个人学习轨迹和模式</p>
-              <p>📊 识别学习优势和挑战领域</p>
-              <p>💡 生成个性化学习建议</p>
-              <p>🎯 制定可执行的行动计划</p>
+              <p> 分析个人学习轨迹和模式</p>
+              <p> 识别学习优势和挑战领域</p>
+              <p> 生成个性化学习建议</p>
+              <p> 制定可执行的行动计划</p>
             </div>
             <div className="mt-6 flex items-center justify-center gap-2 text-[#191A23]/60">
               <Clock className="w-4 h-4" />
@@ -276,7 +276,7 @@ ${analysisResult.students.map((student: any) => `
             <CardHeader className="bg-[#B9FF66]/30 border-b-3 border-[#B9FF66] p-6">
               <CardTitle className="text-2xl font-bold text-[#191A23] flex items-center gap-3">
                 <Brain className="w-6 h-6" />
-                🤖 AI分析概况
+                 AI分析概况
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6 bg-white">
@@ -302,7 +302,7 @@ ${analysisResult.students.map((student: any) => `
               </div>
               
               <div className="mt-6 p-4 bg-[#F8F8F8] border border-[#B9FF66] rounded-lg">
-                <h4 className="font-bold text-[#191A23] mb-3">🤖 AI整体建议</h4>
+                <h4 className="font-bold text-[#191A23] mb-3"> AI整体建议</h4>
                 <ul className="space-y-2">
                   {analysisResult.summary.overall_recommendations.map((rec: string, index: number) => (
                     <li key={index} className="text-[#191A23] font-medium flex items-start gap-2">
@@ -327,10 +327,10 @@ ${analysisResult.students.map((student: any) => `
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">全部优先级</SelectItem>
-                    <SelectItem value="urgent">🔥 紧急关注</SelectItem>
-                    <SelectItem value="important">⚡ 重点关注</SelectItem>
-                    <SelectItem value="normal">📝 正常关注</SelectItem>
-                    <SelectItem value="maintain">✅ 保持现状</SelectItem>
+                    <SelectItem value="urgent"> 紧急关注</SelectItem>
+                    <SelectItem value="important"> 重点关注</SelectItem>
+                    <SelectItem value="normal"> 正常关注</SelectItem>
+                    <SelectItem value="maintain"> 保持现状</SelectItem>
                   </SelectContent>
                 </Select>
                 <span className="text-[#191A23]/70">共 {filteredStudents.length} 个学生</span>
@@ -365,7 +365,7 @@ ${analysisResult.students.map((student: any) => `
                     <div className="flex items-center justify-between mb-2">
                       <h5 className="font-bold text-[#191A23] text-sm flex items-center gap-1">
                         <Brain className="w-4 h-4" />
-                        🧠 AI识别学习模式
+                         AI识别学习模式
                       </h5>
                       <Badge className="bg-[#191A23] text-white text-xs">
                         {(student.learning_pattern.confidence * 100).toFixed(0)}% 置信度
@@ -383,7 +383,7 @@ ${analysisResult.students.map((student: any) => `
                   <div className="space-y-3">
                     <h5 className="font-bold text-[#191A23] text-sm flex items-center gap-1">
                       <Target className="w-4 h-4" />
-                      🎯 AI个性化计划
+                       AI个性化计划
                     </h5>
                     
                     <div className="grid grid-cols-1 gap-3">
@@ -420,7 +420,7 @@ ${analysisResult.students.map((student: any) => `
                     </div>
 
                     <div className="p-3 bg-[#191A23] text-white rounded">
-                      <p className="text-xs font-bold mb-1">🎯 预期效果</p>
+                      <p className="text-xs font-bold mb-1"> 预期效果</p>
                       <p className="text-xs">{student.personalized_plan.expected_outcome}</p>
                     </div>
                   </div>

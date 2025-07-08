@@ -1,5 +1,5 @@
 /**
- * 📋 PostImportReview - 导入后字段检查组件
+ * PostImportReview - 导入后字段检查组件
  * 
  * 重点显示未识别或有问题的字段，让用户快速处理
  * 成功映射的字段折叠显示，节省界面空间
@@ -495,7 +495,7 @@ const PostImportReview: React.FC<PostImportReviewProps> = ({
           <div className="flex justify-between items-center">
             <div className="text-sm text-gray-600">
               {unmappedFields.length + lowConfidenceFields.length === 0 ? (
-                <span className="text-green-600 font-medium">✅ 所有字段已处理完成，可以开始分析</span>
+                <span className="text-green-600 font-medium"> 所有字段已处理完成，可以开始分析</span>
               ) : (
                 <span>还有 {unmappedFields.length + lowConfidenceFields.length} 个字段需要处理</span>
               )}

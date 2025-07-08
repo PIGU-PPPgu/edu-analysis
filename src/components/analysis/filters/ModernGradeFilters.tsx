@@ -1,5 +1,5 @@
 /**
- * 🎨 现代化成绩筛选组件
+ * 现代化成绩筛选组件
  * 参照 Figma 设计风格，提供直观的筛选体验
  */
 
@@ -212,11 +212,11 @@ const ModernGradeFilters: React.FC<ModernGradeFiltersProps> = ({
       </CardHeader>
 
       <CardContent className="space-y-6 p-6">
-        {/* 🔍 Positivus风格搜索栏 */}
+        {/* Positivus风格搜索栏 */}
         <div className="relative">
           <Search className="absolute left-3 top-3 w-4 h-4 text-[#191A23]" />
           <Input
-            placeholder="🔍 搜索学生姓名、班级或其他信息..."
+            placeholder="搜索学生姓名、班级或其他信息..."
             value={filter.searchKeyword || ''}
             onChange={(e) => updateFilter({ searchKeyword: e.target.value })}
             className="pl-10 bg-white border-2 border-black font-medium text-[#191A23] placeholder:text-[#191A23]/60 focus:border-[#B9FF66] focus:ring-2 focus:ring-[#B9FF66] focus:shadow-[4px_4px_0px_0px_#B9FF66] transition-all"
@@ -233,14 +233,14 @@ const ModernGradeFilters: React.FC<ModernGradeFiltersProps> = ({
           )}
         </div>
 
-        {/* 🏷️ Positivus风格活跃筛选器标签 */}
+        {/* Positivus风格活跃筛选器标签 */}
         {activeFiltersCount > 0 && (
           <div className="flex flex-wrap gap-2">
             {filter.examIds?.map(examId => {
               const exam = availableExams.find(e => e.id === examId);
               return exam ? (
                 <Badge key={examId} className="bg-[#B9FF66] text-[#191A23] border-2 border-black font-bold shadow-[2px_2px_0px_0px_#191A23] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_0px_#191A23] transition-all cursor-pointer">
-                  📅 {exam.title}
+                  {exam.title}
                   <X 
                     className="w-3 h-3 ml-2 hover:text-[#FF6B6B] transition-colors" 
                     onClick={() => updateFilter({ 
@@ -253,7 +253,7 @@ const ModernGradeFilters: React.FC<ModernGradeFiltersProps> = ({
             
             {filter.subjects?.map(subject => (
               <Badge key={subject} className="bg-[#F7931E] text-white border-2 border-black font-bold shadow-[2px_2px_0px_0px_#191A23] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_0px_#191A23] transition-all cursor-pointer">
-                📚 {subject}
+                {subject}
                 <X 
                   className="w-3 h-3 ml-2 hover:text-[#FF6B6B] transition-colors" 
                   onClick={() => updateFilter({ 
@@ -265,7 +265,7 @@ const ModernGradeFilters: React.FC<ModernGradeFiltersProps> = ({
             
             {filter.classNames?.map(className => (
               <Badge key={className} className="bg-[#9C88FF] text-white border-2 border-black font-bold shadow-[2px_2px_0px_0px_#191A23] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_0px_#191A23] transition-all cursor-pointer">
-                🏫 {className}
+                {className}
                 <X 
                   className="w-3 h-3 ml-2 hover:text-[#FF6B6B] transition-colors" 
                   onClick={() => updateFilter({ 
@@ -280,10 +280,10 @@ const ModernGradeFilters: React.FC<ModernGradeFiltersProps> = ({
         {/* 基础筛选 */}
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* 📅 考试选择与管理 */}
+            {/* 考试选择与管理 */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-black text-[#191A23] uppercase tracking-wide">📅 考试</Label>
+                <Label className="text-sm font-black text-[#191A23] uppercase tracking-wide">考试</Label>
                 {onExamAdd && (
                   <Button
                     variant="outline"
@@ -347,9 +347,9 @@ const ModernGradeFilters: React.FC<ModernGradeFiltersProps> = ({
               </div>
             </div>
 
-            {/* 📚 科目选择 */}
+            {/* 科目选择 */}
             <div className="space-y-2">
-              <Label className="text-sm font-black text-[#191A23] uppercase tracking-wide">📚 科目</Label>
+              <Label className="text-sm font-black text-[#191A23] uppercase tracking-wide">科目</Label>
               <Select
                 value={filter.subjects?.[0] || 'all'}
                 onValueChange={(value) => updateFilter({ subjects: value === 'all' ? [] : [value] })}
@@ -371,9 +371,9 @@ const ModernGradeFilters: React.FC<ModernGradeFiltersProps> = ({
               </Select>
             </div>
 
-            {/* 🏫 班级选择 */}
+            {/* 班级选择 */}
             <div className="space-y-2">
-              <Label className="text-sm font-black text-[#191A23] uppercase tracking-wide">🏫 班级</Label>
+              <Label className="text-sm font-black text-[#191A23] uppercase tracking-wide">班级</Label>
               <Select
                 value={filter.classNames?.[0] || 'all'}
                 onValueChange={(value) => updateFilter({ classNames: value === 'all' ? [] : [value] })}
@@ -395,9 +395,9 @@ const ModernGradeFilters: React.FC<ModernGradeFiltersProps> = ({
               </Select>
             </div>
 
-            {/* 🏆 等级选择 */}
+            {/* 等级选择 */}
             <div className="space-y-2">
-              <Label className="text-sm font-black text-[#191A23] uppercase tracking-wide">🏆 等级</Label>
+              <Label className="text-sm font-black text-[#191A23] uppercase tracking-wide">等级</Label>
               <Select
                 value={filter.grades?.[0] || 'all'}
                 onValueChange={(value) => updateFilter({ grades: value === 'all' ? [] : [value] })}
@@ -421,7 +421,7 @@ const ModernGradeFilters: React.FC<ModernGradeFiltersProps> = ({
           </div>
         </div>
 
-        {/* 🔧 高级筛选 */}
+        {/* 高级筛选 */}
         {!compact && (
           <div className="space-y-4">
             <Separator className="border-[#191A23]/20" />
@@ -432,7 +432,7 @@ const ModernGradeFilters: React.FC<ModernGradeFiltersProps> = ({
               className="flex items-center gap-2 text-[#191A23] hover:text-[#F7931E] font-bold p-2 hover:bg-[#F7931E]/10 rounded-lg border-2 border-transparent hover:border-[#F7931E] transition-all"
             >
               <Settings2 className="w-4 h-4" />
-              <span className="uppercase tracking-wide">🔧 高级筛选</span>
+              <span className="uppercase tracking-wide">高级筛选</span>
               <ChevronDown className={cn(
                 "w-4 h-4 transition-transform",
                 expandedSections.advanced && "rotate-180"
@@ -441,9 +441,9 @@ const ModernGradeFilters: React.FC<ModernGradeFiltersProps> = ({
 
             {expandedSections.advanced && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 p-4 bg-[#F3F3F3] border-2 border-black rounded-lg shadow-[4px_4px_0px_0px_#191A23]">
-                {/* 📊 分数范围 */}
+                {/* 分数范围 */}
                 <div className="space-y-3">
-                  <Label className="text-sm font-black text-[#191A23] uppercase tracking-wide">📊 分数范围</Label>
+                  <Label className="text-sm font-black text-[#191A23] uppercase tracking-wide">分数范围</Label>
                   <div className="grid grid-cols-2 gap-2">
                     <Input
                       type="number"
@@ -472,9 +472,9 @@ const ModernGradeFilters: React.FC<ModernGradeFiltersProps> = ({
                   </div>
                 </div>
 
-                {/* 🏆 排名范围 */}
+                {/* 排名范围 */}
                 <div className="space-y-3">
-                  <Label className="text-sm font-black text-[#191A23] uppercase tracking-wide">🏆 排名范围</Label>
+                  <Label className="text-sm font-black text-[#191A23] uppercase tracking-wide">排名范围</Label>
                   <div className="grid grid-cols-2 gap-2">
                     <Input
                       type="number"
@@ -507,7 +507,7 @@ const ModernGradeFilters: React.FC<ModernGradeFiltersProps> = ({
           </div>
         )}
 
-        {/* 📈 筛选结果统计 */}
+        {/* 筛选结果统计 */}
         {filteredCount !== totalCount && (
           <div className="bg-[#B9FF66] border-2 border-black rounded-lg p-4 shadow-[4px_4px_0px_0px_#191A23]">
             <div className="flex items-center gap-3 text-[#191A23]">
@@ -516,7 +516,7 @@ const ModernGradeFilters: React.FC<ModernGradeFiltersProps> = ({
               </div>
               <div>
                 <span className="text-base font-black uppercase tracking-wide">
-                  📈 筛选结果
+                  筛选结果
                 </span>
                 <p className="text-sm font-medium mt-1">
                   已筛选出 <span className="font-black text-[#F7931E]">{filteredCount}</span> / {totalCount} 条数据

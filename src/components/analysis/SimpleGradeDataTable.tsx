@@ -1,5 +1,5 @@
 /**
- * 🎨 简化版成绩数据表格组件 - Positivus风格
+ * 简化版成绩数据表格组件 - Positivus风格
  * 保留核心功能，应用Positivus设计风格
  */
 
@@ -218,7 +218,7 @@ export const SimpleGradeDataTable: React.FC<SimpleGradeDataTableProps> = ({
     return (
       <Card className={cn('border-2 border-black shadow-[6px_6px_0px_0px_#191A23]', className)}>
         <CardHeader>
-          <CardTitle className="text-2xl font-black text-[#191A23]">📊 成绩数据表</CardTitle>
+          <CardTitle className="text-2xl font-black text-[#191A23]">成绩数据表</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-12">
@@ -265,7 +265,7 @@ export const SimpleGradeDataTable: React.FC<SimpleGradeDataTableProps> = ({
       <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-3 text-2xl font-black text-[#191A23]">
-            📊 成绩数据表
+            成绩数据表
           </CardTitle>
           <div className="flex items-center gap-3">
             <Button 
@@ -286,12 +286,12 @@ export const SimpleGradeDataTable: React.FC<SimpleGradeDataTableProps> = ({
           </div>
         </div>
 
-        {/* 🎨 Positivus风格筛选器 */}
+        {/* Positivus风格筛选器 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
           <div className="relative">
             <Search className="absolute left-3 top-3 w-4 h-4 text-[#191A23]" />
             <Input
-              placeholder="🔍 搜索学号或姓名..."
+              placeholder="搜索学号或姓名..."
               value={filters.search}
               onChange={(e) => handleFilterChange('search', e.target.value)}
               className="pl-10 border-2 border-black font-medium shadow-[4px_4px_0px_0px_#191A23]"
@@ -516,7 +516,7 @@ export const SimpleGradeDataTable: React.FC<SimpleGradeDataTableProps> = ({
           </div>
         )}
 
-        {/* 🎨 Positivus风格分页控件 */}
+        {/* Positivus风格分页控件 */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between p-4 bg-[#F3F3F3] border-t-2 border-black">
             <Button

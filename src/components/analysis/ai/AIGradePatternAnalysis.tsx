@@ -1,5 +1,5 @@
 /**
- * 🤖 AI成绩模式识别分析组件
+ *  AI成绩模式识别分析组件
  */
 
 import React, { useState, useMemo } from 'react';
@@ -178,7 +178,7 @@ const AIGradePatternAnalysis: React.FC<PatternAnalysisProps> = ({
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* 🤖 AI分析控制面板 */}
+      {/*  AI分析控制面板 */}
       <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#B9FF66]">
         <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
           <CardTitle className="flex items-center justify-between">
@@ -187,7 +187,7 @@ const AIGradePatternAnalysis: React.FC<PatternAnalysisProps> = ({
                 <Brain className="w-6 h-6 text-white" />
               </div>
               <span className="text-2xl font-black text-[#191A23] uppercase tracking-wide">
-                🤖 学生AI学习模式识别
+                 学生AI学习模式识别
               </span>
             </div>
             <Button
@@ -220,20 +220,20 @@ const AIGradePatternAnalysis: React.FC<PatternAnalysisProps> = ({
         </CardContent>
       </Card>
 
-      {/* 🧠 AI分析结果 */}
+      {/*  AI分析结果 */}
       {(isAnalyzing || analysisComplete) && (
         <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]">
           <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
             <CardTitle className="text-[#191A23] font-black uppercase tracking-wide flex items-center gap-2">
               <Brain className="w-5 h-5" />
-              🧠 AI分析结果
+               AI分析结果
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
             {isAnalyzing ? (
               <div className="text-center py-8">
                 <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-solid border-[#B9FF66] border-r-transparent mb-6"></div>
-                <p className="text-xl font-black text-[#191A23] uppercase tracking-wide mb-2">🤖 AI深度分析中</p>
+                <p className="text-xl font-black text-[#191A23] uppercase tracking-wide mb-2"> AI深度分析中</p>
                 <p className="text-[#191A23]/70 font-medium">正在运用机器学习算法识别学习模式...</p>
                 <div className="mt-6 w-64 bg-[#F3F3F3] rounded-full h-3 mx-auto border-2 border-black">
                   <div className="bg-[#B9FF66] h-full rounded-full transition-all duration-1000 animate-pulse" style={{ width: '75%' }}></div>
@@ -244,7 +244,7 @@ const AIGradePatternAnalysis: React.FC<PatternAnalysisProps> = ({
                 <Alert className="border-2 border-[#B9FF66] bg-[#B9FF66]/10">
                   <CheckCircle className="h-4 w-4 text-[#B9FF66]" />
                   <AlertDescription className="font-medium text-[#191A23]">
-                    🎉 AI分析完成！识别出 <span className="font-bold">{patternAnalysis.length}</span> 种学习模式
+                     AI分析完成！识别出 <span className="font-bold">{patternAnalysis.length}</span> 种学习模式
                   </AlertDescription>
                 </Alert>
 
@@ -256,9 +256,9 @@ const AIGradePatternAnalysis: React.FC<PatternAnalysisProps> = ({
                           <div className="flex items-center gap-3">
                             {getPatternIcon(pattern.type)}
                             <span className="font-black text-[#191A23] uppercase tracking-wide">
-                              {pattern.type === 'improving' ? '📈 上升型' :
-                               pattern.type === 'declining' ? '📉 下降型' :
-                               pattern.type === 'stable' ? '➡️ 稳定型' : '🌊 波动型'}
+                              {pattern.type === 'improving' ? ' 上升型' :
+                               pattern.type === 'declining' ? ' 下降型' :
+                               pattern.type === 'stable' ? '稳定型' : '波动型'}
                             </span>
                           </div>
                           <Badge className="bg-[#B9FF66] text-[#191A23] border-2 border-black font-bold">
@@ -269,17 +269,17 @@ const AIGradePatternAnalysis: React.FC<PatternAnalysisProps> = ({
                       <CardContent className="p-4">
                         <div className="space-y-4">
                           <div>
-                            <h4 className="font-bold text-[#191A23] mb-2">📊 模式描述</h4>
+                            <h4 className="font-bold text-[#191A23] mb-2"> 模式描述</h4>
                             <p className="text-[#191A23]/80 font-medium">{pattern.description}</p>
                           </div>
                           
                           <div>
-                            <h4 className="font-bold text-[#191A23] mb-2">💡 AI建议</h4>
+                            <h4 className="font-bold text-[#191A23] mb-2"> AI建议</h4>
                             <p className="text-[#191A23]/80 font-medium">{pattern.recommendation}</p>
                           </div>
                           
                           <div>
-                            <h4 className="font-bold text-[#191A23] mb-2">👥 涉及学生 ({pattern.students.length}人)</h4>
+                            <h4 className="font-bold text-[#191A23] mb-2"> 涉及学生 ({pattern.students.length}人)</h4>
                             <div className="flex flex-wrap gap-2">
                               {pattern.students.slice(0, 5).map((student, idx) => (
                                 <Badge key={idx} className="bg-[#191A23] text-white border border-black font-medium">

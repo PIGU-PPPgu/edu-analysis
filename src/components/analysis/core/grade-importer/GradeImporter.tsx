@@ -1,4 +1,5 @@
-// 🔧 终极修复版本 - 移除Radix UI Tabs，使用纯div实现
+// 终极修复版本 - 移除Radix UI Tabs，使用纯div实现
+//   注意：这是旧版本的复杂导入组件，新项目推荐使用 SimpleGradeImporter
 import React, { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,7 +43,7 @@ import type {
   ExamInfo
 } from './types';
 
-// 🔧 从AI分析结果中提取映射配置
+// 从AI分析结果中提取映射配置
 const extractMappingFromAI = (aiAnalysis: any): MappingConfig | null => {
   try {
     if (!aiAnalysis?.fieldMappings && !aiAnalysis?.suggestedMappings) {
@@ -128,7 +129,7 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
       // 直接使用 actions.setFileData 方法设置数据
       actions.setFileData(fileData.data || [], fileInfo.name);
       
-      // ✅ 恢复AI智能流程 - 根据置信度智能决策
+      //  恢复AI智能流程 - 根据置信度智能决策
       if (fileData.aiAnalysis) {
         const confidence = fileData.aiAnalysis.confidence || 0;
         const autoMappingConfig = extractMappingFromAI(fileData.aiAnalysis);
@@ -140,17 +141,17 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
           
           // 智能决策：高置信度自动跳转，低置信度手动确认
           if (confidence >= 0.85) {
-            console.log('[GradeImporter] ✅ 高置信度AI映射，自动跳转到验证步骤');
+            console.log('[GradeImporter]  高置信度AI映射，自动跳转到验证步骤');
             actions.setCurrentStep('validation');
             setActiveStepIndex(2);
             toast.success(`AI自动映射完成 (置信度: ${Math.round(confidence * 100)}%)，请检查数据验证结果`);
           } else if (confidence >= 0.70) {
-            console.log('[GradeImporter] ⚠️ 中等置信度AI映射，进入映射确认');
+            console.log('[GradeImporter]  中等置信度AI映射，进入映射确认');
             actions.setCurrentStep('mapping');
             setActiveStepIndex(1);
             toast.warning(`AI映射置信度: ${Math.round(confidence * 100)}%，请确认字段映射`);
           } else {
-            console.log('[GradeImporter] ❌ 低置信度AI映射，进入手动映射');
+            console.log('[GradeImporter] 低置信度AI映射，进入手动映射');
             actions.setCurrentStep('mapping');
             setActiveStepIndex(1);
             toast.info(`AI映射置信度较低 (${Math.round(confidence * 100)}%)，请手动确认映射`);
@@ -252,12 +253,20 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
 
   return (
     <div className="w-full space-y-6">
+      {/* 版本提示 */}
+      <Alert className="mb-4 bg-amber-50 border-amber-200">
+        <AlertTriangle className="h-4 w-4 text-amber-600" />
+        <AlertDescription className="text-amber-800">
+          <strong>提示：</strong>您正在使用标准导入模式。如需更简单的导入体验，请选择"新版导入"模式。
+        </AlertDescription>
+      </Alert>
+
       {/* 进度指示器 */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
-            成绩数据导入流程
+            成绩数据导入流程 (标准模式)
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -398,8 +407,8 @@ const GradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
                     <div className="mt-3 p-3 bg-gray-50 rounded-lg">
                       <p className="text-sm text-gray-700">
                         {userInterfaceMode === 'simple' 
-                          ? '🤖 智能模式：系统自动识别数据，用简单的方式确认即可，适合大多数用户' 
-                          : '⚙️ 高级模式：提供详细的字段映射控制，适合有经验的用户进行精确配置'
+                          ? '智能模式：系统自动识别数据，用简单的方式确认即可，适合大多数用户' 
+                          : '高级模式：提供详细的字段映射控制，适合有经验的用户进行精确配置'
                         }
                       </p>
                     </div>

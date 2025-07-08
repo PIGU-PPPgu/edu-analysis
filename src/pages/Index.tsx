@@ -11,6 +11,8 @@ import { gradeAnalysisService } from "@/services/gradeAnalysisService";
 import StudentDataImporter from "@/components/analysis/core/StudentDataImporter";
 // 导入重构后的成绩导入组件
 import GradeImporter from "@/components/analysis/core/grade-importer/GradeImporter";
+// 导入新的简化导入组件
+import { SimpleGradeImporter } from "@/components/import/SimpleGradeImporter";
 import { FileUploader } from "@/components/analysis/core/grade-importer";
 import { supabase } from "@/integrations/supabase/client";
 import { Progress } from '@/components/ui/progress';
@@ -34,6 +36,11 @@ const Index = () => {
   const [gradesActiveTab, setGradesActiveTab] = useState('import');
   const [importedData, setImportedData] = useState<any[]>([]);
   const [isAnalysisLoading, setIsAnalysisLoading] = useState(false);
+  
+  // 导入方式选择状态 - 根据路由决定默认模式
+  const [importMode, setImportMode] = useState<'standard' | 'simple'>(() => {
+    return location.pathname === '/simple-import' ? 'simple' : 'simple'; // 默认都使用简化模式
+  });
 
   // 检查必要的数据表是否存在，并在需要时创建
   useEffect(() => {
@@ -127,6 +134,27 @@ const Index = () => {
     });
   };
 
+  // 处理简化导入完成
+  const handleSimpleImportComplete = (result: any) => {
+    console.log('简化导入完成:', result);
+    toast.success('导入完成', {
+      description: `成功导入 ${result.successRecords} 条记录`
+    });
+    
+    // 可以在这里添加跳转到分析页面的逻辑
+    if (result.success && result.successRecords > 0) {
+      // 设置预览数据以便显示统计信息
+      const mockData = Array.from({ length: result.successRecords }, (_, i) => ({
+        id: i + 1,
+        student_name: `学生${i + 1}`,
+        class_name: '示例班级',
+        subject: '数学'
+      }));
+      setImportedData(mockData);
+      setGradesActiveTab('preview');
+    }
+  };
+
   useEffect(() => {
     // 检查数据库表是否存在
     const checkTablesExist = async () => {
@@ -165,7 +193,18 @@ const Index = () => {
       <Navbar />
       <div className="container mx-auto py-8 px-4">
         <h1 className="text-3xl font-bold mb-2">数据导入中心</h1>
-        <p className="text-gray-500 mb-8">导入和管理学生信息与成绩数据</p>
+        <p className="text-gray-500 mb-4">导入和管理学生信息与成绩数据</p>
+        
+        {/* 新功能提示 */}
+        <div className="mb-8 p-4 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <CheckCircle className="h-5 w-5 text-green-600" />
+            <span className="font-semibold text-green-800">🎉 新版导入功能上线！</span>
+          </div>
+          <p className="text-sm text-green-700">
+            体验全新的智能导入流程：<strong>一键上传 → AI智能识别 → 快速完成</strong>，让数据导入变得更简单！
+          </p>
+        </div>
         
         {!tablesExist && (
           <Alert variant="destructive" className="mb-4">
@@ -235,6 +274,37 @@ const Index = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
+                  {/* 导入方式选择 */}
+                  <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
+                    <h3 className="text-sm font-medium mb-3">选择导入方式</h3>
+                    <div className="flex gap-3">
+                      <Button
+                        variant={importMode === 'simple' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setImportMode('simple')}
+                        className="flex items-center gap-2"
+                      >
+                        <CheckCircle className="h-4 w-4" />
+                        新版导入 (推荐)
+                      </Button>
+                      <Button
+                        variant={importMode === 'standard' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setImportMode('standard')}
+                        className="flex items-center gap-2"
+                      >
+                        <Settings className="h-4 w-4" />
+                        标准导入
+                      </Button>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-2">
+                      {importMode === 'simple' 
+                        ? '🌟 新版导入：一键智能识别，三步完成导入，适合大多数用户' 
+                        : '⚙️ 标准导入：提供完整的字段映射和高级配置选项，适合专业用户'
+                      }
+                    </p>
+                  </div>
+
                   {/* 简化的成绩导入 */}
                   <Tabs key="grades-tabs" defaultValue="import" className="w-full" onValueChange={setGradesActiveTab} value={gradesActiveTab}>
                     <TabsList className="mb-6 w-full justify-start">
@@ -249,7 +319,14 @@ const Index = () => {
                     </TabsList>
                     
                     <TabsContent value="import" className="space-y-6">
-                      <GradeImporter onDataImported={handleDataImported} />
+                      {importMode === 'simple' ? (
+                        <SimpleGradeImporter 
+                          onComplete={handleSimpleImportComplete}
+                          onCancel={() => console.log('用户取消导入')}
+                        />
+                      ) : (
+                        <GradeImporter onDataImported={handleDataImported} />
+                      )}
                     </TabsContent>
                     
                     <TabsContent value="preview">

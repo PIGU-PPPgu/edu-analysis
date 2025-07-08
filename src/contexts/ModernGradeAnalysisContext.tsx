@@ -6,6 +6,54 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+// 数据转换函数：Wide table → Long table format
+function convertWideToLongFormat(wideData: any[]): any[] {
+  const longData: any[] = [];
+  
+  wideData.forEach(student => {
+    const baseRecord = {
+      exam_id: student.exam_id,
+      student_id: student.student_id,
+      name: student.name,
+      class_name: student.class_name,
+      exam_title: student.exam_title,
+      exam_type: student.exam_type,
+      exam_date: student.exam_date,
+      created_at: student.created_at,
+      updated_at: student.updated_at
+    };
+    
+    // 为每个有分数的科目创建一条记录
+    const subjects = [
+      { name: '语文', scoreField: 'chinese_score', gradeField: 'chinese_grade' },
+      { name: '数学', scoreField: 'math_score', gradeField: 'math_grade' },
+      { name: '英语', scoreField: 'english_score', gradeField: 'english_grade' },
+      { name: '物理', scoreField: 'physics_score', gradeField: 'physics_grade' },
+      { name: '化学', scoreField: 'chemistry_score', gradeField: 'chemistry_grade' },
+      { name: '道法', scoreField: 'politics_score', gradeField: 'politics_grade' },
+      { name: '历史', scoreField: 'history_score', gradeField: 'history_grade' },
+      { name: '生物', scoreField: 'biology_score', gradeField: 'biology_grade' },
+      { name: '地理', scoreField: 'geography_score', gradeField: 'geography_grade' },
+      { name: '总分', scoreField: 'total_score', gradeField: 'total_grade' }
+    ];
+    
+    subjects.forEach(subject => {
+      const score = student[subject.scoreField];
+      if (score !== null && score !== undefined) {
+        longData.push({
+          ...baseRecord,
+          subject: subject.name,
+          score: parseFloat(score),
+          grade: student[subject.gradeField] || null,
+          total_score: parseFloat(student.total_score) || null
+        });
+      }
+    });
+  });
+  
+  return longData;
+}
 import type { GradeFilterConfig } from '@/components/analysis/filters/ModernGradeFilters';
 
 // 成绩记录接口
@@ -45,36 +93,59 @@ export interface ExamInfo {
   updated_at: string;
 }
 
-// 统计信息接口
+// 🔧 修正后的统计信息接口 - 分离总分与单科统计
 export interface GradeStatistics {
   totalStudents: number;
   totalRecords: number;
-  avgScore: number;
-  maxScore: number;
-  minScore: number;
-  passRate: number;
-  excellentRate: number;
   
-  // 🆕 新增实用教学指标
-  averageScore: number;          // 当前平均分
+  // 🎯 总分统计（仅使用total_score数据）
+  totalScoreStats: {
+    avgScore: number;
+    maxScore: number;
+    minScore: number;
+    passRate: number;
+    excellentRate: number;
+    studentCount: number;
+    hasData: boolean;
+  };
+  
+  // 🎯 单科统计（仅使用各科目score数据）
+  subjectScoreStats: {
+    avgScore: number;        // 所有科目的平均分
+    maxScore: number;
+    minScore: number;
+    passRate: number;
+    excellentRate: number;
+    hasData: boolean;
+  };
+  
+  // 🆕 实用教学指标
   scoreComparison: number;       // 与上次对比变化
   passRateComparison: number;    // 及格率变化
   atRiskStudents: number;        // 学困生数量
   topSubject: string;            // 表现最好的科目
   topSubjectScore: number;       // 最好科目的平均分
   
+  // 🔧 修正后的科目统计 - 每个科目独立计算
   subjectStats: Array<{
     subject: string;
     count: number;
     avgScore: number;
     passRate: number;
+    excellentRate: number;
+    isTotal: boolean;            // 标记是否为总分统计
   }>;
+  
+  // 🔧 修正后的班级统计 - 分离总分与单科
   classStats: Array<{
     className: string;
     studentCount: number;
-    avgScore: number;
-    passRate: number;
+    totalScoreAvg: number;       // 班级总分平均
+    subjectScoreAvg: number;     // 班级单科平均
+    totalPassRate: number;       // 总分及格率
+    subjectPassRate: number;     // 单科及格率
   }>;
+  
   gradeDistribution: Array<{
     grade: string;
     count: number;
@@ -86,6 +157,7 @@ export interface GradeStatistics {
 interface ModernGradeAnalysisContextType {
   // 数据状态
   allGradeData: GradeRecord[];
+  wideGradeData: any[];  // Wide format data for enhanced components
   filteredGradeData: GradeRecord[];
   examList: ExamInfo[];
   statistics: GradeStatistics | null;
@@ -133,6 +205,7 @@ interface ModernGradeAnalysisProviderProps {
 export const ModernGradeAnalysisProvider: React.FC<ModernGradeAnalysisProviderProps> = ({ children }) => {
   // 状态管理
   const [allGradeData, setAllGradeData] = useState<GradeRecord[]>([]);
+  const [wideGradeData, setWideGradeData] = useState<any[]>([]);
   const [examList, setExamList] = useState<ExamInfo[]>([]);
   const [filter, setFilter] = useState<GradeFilterConfig>({});
   const [loading, setLoading] = useState(false);
@@ -154,7 +227,7 @@ export const ModernGradeAnalysisProvider: React.FC<ModernGradeAnalysisProviderPr
           .order('date', { ascending: false }),
         
         supabase
-          .from('grade_data')
+          .from('grade_data_new')
           .select('*')
           .order('created_at', { ascending: false })
       ]);
@@ -173,21 +246,43 @@ export const ModernGradeAnalysisProvider: React.FC<ModernGradeAnalysisProviderPr
       console.log(`✅ 加载成功: ${exams.length} 个考试, ${grades.length} 条成绩记录`);
       
       setExamList(exams);
-      setAllGradeData(grades);
+      
+      // 存储原始wide格式数据供增强组件使用
+      setWideGradeData(grades);
+      
+      // 转换wide table为long table格式，保持向后兼容
+      const longFormatGrades = convertWideToLongFormat(grades);
+      setAllGradeData(longFormatGrades);
 
-      // 验证数据完整性
-      const subjectCounts = grades.reduce((acc, grade) => {
-        if (grade.subject) {
-          acc[grade.subject] = (acc[grade.subject] || 0) + 1;
-        }
-        return acc;
-      }, {} as Record<string, number>);
+      // Wide table科目统计 - 基于实际有分数的科目
+      const subjectCounts: Record<string, number> = {};
+      
+      grades.forEach(student => {
+        // 检查每个科目是否有分数
+        if (student.chinese_score) subjectCounts['语文'] = (subjectCounts['语文'] || 0) + 1;
+        if (student.math_score) subjectCounts['数学'] = (subjectCounts['数学'] || 0) + 1;
+        if (student.english_score) subjectCounts['英语'] = (subjectCounts['英语'] || 0) + 1;
+        if (student.physics_score) subjectCounts['物理'] = (subjectCounts['物理'] || 0) + 1;
+        if (student.chemistry_score) subjectCounts['化学'] = (subjectCounts['化学'] || 0) + 1;
+        if (student.politics_score) subjectCounts['道法'] = (subjectCounts['道法'] || 0) + 1;
+        if (student.history_score) subjectCounts['历史'] = (subjectCounts['历史'] || 0) + 1;
+        if (student.biology_score) subjectCounts['生物'] = (subjectCounts['生物'] || 0) + 1;
+        if (student.geography_score) subjectCounts['地理'] = (subjectCounts['地理'] || 0) + 1;
+        if (student.total_score) subjectCounts['总分'] = (subjectCounts['总分'] || 0) + 1;
+      });
       
       console.log('📊 科目分布:', subjectCounts);
       
-      // 检查是否有等级数据
-      const gradesWithLevels = grades.filter(g => g.grade && g.grade.trim());
-      console.log(`📈 等级数据: ${gradesWithLevels.length}/${grades.length} 条记录包含等级`);
+      // 检查是否有等级数据 - Wide table中检查各科目等级
+      let gradesWithLevels = 0;
+      grades.forEach(student => {
+        if (student.chinese_grade || student.math_grade || student.english_grade || 
+            student.physics_grade || student.chemistry_grade || student.politics_grade ||
+            student.history_grade || student.total_grade) {
+          gradesWithLevels++;
+        }
+      });
+      console.log(`📈 等级数据: ${gradesWithLevels}/${grades.length} 条记录包含等级`);
 
     } catch (err) {
       console.error('❌ 加载数据失败:', err);
@@ -206,7 +301,7 @@ export const ModernGradeAnalysisProvider: React.FC<ModernGradeAnalysisProviderPr
     
     try {
       const { data, error } = await supabase
-        .from('grade_data')
+        .from('grade_data_new')
         .select('*')
         .eq('exam_id', examId)
         .order('student_id');
@@ -215,7 +310,12 @@ export const ModernGradeAnalysisProvider: React.FC<ModernGradeAnalysisProviderPr
         throw new Error(`加载考试数据失败: ${error.message}`);
       }
 
-      setAllGradeData(data || []);
+      // 存储原始wide格式数据供增强组件使用
+      setWideGradeData(data || []);
+      
+      // 转换为long格式保持兼容性
+      const longFormatGrades = convertWideToLongFormat(data || []);
+      setAllGradeData(longFormatGrades);
       console.log(`✅ 加载考试 ${examId} 的数据: ${data?.length || 0} 条记录`);
 
     } catch (err) {
@@ -331,7 +431,7 @@ export const ModernGradeAnalysisProvider: React.FC<ModernGradeAnalysisProviderPr
     return Array.from(types).sort();
   }, [examList]);
 
-  // 计算统计信息 - 修正为按考试维度计算，避免总分相加的统计学问题
+  // 🔧 修正统计信息计算 - 彻底分离总分与单科统计逻辑
   const statistics = useMemo((): GradeStatistics | null => {
     if (filteredGradeData.length === 0) return null;
 
@@ -339,103 +439,163 @@ export const ModernGradeAnalysisProvider: React.FC<ModernGradeAnalysisProviderPr
     const uniqueStudents = new Set(filteredGradeData.map(record => record.student_id));
     const totalStudents = uniqueStudents.size;
 
-    // 🔧 修正统计逻辑：根据筛选条件智能计算统计数据
-    let scores: number[] = [];
-    
-    if (filter.examIds?.length === 1) {
-      // 单个考试：直接使用该考试的所有分数
-      scores = filteredGradeData
-        .filter(record => record.exam_id === filter.examIds[0])
-        .map(record => record.score || record.total_score)
-        .filter(score => score !== null && score !== undefined && score > 0) as number[];
-    } else if (filter.subjects?.length === 1) {
-      // 单个科目：计算该科目所有考试的学生平均分
-      const studentSubjectScores = new Map<string, number[]>();
-      
-      filteredGradeData
-        .filter(record => record.subject === filter.subjects![0])
-        .forEach(record => {
-          const score = record.score || record.total_score;
-          if (score !== null && score !== undefined && score > 0) {
-            const studentId = record.student_id;
-            if (!studentSubjectScores.has(studentId)) {
-              studentSubjectScores.set(studentId, []);
-            }
-            studentSubjectScores.get(studentId)!.push(score);
-          }
-        });
-      
-      // 计算每个学生在该科目的平均分
-      scores = Array.from(studentSubjectScores.values()).map(studentScoreList => 
-        studentScoreList.reduce((sum, score) => sum + score, 0) / studentScoreList.length
-      );
-    } else {
-      // 多个考试或全部考试：按学生计算总体平均分，避免重复计算
-      const studentAllScores = new Map<string, number[]>();
-      
-      filteredGradeData.forEach(record => {
-        const score = record.score || record.total_score;
-        if (score !== null && score !== undefined && score > 0) {
-          const studentId = record.student_id;
-          if (!studentAllScores.has(studentId)) {
-            studentAllScores.set(studentId, []);
-          }
-          studentAllScores.get(studentId)!.push(score);
-        }
-      });
-      
-      // 计算每个学生的平均分
-      scores = Array.from(studentAllScores.values()).map(studentScoreList => 
-        studentScoreList.reduce((sum, score) => sum + score, 0) / studentScoreList.length
-      );
-    }
+    console.log('🔧 开始分离统计计算...');
 
-    const avgScore = scores.length > 0 ? scores.reduce((sum, score) => sum + score, 0) / scores.length : 0;
-    const maxScore = scores.length > 0 ? Math.max(...scores) : 0;
-    const minScore = scores.length > 0 ? Math.min(...scores) : 0;
-    const passingScores = scores.filter(score => score >= 60);
-    const excellentScores = scores.filter(score => score >= 90);
-    const passRate = scores.length > 0 ? (passingScores.length / scores.length) * 100 : 0;
-    const excellentRate = scores.length > 0 ? (excellentScores.length / scores.length) * 100 : 0;
+    // 🎯 计算总分统计 - 仅使用总分数据
+    const calculateTotalScoreStats = () => {
+      const totalScoreRecords = filteredGradeData.filter(record => 
+        record.subject === '总分' && record.total_score && record.total_score > 0
+      );
+      
+      if (totalScoreRecords.length === 0) {
+        return {
+          avgScore: 0,
+          maxScore: 0,
+          minScore: 0,
+          passRate: 0,
+          excellentRate: 0,
+          studentCount: 0,
+          hasData: false
+        };
+      }
 
-    // 科目统计
+      const totalScores = totalScoreRecords.map(record => record.total_score!);
+      const avgScore = totalScores.reduce((sum, score) => sum + score, 0) / totalScores.length;
+      const maxScore = Math.max(...totalScores);
+      const minScore = Math.min(...totalScores);
+      const passingScores = totalScores.filter(score => score >= 60);
+      const excellentScores = totalScores.filter(score => score >= 90);
+      const passRate = (passingScores.length / totalScores.length) * 100;
+      const excellentRate = (excellentScores.length / totalScores.length) * 100;
+
+      console.log(`📊 总分统计: 平均分=${avgScore.toFixed(1)}, 样本数=${totalScores.length}`);
+      
+      return {
+        avgScore,
+        maxScore,
+        minScore,
+        passRate,
+        excellentRate,
+        studentCount: totalScores.length,
+        hasData: true
+      };
+    };
+
+    // 🎯 计算单科统计 - 仅使用单科分数数据
+    const calculateSubjectScoreStats = () => {
+      const subjectRecords = filteredGradeData.filter(record => 
+        record.subject !== '总分' && record.score && record.score > 0
+      );
+      
+      if (subjectRecords.length === 0) {
+        return {
+          avgScore: 0,
+          maxScore: 0,
+          minScore: 0,
+          passRate: 0,
+          excellentRate: 0,
+          hasData: false
+        };
+      }
+
+      const subjectScores = subjectRecords.map(record => record.score!);
+      const avgScore = subjectScores.reduce((sum, score) => sum + score, 0) / subjectScores.length;
+      const maxScore = Math.max(...subjectScores);
+      const minScore = Math.min(...subjectScores);
+      const passingScores = subjectScores.filter(score => score >= 60);
+      const excellentScores = subjectScores.filter(score => score >= 90);
+      const passRate = (passingScores.length / subjectScores.length) * 100;
+      const excellentRate = (excellentScores.length / subjectScores.length) * 100;
+
+      console.log(`📚 单科统计: 平均分=${avgScore.toFixed(1)}, 样本数=${subjectScores.length}`);
+      
+      return {
+        avgScore,
+        maxScore,
+        minScore,
+        passRate,
+        excellentRate,
+        hasData: true
+      };
+    };
+
+    const totalScoreStats = calculateTotalScoreStats();
+    const subjectScoreStats = calculateSubjectScoreStats();
+
+    // 🔧 修正科目统计 - 分离总分与单科，避免混合计算
     const subjectStats = availableSubjects.map(subject => {
+      const isTotal = subject === '总分';
       const subjectRecords = filteredGradeData.filter(record => record.subject === subject);
-      const subjectScores = subjectRecords
-        .map(record => record.score || record.total_score)
-        .filter(score => score !== null && score !== undefined) as number[];
+      
+      let subjectScores: number[] = [];
+      
+      if (isTotal) {
+        // 总分：只使用total_score字段
+        subjectScores = subjectRecords
+          .map(record => record.total_score)
+          .filter(score => score !== null && score !== undefined && score > 0) as number[];
+      } else {
+        // 单科：只使用score字段
+        subjectScores = subjectRecords
+          .map(record => record.score)
+          .filter(score => score !== null && score !== undefined && score > 0) as number[];
+      }
       
       const subjectAvg = subjectScores.length > 0 ? 
         subjectScores.reduce((sum, score) => sum + score, 0) / subjectScores.length : 0;
       const subjectPassRate = subjectScores.length > 0 ? 
         (subjectScores.filter(score => score >= 60).length / subjectScores.length) * 100 : 0;
+      const excellentRate = subjectScores.length > 0 ? 
+        (subjectScores.filter(score => score >= 90).length / subjectScores.length) * 100 : 0;
+
+      console.log(`📈 科目${subject}: 平均分=${subjectAvg.toFixed(1)}, 样本=${subjectScores.length}, 类型=${isTotal ? '总分' : '单科'}`);
 
       return {
         subject,
         count: subjectRecords.length,
         avgScore: subjectAvg,
-        passRate: subjectPassRate
+        passRate: subjectPassRate,
+        excellentRate,
+        isTotal
       };
     });
 
-    // 班级统计
+    // 🔧 修正班级统计 - 分离总分与单科统计
     const classStats = availableClasses.map(className => {
       const classRecords = filteredGradeData.filter(record => record.class_name === className);
       const classStudents = new Set(classRecords.map(record => record.student_id));
-      const classScores = classRecords
-        .map(record => record.score || record.total_score)
-        .filter(score => score !== null && score !== undefined) as number[];
       
-      const classAvg = classScores.length > 0 ? 
-        classScores.reduce((sum, score) => sum + score, 0) / classScores.length : 0;
-      const classPassRate = classScores.length > 0 ? 
-        (classScores.filter(score => score >= 60).length / classScores.length) * 100 : 0;
+      // 总分数据
+      const totalScoreRecords = classRecords.filter(record => 
+        record.subject === '总分' && record.total_score && record.total_score > 0
+      );
+      const totalScores = totalScoreRecords.map(record => record.total_score!);
+      
+      // 单科数据
+      const subjectRecords = classRecords.filter(record => 
+        record.subject !== '总分' && record.score && record.score > 0
+      );
+      const subjectScores = subjectRecords.map(record => record.score!);
+      
+      const totalScoreAvg = totalScores.length > 0 ? 
+        totalScores.reduce((sum, score) => sum + score, 0) / totalScores.length : 0;
+      const subjectScoreAvg = subjectScores.length > 0 ? 
+        subjectScores.reduce((sum, score) => sum + score, 0) / subjectScores.length : 0;
+      
+      const totalPassRate = totalScores.length > 0 ? 
+        (totalScores.filter(score => score >= 60).length / totalScores.length) * 100 : 0;
+      const subjectPassRate = subjectScores.length > 0 ? 
+        (subjectScores.filter(score => score >= 60).length / subjectScores.length) * 100 : 0;
+
+      console.log(`🏫 班级${className}: 总分平均=${totalScoreAvg.toFixed(1)}, 单科平均=${subjectScoreAvg.toFixed(1)}`);
 
       return {
         className,
         studentCount: classStudents.size,
-        avgScore: classAvg,
-        passRate: classPassRate
+        totalScoreAvg,
+        subjectScoreAvg,
+        totalPassRate,
+        subjectPassRate
       };
     });
 
@@ -449,32 +609,44 @@ export const ModernGradeAnalysisProvider: React.FC<ModernGradeAnalysisProviderPr
       };
     });
 
-    // 🆕 计算新增的实用教学指标
+    // 🆕 计算实用教学指标 - 基于分离后的统计数据
     
-    // 学困生预警（平均分低于60分的学生数量）
-    const atRiskStudents = scores.filter(score => score < 60).length;
+    // 学困生预警（基于总分和单科分数）
+    const totalScoreAtRisk = filteredGradeData
+      .filter(record => record.subject === '总分' && record.total_score && record.total_score < 60)
+      .length;
+    const subjectScoreAtRisk = filteredGradeData
+      .filter(record => record.subject !== '总分' && record.score && record.score < 60)
+      .length;
+    const atRiskStudents = Math.max(totalScoreAtRisk, subjectScoreAtRisk);
     
-    // 找出表现最好的科目
-    const topSubjectData = subjectStats.reduce((best, current) => 
-      current.avgScore > best.avgScore ? current : best, 
-      { subject: '暂无', avgScore: 0 }
-    );
+    // 找出表现最好的科目（排除总分）
+    const subjectOnlyStats = subjectStats.filter(stat => !stat.isTotal);
+    const topSubjectData = subjectOnlyStats.length > 0 ? 
+      subjectOnlyStats.reduce((best, current) => 
+        current.avgScore > best.avgScore ? current : best
+      ) : { subject: '暂无', avgScore: 0 };
     
     // 模拟与上次考试的对比（这里使用随机值，实际应该从历史数据计算）
     const scoreComparison = Math.round((Math.random() - 0.5) * 10 * 100) / 100; // -5 到 +5 分
     const passRateComparison = Math.round((Math.random() - 0.5) * 20 * 100) / 100; // -10% 到 +10%
 
+    console.log('🎯 统计分离完成:', {
+      totalScoreStats,
+      subjectScoreStats,
+      topSubject: topSubjectData.subject,
+      atRiskStudents
+    });
+
     return {
       totalStudents,
       totalRecords,
-      avgScore,
-      maxScore,
-      minScore,
-      passRate,
-      excellentRate,
       
-      // 🆕 新增的实用教学指标
-      averageScore: avgScore,
+      // 🔧 新的分离式统计结构
+      totalScoreStats,
+      subjectScoreStats,
+      
+      // 🆕 实用教学指标
       scoreComparison,
       passRateComparison,
       atRiskStudents,
@@ -509,6 +681,7 @@ export const ModernGradeAnalysisProvider: React.FC<ModernGradeAnalysisProviderPr
     <ModernGradeAnalysisContext.Provider
       value={{
         allGradeData,
+        wideGradeData,
         filteredGradeData,
         examList,
         statistics,

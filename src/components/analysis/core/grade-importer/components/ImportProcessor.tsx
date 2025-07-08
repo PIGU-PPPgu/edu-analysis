@@ -52,7 +52,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import SimplePostImportReview from './SimplePostImportReview';
 
-// ✅ 正式化考试重复检查函数 - 解决406错误的最优方案
+//  正式化考试重复检查函数 - 解决406错误的最优方案
 const checkExamDuplicateOptimized = async (examInfo: ExamInfo) => {
   try {
     console.log('[检查重复] 开始优化考试查询:', examInfo.title);
@@ -93,7 +93,7 @@ const checkExamDuplicateOptimized = async (examInfo: ExamInfo) => {
   }
 };
 
-// ✅ 正式化成绩重复检查函数 - 高性能查询优化
+//  正式化成绩重复检查函数 - 高性能查询优化
 const checkGradeDataDuplicateOptimized = async (examId: string, studentId: string) => {
   try {
     console.log('[成绩检查] 开始查询重复成绩:', { examId, studentId });
@@ -130,10 +130,10 @@ const checkGradeDataDuplicateOptimized = async (examId: string, studentId: strin
 
 const insertGradeDataSafe = async (gradeRecord: any) => {
   try {
-    console.log('🔧 安全插入成绩数据，学生:', gradeRecord.student_id);
-    console.log('🔧 输入数据字段:', Object.keys(gradeRecord));
+    console.log('安全插入成绩数据，学生:', gradeRecord.student_id);
+    console.log('输入数据字段:', Object.keys(gradeRecord));
     
-    // 🔧 数据类型转换和清洗
+    // 数据类型转换和清洗
     const cleanScore = (value: any): number | null => {
       if (value === null || value === undefined || value === '') {
         return null;
@@ -149,7 +149,7 @@ const insertGradeDataSafe = async (gradeRecord: any) => {
       return null;
     };
 
-    // 🔧 智能字段检测 - 基于实际数据字段动态构建记录
+    // 智能字段检测 - 基于实际数据字段动态构建记录
     const recordsToInsert = [];
     
     // 1. 检测总分字段（多种可能的命名）
@@ -224,7 +224,7 @@ const insertGradeDataSafe = async (gradeRecord: any) => {
         updated_at: new Date().toISOString()
       };
       recordsToInsert.push(totalRecord);
-      console.log('✅ 创建总分记录:', { score: totalScore, grade: totalGrade });
+      console.log(' 创建总分记录:', { score: totalScore, grade: totalGrade });
     }
 
     // 2. 动态检测科目成绩字段
@@ -286,14 +286,14 @@ const insertGradeDataSafe = async (gradeRecord: any) => {
             updated_at: new Date().toISOString()
           };
           recordsToInsert.push(subjectRecord);
-          console.log(`✅ 创建${mapping.name}记录:`, { score, grade: subjectGrade });
+          console.log(` 创建${mapping.name}记录:`, { score, grade: subjectGrade });
         }
       }
     }
 
     // 3. 如果没有任何成绩数据，至少创建一条基本记录
     if (recordsToInsert.length === 0) {
-      console.warn('⚠️ 没有检测到有效的成绩数据，创建基本记录');
+      console.warn(' 没有检测到有效的成绩数据，创建基本记录');
       const basicRecord = {
         exam_id: gradeRecord.exam_id,
         student_id: gradeRecord.student_id,
@@ -312,7 +312,7 @@ const insertGradeDataSafe = async (gradeRecord: any) => {
       recordsToInsert.push(basicRecord);
     }
 
-    console.log(`🚀 准备插入 ${recordsToInsert.length} 条成绩记录，学生: ${gradeRecord.student_id}`);
+    console.log(` 准备插入 ${recordsToInsert.length} 条成绩记录，学生: ${gradeRecord.student_id}`);
     
     // 批量插入 - 使用 upsert 避免重复
     const { data, error } = await supabase
@@ -324,7 +324,7 @@ const insertGradeDataSafe = async (gradeRecord: any) => {
       .select('id, student_id, name, subject, score, grade');
     
     if (error) {
-      console.error('❌ 成绩批量插入失败:', error);
+      console.error('成绩批量插入失败:', error);
       // 如果批量插入失败，尝试逐条插入
       let successCount = 0;
       let lastError = null;
@@ -336,35 +336,35 @@ const insertGradeDataSafe = async (gradeRecord: any) => {
             .upsert(record, { onConflict: 'exam_id,student_id,subject' });
           
           if (singleError) {
-            console.error(`❌ 单条插入失败:`, singleError);
+            console.error(`单条插入失败:`, singleError);
             lastError = singleError;
           } else {
             successCount++;
           }
         } catch (err) {
-          console.error(`❌ 单条插入异常:`, err);
+          console.error(`单条插入异常:`, err);
           lastError = err;
         }
       }
       
       if (successCount > 0) {
-        console.log(`✅ 部分成功插入 ${successCount}/${recordsToInsert.length} 条记录`);
+        console.log(` 部分成功插入 ${successCount}/${recordsToInsert.length} 条记录`);
         return { data: { count: successCount }, error: lastError };
       }
       
       return { data: null, error: lastError || error };
     }
     
-    console.log(`✅ 成绩批量插入成功: ${data.length} 条记录`);
+    console.log(` 成绩批量插入成功: ${data.length} 条记录`);
     return { data, error: null };
     
   } catch (err) {
-    console.error('❌ 成绩插入异常:', err);
+    console.error('成绩插入异常:', err);
     return { data: null, error: err };
   }
 };
 
-// ✅ 正式化考试创建函数 - 高性能和错误处理优化
+//  正式化考试创建函数 - 高性能和错误处理优化
 const createExamOptimized = async (examInfo: ExamInfo) => {
   try {
     const startTime = performance.now();
@@ -556,7 +556,7 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
       const result = await performImport();
       setImportResult(result);
       
-      // 🔧 导入成功后显示字段检查界面，而不是直接完成
+      // 导入成功后显示字段检查界面，而不是直接完成
       if (result.successCount > 0) {
         setShowPostImportReview(true);
         setActiveTab('review');
@@ -587,7 +587,7 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
     const { batchSize, parallelImport, enableBackup } = importConfig;
     const totalBatches = Math.ceil(validData.length / batchSize);
     
-    // 🔧 初始化进度状态
+    // 初始化进度状态
     setImportProgress(prev => ({
       ...prev,
       total: validData.length,
@@ -731,7 +731,7 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
           exam_date: tempExamInfo.date,
           metadata: record.metadata || {},
           
-          // 🔧 支持更多字段映射结果
+          // 支持更多字段映射结果
           chinese_score: record.chinese_score,
           math_score: record.math_score,
           english_score: record.english_score,
@@ -783,7 +783,7 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
           rank_in_grade: record.rank_in_grade,
           grade_level: record.grade_level,
           
-          // 🔧 支持更多字段映射结果
+          // 支持更多字段映射结果
           chinese_score: record.chinese_score,
           math_score: record.math_score,
           english_score: record.english_score,
@@ -854,10 +854,10 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
       throw new Error('用户未登录，无法创建考试记录');
     }
 
-    console.log('🚑 使用安全的考试记录创建，用户信息:', { userId: user.id, email: user.email });
+    console.log(' 使用安全的考试记录创建，用户信息:', { userId: user.id, email: user.email });
 
     try {
-      // ✅ 使用优化的考试查询，解决406错误
+      //  使用优化的考试查询，解决406错误
       const duplicateCheck = await checkExamDuplicateOptimized(tempExamInfo);
       
       if (duplicateCheck.error) {
@@ -870,7 +870,7 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
         return existingExam;
       }
 
-      // ✅ 使用优化的考试创建函数
+      //  使用优化的考试创建函数
       const createResult = await createExamOptimized(tempExamInfo);
       
       if (createResult.error) {
@@ -942,7 +942,7 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
   // 插入成绩数据 - 改进版本，处理重复数据
   const insertGradeData = async (gradeData: any) => {
     try {
-      // ✅ 使用优化的重复检查，解决406错误
+      //  使用优化的重复检查，解决406错误
       const duplicateCheck = await checkGradeDataDuplicateOptimized(gradeData.exam_id, gradeData.student_id);
       
       if (duplicateCheck.error) {
@@ -959,7 +959,7 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
         
         // 如果配置为更新现有数据
         if (importConfig.updateExistingData) {
-          // 🚑 使用安全的更新方式
+          //  使用安全的更新方式
           const updateResult = await insertGradeDataSafe({
             ...gradeData,
             id: existingData.id // 用于更新现有记录
@@ -977,7 +977,7 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
         throw new Error(`数据已存在: 学号${gradeData.student_id}`);
       }
 
-      // 🚑 使用安全的插入函数
+      //  使用安全的插入函数
       const insertResult = await insertGradeDataSafe(gradeData);
 
       if (insertResult.error) {

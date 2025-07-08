@@ -1,5 +1,5 @@
 /**
- * ⚡ QuickFixSuggestions - 快速修复建议组件
+ *  QuickFixSuggestions - 快速修复建议组件
  * 
  * 提供一键修复功能，快速解决常见的数据映射问题
  * 基于常见错误模式，提供智能化的修复建议

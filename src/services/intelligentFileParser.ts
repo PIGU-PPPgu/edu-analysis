@@ -104,9 +104,14 @@ const FIELD_PATTERNS: Record<FieldType, RegExp[]> = {
     /^(等级|评级|level|grade_?level)$/i,
     /等级$/i,
     /评级$/i,
-    // 支持"科目+等级"格式
+    /级别$/i,
+    // 支持"科目+等级"格式 - 增强对等级数据的识别
     /(语文|数学|英语|物理|化学|生物|政治|历史|地理|道法|道德与法治|总分)等级$/i,
-    /(语文|数学|英语|物理|化学|生物|政治|历史|地理|道法|道德与法治|总分)评级$/i
+    /(语文|数学|英语|物理|化学|生物|政治|历史|地理|道法|道德与法治|总分)评级$/i,
+    /(语文|数学|英语|物理|化学|生物|政治|历史|地理|道法|道德与法治|总分)级别$/i,
+    // 支持更灵活的等级格式
+    /(语文|数学|英语|物理|化学|生物|政治|历史|地理|道法|道德与法治).*?(?:等级|级别|评级)/i,
+    /.*?(?:等级|级别|评级).*?(语文|数学|英语|物理|化学|生物|政治|历史|地理|道法|道德与法治)/i
   ],
   [FieldType.UNKNOWN]: []
 };
@@ -181,43 +186,67 @@ export class IntelligentFileParser {
     console.log('[IntelligentFileParser] 开始智能字段映射分析...');
     const intelligentAnalysis = analyzeCSVHeaders(headers);
     
-    // 尝试使用AI增强分析（如果配置了AI）
-    let aiEnhancedAnalysis = intelligentAnalysis;
-    try {
-      const aiAnalysis = await this.performAIAnalysis(headers, cleanedData.slice(0, 3));
-      if (aiAnalysis && aiAnalysis.confidence > intelligentAnalysis.confidence) {
-        console.log('[IntelligentFileParser] AI分析结果更优，使用AI分析结果');
-        aiEnhancedAnalysis = aiAnalysis;
+    // 算法为主，AI为辅的分析策略
+    let finalAnalysis = intelligentAnalysis;
+    
+    console.log('[IntelligentFileParser] 算法分析结果:', {
+      confidence: intelligentAnalysis.confidence,
+      mappedFields: intelligentAnalysis.mappings.length,
+      subjects: intelligentAnalysis.subjects
+    });
+    
+    // 只有当算法分析置信度较低时，才尝试AI辅助
+    if (intelligentAnalysis.confidence < 0.7) {
+      console.log('[IntelligentFileParser] 算法置信度较低，尝试AI辅助分析...');
+      
+      try {
+        const aiAnalysis = await this.performAIAnalysis(headers, cleanedData.slice(0, 3));
+        if (aiAnalysis && aiAnalysis.confidence > 0.8) {
+          // AI只辅助算法无法确定的字段
+          const enhancedMappings = this.mergeAlgorithmAndAI(intelligentAnalysis, aiAnalysis);
+          finalAnalysis = {
+            mappings: enhancedMappings,
+            subjects: [...new Set([...intelligentAnalysis.subjects, ...aiAnalysis.subjects])],
+            confidence: Math.max(intelligentAnalysis.confidence, aiAnalysis.confidence * 0.9), // AI辅助结果置信度略降
+            studentFields: intelligentAnalysis.studentFields
+          };
+          console.log('[IntelligentFileParser] AI辅助增强了算法分析结果');
+        } else {
+          console.log('[IntelligentFileParser] AI辅助效果不佳，保持算法分析结果');
+        }
+      } catch (error) {
+        console.warn('[IntelligentFileParser] AI辅助服务不可用，使用纯算法分析:', error instanceof Error ? error.message : '未知AI服务错误');
+        // 优雅降级，不影响整体解析流程
       }
-    } catch (error) {
-      console.warn('[IntelligentFileParser] AI分析失败，使用规则分析结果:', error.message);
+    } else {
+      console.log('[IntelligentFileParser] 算法分析置信度足够高，无需AI辅助');
     }
     
     console.log('[IntelligentFileParser] 最终分析结果:', {
-      confidence: aiEnhancedAnalysis.confidence,
-      mappedFields: aiEnhancedAnalysis.mappings.length,
+      confidence: finalAnalysis.confidence,
+      mappedFields: finalAnalysis.mappings.length,
       totalFields: headers.length,
-      subjects: aiEnhancedAnalysis.subjects,
-      mappings: aiEnhancedAnalysis.mappings
+      subjects: finalAnalysis.subjects,
+      mappings: finalAnalysis.mappings
     });
     
     // 转换映射格式
     const suggestedMappings: Record<string, string> = {};
-    aiEnhancedAnalysis.mappings.forEach(mapping => {
+    finalAnalysis.mappings.forEach(mapping => {
       suggestedMappings[mapping.originalField] = mapping.mappedField;
     });
     
-    // 科目检测（使用AI增强分析结果）
-    const detectedSubjects = aiEnhancedAnalysis.subjects;
+    // 科目检测（使用最终分析结果）
+    const detectedSubjects = finalAnalysis.subjects;
     
     // 考试信息推断
     const examInfo = this.inferExamInfo(file.name, headers, cleanedData);
     
-    // 识别未知字段（基于AI增强分析结果）
+    // 识别未知字段（基于最终分析结果）
     const unknownFields = this.identifyUnknownFields(headers, cleanedData, suggestedMappings);
     
-    // 使用AI增强分析的置信度
-    const confidence = aiEnhancedAnalysis.confidence;
+    // 使用最终分析的置信度
+    const confidence = finalAnalysis.confidence;
     
     // 判断是否可以自动处理（置信度高于80%且包含基本字段）
     const hasBasicFields = this.checkBasicFields(suggestedMappings);
@@ -243,7 +272,33 @@ export class IntelligentFileParser {
   }
   
   /**
+   * 合并算法和AI分析结果：算法为主，AI为辅
+   */
+  private mergeAlgorithmAndAI(algorithmResult: any, aiResult: any): any[] {
+    const mergedMappings = [...algorithmResult.mappings];
+    const algorithmFields = new Set(algorithmResult.mappings.map((m: any) => m.originalField));
+    
+    // AI只辅助算法无法确定的字段
+    aiResult.mappings.forEach((aiMapping: any) => {
+      if (!algorithmFields.has(aiMapping.originalField)) {
+        // 算法没有识别的字段，AI可以补充
+        console.log(`[AI辅助] 补充算法未识别的字段: ${aiMapping.originalField} -> ${aiMapping.mappedField}`);
+        mergedMappings.push({
+          ...aiMapping,
+          confidence: aiMapping.confidence * 0.8 // AI辅助的置信度略降
+        });
+      } else {
+        // 算法已识别的字段，保持算法结果
+        console.log(`[算法优先] 保持算法识别结果: ${aiMapping.originalField}`);
+      }
+    });
+    
+    return mergedMappings;
+  }
+  
+  /**
    * 使用AI进行字段分析（真正的AI调用）
+   * 注意：当前AI服务不可用时直接返回null，优雅降级到算法分析
    */
   private async performAIAnalysis(headers: string[], sampleData: any[]): Promise<{
     mappings: Array<{
@@ -256,6 +311,14 @@ export class IntelligentFileParser {
     subjects: string[];
     confidence: number;
   } | null> {
+    
+    // 临时禁用AI分析，直接返回null使用算法分析
+    // 原因：AI Edge Function存在CORS配置问题或服务不可用
+    console.log('[AI分析] AI服务暂时不可用，使用算法分析');
+    return null;
+    
+    /* 
+    // 以下是原AI分析代码，当AI服务修复后可重新启用
     try {
       // 检查是否有AI配置
       const { supabase } = await import('@/integrations/supabase/client');
@@ -315,6 +378,7 @@ export class IntelligentFileParser {
       console.error('[AI分析] AI分析过程出错:', error);
       return null;
     }
+    */
   }
   
   /**

@@ -169,9 +169,9 @@ const DataMapper: React.FC<DataMapperProps> = ({
       let mappingSuggestions: any;
       let useAIResults = false;
       
-      // 🤖 首先尝试使用AI解析结果（如果有的话）
+      //  首先尝试使用AI解析结果（如果有的话）
       if (fileData?.aiAnalysis && fileData.aiAnalysis.confidence && fileData.aiAnalysis.confidence > 0.5) {
-        console.log('[DataMapper] 🚀 使用AI解析结果进行字段映射');
+        console.log('[DataMapper]  使用AI解析结果进行字段映射');
         
         useAIResults = true;
         
@@ -208,8 +208,8 @@ const DataMapper: React.FC<DataMapperProps> = ({
         };
         
       } else {
-        // 🔧 降级到传统智能字段映射器分析
-        console.log('[DataMapper] 🔧 使用传统字段映射分析');
+        // 降级到传统智能字段映射器分析
+        console.log('[DataMapper] 使用传统字段映射分析');
         
         headerAnalysis = analyzeCSVHeaders(headers);
         mappingSuggestions = generateMappingSuggestions(headers);
@@ -238,7 +238,7 @@ const DataMapper: React.FC<DataMapperProps> = ({
       const newCustomFields: Record<string, string> = {};
       
       if (useAIResults && fileData?.aiAnalysis?.fieldMappings) {
-        // 🤖 使用AI解析结果
+        //  使用AI解析结果
         Object.entries(fileData.aiAnalysis.fieldMappings).forEach(([originalField, mappedField]) => {
           if (SYSTEM_FIELDS[mappedField]) {
             // 系统字段直接映射
@@ -258,7 +258,7 @@ const DataMapper: React.FC<DataMapperProps> = ({
         setCustomFields(newCustomFields);
         
       } else {
-        // 🔧 使用传统分析结果
+        // 使用传统分析结果
         
         // 首先映射学生信息字段
         headerAnalysis.studentFields.forEach(mapping => {

@@ -1,5 +1,5 @@
 /**
- * 🤖 AI个性化学习建议组件
+ *  AI个性化学习建议组件
  */
 
 import React, { useState, useMemo } from 'react';
@@ -272,7 +272,7 @@ const AIPersonalizedRecommendations: React.FC<PersonalizedRecommendationProps> =
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* 🤖 AI建议生成控制面板 */}
+      {/*  AI建议生成控制面板 */}
       <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#B9FF66]">
         <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
           <CardTitle className="flex items-center justify-between">
@@ -281,7 +281,7 @@ const AIPersonalizedRecommendations: React.FC<PersonalizedRecommendationProps> =
                 <Lightbulb className="w-6 h-6 text-white" />
               </div>
               <span className="text-2xl font-black text-[#191A23] uppercase tracking-wide">
-                💡 学生AI个性化建议
+                 学生AI个性化建议
               </span>
             </div>
             <Button
@@ -320,14 +320,14 @@ const AIPersonalizedRecommendations: React.FC<PersonalizedRecommendationProps> =
           <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
             <CardTitle className="text-[#191A23] font-black uppercase tracking-wide flex items-center gap-2">
               <Brain className="w-5 h-5" />
-              🧠 AI建议结果
+               AI建议结果
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
             {isGenerating ? (
               <div className="text-center py-8">
                 <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-solid border-[#B9FF66] border-r-transparent mb-6"></div>
-                <p className="text-xl font-black text-[#191A23] uppercase tracking-wide mb-2">🤖 AI智能生成中</p>
+                <p className="text-xl font-black text-[#191A23] uppercase tracking-wide mb-2"> AI智能生成中</p>
                 <p className="text-[#191A23]/70 font-medium">正在为每位学生量身定制个性化学习建议...</p>
                 <div className="mt-6 w-64 bg-[#F3F3F3] rounded-full h-3 mx-auto border-2 border-black">
                   <div className="bg-[#B9FF66] h-full rounded-full transition-all duration-1000 animate-pulse" style={{ width: '85%' }}></div>
@@ -338,7 +338,7 @@ const AIPersonalizedRecommendations: React.FC<PersonalizedRecommendationProps> =
                 <Alert className="border-2 border-[#B9FF66] bg-[#B9FF66]/10">
                   <CheckCircle className="h-4 w-4 text-[#B9FF66]" />
                   <AlertDescription className="font-medium text-[#191A23]">
-                    🎉 AI建议生成完成！为 <span className="font-bold">{generateRecommendations.length}</span> 名学生制定了个性化方案
+                     AI建议生成完成！为 <span className="font-bold">{generateRecommendations.length}</span> 名学生制定了个性化方案
                   </AlertDescription>
                 </Alert>
 
@@ -346,7 +346,7 @@ const AIPersonalizedRecommendations: React.FC<PersonalizedRecommendationProps> =
                   <label className="font-bold text-[#191A23]">选择学生查看详细建议:</label>
                   <Select value={selectedStudent} onValueChange={setSelectedStudent}>
                     <SelectTrigger className="w-[200px] bg-white border-2 border-black font-medium text-[#191A23] focus:border-[#B9FF66] focus:ring-2 focus:ring-[#B9FF66] shadow-[2px_2px_0px_0px_#191A23] transition-all">
-                      <SelectValue placeholder="👤 选择学生" />
+                      <SelectValue placeholder=" 选择学生" />
                     </SelectTrigger>
                     <SelectContent className="border-2 border-black shadow-[4px_4px_0px_0px_#191A23]">
                       {generateRecommendations.map(student => (
@@ -370,7 +370,7 @@ const AIPersonalizedRecommendations: React.FC<PersonalizedRecommendationProps> =
                     <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] bg-[#B9FF66]/10">
                       <CardHeader className="border-b-2 border-black">
                         <CardTitle className="flex items-center justify-between">
-                          <span className="font-black text-[#191A23]">👤 {selectedStudentData.studentName}</span>
+                          <span className="font-black text-[#191A23]"> {selectedStudentData.studentName}</span>
                           <Badge className="bg-[#B9FF66] text-[#191A23] border-2 border-black font-bold text-lg px-4 py-2">
                             平均分: {selectedStudentData.overallScore.toFixed(1)}
                           </Badge>
@@ -379,7 +379,7 @@ const AIPersonalizedRecommendations: React.FC<PersonalizedRecommendationProps> =
                       <CardContent className="p-4">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div>
-                            <h4 className="font-bold text-[#191A23] mb-2">✨ 学习优势</h4>
+                            <h4 className="font-bold text-[#191A23] mb-2"> 学习优势</h4>
                             <div className="flex flex-wrap gap-1">
                               {selectedStudentData.strengths.map((strength, idx) => (
                                 <Badge key={idx} className="bg-[#B9FF66] text-[#191A23] border border-black font-medium">
@@ -389,7 +389,7 @@ const AIPersonalizedRecommendations: React.FC<PersonalizedRecommendationProps> =
                             </div>
                           </div>
                           <div>
-                            <h4 className="font-bold text-[#191A23] mb-2">🎯 需要改进</h4>
+                            <h4 className="font-bold text-[#191A23] mb-2"> 需要改进</h4>
                             <div className="flex flex-wrap gap-1">
                               {selectedStudentData.challenges.map((challenge, idx) => (
                                 <Badge key={idx} className="bg-[#F7931E] text-white border border-black font-medium">
@@ -399,7 +399,7 @@ const AIPersonalizedRecommendations: React.FC<PersonalizedRecommendationProps> =
                             </div>
                           </div>
                           <div>
-                            <h4 className="font-bold text-[#191A23] mb-2">🧠 学习特征</h4>
+                            <h4 className="font-bold text-[#191A23] mb-2"> 学习特征</h4>
                             <div className="space-y-1">
                               <Badge className="bg-[#9C88FF] text-white border border-black font-medium w-full">
                                 学习风格: {selectedStudentData.learningStyle === 'visual' ? '视觉型' : 
@@ -418,7 +418,7 @@ const AIPersonalizedRecommendations: React.FC<PersonalizedRecommendationProps> =
 
                     {/* AI建议列表 */}
                     <div className="space-y-4">
-                      <h3 className="text-xl font-black text-[#191A23] uppercase tracking-wide">💡 AI个性化建议</h3>
+                      <h3 className="text-xl font-black text-[#191A23] uppercase tracking-wide"> AI个性化建议</h3>
                       {selectedStudentData.recommendations.map((rec, index) => (
                         <Card key={index} className={`border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] ${getCategoryColor(rec.category)}`}>
                           <CardHeader className="border-b-2 border-black">

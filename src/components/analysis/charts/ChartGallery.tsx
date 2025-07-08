@@ -1,5 +1,5 @@
 /**
- * 📈 图表展示画廊组件
+ * 图表展示画廊组件
  * 提供各种高级数据可视化图表
  */
 
@@ -189,7 +189,7 @@ const ChartGallery: React.FC<ChartGalleryProps> = ({
       <CardHeader className="bg-[#B9FF66] border-b-4 border-[#191A23] p-6">
         <CardTitle className="text-2xl font-black text-[#191A23] flex items-center gap-3">
           <Grid className="w-6 h-6" />
-          🔥 成绩热力图 - 班级科目表现一览
+          成绩热力图 - 班级科目表现一览
         </CardTitle>
       </CardHeader>
       <CardContent className="p-8 bg-white">
@@ -255,7 +255,7 @@ const ChartGallery: React.FC<ChartGalleryProps> = ({
       <CardHeader className="bg-[#F7931E] border-b-4 border-[#191A23] p-6">
         <CardTitle className="text-2xl font-black text-white flex items-center gap-3">
           <RadarIcon className="w-6 h-6" />
-          📊 学生能力雷达图
+          学生能力雷达图
         </CardTitle>
       </CardHeader>
       <CardContent className="p-8 bg-white">
@@ -304,7 +304,7 @@ const ChartGallery: React.FC<ChartGalleryProps> = ({
       <CardHeader className="bg-[#9C88FF] border-b-4 border-[#191A23] p-6">
         <CardTitle className="text-2xl font-black text-white flex items-center gap-3">
           <Activity className="w-6 h-6" />
-          🎯 学生进步轨迹气泡图
+          学生进步轨迹气泡图
         </CardTitle>
       </CardHeader>
       <CardContent className="p-8 bg-white">
@@ -362,7 +362,7 @@ const ChartGallery: React.FC<ChartGalleryProps> = ({
       <CardHeader className="bg-[#FF6B6B] border-b-4 border-[#191A23] p-6">
         <CardTitle className="text-2xl font-black text-white flex items-center gap-3">
           <Network className="w-6 h-6" />
-          🌸 成绩分布流向图
+          成绩分布流向图
         </CardTitle>
       </CardHeader>
       <CardContent className="p-8 bg-white">
@@ -450,7 +450,7 @@ const ChartGallery: React.FC<ChartGalleryProps> = ({
       <Card className="border-4 border-[#191A23] shadow-[8px_8px_0px_0px_#B9FF66] bg-white">
         <CardContent className="p-12 text-center">
           <PieChart className="h-16 w-16 text-[#B9FF66] mx-auto mb-6" />
-          <p className="text-2xl font-black text-[#191A23] mb-3">📈 暂无数据</p>
+          <p className="text-2xl font-black text-[#191A23] mb-3">暂无数据</p>
           <p className="text-[#191A23]/70 font-medium">需要成绩数据才能生成图表</p>
         </CardContent>
       </Card>
@@ -464,7 +464,7 @@ const ChartGallery: React.FC<ChartGalleryProps> = ({
         <CardHeader className="bg-[#B9FF66]/30 border-b-3 border-[#B9FF66] p-5">
           <CardTitle className="text-xl font-bold text-[#191A23] flex items-center gap-3">
             <BarChart3 className="w-6 h-6" />
-            📈 高级图表展示画廊
+            高级图表展示画廊
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6 bg-white">
@@ -474,25 +474,25 @@ const ChartGallery: React.FC<ChartGalleryProps> = ({
                 value="heatmap"
                 className="data-[state=active]:bg-[#B9FF66] data-[state=active]:text-[#191A23] font-bold"
               >
-                🔥 热力图
+                热力图
               </TabsTrigger>
               <TabsTrigger 
                 value="radar"
                 className="data-[state=active]:bg-[#F7931E] data-[state=active]:text-white font-bold"
               >
-                📊 雷达图
+                雷达图
               </TabsTrigger>
               <TabsTrigger 
                 value="bubble"
                 className="data-[state=active]:bg-[#9C88FF] data-[state=active]:text-white font-bold"
               >
-                🎯 气泡图
+                气泡图
               </TabsTrigger>
               <TabsTrigger 
                 value="sankey"
                 className="data-[state=active]:bg-[#FF6B6B] data-[state=active]:text-white font-bold"
               >
-                🌸 流向图
+                流向图
               </TabsTrigger>
             </TabsList>
 

@@ -1,5 +1,5 @@
 /**
- * 🔧 DataMappingConfig 组件 - GradeImporter重构第2部分
+ * DataMappingConfig 组件 - GradeImporter重构第2部分
  * 负责数据字段映射配置功能
  */
 

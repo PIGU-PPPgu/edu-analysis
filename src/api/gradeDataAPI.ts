@@ -35,18 +35,17 @@ export async function fetchGradeData(
 ): Promise<GradeDataResponse> {
   try {
     let query = supabase
-      .from('grade_data')
+      .from('grade_data_new')
       .select('*')
-      .order('score', { ascending: false });
+      .order('total_score', { ascending: false });
     
     // 应用筛选条件
     if (examId) {
       query = query.eq('exam_id', examId);
     }
     
-    if (filter?.subject) {
-      query = query.eq('subject', filter.subject);
-    }
+    // Wide table中没有单独的subject字段，这里暂时跳过科目筛选
+    // TODO: 需要重新设计科目筛选逻辑
     
     if (filter?.class) {
       query = query.eq('class_name', filter.class);

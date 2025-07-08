@@ -1,5 +1,5 @@
 /**
- * 🤖 AIAnalysisProgress - AI分析进度实时反馈组件
+ *  AIAnalysisProgress - AI分析进度实时反馈组件
  * 
  * 功能：
  * 1. 实时显示AI分析各个阶段的进度
