@@ -59,8 +59,12 @@ interface ChartGalleryProps {
 
 // 热力图数据处理
 const generateHeatmapData = (gradeData: GradeRecord[]) => {
-  const subjects = [...new Set(gradeData.map(r => r.subject).filter(Boolean))];
-  const classes = [...new Set(gradeData.map(r => r.class_name).filter(Boolean))];
+  const allSubjects = [...new Set(gradeData.map(r => r.subject).filter(Boolean))];
+  const allClasses = [...new Set(gradeData.map(r => r.class_name).filter(Boolean))];
+  
+  // 限制显示数量以避免布局过大
+  const subjects = allSubjects.slice(0, 5); // 限制为5个科目
+  const classes = allClasses.slice(0, 4);   // 限制为4个班级
   
   const heatmapData = [];
   
@@ -82,27 +86,32 @@ const generateHeatmapData = (gradeData: GradeRecord[]) => {
     });
   });
   
-  return { heatmapData, subjects, classes };
+  return { 
+    heatmapData, 
+    subjects, 
+    classes, 
+    totalSubjects: allSubjects.length, 
+    totalClasses: allClasses.length 
+  };
 };
 
-// 雷达图数据处理
-const generateRadarData = (gradeData: GradeRecord[]) => {
-  const subjects = [...new Set(gradeData.map(r => r.subject).filter(Boolean))];
-  const students = [...new Set(gradeData.map(r => r.student_id))].slice(0, 5); // 取前5个学生
+// 班级对比图数据处理（替代雷达图）
+const generateClassComparisonData = (gradeData: GradeRecord[]) => {
+  const subjects = [...new Set(gradeData.map(r => r.subject).filter(Boolean))].slice(0, 6);
+  const classes = [...new Set(gradeData.map(r => r.class_name).filter(Boolean))].slice(0, 4);
   
-  return students.map(studentId => {
-    const studentName = gradeData.find(r => r.student_id === studentId)?.name || studentId;
-    const studentData = { student: studentName };
+  return subjects.map(subject => {
+    const subjectData = { subject };
     
-    subjects.forEach(subject => {
-      const records = gradeData.filter(r => r.student_id === studentId && r.subject === subject);
+    classes.forEach(className => {
+      const records = gradeData.filter(r => r.subject === subject && r.class_name === className);
       const avgScore = records.length > 0 
         ? records.reduce((sum, r) => sum + (r.score || 0), 0) / records.length 
         : 0;
-      studentData[subject] = avgScore;
+      subjectData[className] = avgScore.toFixed(1);
     });
     
-    return studentData;
+    return subjectData;
   });
 };
 
@@ -178,8 +187,8 @@ const ChartGallery: React.FC<ChartGalleryProps> = ({
 }) => {
   const [activeChart, setActiveChart] = useState('heatmap');
 
-  const { heatmapData, subjects, classes } = useMemo(() => generateHeatmapData(gradeData), [gradeData]);
-  const radarData = useMemo(() => generateRadarData(gradeData), [gradeData]);
+  const { heatmapData, subjects, classes, totalSubjects, totalClasses } = useMemo(() => generateHeatmapData(gradeData), [gradeData]);
+  const classComparisonData = useMemo(() => generateClassComparisonData(gradeData), [gradeData]);
   const sankeyData = useMemo(() => generateSankeyData(gradeData), [gradeData]);
   const bubbleData = useMemo(() => generateBubbleData(gradeData), [gradeData]);
 
@@ -192,22 +201,34 @@ const ChartGallery: React.FC<ChartGalleryProps> = ({
           成绩热力图 - 班级科目表现一览
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-8 bg-white">
-        <div className="space-y-6">
-          <div className="grid" style={{ 
-            gridTemplateColumns: `100px repeat(${classes.length}, 1fr)`,
-            gap: '2px'
-          }}>
+      <CardContent className="p-6 bg-white">
+        <div className="space-y-4">
+          {/* 数据限制通知 */}
+          {(totalSubjects > 5 || totalClasses > 4) && (
+            <div className="p-3 bg-[#B9FF66]/20 border border-[#B9FF66] rounded-lg">
+              <p className="text-sm font-medium text-[#191A23]">
+                📊 显示前{Math.min(totalSubjects, 5)}个科目和前{Math.min(totalClasses, 4)}个班级
+                {totalSubjects > 5 && ` (共${totalSubjects}个科目)`}
+                {totalClasses > 4 && ` (共${totalClasses}个班级)`}
+              </p>
+            </div>
+          )}
+          
+          <div className="max-w-full overflow-x-auto">
+            <div className="grid min-w-fit" style={{ 
+              gridTemplateColumns: `80px repeat(${classes.length}, minmax(60px, 1fr))`,
+              gap: '1px'
+            }}>
             <div></div>
             {classes.map((className, index) => (
-              <div key={index} className="text-center font-bold text-[#191A23] p-2 bg-[#F8F8F8] border border-[#B9FF66]">
+              <div key={index} className="text-center font-bold text-[#191A23] p-1 text-xs bg-[#F8F8F8] border border-[#B9FF66]">
                 {className}
               </div>
             ))}
             
             {subjects.map((subject, subjectIndex) => (
               <React.Fragment key={subject}>
-                <div className="text-right font-bold text-[#191A23] p-2 bg-[#F8F8F8] border border-[#B9FF66]">
+                <div className="text-right font-bold text-[#191A23] p-1 text-xs bg-[#F8F8F8] border border-[#B9FF66]">
                   {subject}
                 </div>
                 {classes.map((className, classIndex) => {
@@ -216,7 +237,7 @@ const ChartGallery: React.FC<ChartGalleryProps> = ({
                   return (
                     <div
                       key={`${subjectIndex}-${classIndex}`}
-                      className="aspect-square border border-black flex items-center justify-center text-sm font-bold transition-all hover:scale-105"
+                      className="aspect-square border border-black flex items-center justify-center text-xs font-bold transition-all hover:scale-105 min-h-[40px]"
                       style={{
                         backgroundColor: `rgba(185, 255, 102, ${intensity})`,
                         color: intensity > 0.5 ? '#191A23' : '#666'
@@ -229,6 +250,7 @@ const ChartGallery: React.FC<ChartGalleryProps> = ({
                 })}
               </React.Fragment>
             ))}
+          </div>
           </div>
           
           <div className="flex justify-between items-center">
@@ -249,54 +271,78 @@ const ChartGallery: React.FC<ChartGalleryProps> = ({
     </Card>
   );
 
-  // 雷达图组件
-  const RadarChartComponent = () => (
-    <Card className="border-4 border-[#191A23] shadow-[8px_8px_0px_0px_#F7931E] bg-white">
-      <CardHeader className="bg-[#F7931E] border-b-4 border-[#191A23] p-6">
-        <CardTitle className="text-2xl font-black text-white flex items-center gap-3">
-          <RadarIcon className="w-6 h-6" />
-          学生能力雷达图
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-8 bg-white">
-        <div className="h-96">
-          <ResponsiveContainer width="100%" height="100%">
-            <RadarChart data={radarData[0] || {}}>
-              <PolarGrid stroke="#191A23" />
-              <PolarAngleAxis dataKey="subject" tick={{ fontSize: 12, fontWeight: 'bold', fill: '#191A23' }} />
-              <PolarRadiusAxis 
-                angle={30} 
-                domain={[0, 100]} 
-                tick={{ fontSize: 10, fill: '#191A23' }}
-              />
-              {radarData.map((student, index) => (
-                <Radar
-                  key={index}
-                  name={student.student}
-                  dataKey={(key) => student[key]}
-                  stroke={index === 0 ? '#B9FF66' : index === 1 ? '#F7931E' : '#9C88FF'}
-                  fill={index === 0 ? '#B9FF66' : index === 1 ? '#F7931E' : '#9C88FF'}
-                  fillOpacity={0.3}
-                  strokeWidth={3}
+  // 班级对比图组件（替代雷达图）
+  const ClassComparisonChart = () => {
+    const classes = [...new Set(gradeData.map(r => r.class_name).filter(Boolean))].slice(0, 4);
+    
+    return (
+      <Card className="border-4 border-[#191A23] shadow-[8px_8px_0px_0px_#6B7280] bg-white">
+        <CardHeader className="bg-[#6B7280] border-b-4 border-[#191A23] p-6">
+          <CardTitle className="text-2xl font-black text-white flex items-center gap-3">
+            <BarChart3 className="w-6 h-6" />
+            班级成绩对比图
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6 bg-white">
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={classComparisonData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                <XAxis 
+                  dataKey="subject" 
+                  tick={{ fontSize: 12, fontWeight: 'bold', fill: '#191A23' }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={100}
                 />
-              ))}
-            </RadarChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-          {radarData.slice(0, 3).map((student, index) => (
-            <Badge key={index} className={`p-3 text-center font-bold border-2 border-black ${
-              index === 0 ? 'bg-[#B9FF66] text-[#191A23]' :
-              index === 1 ? 'bg-[#F7931E] text-white' :
-              'bg-[#9C88FF] text-white'
-            }`}>
-              {student.student}
-            </Badge>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
+                <YAxis 
+                  domain={[0, 100]}
+                  tick={{ fontSize: 12, fontWeight: 'bold', fill: '#191A23' }}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    border: '2px solid #191A23', 
+                    borderRadius: '8px',
+                    backgroundColor: 'white',
+                    boxShadow: '4px 4px 0px 0px #191A23'
+                  }}
+                />
+                {classes.map((className, index) => (
+                  <Bar
+                    key={className}
+                    dataKey={className}
+                    fill={index === 0 ? '#B9FF66' : index === 1 ? '#6B7280' : index === 2 ? '#191A23' : '#CCCCCC'}
+                    stroke="#191A23"
+                    strokeWidth={2}
+                    name={className}
+                  />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-4">
+            {classes.map((className, index) => (
+              <Badge key={index} className={`p-2 text-center font-bold border-2 border-black ${
+                index === 0 ? 'bg-[#B9FF66] text-[#191A23]' :
+                index === 1 ? 'bg-[#6B7280] text-white' :
+                index === 2 ? 'bg-[#191A23] text-white' :
+                'bg-[#CCCCCC] text-[#191A23]'
+              }`}>
+                {className}
+              </Badge>
+            ))}
+          </div>
+          
+          <div className="mt-4 p-3 bg-[#6B7280]/10 rounded-lg">
+            <p className="text-sm font-medium text-[#191A23]">
+              💡 此图表更适合教师分析各班级在不同科目的表现差异，便于制定针对性教学策略
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   // 气泡图组件
   const BubbleChartComponent = () => (
@@ -477,10 +523,10 @@ const ChartGallery: React.FC<ChartGalleryProps> = ({
                 热力图
               </TabsTrigger>
               <TabsTrigger 
-                value="radar"
-                className="data-[state=active]:bg-[#F7931E] data-[state=active]:text-white font-bold"
+                value="comparison"
+                className="data-[state=active]:bg-[#6B7280] data-[state=active]:text-white font-bold"
               >
-                雷达图
+                班级对比
               </TabsTrigger>
               <TabsTrigger 
                 value="bubble"
@@ -500,8 +546,8 @@ const ChartGallery: React.FC<ChartGalleryProps> = ({
               <HeatmapChart />
             </TabsContent>
 
-            <TabsContent value="radar" className="mt-6">
-              <RadarChartComponent />
+            <TabsContent value="comparison" className="mt-6">
+              <ClassComparisonChart />
             </TabsContent>
 
             <TabsContent value="bubble" className="mt-6">

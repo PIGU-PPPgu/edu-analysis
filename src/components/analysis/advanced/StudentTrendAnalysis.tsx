@@ -303,7 +303,7 @@ const StudentTrendAnalysis: React.FC<StudentTrendAnalysisProps> = ({
   }
 
   return (
-    <div className={`space-y-6 ${className}`}>
+    <div className={`space-y-4 ${className}`}>
       {/* 控制面板 */}
       <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#B9FF66]">
         <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
@@ -324,7 +324,7 @@ const StudentTrendAnalysis: React.FC<StudentTrendAnalysisProps> = ({
           </div>
         </CardHeader>
         <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* 学生选择 */}
             <div className="space-y-2">
               <label className="text-sm font-black text-[#191A23] uppercase tracking-wide">选择学生</label>
@@ -367,18 +367,6 @@ const StudentTrendAnalysis: React.FC<StudentTrendAnalysisProps> = ({
               </div>
             </div>
 
-            {/* 操作按钮 */}
-            <div className="space-y-2">
-              <label className="text-sm font-black text-[#191A23] uppercase tracking-wide">操作</label>
-              <Button 
-                onClick={handleExportData}
-                disabled={!selectedStudent || studentTrendData.length === 0}
-                className="border-2 border-black bg-[#191A23] hover:bg-[#0F1015] text-white font-bold shadow-[2px_2px_0px_0px_#191A23] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_0px_#191A23] transition-all"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                导出数据
-              </Button>
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -386,16 +374,16 @@ const StudentTrendAnalysis: React.FC<StudentTrendAnalysisProps> = ({
       {selectedStudent && studentTrendData.length > 0 && (
         <>
           {/* 概览统计 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#B9FF66]">
-              <CardContent className="p-6 text-center">
+              <CardContent className="p-4 text-center">
                 <div className="text-3xl font-black text-[#191A23] mb-2">{studentTrendData.length}</div>
                 <div className="text-sm font-bold text-[#191A23] uppercase tracking-wide">考试次数</div>
               </CardContent>
             </Card>
             
             <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#6B7280] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#6B7280]">
-              <CardContent className="p-6 text-center">
+              <CardContent className="p-4 text-center">
                 <div className="text-3xl font-black text-[#191A23] mb-2">
                   {studentTrendData[studentTrendData.length - 1]?.totalScore || 0}
                 </div>
@@ -404,7 +392,7 @@ const StudentTrendAnalysis: React.FC<StudentTrendAnalysisProps> = ({
             </Card>
             
             <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#6B7280] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#6B7280]">
-              <CardContent className="p-6 text-center">
+              <CardContent className="p-4 text-center">
                 <div className="text-3xl font-black text-[#191A23] mb-2">
                   {trendAnalysis.filter(t => t.trend === 'improving').length}
                 </div>
@@ -413,7 +401,7 @@ const StudentTrendAnalysis: React.FC<StudentTrendAnalysisProps> = ({
             </Card>
             
             <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#6B7280] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#6B7280]">
-              <CardContent className="p-6 text-center">
+              <CardContent className="p-4 text-center">
                 <div className="text-3xl font-black text-[#191A23] mb-2">
                   {studentTrendData[studentTrendData.length - 1]?.classRank || 0}
                 </div>

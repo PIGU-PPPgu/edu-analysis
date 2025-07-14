@@ -377,7 +377,7 @@ export class ErrorRecoveryGuide {
     return baseSteps;
   }
 
-  static getPrevention Tips(context: ErrorContext): string[] {
+  static getPreventionTips(context: ErrorContext): string[] {
     const tips = [
       '使用标准的Excel模板',
       '确保文件格式正确（.xlsx, .csv）',

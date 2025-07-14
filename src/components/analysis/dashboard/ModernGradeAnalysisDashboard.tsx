@@ -1,6 +1,6 @@
 /**
- * 现代化成绩分析仪表板
- * 应用4色设计系统
+ * 日常分析仪表板
+ * 适合教师日常教学的快速查看界面
  */
 
 import React, { useState, useMemo } from 'react';
@@ -64,6 +64,7 @@ import CorrelationAnalysisDashboard from '@/components/analysis/dashboard/Correl
 import StatisticsOverview from '@/components/analysis/statistics/StatisticsOverview';
 import DataExport from '@/components/ui/data-export';
 import ChartExportButton from '@/components/ui/ChartExportButton';
+import FloatingChatAssistant from '@/components/ai/FloatingChatAssistant';
 
 // 4色设计系统
 const POSITIVUS_COLORS = {
@@ -179,7 +180,7 @@ const StatCard: React.FC<StatCardProps> = ({
   );
 };
 
-const ModernGradeAnalysisDashboard: React.FC = () => {
+const DailyAnalysisDashboard: React.FC = () => {
   const {
     filteredGradeData,
     examList,
@@ -197,7 +198,7 @@ const ModernGradeAnalysisDashboard: React.FC = () => {
   } = useModernGradeAnalysis();
 
   const [activeTab, setActiveTab] = useState('overview');
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
   
   // 学生详情模态框状态
   const [selectedStudent, setSelectedStudent] = useState<{
@@ -294,25 +295,30 @@ const ModernGradeAnalysisDashboard: React.FC = () => {
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
         <div className="space-y-3">
           <h1 className="text-5xl font-black text-[#191A23] leading-tight">
-            成绩分析
+            日常分析
             <span className="inline-block ml-3 px-4 py-2 bg-[#B9FF66] text-[#191A23] text-xl font-black border-2 border-black rounded-lg shadow-[4px_4px_0px_0px_#191A23]">
-              ANALYSIS
+              DAILY
             </span>
           </h1>
           <p className="text-lg text-[#6B7280] font-medium max-w-2xl">
-            全面分析学生成绩表现，发现学习趋势和改进机会
+            教师日常教学的快速成绩查看，关注当前班级状态
           </p>
         </div>
         
         <div className="flex items-center gap-4">
           <Button
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 border-2 border-black bg-white hover:bg-white text-black font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all"
+            className={cn(
+              "flex items-center gap-2 border-2 border-black font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all",
+              showFilters 
+                ? "bg-[#B9FF66] hover:bg-[#A8E055] text-black" 
+                : "bg-white hover:bg-white text-black"
+            )}
           >
             <Filter className="w-4 h-4" />
-            筛选器
+            {showFilters ? '隐藏筛选器' : '显示筛选器'}
             {Object.keys(filter).length > 0 && (
-              <Badge className="ml-1 bg-[#B9FF66] text-black border-2 border-black">
+              <Badge className="ml-1 bg-[#191A23] text-white border-2 border-black">
                 {Object.keys(filter).length}
               </Badge>
             )}
@@ -394,7 +400,7 @@ const ModernGradeAnalysisDashboard: React.FC = () => {
       {/*  Positivus风格主要分析内容 */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
         <div className="overflow-x-auto">
-          <TabsList className="grid w-fit grid-cols-8 bg-white border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] p-1">
+          <TabsList className="grid w-fit grid-cols-5 bg-white border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] p-1">
             <TabsTrigger 
               value="overview" 
               className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-black font-bold border-2 border-transparent data-[state=active]:border-black"
@@ -404,7 +410,7 @@ const ModernGradeAnalysisDashboard: React.FC = () => {
             </TabsTrigger>
             <TabsTrigger 
               value="statistics" 
-              className="flex items-center gap-2 data-[state=active]:bg-[#F7931E] data-[state=active]:text-white font-bold border-2 border-transparent data-[state=active]:border-black"
+              className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-black font-bold border-2 border-transparent data-[state=active]:border-black"
             >
               <Target className="w-4 h-4" />
               <span className="hidden md:inline">统计</span>
@@ -418,31 +424,10 @@ const ModernGradeAnalysisDashboard: React.FC = () => {
             </TabsTrigger>
             <TabsTrigger 
               value="classes" 
-              className="flex items-center gap-2 data-[state=active]:bg-[#F7931E] data-[state=active]:text-white font-bold border-2 border-transparent data-[state=active]:border-black"
+              className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-black font-bold border-2 border-transparent data-[state=active]:border-black"
             >
               <Users className="w-4 h-4" />
               <span className="hidden md:inline">班级</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="advanced" 
-              className="flex items-center gap-2 data-[state=active]:bg-[#9C88FF] data-[state=active]:text-white font-bold border-2 border-transparent data-[state=active]:border-black"
-            >
-              <TrendingUp className="w-4 h-4" />
-              <span className="hidden md:inline">高级</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="predictions" 
-              className="flex items-center gap-2 data-[state=active]:bg-[#FF6B6B] data-[state=active]:text-white font-bold border-2 border-transparent data-[state=active]:border-black"
-            >
-              <AlertCircle className="w-4 h-4" />
-              <span className="hidden md:inline">预测</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="anomalies" 
-              className="flex items-center gap-2 data-[state=active]:bg-[#FED7D7] data-[state=active]:text-black font-bold border-2 border-transparent data-[state=active]:border-black"
-            >
-              <AlertTriangle className="w-4 h-4" />
-              <span className="hidden md:inline">异常</span>
             </TabsTrigger>
             <TabsTrigger 
               value="details" 
@@ -618,42 +603,6 @@ const ModernGradeAnalysisDashboard: React.FC = () => {
           />
         </TabsContent>
 
-        {/* 高级分析标签页 */}
-        <TabsContent value="advanced" className="space-y-6">
-          {/* 增强版相关性分析仪表板 */}
-          <CorrelationAnalysisDashboard className="w-full" />
-          
-          {/* 传统高级分析组件 */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-8">
-            {/* 班级箱线图对比 */}
-            <ClassBoxPlotChart 
-              data={filteredGradeData}
-              className="border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]"
-            />
-            
-            {/* 班级综合对比 */}
-            <ClassComparisonChart 
-              data={filteredGradeData}
-              className="border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]"
-            />
-          </div>
-        </TabsContent>
-
-        {/* 预测分析标签页 */}
-        <TabsContent value="predictions" className="space-y-6">
-          <PredictiveAnalysis 
-            selectedStudents={[]}
-            timeframe="month"
-          />
-        </TabsContent>
-
-        {/* 异常检测标签页 */}
-        <TabsContent value="anomalies" className="space-y-6">
-          <AnomalyDetectionAnalysis 
-            gradeData={filteredGradeData}
-            className="border-2 border-black shadow-[6px_6px_0px_0px_#FED7D7]"
-          />
-        </TabsContent>
 
         {/* 详细数据标签页 */}
         <TabsContent value="details" className="space-y-6">
@@ -694,8 +643,11 @@ const ModernGradeAnalysisDashboard: React.FC = () => {
           allGrades={filteredGradeData}
         />
       )}
+
+      {/* 浮动AI聊天助手 */}
+      <FloatingChatAssistant defaultMinimized={true} />
     </div>
   );
 };
 
-export default ModernGradeAnalysisDashboard;
+export default DailyAnalysisDashboard;

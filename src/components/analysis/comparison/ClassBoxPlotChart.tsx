@@ -228,8 +228,11 @@ const ClassBoxPlotChart: React.FC<ClassBoxPlotChartProps> = ({
       filteredData = gradeData.filter(record => record.class_name === selectedClass);
     }
 
-    // 按科目分组
-    const subjectGroups = groupBy(filteredData, record => record.subject || '未知科目');
+    // 按科目分组，过滤掉总分
+    const subjectGroups = groupBy(
+      filteredData.filter(record => record.subject !== '总分'), 
+      record => record.subject || '未知科目'
+    );
 
     return Object.entries(subjectGroups).map(([subject, records]) => {
       // 提取有效分数
@@ -377,11 +380,6 @@ const ClassBoxPlotChart: React.FC<ClassBoxPlotChartProps> = ({
                 </SelectContent>
               </Select>
 
-              {/* 导出按钮 */}
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                导出
-              </Button>
             </div>
           </div>
           <CardDescription>
@@ -405,7 +403,7 @@ const ClassBoxPlotChart: React.FC<ClassBoxPlotChartProps> = ({
         </CardHeader>
         <CardContent>
           {boxPlotData.length > 0 ? (
-            <div className="h-96">
+            <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart
                   data={boxPlotData}

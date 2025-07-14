@@ -84,6 +84,7 @@ import EnhancedSubjectCorrelationMatrix from '@/components/analysis/advanced/Enh
 import StudentTrendAnalysis from '@/components/analysis/advanced/StudentTrendAnalysis';
 import MultiDimensionalRankingSystem from '@/components/analysis/advanced/MultiDimensionalRankingSystem';
 import ChartGallery from '@/components/analysis/charts/ChartGallery';
+import FloatingChatAssistant from '@/components/ai/FloatingChatAssistant';
 
 
 // 严格4色设计系统：绿、黑、白、灰
@@ -354,7 +355,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
   } = useModernGradeAnalysis();
 
   const [activeTab, setActiveTab] = useState('overview');
-  const [showFilters, setShowFilters] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(true);
   
   // 考试管理功能
   const handleExamDelete = async (examId: string) => {
@@ -405,57 +406,62 @@ const CompleteAnalyticsDashboard: React.FC = () => {
   }
 
   return (
-    <div className="space-y-10 p-8 bg-white min-h-screen">
-      {/* Positivus风格页面标题 */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-        <div className="space-y-3">
-          <h1 className="text-5xl font-black text-[#191A23] leading-tight">
-            高级分析
-            <span className="inline-block ml-3 px-4 py-2 bg-[#B9FF66] text-[#191A23] text-xl font-black border-2 border-black rounded-lg shadow-[4px_4px_0px_0px_#191A23]">
-              ADVANCED
-            </span>
-          </h1>
-          <p className="text-lg text-[#6B7280] font-medium max-w-2xl">
-            深度分析学生表现，发现隐藏模式和关联关系
-          </p>
+    <div className="flex bg-white min-h-screen">
+      {/* 侧边筛选栏 */}
+      {showSidebar && (
+        <div className="w-80 bg-[#F8F8F8] border-r-2 border-black p-6 overflow-y-auto">
+          <ModernGradeFilters
+            filter={filter}
+            onFilterChange={setFilter}
+            availableExams={examList}
+            availableSubjects={availableSubjects}
+            availableClasses={availableClasses}
+            availableGrades={availableGrades}
+            availableExamTypes={availableExamTypes}
+            totalCount={filteredGradeData.length}
+            filteredCount={filteredGradeData.length}
+            onExamDelete={handleExamDelete}
+            onExamEdit={handleExamEdit}
+            onExamAdd={handleExamAdd}
+            compact={false}
+          />
         </div>
-        
-        <div className="flex items-center gap-4">
-          <Button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 border-2 border-black bg-white hover:bg-[#F3F3F3] text-black font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all"
-          >
-            <Filter className="w-4 h-4" />
-            筛选器
-          </Button>
-          
-          <Button
-            onClick={refreshData}
-            className="flex items-center gap-2 border-2 border-black bg-[#B9FF66] hover:bg-[#B9FF66] text-black font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all"
-          >
-            <RefreshCw className="w-4 h-4" />
-            刷新
-          </Button>
-        </div>
-      </div>
-
-      {/* Positivus风格筛选器 */}
-      {showFilters && (
-        <ModernGradeFilters
-          filter={filter}
-          onFilterChange={setFilter}
-          availableExams={examList}
-          availableSubjects={availableSubjects}
-          availableClasses={availableClasses}
-          availableGrades={availableGrades}
-          availableExamTypes={availableExamTypes}
-          totalCount={filteredGradeData.length}
-          filteredCount={filteredGradeData.length}
-          onExamDelete={handleExamDelete}
-          onExamEdit={handleExamEdit}
-          onExamAdd={handleExamAdd}
-        />
       )}
+
+      {/* 主内容区域 */}
+      <div className="flex-1 space-y-10 p-8">
+        {/* Positivus风格页面标题 */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="space-y-3">
+            <h1 className="text-5xl font-black text-[#191A23] leading-tight">
+              基础分析
+              <span className="inline-block ml-3 px-4 py-2 bg-[#B9FF66] text-[#191A23] text-xl font-black border-2 border-black rounded-lg shadow-[4px_4px_0px_0px_#191A23]">
+                BASIC
+              </span>
+            </h1>
+            <p className="text-lg text-[#6B7280] font-medium max-w-2xl">
+              系统化的成绩分析，包含统计概览和基础AI辅助功能
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <Button
+              onClick={() => setShowSidebar(!showSidebar)}
+              className="flex items-center gap-2 border-2 border-black bg-white hover:bg-[#F3F3F3] text-black font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all"
+            >
+              <Filter className="w-4 h-4" />
+              {showSidebar ? '隐藏筛选栏' : '显示筛选栏'}
+            </Button>
+            
+            <Button
+              onClick={refreshData}
+              className="flex items-center gap-2 border-2 border-black bg-[#B9FF66] hover:bg-[#B9FF66] text-black font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all"
+            >
+              <RefreshCw className="w-4 h-4" />
+              刷新
+            </Button>
+          </div>
+        </div>
 
       {/* 简化的主导航 - 移到指标卡片上方 */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
@@ -872,6 +878,10 @@ const CompleteAnalyticsDashboard: React.FC = () => {
           增强功能说明：科目相关性分析使用95%置信区间；个人趋势分析支持线性回归预测；多维度排名包含学术、稳定性、进步性、均衡性四个维度。
           数据基于Wide-Table结构优化，提供更快的查询性能。
         </p>
+      </div>
+
+        {/* 浮动AI聊天助手 */}
+        <FloatingChatAssistant defaultMinimized={true} />
       </div>
     </div>
   );

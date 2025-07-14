@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { User, LogOut, Settings, UserCircle, Download, BarChart3, Users, Bell } from "lucide-react";
+import { User, LogOut, Settings, UserCircle, Download, BarChart3, Users, Bell, Brain } from "lucide-react";
 import { useViewport } from "@/hooks/use-viewport";
 import { MobileNavigation, MobileTopBar, DEFAULT_NAVIGATION_ITEMS, NavigationItem } from "@/components/mobile/MobileNavigation";
 import { cn } from "@/lib/utils";
@@ -93,9 +93,15 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
         },
         {
           id: 'grade-analysis',
-          label: '成绩分析',
+          label: '基础分析',
           icon: <BarChart3 className="w-5 h-5" />,
           onClick: () => navigate('/grade-analysis')
+        },
+        {
+          id: 'advanced-analysis',
+          label: '高级分析',
+          icon: <Brain className="w-5 h-5" />,
+          onClick: () => navigate('/advanced-analysis')
         },
         {
           id: 'ai-chat',
@@ -126,6 +132,7 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
     if (location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/data-import')) return 'dashboard';
     if (location.pathname.startsWith('/homework')) return 'homework';
     if (location.pathname.startsWith('/grade-analysis')) return 'grade-analysis';
+    if (location.pathname.startsWith('/advanced-analysis')) return 'advanced-analysis';
     if (location.pathname.startsWith('/ai-chat')) return 'ai-chat';
     return undefined;
   };
@@ -181,7 +188,8 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
     if (location.pathname === '/') return '首页';
     if (location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/data-import')) return '数据导入';
     if (location.pathname.startsWith('/homework')) return '作业管理';
-    if (location.pathname.startsWith('/grade-analysis')) return '成绩分析';
+    if (location.pathname.startsWith('/grade-analysis')) return '基础分析';
+    if (location.pathname.startsWith('/advanced-analysis')) return '高级分析';
     if (location.pathname.startsWith('/ai-chat')) return 'AI助手';
     return '学习管理系统';
   }
@@ -226,7 +234,15 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
                   isActive('/grade-analysis') ? 'text-primary' : 'text-muted-foreground'
                 }`}
               >
-                成绩分析
+                基础分析
+              </Link>
+              <Link
+                to="/advanced-analysis"
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  isActive('/advanced-analysis') ? 'text-primary' : 'text-muted-foreground'
+                }`}
+              >
+                高级分析
               </Link>
               
               {/* 更多功能下拉菜单 */}

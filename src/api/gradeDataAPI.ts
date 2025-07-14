@@ -288,7 +288,7 @@ export function calculateGradeStatistics(data: GradeRecord[]): GradeStatistics {
 export async function fetchClassList(): Promise<{ data: string[], error?: string }> {
   try {
     const { data, error } = await supabase
-      .from('grade_data')
+      .from('grade_data_new')
       .select('class_name')
       .not('class_name', 'is', null);
     
@@ -316,7 +316,7 @@ export async function fetchClassList(): Promise<{ data: string[], error?: string
 export async function fetchSubjectList(): Promise<{ data: string[], error?: string }> {
   try {
     const { data, error } = await supabase
-      .from('grade_data')
+      .from('grade_data_new')
       .select('subject')
       .not('subject', 'is', null);
     
@@ -345,7 +345,7 @@ export async function fetchSubjectList(): Promise<{ data: string[], error?: stri
 export async function upsertGradeData(gradeData: GradeRecord[]): Promise<{ success: boolean, error?: string }> {
   try {
     const { error } = await supabase
-      .from('grade_data')
+      .from('grade_data_new')
       .upsert(gradeData, { 
         onConflict: 'student_id,subject,exam_id',
         ignoreDuplicates: false 
@@ -374,7 +374,7 @@ export async function upsertGradeData(gradeData: GradeRecord[]): Promise<{ succe
 export async function deleteGradeData(examId: string): Promise<{ success: boolean, error?: string }> {
   try {
     const { error } = await supabase
-      .from('grade_data')
+      .from('grade_data_new')
       .delete()
       .eq('exam_id', examId);
     

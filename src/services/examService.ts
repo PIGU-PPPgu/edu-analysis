@@ -240,7 +240,7 @@ export const getExamStatistics = async (examId: string): Promise<ExamStatistics>
 
       // 获取成绩数据 - 包含grade字段
       const { data: grades, error: gradesError } = await supabase
-        .from('grade_data')
+        .from('grade_data_new')
         .select(`
           total_score,
           score,
@@ -338,7 +338,7 @@ export const getExamWarningStatistics = async (examId: string) => {
     }
 
     const { data: gradeData, error: gradeError } = await supabase
-      .from('grade_data')
+      .from('grade_data_new')
       .select('student_id, total_score, name, class_name')
       .eq('exam_title', exam.title);
 

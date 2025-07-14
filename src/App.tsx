@@ -8,6 +8,7 @@ import ModernHomepage from "./pages/ModernHomepage";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import GradeAnalysis from "./pages/GradeAnalysis";
+import AdvancedAnalysis from "./pages/AdvancedAnalysis";
 import StudentProfile from "./pages/StudentProfile";
 import StudentManagement from "./pages/StudentManagement";
 import ClassManagement from "./pages/ClassManagement";
@@ -137,6 +138,7 @@ function App() {
                   
                   <Route element={<ProtectedRoute allowedRoles={['admin', 'teacher']} />}>
                     <Route path="/grade-analysis" element={<GradeAnalysis />} />
+                    <Route path="/advanced-analysis" element={<AdvancedAnalysis />} />
                     <Route path="/warning-analysis" element={<WarningAnalysis />} />
                     <Route path="/student-management" element={<StudentManagement />} />
                     <Route path="/class-management" element={<ClassManagement />} />

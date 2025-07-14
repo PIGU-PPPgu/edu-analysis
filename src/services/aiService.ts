@@ -2342,4 +2342,183 @@ export async function saveExamData(records: any[], examInfo: ExamInfo) {
     throw error;
   }
 }
+
+/**
+ * 与AI模型进行简单对话聊天
+ * 专门用于AI助手对话，不同于analyzeWithModel的教育内容分析
+ * @param providerId 提供商ID  
+ * @param modelId 模型ID
+ * @param message 用户消息
+ * @param options 可选参数
+ * @returns AI回复内容
+ */
+export async function chatWithModel(
+  providerId: string,
+  modelId: string,
+  message: string,
+  options: {
+    temperature?: number;
+    maxTokens?: number;
+    systemPrompt?: string;
+    conversationHistory?: { role: string; content: string }[];
+  } = {}
+): Promise<string> {
+  try {
+    logInfo('开始聊天对话', {
+      provider: providerId,
+      model: modelId,
+      messageLength: message.length
+    });
+
+    // 获取AI客户端
+    const client = await getAIClient(providerId, modelId);
+    if (!client) {
+      throw new Error(`无法创建${providerId}的AI客户端，请检查配置和API密钥`);
+    }
+
+    // 构建消息数组
+    const messages: { role: string; content: string }[] = [];
+    
+    // 添加系统提示（AI助手专用）
+    const systemPrompt = options.systemPrompt || 
+      '你是一个教育AI助手，专门帮助教师分析学生成绩数据和提供教学建议。请用简洁专业的语言回答教学相关问题，重点关注：成绩分析、学习建议、教学策略、数据洞察。回答控制在100字以内。';
+    
+    messages.push({ role: 'system', content: systemPrompt });
+
+    // 添加对话历史（如果有）
+    if (options.conversationHistory && options.conversationHistory.length > 0) {
+      messages.push(...options.conversationHistory);
+    }
+
+    // 添加当前用户消息
+    messages.push({ role: 'user', content: message });
+
+    // 发送聊天请求
+    let response;
+    if ('chat' in client && typeof client.chat.completions.create === 'function') {
+      // 使用OpenAI风格的API（EnhancedAIClient）
+      response = await client.chat.completions.create({
+        messages,
+        temperature: options.temperature || 0.7,
+        max_tokens: options.maxTokens || 1000,
+        top_p: 0.9,
+        frequency_penalty: 0,
+        presence_penalty: 0
+      });
+      
+      const content = response?.choices?.[0]?.message?.content;
+      if (!content) {
+        throw new Error('AI响应内容为空');
+      }
+      
+      logInfo('聊天对话成功', {
+        provider: providerId,
+        model: modelId,
+        responseLength: content.length
+      });
+      
+      return content;
+    } else if ('sendRequest' in client) {
+      // 使用GenericAIClient
+      const requestOptions = {
+        temperature: options.temperature || 0.7,
+        maxTokens: options.maxTokens || 1000,
+        topP: 0.9,
+        frequencyPenalty: 0,
+        presencePenalty: 0
+      };
+      
+      response = await (client as GenericAIClient).sendRequest(messages, requestOptions);
+      
+      const content = response?.choices?.[0]?.message?.content || response?.choices?.[0]?.text;
+      if (!content) {
+        throw new Error('AI响应内容为空');
+      }
+      
+      logInfo('聊天对话成功', {
+        provider: providerId,
+        model: modelId,
+        responseLength: content.length
+      });
+      
+      return content;
+    } else {
+      throw new Error('不支持的AI客户端类型');
+    }
+  } catch (error) {
+    logError('聊天对话失败:', error);
+    
+    // 提供友好的错误信息
+    let errorMessage = '';
+    if (error.message.includes('API密钥')) {
+      errorMessage = 'AI服务API密钥有误，请检查AI设置';
+    } else if (error.message.includes('网络') || error.message.includes('timeout')) {
+      errorMessage = '网络连接失败，请检查网络状态';
+    } else if (error.message.includes('配置')) {
+      errorMessage = '请先在AI设置中配置AI服务';
+    } else {
+      errorMessage = `AI服务暂时不可用: ${error.message}`;
+    }
+    
+    throw new Error(errorMessage);
+  }
+}
+
+/**
+ * 获取用户配置的中文AI模型列表
+ * 只返回用户在AI设置中配置的中文AI提供商和模型
+ * @returns 配置的中文AI模型列表
+ */
+export async function getConfiguredChineseAIModels(): Promise<{ 
+  providerId: string; 
+  providerName: string; 
+  modelId: string; 
+  modelName: string; 
+}[]> {
+  try {
+    // 获取用户AI配置
+    const aiConfig = await getUserAIConfig();
+    if (!aiConfig || !aiConfig.provider || !aiConfig.version) {
+      logInfo('用户未配置AI设置或配置不完整', aiConfig);
+      return [];
+    }
+
+    // 中文AI提供商列表
+    const chineseProviders = ['doubao', 'deepseek', 'qwen', 'baichuan', 'sbjt'];
+    
+    // 检查用户配置的提供商是否为中文AI
+    if (!chineseProviders.includes(aiConfig.provider)) {
+      logInfo('用户配置的AI提供商不是中文AI', { provider: aiConfig.provider });
+      return [];
+    }
+
+    // 获取提供商信息 - getAllProviders()返回的是对象而不是数组
+    const allProvidersObj = getAllProviders();
+    const provider = allProvidersObj[aiConfig.provider];
+    if (!provider) {
+      logError('未找到配置的AI提供商', { provider: aiConfig.provider });
+      return [];
+    }
+
+    // 获取该提供商的所有模型
+    const models = getModelsByProviderId(aiConfig.provider);
+    
+    const result = models.map(model => ({
+      providerId: aiConfig.provider,
+      providerName: provider.name,
+      modelId: model.id,
+      modelName: model.name
+    }));
+    
+    logInfo('成功获取中文AI模型列表', { 
+      provider: aiConfig.provider, 
+      modelCount: result.length 
+    });
+    
+    return result;
+  } catch (error) {
+    logError('获取中文AI模型列表失败:', error);
+    return [];
+  }
+}
   
