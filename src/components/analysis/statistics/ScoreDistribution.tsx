@@ -446,7 +446,7 @@ const ScoreDistribution: React.FC<ScoreDistributionProps> = ({
             <CardContent className="p-4">
               <div className="text-center">
                 <div className="text-xl md:text-2xl font-bold text-orange-900 mb-1">
-                  {formatPercentage(calculateRates([...processedData.filteredData.map(d => d.score).filter(s => typeof s === 'number' && !isNaN(s))]).passRate)}
+                  {formatPercentage(calculateRates([...processedData.filteredData.map(d => d.score).filter(s => typeof s === 'number' && !isNaN(s) && s > 0)]).passRate)}
                 </div>
                 <div className="text-xs md:text-sm text-orange-700 flex items-center justify-center gap-1">
                   <Award className="h-3 w-3" />
@@ -460,7 +460,7 @@ const ScoreDistribution: React.FC<ScoreDistributionProps> = ({
             <CardContent className="p-4">
               <div className="text-center">
                 <div className="text-xl md:text-2xl font-bold text-purple-900 mb-1">
-                  {formatPercentage(calculateRates([...processedData.filteredData.map(d => d.score).filter(s => typeof s === 'number' && !isNaN(s))]).excellentRate)}
+                  {formatPercentage(calculateRates([...processedData.filteredData.map(d => d.score).filter(s => typeof s === 'number' && !isNaN(s) && s > 0)]).excellentRate)}
                 </div>
                 <div className="text-xs md:text-sm text-purple-700 flex items-center justify-center gap-1">
                   <Award className="h-3 w-3" />

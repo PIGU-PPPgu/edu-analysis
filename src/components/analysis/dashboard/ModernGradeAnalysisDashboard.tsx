@@ -62,6 +62,7 @@ import SubjectCorrelationAnalysis from '@/components/analysis/advanced/SubjectCo
 import EnhancedSubjectCorrelationMatrix from '@/components/analysis/advanced/EnhancedSubjectCorrelationMatrix';
 import CorrelationAnalysisDashboard from '@/components/analysis/dashboard/CorrelationAnalysisDashboard';
 import StatisticsOverview from '@/components/analysis/statistics/StatisticsOverview';
+import DebugDataViewer from '@/components/analysis/DebugDataViewer';
 import DataExport from '@/components/ui/data-export';
 import ChartExportButton from '@/components/ui/ChartExportButton';
 import FloatingChatAssistant from '@/components/ai/FloatingChatAssistant';
@@ -377,22 +378,22 @@ const DailyAnalysisDashboard: React.FC = () => {
           
           <StatCard
             title="及格率"
-            value={`${Math.round(statistics.passRate * 10) / 10}%`}
+            value={`${Math.round((statistics.totalScoreStats?.passRate || 0) * 10) / 10}%`}
             subtitle="分数 ≥ 60分的比例"
             icon={Target}
             color="gray"
-            trend={statistics.passRate >= 80 ? 'up' : statistics.passRate >= 60 ? 'neutral' : 'down'}
-            trendValue={statistics.passRate >= 80 ? '良好' : '需改进'}
+            trend={(statistics.totalScoreStats?.passRate || 0) >= 80 ? 'up' : (statistics.totalScoreStats?.passRate || 0) >= 60 ? 'neutral' : 'down'}
+            trendValue={(statistics.totalScoreStats?.passRate || 0) >= 80 ? '良好' : '需改进'}
           />
           
           <StatCard
             title="优秀率"
-            value={`${Math.round(statistics.excellentRate * 10) / 10}%`}
+            value={`${Math.round((statistics.totalScoreStats?.excellentRate || 0) * 10) / 10}%`}
             subtitle="分数 ≥ 90分的比例"
             icon={Award}
             color="white"
-            trend={statistics.excellentRate >= 20 ? 'up' : statistics.excellentRate >= 10 ? 'neutral' : 'down'}
-            trendValue={statistics.excellentRate >= 20 ? '优秀' : '有潜力'}
+            trend={(statistics.totalScoreStats?.excellentRate || 0) >= 20 ? 'up' : (statistics.totalScoreStats?.excellentRate || 0) >= 10 ? 'neutral' : 'down'}
+            trendValue={(statistics.totalScoreStats?.excellentRate || 0) >= 20 ? '优秀' : '有潜力'}
           />
         </div>
       )}
@@ -441,6 +442,9 @@ const DailyAnalysisDashboard: React.FC = () => {
 
         {/* 总览标签页 */}
         <TabsContent value="overview" className="space-y-6">
+          {/* 调试面板 - 临时添加 */}
+          <DebugDataViewer />
+          
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* 分数分布图 */}
             <Card className="shadow-lg border-0">
@@ -597,8 +601,6 @@ const DailyAnalysisDashboard: React.FC = () => {
         {/* 统计分析标签页 */}
         <TabsContent value="statistics" className="space-y-6">
           <StatisticsOverview 
-            gradeData={filteredGradeData}
-            examList={examList}
             className="border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]"
           />
         </TabsContent>

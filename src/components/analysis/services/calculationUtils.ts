@@ -149,7 +149,8 @@ export function analyzeScoreRanges(
  */
 export function calculateRates(
   scores: number[], 
-  config: ScoreRangeConfig = { excellent: 90, good: 80, pass: 60 }
+  config: ScoreRangeConfig = { excellent: 90, good: 80, pass: 60 },
+  subject?: string
 ) {
   if (!scores || scores.length === 0) {
     return {
@@ -170,9 +171,24 @@ export function calculateRates(
     };
   }
 
-  const passCount = validScores.filter(score => score >= config.pass).length;
+  // 如果指定了科目，尝试使用动态及格线
+  let passScore = config.pass;
+  let excellentScore = config.excellent;
+  
+  if (subject) {
+    try {
+      // 动态导入以避免循环依赖
+      const { getPassScore, getExcellentScore } = require('@/services/passRateCalculator');
+      passScore = getPassScore(subject);
+      excellentScore = getExcellentScore(subject);
+    } catch (error) {
+      console.warn('Failed to load dynamic pass rate calculator, using default values:', error);
+    }
+  }
+
+  const passCount = validScores.filter(score => score >= passScore).length;
   const goodCount = validScores.filter(score => score >= config.good).length;
-  const excellentCount = validScores.filter(score => score >= config.excellent).length;
+  const excellentCount = validScores.filter(score => score >= excellentScore).length;
 
   return {
     passRate: Number(((passCount / totalCount) * 100).toFixed(1)),

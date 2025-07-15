@@ -15,6 +15,7 @@ import {
   groupBy,
   type BasicStatistics 
 } from "@/components/analysis/services/calculationUtils";
+import { examSpecificPassRateCalculator } from "@/services/examSpecificPassRateCalculator";
 import { UnifiedDataService, type GradeRecord } from "@/components/analysis/services/unifiedDataService";
 
 // ============================================================================
@@ -111,6 +112,11 @@ const getPerformanceLevel = (average: number): PerformanceLevel => {
  * 格式化数字显示
  */
 const formatNumber = (num: number, decimals: number = 1): string => {
+  // 处理无效数值
+  if (typeof num !== 'number' || isNaN(num)) {
+    return '0.0';
+  }
+  
   return Number(num).toFixed(decimals);
 };
 
@@ -118,6 +124,11 @@ const formatNumber = (num: number, decimals: number = 1): string => {
  * 格式化百分比显示
  */
 const formatPercentage = (num: number): string => {
+  // 处理无效数值
+  if (typeof num !== 'number' || isNaN(num)) {
+    return '0.0%';
+  }
+  
   return `${formatNumber(num, 1)}%`;
 };
 
@@ -167,7 +178,11 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
 
   // 计算整体统计数据
   const overallStatistics = useMemo(() => {
+    console.log('📊 StatisticsOverview: 开始计算整体统计数据');
+    console.log('📊 filteredGradeData长度:', filteredGradeData?.length || 0);
+    
     if (!filteredGradeData || filteredGradeData.length === 0) {
+      console.log('⚠️ StatisticsOverview: 没有数据');
       return {
         statistics: calculateBasicStatistics([]),
         rates: { passRate: 0, goodRate: 0, excellentRate: 0 },
@@ -191,67 +206,96 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
       );
     }
 
-    // 按学生分组，避免重复计算
-    const studentGroups = groupBy(filteredData, record => record.student_id);
-    const studentScores: number[] = [];
+    console.log('📊 过滤后数据长度:', filteredData.length);
 
-    Object.values(studentGroups).forEach(records => {
-      const scores = records
-        .map(r => r.score)
-        .filter((score): score is number => typeof score === 'number' && !isNaN(score));
-      
-      if (scores.length > 0) {
-        // 使用学生的平均分
-        const avgScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
-        studentScores.push(avgScore);
+    // 🎯 关键修复：只使用总分记录进行统计
+    const totalScoreRecords = filteredData.filter(record => record.subject === '总分');
+    console.log('📊 总分记录数:', totalScoreRecords.length);
+    
+    if (totalScoreRecords.length === 0) {
+      console.log('⚠️ StatisticsOverview: 没有总分数据');
+      return {
+        statistics: calculateBasicStatistics([]),
+        rates: { passRate: 0, goodRate: 0, excellentRate: 0 },
+        totalStudents: 0,
+        totalRecords: 0
+      };
+    }
+
+    // 提取总分数据
+    const totalScores: number[] = [];
+    totalScoreRecords.forEach(record => {
+      if (typeof record.score === 'number' && !isNaN(record.score) && record.score > 0) {
+        totalScores.push(record.score);
       }
     });
 
-    const statistics = calculateBasicStatistics(studentScores);
-    const rates = calculateRates(studentScores);
+    console.log('📊 有效总分数量:', totalScores.length);
+    console.log('📊 总分样本:', totalScores.slice(0, 5));
+
+    const statistics = calculateBasicStatistics(totalScores);
+    // 使用考试特定的及格率配置
+    const rates = {
+      passRate: examSpecificPassRateCalculator.calculatePassRate(totalScores, '总分', examId),
+      goodRate: examSpecificPassRateCalculator.calculatePassRate(totalScores, '总分', examId),
+      excellentRate: examSpecificPassRateCalculator.calculateExcellentRate(totalScores, '总分', examId)
+    };
+
+    console.log('📊 计算结果 - 平均分:', statistics.average);
+    console.log('📊 计算结果 - 及格率:', rates.passRate);
 
     return {
       statistics,
       rates,
-      totalStudents: Object.keys(studentGroups).length,
+      totalStudents: totalScores.length, // 有总分的学生数量
       totalRecords: filteredData.length
     };
   }, [filteredGradeData, classFilter, subjectFilter]);
 
   // 计算班级统计数据
   const classStatistics = useMemo((): ClassStatistics[] => {
+    console.log('📊 StatisticsOverview: 开始计算班级统计数据');
+    
     if (!filteredGradeData || filteredGradeData.length === 0) return [];
 
+    // 🎯 关键修复：只使用总分记录
+    const totalScoreRecords = filteredGradeData.filter(record => record.subject === '总分');
+    
+    if (totalScoreRecords.length === 0) {
+      console.log('⚠️ StatisticsOverview: 班级统计没有总分数据');
+      return [];
+    }
+
     // 按班级分组
-    const classByName = groupBy(filteredGradeData, record => record.class_name || '未知班级');
+    const classByName = groupBy(totalScoreRecords, record => record.class_name || '未知班级');
 
     return Object.entries(classByName).map(([className, records]) => {
-      // 按学生分组避免重复计算
-      const studentGroups = groupBy(records, record => record.student_id);
-      const studentScores: number[] = [];
-
-      Object.values(studentGroups).forEach(studentRecords => {
-        const scores = studentRecords
-          .map(r => r.score)
-          .filter((score): score is number => typeof score === 'number' && !isNaN(score));
-        
-        if (scores.length > 0) {
-          const avgScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
-          studentScores.push(avgScore);
+      const scores: number[] = [];
+      
+      records.forEach(record => {
+        if (typeof record.score === 'number' && !isNaN(record.score) && record.score > 0) {
+          scores.push(record.score);
         }
       });
 
-      const statistics = calculateBasicStatistics(studentScores);
-      const rates = calculateRates(studentScores);
+      console.log(`📊 班级 ${className}: ${scores.length} 个总分记录`);
+
+      const statistics = calculateBasicStatistics(scores);
+      // 使用考试特定的及格率配置
+      const rates = {
+        passRate: examSpecificPassRateCalculator.calculatePassRate(scores, '总分', examId),
+        goodRate: examSpecificPassRateCalculator.calculatePassRate(scores, '总分', examId),
+        excellentRate: examSpecificPassRateCalculator.calculateExcellentRate(scores, '总分', examId)
+      };
 
       return {
         className,
-        studentCount: Object.keys(studentGroups).length,
+        studentCount: scores.length,
         averageScore: statistics.average,
         statistics,
         rates
       };
-    }).sort((a, b) => b.averageScore - a.averageScore); // 按平均分降序排列
+    }).sort((a, b) => b.averageScore - a.averageScore); // 按平均分排序
   }, [filteredGradeData]);
 
   // 计算表现水平

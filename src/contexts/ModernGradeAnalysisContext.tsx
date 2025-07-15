@@ -11,7 +11,48 @@ import { toast } from 'sonner';
 function convertWideToLongFormat(wideData: any[]): any[] {
   const longData: any[] = [];
   
-  wideData.forEach(student => {
+  console.log(`🔄 开始转换 ${wideData.length} 条宽格式数据为长格式...`);
+  
+  // 🔍 专门检查总分数据情况
+  let totalScoreCount = 0;
+  let missingTotalScore = 0;
+  let calculatedTotalCount = 0;
+  
+  wideData.forEach((student, index) => {
+    if (index === 0) {
+      console.log('🔍 第一条学生数据:', student);
+    }
+    
+    // 📊 计算动态总分（如果总分缺失）
+    let effectiveTotalScore = student.total_score;
+    let isCalculated = false;
+    
+    if (student.total_score === null || student.total_score === undefined) {
+      // 动态计算总分：各科成绩之和
+      const subjectScores = [
+        student.chinese_score,
+        student.math_score,
+        student.english_score,
+        student.physics_score,
+        student.chemistry_score,
+        student.politics_score,
+        student.history_score
+      ].filter(score => score !== null && score !== undefined && !isNaN(score));
+      
+      if (subjectScores.length > 0) {
+        effectiveTotalScore = subjectScores.reduce((sum, score) => sum + parseFloat(score), 0);
+        isCalculated = true;
+        calculatedTotalCount++;
+        
+        if (calculatedTotalCount <= 3) {
+          console.log(`🧮 为学生 ${student.name} 计算总分: ${effectiveTotalScore} (基于 ${subjectScores.length} 科成绩)`);
+        }
+      }
+      missingTotalScore++;
+    } else {
+      totalScoreCount++;
+    }
+    
     const baseRecord = {
       exam_id: student.exam_id,
       student_id: student.student_id,
@@ -34,24 +75,65 @@ function convertWideToLongFormat(wideData: any[]): any[] {
       { name: '道法', scoreField: 'politics_score', gradeField: 'politics_grade' },
       { name: '历史', scoreField: 'history_score', gradeField: 'history_grade' },
       { name: '生物', scoreField: 'biology_score', gradeField: 'biology_grade' },
-      { name: '地理', scoreField: 'geography_score', gradeField: 'geography_grade' },
-      { name: '总分', scoreField: 'total_score', gradeField: 'total_grade' }
+      { name: '地理', scoreField: 'geography_score', gradeField: 'geography_grade' }
     ];
     
+    // 处理普通科目
     subjects.forEach(subject => {
       const score = student[subject.scoreField];
       if (score !== null && score !== undefined) {
-        longData.push({
+        const recordToAdd = {
           ...baseRecord,
+          id: `${student.student_id}-${student.exam_id}-${subject.name}`,
           subject: subject.name,
           score: parseFloat(score),
           grade: student[subject.gradeField] || null,
-          total_score: parseFloat(student.total_score) || null
-        });
+          total_score: effectiveTotalScore ? parseFloat(effectiveTotalScore) : null
+        };
+        
+        // 🔍 调试：第一条记录的详细信息
+        if (index === 0 && longData.length < 3) {
+          console.log(`📊 科目 ${subject.name} 转换结果:`, recordToAdd);
+        }
+        
+        longData.push(recordToAdd);
       }
     });
+    
+    // 🎯 处理总分记录（确保所有学生都有总分记录）
+    if (effectiveTotalScore !== null && effectiveTotalScore !== undefined) {
+      // 生成或使用总分等级
+      let totalGrade = student.total_grade;
+      
+      // 如果是计算出的总分且没有等级，可以根据分数估算等级
+      if (isCalculated && !totalGrade && effectiveTotalScore) {
+        // 简单的等级估算逻辑（可以根据实际需要调整）
+        const scorePercent = effectiveTotalScore / 700; // 假设满分700
+        if (scorePercent >= 0.85) totalGrade = 'A+';
+        else if (scorePercent >= 0.80) totalGrade = 'A';
+        else if (scorePercent >= 0.75) totalGrade = 'B+';
+        else if (scorePercent >= 0.70) totalGrade = 'B';
+        else if (scorePercent >= 0.65) totalGrade = 'C+';
+        else if (scorePercent >= 0.60) totalGrade = 'C';
+        else totalGrade = 'D';
+      }
+      
+      const totalRecord = {
+        ...baseRecord,
+        id: `${student.student_id}-${student.exam_id}-总分`,
+        subject: '总分',
+        score: parseFloat(effectiveTotalScore),
+        grade: totalGrade,
+        total_score: parseFloat(effectiveTotalScore),
+        isCalculated: isCalculated // 标记是否为计算得出
+      };
+      
+      longData.push(totalRecord);
+    }
   });
   
+  console.log(`📊 总分数据统计: 原有总分=${totalScoreCount}, 缺失总分=${missingTotalScore}, 计算总分=${calculatedTotalCount}`);
+  console.log(`✅ 转换完成，生成 ${longData.length} 条长格式记录`);
   return longData;
 }
 import type { GradeFilterConfig } from '@/components/analysis/filters/ModernGradeFilters';
@@ -245,6 +327,12 @@ export const ModernGradeAnalysisProvider: React.FC<ModernGradeAnalysisProviderPr
 
       console.log(`✅ 加载成功: ${exams.length} 个考试, ${grades.length} 条成绩记录`);
       
+      // 🔍 调试：查看原始数据样本
+      if (grades.length > 0) {
+        console.log('📋 原始数据样本:', grades[0]);
+        console.log('📋 原始数据字段:', Object.keys(grades[0]));
+      }
+      
       setExamList(exams);
       
       // 存储原始wide格式数据供增强组件使用
@@ -252,6 +340,15 @@ export const ModernGradeAnalysisProvider: React.FC<ModernGradeAnalysisProviderPr
       
       // 转换wide table为long table格式，保持向后兼容
       const longFormatGrades = convertWideToLongFormat(grades);
+      console.log(`🔄 转换后的长格式数据: ${longFormatGrades.length} 条记录`);
+      
+      // 🔍 调试：查看转换后数据样本
+      if (longFormatGrades.length > 0) {
+        console.log('📋 转换后数据样本:', longFormatGrades[0]);
+        const subjects = [...new Set(longFormatGrades.map(r => r.subject))];
+        console.log('📚 转换后科目列表:', subjects);
+      }
+      
       setAllGradeData(longFormatGrades);
 
       // Wide table科目统计 - 基于实际有分数的科目
@@ -340,6 +437,8 @@ export const ModernGradeAnalysisProvider: React.FC<ModernGradeAnalysisProviderPr
 
   // 应用筛选逻辑
   const filteredGradeData = useMemo(() => {
+    console.log(`🔍 开始过滤数据，原始数据: ${allGradeData.length} 条`);
+    console.log('🔍 当前过滤器:', filter);
     let filtered = [...allGradeData];
 
     // 考试筛选
@@ -373,7 +472,7 @@ export const ModernGradeAnalysisProvider: React.FC<ModernGradeAnalysisProviderPr
     // 分数范围筛选
     if (filter.scoreRange?.min !== undefined || filter.scoreRange?.max !== undefined) {
       filtered = filtered.filter(record => {
-        const score = record.score || record.total_score;
+        const score = record.score;
         if (score === null || score === undefined) return false;
         
         if (filter.scoreRange!.min !== undefined && score < filter.scoreRange!.min) return false;
@@ -407,6 +506,7 @@ export const ModernGradeAnalysisProvider: React.FC<ModernGradeAnalysisProviderPr
       );
     }
 
+    console.log(`✅ 过滤完成，结果: ${filtered.length} 条数据`);
     return filtered;
   }, [allGradeData, filter]);
 
@@ -433,7 +533,13 @@ export const ModernGradeAnalysisProvider: React.FC<ModernGradeAnalysisProviderPr
 
   // 🔧 修正统计信息计算 - 彻底分离总分与单科统计逻辑
   const statistics = useMemo((): GradeStatistics | null => {
-    if (filteredGradeData.length === 0) return null;
+    console.log('📊 开始计算统计信息...');
+    console.log('📊 filteredGradeData长度:', filteredGradeData.length);
+    
+    if (filteredGradeData.length === 0) {
+      console.log('❌ 没有过滤后的数据，返回null');
+      return null;
+    }
 
     const totalRecords = filteredGradeData.length;
     const uniqueStudents = new Set(filteredGradeData.map(record => record.student_id));
@@ -443,11 +549,23 @@ export const ModernGradeAnalysisProvider: React.FC<ModernGradeAnalysisProviderPr
 
     // 🎯 计算总分统计 - 仅使用总分数据
     const calculateTotalScoreStats = () => {
+      console.log('🎯 开始计算总分统计...');
+      
       const totalScoreRecords = filteredGradeData.filter(record => 
-        record.subject === '总分' && record.total_score && record.total_score > 0
+        record.subject === '总分' && record.score && record.score > 0
       );
       
+      console.log('📊 总分记录数:', totalScoreRecords.length);
+      if (totalScoreRecords.length > 0) {
+        console.log('📊 总分样本:', totalScoreRecords[0]);
+      }
+      
+      // 调试：查看所有科目分布
+      const allSubjects = [...new Set(filteredGradeData.map(r => r.subject))];
+      console.log('📚 当前所有科目:', allSubjects);
+      
       if (totalScoreRecords.length === 0) {
+        console.log('❌ 没有找到总分记录');
         return {
           avgScore: 0,
           maxScore: 0,
@@ -459,7 +577,7 @@ export const ModernGradeAnalysisProvider: React.FC<ModernGradeAnalysisProviderPr
         };
       }
 
-      const totalScores = totalScoreRecords.map(record => record.total_score!);
+      const totalScores = totalScoreRecords.map(record => record.score!);
       const avgScore = totalScores.reduce((sum, score) => sum + score, 0) / totalScores.length;
       const maxScore = Math.max(...totalScores);
       const minScore = Math.min(...totalScores);
@@ -529,17 +647,10 @@ export const ModernGradeAnalysisProvider: React.FC<ModernGradeAnalysisProviderPr
       
       let subjectScores: number[] = [];
       
-      if (isTotal) {
-        // 总分：只使用total_score字段
-        subjectScores = subjectRecords
-          .map(record => record.total_score)
-          .filter(score => score !== null && score !== undefined && score > 0) as number[];
-      } else {
-        // 单科：只使用score字段
-        subjectScores = subjectRecords
-          .map(record => record.score)
-          .filter(score => score !== null && score !== undefined && score > 0) as number[];
-      }
+      // 所有科目（包括总分）都使用score字段
+      subjectScores = subjectRecords
+        .map(record => record.score)
+        .filter(score => score !== null && score !== undefined && score > 0) as number[];
       
       const subjectAvg = subjectScores.length > 0 ? 
         subjectScores.reduce((sum, score) => sum + score, 0) / subjectScores.length : 0;
@@ -567,9 +678,9 @@ export const ModernGradeAnalysisProvider: React.FC<ModernGradeAnalysisProviderPr
       
       // 总分数据
       const totalScoreRecords = classRecords.filter(record => 
-        record.subject === '总分' && record.total_score && record.total_score > 0
+        record.subject === '总分' && record.score && record.score > 0
       );
-      const totalScores = totalScoreRecords.map(record => record.total_score!);
+      const totalScores = totalScoreRecords.map(record => record.score!);
       
       // 单科数据
       const subjectRecords = classRecords.filter(record => 

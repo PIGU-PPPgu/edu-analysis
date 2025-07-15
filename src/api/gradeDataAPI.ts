@@ -258,9 +258,22 @@ export function calculateGradeStatistics(data: GradeRecord[]): GradeStatistics {
   const variance = scores.reduce((acc, score) => acc + Math.pow(score - average, 2), 0) / total;
   const standardDeviation = Math.sqrt(variance);
   
-  // 及格率和优秀率
-  const passCount = scores.filter(score => Number(score) >= 60).length;
-  const excellentCount = scores.filter(score => Number(score) >= 90).length;
+  // 及格率和优秀率 - 使用动态配置
+  const currentSubject = data[0]?.subject || 'total';
+  let passCount, excellentCount;
+  
+  try {
+    const { getPassScore, getExcellentScore } = require('@/services/passRateCalculator');
+    const passScore = getPassScore(currentSubject);
+    const excellentScore = getExcellentScore(currentSubject);
+    passCount = scores.filter(score => Number(score) >= passScore).length;
+    excellentCount = scores.filter(score => Number(score) >= excellentScore).length;
+  } catch (error) {
+    // 回退到默认值
+    passCount = scores.filter(score => Number(score) >= 60).length;
+    excellentCount = scores.filter(score => Number(score) >= 90).length;
+  }
+  
   const passRate = (passCount / total) * 100;
   const excellentRate = (excellentCount / total) * 100;
   

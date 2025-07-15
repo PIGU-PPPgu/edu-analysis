@@ -677,8 +677,18 @@ export const gradeAnalysisService = {
         acc[className].maxScore = Math.max(acc[className].maxScore, score);
         acc[className].minScore = Math.min(acc[className].minScore, score);
         
-        if (score >= 60) {
-          acc[className].passCount += 1;
+        // 使用动态及格线判断
+        try {
+          const { getPassScore } = require('@/services/passRateCalculator');
+          const passScore = getPassScore(record.subject || '总分');
+          if (score >= passScore) {
+            acc[className].passCount += 1;
+          }
+        } catch (error) {
+          // 回退到默认60分
+          if (score >= 60) {
+            acc[className].passCount += 1;
+          }
         }
         
         return acc;
@@ -1075,7 +1085,16 @@ export const gradeAnalysisService = {
         const average = sum / scores.length;
         const max = Math.max(...scores);
         const min = Math.min(...scores);
-        const passCount = scores.filter(score => score >= 60).length;
+        // 使用动态及格线计算及格率
+        let passCount;
+        try {
+          const { getPassScore } = require('@/services/passRateCalculator');
+          const passScore = getPassScore('总分');
+          passCount = scores.filter(score => score >= passScore).length;
+        } catch (error) {
+          // 回退到默认60分
+          passCount = scores.filter(score => score >= 60).length;
+        }
         const passRate = scores.length > 0 ? passCount / scores.length : 0;
         
         return {

@@ -85,6 +85,7 @@ import StudentTrendAnalysis from '@/components/analysis/advanced/StudentTrendAna
 import MultiDimensionalRankingSystem from '@/components/analysis/advanced/MultiDimensionalRankingSystem';
 import ChartGallery from '@/components/analysis/charts/ChartGallery';
 import FloatingChatAssistant from '@/components/ai/FloatingChatAssistant';
+import { ExamSpecificSubjectSettings } from '@/components/analysis/settings/ExamSpecificSubjectSettings';
 
 
 // 严格4色设计系统：绿、黑、白、灰
@@ -356,6 +357,15 @@ const CompleteAnalyticsDashboard: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState('overview');
   const [showSidebar, setShowSidebar] = useState(true);
+  const [showSubjectSettings, setShowSubjectSettings] = useState(false);
+  
+  // 科目设置功能
+  const handleSubjectSettingsSave = () => {
+    // 刷新数据以使用新的及格率配置
+    refreshData();
+    
+    toast.success('科目配置已保存，数据已更新');
+  };
   
   // 考试管理功能
   const handleExamDelete = async (examId: string) => {
@@ -407,25 +417,32 @@ const CompleteAnalyticsDashboard: React.FC = () => {
 
   return (
     <div className="flex bg-white min-h-screen">
-      {/* 侧边筛选栏 */}
+      {/* 侧边筛选栏 - 增加宽度以避免选项挤压 */}
       {showSidebar && (
-        <div className="w-80 bg-[#F8F8F8] border-r-2 border-black p-6 overflow-y-auto">
-          <ModernGradeFilters
-            filter={filter}
-            onFilterChange={setFilter}
-            availableExams={examList}
-            availableSubjects={availableSubjects}
-            availableClasses={availableClasses}
-            availableGrades={availableGrades}
-            availableExamTypes={availableExamTypes}
-            totalCount={filteredGradeData.length}
-            filteredCount={filteredGradeData.length}
-            onExamDelete={handleExamDelete}
-            onExamEdit={handleExamEdit}
-            onExamAdd={handleExamAdd}
-            compact={false}
-          />
-        </div>
+        <>
+          {/* 移动端背景遮罩 */}
+          <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setShowSidebar(false)} />
+          
+          {/* 筛选栏 - 移动端为覆盖层，桌面端为侧边栏 */}
+          <div className="fixed lg:static inset-y-0 left-0 z-50 w-80 lg:w-96 bg-[#F8F8F8] border-r-2 border-black p-6 overflow-y-auto transform lg:transform-none transition-transform lg:transition-none">
+            <ModernGradeFilters
+              filter={filter}
+              onFilterChange={setFilter}
+              availableExams={examList}
+              availableSubjects={availableSubjects}
+              availableClasses={availableClasses}
+              availableGrades={availableGrades}
+              availableExamTypes={availableExamTypes}
+              totalCount={filteredGradeData.length}
+              filteredCount={filteredGradeData.length}
+              onExamDelete={handleExamDelete}
+              onExamEdit={handleExamEdit}
+              onExamAdd={handleExamAdd}
+              onClose={() => setShowSidebar(false)}
+              compact={false}
+            />
+          </div>
+        </>
       )}
 
       {/* 主内容区域 */}
@@ -450,9 +467,19 @@ const CompleteAnalyticsDashboard: React.FC = () => {
               className="flex items-center gap-2 border-2 border-black bg-white hover:bg-[#F3F3F3] text-black font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all"
             >
               <Filter className="w-4 h-4" />
-              {showSidebar ? '隐藏筛选栏' : '显示筛选栏'}
+              <span className="hidden sm:inline">{showSidebar ? '隐藏筛选栏' : '显示筛选栏'}</span>
+              <span className="sm:hidden">筛选</span>
             </Button>
             
+            <Button
+              onClick={() => setShowSubjectSettings(true)}
+              className="flex items-center gap-2 border-2 border-black bg-[#F7931E] hover:bg-[#F7931E] text-white font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all"
+            >
+              <Settings className="w-4 h-4" />
+              <span className="hidden sm:inline">科目设置</span>
+              <span className="sm:hidden">设置</span>
+            </Button>
+
             <Button
               onClick={refreshData}
               className="flex items-center gap-2 border-2 border-black bg-[#B9FF66] hover:bg-[#B9FF66] text-black font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all"
@@ -500,12 +527,13 @@ const CompleteAnalyticsDashboard: React.FC = () => {
 
         {/* 概览页面 - 一目了然的等级分布 */}
         <TabsContent value="overview" className="space-y-6">
+          
           {/* 关键指标卡片区域 - 只在概览页面显示 */}
           {statistics && (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
               <StatCard
                 title="平均分"
-                value={`${Math.round(statistics.averageScore || 0)}分`}
+                value={`${Math.round(statistics.totalScoreStats?.avgScore || 0)}分`}
                 subtitle={`比上次${statistics.scoreComparison > 0 ? '提高' : '下降'} ${Math.abs(statistics.scoreComparison || 0).toFixed(1)}分`}
                 icon={BarChart3}
                 trend={statistics.scoreComparison > 0 ? 'up' : statistics.scoreComparison < 0 ? 'down' : 'neutral'}
@@ -515,8 +543,8 @@ const CompleteAnalyticsDashboard: React.FC = () => {
               
               <StatCard
                 title="及格率"
-                value={`${Math.round(statistics.passRate || 0)}%`}
-                subtitle={`优秀率 ${Math.round(statistics.excellentRate || 0)}%`}
+                value={`${Math.round(statistics.totalScoreStats?.passRate || 0)}%`}
+                subtitle={`优秀率 ${Math.round(statistics.totalScoreStats?.excellentRate || 0)}%`}
                 icon={CheckCircle}
                 trend={statistics.passRateComparison > 0 ? 'up' : statistics.passRateComparison < 0 ? 'down' : 'neutral'}
                 trendValue={`${statistics.passRateComparison > 0 ? '+' : ''}${(statistics.passRateComparison || 0).toFixed(1)}%`}
@@ -572,7 +600,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
                     <li className="flex items-start gap-2">
                       <div className="w-2 h-2 bg-[#B9FF66] rounded-full mt-2 flex-shrink-0 border border-black"></div>
                       <span className="text-[#191A23] font-medium">
-                        整体及格率 {statistics?.passRate?.toFixed(1) || '78.5'}%，表现良好
+                        整体及格率 {statistics?.totalScoreStats?.passRate?.toFixed(1) || '78.5'}%，表现良好
                       </span>
                     </li>
                   </ul>
@@ -760,6 +788,9 @@ const CompleteAnalyticsDashboard: React.FC = () => {
             showErrorDetails={true}
           >
             <StatisticsOverview 
+              examId={filter.exams?.length === 1 ? filter.exams[0] : undefined}
+              classFilter={filter.classes}
+              subjectFilter={filter.subjects}
               className=""
             />
           </ErrorBoundary>
@@ -879,6 +910,17 @@ const CompleteAnalyticsDashboard: React.FC = () => {
           数据基于Wide-Table结构优化，提供更快的查询性能。
         </p>
       </div>
+
+        {/* 考试特定科目配置模态框 */}
+        <ExamSpecificSubjectSettings
+          isOpen={showSubjectSettings}
+          onClose={() => setShowSubjectSettings(false)}
+          onSave={handleSubjectSettingsSave}
+          currentExamId={filter.exams?.length === 1 ? filter.exams[0] : undefined}
+          currentExamName={filter.exams?.length === 1 ? 
+            examList.find(exam => exam.id === filter.exams[0])?.title : undefined
+          }
+        />
 
         {/* 浮动AI聊天助手 */}
         <FloatingChatAssistant defaultMinimized={true} />

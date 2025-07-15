@@ -81,25 +81,28 @@ export interface ModernGradeFiltersProps {
   filter: GradeFilterConfig;
   onFilterChange: (filter: GradeFilterConfig) => void;
   
-  // 数据选项
-  availableExams?: Array<{ id: string; title: string; date: string; type: string; }>;
-  availableSubjects?: string[];
-  availableClasses?: string[];
-  availableGrades?: string[];
-  availableExamTypes?: string[];
+  // 可用选项
+  availableExams: Array<{ id: string; title: string; type: string; date?: string }>;
+  availableSubjects: string[];
+  availableClasses: string[];
+  availableGrades: string[];
+  availableExamTypes: string[];
   
   // 统计信息
-  totalCount?: number;
-  filteredCount?: number;
+  totalCount: number;
+  filteredCount: number;
   
   // 考试管理回调
-  onExamDelete?: (examId: string) => void;
-  onExamEdit?: (examId: string) => void;
   onExamAdd?: () => void;
+  onExamEdit?: (examId: string) => void;
+  onExamDelete?: (examId: string) => void;
   
-  // 样式
-  className?: string;
+  // 外观控制
   compact?: boolean;
+  className?: string;
+  
+  // 移动端关闭回调
+  onClose?: () => void;
 }
 
 const ModernGradeFilters: React.FC<ModernGradeFiltersProps> = ({
@@ -116,7 +119,8 @@ const ModernGradeFilters: React.FC<ModernGradeFiltersProps> = ({
   onExamEdit,
   onExamAdd,
   className,
-  compact = false
+  compact = false,
+  onClose
 }) => {
   // 展开状态
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -192,6 +196,18 @@ const ModernGradeFilters: React.FC<ModernGradeFiltersProps> = ({
           </div>
           
           <div className="flex items-center gap-2">
+            {/* 移动端关闭按钮 */}
+            {onClose && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onClose}
+                className="lg:hidden p-2 text-[#191A23] hover:text-[#FF6B6B] hover:bg-[#FF6B6B]/10 rounded-full border-2 border-transparent hover:border-[#FF6B6B] transition-all"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            )}
+            
             {activeFiltersCount > 0 && (
               <Badge className="bg-[#191A23] text-white border-2 border-black font-bold">
                 {activeFiltersCount} 个筛选
@@ -277,10 +293,11 @@ const ModernGradeFilters: React.FC<ModernGradeFiltersProps> = ({
           </div>
         )}
 
-        {/* 基础筛选 */}
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* 考试选择与管理 */}
+        {/* 基础筛选 - 重新设计布局 */}
+        <div className="space-y-6">
+          {/* 第一行：考试和科目选择 */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            {/* 考试选择与管理 - 给予更多空间 */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-black text-[#191A23] uppercase tracking-wide">考试</Label>
@@ -296,32 +313,34 @@ const ModernGradeFilters: React.FC<ModernGradeFiltersProps> = ({
                 )}
               </div>
               <div className="flex gap-2">
-                <Select
-                  value={filter.examIds?.[0] || 'all'}
-                  onValueChange={(value) => updateFilter({ examIds: value === 'all' ? [] : [value] })}
-                >
-                  <SelectTrigger className="bg-white border-2 border-black font-medium text-[#191A23] focus:border-[#B9FF66] focus:ring-2 focus:ring-[#B9FF66] shadow-[2px_2px_0px_0px_#191A23] transition-all">
-                    <SelectValue placeholder="选择考试" />
-                  </SelectTrigger>
-                  <SelectContent className="border-2 border-black shadow-[4px_4px_0px_0px_#191A23]">
-                    <SelectItem value="all">全部考试</SelectItem>
-                    {availableExams.map(exam => (
-                      <SelectItem key={exam.id} value={exam.id}>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-[#191A23]" />
-                          <span className="font-medium">{exam.title}</span>
-                          <Badge className="bg-[#F7931E] text-white border border-black text-xs font-bold">
-                            {exam.type}
-                          </Badge>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex-1 min-w-0">
+                  <Select
+                    value={filter.examIds?.[0] || 'all'}
+                    onValueChange={(value) => updateFilter({ examIds: value === 'all' ? [] : [value] })}
+                  >
+                    <SelectTrigger className="bg-white border-2 border-black font-medium text-[#191A23] focus:border-[#B9FF66] focus:ring-2 focus:ring-[#B9FF66] shadow-[2px_2px_0px_0px_#191A23] transition-all">
+                      <SelectValue placeholder="选择考试" />
+                    </SelectTrigger>
+                    <SelectContent className="border-2 border-black shadow-[4px_4px_0px_0px_#191A23]">
+                      <SelectItem value="all">全部考试</SelectItem>
+                      {availableExams.map(exam => (
+                        <SelectItem key={exam.id} value={exam.id}>
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-[#191A23]" />
+                            <span className="font-medium truncate">{exam.title}</span>
+                            <Badge className="bg-[#F7931E] text-white border border-black text-xs font-bold shrink-0">
+                              {exam.type}
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 
                 {/* 考试管理按钮 */}
                 {filter.examIds?.[0] && (onExamEdit || onExamDelete) && (
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 shrink-0">
                     {onExamEdit && (
                       <Button
                         variant="outline"
@@ -347,8 +366,8 @@ const ModernGradeFilters: React.FC<ModernGradeFiltersProps> = ({
               </div>
             </div>
 
-            {/* 科目选择 */}
-            <div className="space-y-2">
+            {/* 科目选择 - 充分利用空间 */}
+            <div className="space-y-3">
               <Label className="text-sm font-black text-[#191A23] uppercase tracking-wide">科目</Label>
               <Select
                 value={filter.subjects?.[0] || 'all'}
@@ -370,9 +389,12 @@ const ModernGradeFilters: React.FC<ModernGradeFiltersProps> = ({
                 </SelectContent>
               </Select>
             </div>
+          </div>
 
+          {/* 第二行：班级和等级选择 */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             {/* 班级选择 */}
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label className="text-sm font-black text-[#191A23] uppercase tracking-wide">班级</Label>
               <Select
                 value={filter.classNames?.[0] || 'all'}
@@ -396,7 +418,7 @@ const ModernGradeFilters: React.FC<ModernGradeFiltersProps> = ({
             </div>
 
             {/* 等级选择 */}
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label className="text-sm font-black text-[#191A23] uppercase tracking-wide">等级</Label>
               <Select
                 value={filter.grades?.[0] || 'all'}
@@ -416,7 +438,7 @@ const ModernGradeFilters: React.FC<ModernGradeFiltersProps> = ({
                     </SelectItem>
                   ))}
                 </SelectContent>
-              </Select>
+                </Select>
             </div>
           </div>
         </div>
@@ -440,66 +462,69 @@ const ModernGradeFilters: React.FC<ModernGradeFiltersProps> = ({
             </Button>
 
             {expandedSections.advanced && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 p-4 bg-[#F3F3F3] border-2 border-black rounded-lg shadow-[4px_4px_0px_0px_#191A23]">
-                {/* 分数范围 */}
-                <div className="space-y-3">
-                  <Label className="text-sm font-black text-[#191A23] uppercase tracking-wide">分数范围</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input
-                      type="number"
-                      placeholder="最低分"
-                      value={filter.scoreRange?.min || ''}
-                      onChange={(e) => updateFilter({
-                        scoreRange: {
-                          ...filter.scoreRange,
-                          min: e.target.value ? Number(e.target.value) : undefined
-                        }
-                      })}
-                      className="bg-white border-2 border-black font-medium text-[#191A23] focus:border-[#B9FF66] focus:ring-2 focus:ring-[#B9FF66] shadow-[2px_2px_0px_0px_#191A23] transition-all"
-                    />
-                    <Input
-                      type="number"
-                      placeholder="最高分"
-                      value={filter.scoreRange?.max || ''}
-                      onChange={(e) => updateFilter({
-                        scoreRange: {
-                          ...filter.scoreRange,
-                          max: e.target.value ? Number(e.target.value) : undefined
-                        }
-                      })}
-                      className="bg-white border-2 border-black font-medium text-[#191A23] focus:border-[#B9FF66] focus:ring-2 focus:ring-[#B9FF66] shadow-[2px_2px_0px_0px_#191A23] transition-all"
-                    />
+              <div className="space-y-6 pt-4 p-6 bg-[#F3F3F3] border-2 border-black rounded-lg shadow-[4px_4px_0px_0px_#191A23]">
+                {/* 分数和排名筛选 */}
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                  {/* 分数范围 */}
+                  <div className="space-y-3">
+                    <Label className="text-sm font-black text-[#191A23] uppercase tracking-wide">分数范围</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Input
+                        type="number"
+                        placeholder="最低分"
+                        value={filter.scoreRange?.min || ''}
+                        onChange={(e) => updateFilter({
+                          scoreRange: {
+                            ...filter.scoreRange,
+                            min: e.target.value ? Number(e.target.value) : undefined
+                          }
+                        })}
+                        className="bg-white border-2 border-black font-medium text-[#191A23] focus:border-[#B9FF66] focus:ring-2 focus:ring-[#B9FF66] shadow-[2px_2px_0px_0px_#191A23] transition-all"
+                      />
+                      <Input
+                        type="number"
+                        placeholder="最高分"
+                        value={filter.scoreRange?.max || ''}
+                        onChange={(e) => updateFilter({
+                          scoreRange: {
+                            ...filter.scoreRange,
+                            max: e.target.value ? Number(e.target.value) : undefined
+                          }
+                        })}
+                        className="bg-white border-2 border-black font-medium text-[#191A23] focus:border-[#B9FF66] focus:ring-2 focus:ring-[#B9FF66] shadow-[2px_2px_0px_0px_#191A23] transition-all"
+                      />
+                    </div>
                   </div>
-                </div>
 
-                {/* 排名范围 */}
-                <div className="space-y-3">
-                  <Label className="text-sm font-black text-[#191A23] uppercase tracking-wide">排名范围</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input
-                      type="number"
-                      placeholder="最高排名"
-                      value={filter.rankRange?.min || ''}
-                      onChange={(e) => updateFilter({
-                        rankRange: {
-                          ...filter.rankRange,
-                          min: e.target.value ? Number(e.target.value) : undefined
-                        }
-                      })}
-                      className="bg-white border-2 border-black font-medium text-[#191A23] focus:border-[#F7931E] focus:ring-2 focus:ring-[#F7931E] shadow-[2px_2px_0px_0px_#191A23] transition-all"
-                    />
-                    <Input
-                      type="number"
-                      placeholder="最低排名"
-                      value={filter.rankRange?.max || ''}
-                      onChange={(e) => updateFilter({
-                        rankRange: {
-                          ...filter.rankRange,
-                          max: e.target.value ? Number(e.target.value) : undefined
-                        }
-                      })}
-                      className="bg-white border-2 border-black font-medium text-[#191A23] focus:border-[#F7931E] focus:ring-2 focus:ring-[#F7931E] shadow-[2px_2px_0px_0px_#191A23] transition-all"
-                    />
+                  {/* 排名范围 */}
+                  <div className="space-y-3">
+                    <Label className="text-sm font-black text-[#191A23] uppercase tracking-wide">排名范围</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Input
+                        type="number"
+                        placeholder="最高排名"
+                        value={filter.rankRange?.min || ''}
+                        onChange={(e) => updateFilter({
+                          rankRange: {
+                            ...filter.rankRange,
+                            min: e.target.value ? Number(e.target.value) : undefined
+                          }
+                        })}
+                        className="bg-white border-2 border-black font-medium text-[#191A23] focus:border-[#F7931E] focus:ring-2 focus:ring-[#F7931E] shadow-[2px_2px_0px_0px_#191A23] transition-all"
+                      />
+                      <Input
+                        type="number"
+                        placeholder="最低排名"
+                        value={filter.rankRange?.max || ''}
+                        onChange={(e) => updateFilter({
+                          rankRange: {
+                            ...filter.rankRange,
+                            max: e.target.value ? Number(e.target.value) : undefined
+                          }
+                        })}
+                        className="bg-white border-2 border-black font-medium text-[#191A23] focus:border-[#F7931E] focus:ring-2 focus:ring-[#F7931E] shadow-[2px_2px_0px_0px_#191A23] transition-all"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
