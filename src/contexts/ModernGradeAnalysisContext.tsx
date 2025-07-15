@@ -301,7 +301,7 @@ export const ModernGradeAnalysisProvider: React.FC<ModernGradeAnalysisProviderPr
     
     try {
       const { data, error } = await supabase
-        .from('grade_data_new')
+        .from('grade_data')
         .select('*')
         .eq('exam_id', examId)
         .order('student_id');

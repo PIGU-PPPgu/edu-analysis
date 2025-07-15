@@ -238,18 +238,23 @@ export const getExamStatistics = async (examId: string): Promise<ExamStatistics>
         throw examError;
       }
 
-      // 获取成绩数据 - 包含grade字段
+      // 获取成绩数据
       const { data: grades, error: gradesError } = await supabase
         .from('grade_data_new')
         .select(`
           total_score,
-          score,
-          grade,
           student_id,
           name,
           class_name,
-          subject,
-          subject_total_score
+          chinese_score,
+          math_score,
+          english_score,
+          physics_score,
+          chemistry_score,
+          biology_score,
+          politics_score,
+          history_score,
+          geography_score
         `)
         .eq('exam_id', examId);
 
@@ -257,7 +262,7 @@ export const getExamStatistics = async (examId: string): Promise<ExamStatistics>
         throw gradesError;
       }
 
-      const scores = grades?.map(g => g.total_score || g.score).filter(s => s !== null && s !== undefined) || [];
+      const scores = grades?.map(g => g.total_score).filter(s => s !== null && s !== undefined) || [];
       const participantCount = grades?.length || 0;
       
       // 计算统计指标

@@ -267,7 +267,7 @@ export const GradeAnalysisProvider: React.FC<{ children: ReactNode }> = ({ child
       
       // 从 Supabase 获取真实成绩数据
       const { data: gradeDataFromDB, error } = await supabase
-        .from('grade_data_new')
+        .from('grade_data')
         .select('*')
         .eq('exam_id', examId);
 

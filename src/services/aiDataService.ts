@@ -253,7 +253,7 @@ export async function getAIDataSummary(): Promise<AIDataSummary> {
     const classes = await getAllClasses();
     const classOverview = classes.map(cls => ({
       className: cls.name,
-      totalStudents: cls.totalStudents || 0,
+      totalStudents: cls.studentCount || 0, // 修复字段映射：使用 studentCount 而不是 totalStudents
       averageScore: cls.averageScore || 0,
       passRate: cls.passRate || 0,
       excellentRate: cls.excellentRate || 0
