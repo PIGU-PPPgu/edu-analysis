@@ -425,23 +425,23 @@ const CompleteAnalyticsDashboard: React.FC = () => {
           
           {/* 筛选栏 - 移动端为覆盖层，桌面端为侧边栏 */}
           <div className="fixed lg:static inset-y-0 left-0 z-50 w-80 lg:w-96 bg-[#F8F8F8] border-r-2 border-black p-6 overflow-y-auto transform lg:transform-none transition-transform lg:transition-none">
-            <ModernGradeFilters
-              filter={filter}
-              onFilterChange={setFilter}
-              availableExams={examList}
-              availableSubjects={availableSubjects}
-              availableClasses={availableClasses}
-              availableGrades={availableGrades}
-              availableExamTypes={availableExamTypes}
-              totalCount={filteredGradeData.length}
-              filteredCount={filteredGradeData.length}
-              onExamDelete={handleExamDelete}
-              onExamEdit={handleExamEdit}
-              onExamAdd={handleExamAdd}
+          <ModernGradeFilters
+            filter={filter}
+            onFilterChange={setFilter}
+            availableExams={examList}
+            availableSubjects={availableSubjects}
+            availableClasses={availableClasses}
+            availableGrades={availableGrades}
+            availableExamTypes={availableExamTypes}
+            totalCount={filteredGradeData.length}
+            filteredCount={filteredGradeData.length}
+            onExamDelete={handleExamDelete}
+            onExamEdit={handleExamEdit}
+            onExamAdd={handleExamAdd}
               onClose={() => setShowSidebar(false)}
-              compact={false}
-            />
-          </div>
+            compact={false}
+          />
+        </div>
         </>
       )}
 
@@ -479,7 +479,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
               <span className="hidden sm:inline">科目设置</span>
               <span className="sm:hidden">设置</span>
             </Button>
-
+            
             <Button
               onClick={refreshData}
               className="flex items-center gap-2 border-2 border-black bg-[#B9FF66] hover:bg-[#B9FF66] text-black font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all"

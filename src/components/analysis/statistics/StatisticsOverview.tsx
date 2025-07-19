@@ -271,7 +271,7 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
 
     return Object.entries(classByName).map(([className, records]) => {
       const scores: number[] = [];
-      
+
       records.forEach(record => {
         if (typeof record.score === 'number' && !isNaN(record.score) && record.score > 0) {
           scores.push(record.score);
