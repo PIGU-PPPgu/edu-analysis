@@ -129,8 +129,8 @@ function convertWideToLongFormat(wideData: any[]): any[] {
       };
       
       longData.push(totalRecord);
-    }
-  });
+      }
+    });
   
   console.log(`📊 总分数据统计: 原有总分=${totalScoreCount}, 缺失总分=${missingTotalScore}, 计算总分=${calculatedTotalCount}`);
   console.log(`✅ 转换完成，生成 ${longData.length} 条长格式记录`);
@@ -648,9 +648,9 @@ export const ModernGradeAnalysisProvider: React.FC<ModernGradeAnalysisProviderPr
       let subjectScores: number[] = [];
       
       // 所有科目（包括总分）都使用score字段
-      subjectScores = subjectRecords
-        .map(record => record.score)
-        .filter(score => score !== null && score !== undefined && score > 0) as number[];
+        subjectScores = subjectRecords
+          .map(record => record.score)
+          .filter(score => score !== null && score !== undefined && score > 0) as number[];
       
       const subjectAvg = subjectScores.length > 0 ? 
         subjectScores.reduce((sum, score) => sum + score, 0) / subjectScores.length : 0;

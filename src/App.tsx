@@ -31,6 +31,7 @@ import InitTables from "./pages/InitTables";
 import CreateWarningTablePage from "./pages/tools/CreateWarningTable";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ICPNotice from "./pages/ICPNotice";
+import QuickDiagnosisPage from "./pages/QuickDiagnosisPage";
 import { initGlobalErrorHandlers, reduceBrowserWorkload, checkBrowserResources } from "./utils/errorHandlers";
 import ErrorBoundary from "./components/performance/ErrorBoundary";
 import { initializePerformanceOptimizer } from "./utils/performanceOptimizer";
@@ -128,6 +129,7 @@ function App() {
                 <Route path="/tools/init-tables" element={<InitTables />} />
                 <Route path="/tools/create-warning-table" element={<CreateWarningTablePage />} />
                 <Route path="/performance-monitoring" element={<PerformanceMonitoring />} />
+                <Route path="/diagnosis" element={<QuickDiagnosisPage />} />
                 
                 {/* 受保护的路由 - 需要登录验证 */}
                 <Route element={<ProtectedRoute />}>

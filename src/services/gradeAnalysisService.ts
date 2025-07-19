@@ -686,8 +686,8 @@ export const gradeAnalysisService = {
           }
         } catch (error) {
           // 回退到默认60分
-          if (score >= 60) {
-            acc[className].passCount += 1;
+        if (score >= 60) {
+          acc[className].passCount += 1;
           }
         }
         

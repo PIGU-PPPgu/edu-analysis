@@ -10,6 +10,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import AutoAnalysisTrigger from '../../../AutoAnalysisTrigger';
 import { convertToScore, detectDataType, GRADE_TO_SCORE_MAP } from '@/utils/dataTypeConverter';
 import { 
   CheckCircle,
@@ -1573,6 +1574,21 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
             )}
           </TabsContent>
         </Tabs>
+
+        {/* 自动分析触发器 */}
+        {importResult && importResult.successCount > 0 && (
+          <div className="mt-6">
+            <AutoAnalysisTrigger
+              examTitle={tempExamInfo?.title || '未命名考试'}
+              className={tempExamInfo?.className}
+              studentCount={importResult.successCount}
+              autoTrigger={true}
+              onImportComplete={() => {
+                toast.success('🎉 分析已完成并推送到企业微信！');
+              }}
+            />
+          </div>
+        )}
 
         {/* 操作按钮 */}
         <div className="flex gap-2 justify-between">

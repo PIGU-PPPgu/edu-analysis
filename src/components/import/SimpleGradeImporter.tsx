@@ -357,7 +357,7 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
         firstRecord: allGradeRecords[0]
       });
 
-      // 1. 首先创建考试记录
+      // 1. 首先创建考试记录 - 使用onConflict处理重复
       const { error: examError } = await supabase
         .from('exams')
         .upsert({
@@ -368,6 +368,9 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
           subject: '综合',
           scope: 'all',
           created_at: new Date().toISOString()
+        }, {
+          onConflict: 'title,date,type',
+          ignoreDuplicates: false
         });
 
       if (examError) {

@@ -238,20 +238,20 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
           
           {/* 筛选栏 - 移动端为覆盖层，桌面端为侧边栏 */}
           <div className="fixed lg:static inset-y-0 left-0 z-50 w-80 lg:w-96 bg-[#F8F8F8] border-r-2 border-black p-6 overflow-y-auto transform lg:transform-none transition-transform lg:transition-none">
-            <ModernGradeFilters
-              filter={filter}
-              onFilterChange={setFilter}
-              availableExams={examList}
-              availableSubjects={availableSubjects}
-              availableClasses={availableClasses}
-              availableGrades={availableGrades}
-              availableExamTypes={availableExamTypes}
-              totalCount={filteredGradeData.length}
-              filteredCount={filteredGradeData.length}
+          <ModernGradeFilters
+            filter={filter}
+            onFilterChange={setFilter}
+            availableExams={examList}
+            availableSubjects={availableSubjects}
+            availableClasses={availableClasses}
+            availableGrades={availableGrades}
+            availableExamTypes={availableExamTypes}
+            totalCount={filteredGradeData.length}
+            filteredCount={filteredGradeData.length}
               onClose={() => setShowSidebar(false)}
-              compact={false}
-            />
-          </div>
+            compact={false}
+          />
+        </div>
         </>
       )}
 
