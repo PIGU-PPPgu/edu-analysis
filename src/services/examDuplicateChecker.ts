@@ -154,7 +154,7 @@ export class ExamDuplicateChecker {
       .from('exams')
       .select(`
         id, title, type, date, subject, scope, created_at,
-        grade_data(count)
+        grade_data_new(count)
       `)
       .eq('title', examInfo.title)
       .eq('type', examInfo.type)
@@ -168,7 +168,7 @@ export class ExamDuplicateChecker {
     if (data) {
       return {
         ...data,
-        grade_count: data.grade_data?.[0]?.count || 0
+        grade_count: data.grade_data_new?.[0]?.count || 0
       };
     }
 
@@ -189,7 +189,7 @@ export class ExamDuplicateChecker {
       .from('exams')
       .select(`
         id, title, type, date, subject, scope, created_at,
-        grade_data(count)
+        grade_data_new(count)
       `)
       .gte('date', startDate.toISOString().split('T')[0])
       .lte('date', endDate.toISOString().split('T')[0])
@@ -212,7 +212,7 @@ export class ExamDuplicateChecker {
         bestMatch = {
           exam: {
             ...exam,
-            grade_count: exam.grade_data?.[0]?.count || 0
+            grade_count: exam.grade_data_new?.[0]?.count || 0
           },
           similarity
         };

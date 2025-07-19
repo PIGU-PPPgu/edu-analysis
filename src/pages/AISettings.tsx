@@ -6,13 +6,17 @@ import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import Navbar from "@/components/shared/Navbar";
 import { getUserAIConfig, getUserAPIKey, saveUserAPIKey, saveUserAIConfig } from "@/utils/userAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { getProviderById } from "@/services/providers";
 import { DEFAULT_PROVIDERS } from "@/config/aiProviders";
-import { Check, RefreshCw, Plus, Save, Trash2 } from "lucide-react";
+import { Check, RefreshCw, Plus, Save, Trash2, MessageSquare, Bot, Bell, AlertCircle } from "lucide-react";
 import { testProviderConnection } from '@/services/aiService';
+import BotManagement from '@/components/settings/BotManagement';
 
 const AISettings: React.FC = () => {
   // 通用状态
@@ -32,6 +36,18 @@ const AISettings: React.FC = () => {
   const [availableModels, setAvailableModels] = useState<Array<{id: string, name: string, selected: boolean}>>([]);
   const [customModelName, setCustomModelName] = useState<string>('');
   
+  // 用户分析偏好状态
+  const [analysisPreferences, setAnalysisPreferences] = useState({
+    analysis_type: 'detailed',
+    preferred_model: 'deepseek-reasoner',
+    auto_trigger_enabled: true,
+    focus_mode: 'all'
+  });
+  const [isLoadingPreferences, setIsLoadingPreferences] = useState(false);
+  const [isSavingPreferences, setIsSavingPreferences] = useState(false);
+  
+  // 机器人推送管理状态 - 现在由BotManagement组件处理
+  
   // 初始化可用提供商列表
   useEffect(() => {
     const providers = Object.entries(DEFAULT_PROVIDERS).map(([id, config]) => ({
@@ -44,6 +60,7 @@ const AISettings: React.FC = () => {
   // 加载用户配置和初始化
   useEffect(() => {
     loadUserConfig();
+    loadAnalysisPreferences();
   }, []);
   
   // 当提供商变更时获取该提供商的模型列表和API密钥
@@ -301,6 +318,76 @@ const AISettings: React.FC = () => {
   // 判断当前提供商是否需要API ID
   const providerRequiresApiId = selectedProvider === 'doubao';
   
+  // 加载分析偏好
+  const loadAnalysisPreferences = async () => {
+    setIsLoadingPreferences(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.warn('用户未登录，使用默认分析偏好');
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('user_analysis_preferences')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle(); // 使用 maybeSingle 避免抛出异常
+
+      if (error) {
+        console.error('查询分析偏好时出错:', error);
+        return; // 静默失败，使用默认值
+      }
+
+      if (data) {
+        setAnalysisPreferences({
+          analysis_type: data.analysis_type || 'detailed',
+          preferred_model: data.preferred_model || 'deepseek-reasoner',
+          auto_trigger_enabled: data.auto_trigger_enabled ?? true,
+          focus_mode: data.focus_mode || 'all'
+        });
+      }
+    } catch (error) {
+      console.error('加载分析偏好失败:', error);
+      // 静默失败，保持默认值
+    } finally {
+      setIsLoadingPreferences(false);
+    }
+  };
+
+  // 保存分析偏好
+  const saveAnalysisPreferences = async () => {
+    setIsSavingPreferences(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('用户未登录');
+
+      const { error } = await supabase
+        .from('user_analysis_preferences')
+        .upsert({
+          user_id: user.id,
+          analysis_type: analysisPreferences.analysis_type,
+          preferred_model: analysisPreferences.preferred_model,
+          auto_trigger_enabled: analysisPreferences.auto_trigger_enabled,
+          focus_mode: analysisPreferences.focus_mode,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id'
+        });
+
+      if (error) throw error;
+      
+      toast.success('分析偏好已保存');
+    } catch (error) {
+      console.error('保存分析偏好失败:', error);
+      toast.error('保存失败: ' + (error instanceof Error ? error.message : '未知错误'));
+    } finally {
+      setIsSavingPreferences(false);
+    }
+  };
+  
+  // 机器人推送设置现在由BotManagement组件处理
+  
   // 获取提供商的模型推荐说明
   const getProviderModelRecommendations = () => {
     switch (selectedProvider) {
@@ -525,6 +612,203 @@ const AISettings: React.FC = () => {
                 
                 {/* 提供商模型推荐说明 */}
                 {getProviderModelRecommendations()}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 自动分析和机器人推送统一配置 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bot className="h-5 w-5 text-blue-500" />
+                成绩分析AI机器人推送设置
+              </CardTitle>
+              <CardDescription>
+                配置成绩导入时的AI自动分析和机器人推送设置，两者关联工作为您提供完整的分析推送服务
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-8">
+              {/* 分析配置区域 */}
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <AlertCircle className="h-4 w-4 text-blue-600" />
+                  <h3 className="font-semibold text-lg">AI分析配置</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <Label className="text-sm font-medium">分析复杂度</Label>
+                    <Select 
+                      value={analysisPreferences.analysis_type}
+                      onValueChange={(value) => setAnalysisPreferences(prev => ({...prev, analysis_type: value}))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="选择分析复杂度" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="simple">
+                          <div className="flex flex-col items-start">
+                            <span className="font-medium">简易分析</span>
+                            <span className="text-xs text-gray-500">快速概览，800字以内</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="detailed">
+                          <div className="flex flex-col items-start">
+                            <span className="font-medium">详细分析</span>
+                            <span className="text-xs text-gray-500">全面分析，2000字以内</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="premium">
+                          <div className="flex flex-col items-start">
+                            <span className="font-medium">超级分析</span>
+                            <span className="text-xs text-gray-500">深度结构化分析，4000字以内</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="batch">
+                          <div className="flex flex-col items-start">
+                            <span className="font-medium">批量分析</span>
+                            <span className="text-xs text-gray-500">大规模数据分析，1500字以内</span>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-4">
+                    <Label className="text-sm font-medium">AI模型选择</Label>
+                    <Select 
+                      value={analysisPreferences.preferred_model}
+                      onValueChange={(value) => setAnalysisPreferences(prev => ({...prev, preferred_model: value}))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="选择AI模型" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="deepseek-chat">
+                          <div className="flex flex-col items-start">
+                            <span className="font-medium">DeepSeek Chat</span>
+                            <span className="text-xs text-gray-500">快速响应，适合日常分析</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="deepseek-reasoner">
+                          <div className="flex flex-col items-start">
+                            <span className="font-medium">DeepSeek Reasoner</span>
+                            <span className="text-xs text-gray-500">推理能力强，适合复杂分析</span>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <Label className="text-sm font-medium">聚焦模式</Label>
+                    <Select 
+                      value={analysisPreferences.focus_mode}
+                      onValueChange={(value) => setAnalysisPreferences(prev => ({...prev, focus_mode: value}))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="选择聚焦模式" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">全面分析所有学生</SelectItem>
+                        <SelectItem value="top">重点关注高分学生</SelectItem>
+                        <SelectItem value="bottom">重点关注低分学生</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <Switch 
+                        id="auto-trigger" 
+                        checked={analysisPreferences.auto_trigger_enabled}
+                        onCheckedChange={(checked) => setAnalysisPreferences(prev => ({...prev, auto_trigger_enabled: checked}))}
+                      />
+                      <div className="space-y-0.5">
+                        <Label htmlFor="auto-trigger" className="text-sm font-medium">
+                          启用自动分析推送
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          成绩导入成功后，自动生成AI分析报告并推送到下方配置的机器人
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {analysisPreferences.auto_trigger_enabled && (
+                      <div className="ml-6 p-3 bg-green-50 border border-green-200 rounded-md">
+                        <div className="flex items-start gap-2">
+                          <MessageSquare className="h-4 w-4 text-green-600 mt-0.5" />
+                          <div className="text-sm">
+                            <p className="font-medium text-green-800">自动推送已启用</p>
+                            <p className="text-green-700 mt-1">
+                              使用<strong>{analysisPreferences.analysis_type === 'simple' ? '简易' : 
+                              analysisPreferences.analysis_type === 'detailed' ? '详细' : 
+                              analysisPreferences.analysis_type === 'premium' ? '超级' : '批量'}</strong>分析模式，
+                              通过<strong>{analysisPreferences.preferred_model === 'deepseek-chat' ? 'DeepSeek Chat' : 'DeepSeek Reasoner'}</strong>模型
+                              自动生成分析报告并推送到下方配置的机器人
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {!analysisPreferences.auto_trigger_enabled && (
+                      <div className="ml-6 p-3 bg-gray-50 border border-gray-200 rounded-md">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="h-4 w-4 text-gray-500 mt-0.5" />
+                          <div className="text-sm">
+                            <p className="font-medium text-gray-700">手动分析模式</p>
+                            <p className="text-gray-600 mt-1">
+                              需要在成绩导入后手动点击分析按钮，或使用下方机器人的手动推送功能
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t">
+                  <Button 
+                    className="w-full"
+                    onClick={saveAnalysisPreferences}
+                    disabled={isSavingPreferences}
+                  >
+                    {isSavingPreferences ? (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                        保存中...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-2 h-4 w-4" />
+                        保存分析偏好
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {/* 分隔线 */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300"></div>
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-4 text-gray-500 font-medium">推送目标配置</span>
+                </div>
+              </div>
+
+              {/* 机器人推送设置 */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <MessageSquare className="h-4 w-4 text-blue-600" />
+                  <h3 className="font-semibold text-lg">机器人推送配置</h3>
+                </div>
+                
+                <BotManagement className="border-0 p-0" />
               </div>
             </CardContent>
           </Card>
