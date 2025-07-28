@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
 import {
-  FormControl,
-  InputLabel,
   Select,
-  MenuItem,
-  Chip,
-  Typography,
-  Box,
-  Grid,
-} from "@mui/material";
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { ModelInfo } from "@/types/ai";
 import { getAvailableModels } from "@/services/aiService";
 
@@ -55,69 +55,55 @@ export default function ModelSelector({
     }
   }, [providerId]);
 
+  const selectedModel = models.find((m) => m.id === value);
+
   return (
-    <FormControl
-      fullWidth
-      margin="normal"
-      disabled={disabled || loading || models.length === 0}
-    >
-      <InputLabel>模型</InputLabel>
+    <div className="space-y-2 w-full">
+      <Label htmlFor="model-select">模型</Label>
       <Select
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        label="模型"
-        renderValue={(selected) => {
-          const model = models.find((m) => m.id === selected);
-          if (!model) return selected;
-          return (
-            <Box display="flex" alignItems="center">
-              <Typography>{model.name}</Typography>
-              <Chip
-                size="small"
-                label={`${model.maxTokens} tokens`}
-                variant="outlined"
-                sx={{ ml: 1 }}
-              />
-              {model.supportStream && (
-                <Chip
-                  size="small"
-                  label="支持流式输出"
-                  color="success"
-                  variant="outlined"
-                  sx={{ ml: 1 }}
-                />
-              )}
-            </Box>
-          );
-        }}
+        onValueChange={onChange}
+        disabled={disabled || loading || models.length === 0}
       >
-        {models.map((model) => (
-          <MenuItem key={model.id} value={model.id}>
-            <Grid container spacing={1} alignItems="center">
-              <Grid item xs={12} sm={6}>
-                <Typography variant="body1">{model.name}</Typography>
-              </Grid>
-              <Grid item xs={6} sm={3}>
-                <Chip
-                  size="small"
-                  label={`${model.maxTokens} tokens`}
-                  variant="outlined"
-                />
-              </Grid>
-              <Grid item xs={6} sm={3}>
-                {model.supportStream && (
-                  <Chip
-                    size="small"
-                    label="流式输出"
-                    color="success"
-                    variant="outlined"
-                  />
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder="选择模型">
+            {selectedModel && (
+              <div className="flex items-center gap-2">
+                <span>{selectedModel.name}</span>
+                <Badge variant="outline">
+                  {selectedModel.maxTokens} tokens
+                </Badge>
+                {selectedModel.supportStream && (
+                  <Badge variant="default" className="bg-green-500">
+                    支持流式输出
+                  </Badge>
                 )}
-              </Grid>
-            </Grid>
-          </MenuItem>
-        ))}
+              </div>
+            )}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {models.map((model) => (
+            <SelectItem key={model.id} value={model.id}>
+              <div className="flex items-center justify-between w-full">
+                <div className="flex flex-col">
+                  <span className="font-medium">{model.name}</span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="outline" className="text-xs">
+                      {model.maxTokens} tokens
+                    </Badge>
+                    {model.supportStream && (
+                      <Badge variant="default" className="bg-green-500 text-xs">
+                        流式输出
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </SelectItem>
+          ))}
+        </SelectContent>
       </Select>
-    </FormControl>
+    </div>
   );
 }

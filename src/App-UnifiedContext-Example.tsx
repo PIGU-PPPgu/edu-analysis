@@ -38,7 +38,7 @@ import HomeworkManagement from "./pages/HomeworkManagement";
 import HomeworkDetailPage from "./pages/HomeworkDetail";
 import ProfilePage from "./pages/ProfilePage";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
-import CascadeAnalysisTestPage from "./pages/test/CascadeAnalysisTest";
+import CascadeAnalysisTestPage from "./pages/test/cascade-analysis";
 import { initDefaultAIConfig } from "./utils/userAuth";
 import StudentPortraitManagement from "./pages/StudentPortraitManagement";
 import { DiagnosticsTool } from "./tools/diagnostics-ui";

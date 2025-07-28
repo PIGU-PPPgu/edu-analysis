@@ -204,7 +204,9 @@ export async function fetchExamInfo(
  * @param data 成绩数据
  * @returns 统计信息
  */
-export async function calculateGradeStatistics(data: GradeRecord[]): Promise<GradeStatistics> {
+export async function calculateGradeStatistics(
+  data: GradeRecord[]
+): Promise<GradeStatistics> {
   if (!data || data.length === 0) {
     return {
       total: 0,
