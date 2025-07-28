@@ -38,8 +38,13 @@ node_modules/
 # API密钥配置文件
 # .env.example 应该被提交以供参考
 # .env 包含实际密钥，不应提交
-
-# Task files
-# tasks.json
-# tasks/ .env
+.env
+.env.local
 .env.hooks
+.env.hooks.local
+
+# 安全相关配置
+**/*.key
+**/*.pem
+**/secrets/
+**/credentials/
