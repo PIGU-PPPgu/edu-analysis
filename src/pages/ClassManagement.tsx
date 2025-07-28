@@ -244,7 +244,7 @@ const ClassManagement: React.FC = () => {
       return [];
     }
 
-    let filtered = allFetchedClasses.filter(
+    const filtered = allFetchedClasses.filter(
       (cls) =>
         cls &&
         cls.name &&

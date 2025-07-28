@@ -11,16 +11,8 @@ import {
   GradeFilter,
   Subject,
   GradeDataResponse,
-  GradeLevelDistribution,
 } from "@/types/grade";
-import {
-  filterBySubject,
-  getSubjectScore,
-  getSubjectGrade,
-  getStudentName,
-  getClassName,
-  createStandardGradeRecord,
-} from "@/utils/gradeFieldUtils";
+import { getStudentName, getClassName } from "@/utils/gradeFieldUtils";
 import { calculateGradeLevelDistribution } from "@/utils/gradeUtils";
 
 /**
@@ -212,7 +204,7 @@ export async function fetchExamInfo(
  * @param data 成绩数据
  * @returns 统计信息
  */
-export function calculateGradeStatistics(data: GradeRecord[]): GradeStatistics {
+export async function calculateGradeStatistics(data: GradeRecord[]): Promise<GradeStatistics> {
   if (!data || data.length === 0) {
     return {
       total: 0,
@@ -270,17 +262,16 @@ export function calculateGradeStatistics(data: GradeRecord[]): GradeStatistics {
   let passCount, excellentCount;
 
   try {
-    const {
-      getPassScore,
-      getExcellentScore,
-    } = require("@/services/passRateCalculator");
+    const { getPassScore, getExcellentScore } = await import(
+      "@/services/passRateCalculator"
+    );
     const passScore = getPassScore(currentSubject);
     const excellentScore = getExcellentScore(currentSubject);
     passCount = scores.filter((score) => Number(score) >= passScore).length;
     excellentCount = scores.filter(
       (score) => Number(score) >= excellentScore
     ).length;
-  } catch (error) {
+  } catch (_error) {
     // 回退到默认值
     passCount = scores.filter((score) => Number(score) >= 60).length;
     excellentCount = scores.filter((score) => Number(score) >= 90).length;

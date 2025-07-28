@@ -146,7 +146,7 @@ async function parseExcelFile(
 
   // 获取数据范围
   const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1");
-  const totalRows = range.e.r + 1;
+  const _totalRows = range.e.r + 1;
   const totalColumns = range.e.c + 1;
 
   // 转换为JSON格式，保持空值
@@ -287,7 +287,7 @@ async function parseCsvFile(
 
 async function validateAndCleanData(
   rawData: any[][],
-  fileName: string
+  _fileName: string
 ): Promise<{
   cleanData: any[][];
   headers: string[];

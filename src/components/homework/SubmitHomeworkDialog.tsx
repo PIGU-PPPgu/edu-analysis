@@ -87,7 +87,7 @@ const SubmitHomeworkDialog: React.FC<SubmitHomeworkDialogProps> = ({
       }
 
       // 上传文件（如果有）
-      let uploadedFiles = [];
+      const uploadedFiles = [];
       if (files.length > 0) {
         for (const file of files) {
           const uploadResult = await uploadHomeworkFile(

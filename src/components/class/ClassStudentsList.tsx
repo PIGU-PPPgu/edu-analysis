@@ -70,7 +70,7 @@ const ClassStudentsList: React.FC<ClassStudentsListProps> = ({
 
   // 排序
   const sortedStudents = useMemo(() => {
-    let filtered = filteredStudents.sort((a, b) => {
+    const filtered = filteredStudents.sort((a, b) => {
       const aValue = a[sortField];
       const bValue = b[sortField];
 

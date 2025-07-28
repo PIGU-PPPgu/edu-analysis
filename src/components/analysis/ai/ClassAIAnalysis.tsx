@@ -167,11 +167,11 @@ const ClassAIAnalysis: React.FC<ClassAIAnalysisProps> = ({
           (scores.filter((s) => s >= 90).length / scores.length) * 100;
 
         // AI生成教学建议
-        let strongPoints = [];
-        let weakPoints = [];
-        let teachingAdvice = [];
-        let studentConcerns = [];
-        let trend: "improving" | "declining" | "stable" = "stable";
+        const strongPoints = [];
+        const weakPoints = [];
+        const teachingAdvice = [];
+        const studentConcerns = [];
+        const trend: "improving" | "declining" | "stable" = "stable";
 
         if (averageScore >= 80) {
           strongPoints.push("学生基础扎实", "整体理解能力强");

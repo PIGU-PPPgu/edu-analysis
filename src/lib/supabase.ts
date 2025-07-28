@@ -5,10 +5,7 @@ import { env } from "@/env";
 const SUPABASE_URL = env.SUPABASE_URL.trim(); // 移除可能的空白字符
 const SUPABASE_ANON_KEY = env.SUPABASE_ANON_KEY.replace(/%$/, ""); // 移除末尾可能的百分号
 
-// 打印连接信息，帮助调试
-console.log("Supabase 连接配置:");
-console.log(`URL: ${SUPABASE_URL}`);
-console.log(`KEY 长度: ${SUPABASE_ANON_KEY.length} 字符`);
+// Supabase client configured with secure connection
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {

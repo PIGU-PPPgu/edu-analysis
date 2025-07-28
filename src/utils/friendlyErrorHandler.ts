@@ -442,7 +442,7 @@ export class AutoErrorFixer {
       if (typeof score !== "string") return NaN;
 
       // 移除常见的非数字字符
-      let cleaned = score
+      const cleaned = score
         .replace(/[分点]/g, "") // 移除"分"、"点"
         .replace(/[优秀良好中等及格不及格]/g, "") // 移除等级文字
         .replace(/\s+/g, "") // 移除空格

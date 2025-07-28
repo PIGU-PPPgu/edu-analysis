@@ -861,7 +861,7 @@ export async function analyzeHomeworkImage(
             console.error("备用AI返回的JSON解析失败，尝试修复:", parseError);
 
             // 修复可能的JSON格式问题
-            let fixedJsonStr = jsonMatch[0]
+            const fixedJsonStr = jsonMatch[0]
               .replace(/,(\s*[\]}])/g, "$1") // 移除尾随逗号
               .replace(/([{,]\s*)(\w+)(\s*:)/g, '$1"$2"$3') // 确保属性名有引号
               .replace(/:\s*"?([^",{\[\]}]+)"?(\s*[,}])/g, ':"$1"$2'); // 确保属性值有引号
@@ -1515,7 +1515,7 @@ ${content}
           role: "user",
           content: userPromptContent,
         };
-        let messages: Message[] = [systemMessage, userMessage];
+        const messages: Message[] = [systemMessage, userMessage];
 
         logInfo(`发送请求到模型 ${providerId}/${modelId}...`, {
           provider: (client as any).providerId,
@@ -2074,7 +2074,7 @@ export async function testProviderConnection(
 
     // 构建请求体和配置
     let requestData = {};
-    let axiosConfig: {
+    const axiosConfig: {
       headers: Record<string, string>;
     } = {
       headers: {

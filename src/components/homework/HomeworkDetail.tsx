@@ -535,7 +535,7 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
 
       if (result.success && currentHomework?.classes?.id) {
         // Map existing submissions (ensure students object exists)
-        let existingSubmissions =
+        const existingSubmissions =
           result.submissions?.map((submission) => {
             return {
               ...submission,

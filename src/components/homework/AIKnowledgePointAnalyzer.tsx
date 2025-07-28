@@ -121,7 +121,7 @@ export function AIKnowledgePointAnalyzer({
       }
 
       // 获取选中的模型ID
-      let modelId =
+      const modelId =
         localStorage.getItem(`${savedProvider}_selected_model`) || "";
 
       if (!modelId) {

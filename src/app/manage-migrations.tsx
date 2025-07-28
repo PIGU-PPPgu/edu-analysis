@@ -6,11 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase, runMigration } from "@/integrations/supabase/client";
-import fs from "fs/promises";
-import path from "path";
-
-// 迁移文件路径
-const MIGRATIONS_PATH = "../migrations";
+// 迁移管理组件，通过Supabase客户端处理迁移
 
 export default function ManageMigrations() {
   const [isLoading, setIsLoading] = useState(false);

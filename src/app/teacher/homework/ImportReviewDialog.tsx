@@ -4,34 +4,19 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-  DialogClose,
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"; // 假设这是你的Select组件路径
-import { Input } from "@/components/ui/input"; // 假设这是你的Input组件路径
-import { Loader2, AlertTriangle, CheckCircle, Lightbulb } from "lucide-react"; // Lightbulb导入
-import type {
-  GradeImportFilePreview,
-  StudentToImport,
-  SystemField,
-} from "@/types/gradeImport";
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Loader2, AlertTriangle, Lightbulb } from "lucide-react";
+import type { StudentToImport, SystemField } from "@/types/gradeImport";
 
 interface ImportReviewDialogProps {
   isOpen: boolean;
@@ -336,7 +321,6 @@ export const ImportReviewDialog: React.FC<ImportReviewDialogProps> = ({
       `[ImportReviewDialog Step 2] handleConfirmNewField called. Header: ${originalHeader}, New Field Name: ${newFieldName}`
     );
     if (newFieldName.trim()) {
-      const uniqueNewFieldKey = `NEW_FIELD::${newFieldName.trim()}`; // This is temporary for local state
       const actualNewFieldName = newFieldName.trim();
 
       // Update local mappings to reflect the user's intent immediately for the UI

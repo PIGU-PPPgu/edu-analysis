@@ -362,7 +362,7 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
       const headerAnalysis = analyzeCSVHeaders(fullParseResult.headers);
       console.log("[真实导入] 字段分析结果:", headerAnalysis);
 
-      let allGradeRecords: any[] = [];
+      const allGradeRecords: any[] = [];
       let processedRows = 0;
       let successCount = 0;
       let errorCount = 0;

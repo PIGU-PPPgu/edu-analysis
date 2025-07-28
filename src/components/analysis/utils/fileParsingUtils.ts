@@ -99,7 +99,7 @@ export const parseCSV = (
     const obj: Record<string, any> = {};
 
     headers.forEach((header, index) => {
-      let value = values[index]?.trim() || "";
+      const value = values[index]?.trim() || "";
 
       if (dataTypes[index] === "number") {
         obj[header] = isNaN(parseFloat(value)) ? value : parseFloat(value);

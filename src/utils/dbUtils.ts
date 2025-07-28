@@ -521,7 +521,7 @@ export const warningSystem = {
         ); // 模拟课堂参与度
 
         // 针对每个规则进行评估
-        rulesLoop: for (const rule of rules) {
+        for (const rule of rules) {
           // 检查规则是否有新格式的条件数组
           if (Array.isArray(rule.conditions)) {
             let allConditionsMet = true;

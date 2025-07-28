@@ -452,7 +452,7 @@ class PortraitAPI {
       });
 
       // 获取学生AI标签和自定义标签
-      let portraitData: Record<string, any> = {};
+      const portraitData: Record<string, any> = {};
       try {
         const { data: portraits } = await supabase
           .from("student_portraits")

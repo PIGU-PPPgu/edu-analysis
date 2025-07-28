@@ -15,23 +15,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// 🔧 开发模式配置
-const DEV_MODE = {
-  enabled: false, // 🔧 关闭开发模式，启用真实用户认证
-  mockUser: {
-    id: "dev-user-123",
-    email: "dev@teacher.com",
-    user_metadata: {
-      full_name: "开发测试教师",
-    },
-    app_metadata: {},
-    aud: "authenticated",
-    created_at: new Date().toISOString(),
-    role: "authenticated",
-    updated_at: new Date().toISOString(),
-  } as User,
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -41,24 +24,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isAuthReady, setIsAuthReady] = useState(false);
 
   useEffect(() => {
-    // 🔧 开发模式：直接设置模拟用户
-    if (DEV_MODE.enabled) {
-      console.log("🔧 开发模式已启用 - 使用模拟认证");
-      setUser(DEV_MODE.mockUser);
-      setSession({
-        access_token: "mock-token",
-        refresh_token: "mock-refresh",
-        expires_in: 3600,
-        expires_at: Date.now() / 1000 + 3600,
-        token_type: "bearer",
-        user: DEV_MODE.mockUser,
-      } as Session);
-      setIsAuthReady(true);
-      toast.success("开发模式：已自动登录");
-      return;
-    }
-
-    // 正常的Supabase认证流程
+    // Supabase认证流程
     const initializeAuth = async () => {
       try {
         const {
@@ -106,23 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    // 🔧 开发模式：模拟登录成功
-    if (DEV_MODE.enabled) {
-      console.log("🔧 开发模式：模拟登录");
-      setUser(DEV_MODE.mockUser);
-      setSession({
-        access_token: "mock-token",
-        refresh_token: "mock-refresh",
-        expires_in: 3600,
-        expires_at: Date.now() / 1000 + 3600,
-        token_type: "bearer",
-        user: DEV_MODE.mockUser,
-      } as Session);
-      toast.success("开发模式：登录成功");
-      return {};
-    }
-
-    // 正常的登录流程
+    // 登录流程
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -143,14 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const signUp = async (email: string, password: string) => {
-    // 🔧 开发模式：模拟注册成功
-    if (DEV_MODE.enabled) {
-      console.log("🔧 开发模式：模拟注册");
-      toast.success("开发模式：注册成功，已自动登录");
-      return await signIn(email, password);
-    }
-
-    // 正常的注册流程
+    // 注册流程
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -176,16 +119,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const signOut = async () => {
-    // 🔧 开发模式：模拟退出
-    if (DEV_MODE.enabled) {
-      console.log("🔧 开发模式：模拟退出");
-      setUser(null);
-      setSession(null);
-      toast.success("开发模式：已退出登录");
-      return;
-    }
-
-    // 正常的退出流程
+    // 退出流程
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {

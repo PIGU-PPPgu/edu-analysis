@@ -452,7 +452,7 @@ export class ExamDuplicateChecker {
     examInfo: ExamInfo
   ): Promise<{ examId: string; action: string; message: string }> {
     let index = 1;
-    let newTitle = examInfo.title;
+    const newTitle = examInfo.title;
 
     while (true) {
       const newExamInfo = {

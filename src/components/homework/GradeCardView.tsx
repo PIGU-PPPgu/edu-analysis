@@ -608,7 +608,7 @@ export default function GradeCardView({
     const score = 0; // 标记状态时始终使用0分
 
     // 准备自动生成反馈
-    let statusFeedback =
+    const statusFeedback =
       status === "not_submitted" ? "学生未提交作业。" : "学生请假缺勤。";
 
     console.log(

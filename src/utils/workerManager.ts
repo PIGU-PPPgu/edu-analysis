@@ -458,7 +458,7 @@ export class WorkerManager {
    */
   dispose(): void {
     // 终止所有正在进行的任务
-    for (const [jobId, job] of this.activeJobs.entries()) {
+    for (const [_jobId, job] of this.activeJobs.entries()) {
       if (job.timeout) {
         clearTimeout(job.timeout);
       }

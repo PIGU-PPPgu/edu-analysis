@@ -589,7 +589,7 @@ export async function mockAiAnalysis(
   );
 
   // 准备结果
-  let result: { knowledgePoints: any[] } = {
+  const result: { knowledgePoints: any[] } = {
     knowledgePoints: [],
   };
 

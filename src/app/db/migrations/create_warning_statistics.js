@@ -11,7 +11,7 @@ export const createWarningStatisticsTable = async () => {
     let tableExists = false;
     try {
       // 尝试从目标表读取记录，如果能读取成功则表已存在
-      const { data, error } = await supabase
+      const { data: _data, error } = await supabase
         .from("warning_statistics")
         .select("id")
         .limit(1);

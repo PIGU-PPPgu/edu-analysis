@@ -448,7 +448,7 @@ const RiskFactorChart: React.FC<RiskFactorChartProps> = ({
 
   // 过滤和排序数据
   const filteredData = useMemo(() => {
-    let filtered = chartData.filter((item) => {
+    const filtered = chartData.filter((item) => {
       if (filterCategory !== "all" && item.category !== filterCategory)
         return false;
       if (filterSeverity !== "all" && item.severity !== filterSeverity)

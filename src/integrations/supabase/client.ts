@@ -7,10 +7,12 @@ import { env } from "@/env";
 const SUPABASE_URL = env.SUPABASE_URL.trim(); // 移除可能的空白字符
 const SUPABASE_ANON_KEY = env.SUPABASE_ANON_KEY.replace(/%$/, ""); // 移除末尾可能的百分号
 
-// 打印连接信息，帮助调试
-console.log("Supabase 连接配置:");
-console.log(`URL: ${SUPABASE_URL}`);
-console.log(`KEY 长度: ${SUPABASE_ANON_KEY.length} 字符`);
+// 安全的连接信息记录（仅开发环境）
+if (process.env.NODE_ENV === "development") {
+  console.log("Supabase 连接配置:");
+  console.log(`URL: ${SUPABASE_URL}`);
+  console.log(`KEY 长度: ${SUPABASE_ANON_KEY.length} 字符`);
+}
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";

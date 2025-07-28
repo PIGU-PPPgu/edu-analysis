@@ -253,7 +253,7 @@ export const useFileProcessing = () => {
 
         let data: any[] = [];
         let headers: string[] = [];
-        let detectedFormat = fileExtension || "unknown";
+        const detectedFormat = fileExtension || "unknown";
 
         if (fileExtension === "csv" || fileExtension === "txt") {
           const content = await readFileAsText(file);
