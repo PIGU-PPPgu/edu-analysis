@@ -1,6 +1,6 @@
 /**
  * 成绩分析模块主索引
- * 
+ *
  * 新目录结构：
  * - core/: 核心功能组件（数据导入、概览）
  * - statistics/: 统计分析组件（统计概览、分数分布）
@@ -10,22 +10,22 @@
  */
 
 // 核心功能组件
-export * from './core';
+export * from "./core";
 
 // 统计分析组件
-export * from './statistics';
+export * from "./statistics";
 
 // 对比分析组件
-export * from './comparison';
+export * from "./comparison";
 
 // 高级分析组件
-export * from './advanced';
+export * from "./advanced";
 
 // 服务和工具库
-export * from './services';
+export * from "./services";
 
 // 保持向后兼容性的类型导出
-export { default as GradeAnalysisTypes } from './types';
+export { default as GradeAnalysisTypes } from "./types";
 
 // 已删除的组件：
 // export { default as HomeworkAnalysisDashboard } from './HomeworkAnalysisDashboard';
@@ -35,11 +35,11 @@ export { default as GradeAnalysisTypes } from './types';
 // export { default as KnowledgePointHeatmap } from './KnowledgePointHeatmap';
 
 // 保留的组件：
-export { default as StudentGradeTrend } from './StudentGradeTrend';
-export { default as ScoreDistribution } from './ScoreDistribution';
-export { default as ScoreBoxPlot } from './ScoreBoxPlot';
-export { default as GradeOverview } from './GradeOverview';
-export { default as ClassStudentsList } from './ClassStudentsList';
-export { AIAnalysisController } from './AIAnalysisController';
-export { default as GradeChangeFunnelChart } from './GradeChangeFunnelChart';
-export { default as GradeSankeyChart } from './GradeSankeyChart'; 
+export { default as StudentGradeTrend } from "./StudentGradeTrend";
+export { default as ScoreDistribution } from "./ScoreDistribution";
+export { default as ScoreBoxPlot } from "./ScoreBoxPlot";
+export { default as GradeOverview } from "./GradeOverview";
+export { default as ClassStudentsList } from "./ClassStudentsList";
+export { AIAnalysisController } from "./AIAnalysisController";
+export { default as GradeChangeFunnelChart } from "./GradeChangeFunnelChart";
+export { default as GradeSankeyChart } from "./GradeSankeyChart";

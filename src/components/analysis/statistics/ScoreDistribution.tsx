@@ -1,26 +1,61 @@
-import React, { useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Legend, PieChart, Pie, Cell } from 'recharts';
-import { Progress } from '@/components/ui/progress';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { BarChart3, Award, Users, TrendingUp, PieChart as PieChartIcon, Download, AlertTriangle } from 'lucide-react';
-import { useGradeAnalysis } from '@/contexts/GradeAnalysisContext';
-import { 
-  analyzeScoreRanges, 
+import React, { useState, useMemo } from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  BarChart3,
+  Award,
+  Users,
+  TrendingUp,
+  PieChart as PieChartIcon,
+  Download,
+  AlertTriangle,
+} from "lucide-react";
+import { useGradeAnalysis } from "@/contexts/GradeAnalysisContext";
+import {
+  analyzeScoreRanges,
   calculateBasicStatistics,
   calculateRates,
   groupBy,
-  type ScoreRangeConfig 
-} from '@/components/analysis/services/calculationUtils';
-import { 
+  type ScoreRangeConfig,
+} from "@/components/analysis/services/calculationUtils";
+import {
   formatScoreRangeData,
   CHART_COLORS,
-  type ChartDataPoint 
-} from '@/components/analysis/services/chartUtils';
-import { UnifiedDataService, type GradeRecord } from '@/components/analysis/services/unifiedDataService';
+  type ChartDataPoint,
+} from "@/components/analysis/services/chartUtils";
+import {
+  UnifiedDataService,
+  type GradeRecord,
+} from "@/components/analysis/services/unifiedDataService";
 
 // ============================================================================
 // 类型定义
@@ -34,7 +69,7 @@ interface ScoreDistributionProps {
   /** 自定义样式类名 */
   className?: string;
   /** 显示模式：bar | pie | both */
-  displayMode?: 'bar' | 'pie' | 'both';
+  displayMode?: "bar" | "pie" | "both";
   /** 是否显示详细统计 */
   showDetailedStats?: boolean;
   /** 直接传入的数据（可选，用于不依赖Context的场景） */
@@ -66,12 +101,12 @@ interface SubjectStatistics {
 
 const DEFAULT_SCORE_RANGES: ScoreRangeConfig = {
   ranges: [
-    { min: 90, max: 100, label: '优秀 (90-100)', color: '#10B981' }, // success color
-    { min: 80, max: 89, label: '良好 (80-89)', color: '#3B82F6' },   // primary color
-    { min: 70, max: 79, label: '中等 (70-79)', color: '#F59E0B' },   // warning color
-    { min: 60, max: 69, label: '及格 (60-69)', color: '#F97316' },   // orange
-    { min: 0, max: 59, label: '不及格 (0-59)', color: '#EF4444' }    // destructive color
-  ]
+    { min: 90, max: 100, label: "优秀 (90-100)", color: "#10B981" }, // success color
+    { min: 80, max: 89, label: "良好 (80-89)", color: "#3B82F6" }, // primary color
+    { min: 70, max: 79, label: "中等 (70-79)", color: "#F59E0B" }, // warning color
+    { min: 60, max: 69, label: "及格 (60-69)", color: "#F97316" }, // orange
+    { min: 0, max: 59, label: "不及格 (0-59)", color: "#EF4444" }, // destructive color
+  ],
 };
 
 // ============================================================================
@@ -90,14 +125,14 @@ const formatPercentage = (value: number): string => {
  */
 const extractSubjects = (gradeData: any[]): string[] => {
   if (!gradeData || gradeData.length === 0) return [];
-  
+
   const subjects = new Set<string>();
-  gradeData.forEach(record => {
+  gradeData.forEach((record) => {
     if (record.subject && record.subject.trim()) {
       subjects.add(record.subject.trim());
     }
   });
-  
+
   return Array.from(subjects).sort();
 };
 
@@ -157,17 +192,17 @@ const ScoreDistributionSkeleton = () => (
 const ScoreDistribution: React.FC<ScoreDistributionProps> = ({
   examId,
   classFilter,
-  className = '',
-  displayMode = 'both',
+  className = "",
+  displayMode = "both",
   showDetailedStats = true,
-  data
+  data,
 }) => {
   // 尝试从Context获取数据，如果失败则使用传入的data
   let selectedExam: any = null;
   let gradeData: any[] = [];
   let isLoading = false;
   let error: any = null;
-  
+
   try {
     const context = useGradeAnalysis();
     selectedExam = context.selectedExam;
@@ -180,8 +215,8 @@ const ScoreDistribution: React.FC<ScoreDistributionProps> = ({
     isLoading = false;
     error = null;
   }
-  const [selectedSubject, setSelectedSubject] = useState<string>('all');
-  const [chartType, setChartType] = useState<'bar' | 'pie'>('bar');
+  const [selectedSubject, setSelectedSubject] = useState<string>("all");
+  const [chartType, setChartType] = useState<"bar" | "pie">("bar");
 
   // 确定要分析的考试ID
   const analysisExamId = examId || selectedExam?.id;
@@ -189,7 +224,10 @@ const ScoreDistribution: React.FC<ScoreDistributionProps> = ({
   // 获取可用科目列表
   const availableSubjects = useMemo(() => {
     const subjects = extractSubjects(gradeData || []);
-    return [{ value: 'all', label: '全部科目' }, ...subjects.map(s => ({ value: s, label: s }))];
+    return [
+      { value: "all", label: "全部科目" },
+      ...subjects.map((s) => ({ value: s, label: s })),
+    ];
   }, [gradeData]);
 
   // 过滤和处理数据
@@ -199,7 +237,7 @@ const ScoreDistribution: React.FC<ScoreDistributionProps> = ({
         filteredData: [],
         scoreRanges: [],
         subjectStats: [],
-        overallStats: calculateBasicStatistics([])
+        overallStats: calculateBasicStatistics([]),
       };
     }
 
@@ -208,63 +246,81 @@ const ScoreDistribution: React.FC<ScoreDistributionProps> = ({
 
     // 班级筛选
     if (classFilter && classFilter.length > 0) {
-      filteredData = filteredData.filter(record => 
-        classFilter.includes(record.class_name || '')
+      filteredData = filteredData.filter((record) =>
+        classFilter.includes(record.class_name || "")
       );
     }
 
     // 科目筛选
-    if (selectedSubject !== 'all') {
-      filteredData = filteredData.filter(record => 
-        record.subject === selectedSubject
+    if (selectedSubject !== "all") {
+      filteredData = filteredData.filter(
+        (record) => record.subject === selectedSubject
       );
     }
 
     // 提取有效分数
     const validScores = filteredData
-      .map(record => record.score)
-      .filter((score): score is number => typeof score === 'number' && !isNaN(score) && score >= 0);
+      .map((record) => record.score)
+      .filter(
+        (score): score is number =>
+          typeof score === "number" && !isNaN(score) && score >= 0
+      );
 
     if (validScores.length === 0) {
       return {
         filteredData: [],
         scoreRanges: [],
         subjectStats: [],
-        overallStats: calculateBasicStatistics([])
+        overallStats: calculateBasicStatistics([]),
       };
     }
 
     // 计算分数段分布
-    const scoreRangeAnalysis = analyzeScoreRanges(validScores, DEFAULT_SCORE_RANGES);
-    const scoreRanges: ScoreRangeData[] = scoreRangeAnalysis.map((item, index) => ({
-      range: item.range,
-      count: item.count,
-      percentage: item.percentage,
-      color: DEFAULT_SCORE_RANGES.ranges[index]?.color || CHART_COLORS.primary[index % CHART_COLORS.primary.length],
-      minScore: DEFAULT_SCORE_RANGES.ranges[index]?.min || 0,
-      maxScore: DEFAULT_SCORE_RANGES.ranges[index]?.max || 100
-    }));
+    const scoreRangeAnalysis = analyzeScoreRanges(
+      validScores,
+      DEFAULT_SCORE_RANGES
+    );
+    const scoreRanges: ScoreRangeData[] = scoreRangeAnalysis.map(
+      (item, index) => ({
+        range: item.range,
+        count: item.count,
+        percentage: item.percentage,
+        color:
+          DEFAULT_SCORE_RANGES.ranges[index]?.color ||
+          CHART_COLORS.primary[index % CHART_COLORS.primary.length],
+        minScore: DEFAULT_SCORE_RANGES.ranges[index]?.min || 0,
+        maxScore: DEFAULT_SCORE_RANGES.ranges[index]?.max || 100,
+      })
+    );
 
     // 按科目统计
-    const subjectGroups = groupBy(filteredData, record => record.subject || '未知科目');
-    const subjectStats: SubjectStatistics[] = Object.entries(subjectGroups).map(([subject, records]) => {
-      const scores = records
-        .map(r => r.score)
-        .filter((score): score is number => typeof score === 'number' && !isNaN(score));
-      
-      const stats = calculateBasicStatistics(scores);
-      const rates = calculateRates(scores);
+    const subjectGroups = groupBy(
+      filteredData,
+      (record) => record.subject || "未知科目"
+    );
+    const subjectStats: SubjectStatistics[] = Object.entries(subjectGroups)
+      .map(([subject, records]) => {
+        const scores = records
+          .map((r) => r.score)
+          .filter(
+            (score): score is number =>
+              typeof score === "number" && !isNaN(score)
+          );
 
-      return {
-        subject,
-        count: scores.length,
-        average: stats.average,
-        min: stats.min,
-        max: stats.max,
-        passRate: rates.passRate,
-        excellentRate: rates.excellentRate
-      };
-    }).sort((a, b) => b.average - a.average);
+        const stats = calculateBasicStatistics(scores);
+        const rates = calculateRates(scores);
+
+        return {
+          subject,
+          count: scores.length,
+          average: stats.average,
+          min: stats.min,
+          max: stats.max,
+          passRate: rates.passRate,
+          excellentRate: rates.excellentRate,
+        };
+      })
+      .sort((a, b) => b.average - a.average);
 
     // 整体统计
     const overallStats = calculateBasicStatistics(validScores);
@@ -273,7 +329,7 @@ const ScoreDistribution: React.FC<ScoreDistributionProps> = ({
       filteredData,
       scoreRanges,
       subjectStats,
-      overallStats
+      overallStats,
     };
   }, [gradeData, classFilter, selectedSubject]);
 
@@ -288,7 +344,10 @@ const ScoreDistribution: React.FC<ScoreDistributionProps> = ({
             人数: <span className="font-semibold">{data.count}</span>
           </p>
           <p className="text-gray-600">
-            占比: <span className="font-semibold">{formatPercentage(data.percentage)}</span>
+            占比:{" "}
+            <span className="font-semibold">
+              {formatPercentage(data.percentage)}
+            </span>
           </p>
           <p className="text-sm text-gray-500">
             分数范围: {data.minScore}-{data.maxScore}分
@@ -330,7 +389,9 @@ const ScoreDistribution: React.FC<ScoreDistributionProps> = ({
             <BarChart3 className="h-8 w-8 mb-3 text-gray-400" />
             <div className="text-center">
               <div className="font-medium text-gray-600">暂无分数分布数据</div>
-              <div className="text-sm text-gray-500 mt-1">请先导入成绩数据或调整筛选条件</div>
+              <div className="text-sm text-gray-500 mt-1">
+                请先导入成绩数据或调整筛选条件
+              </div>
             </div>
           </div>
         </CardContent>
@@ -363,12 +424,15 @@ const ScoreDistribution: React.FC<ScoreDistributionProps> = ({
             <div className="flex flex-wrap items-center gap-3">
               {/* 科目筛选 */}
               {availableSubjects.length > 1 && (
-                <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+                <Select
+                  value={selectedSubject}
+                  onValueChange={setSelectedSubject}
+                >
                   <SelectTrigger className="w-[140px] md:w-[160px]">
                     <SelectValue placeholder="选择科目" />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableSubjects.map(subject => (
+                    {availableSubjects.map((subject) => (
                       <SelectItem key={subject.value} value={subject.value}>
                         {subject.label}
                       </SelectItem>
@@ -378,21 +442,21 @@ const ScoreDistribution: React.FC<ScoreDistributionProps> = ({
               )}
 
               {/* 图表类型切换 */}
-              {displayMode === 'both' && (
+              {displayMode === "both" && (
                 <div className="flex rounded-lg border border-gray-200 overflow-hidden">
                   <Button
-                    variant={chartType === 'bar' ? 'default' : 'ghost'}
+                    variant={chartType === "bar" ? "default" : "ghost"}
                     size="sm"
-                    onClick={() => setChartType('bar')}
+                    onClick={() => setChartType("bar")}
                     className="rounded-none px-3"
                     aria-label="柱状图"
                   >
                     <BarChart3 className="h-4 w-4" />
                   </Button>
                   <Button
-                    variant={chartType === 'pie' ? 'default' : 'ghost'}
+                    variant={chartType === "pie" ? "default" : "ghost"}
                     size="sm"
-                    onClick={() => setChartType('pie')}
+                    onClick={() => setChartType("pie")}
                     className="rounded-none px-3"
                     aria-label="饼图"
                   >
@@ -446,7 +510,15 @@ const ScoreDistribution: React.FC<ScoreDistributionProps> = ({
             <CardContent className="p-4">
               <div className="text-center">
                 <div className="text-xl md:text-2xl font-bold text-orange-900 mb-1">
-                  {formatPercentage(calculateRates([...processedData.filteredData.map(d => d.score).filter(s => typeof s === 'number' && !isNaN(s) && s > 0)]).passRate)}
+                  {formatPercentage(
+                    calculateRates([
+                      ...processedData.filteredData
+                        .map((d) => d.score)
+                        .filter(
+                          (s) => typeof s === "number" && !isNaN(s) && s > 0
+                        ),
+                    ]).passRate
+                  )}
                 </div>
                 <div className="text-xs md:text-sm text-orange-700 flex items-center justify-center gap-1">
                   <Award className="h-3 w-3" />
@@ -460,7 +532,15 @@ const ScoreDistribution: React.FC<ScoreDistributionProps> = ({
             <CardContent className="p-4">
               <div className="text-center">
                 <div className="text-xl md:text-2xl font-bold text-purple-900 mb-1">
-                  {formatPercentage(calculateRates([...processedData.filteredData.map(d => d.score).filter(s => typeof s === 'number' && !isNaN(s) && s > 0)]).excellentRate)}
+                  {formatPercentage(
+                    calculateRates([
+                      ...processedData.filteredData
+                        .map((d) => d.score)
+                        .filter(
+                          (s) => typeof s === "number" && !isNaN(s) && s > 0
+                        ),
+                    ]).excellentRate
+                  )}
                 </div>
                 <div className="text-xs md:text-sm text-purple-700 flex items-center justify-center gap-1">
                   <Award className="h-3 w-3" />
@@ -477,7 +557,11 @@ const ScoreDistribution: React.FC<ScoreDistributionProps> = ({
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <CardTitle className="text-lg md:text-xl flex items-center gap-2">
-              {chartType === 'bar' ? <BarChart3 className="h-5 w-5 text-blue-600" /> : <PieChartIcon className="h-5 w-5 text-purple-600" />}
+              {chartType === "bar" ? (
+                <BarChart3 className="h-5 w-5 text-blue-600" />
+              ) : (
+                <PieChartIcon className="h-5 w-5 text-purple-600" />
+              )}
               分数段分布
             </CardTitle>
             <Badge variant="secondary" className="text-xs w-fit">
@@ -487,12 +571,15 @@ const ScoreDistribution: React.FC<ScoreDistributionProps> = ({
         </CardHeader>
         <CardContent>
           <div className="h-64 sm:h-80 lg:h-96 flex items-center justify-center">
-            {chartType === 'bar' || displayMode === 'bar' ? (
+            {chartType === "bar" || displayMode === "bar" ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={processedData.scoreRanges} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                <BarChart
+                  data={processedData.scoreRanges}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                  <XAxis 
-                    dataKey="range" 
+                  <XAxis
+                    dataKey="range"
                     tick={{ fontSize: 11 }}
                     interval={0}
                     angle={-45}
@@ -502,8 +589,8 @@ const ScoreDistribution: React.FC<ScoreDistributionProps> = ({
                   <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
-                  <Bar 
-                    dataKey="count" 
+                  <Bar
+                    dataKey="count"
                     name="人数"
                     fill="#3B82F6"
                     radius={[4, 4, 0, 0]}
@@ -518,7 +605,9 @@ const ScoreDistribution: React.FC<ScoreDistributionProps> = ({
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ range, percentage }) => `${range}: ${formatPercentage(percentage)}`}
+                    label={({ range, percentage }) =>
+                      `${range}: ${formatPercentage(percentage)}`
+                    }
                     outerRadius={window.innerWidth < 768 ? 80 : 120}
                     fill="#8884d8"
                     dataKey="count"
@@ -543,29 +632,38 @@ const ScoreDistribution: React.FC<ScoreDistributionProps> = ({
         <CardContent>
           <div className="space-y-3">
             {processedData.scoreRanges.map((range, index) => (
-              <div key={index} className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-lg border bg-gray-50 hover:bg-gray-100 transition-colors">
+              <div
+                key={index}
+                className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-lg border bg-gray-50 hover:bg-gray-100 transition-colors"
+              >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div 
+                  <div
                     className="w-4 h-4 rounded flex-shrink-0"
                     style={{ backgroundColor: range.color }}
                   ></div>
                   <div className="min-w-0">
-                    <div className="font-medium text-gray-900 text-sm md:text-base">{range.range}</div>
+                    <div className="font-medium text-gray-900 text-sm md:text-base">
+                      {range.range}
+                    </div>
                     <div className="text-xs md:text-sm text-gray-600">
                       分数范围: {range.minScore}-{range.maxScore}分
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-4">
                   <div className="text-left sm:text-right">
-                    <div className="font-semibold text-gray-900 text-sm md:text-base">{range.count} 人</div>
-                    <div className="text-xs md:text-sm text-gray-600">{formatPercentage(range.percentage)}</div>
+                    <div className="font-semibold text-gray-900 text-sm md:text-base">
+                      {range.count} 人
+                    </div>
+                    <div className="text-xs md:text-sm text-gray-600">
+                      {formatPercentage(range.percentage)}
+                    </div>
                   </div>
-                  
+
                   <div className="w-20 md:w-24">
-                    <Progress 
-                      value={range.percentage} 
+                    <Progress
+                      value={range.percentage}
                       className="h-2"
                       aria-label={`${range.range} 占比 ${formatPercentage(range.percentage)}`}
                     />
@@ -578,7 +676,7 @@ const ScoreDistribution: React.FC<ScoreDistributionProps> = ({
       </Card>
 
       {/* 科目对比（当选择全部科目时） - 响应式优化 */}
-      {selectedSubject === 'all' && processedData.subjectStats.length > 1 && (
+      {selectedSubject === "all" && processedData.subjectStats.length > 1 && (
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="text-lg md:text-xl">科目表现对比</CardTitle>
@@ -586,15 +684,24 @@ const ScoreDistribution: React.FC<ScoreDistributionProps> = ({
           <CardContent>
             <div className="space-y-3">
               {processedData.subjectStats.map((subject, index) => (
-                <div key={subject.subject} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg border bg-gray-50 hover:bg-gray-100 transition-colors">
+                <div
+                  key={subject.subject}
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg border bg-gray-50 hover:bg-gray-100 transition-colors"
+                >
                   <div className="flex items-center gap-3">
-                    {index === 0 && <Award className="h-4 w-4 text-yellow-600" />}
+                    {index === 0 && (
+                      <Award className="h-4 w-4 text-yellow-600" />
+                    )}
                     <div>
-                      <div className="font-medium text-gray-900 text-sm md:text-base">{subject.subject}</div>
-                      <div className="text-xs md:text-sm text-gray-600">{subject.count} 人参与</div>
+                      <div className="font-medium text-gray-900 text-sm md:text-base">
+                        {subject.subject}
+                      </div>
+                      <div className="text-xs md:text-sm text-gray-600">
+                        {subject.count} 人参与
+                      </div>
                     </div>
                   </div>
-                  
+
                   <div className="text-left sm:text-right">
                     <div className="font-semibold text-gray-900 text-sm md:text-base">
                       平均 {subject.average.toFixed(1)}分

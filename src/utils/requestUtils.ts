@@ -76,9 +76,11 @@ export const fetchWithRetry = async <T>(
     } catch (error) {
       lastError = error;
       console.log(`请求失败，${i + 1}/${maxRetries}次重试`, error);
-      
+
       // 指数退避延迟
-      await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
+      await new Promise((resolve) =>
+        setTimeout(resolve, delay * Math.pow(2, i))
+      );
     }
   }
   throw lastError;
@@ -103,7 +105,7 @@ export const queuedFetchWithRetry = async <T>(
     maxRetries = 3,
     retryDelay = 1000,
     showErrorToast = true,
-    errorMessage = "请求失败，请稍后重试"
+    errorMessage = "请求失败，请稍后重试",
   } = options;
 
   return globalRequestQueue.enqueue(async () => {
@@ -113,7 +115,7 @@ export const queuedFetchWithRetry = async <T>(
       console.error("请求最终失败:", error);
       if (showErrorToast) {
         toast.error(errorMessage, {
-          description: error instanceof Error ? error.message : "未知错误"
+          description: error instanceof Error ? error.message : "未知错误",
         });
       }
       throw error;
@@ -127,14 +129,18 @@ export const queuedFetchWithRetry = async <T>(
  * @param data 要缓存的数据
  * @param ttlMs 缓存有效期(毫秒)
  */
-export const setCacheData = <T>(key: string, data: T, ttlMs = 3600000): void => {
+export const setCacheData = <T>(
+  key: string,
+  data: T,
+  ttlMs = 3600000
+): void => {
   try {
     localStorage.setItem(
       key,
       JSON.stringify({
         data,
         timestamp: Date.now(),
-        expiry: Date.now() + ttlMs
+        expiry: Date.now() + ttlMs,
       })
     );
   } catch (e) {
@@ -160,4 +166,4 @@ export const getCachedData = <T>(key: string): T | null => {
     console.warn("读取缓存失败", e);
   }
   return null;
-}; 
+};

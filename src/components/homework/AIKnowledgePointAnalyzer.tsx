@@ -4,13 +4,30 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Check, Loader2, Cpu, Code, AlertCircle, ChevronDown } from "lucide-react";
+import {
+  Sparkles,
+  Check,
+  Loader2,
+  Cpu,
+  Code,
+  AlertCircle,
+  ChevronDown,
+} from "lucide-react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "@/components/ui/collapsible";
 import { KnowledgePoint as HomeworkKnowledgePoint } from "@/types/homework";
-import { GenericAIClient } from "@/services/aiService"; 
+import { GenericAIClient } from "@/services/aiService";
 
 // 为组件导出KnowledgePoint接口
 export interface KnowledgePoint {
@@ -30,9 +47,9 @@ interface AIKnowledgePointAnalyzerProps {
   onSaveKnowledgePoints?: (points: KnowledgePoint[]) => void;
   onClose?: () => void;
   onExtractKnowledgePoints?: (
-    points: KnowledgePoint[], 
-    summary: string, 
-    providerInfo: {provider: string, model: string}
+    points: KnowledgePoint[],
+    summary: string,
+    providerInfo: { provider: string; model: string }
   ) => void;
   subject?: string;
   grade?: string;
@@ -56,7 +73,7 @@ export function AIKnowledgePointAnalyzer({
   onClose,
   onExtractKnowledgePoints,
   subject: initialSubject = "",
-  grade: initialGrade = ""
+  grade: initialGrade = "",
 }: AIKnowledgePointAnalyzerProps) {
   // 状态管理
   const [submissionContent, setSubmissionContent] = useState(initialContent);
@@ -66,55 +83,61 @@ export function AIKnowledgePointAnalyzer({
   const [aiResponse, setAiResponse] = useState("");
   const [analysisSuccess, setAnalysisSuccess] = useState(false);
   const [analysisFailed, setAnalysisFailed] = useState(false);
-  const [extractedKnowledgePoints, setExtractedKnowledgePoints] = useState<KnowledgePoint[]>([]);
+  const [extractedKnowledgePoints, setExtractedKnowledgePoints] = useState<
+    KnowledgePoint[]
+  >([]);
   const [overallSummary, setOverallSummary] = useState("");
-  
+
   // 添加知识点确认状态
   const [confirmingPoints, setConfirmingPoints] = useState(false);
-  const [confirmedPoints, setConfirmedPoints] = useState<{[key: string]: boolean}>({});
+  const [confirmedPoints, setConfirmedPoints] = useState<{
+    [key: string]: boolean;
+  }>({});
   const [allConfirmed, setAllConfirmed] = useState(false);
 
   // 使用AI分析知识点
   const analyzeWithAI = async () => {
     setIsAnalyzing(true);
     setAnalysisFailed(false);
-    setAiResponse('');
-    
+    setAiResponse("");
+
     try {
       // 确保有内容进行分析
-      if (!submissionContent || submissionContent.trim() === '') {
-        toast.error('没有可用内容进行分析');
+      if (!submissionContent || submissionContent.trim() === "") {
+        toast.error("没有可用内容进行分析");
         setIsAnalyzing(false);
         return;
       }
 
       // 获取当前设置的AI提供商和模型
-      const savedProvider = localStorage.getItem('selectedProvider') || 'openai';
+      const savedProvider =
+        localStorage.getItem("selectedProvider") || "openai";
       const savedApiKey = localStorage.getItem(`${savedProvider}_api_key`);
-      
+
       if (!savedApiKey) {
-        toast.error('未设置API密钥，请先在AI设置中配置');
+        toast.error("未设置API密钥，请先在AI设置中配置");
         setIsAnalyzing(false);
         return;
       }
-      
+
       // 获取选中的模型ID
-      let modelId = localStorage.getItem(`${savedProvider}_selected_model`) || '';
-      
+      let modelId =
+        localStorage.getItem(`${savedProvider}_selected_model`) || "";
+
       if (!modelId) {
-        toast.error('未选择AI模型，请先在AI设置中选择模型');
+        toast.error("未选择AI模型，请先在AI设置中选择模型");
         setIsAnalyzing(false);
         return;
       }
-      
+
       console.log(`使用AI提供商: ${savedProvider}, 模型: ${modelId}`);
-      
+
       // 提示词模板
       const prompt = `
 你的任务是分析以下教育内容中的知识点。
 内容类型: 学生作业/作业题目
-学科: ${subject || '未知'}
-年级: ${grade || '未知'}
+学科: ${subject || "未知"}
+年级: ${grade || "未知"}
 
 请从以下内容中识别出主要知识点:
 ---
@@ -143,8 +166,11 @@ ${submissionContent}
 
       // 构建消息
       const messages = [
-        { role: 'system', content: '你是一位教育专家，擅长分析教育内容中的知识点。' },
-        { role: 'user', content: prompt }
+        {
+          role: "system",
+          content: "你是一位教育专家，擅长分析教育内容中的知识点。",
+        },
+        { role: "user", content: prompt },
       ];
 
       // 使用通用AI客户端
@@ -152,62 +178,65 @@ ${submissionContent}
         providerId: savedProvider,
         apiKey: savedApiKey,
         modelId: modelId,
-        baseUrl: ''  // baseUrl会在GenericAIClient内部根据providerId确定
+        baseUrl: "", // baseUrl会在GenericAIClient内部根据providerId确定
       });
-      
+
       const response = await client.sendRequest(messages, {
         temperature: 0.2,
         maxTokens: 2000,
       });
-      
+
       // 处理AI响应
-      const aiResponseContent = response.choices[0]?.message?.content || '';
-      
+      const aiResponseContent = response.choices[0]?.message?.content || "";
+
       if (!aiResponseContent) {
-        throw new Error('AI返回内容为空');
+        throw new Error("AI返回内容为空");
       }
-      
-      console.log('AI返回内容:', aiResponseContent);
+
+      console.log("AI返回内容:", aiResponseContent);
       setAiResponse(aiResponseContent);
-      
+
       // 尝试解析JSON
       try {
         const jsonMatch = aiResponseContent.match(/\{[\s\S]*\}/);
         let parsedJson;
-        
+
         if (jsonMatch) {
           parsedJson = JSON.parse(jsonMatch[0]);
         } else {
-          throw new Error('无法找到JSON格式的响应');
+          throw new Error("无法找到JSON格式的响应");
         }
-        
+
         // 确保格式正确
         if (parsedJson && parsedJson.knowledgePoints) {
           // 提取知识点数据
-          const extractedPoints = parsedJson.knowledgePoints.map((kp: any, index: number) => ({
-            id: `kp-${Date.now()}-${index}`,
-            name: kp.name,
-            description: kp.description || '',
-            masteryLevel: kp.mastery || null,
-            subject: subject || '',
-            createdAt: new Date().toISOString(),
-          }));
-          
+          const extractedPoints = parsedJson.knowledgePoints.map(
+            (kp: any, index: number) => ({
+              id: `kp-${Date.now()}-${index}`,
+              name: kp.name,
+              description: kp.description || "",
+              masteryLevel: kp.mastery || null,
+              subject: subject || "",
+              createdAt: new Date().toISOString(),
+            })
+          );
+
           setExtractedKnowledgePoints(extractedPoints);
-          setOverallSummary(parsedJson.summary || '');
+          setOverallSummary(parsedJson.summary || "");
           setAnalysisSuccess(true);
         } else {
-          throw new Error('返回的JSON缺少knowledgePoints字段');
+          throw new Error("返回的JSON缺少knowledgePoints字段");
         }
       } catch (parseError) {
-        console.error('解析AI返回的JSON失败:', parseError);
-        throw new Error('无法解析AI返回的JSON数据');
+        console.error("解析AI返回的JSON失败:", parseError);
+        throw new Error("无法解析AI返回的JSON数据");
       }
-      
     } catch (error) {
-      console.error('AI分析知识点失败:', error);
+      console.error("AI分析知识点失败:", error);
       setAnalysisFailed(true);
-      toast.error(`AI分析失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      toast.error(
+        `AI分析失败: ${error instanceof Error ? error.message : "未知错误"}`
+      );
     } finally {
       setIsAnalyzing(false);
     }
@@ -221,92 +250,91 @@ ${submissionContent}
 
   // 处理单个知识点确认/取消
   const handleConfirmPoint = (pointId: string, confirmed: boolean) => {
-    setConfirmedPoints(prev => ({
+    setConfirmedPoints((prev) => ({
       ...prev,
-      [pointId]: confirmed
+      [pointId]: confirmed,
     }));
-    
+
     // 检查是否所有知识点都已确认
     const updatedConfirmedPoints = {
       ...confirmedPoints,
-      [pointId]: confirmed
+      [pointId]: confirmed,
     };
-    
+
     const allPointsConfirmed = extractedKnowledgePoints.every(
-      point => updatedConfirmedPoints[point.id] !== false
+      (point) => updatedConfirmedPoints[point.id] !== false
     );
-    
+
     setAllConfirmed(allPointsConfirmed);
   };
-  
+
   // 一键确认所有知识点
   const confirmAllPoints = () => {
     const allPoints = {};
-    extractedKnowledgePoints.forEach(point => {
+    extractedKnowledgePoints.forEach((point) => {
       allPoints[point.id] = true;
     });
-    
+
     setConfirmedPoints(allPoints);
     setAllConfirmed(true);
   };
-  
+
   // 一键取消所有确认
   const cancelAllConfirmations = () => {
     const allPoints = {};
-    extractedKnowledgePoints.forEach(point => {
+    extractedKnowledgePoints.forEach((point) => {
       allPoints[point.id] = false;
     });
-    
+
     setConfirmedPoints(allPoints);
     setAllConfirmed(false);
   };
-  
+
   // 保存确认后的知识点
   const saveConfirmedPoints = () => {
     // 只保留已确认的知识点
     const pointsToSave = extractedKnowledgePoints.filter(
-      point => confirmedPoints[point.id] !== false
+      (point) => confirmedPoints[point.id] !== false
     );
-    
+
     if (onExtractKnowledgePoints) {
-      const provider = localStorage.getItem('selectedProvider') || 'openai';
-      const modelId = localStorage.getItem(`${provider}_selected_model`) || '';
-      
-      onExtractKnowledgePoints(
-        pointsToSave,
-        overallSummary,
-        { provider, model: modelId }
-      );
+      const provider = localStorage.getItem("selectedProvider") || "openai";
+      const modelId = localStorage.getItem(`${provider}_selected_model`) || "";
+
+      onExtractKnowledgePoints(pointsToSave, overallSummary, {
+        provider,
+        model: modelId,
+      });
     }
-    
+
     toast.success(`已保存 ${pointsToSave.length} 个确认的知识点`);
   };
-  
+
   // 在AI分析完成后，显示确认界面
   const proceedToConfirmation = () => {
     if (extractedKnowledgePoints.length === 0) {
-      toast.error('没有识别到知识点，无法进行确认');
+      toast.error("没有识别到知识点，无法进行确认");
       return;
     }
-    
+
     // 初始化所有知识点为已确认状态
     const initialConfirmations = {};
-    extractedKnowledgePoints.forEach(point => {
+    extractedKnowledgePoints.forEach((point) => {
       initialConfirmations[point.id] = true;
     });
-    
+
     setConfirmedPoints(initialConfirmations);
     setConfirmingPoints(true);
     setAllConfirmed(true);
   };
-  
+
   // 重置确认状态
   const resetConfirmation = () => {
     setConfirmingPoints(false);
     setConfirmedPoints({});
     setAllConfirmed(false);
   };
-  
+
   // 修改handleSubmit方法，调用proceedToConfirmation
   const handleSubmit = () => {
     if (analysisSuccess) {
@@ -337,35 +365,48 @@ ${submissionContent}
                 variant="outline"
                 size="sm"
                 onClick={cancelAllConfirmations}
-                disabled={!allConfirmed && Object.keys(confirmedPoints).length === 0}
+                disabled={
+                  !allConfirmed && Object.keys(confirmedPoints).length === 0
+                }
               >
                 <AlertCircle className="h-4 w-4 mr-1" />
                 全部取消
               </Button>
             </div>
           </div>
-          
+
           <div className="space-y-2 max-h-60 overflow-y-auto p-1">
             {extractedKnowledgePoints.map((point) => (
-              <div 
+              <div
                 key={point.id}
                 className={`p-3 rounded-md border ${
-                  confirmedPoints[point.id] !== false 
-                    ? 'border-green-200 bg-green-50' 
-                    : 'border-gray-200 bg-gray-50'
+                  confirmedPoints[point.id] !== false
+                    ? "border-green-200 bg-green-50"
+                    : "border-gray-200 bg-gray-50"
                 }`}
               >
                 <div className="flex justify-between items-start">
                   <div>
                     <h4 className="font-medium">{point.name}</h4>
                     {point.description && (
-                      <p className="text-sm text-gray-500 mt-1">{point.description}</p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {point.description}
+                      </p>
                     )}
                   </div>
                   <Button
-                    variant={confirmedPoints[point.id] !== false ? "default" : "outline"}
+                    variant={
+                      confirmedPoints[point.id] !== false
+                        ? "default"
+                        : "outline"
+                    }
                     size="sm"
-                    onClick={() => handleConfirmPoint(point.id, confirmedPoints[point.id] === false)}
+                    onClick={() =>
+                      handleConfirmPoint(
+                        point.id,
+                        confirmedPoints[point.id] === false
+                      )
+                    }
                   >
                     {confirmedPoints[point.id] !== false ? (
                       <>
@@ -380,7 +421,7 @@ ${submissionContent}
               </div>
             ))}
           </div>
-          
+
           <Alert className="bg-blue-50 border-blue-200">
             <AlertTitle className="flex items-center">
               <Cpu className="h-4 w-4 mr-2" />
@@ -390,15 +431,19 @@ ${submissionContent}
               {overallSummary || "AI未提供总结信息"}
             </AlertDescription>
           </Alert>
-          
+
           <div className="flex justify-end space-x-2 pt-4">
             <Button variant="outline" onClick={resetConfirmation}>
               返回编辑
             </Button>
-            <Button 
+            <Button
               onClick={saveConfirmedPoints}
-              disabled={extractedKnowledgePoints.length > 0 && 
-                !extractedKnowledgePoints.some(p => confirmedPoints[p.id] !== false)}
+              disabled={
+                extractedKnowledgePoints.length > 0 &&
+                !extractedKnowledgePoints.some(
+                  (p) => confirmedPoints[p.id] !== false
+                )
+              }
             >
               保存确认的知识点
             </Button>
@@ -410,19 +455,27 @@ ${submissionContent}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>学科</Label>
-                <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="如：数学、语文、英语" />
+                <Input
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  placeholder="如：数学、语文、英语"
+                />
               </div>
               <div>
                 <Label>年级</Label>
-                <Input value={grade} onChange={(e) => setGrade(e.target.value)} placeholder="如：一年级、初二、高三" />
+                <Input
+                  value={grade}
+                  onChange={(e) => setGrade(e.target.value)}
+                  placeholder="如：一年级、初二、高三"
+                />
               </div>
             </div>
           </div>
 
           <div className="space-y-2">
             <Label>作业内容</Label>
-            <Textarea 
-              value={submissionContent} 
+            <Textarea
+              value={submissionContent}
               onChange={(e) => setSubmissionContent(e.target.value)}
               rows={8}
               placeholder="输入学生作业内容或作业题目，AI将帮助您分析其中包含的知识点"
@@ -449,12 +502,12 @@ ${submissionContent}
                   </AlertDescription>
                 </Alert>
               )}
-              
+
               {/* 分析成功后显示分析结果 */}
               {analysisSuccess && extractedKnowledgePoints.length > 0 && (
                 <div className="space-y-4">
                   <h3 className="font-medium">分析结果</h3>
-                  
+
                   {/* 知识点列表 */}
                   <div className="space-y-3">
                     {extractedKnowledgePoints.map((point) => (
@@ -463,7 +516,10 @@ ${submissionContent}
                           <CardTitle className="text-base flex items-center justify-between">
                             <span>{point.name}</span>
                             {point.masteryLevel && (
-                              <Badge variant={getBadgeVariant(point.masteryLevel)} className="ml-2">
+                              <Badge
+                                variant={getBadgeVariant(point.masteryLevel)}
+                                className="ml-2"
+                              >
                                 掌握度: {point.masteryLevel}%
                               </Badge>
                             )}
@@ -477,7 +533,7 @@ ${submissionContent}
                       </Card>
                     ))}
                   </div>
-                  
+
                   {/* 整体评估 */}
                   {overallSummary && (
                     <div className="mt-4">
@@ -487,21 +543,28 @@ ${submissionContent}
                       </p>
                     </div>
                   )}
-                  
+
                   {/* AI提供商信息 */}
                   <div className="text-xs text-muted-foreground flex items-center mt-2">
                     <Cpu className="h-3 w-3 mr-1" />
-                    使用 {localStorage.getItem('selectedProvider') || 'AI'} / 
-                    {localStorage.getItem(`${localStorage.getItem('selectedProvider') || 'openai'}_selected_model`) || '默认模型'} 进行分析
+                    使用 {localStorage.getItem("selectedProvider") || "AI"} /
+                    {localStorage.getItem(
+                      `${localStorage.getItem("selectedProvider") || "openai"}_selected_model`
+                    ) || "默认模型"}{" "}
+                    进行分析
                   </div>
                 </div>
               )}
-              
+
               {/* 原始AI响应（调试用） */}
               {aiResponse && (
                 <Collapsible className="mt-4">
                   <CollapsibleTrigger asChild>
-                    <Button variant="ghost" size="sm" className="flex items-center gap-1 text-xs">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="flex items-center gap-1 text-xs"
+                    >
                       <Code className="h-3 w-3" />
                       查看AI原始响应
                       <ChevronDown className="h-3 w-3" />
@@ -509,7 +572,9 @@ ${submissionContent}
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <div className="bg-muted p-2 rounded-md overflow-auto max-h-40">
-                      <pre className="text-xs whitespace-pre-wrap">{aiResponse}</pre>
+                      <pre className="text-xs whitespace-pre-wrap">
+                        {aiResponse}
+                      </pre>
                     </div>
                   </CollapsibleContent>
                 </Collapsible>
@@ -522,7 +587,10 @@ ${submissionContent}
               取消
             </Button>
             {!analysisSuccess ? (
-              <Button onClick={startAnalysis} disabled={isAnalyzing || !submissionContent}>
+              <Button
+                onClick={startAnalysis}
+                disabled={isAnalyzing || !submissionContent}
+              >
                 {isAnalyzing ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -546,4 +614,4 @@ ${submissionContent}
       )}
     </div>
   );
-} 
+}

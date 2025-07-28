@@ -3,13 +3,13 @@
  * 展示所有移动端优化组件的功能和效果
  */
 
-import React, { useState } from 'react';
-import { cn } from '@/lib/utils';
-import { useViewport } from '@/hooks/use-viewport';
-import { useTouch, TouchEventData } from '@/hooks/use-touch';
-import { 
-  MobileButton, 
-  MobilePrimaryButton, 
+import React, { useState } from "react";
+import { cn } from "@/lib/utils";
+import { useViewport } from "@/hooks/use-viewport";
+import { useTouch, TouchEventData } from "@/hooks/use-touch";
+import {
+  MobileButton,
+  MobilePrimaryButton,
   MobileSecondaryButton,
   MobileFloatingActionButton,
   MobileIconButton,
@@ -18,11 +18,11 @@ import {
   GradeDataCard,
   MobileCardList,
   ResponsiveDataTable,
-  TableColumn
-} from './index';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+  TableColumn,
+} from "./index";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Heart,
   Star,
@@ -38,108 +38,113 @@ import {
   Monitor,
   Wifi,
   Battery,
-  Signal
-} from 'lucide-react';
+  Signal,
+} from "lucide-react";
 
 // 模拟成绩数据
 const mockGradeData = [
   {
-    id: '1',
-    name: '张三',
-    student_id: 'S001',
-    class_name: '高三(1)班',
-    subject: '数学',
+    id: "1",
+    name: "张三",
+    student_id: "S001",
+    class_name: "高三(1)班",
+    subject: "数学",
     score: 95,
-    exam_name: '期中考试',
-    exam_date: '2024-01-15'
+    exam_name: "期中考试",
+    exam_date: "2024-01-15",
   },
   {
-    id: '2',
-    name: '李四',
-    student_id: 'S002',
-    class_name: '高三(1)班',
-    subject: '数学',
+    id: "2",
+    name: "李四",
+    student_id: "S002",
+    class_name: "高三(1)班",
+    subject: "数学",
     score: 87,
-    exam_name: '期中考试',
-    exam_date: '2024-01-15'
+    exam_name: "期中考试",
+    exam_date: "2024-01-15",
   },
   {
-    id: '3',
-    name: '王五',
-    student_id: 'S003',
-    class_name: '高三(2)班',
-    subject: '数学',
+    id: "3",
+    name: "王五",
+    student_id: "S003",
+    class_name: "高三(2)班",
+    subject: "数学",
     score: 76,
-    exam_name: '期中考试',
-    exam_date: '2024-01-15'
+    exam_name: "期中考试",
+    exam_date: "2024-01-15",
   },
   {
-    id: '4',
-    name: '赵六',
-    student_id: 'S004',
-    class_name: '高三(2)班',
-    subject: '数学',
+    id: "4",
+    name: "赵六",
+    student_id: "S004",
+    class_name: "高三(2)班",
+    subject: "数学",
     score: 92,
-    exam_name: '期中考试',
-    exam_date: '2024-01-15'
+    exam_name: "期中考试",
+    exam_date: "2024-01-15",
   },
   {
-    id: '5',
-    name: '钱七',
-    student_id: 'S005',
-    class_name: '高三(1)班',
-    subject: '数学',
+    id: "5",
+    name: "钱七",
+    student_id: "S005",
+    class_name: "高三(1)班",
+    subject: "数学",
     score: 68,
-    exam_name: '期中考试',
-    exam_date: '2024-01-15'
-  }
+    exam_name: "期中考试",
+    exam_date: "2024-01-15",
+  },
 ];
 
 // 表格列定义
 const tableColumns: TableColumn[] = [
   {
-    key: 'name',
-    label: '姓名',
-    priority: 'high',
-    sortable: true
+    key: "name",
+    label: "姓名",
+    priority: "high",
+    sortable: true,
   },
   {
-    key: 'student_id',
-    label: '学号',
-    priority: 'medium',
-    mobileHidden: true
+    key: "student_id",
+    label: "学号",
+    priority: "medium",
+    mobileHidden: true,
   },
   {
-    key: 'class_name',
-    label: '班级',
-    priority: 'medium'
+    key: "class_name",
+    label: "班级",
+    priority: "medium",
   },
   {
-    key: 'subject',
-    label: '科目',
-    priority: 'high'
+    key: "subject",
+    label: "科目",
+    priority: "high",
   },
   {
-    key: 'score',
-    label: '分数',
-    priority: 'high',
+    key: "score",
+    label: "分数",
+    priority: "high",
     sortable: true,
     render: (value: number) => (
-      <Badge variant={value >= 90 ? 'default' : value >= 80 ? 'secondary' : 'destructive'}>
+      <Badge
+        variant={
+          value >= 90 ? "default" : value >= 80 ? "secondary" : "destructive"
+        }
+      >
         {value}分
       </Badge>
-    )
+    ),
   },
   {
-    key: 'exam_date',
-    label: '考试日期',
-    priority: 'low',
-    mobileHidden: true
-  }
+    key: "exam_date",
+    label: "考试日期",
+    priority: "low",
+    mobileHidden: true,
+  },
 ];
 
 export const MobileDemo: React.FC = () => {
-  const { isMobile, isTablet, width, height, orientation, deviceType } = useViewport();
+  const { isMobile, isTablet, width, height, orientation, deviceType } =
+    useViewport();
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [gestureLog, setGestureLog] = useState<TouchEventData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -148,10 +153,10 @@ export const MobileDemo: React.FC = () => {
   const { touchHandlers, currentGesture } = useTouch(
     {
       longPressDelay: 600,
-      swipeThreshold: 80
+      swipeThreshold: 80,
     },
     (gestureData) => {
-      setGestureLog(prev => [...prev.slice(-4), gestureData]);
+      setGestureLog((prev) => [...prev.slice(-4), gestureData]);
     }
   );
 
@@ -166,9 +171,9 @@ export const MobileDemo: React.FC = () => {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
-          {deviceType === 'mobile' && <Smartphone className="w-5 h-5" />}
-          {deviceType === 'tablet' && <Tablet className="w-5 h-5" />}
-          {deviceType === 'desktop' && <Monitor className="w-5 h-5" />}
+          {deviceType === "mobile" && <Smartphone className="w-5 h-5" />}
+          {deviceType === "tablet" && <Tablet className="w-5 h-5" />}
+          {deviceType === "desktop" && <Monitor className="w-5 h-5" />}
           <span>设备信息</span>
         </CardTitle>
       </CardHeader>
@@ -184,14 +189,16 @@ export const MobileDemo: React.FC = () => {
           </div>
           <div>
             <span className="text-gray-600">屏幕尺寸:</span>
-            <div className="font-medium">{width} × {height}</div>
+            <div className="font-medium">
+              {width} × {height}
+            </div>
           </div>
           <div>
             <span className="text-gray-600">是否移动端:</span>
-            <div className="font-medium">{isMobile ? '是' : '否'}</div>
+            <div className="font-medium">{isMobile ? "是" : "否"}</div>
           </div>
         </div>
-        
+
         <div className="flex items-center space-x-4 text-xs text-gray-500">
           <div className="flex items-center space-x-1">
             <Wifi className="w-4 h-4" />
@@ -221,9 +228,7 @@ export const MobileDemo: React.FC = () => {
           className="h-32 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg border-2 border-dashed border-blue-300 flex flex-col items-center justify-center text-center p-4"
           {...touchHandlers}
         >
-          <div className="text-sm text-gray-600 mb-2">
-            在此区域尝试各种手势
-          </div>
+          <div className="text-sm text-gray-600 mb-2">在此区域尝试各种手势</div>
           {currentGesture && (
             <Badge variant="default" className="mb-2">
               {currentGesture}
@@ -233,7 +238,7 @@ export const MobileDemo: React.FC = () => {
             点击、长按、滑动、双指缩放
           </div>
         </div>
-        
+
         {gestureLog.length > 0 && (
           <div className="mt-4">
             <div className="text-sm font-medium mb-2">手势记录:</div>
@@ -322,10 +327,7 @@ export const MobileDemo: React.FC = () => {
             >
               加载演示
             </MobileButton>
-            <MobileButton
-              badge="99+"
-              variant="outline"
-            >
+            <MobileButton badge="99+" variant="outline">
               通知
             </MobileButton>
           </div>
@@ -335,7 +337,7 @@ export const MobileDemo: React.FC = () => {
         <div className="relative h-16">
           <MobileFloatingActionButton
             className="absolute bottom-0 right-0"
-            onClick={() => console.log('FAB clicked')}
+            onClick={() => console.log("FAB clicked")}
           >
             <Plus className="w-6 h-6" />
           </MobileFloatingActionButton>
@@ -358,16 +360,16 @@ export const MobileDemo: React.FC = () => {
               gradeData={grade}
               selected={selectedCards.includes(grade.id)}
               onSelect={(selected) => {
-                setSelectedCards(prev => 
-                  selected 
+                setSelectedCards((prev) =>
+                  selected
                     ? [...prev, grade.id]
-                    : prev.filter(id => id !== grade.id)
+                    : prev.filter((id) => id !== grade.id)
                 );
               }}
             />
           ))}
         </MobileCardList>
-        
+
         {selectedCards.length > 0 && (
           <div className="mt-4 p-3 bg-blue-50 rounded-lg">
             <div className="text-sm font-medium text-blue-800">
@@ -402,41 +404,41 @@ export const MobileDemo: React.FC = () => {
             pageSize: 10,
             total: mockGradeData.length,
             onChange: (page, pageSize) => {
-              console.log('Page changed:', page, pageSize);
-            }
+              console.log("Page changed:", page, pageSize);
+            },
           }}
           filters={[
             {
-              key: 'class_name',
-              label: '班级',
-              type: 'select',
+              key: "class_name",
+              label: "班级",
+              type: "select",
               options: [
-                { label: '高三(1)班', value: '高三(1)班' },
-                { label: '高三(2)班', value: '高三(2)班' }
-              ]
+                { label: "高三(1)班", value: "高三(1)班" },
+                { label: "高三(2)班", value: "高三(2)班" },
+              ],
             },
             {
-              key: 'subject',
-              label: '科目',
-              type: 'select',
+              key: "subject",
+              label: "科目",
+              type: "select",
               options: [
-                { label: '数学', value: '数学' },
-                { label: '语文', value: '语文' },
-                { label: '英语', value: '英语' }
-              ]
-            }
+                { label: "数学", value: "数学" },
+                { label: "语文", value: "语文" },
+                { label: "英语", value: "英语" },
+              ],
+            },
           ]}
           selectable
           mobileViewToggle
           onRowClick={(row) => {
-            console.log('Row clicked:', row);
+            console.log("Row clicked:", row);
           }}
           actions={[
             {
-              label: '查看详情',
+              label: "查看详情",
               icon: <MoreVertical className="w-4 h-4" />,
-              onClick: (row) => console.log('View details:', row)
-            }
+              onClick: (row) => console.log("View details:", row),
+            },
           ]}
         />
       </CardContent>
@@ -450,16 +452,16 @@ export const MobileDemo: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
             移动端组件演示
           </h1>
-          <p className="text-gray-600">
-            展示针对移动端优化的UI组件和交互效果
-          </p>
+          <p className="text-gray-600">展示针对移动端优化的UI组件和交互效果</p>
         </div>
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className={cn(
-            "grid w-full",
-            isMobile ? "grid-cols-2" : "grid-cols-4"
-          )}>
+          <TabsList
+            className={cn(
+              "grid w-full",
+              isMobile ? "grid-cols-2" : "grid-cols-4"
+            )}
+          >
             <TabsTrigger value="overview">概览</TabsTrigger>
             <TabsTrigger value="buttons">按钮</TabsTrigger>
             <TabsTrigger value="cards">卡片</TabsTrigger>

@@ -18,21 +18,23 @@ const KnowledgePointAnalysis: React.FC<KnowledgePointAnalysisProps> = ({
   homeworkId,
   submissions = [],
   knowledgePoints = [],
-  onKnowledgePointsUpdated
+  onKnowledgePointsUpdated,
 }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAnalyzer, setShowAnalyzer] = useState(false);
-  const [localKnowledgePoints, setLocalKnowledgePoints] = useState<KnowledgePoint[]>([]);
-  
+  const [localKnowledgePoints, setLocalKnowledgePoints] = useState<
+    KnowledgePoint[]
+  >([]);
+
   useEffect(() => {
     const loadKnowledgePoints = async () => {
       try {
         setIsLoading(true);
         setError(null);
-        
+
         // Fetch knowledge points for this homework
-        const points = await getAllKnowledgePoints();  // Fixed: removed the parameter
+        const points = await getAllKnowledgePoints(); // Fixed: removed the parameter
         setLocalKnowledgePoints(points);
         onKnowledgePointsUpdated(points);
       } catch (err) {
@@ -42,28 +44,28 @@ const KnowledgePointAnalysis: React.FC<KnowledgePointAnalysisProps> = ({
         setIsLoading(false);
       }
     };
-    
+
     loadKnowledgePoints();
   }, [homeworkId, onKnowledgePointsUpdated]);
-  
+
   useEffect(() => {
     // Update local state when props change
     if (knowledgePoints && knowledgePoints.length > 0) {
       setLocalKnowledgePoints(knowledgePoints);
     }
   }, [knowledgePoints]);
-  
+
   const handleSaveKnowledgePoints = (points: KnowledgePoint[]) => {
     setLocalKnowledgePoints(points);
     onKnowledgePointsUpdated(points);
   };
-  
+
   if (isLoading) {
     return (
       <Card className="w-full">
         <CardHeader>
           <CardTitle className="flex items-center">
-            <BarChart className="mr-2 h-5 w-5" /> 
+            <BarChart className="mr-2 h-5 w-5" />
             知识点分析
           </CardTitle>
         </CardHeader>
@@ -73,13 +75,13 @@ const KnowledgePointAnalysis: React.FC<KnowledgePointAnalysisProps> = ({
       </Card>
     );
   }
-  
+
   if (error) {
     return (
       <Card className="w-full">
         <CardHeader>
           <CardTitle className="flex items-center">
-            <BarChart className="mr-2 h-5 w-5" /> 
+            <BarChart className="mr-2 h-5 w-5" />
             知识点分析
           </CardTitle>
         </CardHeader>
@@ -93,17 +95,17 @@ const KnowledgePointAnalysis: React.FC<KnowledgePointAnalysisProps> = ({
       </Card>
     );
   }
-  
+
   return (
     <Card className="w-full">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="flex items-center">
-          <BarChart className="mr-2 h-5 w-5" /> 
+          <BarChart className="mr-2 h-5 w-5" />
           知识点分析
         </CardTitle>
-        <Button 
-          variant="outline" 
-          size="sm" 
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => setShowAnalyzer(true)}
         >
           <Plus className="mr-2 h-4 w-4" />
@@ -120,7 +122,9 @@ const KnowledgePointAnalysis: React.FC<KnowledgePointAnalysisProps> = ({
                   <div>
                     <h4 className="font-medium">{point.name}</h4>
                     {point.description && (
-                      <p className="text-sm text-gray-600 mt-1">{point.description}</p>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {point.description}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -141,7 +145,7 @@ const KnowledgePointAnalysis: React.FC<KnowledgePointAnalysisProps> = ({
             </Button>
           </div>
         )}
-        
+
         {submissions.length > 0 && (
           <div className="mt-6">
             <h3 className="text-lg font-medium mb-3">提交情况分析</h3>
@@ -150,7 +154,7 @@ const KnowledgePointAnalysis: React.FC<KnowledgePointAnalysisProps> = ({
             </div>
           </div>
         )}
-        
+
         {showAnalyzer && (
           <AIKnowledgePointAnalyzer
             homeworkId={homeworkId}

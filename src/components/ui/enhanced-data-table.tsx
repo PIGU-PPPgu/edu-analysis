@@ -1,9 +1,15 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { FixedSizeList as List } from 'react-window';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
+import React, {
+  useState,
+  useMemo,
+  useCallback,
+  useRef,
+  useEffect,
+} from "react";
+import { FixedSizeList as List } from "react-window";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,14 +17,14 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
   DropdownMenuLabel,
-} from '@/components/ui/dropdown-menu';
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 import {
   ArrowUpDown,
   ArrowUp,
@@ -33,16 +39,16 @@ import {
   ChevronDown,
   X,
   RefreshCw,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // Positivus设计标准颜色
 const POSITIVUS_COLORS = {
-  primary: '#B9FF66',
-  secondary: '#191A23',
-  accent: '#F7931E',
-  danger: '#FF6B6B',
-  white: '#FFFFFF',
+  primary: "#B9FF66",
+  secondary: "#191A23",
+  accent: "#F7931E",
+  danger: "#FF6B6B",
+  white: "#FFFFFF",
 };
 
 interface Column<T> {
@@ -73,7 +79,7 @@ interface EnhancedDataTableProps<T> {
   emptyState?: React.ReactNode;
 }
 
-type SortDirection = 'asc' | 'desc' | null;
+type SortDirection = "asc" | "desc" | null;
 
 interface SortState {
   column: string | null;
@@ -96,10 +102,17 @@ export function EnhancedDataTable<T extends { id: string | number }>({
   loading = false,
   emptyState,
 }: EnhancedDataTableProps<T>) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortState, setSortState] = useState<SortState>({ column: null, direction: null });
-  const [selectedItems, setSelectedItems] = useState<Set<string | number>>(new Set());
-  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortState, setSortState] = useState<SortState>({
+    column: null,
+    direction: null,
+  });
+  const [selectedItems, setSelectedItems] = useState<Set<string | number>>(
+    new Set()
+  );
+  const [columnFilters, setColumnFilters] = useState<Record<string, string>>(
+    {}
+  );
   const [currentPage, setCurrentPage] = useState(1);
   const listRef = useRef<any>(null);
 
@@ -109,10 +122,12 @@ export function EnhancedDataTable<T extends { id: string | number }>({
 
     // 全局搜索
     if (searchQuery) {
-      filtered = filtered.filter(item =>
-        columns.some(column => {
+      filtered = filtered.filter((item) =>
+        columns.some((column) => {
           const value = item[column.accessorKey];
-          return String(value).toLowerCase().includes(searchQuery.toLowerCase());
+          return String(value)
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase());
         })
       );
     }
@@ -120,11 +135,13 @@ export function EnhancedDataTable<T extends { id: string | number }>({
     // 列筛选
     Object.entries(columnFilters).forEach(([columnId, filterValue]) => {
       if (filterValue) {
-        const column = columns.find(col => col.id === columnId);
+        const column = columns.find((col) => col.id === columnId);
         if (column) {
-          filtered = filtered.filter(item => {
+          filtered = filtered.filter((item) => {
             const value = item[column.accessorKey];
-            return String(value).toLowerCase().includes(filterValue.toLowerCase());
+            return String(value)
+              .toLowerCase()
+              .includes(filterValue.toLowerCase());
           });
         }
       }
@@ -137,7 +154,7 @@ export function EnhancedDataTable<T extends { id: string | number }>({
   const sortedData = useMemo(() => {
     if (!sortState.column || !sortState.direction) return filteredData;
 
-    const column = columns.find(col => col.id === sortState.column);
+    const column = columns.find((col) => col.id === sortState.column);
     if (!column) return filteredData;
 
     return [...filteredData].sort((a, b) => {
@@ -147,17 +164,19 @@ export function EnhancedDataTable<T extends { id: string | number }>({
       if (aValue === null || aValue === undefined) return 1;
       if (bValue === null || bValue === undefined) return -1;
 
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return sortState.direction === 'asc'
+      if (typeof aValue === "string" && typeof bValue === "string") {
+        return sortState.direction === "asc"
           ? aValue.localeCompare(bValue)
           : bValue.localeCompare(aValue);
       }
 
-      if (typeof aValue === 'number' && typeof bValue === 'number') {
-        return sortState.direction === 'asc' ? aValue - bValue : bValue - aValue;
+      if (typeof aValue === "number" && typeof bValue === "number") {
+        return sortState.direction === "asc"
+          ? aValue - bValue
+          : bValue - aValue;
       }
 
-      return sortState.direction === 'asc'
+      return sortState.direction === "asc"
         ? String(aValue).localeCompare(String(bValue))
         : String(bValue).localeCompare(String(aValue));
     });
@@ -174,44 +193,53 @@ export function EnhancedDataTable<T extends { id: string | number }>({
 
   // 排序处理
   const handleSort = useCallback((columnId: string) => {
-    setSortState(prev => {
+    setSortState((prev) => {
       if (prev.column !== columnId) {
-        return { column: columnId, direction: 'asc' };
+        return { column: columnId, direction: "asc" };
       }
-      if (prev.direction === 'asc') {
-        return { column: columnId, direction: 'desc' };
+      if (prev.direction === "asc") {
+        return { column: columnId, direction: "desc" };
       }
       return { column: null, direction: null };
     });
   }, []);
 
   // 选择处理
-  const handleSelectAll = useCallback((checked: boolean) => {
-    if (checked) {
-      setSelectedItems(new Set(paginatedData.map(item => item.id)));
-    } else {
-      setSelectedItems(new Set());
-    }
-  }, [paginatedData]);
-
-  const handleSelectItem = useCallback((itemId: string | number, checked: boolean) => {
-    setSelectedItems(prev => {
-      const newSet = new Set(prev);
+  const handleSelectAll = useCallback(
+    (checked: boolean) => {
       if (checked) {
-        newSet.add(itemId);
+        setSelectedItems(new Set(paginatedData.map((item) => item.id)));
       } else {
-        newSet.delete(itemId);
+        setSelectedItems(new Set());
       }
-      return newSet;
-    });
-  }, []);
+    },
+    [paginatedData]
+  );
+
+  const handleSelectItem = useCallback(
+    (itemId: string | number, checked: boolean) => {
+      setSelectedItems((prev) => {
+        const newSet = new Set(prev);
+        if (checked) {
+          newSet.add(itemId);
+        } else {
+          newSet.delete(itemId);
+        }
+        return newSet;
+      });
+    },
+    []
+  );
 
   // 批量操作
-  const handleBatchAction = useCallback((action: string) => {
-    const selectedData = data.filter(item => selectedItems.has(item.id));
-    onBatchAction?.(action, selectedData);
-    setSelectedItems(new Set());
-  }, [data, selectedItems, onBatchAction]);
+  const handleBatchAction = useCallback(
+    (action: string) => {
+      const selectedData = data.filter((item) => selectedItems.has(item.id));
+      onBatchAction?.(action, selectedData);
+      setSelectedItems(new Set());
+    },
+    [data, selectedItems, onBatchAction]
+  );
 
   // 导出数据
   const handleExport = useCallback(() => {
@@ -220,23 +248,34 @@ export function EnhancedDataTable<T extends { id: string | number }>({
 
   // 清除筛选
   const clearFilters = useCallback(() => {
-    setSearchQuery('');
+    setSearchQuery("");
     setColumnFilters({});
     setSortState({ column: null, direction: null });
   }, []);
 
   // 虚拟滚动行渲染
-  const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => {
+  const Row = ({
+    index,
+    style,
+  }: {
+    index: number;
+    style: React.CSSProperties;
+  }) => {
     const item = sortedData[index];
     const isSelected = selectedItems.has(item.id);
 
     return (
-      <div style={style} className="flex items-center border-b border-gray-200 hover:bg-gray-50">
+      <div
+        style={style}
+        className="flex items-center border-b border-gray-200 hover:bg-gray-50"
+      >
         {batchActions && (
           <div className="w-12 flex items-center justify-center">
             <Checkbox
               checked={isSelected}
-              onCheckedChange={(checked) => handleSelectItem(item.id, checked as boolean)}
+              onCheckedChange={(checked) =>
+                handleSelectItem(item.id, checked as boolean)
+              }
             />
           </div>
         )}
@@ -244,9 +283,9 @@ export function EnhancedDataTable<T extends { id: string | number }>({
           <div
             key={column.id}
             className={cn(
-              'px-4 py-3 text-sm',
+              "px-4 py-3 text-sm",
               column.className,
-              !column.width && 'flex-1'
+              !column.width && "flex-1"
             )}
             style={{ width: column.width }}
           >
@@ -270,7 +309,7 @@ export function EnhancedDataTable<T extends { id: string | number }>({
   }
 
   return (
-    <div className={cn('space-y-4', className)}>
+    <div className={cn("space-y-4", className)}>
       {/* 工具栏 */}
       <div className="flex flex-col sm:flex-row gap-4 p-4 bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_#B9FF66]">
         {/* 搜索和筛选 */}
@@ -300,28 +339,32 @@ export function EnhancedDataTable<T extends { id: string | number }>({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-64 border-2 border-black rounded-lg bg-white shadow-[4px_4px_0px_0px_#191A23]">
-                <DropdownMenuLabel className="font-bold text-[#191A23]">列筛选</DropdownMenuLabel>
+                <DropdownMenuLabel className="font-bold text-[#191A23]">
+                  列筛选
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {columns.filter(col => col.filterable).map((column) => (
-                  <div key={column.id} className="p-2">
-                    <label className="text-sm font-medium text-[#191A23] mb-1 block">
-                      {column.header}
-                    </label>
-                    <Input
-                      placeholder={`筛选${column.header}...`}
-                      value={columnFilters[column.id] || ''}
-                      onChange={(e) => 
-                        setColumnFilters(prev => ({
-                          ...prev,
-                          [column.id]: e.target.value
-                        }))
-                      }
-                      className="border border-gray-300 rounded text-sm"
-                    />
-                  </div>
-                ))}
+                {columns
+                  .filter((col) => col.filterable)
+                  .map((column) => (
+                    <div key={column.id} className="p-2">
+                      <label className="text-sm font-medium text-[#191A23] mb-1 block">
+                        {column.header}
+                      </label>
+                      <Input
+                        placeholder={`筛选${column.header}...`}
+                        value={columnFilters[column.id] || ""}
+                        onChange={(e) =>
+                          setColumnFilters((prev) => ({
+                            ...prev,
+                            [column.id]: e.target.value,
+                          }))
+                        }
+                        className="border border-gray-300 rounded text-sm"
+                      />
+                    </div>
+                  ))}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   onClick={clearFilters}
                   className="text-red-600 font-medium"
                 >
@@ -348,15 +391,15 @@ export function EnhancedDataTable<T extends { id: string | number }>({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="border-2 border-black rounded-lg bg-white shadow-[4px_4px_0px_0px_#191A23]">
-                <DropdownMenuItem onClick={() => handleBatchAction('edit')}>
+                <DropdownMenuItem onClick={() => handleBatchAction("edit")}>
                   <Edit className="w-4 h-4 mr-2" />
                   批量编辑
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleBatchAction('delete')}>
+                <DropdownMenuItem onClick={() => handleBatchAction("delete")}>
                   <Trash2 className="w-4 h-4 mr-2" />
                   批量删除
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleBatchAction('export')}>
+                <DropdownMenuItem onClick={() => handleBatchAction("export")}>
                   <Download className="w-4 h-4 mr-2" />
                   导出选中
                 </DropdownMenuItem>
@@ -385,8 +428,14 @@ export function EnhancedDataTable<T extends { id: string | number }>({
             {batchActions && (
               <div className="w-12 flex items-center justify-center p-3">
                 <Checkbox
-                  checked={selectedItems.size === paginatedData.length && paginatedData.length > 0}
-                  indeterminate={selectedItems.size > 0 && selectedItems.size < paginatedData.length}
+                  checked={
+                    selectedItems.size === paginatedData.length &&
+                    paginatedData.length > 0
+                  }
+                  indeterminate={
+                    selectedItems.size > 0 &&
+                    selectedItems.size < paginatedData.length
+                  }
                   onCheckedChange={handleSelectAll}
                 />
               </div>
@@ -395,20 +444,23 @@ export function EnhancedDataTable<T extends { id: string | number }>({
               <div
                 key={column.id}
                 className={cn(
-                  'px-4 py-3 text-sm font-bold text-[#191A23] border-r border-black last:border-r-0',
-                  column.sortable && 'cursor-pointer hover:bg-[#A8E055] transition-colors',
+                  "px-4 py-3 text-sm font-bold text-[#191A23] border-r border-black last:border-r-0",
+                  column.sortable &&
+                    "cursor-pointer hover:bg-[#A8E055] transition-colors",
                   column.className,
-                  !column.width && 'flex-1'
+                  !column.width && "flex-1"
                 )}
                 style={{ width: column.width }}
                 onClick={() => column.sortable && handleSort(column.id)}
               >
                 <div className="flex items-center gap-2">
-                  <span className="uppercase tracking-wide">{column.header}</span>
+                  <span className="uppercase tracking-wide">
+                    {column.header}
+                  </span>
                   {column.sortable && (
                     <div className="flex flex-col">
                       {sortState.column === column.id ? (
-                        sortState.direction === 'asc' ? (
+                        sortState.direction === "asc" ? (
                           <ArrowUp className="w-4 h-4" />
                         ) : (
                           <ArrowDown className="w-4 h-4" />
@@ -454,9 +506,9 @@ export function EnhancedDataTable<T extends { id: string | number }>({
                 <div
                   key={item.id}
                   className={cn(
-                    'flex items-center hover:bg-gray-50 transition-colors',
-                    onRowClick && 'cursor-pointer',
-                    selectedItems.has(item.id) && 'bg-[#B9FF66]/10'
+                    "flex items-center hover:bg-gray-50 transition-colors",
+                    onRowClick && "cursor-pointer",
+                    selectedItems.has(item.id) && "bg-[#B9FF66]/10"
                   )}
                   onClick={() => onRowClick?.(item)}
                 >
@@ -464,7 +516,9 @@ export function EnhancedDataTable<T extends { id: string | number }>({
                     <div className="w-12 flex items-center justify-center">
                       <Checkbox
                         checked={selectedItems.has(item.id)}
-                        onCheckedChange={(checked) => handleSelectItem(item.id, checked as boolean)}
+                        onCheckedChange={(checked) =>
+                          handleSelectItem(item.id, checked as boolean)
+                        }
                         onClick={(e) => e.stopPropagation()}
                       />
                     </div>
@@ -473,13 +527,15 @@ export function EnhancedDataTable<T extends { id: string | number }>({
                     <div
                       key={column.id}
                       className={cn(
-                        'px-4 py-3 text-sm border-r border-gray-200 last:border-r-0',
+                        "px-4 py-3 text-sm border-r border-gray-200 last:border-r-0",
                         column.className,
-                        !column.width && 'flex-1'
+                        !column.width && "flex-1"
                       )}
                       style={{ width: column.width }}
                     >
-                      {column.cell ? column.cell(item) : String(item[column.accessorKey])}
+                      {column.cell
+                        ? column.cell(item)
+                        : String(item[column.accessorKey])}
                     </div>
                   ))}
                 </div>
@@ -492,15 +548,16 @@ export function EnhancedDataTable<T extends { id: string | number }>({
         {!virtualScrolling && totalPages > 1 && (
           <div className="flex items-center justify-between p-4 border-t-2 border-black bg-gray-50">
             <div className="text-sm text-gray-600 font-medium">
-              显示 {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, sortedData.length)} 
-              / 共 {sortedData.length} 条记录
+              显示 {(currentPage - 1) * pageSize + 1} -{" "}
+              {Math.min(currentPage * pageSize, sortedData.length)}/ 共{" "}
+              {sortedData.length} 条记录
             </div>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 disabled={currentPage === 1}
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 className="border-2 border-black rounded font-bold"
               >
                 上一页
@@ -528,7 +585,9 @@ export function EnhancedDataTable<T extends { id: string | number }>({
                 variant="outline"
                 size="sm"
                 disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
                 className="border-2 border-black rounded font-bold"
               >
                 下一页
@@ -559,4 +618,4 @@ export function EnhancedDataTable<T extends { id: string | number }>({
       </div>
     </div>
   );
-} 
+}

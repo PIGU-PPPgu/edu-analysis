@@ -221,4 +221,4 @@ export type Database = {
       // 其他表...
     };
   };
-}; 
+};

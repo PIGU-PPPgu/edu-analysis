@@ -33,4 +33,4 @@ const HomeworkDetailPage = () => {
   );
 };
 
-export default HomeworkDetailPage; 
+export default HomeworkDetailPage;

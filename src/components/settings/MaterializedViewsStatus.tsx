@@ -1,17 +1,40 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import React, { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, RefreshCw, CheckCircle, XCircle, Clock, AlertTriangle, Database, BarChart2 } from "lucide-react";
-import { format, formatDistanceToNow } from 'date-fns';
-import { zhCN } from 'date-fns/locale';
-import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
+import {
+  Loader2,
+  RefreshCw,
+  CheckCircle,
+  XCircle,
+  Clock,
+  AlertTriangle,
+  Database,
+  BarChart2,
+} from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
+import { zhCN } from "date-fns/locale";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { 
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -49,28 +72,30 @@ interface SystemEvent {
 
 // 视图名称映射表
 const viewNameMapping: Record<string, string> = {
-  'mv_class_score_overview': '班级统计数据',
-  'mv_class_subject_stats': '学科统计数据',
-  'mv_class_exam_trends': '考试趋势数据',
-  'mv_class_subject_competency': '学科能力数据',
-  'mv_class_subject_correlation': '学科相关性数据'
+  mv_class_score_overview: "班级统计数据",
+  mv_class_subject_stats: "学科统计数据",
+  mv_class_exam_trends: "考试趋势数据",
+  mv_class_subject_competency: "学科能力数据",
+  mv_class_subject_correlation: "学科相关性数据",
 };
 
 // 视图描述
 const viewDescriptions: Record<string, string> = {
-  'mv_class_score_overview': '包含班级的学生数量、作业数量、平均分和优秀率等基本统计信息',
-  'mv_class_subject_stats': '按学科分组的班级成绩统计，包括平均分、中位数、及格率等',
-  'mv_class_exam_trends': '班级考试成绩趋势数据，按时间和考试类型分组',
-  'mv_class_subject_competency': '班级学科能力掌握情况，基于知识点的掌握度',
-  'mv_class_subject_correlation': '不同学科之间的成绩相关性系数'
+  mv_class_score_overview:
+    "包含班级的学生数量、作业数量、平均分和优秀率等基本统计信息",
+  mv_class_subject_stats:
+    "按学科分组的班级成绩统计，包括平均分、中位数、及格率等",
+  mv_class_exam_trends: "班级考试成绩趋势数据，按时间和考试类型分组",
+  mv_class_subject_competency: "班级学科能力掌握情况，基于知识点的掌握度",
+  mv_class_subject_correlation: "不同学科之间的成绩相关性系数",
 };
 
 // 缓存键名称映射
 const cacheKeyMapping: Record<string, string> = {
-  'class_analytics': '班级分析数据',
-  'subject_analytics': '学科分析数据',
-  'student_profiles': '学生档案数据',
-  'dashboard_stats': '仪表盘统计数据'
+  class_analytics: "班级分析数据",
+  subject_analytics: "学科分析数据",
+  student_profiles: "学生档案数据",
+  dashboard_stats: "仪表盘统计数据",
 };
 
 const MaterializedViewsStatus: React.FC = () => {
@@ -87,16 +112,18 @@ const MaterializedViewsStatus: React.FC = () => {
   const fetchViewStatus = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.rpc('check_materialized_views_status');
-      
+      const { data, error } = await supabase.rpc(
+        "check_materialized_views_status"
+      );
+
       if (error) {
-        console.error('获取物化视图状态失败:', error);
+        console.error("获取物化视图状态失败:", error);
         toast.error(`获取物化视图状态失败: ${error.message}`);
       } else {
         setViewStatus(data || []);
       }
     } catch (e: any) {
-      console.error('获取物化视图状态异常:', e);
+      console.error("获取物化视图状态异常:", e);
       toast.error(`获取物化视图状态失败: ${e.message}`);
     } finally {
       setLoading(false);
@@ -107,25 +134,33 @@ const MaterializedViewsStatus: React.FC = () => {
   const fetchCacheInfo = async () => {
     try {
       // 获取所有缓存键的信息
-      const cacheKeys = ['class_analytics', 'subject_analytics', 'student_profiles', 'dashboard_stats'];
-      const promises = cacheKeys.map(key => 
-        supabase.rpc('get_cache_info', { p_cache_key: key })
+      const cacheKeys = [
+        "class_analytics",
+        "subject_analytics",
+        "student_profiles",
+        "dashboard_stats",
+      ];
+      const promises = cacheKeys.map((key) =>
+        supabase.rpc("get_cache_info", { p_cache_key: key })
       );
-      
+
       const results = await Promise.all(promises);
-      
+
       const allCacheInfo: CacheInfo[] = [];
       results.forEach((result, index) => {
         if (result.error) {
-          console.error(`获取缓存信息失败 (${cacheKeys[index]}):`, result.error);
+          console.error(
+            `获取缓存信息失败 (${cacheKeys[index]}):`,
+            result.error
+          );
         } else if (result.data && result.data.length > 0) {
           allCacheInfo.push(result.data[0]);
         }
       });
-      
+
       setCacheInfo(allCacheInfo);
     } catch (e: any) {
-      console.error('获取缓存信息异常:', e);
+      console.error("获取缓存信息异常:", e);
       toast.error(`获取缓存信息失败: ${e.message}`);
     }
   };
@@ -133,46 +168,51 @@ const MaterializedViewsStatus: React.FC = () => {
   // 获取系统事件
   const fetchSystemEvents = async () => {
     try {
-      const { data, error } = await supabase.rpc('get_system_monitoring', { 
+      const { data, error } = await supabase.rpc("get_system_monitoring", {
         p_limit: 20,
         p_event_type: null,
-        p_severity: null
+        p_severity: null,
       });
-      
+
       if (error) {
-        console.error('获取系统事件失败:', error);
+        console.error("获取系统事件失败:", error);
       } else {
         setSystemEvents(data || []);
       }
     } catch (e: any) {
-      console.error('获取系统事件异常:', e);
+      console.error("获取系统事件异常:", e);
     }
   };
 
   // 刷新所有物化视图
   const refreshAllViews = async () => {
-    if (!confirm('确定要刷新所有物化视图吗？根据数据量大小，这可能需要一些时间。')) {
+    if (
+      !confirm("确定要刷新所有物化视图吗？根据数据量大小，这可能需要一些时间。")
+    ) {
       return;
     }
-    
+
     setRefreshing(true);
     try {
-      const { data, error } = await supabase.rpc('rpc_refresh_materialized_views', {
-        p_concurrent: useConcurrent
-      });
-      
+      const { data, error } = await supabase.rpc(
+        "rpc_refresh_materialized_views",
+        {
+          p_concurrent: useConcurrent,
+        }
+      );
+
       if (error) {
-        console.error('刷新物化视图失败:', error);
+        console.error("刷新物化视图失败:", error);
         toast.error(`刷新物化视图失败: ${error.message}`);
       } else {
-        toast.success(data || '物化视图刷新成功');
+        toast.success(data || "物化视图刷新成功");
         // 刷新状态
         fetchViewStatus();
         // 同时刷新系统事件
         fetchSystemEvents();
       }
     } catch (e: any) {
-      console.error('刷新物化视图异常:', e);
+      console.error("刷新物化视图异常:", e);
       toast.error(`刷新物化视图失败: ${e.message}`);
     } finally {
       setRefreshing(false);
@@ -182,19 +222,21 @@ const MaterializedViewsStatus: React.FC = () => {
   // 使缓存失效
   const invalidateCache = async (cacheKey: string) => {
     try {
-      const { data, error } = await supabase.rpc('invalidate_cache', {
-        p_cache_key: cacheKey
+      const { data, error } = await supabase.rpc("invalidate_cache", {
+        p_cache_key: cacheKey,
       });
-      
+
       if (error) {
         console.error(`使缓存失效失败 (${cacheKey}):`, error);
         toast.error(`使缓存失效失败: ${error.message}`);
       } else {
-        toast.success(`${cacheKeyMapping[cacheKey] || cacheKey} 缓存已成功重置`);
+        toast.success(
+          `${cacheKeyMapping[cacheKey] || cacheKey} 缓存已成功重置`
+        );
         fetchCacheInfo();
       }
     } catch (e: any) {
-      console.error('使缓存失效异常:', e);
+      console.error("使缓存失效异常:", e);
       toast.error(`使缓存失效失败: ${e.message}`);
     }
   };
@@ -221,7 +263,11 @@ const MaterializedViewsStatus: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="view-status" className="w-full" onValueChange={setActiveTab}>
+      <Tabs
+        defaultValue="view-status"
+        className="w-full"
+        onValueChange={setActiveTab}
+      >
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="view-status">
             <Database className="h-4 w-4 mr-2" />
@@ -236,7 +282,7 @@ const MaterializedViewsStatus: React.FC = () => {
             系统事件
           </TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="view-status" className="mt-4">
           <Card className="w-full">
             <CardHeader>
@@ -276,27 +322,45 @@ const MaterializedViewsStatus: React.FC = () => {
                             {viewNameMapping[view.view_name] || view.view_name}
                           </TableCell>
                           <TableCell className="text-sm text-gray-500 max-w-sm">
-                            {viewDescriptions[view.view_name] || '无描述'}
+                            {viewDescriptions[view.view_name] || "无描述"}
                           </TableCell>
                           <TableCell>
                             {view.view_exists ? (
-                              <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200">
-                                <CheckCircle className="h-3.5 w-3.5 mr-1" /> 已创建
+                              <Badge
+                                variant="outline"
+                                className="bg-green-50 text-green-600 border-green-200"
+                              >
+                                <CheckCircle className="h-3.5 w-3.5 mr-1" />{" "}
+                                已创建
                               </Badge>
                             ) : (
-                              <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">
+                              <Badge
+                                variant="outline"
+                                className="bg-red-50 text-red-600 border-red-200"
+                              >
                                 <XCircle className="h-3.5 w-3.5 mr-1" /> 未创建
                               </Badge>
                             )}
                           </TableCell>
-                          <TableCell>{view.row_count.toLocaleString()}</TableCell>
+                          <TableCell>
+                            {view.row_count.toLocaleString()}
+                          </TableCell>
                           <TableCell className="text-right">
                             {view.last_refresh ? (
                               <div className="flex flex-col items-end text-sm">
-                                <span>{format(new Date(view.last_refresh), 'yyyy-MM-dd HH:mm:ss', { locale: zhCN })}</span>
+                                <span>
+                                  {format(
+                                    new Date(view.last_refresh),
+                                    "yyyy-MM-dd HH:mm:ss",
+                                    { locale: zhCN }
+                                  )}
+                                </span>
                                 <span className="text-xs text-gray-500">
                                   <Clock className="h-3 w-3 inline mr-1" />
-                                  {formatDistanceToNow(new Date(view.last_refresh), { locale: zhCN, addSuffix: true })}
+                                  {formatDistanceToNow(
+                                    new Date(view.last_refresh),
+                                    { locale: zhCN, addSuffix: true }
+                                  )}
                                 </span>
                               </div>
                             ) : (
@@ -318,10 +382,12 @@ const MaterializedViewsStatus: React.FC = () => {
                       checked={useConcurrent}
                       onCheckedChange={setUseConcurrent}
                     />
-                    <Label htmlFor="concurrent-refresh">并发刷新 (减少锁定，但需要更多资源)</Label>
+                    <Label htmlFor="concurrent-refresh">
+                      并发刷新 (减少锁定，但需要更多资源)
+                    </Label>
                   </div>
                 </div>
-                
+
                 <div className="flex space-x-2">
                   <Dialog>
                     <DialogTrigger asChild>
@@ -338,12 +404,20 @@ const MaterializedViewsStatus: React.FC = () => {
                         </DialogDescription>
                       </DialogHeader>
                       <div className="text-sm space-y-3 max-h-80 overflow-y-auto">
-                        <p>物化视图是提高查询性能的重要工具，但也需要合理维护：</p>
+                        <p>
+                          物化视图是提高查询性能的重要工具，但也需要合理维护：
+                        </p>
                         <ul className="list-disc pl-5 space-y-1">
-                          <li>物化视图刷新可能耗费较多资源，建议在系统负载较低时进行</li>
+                          <li>
+                            物化视图刷新可能耗费较多资源，建议在系统负载较低时进行
+                          </li>
                           <li>并发刷新可以减少锁定，但会消耗更多系统资源</li>
-                          <li>如遇刷新错误，可以检查数据一致性或联系系统管理员</li>
-                          <li>在大型数据变更操作后，建议手动刷新相关物化视图</li>
+                          <li>
+                            如遇刷新错误，可以检查数据一致性或联系系统管理员
+                          </li>
+                          <li>
+                            在大型数据变更操作后，建议手动刷新相关物化视图
+                          </li>
                         </ul>
                         <Alert className="mt-4 bg-blue-50 text-blue-700 border-blue-200">
                           <AlertTitle className="flex items-center">
@@ -357,7 +431,11 @@ const MaterializedViewsStatus: React.FC = () => {
                         </Alert>
                       </div>
                       <DialogFooter>
-                        <a href="/docs/MATERIALIZED_VIEWS.md" target="_blank" className="text-sm text-blue-500 hover:underline">
+                        <a
+                          href="/docs/MATERIALIZED_VIEWS.md"
+                          target="_blank"
+                          className="text-sm text-blue-500 hover:underline"
+                        >
                           查看完整文档
                         </a>
                       </DialogFooter>
@@ -367,16 +445,18 @@ const MaterializedViewsStatus: React.FC = () => {
               </div>
             </CardContent>
             <CardFooter className="flex justify-between">
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={fetchViewStatus}
                 disabled={loading}
               >
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCw
+                  className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
+                />
                 刷新状态
               </Button>
-              <Button 
+              <Button
                 onClick={refreshAllViews}
                 disabled={loading || refreshing}
                 className="bg-lime-600 hover:bg-lime-700"
@@ -396,7 +476,7 @@ const MaterializedViewsStatus: React.FC = () => {
             </CardFooter>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="cache-info" className="mt-4">
           <Card className="w-full">
             <CardHeader>
@@ -430,15 +510,23 @@ const MaterializedViewsStatus: React.FC = () => {
                         <TableCell className="font-medium">
                           {cacheKeyMapping[cache.cache_key] || cache.cache_key}
                         </TableCell>
-                        <TableCell>{(cache.expiry_seconds / 60).toFixed(0)} 分钟</TableCell>
+                        <TableCell>
+                          {(cache.expiry_seconds / 60).toFixed(0)} 分钟
+                        </TableCell>
                         <TableCell>{cache.version}</TableCell>
                         <TableCell>
                           {cache.is_valid ? (
-                            <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200">
+                            <Badge
+                              variant="outline"
+                              className="bg-green-50 text-green-600 border-green-200"
+                            >
                               <CheckCircle className="h-3.5 w-3.5 mr-1" /> 有效
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200">
+                            <Badge
+                              variant="outline"
+                              className="bg-amber-50 text-amber-600 border-amber-200"
+                            >
                               <Clock className="h-3.5 w-3.5 mr-1" /> 已过期
                             </Badge>
                           )}
@@ -446,15 +534,20 @@ const MaterializedViewsStatus: React.FC = () => {
                         <TableCell>
                           {cache.last_updated ? (
                             <div className="text-sm">
-                              <span>{formatDistanceToNow(new Date(cache.last_updated), { locale: zhCN, addSuffix: true })}</span>
+                              <span>
+                                {formatDistanceToNow(
+                                  new Date(cache.last_updated),
+                                  { locale: zhCN, addSuffix: true }
+                                )}
+                              </span>
                             </div>
                           ) : (
                             <span className="text-gray-400">未知</span>
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => invalidateCache(cache.cache_key)}
                           >
@@ -469,18 +562,14 @@ const MaterializedViewsStatus: React.FC = () => {
               </Table>
             </CardContent>
             <CardFooter className="flex justify-between">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={fetchCacheInfo}
-              >
+              <Button variant="outline" size="sm" onClick={fetchCacheInfo}>
                 <RefreshCw className="h-4 w-4 mr-2" />
                 刷新缓存状态
               </Button>
             </CardFooter>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="system-events" className="mt-4">
           <Card className="w-full">
             <CardHeader>
@@ -510,19 +599,30 @@ const MaterializedViewsStatus: React.FC = () => {
                     systemEvents.slice(0, 10).map((event) => (
                       <TableRow key={event.id}>
                         <TableCell className="font-medium">
-                          {event.event_type.replace(/_/g, ' ')}
+                          {event.event_type.replace(/_/g, " ")}
                         </TableCell>
                         <TableCell>
-                          {event.severity === 'error' ? (
-                            <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">
-                              <AlertTriangle className="h-3.5 w-3.5 mr-1" /> 错误
+                          {event.severity === "error" ? (
+                            <Badge
+                              variant="outline"
+                              className="bg-red-50 text-red-600 border-red-200"
+                            >
+                              <AlertTriangle className="h-3.5 w-3.5 mr-1" />{" "}
+                              错误
                             </Badge>
-                          ) : event.severity === 'warning' ? (
-                            <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200">
-                              <AlertTriangle className="h-3.5 w-3.5 mr-1" /> 警告
+                          ) : event.severity === "warning" ? (
+                            <Badge
+                              variant="outline"
+                              className="bg-amber-50 text-amber-600 border-amber-200"
+                            >
+                              <AlertTriangle className="h-3.5 w-3.5 mr-1" />{" "}
+                              警告
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200">
+                            <Badge
+                              variant="outline"
+                              className="bg-blue-50 text-blue-600 border-blue-200"
+                            >
                               <CheckCircle className="h-3.5 w-3.5 mr-1" /> 信息
                             </Badge>
                           )}
@@ -530,19 +630,27 @@ const MaterializedViewsStatus: React.FC = () => {
                         <TableCell>
                           {event.created_at ? (
                             <div className="text-sm">
-                              <span>{format(new Date(event.created_at), 'MM-dd HH:mm:ss', { locale: zhCN })}</span>
+                              <span>
+                                {format(
+                                  new Date(event.created_at),
+                                  "MM-dd HH:mm:ss",
+                                  { locale: zhCN }
+                                )}
+                              </span>
                             </div>
                           ) : (
                             <span className="text-gray-400">未知</span>
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             size="sm"
                             onClick={() => {
                               // 在对话框中显示详细信息
-                              alert(JSON.stringify(event.event_details, null, 2));
+                              alert(
+                                JSON.stringify(event.event_details, null, 2)
+                              );
                             }}
                           >
                             查看
@@ -555,8 +663,8 @@ const MaterializedViewsStatus: React.FC = () => {
               </Table>
               {systemEvents.length > 10 && (
                 <div className="text-center mt-4">
-                  <Button 
-                    variant="link" 
+                  <Button
+                    variant="link"
                     onClick={() => setShowMonitoringDialog(true)}
                   >
                     查看更多事件记录
@@ -565,11 +673,7 @@ const MaterializedViewsStatus: React.FC = () => {
               )}
             </CardContent>
             <CardFooter className="flex justify-between">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={fetchSystemEvents}
-              >
+              <Button variant="outline" size="sm" onClick={fetchSystemEvents}>
                 <RefreshCw className="h-4 w-4 mr-2" />
                 刷新事件记录
               </Button>
@@ -600,4 +704,4 @@ const InfoIcon = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
-export default MaterializedViewsStatus; 
+export default MaterializedViewsStatus;

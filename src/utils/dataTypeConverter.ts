@@ -1,6 +1,6 @@
 /**
  * 🔧 数据类型检测和转换工具
- * 
+ *
  * 解决混合数据类型问题：
  * - 识别分数字段 vs 等级字段
  * - 安全转换数据类型
@@ -9,29 +9,29 @@
 
 // 等级到分数的映射表
 export const GRADE_TO_SCORE_MAP: Record<string, number> = {
-  'A+': 95,
-  'A': 90,
-  'A-': 85,
-  'B+': 82,
-  'B': 78,
-  'B-': 75,
-  'C+': 72,
-  'C': 68,
-  'C-': 65,
-  'D+': 62,
-  'D': 58,
-  'D-': 55,
-  'F': 50,
-  '优': 90,
-  '良': 80,
-  '中': 70,
-  '差': 60,
-  '不及格': 50
+  "A+": 95,
+  A: 90,
+  "A-": 85,
+  "B+": 82,
+  B: 78,
+  "B-": 75,
+  "C+": 72,
+  C: 68,
+  "C-": 65,
+  "D+": 62,
+  D: 58,
+  "D-": 55,
+  F: 50,
+  优: 90,
+  良: 80,
+  中: 70,
+  差: 60,
+  不及格: 50,
 };
 
 // 数据类型检测结果
 export interface DataTypeDetectionResult {
-  type: 'score' | 'grade' | 'rank' | 'text' | 'mixed';
+  type: "score" | "grade" | "rank" | "text" | "mixed";
   confidence: number;
   samples: any[];
   issues: string[];
@@ -42,24 +42,33 @@ export interface DataTypeDetectionResult {
 export interface FieldTypeDetectionResult {
   fieldName: string;
   detectedType: DataTypeDetectionResult;
-  recommendedAction: 'use_as_score' | 'convert_to_score' | 'use_as_text' | 'split_field';
+  recommendedAction:
+    | "use_as_score"
+    | "convert_to_score"
+    | "use_as_text"
+    | "split_field";
   conversionMap?: Record<string, number>;
 }
 
 /**
  * 检测数据类型
  */
-export const detectDataType = (values: any[], fieldName: string = ''): DataTypeDetectionResult => {
+export const detectDataType = (
+  values: any[],
+  fieldName: string = ""
+): DataTypeDetectionResult => {
   const samples = values.slice(0, 20); // 取前20个样本
-  const nonEmptyValues = samples.filter(v => v !== null && v !== undefined && v !== '');
-  
+  const nonEmptyValues = samples.filter(
+    (v) => v !== null && v !== undefined && v !== ""
+  );
+
   if (nonEmptyValues.length === 0) {
     return {
-      type: 'text',
+      type: "text",
       confidence: 0,
       samples: [],
-      issues: ['字段为空'],
-      suggestions: ['请检查数据完整性']
+      issues: ["字段为空"],
+      suggestions: ["请检查数据完整性"],
     };
   }
 
@@ -70,9 +79,9 @@ export const detectDataType = (values: any[], fieldName: string = ''): DataTypeD
   const issues: string[] = [];
   const suggestions: string[] = [];
 
-  nonEmptyValues.forEach(value => {
+  nonEmptyValues.forEach((value) => {
     const strValue = String(value).trim();
-    
+
     // 检测数字分数
     if (/^\d+\.?\d*$/.test(strValue)) {
       const numValue = parseFloat(strValue);
@@ -84,13 +93,20 @@ export const detectDataType = (values: any[], fieldName: string = ''): DataTypeD
       }
     }
     // 检测字母等级
-    else if (/^[A-F][+-]?$/.test(strValue) || /^(优|良|中|差|不及格)$/.test(strValue)) {
+    else if (
+      /^[A-F][+-]?$/.test(strValue) ||
+      /^(优|良|中|差|不及格)$/.test(strValue)
+    ) {
       gradeCount++;
     }
     // 检测排名（纯数字，但通常大于100）
     else if (/^\d+$/.test(strValue)) {
       const numValue = parseInt(strValue);
-      if (numValue > 100 || fieldName.includes('排名') || fieldName.includes('名次')) {
+      if (
+        numValue > 100 ||
+        fieldName.includes("排名") ||
+        fieldName.includes("名次")
+      ) {
         rankCount++;
       } else {
         numericCount++;
@@ -109,32 +125,32 @@ export const detectDataType = (values: any[], fieldName: string = ''): DataTypeD
   const textRatio = textCount / total;
 
   // 确定主要类型
-  let type: DataTypeDetectionResult['type'];
+  let type: DataTypeDetectionResult["type"];
   let confidence: number;
 
   if (scoreRatio > 0.8) {
-    type = 'score';
+    type = "score";
     confidence = scoreRatio;
     if (gradeRatio > 0) {
-      suggestions.push('检测到混合数据：主要是分数，但包含等级字母');
+      suggestions.push("检测到混合数据：主要是分数，但包含等级字母");
     }
   } else if (gradeRatio > 0.8) {
-    type = 'grade';
+    type = "grade";
     confidence = gradeRatio;
-    suggestions.push('建议转换为分数存储，或存储为文本字段');
+    suggestions.push("建议转换为分数存储，或存储为文本字段");
   } else if (rankRatio > 0.8) {
-    type = 'rank';
+    type = "rank";
     confidence = rankRatio;
-    suggestions.push('排名数据建议存储为整数类型');
+    suggestions.push("排名数据建议存储为整数类型");
   } else if (scoreRatio + gradeRatio > 0.7) {
-    type = 'mixed';
+    type = "mixed";
     confidence = (scoreRatio + gradeRatio) / 2;
-    issues.push('检测到混合分数和等级数据');
-    suggestions.push('建议分离存储或统一转换为分数');
+    issues.push("检测到混合分数和等级数据");
+    suggestions.push("建议分离存储或统一转换为分数");
   } else {
-    type = 'text';
+    type = "text";
     confidence = 1 - Math.max(scoreRatio, gradeRatio, rankRatio);
-    suggestions.push('建议作为文本字段处理');
+    suggestions.push("建议作为文本字段处理");
   }
 
   return {
@@ -142,7 +158,7 @@ export const detectDataType = (values: any[], fieldName: string = ''): DataTypeD
     confidence,
     samples: nonEmptyValues.slice(0, 5),
     issues,
-    suggestions
+    suggestions,
   };
 };
 
@@ -150,7 +166,7 @@ export const detectDataType = (values: any[], fieldName: string = ''): DataTypeD
  * 安全转换为数字分数
  */
 export const convertToScore = (value: any): number | null => {
-  if (value === null || value === undefined || value === '') {
+  if (value === null || value === undefined || value === "") {
     return null;
   }
 
@@ -174,9 +190,12 @@ export const convertToScore = (value: any): number | null => {
 /**
  * 检测字段类型并给出建议
  */
-export const detectFieldType = (fieldName: string, values: any[]): FieldTypeDetectionResult => {
+export const detectFieldType = (
+  fieldName: string,
+  values: any[]
+): FieldTypeDetectionResult => {
   const detection = detectDataType(values, fieldName);
-  let recommendedAction: FieldTypeDetectionResult['recommendedAction'];
+  let recommendedAction: FieldTypeDetectionResult["recommendedAction"];
   let conversionMap: Record<string, number> | undefined;
 
   // 根据字段名和检测结果决定处理方式
@@ -184,39 +203,48 @@ export const detectFieldType = (fieldName: string, values: any[]): FieldTypeDete
   const isGradeField = /等级|评级|级别/.test(fieldName);
   const isRankField = /排名|名次|排序/.test(fieldName);
 
-  if (detection.type === 'score' || (isScoreField && detection.confidence > 0.5)) {
-    recommendedAction = 'use_as_score';
-  } else if (detection.type === 'grade' || (isGradeField && detection.confidence > 0.5)) {
+  if (
+    detection.type === "score" ||
+    (isScoreField && detection.confidence > 0.5)
+  ) {
+    recommendedAction = "use_as_score";
+  } else if (
+    detection.type === "grade" ||
+    (isGradeField && detection.confidence > 0.5)
+  ) {
     if (isScoreField) {
       // 分数字段但包含等级，建议转换
-      recommendedAction = 'convert_to_score';
+      recommendedAction = "convert_to_score";
       conversionMap = GRADE_TO_SCORE_MAP;
     } else {
       // 等级字段，存储为文本
-      recommendedAction = 'use_as_text';
+      recommendedAction = "use_as_text";
     }
-  } else if (detection.type === 'rank' || isRankField) {
-    recommendedAction = 'use_as_text'; // 排名存储为文本或整数
-  } else if (detection.type === 'mixed') {
-    recommendedAction = 'split_field'; // 建议拆分字段
+  } else if (detection.type === "rank" || isRankField) {
+    recommendedAction = "use_as_text"; // 排名存储为文本或整数
+  } else if (detection.type === "mixed") {
+    recommendedAction = "split_field"; // 建议拆分字段
   } else {
-    recommendedAction = 'use_as_text';
+    recommendedAction = "use_as_text";
   }
 
   return {
     fieldName,
     detectedType: detection,
     recommendedAction,
-    conversionMap
+    conversionMap,
   };
 };
 
 /**
  * 批量检测CSV数据的字段类型
  */
-export const analyzeCSVFieldTypes = (headers: string[], data: any[][]): FieldTypeDetectionResult[] => {
+export const analyzeCSVFieldTypes = (
+  headers: string[],
+  data: any[][]
+): FieldTypeDetectionResult[] => {
   return headers.map((header, index) => {
-    const columnValues = data.map(row => row[index]);
+    const columnValues = data.map((row) => row[index]);
     return detectFieldType(header, columnValues);
   });
 };
@@ -225,30 +253,34 @@ export const analyzeCSVFieldTypes = (headers: string[], data: any[][]): FieldTyp
  * 清理和转换单行数据
  */
 export const cleanRowData = (
-  rowData: Record<string, any>, 
+  rowData: Record<string, any>,
   fieldAnalysis: FieldTypeDetectionResult[]
-): { scoreData: Record<string, number>, textData: Record<string, string>, metadata: Record<string, any> } => {
+): {
+  scoreData: Record<string, number>;
+  textData: Record<string, string>;
+  metadata: Record<string, any>;
+} => {
   const scoreData: Record<string, number> = {};
   const textData: Record<string, string> = {};
   const metadata: Record<string, any> = {};
 
-  fieldAnalysis.forEach(analysis => {
+  fieldAnalysis.forEach((analysis) => {
     const { fieldName, recommendedAction, conversionMap } = analysis;
     const value = rowData[fieldName];
 
-    if (value === null || value === undefined || value === '') {
+    if (value === null || value === undefined || value === "") {
       return;
     }
 
     switch (recommendedAction) {
-      case 'use_as_score':
+      case "use_as_score":
         const scoreValue = convertToScore(value);
         if (scoreValue !== null) {
           scoreData[fieldName] = scoreValue;
         }
         break;
 
-      case 'convert_to_score':
+      case "convert_to_score":
         const convertedScore = convertToScore(value);
         if (convertedScore !== null) {
           scoreData[fieldName] = convertedScore;
@@ -259,11 +291,11 @@ export const cleanRowData = (
         }
         break;
 
-      case 'use_as_text':
+      case "use_as_text":
         textData[fieldName] = String(value);
         break;
 
-      case 'split_field':
+      case "split_field":
         // 尝试转换为分数，失败则存储为文本
         const splitScore = convertToScore(value);
         if (splitScore !== null) {
@@ -282,19 +314,24 @@ export const cleanRowData = (
  * 验证转换结果
  */
 export const validateConversionResults = (
-  originalData: any[], 
+  originalData: any[],
   convertedData: any[]
-): { success: boolean; errors: string[]; warnings: string[]; statistics: any } => {
+): {
+  success: boolean;
+  errors: string[];
+  warnings: string[];
+  statistics: any;
+} => {
   const errors: string[] = [];
   const warnings: string[] = [];
-  
+
   let successfulConversions = 0;
   let failedConversions = 0;
   let mixedTypeIssues = 0;
 
   originalData.forEach((original, index) => {
     const converted = convertedData[index];
-    
+
     if (!converted) {
       errors.push(`第${index + 1}行转换失败`);
       failedConversions++;
@@ -327,7 +364,7 @@ export const validateConversionResults = (
       successfulConversions,
       failedConversions,
       mixedTypeIssues,
-      conversionRate: successfulConversions / originalData.length
-    }
+      conversionRate: successfulConversions / originalData.length,
+    },
   };
 };

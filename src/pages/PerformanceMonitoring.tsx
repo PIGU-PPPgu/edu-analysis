@@ -3,12 +3,12 @@
  * 集成性能仪表板和系统监控功能的综合页面
  */
 
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { cn } from '@/lib/utils';
+import React, { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
 import {
   Activity,
   Monitor,
@@ -20,15 +20,15 @@ import {
   CheckCircle,
   Database,
   Globe,
-  TrendingUp
-} from 'lucide-react';
+  TrendingUp,
+} from "lucide-react";
 
-import PerformanceDashboard from '@/components/performance/PerformanceDashboard';
-import SystemMonitoringDashboard from '@/components/monitoring/SystemMonitoringDashboard';
-import ErrorBoundary from '@/components/performance/ErrorBoundary';
+import PerformanceDashboard from "@/components/performance/PerformanceDashboard";
+import SystemMonitoringDashboard from "@/components/monitoring/SystemMonitoringDashboard";
+import ErrorBoundary from "@/components/performance/ErrorBoundary";
 
 const PerformanceMonitoring: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('performance');
+  const [activeTab, setActiveTab] = useState("performance");
 
   return (
     <div className="min-h-screen bg-white">
@@ -94,9 +94,7 @@ const PerformanceMonitoring: React.FC = () => {
           <Info className="h-4 w-4" />
           <AlertDescription className="font-medium">
             <div className="space-y-2">
-              <p className="font-bold text-black">
-                🚀 系统性能优化功能已启用
-              </p>
+              <p className="font-bold text-black">🚀 系统性能优化功能已启用</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-[#6B7280]">
                 <ul className="space-y-1 list-disc list-inside">
                   <li>虚拟滚动和懒加载优化大数据渲染</li>
@@ -116,18 +114,22 @@ const PerformanceMonitoring: React.FC = () => {
         </Alert>
 
         {/* 主要内容区域 */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="space-y-6"
+        >
           <div className="flex justify-center">
             <TabsList className="grid w-fit grid-cols-2 bg-white border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] p-1">
-              <TabsTrigger 
-                value="performance" 
+              <TabsTrigger
+                value="performance"
                 className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-black font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide px-8 py-4 text-lg"
               >
                 <BarChart3 className="w-6 h-6" />
                 <span>性能仪表板</span>
               </TabsTrigger>
-              <TabsTrigger 
-                value="monitoring" 
+              <TabsTrigger
+                value="monitoring"
                 className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-black font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide px-8 py-4 text-lg"
               >
                 <Monitor className="w-6 h-6" />
@@ -150,7 +152,7 @@ const PerformanceMonitoring: React.FC = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                <ErrorBoundary 
+                <ErrorBoundary
                   componentName="PerformanceDashboard"
                   enableRecovery={true}
                   showErrorDetails={true}
@@ -175,7 +177,7 @@ const PerformanceMonitoring: React.FC = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                <ErrorBoundary 
+                <ErrorBoundary
                   componentName="SystemMonitoringDashboard"
                   enableRecovery={true}
                   showErrorDetails={true}

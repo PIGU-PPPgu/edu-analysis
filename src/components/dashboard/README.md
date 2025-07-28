@@ -7,6 +7,7 @@
 ## 功能特性
 
 ### 🔍 核心功能
+
 - **模块化设计**: 18个专业分析模块，支持按需加载
 - **分类管理**: 6大分析类别，便于快速定位所需功能
 - **智能搜索**: 全文搜索支持，快速找到目标分析工具
@@ -17,27 +18,33 @@
 ### 📊 分析模块
 
 #### 1. 相关性分析 (Correlation Analysis)
+
 - **CorrelationAnalysis**: 全面的学科间相关性分析，包含热力图、散点图和相关性矩阵
 - **SubjectCorrelationAnalysis**: 专注于学科间相关性的简化分析界面
 
 #### 2. 异常检测 (Anomaly Detection)
+
 - **AnomalyDetection**: 智能异常检测系统，识别学习表现中的异常模式
 - **AnomalyDetectionAnalysis**: 基于统计学的异常检测和深度分析
 
 #### 3. 预测分析 (Predictive Analysis)
+
 - **PredictiveAnalysis**: AI驱动的学生表现预测和趋势分析
 - **LearningBehaviorAnalysis**: 多维度学习行为模式分析和可视化
 
 #### 4. 学生画像 (Student Portrait)
+
 - **IntelligentPortraitAnalysis**: AI驱动的智能学生画像分析系统
 - **EnhancedStudentPortrait**: 全方位学生能力和特征分析
 - **AbilityRadar**: 学生多维能力可视化展示
 
 #### 5. 统计分析 (Statistics)
+
 - **StatisticsOverview**: 班级和学科统计数据综合概览
 - **ScoreDistribution**: 详细的成绩分布统计和可视化
 
 #### 6. 对比分析 (Comparison)
+
 - **ClassComparisonChart**: 多维度班级表现对比分析
 - **ClassBoxPlotChart**: 基于箱线图的班级表现分布分析
 - **ContributionAnalysis**: 学生对班级表现的贡献度分析
@@ -48,11 +55,11 @@
 ### 基本用法
 
 ```tsx
-import { AdvancedAnalyticsDashboard } from '@/components/dashboard';
+import { AdvancedAnalyticsDashboard } from "@/components/dashboard";
 
 function App() {
   return (
-    <AdvancedAnalyticsDashboard 
+    <AdvancedAnalyticsDashboard
       classId="class-123"
       studentId="student-456"
       subjectId="subject-789"
@@ -65,9 +72,9 @@ function App() {
 
 ```tsx
 interface DashboardProps {
-  classId?: string;    // 班级ID，用于班级相关分析
-  studentId?: string;  // 学生ID，用于个体学生分析
-  subjectId?: string;  // 学科ID，用于学科相关分析
+  classId?: string; // 班级ID，用于班级相关分析
+  studentId?: string; // 学生ID，用于个体学生分析
+  subjectId?: string; // 学科ID，用于学科相关分析
 }
 ```
 
@@ -83,6 +90,7 @@ interface DashboardProps {
 ## 组件架构
 
 ### 目录结构
+
 ```
 src/components/dashboard/
 ├── AdvancedAnalyticsDashboard.tsx  # 主仪表板组件
@@ -91,6 +99,7 @@ src/components/dashboard/
 ```
 
 ### 依赖组件
+
 ```
 src/components/
 ├── analysis/
@@ -106,6 +115,7 @@ src/components/
 ## 技术实现
 
 ### 核心技术栈
+
 - **React 18**: 现代React框架
 - **TypeScript**: 类型安全的JavaScript
 - **Recharts**: 数据可视化库
@@ -115,11 +125,13 @@ src/components/
 - **shadcn/ui**: 现代化UI组件库
 
 ### 状态管理
+
 - 使用React Hooks进行组件状态管理
 - 支持数据缓存和懒加载
 - 实现了数据刷新机制
 
 ### 性能优化
+
 - 组件懒加载和代码分割
 - 数据缓存和请求去重
 - 虚拟化长列表渲染
@@ -128,6 +140,7 @@ src/components/
 ## 数据要求
 
 ### 必需数据结构
+
 ```typescript
 // 成绩数据
 interface GradeData {
@@ -156,7 +169,9 @@ interface BehaviorData {
 ```
 
 ### 数据接口
+
 仪表板通过以下接口获取数据：
+
 - `/api/grades`: 成绩数据
 - `/api/students`: 学生信息
 - `/api/behavior`: 行为数据
@@ -173,14 +188,14 @@ interface BehaviorData {
 
 ```tsx
 const newModule: AnalysisModule = {
-  id: 'new-analysis',
-  title: '新分析模块',
-  description: '模块描述',
+  id: "new-analysis",
+  title: "新分析模块",
+  description: "模块描述",
   icon: <Icon className="h-5 w-5" />,
-  category: 'statistics',
+  category: "statistics",
   component: NewAnalysisComponent,
-  requiredData: ['grades'],
-  isAdvanced: true
+  requiredData: ["grades"],
+  isAdvanced: true,
 };
 ```
 
@@ -200,21 +215,25 @@ const newModule: AnalysisModule = {
 ## 最佳实践
 
 ### 1. 数据加载
+
 - 使用懒加载策略减少初始加载时间
 - 实现数据预取提升用户体验
 - 添加适当的加载状态和错误处理
 
 ### 2. 用户体验
+
 - 提供清晰的导航和面包屑
 - 使用适当的动画和过渡效果
 - 确保键盘和屏幕阅读器的可访问性
 
 ### 3. 性能优化
+
 - 使用React.memo避免不必要的重新渲染
 - 实现虚拟滚动处理大量数据
 - 优化图表渲染和数据处理
 
 ### 4. 错误处理
+
 - 实现全局错误边界
 - 提供友好的错误信息
 - 添加重试机制和降级方案
@@ -222,11 +241,13 @@ const newModule: AnalysisModule = {
 ## 部署和维护
 
 ### 环境要求
+
 - Node.js 16+
 - React 18+
 - TypeScript 4.9+
 
 ### 构建和部署
+
 ```bash
 # 安装依赖
 npm install
@@ -242,6 +263,7 @@ npm run deploy
 ```
 
 ### 监控和维护
+
 - 性能监控和错误追踪
 - 用户行为分析
 - 定期的安全更新和依赖维护
@@ -249,20 +271,25 @@ npm run deploy
 ## 常见问题
 
 ### Q: 如何添加新的分析类型？
+
 A: 在`categoryLabels`对象中添加新类型，并在`analysisModules`数组中注册相应的模块。
 
 ### Q: 如何自定义组件样式？
+
 A: 使用Tailwind CSS类或CSS模块来自定义样式，也可以通过主题变量进行全局调整。
 
 ### Q: 如何处理大量数据？
+
 A: 实现数据分页、虚拟滚动和懒加载策略来处理大量数据集。
 
 ### Q: 如何集成第三方数据源？
+
 A: 创建数据适配器层，将第三方数据转换为标准格式后再传入组件。
 
 ## 更新日志
 
 ### v1.0.0 (2024-01-01)
+
 - 初始版本发布
 - 集成18个核心分析模块
 - 支持6大分析类别

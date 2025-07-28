@@ -4,18 +4,16 @@ export {
   DataMapper,
   DataValidator,
   ImportProcessor,
-  ConfigManager
-} from './components';
+  ConfigManager,
+} from "./components";
 
 // Hooks导出
-export {
-  useGradeImporter
-} from './hooks';
+export { useGradeImporter } from "./hooks";
 
 // 主组件导出
-export { default as GradeImporter } from './GradeImporter';
-export { default as FlexibleGradeImporter } from './FlexibleGradeImporter';
-export { default as SimpleGradeImporter } from './SimpleGradeImporter';
+export { default as GradeImporter } from "./GradeImporter";
+export { default as FlexibleGradeImporter } from "./FlexibleGradeImporter";
+export { default as SimpleGradeImporter } from "./SimpleGradeImporter";
 
 // 类型导出
 export type {
@@ -35,5 +33,5 @@ export type {
   StudentMatchResult,
   GradeImporterState,
   GradeImporterHook,
-  GradeImporterProps
-} from './types'; 
+  GradeImporterProps,
+} from "./types";

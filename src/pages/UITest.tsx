@@ -1,8 +1,14 @@
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
+import React from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 
 /**
  * UI组件测试页面
@@ -118,7 +124,9 @@ export const UITest: React.FC = () => {
                   <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                   <span className="text-blue-800 font-medium">信息状态</span>
                 </div>
-                <p className="text-sm text-blue-700 mt-1">Tailwind CSS 样式正常</p>
+                <p className="text-sm text-blue-700 mt-1">
+                  Tailwind CSS 样式正常
+                </p>
               </div>
 
               <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -126,7 +134,9 @@ export const UITest: React.FC = () => {
                   <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
                   <span className="text-yellow-800 font-medium">警告状态</span>
                 </div>
-                <p className="text-sm text-yellow-700 mt-1">如果这里没有样式，说明CSS有问题</p>
+                <p className="text-sm text-yellow-700 mt-1">
+                  如果这里没有样式，说明CSS有问题
+                </p>
               </div>
             </div>
           </CardContent>

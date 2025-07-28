@@ -3,11 +3,11 @@
  * 帮助用户理解如何设置和使用科目满分配置
  */
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { cn } from '@/lib/utils';
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
 import {
   Info,
   Settings2,
@@ -17,8 +17,8 @@ import {
   Lightbulb,
   CheckCircle,
   AlertTriangle,
-  BookOpen
-} from 'lucide-react';
+  BookOpen,
+} from "lucide-react";
 
 interface PassRateGuideProps {
   className?: string;
@@ -26,10 +26,12 @@ interface PassRateGuideProps {
 
 const PassRateGuide: React.FC<PassRateGuideProps> = ({ className }) => {
   return (
-    <Card className={cn(
-      "bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] transition-all",
-      className
-    )}>
+    <Card
+      className={cn(
+        "bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] transition-all",
+        className
+      )}
+    >
       <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
@@ -62,7 +64,7 @@ const PassRateGuide: React.FC<PassRateGuideProps> = ({ className }) => {
             <Settings2 className="w-5 h-5" />
             设置步骤
           </h3>
-          
+
           <div className="space-y-3">
             <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border-2 border-gray-200">
               <Badge className="bg-[#B9FF66] text-[#191A23] border border-black font-bold min-w-6 h-6 flex items-center justify-center">
@@ -70,7 +72,9 @@ const PassRateGuide: React.FC<PassRateGuideProps> = ({ className }) => {
               </Badge>
               <div>
                 <p className="font-medium text-[#191A23]">点击"科目设置"按钮</p>
-                <p className="text-sm text-gray-600 mt-1">在基础分析界面右上角找到橙色的"科目设置"按钮并点击</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  在基础分析界面右上角找到橙色的"科目设置"按钮并点击
+                </p>
               </div>
             </div>
 
@@ -80,7 +84,9 @@ const PassRateGuide: React.FC<PassRateGuideProps> = ({ className }) => {
               </Badge>
               <div>
                 <p className="font-medium text-[#191A23]">设置各科目满分</p>
-                <p className="text-sm text-gray-600 mt-1">根据学校实际情况，为语文、数学、英语等科目设置正确的满分值</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  根据学校实际情况，为语文、数学、英语等科目设置正确的满分值
+                </p>
               </div>
             </div>
 
@@ -89,8 +95,12 @@ const PassRateGuide: React.FC<PassRateGuideProps> = ({ className }) => {
                 3
               </Badge>
               <div>
-                <p className="font-medium text-[#191A23]">自动计算或手动设置及格线</p>
-                <p className="text-sm text-gray-600 mt-1">开启"自动计算比例"会自动设置60%及格、85%优秀，也可手动调整</p>
+                <p className="font-medium text-[#191A23]">
+                  自动计算或手动设置及格线
+                </p>
+                <p className="text-sm text-gray-600 mt-1">
+                  开启"自动计算比例"会自动设置60%及格、85%优秀，也可手动调整
+                </p>
               </div>
             </div>
 
@@ -100,7 +110,9 @@ const PassRateGuide: React.FC<PassRateGuideProps> = ({ className }) => {
               </Badge>
               <div>
                 <p className="font-medium text-[#191A23]">保存配置</p>
-                <p className="text-sm text-gray-600 mt-1">点击"保存配置"按钮，系统会自动刷新所有分析数据</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  点击"保存配置"按钮，系统会自动刷新所有分析数据
+                </p>
               </div>
             </div>
           </div>
@@ -112,7 +124,7 @@ const PassRateGuide: React.FC<PassRateGuideProps> = ({ className }) => {
             <Target className="w-5 h-5" />
             配置示例
           </h3>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card className="border-2 border-[#B9FF66]">
               <CardContent className="p-4">
@@ -177,7 +189,7 @@ const PassRateGuide: React.FC<PassRateGuideProps> = ({ className }) => {
             <CheckCircle className="w-5 h-5" />
             配置影响范围
           </h3>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="p-3 bg-green-50 rounded-lg border-2 border-green-200">
               <h4 className="font-medium text-green-800 mb-2">基础分析界面</h4>
@@ -212,4 +224,4 @@ const PassRateGuide: React.FC<PassRateGuideProps> = ({ className }) => {
   );
 };
 
-export default PassRateGuide; 
+export default PassRateGuide;

@@ -1,8 +1,23 @@
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Lightbulb, Brain, Target, ArrowUpRight, Blocks, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import {
+  Lightbulb,
+  Brain,
+  Target,
+  ArrowUpRight,
+  Blocks,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+} from "lucide-react";
 import { StudentData } from "./types";
 import { toast } from "sonner";
 import { getUserAIModelConfig, getUserSimpleAPIKey } from "@/utils/userAuth";
@@ -31,80 +46,86 @@ interface AnalysisResult {
 }
 
 const DEFAULT_PROFILE: LearningProfile = {
-  summary: "尚未生成学习画像分析，请点击\"生成分析\"按钮。",
+  summary: '尚未生成学习画像分析，请点击"生成分析"按钮。',
   strengths: [],
   challenges: [],
   learningStyle: "尚未分析学习风格。",
   recommendedStrategies: [],
-  longTermPotential: "尚未分析长期潜力。"
-}
+  longTermPotential: "尚未分析长期潜力。",
+};
 
-const AILearningProfile: React.FC<AILearningProfileProps> = ({ 
+const AILearningProfile: React.FC<AILearningProfileProps> = ({
   student,
-  analysisEnabled = true
+  analysisEnabled = true,
 }) => {
   const [activeTab, setActiveTab] = useState("summary");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiConfigured, setAiConfigured] = useState(false);
-  const [profileData, setProfileData] = useState<LearningProfile>(DEFAULT_PROFILE);
+  const [profileData, setProfileData] =
+    useState<LearningProfile>(DEFAULT_PROFILE);
   const [lastAnalysisDate, setLastAnalysisDate] = useState<string | null>(null);
-  
+
   // 检查AI配置
   React.useEffect(() => {
     const config = getUserAIModelConfig();
     const apiKey = getUserSimpleAPIKey();
     setAiConfigured(!!config && !!apiKey);
   }, []);
-  
+
   // 生成学习画像分析
-  const generateLearningProfile = async (type: 'simple' | 'comprehensive' = 'simple') => {
+  const generateLearningProfile = async (
+    type: "simple" | "comprehensive" = "simple"
+  ) => {
     setIsAnalyzing(true);
-    
+
     try {
       const config = getUserAIModelConfig();
       const apiKey = getUserSimpleAPIKey();
-      
+
       if (!config || !apiKey) {
         throw new Error("请先在AI设置中配置大模型API");
       }
-      
+
       // 获取Supabase URL
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
       if (!supabaseUrl) {
         throw new Error("无法获取API地址");
       }
-      
-      const response = await fetch(`${supabaseUrl}/functions/v1/generate-student-learning-profile`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          studentId: student.studentId,
-          apiKey,
-          model: config.version || 'gpt-3.5-turbo',
-          analysisType: type
-        })
-      });
-      
+
+      const response = await fetch(
+        `${supabaseUrl}/functions/v1/generate-student-learning-profile`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            studentId: student.studentId,
+            apiKey,
+            model: config.version || "gpt-3.5-turbo",
+            analysisType: type,
+          }),
+        }
+      );
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "分析请求失败");
       }
-      
+
       const data: AnalysisResult = await response.json();
-      
+
       // 更新画像数据
       setProfileData(data.learningProfile);
       setLastAnalysisDate(data.date);
-      
+
       toast.success("学习画像分析完成", {
-        description: `已生成${type === 'comprehensive' ? '综合' : '简要'}学习画像分析`
+        description: `已生成${type === "comprehensive" ? "综合" : "简要"}学习画像分析`,
       });
     } catch (error) {
       console.error("AI分析失败:", error);
       toast.error("AI分析失败", {
-        description: error.message || "无法生成学习画像分析，请稍后重试"
+        description: error.message || "无法生成学习画像分析，请稍后重试",
       });
     } finally {
       setIsAnalyzing(false);
@@ -128,7 +149,8 @@ const AILearningProfile: React.FC<AILearningProfileProps> = ({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {!profileData.summary || profileData.summary === DEFAULT_PROFILE.summary ? (
+        {!profileData.summary ||
+        profileData.summary === DEFAULT_PROFILE.summary ? (
           <div className="flex flex-col items-center justify-center py-8 space-y-4">
             <Brain className="h-12 w-12 text-muted-foreground" />
             <p className="text-center text-muted-foreground">
@@ -136,7 +158,7 @@ const AILearningProfile: React.FC<AILearningProfileProps> = ({
             </p>
             <div className="flex gap-2">
               <Button
-                onClick={() => generateLearningProfile('simple')}
+                onClick={() => generateLearningProfile("simple")}
                 className="bg-[#B9FF66] text-black hover:bg-[#a8e85c]"
                 disabled={isAnalyzing || !aiConfigured || !analysisEnabled}
               >
@@ -152,9 +174,9 @@ const AILearningProfile: React.FC<AILearningProfileProps> = ({
                   </>
                 )}
               </Button>
-              
+
               <Button
-                onClick={() => generateLearningProfile('comprehensive')}
+                onClick={() => generateLearningProfile("comprehensive")}
                 variant="outline"
                 disabled={isAnalyzing || !aiConfigured || !analysisEnabled}
               >
@@ -178,7 +200,7 @@ const AILearningProfile: React.FC<AILearningProfileProps> = ({
                 <TabsTrigger value="strategies">学习建议</TabsTrigger>
                 <TabsTrigger value="potential">发展潜力</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="summary">
                 <div className="space-y-4">
                   <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
@@ -190,7 +212,7 @@ const AILearningProfile: React.FC<AILearningProfileProps> = ({
                       {profileData.summary}
                     </p>
                   </div>
-                  
+
                   <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                     <h3 className="font-medium mb-2 flex items-center gap-2">
                       <Brain className="h-4 w-4 text-blue-500" />
@@ -202,7 +224,7 @@ const AILearningProfile: React.FC<AILearningProfileProps> = ({
                   </div>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="strengths">
                 <div className="space-y-4">
                   <h3 className="text-sm font-medium">学习优势分析</h3>
@@ -227,7 +249,7 @@ const AILearningProfile: React.FC<AILearningProfileProps> = ({
                   )}
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="challenges">
                 <div className="space-y-4">
                   <h3 className="text-sm font-medium">学习挑战分析</h3>
@@ -240,7 +262,9 @@ const AILearningProfile: React.FC<AILearningProfileProps> = ({
                         >
                           <div className="flex items-start gap-2">
                             <XCircle className="h-5 w-5 text-amber-500 mt-0.5" />
-                            <p className="text-sm text-amber-700">{challenge}</p>
+                            <p className="text-sm text-amber-700">
+                              {challenge}
+                            </p>
                           </div>
                         </div>
                       ))}
@@ -252,23 +276,27 @@ const AILearningProfile: React.FC<AILearningProfileProps> = ({
                   )}
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="strategies">
                 <div className="space-y-4">
                   <h3 className="text-sm font-medium">学习策略建议</h3>
                   {profileData.recommendedStrategies.length > 0 ? (
                     <div className="space-y-3">
-                      {profileData.recommendedStrategies.map((strategy, index) => (
-                        <div
-                          key={index}
-                          className="p-3 rounded-lg border border-indigo-200 bg-indigo-50"
-                        >
-                          <div className="flex items-start gap-2">
-                            <Target className="h-5 w-5 text-indigo-500 mt-0.5" />
-                            <p className="text-sm text-indigo-700">{strategy}</p>
+                      {profileData.recommendedStrategies.map(
+                        (strategy, index) => (
+                          <div
+                            key={index}
+                            className="p-3 rounded-lg border border-indigo-200 bg-indigo-50"
+                          >
+                            <div className="flex items-start gap-2">
+                              <Target className="h-5 w-5 text-indigo-500 mt-0.5" />
+                              <p className="text-sm text-indigo-700">
+                                {strategy}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        )
+                      )}
                     </div>
                   ) : (
                     <p className="text-center text-muted-foreground py-4">
@@ -277,7 +305,7 @@ const AILearningProfile: React.FC<AILearningProfileProps> = ({
                   )}
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="potential">
                 <div className="space-y-4">
                   <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
@@ -292,12 +320,12 @@ const AILearningProfile: React.FC<AILearningProfileProps> = ({
                 </div>
               </TabsContent>
             </Tabs>
-            
+
             <div className="flex justify-end gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => generateLearningProfile('simple')}
+                onClick={() => generateLearningProfile("simple")}
                 disabled={isAnalyzing || !aiConfigured || !analysisEnabled}
               >
                 {isAnalyzing && (
@@ -324,4 +352,4 @@ const AILearningProfile: React.FC<AILearningProfileProps> = ({
   );
 };
 
-export default AILearningProfile; 
+export default AILearningProfile;

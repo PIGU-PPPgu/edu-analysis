@@ -20,12 +20,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import {
-  ChevronDown,
-  ChevronUp,
-  Search,
-  Eye
-} from "lucide-react";
+import { ChevronDown, ChevronUp, Search, Eye } from "lucide-react";
 
 // StudentGrade 接口定义
 interface StudentGrade {
@@ -68,23 +63,32 @@ const getScoreColor = (score?: number) => {
 // 获取等级徽章样式
 const getGradeBadge = (grade?: string) => {
   if (!grade) return null;
-  
-  const gradeConfig: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", className: string }> = {
-    'A': { variant: "default", className: "bg-green-500 text-white" },
-    'A+': { variant: "default", className: "bg-green-600 text-white" },
-    'A-': { variant: "default", className: "bg-green-400 text-white" },
-    'B': { variant: "default", className: "bg-blue-500 text-white" },
-    'B+': { variant: "default", className: "bg-blue-600 text-white" },
-    'B-': { variant: "default", className: "bg-blue-400 text-white" },
-    'C': { variant: "secondary", className: "bg-yellow-500 text-white" },
-    'C+': { variant: "secondary", className: "bg-yellow-600 text-white" },
-    'C-': { variant: "secondary", className: "bg-yellow-400 text-white" },
-    'D': { variant: "destructive", className: "bg-orange-500 text-white" },
-    'F': { variant: "destructive", className: "bg-red-500 text-white" },
+
+  const gradeConfig: Record<
+    string,
+    {
+      variant: "default" | "secondary" | "destructive" | "outline";
+      className: string;
+    }
+  > = {
+    A: { variant: "default", className: "bg-green-500 text-white" },
+    "A+": { variant: "default", className: "bg-green-600 text-white" },
+    "A-": { variant: "default", className: "bg-green-400 text-white" },
+    B: { variant: "default", className: "bg-blue-500 text-white" },
+    "B+": { variant: "default", className: "bg-blue-600 text-white" },
+    "B-": { variant: "default", className: "bg-blue-400 text-white" },
+    C: { variant: "secondary", className: "bg-yellow-500 text-white" },
+    "C+": { variant: "secondary", className: "bg-yellow-600 text-white" },
+    "C-": { variant: "secondary", className: "bg-yellow-400 text-white" },
+    D: { variant: "destructive", className: "bg-orange-500 text-white" },
+    F: { variant: "destructive", className: "bg-red-500 text-white" },
   };
 
-  const config = gradeConfig[grade] || { variant: "outline" as const, className: "" };
-  
+  const config = gradeConfig[grade] || {
+    variant: "outline" as const,
+    className: "",
+  };
+
   return (
     <Badge variant={config.variant} className={config.className}>
       {grade}
@@ -97,148 +101,147 @@ export default function GradeTable({ gradeData, onRowClick }: GradeTableProps) {
   const [sorting, setSorting] = useState([{ id: "score", desc: true }]);
 
   // 定义表格列
-  const columns: ColumnDef<StudentGrade>[] = useMemo(() => [
-    {
-      header: "学号",
-      accessorKey: "student_id",
-      cell: ({ row }) => (
-        <div className="font-mono text-sm font-medium">
-          {row.getValue("student_id")}
-        </div>
-      ),
-    },
-    {
-      header: "姓名",
-      accessorKey: "name",
-      cell: ({ row }) => (
-        <div className="font-medium">
-          {row.original.name || row.original.students?.name || "-"}
-        </div>
-      ),
-    },
-    {
-      header: "班级",
-      accessorKey: "class_name",
-      cell: ({ row }) => {
-        const className = row.original.class_name || row.original.students?.class_name;
-        return className ? (
-          <Badge variant="outline" className="font-medium">
-            {className}
-          </Badge>
-        ) : (
-          <span className="text-gray-400">-</span>
-        );
+  const columns: ColumnDef<StudentGrade>[] = useMemo(
+    () => [
+      {
+        header: "学号",
+        accessorKey: "student_id",
+        cell: ({ row }) => (
+          <div className="font-mono text-sm font-medium">
+            {row.getValue("student_id")}
+          </div>
+        ),
       },
-    },
-    {
-      header: "科目",
-      accessorKey: "subject",
-      cell: ({ row }) => {
-        const subject = row.getValue("subject") as string;
-        return subject ? (
-          <Badge variant="secondary" className="font-medium">
-            {subject}
-          </Badge>
-        ) : (
-          <span className="text-gray-400">-</span>
-        );
+      {
+        header: "姓名",
+        accessorKey: "name",
+        cell: ({ row }) => (
+          <div className="font-medium">
+            {row.original.name || row.original.students?.name || "-"}
+          </div>
+        ),
       },
-    },
-    {
-      header: "分数",
-      accessorKey: "score",
-      cell: ({ row }) => {
-        const score = row.getValue("score") as number;
-        const totalScore = row.original.subject_total_score || row.original.total_score;
-        return (
-          <div className="text-right">
-            <div className={cn("text-lg", getScoreColor(score))}>
-              {score ? score.toFixed(1) : "-"}
+      {
+        header: "班级",
+        accessorKey: "class_name",
+        cell: ({ row }) => {
+          const className =
+            row.original.class_name || row.original.students?.class_name;
+          return className ? (
+            <Badge variant="outline" className="font-medium">
+              {className}
+            </Badge>
+          ) : (
+            <span className="text-gray-400">-</span>
+          );
+        },
+      },
+      {
+        header: "科目",
+        accessorKey: "subject",
+        cell: ({ row }) => {
+          const subject = row.getValue("subject") as string;
+          return subject ? (
+            <Badge variant="secondary" className="font-medium">
+              {subject}
+            </Badge>
+          ) : (
+            <span className="text-gray-400">-</span>
+          );
+        },
+      },
+      {
+        header: "分数",
+        accessorKey: "score",
+        cell: ({ row }) => {
+          const score = row.getValue("score") as number;
+          const totalScore =
+            row.original.subject_total_score || row.original.total_score;
+          return (
+            <div className="text-right">
+              <div className={cn("text-lg", getScoreColor(score))}>
+                {score ? score.toFixed(1) : "-"}
+              </div>
+              {totalScore && (
+                <div className="text-xs text-gray-500">/ {totalScore}</div>
+              )}
             </div>
-            {totalScore && (
+          );
+        },
+      },
+      {
+        header: "等级",
+        accessorKey: "grade",
+        cell: ({ row }) => {
+          const grade = row.getValue("grade") as string;
+          return (
+            <div className="flex justify-center">
+              {getGradeBadge(grade) || <span className="text-gray-400">-</span>}
+            </div>
+          );
+        },
+      },
+      {
+        header: "班级排名",
+        accessorKey: "rank_in_class",
+        cell: ({ row }) => {
+          const rank = row.getValue("rank_in_class") as number;
+          return rank ? (
+            <div className="text-center font-medium">#{rank}</div>
+          ) : (
+            <span className="text-gray-400">-</span>
+          );
+        },
+      },
+      {
+        header: "年级排名",
+        accessorKey: "rank_in_grade",
+        cell: ({ row }) => {
+          const rank = row.getValue("rank_in_grade") as number;
+          return rank ? (
+            <div className="text-center font-medium">#{rank}</div>
+          ) : (
+            <span className="text-gray-400">-</span>
+          );
+        },
+      },
+      {
+        header: "考试信息",
+        accessorKey: "exam_title",
+        cell: ({ row }) => (
+          <div className="max-w-32">
+            <div className="font-medium text-sm truncate">
+              {row.original.exam_title || "-"}
+            </div>
+            {row.original.exam_type && (
               <div className="text-xs text-gray-500">
-                / {totalScore}
+                {row.original.exam_type}
               </div>
             )}
           </div>
-        );
+        ),
       },
-    },
-    {
-      header: "等级",
-      accessorKey: "grade",
-      cell: ({ row }) => {
-        const grade = row.getValue("grade") as string;
-        return (
+      {
+        id: "actions",
+        header: () => <span className="sr-only">操作</span>,
+        cell: ({ row }) => (
           <div className="flex justify-center">
-            {getGradeBadge(grade) || <span className="text-gray-400">-</span>}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRowClick?.(row.original);
+              }}
+            >
+              <Eye className="w-4 h-4" />
+            </Button>
           </div>
-        );
+        ),
       },
-    },
-    {
-      header: "班级排名",
-      accessorKey: "rank_in_class",
-      cell: ({ row }) => {
-        const rank = row.getValue("rank_in_class") as number;
-        return rank ? (
-          <div className="text-center font-medium">
-            #{rank}
-          </div>
-        ) : (
-          <span className="text-gray-400">-</span>
-        );
-      },
-    },
-    {
-      header: "年级排名",
-      accessorKey: "rank_in_grade",
-      cell: ({ row }) => {
-        const rank = row.getValue("rank_in_grade") as number;
-        return rank ? (
-          <div className="text-center font-medium">
-            #{rank}
-          </div>
-        ) : (
-          <span className="text-gray-400">-</span>
-        );
-      },
-    },
-    {
-      header: "考试信息",
-      accessorKey: "exam_title",
-      cell: ({ row }) => (
-        <div className="max-w-32">
-          <div className="font-medium text-sm truncate">
-            {row.original.exam_title || "-"}
-          </div>
-          {row.original.exam_type && (
-            <div className="text-xs text-gray-500">
-              {row.original.exam_type}
-            </div>
-          )}
-        </div>
-      ),
-    },
-    {
-      id: "actions",
-      header: () => <span className="sr-only">操作</span>,
-      cell: ({ row }) => (
-        <div className="flex justify-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRowClick?.(row.original);
-            }}
-          >
-            <Eye className="w-4 h-4" />
-          </Button>
-        </div>
-      ),
-    },
-  ], [onRowClick]);
+    ],
+    [onRowClick]
+  );
 
   const table = useReactTable({
     data: gradeData,
@@ -250,7 +253,8 @@ export default function GradeTable({ gradeData, onRowClick }: GradeTableProps) {
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: (row, columnId, filterValue) => {
-      const searchableContent = `${row.original.name || row.original.students?.name || ''} ${row.original.student_id} ${row.original.class_name || row.original.students?.class_name || ''} ${row.original.subject || ''}`.toLowerCase();
+      const searchableContent =
+        `${row.original.name || row.original.students?.name || ""} ${row.original.student_id} ${row.original.class_name || row.original.students?.class_name || ""} ${row.original.subject || ""}`.toLowerCase();
       return searchableContent.includes((filterValue ?? "").toLowerCase());
     },
     state: {
@@ -291,11 +295,15 @@ export default function GradeTable({ gradeData, onRowClick }: GradeTableProps) {
                       <div
                         className={cn(
                           "flex items-center space-x-2",
-                          header.column.getCanSort() && "cursor-pointer select-none"
+                          header.column.getCanSort() &&
+                            "cursor-pointer select-none"
                         )}
                         onClick={header.column.getToggleSortingHandler()}
                       >
-                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
                         {header.column.getCanSort() && (
                           <div className="flex flex-col">
                             {{
@@ -321,14 +329,20 @@ export default function GradeTable({ gradeData, onRowClick }: GradeTableProps) {
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
                   暂无数据
                 </TableCell>
               </TableRow>
@@ -363,4 +377,4 @@ export default function GradeTable({ gradeData, onRowClick }: GradeTableProps) {
       </div>
     </div>
   );
-} 
+}

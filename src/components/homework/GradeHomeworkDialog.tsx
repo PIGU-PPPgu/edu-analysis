@@ -1,11 +1,11 @@
 import React, { useState } from "react";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,35 +37,37 @@ const GradeHomeworkDialog: React.FC<GradeHomeworkDialogProps> = ({
   onOpenChange,
   homework,
   submission,
-  onGraded
+  onGraded,
 }) => {
   const [formData, setFormData] = useState({
-    score: submission.score !== null ? submission.score : '',
-    feedback: submission.feedback || '',
-    status: submission.status || 'submitted',
+    score: submission.score !== null ? submission.score : "",
+    feedback: submission.feedback || "",
+    status: submission.status || "submitted",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleStatusChange = (value: string) => {
-    setFormData(prev => ({ ...prev, status: value }));
+    setFormData((prev) => ({ ...prev, status: value }));
   };
 
   const handleDownloadFile = async (file: any) => {
     try {
       const { data, error } = await supabase.storage
-        .from('homework_files')
+        .from("homework_files")
         .download(file.path);
-      
+
       if (error) throw error;
-      
+
       // 创建下载链接
       const url = URL.createObjectURL(data);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
       a.download = file.name;
       document.body.appendChild(a);
@@ -73,41 +75,41 @@ const GradeHomeworkDialog: React.FC<GradeHomeworkDialogProps> = ({
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('下载文件失败:', error);
-      toast.error('下载文件失败');
+      console.error("下载文件失败:", error);
+      toast.error("下载文件失败");
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     try {
       // 验证分数
-      const score = formData.score === '' ? null : Number(formData.score);
+      const score = formData.score === "" ? null : Number(formData.score);
       if (score !== null && (isNaN(score) || score < 0 || score > 100)) {
-        throw new Error('分数必须在0-100之间');
+        throw new Error("分数必须在0-100之间");
       }
-      
+
       // 更新提交状态和评分
       const { error } = await supabase
-        .from('homework_submissions')
+        .from("homework_submissions")
         .update({
           score: score,
           feedback: formData.feedback.trim() ? formData.feedback : null,
           status: formData.status,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', submission.id);
-      
+        .eq("id", submission.id);
+
       if (error) throw error;
-      
-      toast.success('评分已保存');
+
+      toast.success("评分已保存");
       onGraded();
       onOpenChange(false);
     } catch (error: any) {
-      console.error('保存评分失败:', error);
-      toast.error(error.message || '保存评分失败');
+      console.error("保存评分失败:", error);
+      toast.error(error.message || "保存评分失败");
     } finally {
       setIsSubmitting(false);
     }
@@ -128,16 +130,20 @@ const GradeHomeworkDialog: React.FC<GradeHomeworkDialogProps> = ({
             <h3 className="font-medium mb-2">学生信息</h3>
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div>
-                <span className="text-muted-foreground">学生姓名:</span> {submission.students?.name}
+                <span className="text-muted-foreground">学生姓名:</span>{" "}
+                {submission.students?.name}
               </div>
               <div>
-                <span className="text-muted-foreground">学号:</span> {submission.students?.student_id}
+                <span className="text-muted-foreground">学号:</span>{" "}
+                {submission.students?.student_id}
               </div>
               <div>
-                <span className="text-muted-foreground">提交时间:</span> {new Date(submission.submitted_at).toLocaleString()}
+                <span className="text-muted-foreground">提交时间:</span>{" "}
+                {new Date(submission.submitted_at).toLocaleString()}
               </div>
               <div>
-                <span className="text-muted-foreground">状态:</span> {submission.status}
+                <span className="text-muted-foreground">状态:</span>{" "}
+                {submission.status}
               </div>
             </div>
           </div>
@@ -215,11 +221,15 @@ const GradeHomeworkDialog: React.FC<GradeHomeworkDialogProps> = ({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
               取消
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? '保存中...' : '保存评分'}
+              {isSubmitting ? "保存中..." : "保存评分"}
             </Button>
           </DialogFooter>
         </form>
@@ -228,4 +238,4 @@ const GradeHomeworkDialog: React.FC<GradeHomeworkDialogProps> = ({
   );
 };
 
-export default GradeHomeworkDialog; 
+export default GradeHomeworkDialog;

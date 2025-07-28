@@ -1,16 +1,15 @@
-
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
-import { FormState, termFormSchema, TermFormValues } from './types';
-import { AcademicTermForm } from './AcademicTermForm';
-import { ClassInfoForm } from './ClassInfoForm';
-import { SubjectsForm } from './SubjectsForm';
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { FormState, termFormSchema, TermFormValues } from "./types";
+import { AcademicTermForm } from "./AcademicTermForm";
+import { ClassInfoForm } from "./ClassInfoForm";
+import { SubjectsForm } from "./SubjectsForm";
 
 export const OnboardingWizard = () => {
   const [step, setStep] = useState(1);
@@ -19,12 +18,12 @@ export const OnboardingWizard = () => {
   const navigate = useNavigate();
 
   const [formState, setFormState] = useState<FormState>({
-    academicYear: '',
-    semester: '',
+    academicYear: "",
+    semester: "",
     startDate: new Date(),
     endDate: new Date(),
-    grade: '',
-    className: '',
+    grade: "",
+    className: "",
   });
 
   const termForm = useForm<TermFormValues>({
@@ -45,9 +44,9 @@ export const OnboardingWizard = () => {
       setIsLoading(true);
       try {
         const { data: termsData, error: termsError } = await supabase
-          .from('academic_terms')
-          .select('*')
-          .order('start_date', { ascending: false })
+          .from("academic_terms")
+          .select("*")
+          .order("start_date", { ascending: false })
           .limit(1);
 
         if (termsError) {
@@ -60,7 +59,7 @@ export const OnboardingWizard = () => {
 
         if (termsData && termsData.length > 0) {
           // If there's existing data, redirect to the dashboard
-          navigate('/dashboard');
+          navigate("/dashboard");
         }
       } catch (error) {
         console.error("Failed to load initial data:", error);
@@ -94,17 +93,25 @@ export const OnboardingWizard = () => {
     setIsSaving(true);
     try {
       // Extract values from the form
-      const { academicYear, semester, startDate, endDate, className, grade, subjects } = values;
+      const {
+        academicYear,
+        semester,
+        startDate,
+        endDate,
+        className,
+        grade,
+        subjects,
+      } = values;
 
       // Insert academic term
       const { data: insertedTerm, error: insertTermError } = await supabase
-        .from('academic_terms')
+        .from("academic_terms")
         .insert({
           academic_year: academicYear,
           semester: semester,
           start_date: startDate.toISOString(),
           end_date: endDate.toISOString(),
-          is_current: true
+          is_current: true,
         })
         .select();
 
@@ -118,10 +125,10 @@ export const OnboardingWizard = () => {
 
       // Insert class
       const { data: insertedClass, error: insertClassError } = await supabase
-        .from('classes')
+        .from("classes")
         .insert({
           name: className,
-          grade: grade
+          grade: grade,
         })
         .select();
 
@@ -134,13 +141,15 @@ export const OnboardingWizard = () => {
       }
 
       // Insert subjects
-      const subjectsToInsert = subjects.map(subjectName => ({ 
+      const subjectsToInsert = subjects.map((subjectName) => ({
         subject_name: subjectName,
-        subject_code: subjectName.substring(0, 2).toUpperCase() + Math.floor(Math.random() * 1000)
+        subject_code:
+          subjectName.substring(0, 2).toUpperCase() +
+          Math.floor(Math.random() * 1000),
       }));
-      
+
       const { error: insertSubjectsError } = await supabase
-        .from('subjects')
+        .from("subjects")
         .insert(subjectsToInsert);
 
       if (insertSubjectsError) {
@@ -155,7 +164,7 @@ export const OnboardingWizard = () => {
         description: "学年、班级和科目信息已成功保存。",
       });
 
-      navigate('/dashboard');
+      navigate("/dashboard");
     } catch (error) {
       console.error("Failed to submit term form:", error);
       toast.error("错误", {
@@ -170,17 +179,17 @@ export const OnboardingWizard = () => {
     switch (step) {
       case 1:
         return (
-          <AcademicTermForm 
-            formState={formState} 
-            setFormState={setFormState} 
-            handleInputChange={handleInputChange} 
+          <AcademicTermForm
+            formState={formState}
+            setFormState={setFormState}
+            handleInputChange={handleInputChange}
           />
         );
       case 2:
         return (
-          <ClassInfoForm 
-            formState={formState} 
-            handleInputChange={handleInputChange} 
+          <ClassInfoForm
+            formState={formState}
+            handleInputChange={handleInputChange}
           />
         );
       case 3:
@@ -209,7 +218,10 @@ export const OnboardingWizard = () => {
                 <Button onClick={nextStep}>下一步</Button>
               ) : (
                 <Form {...termForm}>
-                  <form onSubmit={termForm.handleSubmit(handleTermSubmit)} className="space-y-4">
+                  <form
+                    onSubmit={termForm.handleSubmit(handleTermSubmit)}
+                    className="space-y-4"
+                  >
                     <Button type="submit" disabled={isSaving}>
                       {isSaving ? "保存中..." : "完成初始化"}
                     </Button>

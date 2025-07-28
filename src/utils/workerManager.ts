@@ -3,14 +3,14 @@
 
 // Worker 消息类型定义（内联定义避免导入问题）
 interface WorkerMessage {
-  type: 'PARSE_FILE' | 'PARSE_PROGRESS' | 'PARSE_COMPLETE' | 'PARSE_ERROR';
+  type: "PARSE_FILE" | "PARSE_PROGRESS" | "PARSE_COMPLETE" | "PARSE_ERROR";
   payload?: any;
 }
 
 interface ParseFileRequest {
   file: ArrayBuffer;
   fileName: string;
-  fileType: 'excel' | 'csv';
+  fileType: "excel" | "csv";
   options?: {
     sheetName?: string;
     encoding?: string;
@@ -20,7 +20,7 @@ interface ParseFileRequest {
 }
 
 interface ParseProgress {
-  phase: 'reading' | 'parsing' | 'validating' | 'formatting';
+  phase: "reading" | "parsing" | "validating" | "formatting";
   progress: number; // 0-100
   message: string;
   currentRow?: number;
@@ -65,21 +65,25 @@ export interface FileProcessorConfig {
 
 export class WorkerManager {
   private workers: Worker[] = [];
-  private activeJobs = new Map<number, {
-    worker: Worker;
-    resolve: (result: ParseResult) => void;
-    reject: (error: Error) => void;
-    timeout?: NodeJS.Timeout;
-    onProgress?: (progress: ParseProgress) => void;
-  }>();
+  private activeJobs = new Map<
+    number,
+    {
+      worker: Worker;
+      resolve: (result: ParseResult) => void;
+      reject: (error: Error) => void;
+      timeout?: NodeJS.Timeout;
+      onProgress?: (progress: ParseProgress) => void;
+    }
+  >();
   private jobIdCounter = 0;
   private options: Required<WorkerManagerOptions>;
 
   constructor(options: WorkerManagerOptions = {}) {
     this.options = {
-      maxWorkers: options.maxWorkers || Math.min(4, navigator.hardwareConcurrency || 2),
+      maxWorkers:
+        options.maxWorkers || Math.min(4, navigator.hardwareConcurrency || 2),
       workerTimeout: options.workerTimeout || 300000, // 5分钟
-      retryAttempts: options.retryAttempts || 3
+      retryAttempts: options.retryAttempts || 3,
     };
   }
 
@@ -101,7 +105,7 @@ export class WorkerManager {
         onError: (error) => {
           onError?.(error);
           reject(new Error(error));
-        }
+        },
       });
     });
   }
@@ -110,7 +114,7 @@ export class WorkerManager {
    * 批量处理多个文件
    */
   async processFiles(configs: FileProcessorConfig[]): Promise<ParseResult[]> {
-    const promises = configs.map(config => this.processFile(config));
+    const promises = configs.map((config) => this.processFile(config));
     return Promise.all(promises);
   }
 
@@ -120,7 +124,9 @@ export class WorkerManager {
   private getAvailableWorker(): Worker {
     // 查找空闲的Worker
     for (const worker of this.workers) {
-      const isActive = Array.from(this.activeJobs.values()).some(job => job.worker === worker);
+      const isActive = Array.from(this.activeJobs.values()).some(
+        (job) => job.worker === worker
+      );
       if (!isActive) {
         return worker;
       }
@@ -134,7 +140,7 @@ export class WorkerManager {
     }
 
     // 等待第一个完成的Worker
-    throw new Error('所有Worker都在忙碌中，请稍后重试');
+    throw new Error("所有Worker都在忙碌中，请稍后重试");
   }
 
   /**
@@ -142,7 +148,7 @@ export class WorkerManager {
    */
   private createWorker(): Worker {
     // 始终使用内联Worker避免构建问题
-    console.info('使用内联Worker避免构建问题');
+    console.info("使用内联Worker避免构建问题");
     return this.createInlineWorker();
   }
 
@@ -277,7 +283,7 @@ export class WorkerManager {
       };
     `;
 
-    const blob = new Blob([workerCode], { type: 'application/javascript' });
+    const blob = new Blob([workerCode], { type: "application/javascript" });
     return new Worker(URL.createObjectURL(blob));
   }
 
@@ -286,10 +292,10 @@ export class WorkerManager {
    */
   private createJob(config: FileProcessorConfig): void {
     const jobId = ++this.jobIdCounter;
-    
+
     try {
       const worker = this.getAvailableWorker();
-      
+
       const job = {
         worker,
         resolve: config.onComplete!,
@@ -297,7 +303,7 @@ export class WorkerManager {
         onProgress: config.onProgress,
         timeout: setTimeout(() => {
           this.handleJobTimeout(jobId);
-        }, this.options.workerTimeout)
+        }, this.options.workerTimeout),
       };
 
       this.activeJobs.set(jobId, job);
@@ -307,25 +313,26 @@ export class WorkerManager {
         this.handleWorkerMessage(jobId, e.data);
       };
 
-      worker.addEventListener('message', messageHandler);
+      worker.addEventListener("message", messageHandler);
 
       // 准备文件数据
-      this.prepareFileData(config.file).then(buffer => {
-        const request: ParseFileRequest = {
-          file: buffer,
-          fileName: config.file.name,
-          fileType: this.detectFileType(config.file),
-          options: config.options
-        };
+      this.prepareFileData(config.file)
+        .then((buffer) => {
+          const request: ParseFileRequest = {
+            file: buffer,
+            fileName: config.file.name,
+            fileType: this.detectFileType(config.file),
+            options: config.options,
+          };
 
-        worker.postMessage({
-          type: 'PARSE_FILE',
-          payload: request
-        } as WorkerMessage);
-      }).catch(error => {
-        this.handleJobError(jobId, error.message);
-      });
-
+          worker.postMessage({
+            type: "PARSE_FILE",
+            payload: request,
+          } as WorkerMessage);
+        })
+        .catch((error) => {
+          this.handleJobError(jobId, error.message);
+        });
     } catch (error) {
       config.onError?.(error instanceof Error ? error.message : String(error));
     }
@@ -339,15 +346,15 @@ export class WorkerManager {
     if (!job) return;
 
     switch (message.type) {
-      case 'PARSE_PROGRESS':
+      case "PARSE_PROGRESS":
         job.onProgress?.(message.payload as ParseProgress);
         break;
 
-      case 'PARSE_COMPLETE':
+      case "PARSE_COMPLETE":
         this.completeJob(jobId, message.payload as ParseResult);
         break;
 
-      case 'PARSE_ERROR':
+      case "PARSE_ERROR":
         this.handleJobError(jobId, message.payload.error);
         break;
     }
@@ -367,7 +374,10 @@ export class WorkerManager {
     this.activeJobs.delete(jobId);
 
     // 移除事件监听器
-    job.worker.removeEventListener('message', this.handleWorkerMessage.bind(this, jobId));
+    job.worker.removeEventListener(
+      "message",
+      this.handleWorkerMessage.bind(this, jobId)
+    );
 
     // 完成回调
     job.resolve(result);
@@ -426,7 +436,7 @@ export class WorkerManager {
         resolve(reader.result as ArrayBuffer);
       };
       reader.onerror = () => {
-        reject(new Error('文件读取失败'));
+        reject(new Error("文件读取失败"));
       };
       reader.readAsArrayBuffer(file);
     });
@@ -435,12 +445,12 @@ export class WorkerManager {
   /**
    * 检测文件类型
    */
-  private detectFileType(file: File): 'excel' | 'csv' {
+  private detectFileType(file: File): "excel" | "csv" {
     const name = file.name.toLowerCase();
-    if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
-      return 'excel';
+    if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+      return "excel";
     }
-    return 'csv';
+    return "csv";
   }
 
   /**
@@ -452,7 +462,7 @@ export class WorkerManager {
       if (job.timeout) {
         clearTimeout(job.timeout);
       }
-      job.reject(new Error('WorkerManager被销毁'));
+      job.reject(new Error("WorkerManager被销毁"));
     }
     this.activeJobs.clear();
 
@@ -474,7 +484,7 @@ export class WorkerManager {
     return {
       totalWorkers: this.workers.length,
       activeJobs: this.activeJobs.size,
-      maxWorkers: this.options.maxWorkers
+      maxWorkers: this.options.maxWorkers,
     };
   }
 }
@@ -490,7 +500,7 @@ export function getWorkerManager(): WorkerManager {
     globalWorkerManager = new WorkerManager({
       maxWorkers: Math.min(4, navigator.hardwareConcurrency || 2),
       workerTimeout: 300000, // 5分钟
-      retryAttempts: 3
+      retryAttempts: 3,
     });
   }
   return globalWorkerManager;
@@ -511,7 +521,7 @@ export async function processFileWithWorker(
   return manager.processFile({
     file,
     options,
-    onProgress: options.onProgress
+    onProgress: options.onProgress,
   });
 }
 
@@ -519,7 +529,7 @@ export async function processFileWithWorker(
  * 检查浏览器是否支持Web Workers
  */
 export function isWorkerSupported(): boolean {
-  return typeof Worker !== 'undefined';
+  return typeof Worker !== "undefined";
 }
 
 /**

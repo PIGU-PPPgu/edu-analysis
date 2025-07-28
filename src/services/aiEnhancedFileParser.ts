@@ -1,12 +1,16 @@
-import { supabase } from '@/integrations/supabase/client';
-import { ParsedFileResult, FieldType } from './intelligentFileParser';
-import { parseCSV } from '@/utils/fileParsingUtils';
-import * as XLSX from 'xlsx';
+import { supabase } from "@/integrations/supabase/client";
+import { ParsedFileResult, FieldType } from "./intelligentFileParser";
+import { parseCSV } from "@/utils/fileParsingUtils";
+import * as XLSX from "xlsx";
 // 导入AI服务相关功能
-import { getAIClient } from './aiService';
-import { getUserAIConfig, getUserAPIKey } from '@/utils/userAuth';
+import { getAIClient } from "./aiService";
+import { getUserAIConfig, getUserAPIKey } from "@/utils/userAuth";
 // 导入数据类型检测工具
-import { detectFieldType, FieldTypeDetectionResult, analyzeCSVFieldTypes } from '@/utils/dataTypeConverter';
+import {
+  detectFieldType,
+  FieldTypeDetectionResult,
+  analyzeCSVFieldTypes,
+} from "@/utils/dataTypeConverter";
 
 // AI分析结果接口
 export interface AIAnalysisResult {
@@ -15,11 +19,11 @@ export interface AIAnalysisResult {
     type: string;
     date: string;
     grade?: string;
-    scope: 'class' | 'grade' | 'school';
+    scope: "class" | "grade" | "school";
   };
   fieldMappings: Record<string, string>;
   subjects: string[];
-  dataStructure: 'wide' | 'long' | 'mixed';
+  dataStructure: "wide" | "long" | "mixed";
   confidence: number;
   processing: {
     requiresUserInput: boolean;
@@ -37,44 +41,66 @@ export interface AIFileAnalysisRequest {
 }
 
 export class AIEnhancedFileParser {
-  
   /**
    * 🚀 混合智能解析 - 算法+AI协同工作
    * 实现高性能、高准确率的解析体验
    */
   async oneClickParse(file: File): Promise<ParsedFileResult> {
     console.log(`[AIEnhancedFileParser] 🚀 开始混合智能解析: ${file.name}`);
-    
+
     try {
       // 第一步：基础文件解析
       const { data, headers } = await this.parseRawFile(file);
-      console.log(`[AIEnhancedFileParser] ✅ 文件解析完成: ${data.length}行 x ${headers.length}列`);
-      
+      console.log(
+        `[AIEnhancedFileParser] ✅ 文件解析完成: ${data.length}行 x ${headers.length}列`
+      );
+
       // 第二步：算法快速识别（优先策略）
-      const algorithmResult = await this.algorithmQuickParse(headers, data.slice(0, 5));
+      const algorithmResult = await this.algorithmQuickParse(
+        headers,
+        data.slice(0, 5)
+      );
       const algorithmCoverage = algorithmResult.mappings.size / headers.length;
-      
-      console.log(`[AIEnhancedFileParser] ⚡ 算法识别完成: 覆盖率${Math.round(algorithmCoverage * 100)}%`);
-      
+
+      console.log(
+        `[AIEnhancedFileParser] ⚡ 算法识别完成: 覆盖率${Math.round(algorithmCoverage * 100)}%`
+      );
+
       let finalAnalysis: AIAnalysisResult;
-      
+
       if (algorithmCoverage >= 0.8) {
         // 策略1: 高覆盖率 - 算法为主，AI验证关键字段
         console.log(`[AIEnhancedFileParser] 🎯 采用算法主导模式`);
-        finalAnalysis = await this.algorithmDominantMode(headers, data, algorithmResult);
+        finalAnalysis = await this.algorithmDominantMode(
+          headers,
+          data,
+          algorithmResult
+        );
       } else if (algorithmCoverage >= 0.5) {
         // 策略2: 中等覆盖率 - 算法+AI协同
         console.log(`[AIEnhancedFileParser] 🤝 采用混合协同模式`);
-        finalAnalysis = await this.hybridCollaborativeMode(headers, data, algorithmResult);
+        finalAnalysis = await this.hybridCollaborativeMode(
+          headers,
+          data,
+          algorithmResult
+        );
       } else {
         // 策略3: 低覆盖率 - AI主导，算法辅助
         console.log(`[AIEnhancedFileParser] 🧠 采用AI主导模式`);
-        finalAnalysis = await this.aiDominantMode(headers, data, algorithmResult);
+        finalAnalysis = await this.aiDominantMode(
+          headers,
+          data,
+          algorithmResult
+        );
       }
-      
+
       // 第三步：数据转换和验证
-      const processedData = await this.processDataWithAIGuidance(data, headers, finalAnalysis);
-      
+      const processedData = await this.processDataWithAIGuidance(
+        data,
+        headers,
+        finalAnalysis
+      );
+
       // 第四步：生成最终结果
       const result: ParsedFileResult = {
         data: processedData,
@@ -88,45 +114,59 @@ export class AIEnhancedFileParser {
           detectedSubjects: finalAnalysis.subjects,
           autoProcessed: true,
           examInfo: finalAnalysis.examInfo,
-          unknownFields: this.findUnknownFields(headers, finalAnalysis.fieldMappings),
-          parseStrategy: algorithmCoverage >= 0.8 ? 'algorithm-dominant' : 
-                        algorithmCoverage >= 0.5 ? 'hybrid' : 'ai-dominant'
-        }
+          unknownFields: this.findUnknownFields(
+            headers,
+            finalAnalysis.fieldMappings
+          ),
+          parseStrategy:
+            algorithmCoverage >= 0.8
+              ? "algorithm-dominant"
+              : algorithmCoverage >= 0.5
+                ? "hybrid"
+                : "ai-dominant",
+        },
       };
-      
-      console.log(`[AIEnhancedFileParser] 🎉 混合解析完成！置信度: ${finalAnalysis.confidence}`);
+
+      console.log(
+        `[AIEnhancedFileParser] 🎉 混合解析完成！置信度: ${finalAnalysis.confidence}`
+      );
       return result;
-      
     } catch (error) {
-      console.error('[AIEnhancedFileParser] ❌ 混合解析失败，降级到传统解析:', error);
+      console.error(
+        "[AIEnhancedFileParser] ❌ 混合解析失败，降级到传统解析:",
+        error
+      );
       return this.fallbackToTraditionalParse(file);
     }
   }
-  
+
   /**
    * ⚡ 算法快速解析 - 高性能模式识别 + 数据类型检测
    */
   private async algorithmQuickParse(headers: string[], sampleData: any[]) {
     const mappings = new Map<string, string>();
     const dataTypeAnalysis = new Map<string, FieldTypeDetectionResult>();
-    
+
     // 🔧 添加数据类型检测
     try {
       const fieldAnalysis = analyzeCSVFieldTypes(headers, sampleData);
-      fieldAnalysis.forEach(analysis => {
+      fieldAnalysis.forEach((analysis) => {
         dataTypeAnalysis.set(analysis.fieldName, analysis);
       });
-      console.log('[AIEnhancedFileParser] ✅ 数据类型分析完成');
+      console.log("[AIEnhancedFileParser] ✅ 数据类型分析完成");
     } catch (error) {
-      console.warn('[AIEnhancedFileParser] ⚠️ 数据类型分析失败，使用备用方案:', error);
+      console.warn(
+        "[AIEnhancedFileParser] ⚠️ 数据类型分析失败，使用备用方案:",
+        error
+      );
     }
-    
+
     const patterns = {
       // 学生信息
       student_id: [/学号|student_?id|学生学号|学生编号|编号|考生号|id$/i],
       name: [/姓名|name|学生姓名|真实姓名$/i],
       class_name: [/班级|class|所在班级|行政班级$/i],
-      
+
       // 🔧 智能分数字段识别 - 更灵活的匹配，优先个别科目
       chinese_score: [/语文(?!等级|级别|班名|校名|级名)|chinese/i],
       math_score: [/数学(?!等级|级别|班名|校名|级名)|mathematics|math/i],
@@ -137,10 +177,12 @@ export class AIEnhancedFileParser {
       politics_score: [/(政治|道法)(?!等级|级别|班名|校名|级名)|politics/i],
       history_score: [/历史(?!等级|级别|班名|校名|级名)|history/i],
       geography_score: [/地理(?!等级|级别|班名|校名|级名)|geography/i],
-      
+
       // 🔧 总分字段 - 更严格匹配，避免与个别科目冲突
-      total_score: [/总分(?!等级|级别|班名|校名|级名)|总成绩|合计(?!等级|级别)|总计(?!等级|级别)|total.?score/i],
-      
+      total_score: [
+        /总分(?!等级|级别|班名|校名|级名)|总成绩|合计(?!等级|级别)|总计(?!等级|级别)|total.?score/i,
+      ],
+
       // 🔧 等级字段 - 明确识别
       chinese_grade: [/语文等级|语文级别$/i],
       math_grade: [/数学等级|数学级别$/i],
@@ -152,163 +194,209 @@ export class AIEnhancedFileParser {
       history_grade: [/历史等级|历史级别$/i],
       geography_grade: [/地理等级|地理级别$/i],
       total_grade: [/总分等级|总等级$/i],
-      
+
       // 🔧 排名字段 - 重新优化匹配规则
       rank_in_class: [/班级排名|班排|总分班排|总分班级排名|班名$/i],
-      rank_in_grade: [/年级排名|级排|区排|总分级排|总分年级排名|级名$/i], 
+      rank_in_grade: [/年级排名|级排|区排|总分级排|总分年级排名|级名$/i],
       rank_in_school: [/校排名|校排|总分校排|总分学校排名|校名$/i],
-      
+
       // 特殊排名字段处理
       total_class_rank: [/总分班名$/i],
       total_grade_rank: [/总分级名$/i],
-      total_school_rank: [/总分校名$/i]
+      total_school_rank: [/总分校名$/i],
     };
-    
+
     // 🔧 高速模式匹配 + 数据类型验证 + 优先级系统
     for (const header of headers) {
       let bestMatch = null;
       let bestScore = 0;
-      
+
       for (const [fieldName, patterns_list] of Object.entries(patterns)) {
-        if (patterns_list.some(pattern => pattern.test(header))) {
+        if (patterns_list.some((pattern) => pattern.test(header))) {
           // 基础匹配得分
           let score = 1;
-          
+
           // 🔧 优先级加分 - 个别科目优先于总分
-          if (fieldName.includes('chinese_score') || fieldName.includes('math_score') || 
-              fieldName.includes('english_score') || fieldName.includes('physics_score') ||
-              fieldName.includes('chemistry_score') || fieldName.includes('biology_score') ||
-              fieldName.includes('politics_score') || fieldName.includes('history_score') ||
-              fieldName.includes('geography_score')) {
+          if (
+            fieldName.includes("chinese_score") ||
+            fieldName.includes("math_score") ||
+            fieldName.includes("english_score") ||
+            fieldName.includes("physics_score") ||
+            fieldName.includes("chemistry_score") ||
+            fieldName.includes("biology_score") ||
+            fieldName.includes("politics_score") ||
+            fieldName.includes("history_score") ||
+            fieldName.includes("geography_score")
+          ) {
             score += 1.0; // 个别科目优先级更高
-          } else if (fieldName === 'total_score') {
+          } else if (fieldName === "total_score") {
             score += 0.2; // 总分优先级较低
           }
-          
+
           // 🔧 数据类型验证加分
           const analysis = dataTypeAnalysis.get(header);
           if (analysis) {
             // 验证字段名和数据类型的一致性
-            if (fieldName.includes('score') && analysis.recommendedAction === 'use_as_score') {
+            if (
+              fieldName.includes("score") &&
+              analysis.recommendedAction === "use_as_score"
+            ) {
               score += 0.5; // 分数字段且数据为数字，加分
-            } else if (fieldName.includes('grade') && analysis.detectedType.type === 'grade') {
+            } else if (
+              fieldName.includes("grade") &&
+              analysis.detectedType.type === "grade"
+            ) {
               score += 0.5; // 等级字段且数据为等级，加分
-            } else if (fieldName.includes('rank') && analysis.detectedType.type === 'rank') {
+            } else if (
+              fieldName.includes("rank") &&
+              analysis.detectedType.type === "rank"
+            ) {
               score += 0.5; // 排名字段且数据为排名，加分
-            } else if (fieldName.includes('score') && analysis.detectedType.type === 'grade') {
+            } else if (
+              fieldName.includes("score") &&
+              analysis.detectedType.type === "grade"
+            ) {
               score -= 0.3; // 分数字段但数据是等级，减分但仍可匹配（需要转换）
-              console.warn(`[字段验证] "${header}": 分数字段包含等级数据，需要转换`);
+              console.warn(
+                `[字段验证] "${header}": 分数字段包含等级数据，需要转换`
+              );
             }
           }
-          
+
           if (score > bestScore) {
             bestScore = score;
             bestMatch = fieldName;
           }
         }
       }
-      
+
       if (bestMatch) {
         mappings.set(header, bestMatch);
-        
+
         // 🔧 详细日志记录 - 追踪科目识别
-        if (bestMatch.includes('_score')) {
-          const subjectName = bestMatch.replace('_score', '');
-          console.log(`[科目识别] ✅ "${header}" → ${bestMatch} (${subjectName}科目, 得分: ${bestScore.toFixed(2)})`);
+        if (bestMatch.includes("_score")) {
+          const subjectName = bestMatch.replace("_score", "");
+          console.log(
+            `[科目识别] ✅ "${header}" → ${bestMatch} (${subjectName}科目, 得分: ${bestScore.toFixed(2)})`
+          );
         } else {
-          console.log(`[字段识别] ✅ "${header}" → ${bestMatch} (得分: ${bestScore.toFixed(2)})`);
+          console.log(
+            `[字段识别] ✅ "${header}" → ${bestMatch} (得分: ${bestScore.toFixed(2)})`
+          );
         }
-        
+
         // 记录数据类型信息，供后续处理使用
         const analysis = dataTypeAnalysis.get(header);
         if (analysis) {
           mappings.set(`${header}_type_info`, {
             detectedType: analysis.detectedType.type,
             recommendedAction: analysis.recommendedAction,
-            confidence: analysis.detectedType.confidence
+            confidence: analysis.detectedType.confidence,
           });
         }
       } else {
         console.log(`[字段识别] ❌ "${header}" 未找到匹配`);
       }
     }
-    
+
     // 🔧 统计科目识别结果
-    const subjectScores = Array.from(mappings.values()).filter(v => 
-      typeof v === 'string' && v.includes('_score') && v !== 'total_score'
+    const subjectScores = Array.from(mappings.values()).filter(
+      (v) =>
+        typeof v === "string" && v.includes("_score") && v !== "total_score"
     );
-    const totalScores = Array.from(mappings.values()).filter(v => 
-      typeof v === 'string' && v === 'total_score'
+    const totalScores = Array.from(mappings.values()).filter(
+      (v) => typeof v === "string" && v === "total_score"
     );
-    
-    console.log(`[AIEnhancedFileParser] ✅ 算法匹配完成: ${mappings.size / 2}/${headers.length} 字段`);
-    console.log(`[科目统计] 📊 个别科目: ${subjectScores.length} 个, 总分: ${totalScores.length} 个`);
-    console.log(`[科目详情] 📋 已识别科目: ${subjectScores.join(', ')}`);
-    
+
+    console.log(
+      `[AIEnhancedFileParser] ✅ 算法匹配完成: ${mappings.size / 2}/${headers.length} 字段`
+    );
+    console.log(
+      `[科目统计] 📊 个别科目: ${subjectScores.length} 个, 总分: ${totalScores.length} 个`
+    );
+    console.log(`[科目详情] 📋 已识别科目: ${subjectScores.join(", ")}`);
+
     return {
       mappings,
-      confidence: (mappings.size / 2) / headers.length, // 除以2是因为包含了类型信息
-      method: 'algorithm' as const,
-      dataTypeAnalysis // 传递数据类型分析结果
+      confidence: mappings.size / 2 / headers.length, // 除以2是因为包含了类型信息
+      method: "algorithm" as const,
+      dataTypeAnalysis, // 传递数据类型分析结果
     };
   }
 
   /**
    * 🎯 算法主导模式 - 80%+覆盖率
    */
-  private async algorithmDominantMode(headers: string[], data: any[], algorithmResult: any): Promise<AIAnalysisResult> {
+  private async algorithmDominantMode(
+    headers: string[],
+    data: any[],
+    algorithmResult: any
+  ): Promise<AIAnalysisResult> {
     // 算法已识别大部分字段，只对少数未识别字段使用AI
-    const unmappedHeaders = headers.filter(h => !algorithmResult.mappings.has(h));
-    
+    const unmappedHeaders = headers.filter(
+      (h) => !algorithmResult.mappings.has(h)
+    );
+
     let aiMappings = {};
     if (unmappedHeaders.length > 0) {
       // 仅对未识别字段进行AI分析
-      const aiResult = await this.lightweightAIAnalysis(unmappedHeaders, data.slice(0, 3));
+      const aiResult = await this.lightweightAIAnalysis(
+        unmappedHeaders,
+        data.slice(0, 3)
+      );
       aiMappings = aiResult.fieldMappings || {};
     }
-    
+
     // 合并算法和AI结果
     const finalMappings = Object.fromEntries(algorithmResult.mappings);
     Object.assign(finalMappings, aiMappings);
-    
+
     return {
       examInfo: this.inferExamInfo(headers, data),
       fieldMappings: finalMappings,
       subjects: this.extractSubjects(finalMappings),
-      dataStructure: 'wide' as const,
-      confidence: Math.min(0.98, 0.95 + (algorithmResult.mappings.size / headers.length) * 0.03),
+      dataStructure: "wide" as const,
+      confidence: Math.min(
+        0.98,
+        0.95 + (algorithmResult.mappings.size / headers.length) * 0.03
+      ),
       processing: {
         requiresUserInput: false,
         issues: [],
-        suggestions: []
-      }
+        suggestions: [],
+      },
     };
   }
 
   /**
    * 🤝 混合协同模式 - 50-80%覆盖率
    */
-  private async hybridCollaborativeMode(headers: string[], data: any[], algorithmResult: any): Promise<AIAnalysisResult> {
+  private async hybridCollaborativeMode(
+    headers: string[],
+    data: any[],
+    algorithmResult: any
+  ): Promise<AIAnalysisResult> {
     // AI分析所有字段，但与算法结果进行交叉验证
     const aiAnalysis = await this.aiAnalyzeCompleteFile({
-      filename: 'hybrid_analysis',
+      filename: "hybrid_analysis",
       headers,
       sampleRows: data.slice(0, 8),
-      totalRows: data.length
+      totalRows: data.length,
     });
-    
+
     // 融合算法和AI结果
     const algorithmMappings = Object.fromEntries(algorithmResult.mappings);
     const aiMappings = aiAnalysis.fieldMappings;
     const fusedMappings = {};
-    
+
     for (const header of headers) {
       const algorithmMapping = algorithmMappings[header];
       const aiMapping = aiMappings[header];
-      
+
       if (algorithmMapping && aiMapping) {
         // 双重确认 - 高置信度
-        fusedMappings[header] = algorithmMapping === aiMapping ? algorithmMapping : aiMapping;
+        fusedMappings[header] =
+          algorithmMapping === aiMapping ? algorithmMapping : aiMapping;
       } else if (algorithmMapping) {
         // 算法识别
         fusedMappings[header] = algorithmMapping;
@@ -317,40 +405,50 @@ export class AIEnhancedFileParser {
         fusedMappings[header] = aiMapping;
       }
     }
-    
+
     return {
       ...aiAnalysis,
       fieldMappings: fusedMappings,
-      confidence: Math.min(0.96, (aiAnalysis.confidence + algorithmResult.confidence) / 2 + 0.05)
+      confidence: Math.min(
+        0.96,
+        (aiAnalysis.confidence + algorithmResult.confidence) / 2 + 0.05
+      ),
     };
   }
 
   /**
    * 🧠 AI主导模式 - <50%覆盖率
    */
-  private async aiDominantMode(headers: string[], data: any[], algorithmResult: any): Promise<AIAnalysisResult> {
+  private async aiDominantMode(
+    headers: string[],
+    data: any[],
+    algorithmResult: any
+  ): Promise<AIAnalysisResult> {
     // 复杂数据，以AI为主，算法辅助验证
     const aiAnalysis = await this.aiAnalyzeCompleteFile({
-      filename: 'ai_dominant_analysis',
+      filename: "ai_dominant_analysis",
       headers,
       sampleRows: data.slice(0, 10),
-      totalRows: data.length
+      totalRows: data.length,
     });
-    
+
     // 算法结果作为验证参考
     const algorithmMappings = Object.fromEntries(algorithmResult.mappings);
     const verifiedMappings = { ...aiAnalysis.fieldMappings };
-    
+
     // 算法确认的字段提升置信度
-    Object.keys(algorithmMappings).forEach(header => {
+    Object.keys(algorithmMappings).forEach((header) => {
       if (verifiedMappings[header] === algorithmMappings[header]) {
         // AI和算法一致，提升整体置信度
       }
     });
-    
+
     return {
       ...aiAnalysis,
-      confidence: Math.min(0.94, aiAnalysis.confidence + algorithmResult.confidence * 0.1)
+      confidence: Math.min(
+        0.94,
+        aiAnalysis.confidence + algorithmResult.confidence * 0.1
+      ),
     };
   }
 
@@ -363,15 +461,15 @@ export class AIEnhancedFileParser {
       const userAIConfig = await getUserAIConfig();
       const apiKey = await getUserAPIKey(userAIConfig.aiProvider);
       const aiClient = await getAIClient(userAIConfig.aiProvider, apiKey);
-      
-      const prompt = `快速识别以下字段：${headers.join(', ')}
+
+      const prompt = `快速识别以下字段：${headers.join(", ")}
 样本数据：${JSON.stringify(sampleData.slice(0, 2))}
 只返回JSON格式的字段映射，无需解释。`;
-      
+
       const response = await aiClient.generateText(prompt);
       return JSON.parse(response);
     } catch (error) {
-      console.warn('轻量级AI分析失败:', error);
+      console.warn("轻量级AI分析失败:", error);
       return { fieldMappings: {} };
     }
   }
@@ -381,10 +479,10 @@ export class AIEnhancedFileParser {
    */
   private inferExamInfo(headers: string[], data: any[]) {
     return {
-      title: '成绩数据',
-      type: '考试',
-      date: new Date().toISOString().split('T')[0],
-      scope: 'class' as const
+      title: "成绩数据",
+      type: "考试",
+      date: new Date().toISOString().split("T")[0],
+      scope: "class" as const,
     };
   }
 
@@ -393,11 +491,23 @@ export class AIEnhancedFileParser {
    */
   private extractSubjects(mappings: Record<string, string | any>) {
     const subjects = new Set<string>();
-    Object.values(mappings).forEach(field => {
+    Object.values(mappings).forEach((field) => {
       // 🔧 只处理字符串字段，跳过类型信息对象
-      if (typeof field === 'string' && field.includes('_')) {
-        const subject = field.split('_')[0];
-        if (['chinese', 'math', 'english', 'physics', 'chemistry', 'biology', 'politics', 'history', 'geography'].includes(subject)) {
+      if (typeof field === "string" && field.includes("_")) {
+        const subject = field.split("_")[0];
+        if (
+          [
+            "chinese",
+            "math",
+            "english",
+            "physics",
+            "chemistry",
+            "biology",
+            "politics",
+            "history",
+            "geography",
+          ].includes(subject)
+        ) {
           subjects.add(subject);
         }
       }
@@ -409,77 +519,92 @@ export class AIEnhancedFileParser {
    * 🤖 AI全局文件分析 - 核心优化
    * 让AI一次性分析整个文件，提供丰富的上下文信息
    */
-  private async aiAnalyzeCompleteFile(request: AIFileAnalysisRequest): Promise<AIAnalysisResult> {
-    console.log('[AIEnhancedFileParser] 🧠 开始AI全局分析...');
-    
+  private async aiAnalyzeCompleteFile(
+    request: AIFileAnalysisRequest
+  ): Promise<AIAnalysisResult> {
+    console.log("[AIEnhancedFileParser] 🧠 开始AI全局分析...");
+
     try {
       // 1. 获取用户AI配置
       const aiConfig = await getUserAIConfig();
       if (!aiConfig || !aiConfig.enabled) {
-        throw new Error('AI分析功能未启用，请先在AI设置中配置并启用');
+        throw new Error("AI分析功能未启用，请先在AI设置中配置并启用");
       }
-      
-      console.log(`[AIEnhancedFileParser] 📋 使用AI配置: ${aiConfig.provider} - ${aiConfig.version}`);
-      
+
+      console.log(
+        `[AIEnhancedFileParser] 📋 使用AI配置: ${aiConfig.provider} - ${aiConfig.version}`
+      );
+
       // 2. 获取API密钥
       const apiKey = await getUserAPIKey(aiConfig.provider);
       if (!apiKey) {
-        throw new Error(`未找到${aiConfig.provider}的API密钥，请在AI设置中配置`);
+        throw new Error(
+          `未找到${aiConfig.provider}的API密钥，请在AI设置中配置`
+        );
       }
-      
-             // 3. 创建AI客户端
-       const client = await getAIClient(aiConfig.provider, aiConfig.version, false);
-       if (!client) {
-         throw new Error(`无法创建${aiConfig.provider}的AI客户端，请检查配置`);
-       }
-      
-      console.log('[AIEnhancedFileParser] 🤖 AI客户端创建成功，开始分析...');
-      
+
+      // 3. 创建AI客户端
+      const client = await getAIClient(
+        aiConfig.provider,
+        aiConfig.version,
+        false
+      );
+      if (!client) {
+        throw new Error(`无法创建${aiConfig.provider}的AI客户端，请检查配置`);
+      }
+
+      console.log("[AIEnhancedFileParser] 🤖 AI客户端创建成功，开始分析...");
+
       // 4. 构建提示词
       const systemPrompt = this.getSystemPrompt();
       const userPrompt = this.buildComprehensivePrompt(request);
-      
+
       // 5. 发送AI请求
       let response;
-      if ('sendRequest' in client) {
+      if ("sendRequest" in client) {
         // 使用GenericAIClient
-        response = await client.sendRequest([
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ], {
-          temperature: 0.1,
-          maxTokens: 2000
-        });
+        response = await client.sendRequest(
+          [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          {
+            temperature: 0.1,
+            maxTokens: 2000,
+          }
+        );
       } else {
         // 使用OpenAI原生客户端
         response = await client.chat.completions.create({
           model: aiConfig.version,
           messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
           ],
           temperature: 0.1,
-          max_tokens: 2000
+          max_tokens: 2000,
         });
       }
-      
+
       // 6. 解析AI响应
-      const content = response.choices[0]?.message?.content || '';
+      const content = response.choices[0]?.message?.content || "";
       if (!content) {
-        throw new Error('AI返回内容为空');
+        throw new Error("AI返回内容为空");
       }
-      
-      console.log('[AIEnhancedFileParser] ✅ AI分析完成，解析响应...');
-      console.log('[AIEnhancedFileParser] 📄 AI响应预览:', content.substring(0, 200) + '...');
-      
+
+      console.log("[AIEnhancedFileParser] ✅ AI分析完成，解析响应...");
+      console.log(
+        "[AIEnhancedFileParser] 📄 AI响应预览:",
+        content.substring(0, 200) + "..."
+      );
+
       return this.parseAIAnalysisResponse(content);
-      
     } catch (error) {
-      console.error('[AIEnhancedFileParser] ❌ AI分析过程出错:', error);
+      console.error("[AIEnhancedFileParser] ❌ AI分析过程出错:", error);
       throw error;
     }
   }
-  
+
   /**
    * 📝 构建全面的AI提示词 - 核心优化
    * 提供丰富的上下文信息，让AI充分发挥语义理解能力
@@ -488,7 +613,7 @@ export class AIEnhancedFileParser {
    */
   private buildComprehensivePrompt(request: AIFileAnalysisRequest): string {
     const { filename, headers, sampleRows, totalRows } = request;
-    
+
     return `
 # 🎓 教育数据智能分析任务
 
@@ -497,7 +622,7 @@ export class AIEnhancedFileParser {
 ## 📁 文件基本信息
 - **文件名**: ${filename}
 - **数据规模**: ${totalRows} 行 x ${headers.length} 列
-- **字段列表**: ${headers.join('、')}
+- **字段列表**: ${headers.join("、")}
 
 ## 📊 样本数据分析
 ${this.formatSampleData(headers, sampleRows)}
@@ -711,7 +836,7 @@ ${this.formatSampleData(headers, sampleRows)}
 请开始分析并返回JSON结果。
 `;
   }
-  
+
   /**
    * 🤖 系统提示词 - 定义AI角色和能力
    */
@@ -747,289 +872,364 @@ ${this.formatSampleData(headers, sampleRows)}
 请运用这些专业能力，对教育数据文件进行深度分析，确保结果的准确性和可用性。
 `;
   }
-  
+
   /**
    * 📊 格式化样本数据用于AI分析
    */
   private formatSampleData(headers: string[], sampleRows: any[]): string {
-    if (sampleRows.length === 0) return '无样本数据';
-    
-    let result = '```\n';
-    result += headers.join('\t') + '\n';
-    result += '-'.repeat(headers.join('\t').length) + '\n';
-    
-    sampleRows.slice(0, 5).forEach(row => {
-      const values = headers.map(header => {
+    if (sampleRows.length === 0) return "无样本数据";
+
+    let result = "```\n";
+    result += headers.join("\t") + "\n";
+    result += "-".repeat(headers.join("\t").length) + "\n";
+
+    sampleRows.slice(0, 5).forEach((row) => {
+      const values = headers.map((header) => {
         const value = row[header];
-        return value !== undefined && value !== null ? String(value) : '';
+        return value !== undefined && value !== null ? String(value) : "";
       });
-      result += values.join('\t') + '\n';
+      result += values.join("\t") + "\n";
     });
-    
-    result += '```';
+
+    result += "```";
     return result;
   }
-  
+
   /**
    * 🔍 解析AI分析响应
    */
   private parseAIAnalysisResponse(content: string): AIAnalysisResult {
-    console.log('[AIEnhancedFileParser] 🔍 解析AI响应...');
-    
+    console.log("[AIEnhancedFileParser] 🔍 解析AI响应...");
+
     try {
       // 提取JSON部分
-      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/\{[\s\S]*\}/);
+      const jsonMatch =
+        content.match(/```json\s*([\s\S]*?)\s*```/) ||
+        content.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        throw new Error('AI响应中未找到JSON格式的结果');
+        throw new Error("AI响应中未找到JSON格式的结果");
       }
-      
+
       const jsonStr = jsonMatch[1] || jsonMatch[0];
       const result = JSON.parse(jsonStr);
-      
+
       // 验证和补充结果
       return this.validateAndEnhanceAIResult(result);
-      
     } catch (error) {
-      console.error('[AIEnhancedFileParser] ❌ AI响应解析失败:', error);
-      console.log('[AIEnhancedFileParser] 原始响应:', content);
-      
+      console.error("[AIEnhancedFileParser] ❌ AI响应解析失败:", error);
+      console.log("[AIEnhancedFileParser] 原始响应:", content);
+
       // 返回默认结果
       return this.getDefaultAIResult();
     }
   }
-  
+
   /**
    * ✅ 验证和增强AI分析结果
    * 基于n8n配置规则进行二次验证和优化
    */
   private validateAndEnhanceAIResult(result: any): AIAnalysisResult {
-    console.log('[AIEnhancedFileParser] 🔍 开始验证和增强AI结果...');
-    
+    console.log("[AIEnhancedFileParser] 🔍 开始验证和增强AI结果...");
+
     // 标准字段映射表（基于n8n配置）
     const standardFieldMappings: Record<string, string> = {
       // 学生信息
-      '学号': 'student_id', '姓名': 'name', '班级': 'class_name',
-      'student_id': 'student_id', 'name': 'name', 'class_name': 'class_name',
-      
+      学号: "student_id",
+      姓名: "name",
+      班级: "class_name",
+      student_id: "student_id",
+      name: "name",
+      class_name: "class_name",
+
       // 主要科目
-      '语文': 'chinese_score', '数学': 'math_score', '英语': 'english_score',
-      'chinese': 'chinese_score', 'math': 'math_score', 'english': 'english_score',
-      
+      语文: "chinese_score",
+      数学: "math_score",
+      英语: "english_score",
+      chinese: "chinese_score",
+      math: "math_score",
+      english: "english_score",
+
       // 理科科目
-      '物理': 'physics_score', '化学': 'chemistry_score', '生物': 'biology_score',
-      'physics': 'physics_score', 'chemistry': 'chemistry_score', 'biology': 'biology_score',
-      
+      物理: "physics_score",
+      化学: "chemistry_score",
+      生物: "biology_score",
+      physics: "physics_score",
+      chemistry: "chemistry_score",
+      biology: "biology_score",
+
       // 文科科目
-      '政治': 'politics_score', '历史': 'history_score', '地理': 'geography_score',
-      'politics': 'politics_score', 'history': 'history_score', 'geography': 'geography_score',
-      '道法': 'politics_score', '道德与法治': 'politics_score',
-      
+      政治: "politics_score",
+      历史: "history_score",
+      地理: "geography_score",
+      politics: "politics_score",
+      history: "history_score",
+      geography: "geography_score",
+      道法: "politics_score",
+      道德与法治: "politics_score",
+
       // 统计字段
-      '总分': 'total_score', '合计': 'total_score', '总成绩': 'total_score',
-      'total': 'total_score', 'total_score': 'total_score',
-      
+      总分: "total_score",
+      合计: "total_score",
+      总成绩: "total_score",
+      total: "total_score",
+      total_score: "total_score",
+
       // 排名字段
-      '班级排名': 'rank_in_class', '年级排名': 'rank_in_grade', '学校排名': 'rank_in_school',
-      '班排名': 'rank_in_class', '年排名': 'rank_in_grade', '校排名': 'rank_in_school',
-      
+      班级排名: "rank_in_class",
+      年级排名: "rank_in_grade",
+      学校排名: "rank_in_school",
+      班排名: "rank_in_class",
+      年排名: "rank_in_grade",
+      校排名: "rank_in_school",
+
       // 等级字段
-      '等级': 'original_grade', '评级': 'original_grade', '成绩等级': 'original_grade',
-      '语文等级': 'chinese_grade', '数学等级': 'math_grade', '英语等级': 'english_grade',
-      '物理等级': 'physics_grade', '化学等级': 'chemistry_grade', '生物等级': 'biology_grade',
-      '政治等级': 'politics_grade', '历史等级': 'history_grade', '地理等级': 'geography_grade'
+      等级: "original_grade",
+      评级: "original_grade",
+      成绩等级: "original_grade",
+      语文等级: "chinese_grade",
+      数学等级: "math_grade",
+      英语等级: "english_grade",
+      物理等级: "physics_grade",
+      化学等级: "chemistry_grade",
+      生物等级: "biology_grade",
+      政治等级: "politics_grade",
+      历史等级: "history_grade",
+      地理等级: "geography_grade",
     };
-    
+
     // 科目列表
-    const standardSubjects = ['语文', '数学', '英语', '物理', '化学', '生物', '政治', '历史', '地理'];
-    
+    const standardSubjects = [
+      "语文",
+      "数学",
+      "英语",
+      "物理",
+      "化学",
+      "生物",
+      "政治",
+      "历史",
+      "地理",
+    ];
+
     // 验证和修正字段映射
     const validatedMappings: Record<string, string> = {};
     const detectedSubjects: string[] = [];
     let mappingScore = 0;
     let totalFields = 0;
-    
+
     if (result.fieldMappings) {
-      Object.entries(result.fieldMappings).forEach(([originalField, mappedField]) => {
-        totalFields++;
-        
-        // 检查是否为标准映射
-        const standardMapping = standardFieldMappings[originalField.toLowerCase()] || 
-                               standardFieldMappings[originalField];
-        
-        if (standardMapping) {
-          validatedMappings[originalField] = standardMapping;
-          mappingScore++;
-          
-          // 检测科目
-          if (standardMapping.endsWith('_score')) {
-            const subject = this.extractSubjectFromField(originalField);
-            if (subject && standardSubjects.includes(subject) && !detectedSubjects.includes(subject)) {
-              detectedSubjects.push(subject);
+      Object.entries(result.fieldMappings).forEach(
+        ([originalField, mappedField]) => {
+          totalFields++;
+
+          // 检查是否为标准映射
+          const standardMapping =
+            standardFieldMappings[originalField.toLowerCase()] ||
+            standardFieldMappings[originalField];
+
+          if (standardMapping) {
+            validatedMappings[originalField] = standardMapping;
+            mappingScore++;
+
+            // 检测科目
+            if (standardMapping.endsWith("_score")) {
+              const subject = this.extractSubjectFromField(originalField);
+              if (
+                subject &&
+                standardSubjects.includes(subject) &&
+                !detectedSubjects.includes(subject)
+              ) {
+                detectedSubjects.push(subject);
+              }
             }
+          } else if (
+            typeof mappedField === "string" &&
+            mappedField.length > 0
+          ) {
+            // 保留AI的映射，但标记为需要验证
+            validatedMappings[originalField] = mappedField as string;
+            mappingScore += 0.5; // 部分分数
           }
-        } else if (typeof mappedField === 'string' && mappedField.length > 0) {
-          // 保留AI的映射，但标记为需要验证
-          validatedMappings[originalField] = mappedField as string;
-          mappingScore += 0.5; // 部分分数
         }
-      });
+      );
     }
-    
+
     // 计算置信度
-    const baseMappingConfidence = totalFields > 0 ? mappingScore / totalFields : 0;
+    const baseMappingConfidence =
+      totalFields > 0 ? mappingScore / totalFields : 0;
     const originalConfidence = result.confidence || 0.5;
-    const adjustedConfidence = Math.min(Math.max(
-      (baseMappingConfidence * 0.7) + (originalConfidence * 0.3), 0
-    ), 1);
-    
+    const adjustedConfidence = Math.min(
+      Math.max(baseMappingConfidence * 0.7 + originalConfidence * 0.3, 0),
+      1
+    );
+
     // 生成处理建议
     const issues: string[] = [];
     const suggestions: string[] = [];
-    
+
     // 检查必需字段
-    const hasStudentId = Object.values(validatedMappings).includes('student_id');
-    const hasName = Object.values(validatedMappings).includes('name');
-    
+    const hasStudentId =
+      Object.values(validatedMappings).includes("student_id");
+    const hasName = Object.values(validatedMappings).includes("name");
+
     if (!hasName) {
-      issues.push('缺少学生姓名字段，这是必需的字段');
+      issues.push("缺少学生姓名字段，这是必需的字段");
     }
     if (!hasStudentId) {
-      suggestions.push('建议提供学号字段以提高学生匹配准确性');
+      suggestions.push("建议提供学号字段以提高学生匹配准确性");
     }
-    
+
     // 检查科目数量
     if (detectedSubjects.length === 0) {
-      issues.push('未检测到任何科目成绩字段');
+      issues.push("未检测到任何科目成绩字段");
     } else if (detectedSubjects.length < 3) {
-      suggestions.push(`检测到${detectedSubjects.length}个科目，数据可能不完整`);
+      suggestions.push(
+        `检测到${detectedSubjects.length}个科目，数据可能不完整`
+      );
     } else {
-      suggestions.push(`检测到${detectedSubjects.length}个科目: ${detectedSubjects.join('、')}`);
+      suggestions.push(
+        `检测到${detectedSubjects.length}个科目: ${detectedSubjects.join("、")}`
+      );
     }
-    
+
     // 数据结构验证
-    const dataStructure = result.dataStructure || 'wide';
-    if (detectedSubjects.length > 3 && dataStructure === 'wide') {
-      suggestions.push('检测到宽表格式，将自动转换为标准格式');
+    const dataStructure = result.dataStructure || "wide";
+    if (detectedSubjects.length > 3 && dataStructure === "wide") {
+      suggestions.push("检测到宽表格式，将自动转换为标准格式");
     }
-    
+
     // 置信度建议
     if (adjustedConfidence > 0.85) {
-      suggestions.push('字段映射置信度高，建议自动处理');
+      suggestions.push("字段映射置信度高，建议自动处理");
     } else if (adjustedConfidence > 0.6) {
-      suggestions.push('字段映射基本准确，建议用户确认后处理');
+      suggestions.push("字段映射基本准确，建议用户确认后处理");
     } else {
-      issues.push('字段映射置信度较低，需要用户手动调整');
+      issues.push("字段映射置信度较低，需要用户手动调整");
     }
-    
+
     const enhanced: AIAnalysisResult = {
       examInfo: {
-        title: result.examInfo?.title || '未命名考试',
-        type: result.examInfo?.type || '考试',
-        date: result.examInfo?.date || new Date().toISOString().split('T')[0],
+        title: result.examInfo?.title || "未命名考试",
+        type: result.examInfo?.type || "考试",
+        date: result.examInfo?.date || new Date().toISOString().split("T")[0],
         grade: result.examInfo?.grade,
-        scope: result.examInfo?.scope || 'class'
+        scope: result.examInfo?.scope || "class",
       },
       fieldMappings: validatedMappings,
-      subjects: detectedSubjects.length > 0 ? detectedSubjects : (result.subjects || []),
+      subjects:
+        detectedSubjects.length > 0 ? detectedSubjects : result.subjects || [],
       dataStructure: dataStructure,
       confidence: adjustedConfidence,
       processing: {
         requiresUserInput: adjustedConfidence < 0.8 || issues.length > 0,
         issues,
-        suggestions
-      }
+        suggestions,
+      },
     };
-    
-    console.log('[AIEnhancedFileParser] ✅ AI结果验证完成:', {
+
+    console.log("[AIEnhancedFileParser] ✅ AI结果验证完成:", {
       originalConfidence: originalConfidence,
       adjustedConfidence: adjustedConfidence,
       mappingScore: `${mappingScore}/${totalFields}`,
       detectedSubjects: detectedSubjects.length,
       issues: issues.length,
-      suggestions: suggestions.length
+      suggestions: suggestions.length,
     });
-    
+
     return enhanced;
   }
-  
+
   /**
    * 🔍 从字段名提取科目名称
    */
   private extractSubjectFromField(fieldName: string): string | null {
     const subjectPatterns: Record<string, string> = {
-      '语文': '语文', 'chinese': '语文',
-      '数学': '数学', 'math': '数学',
-      '英语': '英语', 'english': '英语',
-      '物理': '物理', 'physics': '物理',
-      '化学': '化学', 'chemistry': '化学',
-      '生物': '生物', 'biology': '生物',
-      '政治': '政治', 'politics': '政治', '道法': '政治',
-      '历史': '历史', 'history': '历史',
-      '地理': '地理', 'geography': '地理'
+      语文: "语文",
+      chinese: "语文",
+      数学: "数学",
+      math: "数学",
+      英语: "英语",
+      english: "英语",
+      物理: "物理",
+      physics: "物理",
+      化学: "化学",
+      chemistry: "化学",
+      生物: "生物",
+      biology: "生物",
+      政治: "政治",
+      politics: "政治",
+      道法: "政治",
+      历史: "历史",
+      history: "历史",
+      地理: "地理",
+      geography: "地理",
     };
-    
+
     const lowerField = fieldName.toLowerCase();
     for (const [pattern, subject] of Object.entries(subjectPatterns)) {
       if (lowerField.includes(pattern.toLowerCase())) {
         return subject;
       }
     }
-    
+
     return null;
   }
-  
+
   /**
    * 🔄 基础文件解析（支持Excel和CSV）
    */
-  private async parseRawFile(file: File): Promise<{ data: any[], headers: string[] }> {
+  private async parseRawFile(
+    file: File
+  ): Promise<{ data: any[]; headers: string[] }> {
     const fileType = this.detectFileType(file);
-    
-    if (fileType === 'csv') {
+
+    if (fileType === "csv") {
       const text = await this.readFileAsText(file);
       const { data, headers } = parseCSV(text);
       return { data, headers };
-    } else if (fileType === 'xlsx' || fileType === 'xls') {
+    } else if (fileType === "xlsx" || fileType === "xls") {
       return this.parseExcelFile(file);
     } else {
       throw new Error(`不支持的文件类型: ${fileType}`);
     }
   }
-  
+
   /**
    * 📊 Excel文件解析
    */
-  private async parseExcelFile(file: File): Promise<{ data: any[], headers: string[] }> {
+  private async parseExcelFile(
+    file: File
+  ): Promise<{ data: any[]; headers: string[] }> {
     const buffer = await file.arrayBuffer();
-    const workbook = XLSX.read(buffer, { type: 'array' });
+    const workbook = XLSX.read(buffer, { type: "array" });
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
-    
+
     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-    
+
     if (jsonData.length === 0) {
-      throw new Error('Excel文件为空');
+      throw new Error("Excel文件为空");
     }
-    
+
     const headers = jsonData[0] as string[];
-    const data = jsonData.slice(1).map(row => {
+    const data = jsonData.slice(1).map((row) => {
       const obj: any = {};
       headers.forEach((header, index) => {
         obj[header] = (row as any[])[index];
       });
       return obj;
     });
-    
+
     return { data, headers };
   }
-  
+
   /**
    * 🔍 文件类型检测
    */
   private detectFileType(file: File): string {
-    const extension = file.name.split('.').pop()?.toLowerCase();
-    return extension || 'unknown';
+    const extension = file.name.split(".").pop()?.toLowerCase();
+    return extension || "unknown";
   }
-  
+
   /**
    * 📖 文件内容读取
    */
@@ -1038,10 +1238,10 @@ ${this.formatSampleData(headers, sampleRows)}
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
       reader.onerror = () => reject(reader.error);
-      reader.readAsText(file, 'utf-8');
+      reader.readAsText(file, "utf-8");
     });
   }
-  
+
   /**
    * 🔧 基于AI指导处理数据
    */
@@ -1050,109 +1250,118 @@ ${this.formatSampleData(headers, sampleRows)}
     headers: string[],
     aiAnalysis: AIAnalysisResult
   ): Promise<any[]> {
-    console.log('[AIEnhancedFileParser] 🔧 基于AI指导处理数据...');
-    
+    console.log("[AIEnhancedFileParser] 🔧 基于AI指导处理数据...");
+
     // 数据清洗
-    const cleanedData = data.filter(row => {
+    const cleanedData = data.filter((row) => {
       // 过滤空行和无效行
-      return Object.values(row).some(value => value !== null && value !== undefined && value !== '');
+      return Object.values(row).some(
+        (value) => value !== null && value !== undefined && value !== ""
+      );
     });
-    
+
     // 根据AI分析的数据结构处理数据
-    if (aiAnalysis.dataStructure === 'wide') {
+    if (aiAnalysis.dataStructure === "wide") {
       return this.processWideFormat(cleanedData, aiAnalysis);
-    } else if (aiAnalysis.dataStructure === 'long') {
+    } else if (aiAnalysis.dataStructure === "long") {
       return this.processLongFormat(cleanedData, aiAnalysis);
     } else {
       return cleanedData; // 混合格式暂时直接返回
     }
   }
-  
+
   /**
    * 📊 处理宽表格式数据
    */
   private processWideFormat(data: any[], aiAnalysis: AIAnalysisResult): any[] {
-    return data.map(row => {
+    return data.map((row) => {
       const processedRow: any = { ...row };
-      
+
       // 基于AI的字段映射重命名字段
-      Object.entries(aiAnalysis.fieldMappings).forEach(([originalField, mappedField]) => {
-        if (row[originalField] !== undefined) {
-          processedRow[mappedField] = row[originalField];
-          // 如果是新字段名，删除原字段
-          if (originalField !== mappedField) {
-            delete processedRow[originalField];
+      Object.entries(aiAnalysis.fieldMappings).forEach(
+        ([originalField, mappedField]) => {
+          if (row[originalField] !== undefined) {
+            processedRow[mappedField] = row[originalField];
+            // 如果是新字段名，删除原字段
+            if (originalField !== mappedField) {
+              delete processedRow[originalField];
+            }
           }
         }
-      });
-      
+      );
+
       // 添加考试信息
       processedRow._examInfo = aiAnalysis.examInfo;
-      
+
       return processedRow;
     });
   }
-  
+
   /**
    * 📋 处理长表格式数据
    */
   private processLongFormat(data: any[], aiAnalysis: AIAnalysisResult): any[] {
     // 长表格式的处理逻辑
-    return data.map(row => {
+    return data.map((row) => {
       const processedRow: any = { ...row };
       processedRow._examInfo = aiAnalysis.examInfo;
       return processedRow;
     });
   }
-  
+
   /**
    * ❓ 查找未知字段
    */
-  private findUnknownFields(headers: string[], mappings: Record<string, string>): Array<{ name: string; sampleValues: string[] }> {
+  private findUnknownFields(
+    headers: string[],
+    mappings: Record<string, string>
+  ): Array<{ name: string; sampleValues: string[] }> {
     return headers
-      .filter(header => !mappings[header] || mappings[header] === 'unknown')
-      .map(header => ({
+      .filter((header) => !mappings[header] || mappings[header] === "unknown")
+      .map((header) => ({
         name: header,
-        sampleValues: [] // 可以添加样本值
+        sampleValues: [], // 可以添加样本值
       }));
   }
-  
+
   /**
    * 🔄 传统解析降级方案（算法兜底）
    */
-  private async fallbackToTraditionalParse(file: File): Promise<ParsedFileResult> {
-    console.log('[AIEnhancedFileParser] 🔄 使用传统解析方案...');
-    
+  private async fallbackToTraditionalParse(
+    file: File
+  ): Promise<ParsedFileResult> {
+    console.log("[AIEnhancedFileParser] 🔄 使用传统解析方案...");
+
     // 导入并使用原有的智能解析器
-    const { IntelligentFileParser } = await import('./intelligentFileParser');
+    const { IntelligentFileParser } = await import("./intelligentFileParser");
     const traditionalParser = new IntelligentFileParser();
-    
+
     return traditionalParser.parseFile(file);
   }
-  
+
   /**
    * 🛡️ 默认AI结果（兜底方案）
    */
   private getDefaultAIResult(): AIAnalysisResult {
     return {
       examInfo: {
-        title: '未命名考试',
-        type: '考试',
-        date: new Date().toISOString().split('T')[0],
-        scope: 'class'
+        title: "未命名考试",
+        type: "考试",
+        date: new Date().toISOString().split("T")[0],
+        scope: "class",
       },
       fieldMappings: {},
       subjects: [],
-      dataStructure: 'wide',
+      dataStructure: "wide",
       confidence: 0.3,
       processing: {
         requiresUserInput: true,
-        issues: ['AI分析失败，需要用户手动配置'],
-        suggestions: ['请手动检查字段映射']
-      }
+        issues: ["AI分析失败，需要用户手动配置"],
+        suggestions: ["请手动检查字段映射"],
+      },
     };
   }
 }
 
 // 创建并导出实例
-export const aiEnhancedFileParser = new AIEnhancedFileParser(); 
+export const aiEnhancedFileParser = new AIEnhancedFileParser();

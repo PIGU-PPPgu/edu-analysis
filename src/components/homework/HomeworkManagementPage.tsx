@@ -1,5 +1,11 @@
 import React from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, BarChart2, ListChecks, FileText } from "lucide-react";
@@ -11,7 +17,9 @@ export default function HomeworkManagementPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">作业管理</h1>
-          <p className="text-muted-foreground">管理、发布和分析学生作业提交情况</p>
+          <p className="text-muted-foreground">
+            管理、发布和分析学生作业提交情况
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline">
@@ -40,19 +48,19 @@ export default function HomeworkManagementPage() {
             统计报告
           </TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="dashboard">
-                      <div className="flex flex-col items-center justify-center py-12 bg-gray-50 rounded-lg">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                <span className="text-2xl">📊</span>
-              </div>
-              <h3 className="text-lg font-medium mb-2">作业分析面板</h3>
-              <p className="text-gray-500 text-center">
-                作业分析功能正在重构中，敬请期待
-              </p>
+          <div className="flex flex-col items-center justify-center py-12 bg-gray-50 rounded-lg">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <span className="text-2xl">📊</span>
             </div>
+            <h3 className="text-lg font-medium mb-2">作业分析面板</h3>
+            <p className="text-gray-500 text-center">
+              作业分析功能正在重构中，敬请期待
+            </p>
+          </div>
         </TabsContent>
-        
+
         <TabsContent value="homeworks">
           <Card>
             <CardHeader>
@@ -66,7 +74,7 @@ export default function HomeworkManagementPage() {
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="stats">
           <Card>
             <CardHeader>
@@ -83,4 +91,4 @@ export default function HomeworkManagementPage() {
       </Tabs>
     </div>
   );
-} 
+}

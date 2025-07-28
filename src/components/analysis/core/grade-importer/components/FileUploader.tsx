@@ -1,26 +1,32 @@
-import React, { useState, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { toast } from 'sonner';
-import { 
-  FileText, 
-  Upload, 
-  Download, 
+import React, { useState, useCallback } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import {
+  FileText,
+  Upload,
+  Download,
   FileSpreadsheet,
-  UploadCloud, 
+  UploadCloud,
   AlertCircle,
   CheckCircle,
-  Info
-} from 'lucide-react';
-import { useDropzone } from 'react-dropzone';
-import * as XLSX from 'xlsx';
-import Papa from 'papaparse';
-import { cn } from '@/lib/utils';
+  Info,
+} from "lucide-react";
+import { useDropzone } from "react-dropzone";
+import * as XLSX from "xlsx";
+import Papa from "papaparse";
+import { cn } from "@/lib/utils";
 // 导入AI解析服务
-import { aiEnhancedFileParser } from '@/services/aiEnhancedFileParser';
-import { initDefaultAIConfig } from '@/utils/userAuth';
+import { aiEnhancedFileParser } from "@/services/aiEnhancedFileParser";
+import { initDefaultAIConfig } from "@/utils/userAuth";
 
 // 文件数据接口
 export interface FileDataForReview {
@@ -37,11 +43,11 @@ export interface FileDataForReview {
       type: string;
       date: string;
       grade?: string;
-      scope: 'class' | 'grade' | 'school';
+      scope: "class" | "grade" | "school";
     };
     fieldMappings?: Record<string, string>;
     subjects?: string[];
-    dataStructure?: 'wide' | 'long' | 'mixed';
+    dataStructure?: "wide" | "long" | "mixed";
     confidence?: number;
     autoProcessed?: boolean;
     processing?: {
@@ -54,7 +60,10 @@ export interface FileDataForReview {
 
 // FileUploader 组件属性
 interface FileUploaderProps {
-  onFileUploaded: (fileData: FileDataForReview, fileInfo: { name: string; size: number }) => void;
+  onFileUploaded: (
+    fileData: FileDataForReview,
+    fileInfo: { name: string; size: number }
+  ) => void;
   onError: (error: string) => void;
   disabled?: boolean;
   acceptedFormats?: string[];
@@ -65,20 +74,20 @@ const FileUploader: React.FC<FileUploaderProps> = ({
   onFileUploaded,
   onError,
   disabled = false,
-  acceptedFormats = ['.xlsx', '.xls', '.csv'],
-  maxFileSize = 10
+  acceptedFormats = [".xlsx", ".xls", ".csv"],
+  maxFileSize = 10,
 }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
   // 获取文件图标
   const getFileIcon = (filename: string) => {
-    const ext = filename.toLowerCase().split('.').pop();
+    const ext = filename.toLowerCase().split(".").pop();
     switch (ext) {
-      case 'xlsx':
-      case 'xls':
+      case "xlsx":
+      case "xls":
         return <FileSpreadsheet className="w-6 h-6 text-green-600" />;
-      case 'csv':
+      case "csv":
         return <FileText className="w-6 h-6 text-blue-600" />;
       default:
         return <FileText className="w-6 h-6 text-gray-600" />;
@@ -87,27 +96,29 @@ const FileUploader: React.FC<FileUploaderProps> = ({
 
   // 格式化文件大小
   const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   // 验证文件格式
   const validateFile = (file: File): string | null => {
     const fileName = file.name.toLowerCase();
-    const isValidFormat = acceptedFormats.some(format => fileName.endsWith(format.toLowerCase()));
-    
+    const isValidFormat = acceptedFormats.some((format) =>
+      fileName.endsWith(format.toLowerCase())
+    );
+
     if (!isValidFormat) {
-      return `不支持的文件格式。支持的格式: ${acceptedFormats.join(', ')}`;
+      return `不支持的文件格式。支持的格式: ${acceptedFormats.join(", ")}`;
     }
-    
+
     const fileSizeMB = file.size / (1024 * 1024);
     if (fileSizeMB > maxFileSize) {
       return `文件大小超过限制 (${maxFileSize}MB)。当前文件: ${fileSizeMB.toFixed(2)}MB`;
     }
-    
+
     return null;
   };
 
@@ -115,60 +126,73 @@ const FileUploader: React.FC<FileUploaderProps> = ({
   const parseExcelFile = (file: File): Promise<FileDataForReview> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      
+
       reader.onload = (e) => {
         try {
           const data = new Uint8Array(e.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: 'array' });
+          const workbook = XLSX.read(data, { type: "array" });
           const firstSheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[firstSheetName];
-          
+
           // 转换为JSON，保持原始数据结构
-          const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
-            header: 1, 
-            defval: '',
-            raw: false 
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+            header: 1,
+            defval: "",
+            raw: false,
           }) as any[][];
-          
+
           if (jsonData.length === 0) {
-            reject(new Error('Excel文件为空'));
+            reject(new Error("Excel文件为空"));
             return;
           }
-          
+
           // 提取表头（第一行）
-          const headers = jsonData[0]?.map(header => String(header || '').trim()).filter(h => h) || [];
-          
+          const headers =
+            jsonData[0]
+              ?.map((header) => String(header || "").trim())
+              .filter((h) => h) || [];
+
           if (headers.length === 0) {
-            reject(new Error('Excel文件没有有效的表头'));
+            reject(new Error("Excel文件没有有效的表头"));
             return;
           }
-          
+
           // 提取数据行（跳过表头）
-          const dataRows = jsonData.slice(1)
-            .filter(row => row && row.some(cell => cell !== null && cell !== undefined && cell !== ''))
-            .map(row => {
+          const dataRows = jsonData
+            .slice(1)
+            .filter(
+              (row) =>
+                row &&
+                row.some(
+                  (cell) => cell !== null && cell !== undefined && cell !== ""
+                )
+            )
+            .map((row) => {
               const rowData: Record<string, any> = {};
               headers.forEach((header, index) => {
                 const value = row[index];
-                rowData[header] = value !== null && value !== undefined ? String(value).trim() : '';
+                rowData[header] =
+                  value !== null && value !== undefined
+                    ? String(value).trim()
+                    : "";
               });
               return rowData;
             });
-          
+
           resolve({
             headers,
             data: dataRows,
             rawData: jsonData,
             fileName: file.name,
             fileSize: file.size,
-            totalRows: dataRows.length
+            totalRows: dataRows.length,
           });
         } catch (error) {
           reject(new Error(`解析Excel文件失败: ${error.message}`));
         }
       };
-      
-      reader.onerror = () => reject(new Error('读取文件失败'));
+
+      reader.onerror = () => reject(new Error("读取文件失败"));
       reader.readAsArrayBuffer(file);
     });
   };
@@ -182,45 +206,58 @@ const FileUploader: React.FC<FileUploaderProps> = ({
         complete: (results) => {
           try {
             if (results.errors.length > 0) {
-              const errorMsg = results.errors.map(e => e.message).join(', ');
+              const errorMsg = results.errors.map((e) => e.message).join(", ");
               reject(new Error(`CSV解析错误: ${errorMsg}`));
               return;
             }
-            
+
             const rawData = results.data as string[][];
-            
+
             if (rawData.length === 0) {
-              reject(new Error('CSV文件为空'));
+              reject(new Error("CSV文件为空"));
               return;
             }
-            
+
             // 提取表头
-            const headers = rawData[0]?.map(header => String(header || '').trim()).filter(h => h) || [];
-            
+            const headers =
+              rawData[0]
+                ?.map((header) => String(header || "").trim())
+                .filter((h) => h) || [];
+
             if (headers.length === 0) {
-              reject(new Error('CSV文件没有有效的表头'));
+              reject(new Error("CSV文件没有有效的表头"));
               return;
             }
-            
+
             // 提取数据行
-            const dataRows = rawData.slice(1)
-              .filter(row => row && row.some(cell => cell !== null && cell !== undefined && cell !== ''))
-              .map(row => {
+            const dataRows = rawData
+              .slice(1)
+              .filter(
+                (row) =>
+                  row &&
+                  row.some(
+                    (cell) => cell !== null && cell !== undefined && cell !== ""
+                  )
+              )
+              .map((row) => {
                 const rowData: Record<string, any> = {};
                 headers.forEach((header, index) => {
                   const value = row[index];
-                  rowData[header] = value !== null && value !== undefined ? String(value).trim() : '';
+                  rowData[header] =
+                    value !== null && value !== undefined
+                      ? String(value).trim()
+                      : "";
                 });
                 return rowData;
               });
-            
+
             resolve({
               headers,
               data: dataRows,
               rawData,
               fileName: file.name,
               fileSize: file.size,
-              totalRows: dataRows.length
+              totalRows: dataRows.length,
             });
           } catch (error) {
             reject(new Error(`解析CSV文件失败: ${error.message}`));
@@ -228,7 +265,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({
         },
         error: (error) => {
           reject(new Error(`CSV文件读取失败: ${error.message}`));
-        }
+        },
       });
     });
   };
@@ -237,7 +274,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({
   const processFile = async (file: File) => {
     setIsProcessing(true);
     setUploadProgress(0);
-    
+
     try {
       // 验证文件
       const validationError = validateFile(file);
@@ -245,46 +282,46 @@ const FileUploader: React.FC<FileUploaderProps> = ({
         onError(validationError);
         return;
       }
-      
+
       // 模拟进度更新
       const progressInterval = setInterval(() => {
-        setUploadProgress(prev => Math.min(prev + 10, 90));
+        setUploadProgress((prev) => Math.min(prev + 10, 90));
       }, 100);
-      
+
       let fileData: FileDataForReview;
-      
+
       // 根据文件类型选择解析方法
       const fileName = file.name.toLowerCase();
-      if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+      if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
         fileData = await parseExcelFile(file);
-      } else if (fileName.endsWith('.csv')) {
+      } else if (fileName.endsWith(".csv")) {
         fileData = await parseCSVFile(file);
       } else {
-        throw new Error('不支持的文件格式');
+        throw new Error("不支持的文件格式");
       }
-      
+
       clearInterval(progressInterval);
       setUploadProgress(90);
-      
+
       // 验证解析结果
       if (!fileData.headers || fileData.headers.length === 0) {
-        throw new Error('文件没有有效的表头');
+        throw new Error("文件没有有效的表头");
       }
-      
+
       if (!fileData.data || fileData.data.length === 0) {
-        throw new Error('文件没有有效的数据行');
+        throw new Error("文件没有有效的数据行");
       }
-      
+
       //  尝试AI智能解析增强
       try {
-        console.log('[FileUploader]  尝试AI智能解析增强...');
-        
+        console.log("[FileUploader]  尝试AI智能解析增强...");
+
         // 确保AI配置已初始化
         await initDefaultAIConfig(false);
-        
+
         // 调用AI解析服务
         const aiResult = await aiEnhancedFileParser.oneClickParse(file);
-        
+
         if (aiResult && aiResult.metadata) {
           // 将AI解析结果合并到文件数据中
           fileData.aiAnalysis = {
@@ -296,36 +333,42 @@ const FileUploader: React.FC<FileUploaderProps> = ({
             autoProcessed: aiResult.metadata.autoProcessed,
             processing: {
               requiresUserInput: (aiResult.metadata.confidence || 0) < 0.8,
-              issues: aiResult.metadata.unknownFields?.map(field => `未识别字段: ${field}`) || [],
-              suggestions: []
-            }
+              issues:
+                aiResult.metadata.unknownFields?.map(
+                  (field) => `未识别字段: ${field}`
+                ) || [],
+              suggestions: [],
+            },
           };
-          
-          console.log(`[FileUploader]  AI解析成功，置信度: ${aiResult.metadata.confidence}`);
-          toast.success(`AI智能解析完成！置信度: ${Math.round((aiResult.metadata.confidence || 0) * 100)}%`);
+
+          console.log(
+            `[FileUploader]  AI解析成功，置信度: ${aiResult.metadata.confidence}`
+          );
+          toast.success(
+            `AI智能解析完成！置信度: ${Math.round((aiResult.metadata.confidence || 0) * 100)}%`
+          );
         }
       } catch (aiError) {
-        console.warn('[FileUploader]  AI解析失败，使用基础解析:', aiError);
+        console.warn("[FileUploader]  AI解析失败，使用基础解析:", aiError);
         // AI解析失败不影响基础功能，只是缺少智能增强
-        toast.info('文件解析成功，AI增强功能暂时不可用');
+        toast.info("文件解析成功，AI增强功能暂时不可用");
       }
-      
+
       setUploadProgress(100);
-      
-      const successMessage = fileData.aiAnalysis?.autoProcessed 
+
+      const successMessage = fileData.aiAnalysis?.autoProcessed
         ? `AI智能解析完成！自动识别了 ${fileData.aiAnalysis.subjects?.length || 0} 个科目`
         : `文件上传成功！解析了 ${fileData.totalRows} 行数据`;
-      
+
       toast.success(successMessage);
-      
+
       onFileUploaded(fileData, {
         name: file.name,
-        size: file.size
+        size: file.size,
       });
-      
     } catch (error) {
-      onError(error.message || '文件处理失败');
-      toast.error('文件处理失败: ' + (error.message || '未知错误'));
+      onError(error.message || "文件处理失败");
+      toast.error("文件处理失败: " + (error.message || "未知错误"));
     } finally {
       setIsProcessing(false);
       setUploadProgress(0);
@@ -333,51 +376,58 @@ const FileUploader: React.FC<FileUploaderProps> = ({
   };
 
   // 设置拖拽上传
-  const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
-    onDrop: async (acceptedFiles, rejectedFiles) => {
-      if (rejectedFiles.length > 0) {
-        const errors = rejectedFiles.map(f => f.errors.map(e => e.message).join(', ')).join('; ');
-        onError(`文件不符合要求: ${errors}`);
-        return;
-      }
-      
-      if (acceptedFiles.length > 0) {
-        await processFile(acceptedFiles[0]);
-      }
-    },
-    accept: {
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-      'application/vnd.ms-excel': ['.xls'],
-      'text/csv': ['.csv']
-    },
-    maxFiles: 1,
-    maxSize: maxFileSize * 1024 * 1024,
-    disabled: disabled || isProcessing
-  });
+  const { getRootProps, getInputProps, isDragActive, isDragReject } =
+    useDropzone({
+      onDrop: async (acceptedFiles, rejectedFiles) => {
+        if (rejectedFiles.length > 0) {
+          const errors = rejectedFiles
+            .map((f) => f.errors.map((e) => e.message).join(", "))
+            .join("; ");
+          onError(`文件不符合要求: ${errors}`);
+          return;
+        }
+
+        if (acceptedFiles.length > 0) {
+          await processFile(acceptedFiles[0]);
+        }
+      },
+      accept: {
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
+          ".xlsx",
+        ],
+        "application/vnd.ms-excel": [".xls"],
+        "text/csv": [".csv"],
+      },
+      maxFiles: 1,
+      maxSize: maxFileSize * 1024 * 1024,
+      disabled: disabled || isProcessing,
+    });
 
   // 模板下载功能
-  const handleTemplateDownload = (type: 'excel' | 'csv') => {
+  const handleTemplateDownload = (type: "excel" | "csv") => {
     const templateData = [
-      ['学号', '姓名', '班级', '语文', '数学', '英语', '物理', '化学', '总分'],
-      ['001', '张三', '高三1班', '85', '92', '78', '88', '90', '433'],
-      ['002', '李四', '高三1班', '78', '85', '92', '76', '83', '414'],
-      ['003', '王五', '高三2班', '92', '88', '85', '90', '87', '442']
+      ["学号", "姓名", "班级", "语文", "数学", "英语", "物理", "化学", "总分"],
+      ["001", "张三", "高三1班", "85", "92", "78", "88", "90", "433"],
+      ["002", "李四", "高三1班", "78", "85", "92", "76", "83", "414"],
+      ["003", "王五", "高三2班", "92", "88", "85", "90", "87", "442"],
     ];
-    
-    if (type === 'excel') {
+
+    if (type === "excel") {
       const ws = XLSX.utils.aoa_to_sheet(templateData);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, '成绩模板');
-      XLSX.writeFile(wb, '成绩导入模板.xlsx');
+      XLSX.utils.book_append_sheet(wb, ws, "成绩模板");
+      XLSX.writeFile(wb, "成绩导入模板.xlsx");
     } else {
-      const csvContent = templateData.map(row => row.join(',')).join('\n');
-      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
+      const csvContent = templateData.map((row) => row.join(",")).join("\n");
+      const blob = new Blob(["\ufeff" + csvContent], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', '成绩导入模板.csv');
-      link.style.visibility = 'hidden';
-      
+      link.setAttribute("href", url);
+      link.setAttribute("download", "成绩导入模板.csv");
+      link.style.visibility = "hidden";
+
       // 使用更安全的异步DOM操作
       document.body.appendChild(link);
       requestAnimationFrame(() => {
@@ -390,8 +440,8 @@ const FileUploader: React.FC<FileUploaderProps> = ({
         });
       });
     }
-    
-    toast.success(`${type === 'excel' ? 'Excel' : 'CSV'} 模板下载成功`);
+
+    toast.success(`${type === "excel" ? "Excel" : "CSV"} 模板下载成功`);
   };
 
   return (
@@ -405,45 +455,57 @@ const FileUploader: React.FC<FileUploaderProps> = ({
           上传Excel (.xlsx, .xls) 或CSV文件进行成绩导入
         </CardDescription>
       </CardHeader>
-      
+
       <CardContent className="space-y-4">
         {/* 拖拽上传区域 */}
         <div
           {...getRootProps()}
           className={cn(
-            'border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors',
-            isDragActive && !isDragReject && 'border-blue-500 bg-blue-50',
-            isDragReject && 'border-red-500 bg-red-50',
-            (disabled || isProcessing) && 'cursor-not-allowed opacity-50',
-            !isDragActive && !isDragReject && 'border-gray-300 hover:border-gray-400'
+            "border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors",
+            isDragActive && !isDragReject && "border-blue-500 bg-blue-50",
+            isDragReject && "border-red-500 bg-red-50",
+            (disabled || isProcessing) && "cursor-not-allowed opacity-50",
+            !isDragActive &&
+              !isDragReject &&
+              "border-gray-300 hover:border-gray-400"
           )}
         >
           <input {...getInputProps()} />
-          
+
           <div className="flex flex-col items-center gap-4">
-            <UploadCloud className={cn(
-              'w-12 h-12',
-              isDragActive && !isDragReject && 'text-blue-500',
-              isDragReject && 'text-red-500',
-              !isDragActive && !isDragReject && 'text-gray-400'
-            )} />
-            
+            <UploadCloud
+              className={cn(
+                "w-12 h-12",
+                isDragActive && !isDragReject && "text-blue-500",
+                isDragReject && "text-red-500",
+                !isDragActive && !isDragReject && "text-gray-400"
+              )}
+            />
+
             {isProcessing ? (
               <div key="processing" className="space-y-2">
-                <p key="processing-text" className="text-sm text-gray-600">正在处理文件...</p>
+                <p key="processing-text" className="text-sm text-gray-600">
+                  正在处理文件...
+                </p>
                 <div className="w-64 bg-gray-200 rounded-full h-2">
-                  <div 
+                  <div
                     className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
-                <p key="processing-progress" className="text-xs text-gray-500">{uploadProgress}%</p>
+                <p key="processing-progress" className="text-xs text-gray-500">
+                  {uploadProgress}%
+                </p>
               </div>
             ) : isDragActive ? (
               isDragReject ? (
-                <p key="drag-reject" className="text-red-600">不支持的文件格式</p>
+                <p key="drag-reject" className="text-red-600">
+                  不支持的文件格式
+                </p>
               ) : (
-                <p key="drag-active" className="text-blue-600">放开以上传文件</p>
+                <p key="drag-active" className="text-blue-600">
+                  放开以上传文件
+                </p>
               )
             ) : (
               <div key="idle" className="space-y-2">
@@ -452,7 +514,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({
                   <span className="text-blue-600 underline ml-1">点击浏览</span>
                 </p>
                 <div className="flex gap-2 justify-center">
-                  {acceptedFormats.map(format => (
+                  {acceptedFormats.map((format) => (
                     <Badge key={format} variant="outline" className="text-xs">
                       {format}
                     </Badge>
@@ -471,7 +533,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleTemplateDownload('excel')}
+            onClick={() => handleTemplateDownload("excel")}
             disabled={isProcessing}
           >
             <Download className="w-4 h-4 mr-2" />
@@ -480,7 +542,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleTemplateDownload('csv')}
+            onClick={() => handleTemplateDownload("csv")}
             disabled={isProcessing}
           >
             <Download className="w-4 h-4 mr-2" />
@@ -506,4 +568,4 @@ const FileUploader: React.FC<FileUploaderProps> = ({
   );
 };
 
-export default FileUploader; 
+export default FileUploader;

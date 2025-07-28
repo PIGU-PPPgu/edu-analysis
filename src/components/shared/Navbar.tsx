@@ -7,12 +7,27 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { User, LogOut, Settings, UserCircle, Download, BarChart3, Users, Bell, Brain } from "lucide-react";
+import {
+  User,
+  LogOut,
+  Settings,
+  UserCircle,
+  Download,
+  BarChart3,
+  Users,
+  Bell,
+  Brain,
+} from "lucide-react";
 import { useViewport } from "@/hooks/use-viewport";
-import { MobileNavigation, MobileTopBar, DEFAULT_NAVIGATION_ITEMS, NavigationItem } from "@/components/mobile/MobileNavigation";
+import {
+  MobileNavigation,
+  MobileTopBar,
+  DEFAULT_NAVIGATION_ITEMS,
+  NavigationItem,
+} from "@/components/mobile/MobileNavigation";
 import { cn } from "@/lib/utils";
 
 interface NavbarProps {
@@ -26,7 +41,7 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
   const { user, userRole, signOut, isAuthReady } = useAuthContext();
   const [localUserRole, setLocalUserRole] = useState<string | null>(null);
   const { isMobile } = useViewport();
-  
+
   // 在组件加载时检查localStorage中是否有用户角色
   useEffect(() => {
     if (user?.id) {
@@ -38,7 +53,9 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
   }, [user]);
 
   const isActive = (path: string) => {
-    return location.pathname === path || location.pathname.startsWith(path + '/');
+    return (
+      location.pathname === path || location.pathname.startsWith(path + "/")
+    );
   };
 
   const handleSignOut = async () => {
@@ -59,10 +76,14 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
   const getRoleLabel = () => {
     const role = getEffectiveRole();
     switch (role) {
-      case 'admin': return '管理员';
-      case 'teacher': return '教师';
-      case 'student': return '学生';
-      default: return '访客';
+      case "admin":
+        return "管理员";
+      case "teacher":
+        return "教师";
+      case "student":
+        return "学生";
+      default:
+        return "访客";
     }
   };
 
@@ -70,55 +91,55 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
   const buildMobileNavItems = (): NavigationItem[] => {
     const baseItems: NavigationItem[] = [
       {
-        id: 'home',
-        label: '首页',
+        id: "home",
+        label: "首页",
         icon: <User className="w-5 h-5" />,
-        onClick: () => navigate('/')
-      }
+        onClick: () => navigate("/"),
+      },
     ];
 
     if (isAuthReady && user) {
       baseItems.push(
         {
-          id: 'dashboard',
-          label: '数据导入',
+          id: "dashboard",
+          label: "数据导入",
           icon: <Download className="w-5 h-5" />,
-          onClick: () => navigate('/dashboard')
+          onClick: () => navigate("/dashboard"),
         },
         {
-          id: 'homework',
-          label: '作业管理',
+          id: "homework",
+          label: "作业管理",
           icon: <Settings className="w-5 h-5" />,
-          onClick: () => navigate('/homework')
+          onClick: () => navigate("/homework"),
         },
         {
-          id: 'grade-analysis',
-          label: '基础分析',
+          id: "grade-analysis",
+          label: "基础分析",
           icon: <BarChart3 className="w-5 h-5" />,
-          onClick: () => navigate('/grade-analysis')
+          onClick: () => navigate("/grade-analysis"),
         },
         {
-          id: 'advanced-analysis',
-          label: '高级分析',
+          id: "advanced-analysis",
+          label: "高级分析",
           icon: <Brain className="w-5 h-5" />,
-          onClick: () => navigate('/advanced-analysis')
+          onClick: () => navigate("/advanced-analysis"),
         },
         {
-          id: 'ai-chat',
-          label: 'AI助手',
+          id: "ai-chat",
+          label: "AI助手",
           icon: <UserCircle className="w-5 h-5" />,
-          onClick: () => navigate('/ai-chat')
+          onClick: () => navigate("/ai-chat"),
         },
         {
-          id: 'settings-section',
-          label: '',
-          divider: true
+          id: "settings-section",
+          label: "",
+          divider: true,
         },
         {
-          id: 'profile',
-          label: '个人设置',
+          id: "profile",
+          label: "个人设置",
           icon: <Settings className="w-5 h-5" />,
-          onClick: () => navigate('/profile')
+          onClick: () => navigate("/profile"),
         }
       );
     }
@@ -128,12 +149,18 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
 
   // 获取当前激活的导航项ID
   const getActiveNavItemId = (): string | undefined => {
-    if (location.pathname === '/') return 'home';
-    if (location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/data-import')) return 'dashboard';
-    if (location.pathname.startsWith('/homework')) return 'homework';
-    if (location.pathname.startsWith('/grade-analysis')) return 'grade-analysis';
-    if (location.pathname.startsWith('/advanced-analysis')) return 'advanced-analysis';
-    if (location.pathname.startsWith('/ai-chat')) return 'ai-chat';
+    if (location.pathname === "/") return "home";
+    if (
+      location.pathname.startsWith("/dashboard") ||
+      location.pathname.startsWith("/data-import")
+    )
+      return "dashboard";
+    if (location.pathname.startsWith("/homework")) return "homework";
+    if (location.pathname.startsWith("/grade-analysis"))
+      return "grade-analysis";
+    if (location.pathname.startsWith("/advanced-analysis"))
+      return "advanced-analysis";
+    if (location.pathname.startsWith("/ai-chat")) return "ai-chat";
     return undefined;
   };
 
@@ -141,15 +168,15 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
   const mobileHeaderActions = [
     {
       icon: <Bell className="w-5 h-5" />,
-      label: '通知',
+      label: "通知",
       onClick: () => {},
-      badge: '3'
+      badge: "3",
     },
     {
       icon: <Download className="w-5 h-5" />,
-      label: '导出',
-      onClick: () => {}
-    }
+      label: "导出",
+      onClick: () => {},
+    },
   ];
 
   // 如果是移动端，使用移动端导航
@@ -161,22 +188,24 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
         navigationProps={{
           items: buildMobileNavItems(),
           activeItemId: getActiveNavItemId(),
-          user: user ? {
-            name: user.email?.split('@')[0] || '用户',
-            email: user.email,
-            role: getRoleLabel()
-          } : undefined,
+          user: user
+            ? {
+                name: user.email?.split("@")[0] || "用户",
+                email: user.email,
+                role: getRoleLabel(),
+              }
+            : undefined,
           footerActions: [
             {
-              id: 'logout',
-              label: '退出登录',
+              id: "logout",
+              label: "退出登录",
               icon: <LogOut className="w-5 h-5" />,
-              onClick: handleSignOut
-            }
+              onClick: handleSignOut,
+            },
           ],
           onItemClick: (item) => {
-            console.log('Navigation item clicked:', item);
-          }
+            console.log("Navigation item clicked:", item);
+          },
         }}
         className="bg-white border-b border-gray-200"
       />
@@ -185,13 +214,17 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
 
   // 获取页面标题
   function getPageTitle(): string {
-    if (location.pathname === '/') return '首页';
-    if (location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/data-import')) return '数据导入';
-    if (location.pathname.startsWith('/homework')) return '作业管理';
-    if (location.pathname.startsWith('/grade-analysis')) return '基础分析';
-    if (location.pathname.startsWith('/advanced-analysis')) return '高级分析';
-    if (location.pathname.startsWith('/ai-chat')) return 'AI助手';
-    return '学习管理系统';
+    if (location.pathname === "/") return "首页";
+    if (
+      location.pathname.startsWith("/dashboard") ||
+      location.pathname.startsWith("/data-import")
+    )
+      return "数据导入";
+    if (location.pathname.startsWith("/homework")) return "作业管理";
+    if (location.pathname.startsWith("/grade-analysis")) return "基础分析";
+    if (location.pathname.startsWith("/advanced-analysis")) return "高级分析";
+    if (location.pathname.startsWith("/ai-chat")) return "AI助手";
+    return "学习管理系统";
   }
 
   return (
@@ -206,100 +239,122 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
             />
           </Link>
         </div>
-        
+
         {showMainNav && (
           <nav className="hidden md:flex items-center gap-4">
             <Link
               to="/"
               className={`text-sm font-medium transition-colors hover:text-primary ${
-                isActive('/') && location.pathname === '/' ? 'text-primary' : 'text-muted-foreground'
+                isActive("/") && location.pathname === "/"
+                  ? "text-primary"
+                  : "text-muted-foreground"
               }`}
             >
               首页
             </Link>
-            
+
             {isAuthReady && user && (
-            <>
-              <Link
-                to="/dashboard"
-                className={`text-sm font-medium transition-colors hover:text-primary ${
-                  isActive('/dashboard') || isActive('/data-import') ? 'text-primary' : 'text-muted-foreground'
-                }`}
-              >
-                数据导入
-              </Link>
-              <Link
-                to="/grade-analysis"
-                className={`text-sm font-medium transition-colors hover:text-primary ${
-                  isActive('/grade-analysis') ? 'text-primary' : 'text-muted-foreground'
-                }`}
-              >
-                基础分析
-              </Link>
-              <Link
-                to="/advanced-analysis"
-                className={`text-sm font-medium transition-colors hover:text-primary ${
-                  isActive('/advanced-analysis') ? 'text-primary' : 'text-muted-foreground'
-                }`}
-              >
-                高级分析
-              </Link>
-              
-              {/* 更多功能下拉菜单 */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    className={`text-sm font-medium transition-colors hover:text-primary ${
-                      isActive('/homework') || isActive('/warning-analysis') || 
-                      isActive('/student-portrait-management') || isActive('/class-management')
-                        ? 'text-primary' : 'text-muted-foreground'
-                    }`}
-                  >
-                    更多功能 ▼
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="center" className="w-48">
-                  <DropdownMenuItem onClick={() => navigate('/homework')}>
-                    <Settings className="mr-2 h-4 w-4" />
-                    作业管理
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/warning-analysis')}>
-                    <Bell className="mr-2 h-4 w-4" />
-                    预警分析
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/student-portrait-management')}>
-                    <Users className="mr-2 h-4 w-4" />
-                    学生画像
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/class-management')}>
-                    <BarChart3 className="mr-2 h-4 w-4" />
-                    班级管理
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate('/ai-settings')}>
-                    <UserCircle className="mr-2 h-4 w-4" />
-                    AI设置
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/performance-monitoring')}>
-                    <BarChart3 className="mr-2 h-4 w-4" />
-                    性能监控
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
+              <>
+                <Link
+                  to="/dashboard"
+                  className={`text-sm font-medium transition-colors hover:text-primary ${
+                    isActive("/dashboard") || isActive("/data-import")
+                      ? "text-primary"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  数据导入
+                </Link>
+                <Link
+                  to="/grade-analysis"
+                  className={`text-sm font-medium transition-colors hover:text-primary ${
+                    isActive("/grade-analysis")
+                      ? "text-primary"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  基础分析
+                </Link>
+                <Link
+                  to="/advanced-analysis"
+                  className={`text-sm font-medium transition-colors hover:text-primary ${
+                    isActive("/advanced-analysis")
+                      ? "text-primary"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  高级分析
+                </Link>
+
+                {/* 更多功能下拉菜单 */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`text-sm font-medium transition-colors hover:text-primary ${
+                        isActive("/homework") ||
+                        isActive("/warning-analysis") ||
+                        isActive("/student-portrait-management") ||
+                        isActive("/class-management")
+                          ? "text-primary"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      更多功能 ▼
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="center" className="w-48">
+                    <DropdownMenuItem onClick={() => navigate("/homework")}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      作业管理
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => navigate("/warning-analysis")}
+                    >
+                      <Bell className="mr-2 h-4 w-4" />
+                      预警分析
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => navigate("/student-portrait-management")}
+                    >
+                      <Users className="mr-2 h-4 w-4" />
+                      学生画像
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => navigate("/class-management")}
+                    >
+                      <BarChart3 className="mr-2 h-4 w-4" />
+                      班级管理
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate("/ai-settings")}>
+                      <UserCircle className="mr-2 h-4 w-4" />
+                      AI设置
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => navigate("/performance-monitoring")}
+                    >
+                      <BarChart3 className="mr-2 h-4 w-4" />
+                      性能监控
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
             )}
           </nav>
         )}
-        
+
         <div className="flex items-center gap-4">
           {!isAuthReady ? (
             <div className="h-8 w-8 rounded-full bg-muted animate-pulse"></div>
           ) : user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                <Button
+                  variant="ghost"
+                  className="relative h-8 w-8 rounded-full"
+                >
                   <Avatar className="h-8 w-8">
                     <AvatarFallback className="bg-primary text-primary-foreground">
                       {getUserInitials()}
@@ -309,21 +364,23 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <div className="flex flex-col space-y-1 p-2">
-                  <p className="text-sm font-medium leading-none">{user.email}</p>
+                  <p className="text-sm font-medium leading-none">
+                    {user.email}
+                  </p>
                   <p className="text-xs leading-none text-muted-foreground">
                     {getRoleLabel()}
                   </p>
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate('/profile')}>
+                <DropdownMenuItem onClick={() => navigate("/profile")}>
                   <UserCircle className="mr-2 h-4 w-4" />
                   <span>个人信息</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/ai-settings')}>
+                <DropdownMenuItem onClick={() => navigate("/ai-settings")}>
                   <Settings className="mr-2 h-4 w-4" />
                   <span>AI模型设置</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/simple-import')}>
+                <DropdownMenuItem onClick={() => navigate("/simple-import")}>
                   <Download className="mr-2 h-4 w-4" />
                   <span>快速导入</span>
                 </DropdownMenuItem>
@@ -335,7 +392,11 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button variant="outline" size="sm" onClick={() => navigate('/login')}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate("/login")}
+            >
               <User className="mr-2 h-4 w-4" />
               登录
             </Button>
@@ -346,4 +407,4 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
   );
 };
 
-export default Navbar; 
+export default Navbar;

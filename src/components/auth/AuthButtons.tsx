@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { LogIn, MessageSquare } from "lucide-react";
@@ -9,18 +8,22 @@ interface AuthButtonsProps {
   onFreeLogin?: () => void;
 }
 
-const AuthButtons = ({ onLogin, onWechatLogin, onFreeLogin }: AuthButtonsProps) => {
+const AuthButtons = ({
+  onLogin,
+  onWechatLogin,
+  onFreeLogin,
+}: AuthButtonsProps) => {
   return (
     <div className="flex gap-4">
-      <Button 
+      <Button
         className="bg-[#B9FF66] text-black hover:bg-[#a8e85c]"
         onClick={onLogin}
       >
         <LogIn className="h-4 w-4 mr-2" />
         账号登录
       </Button>
-      <Button 
-        variant="outline" 
+      <Button
+        variant="outline"
         className="flex items-center"
         onClick={onWechatLogin}
       >

@@ -1,26 +1,36 @@
-import React, { useState, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Separator } from '@/components/ui/separator';
-import { toast } from 'sonner';
-import { 
-  Upload, 
-  CheckCircle2, 
-  AlertCircle, 
-  Loader2, 
+import React, { useState, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
+import {
+  Upload,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
   FileSpreadsheet,
   Brain,
   Database,
-  Settings
-} from 'lucide-react';
-import { n8nGradeParser, type N8nParseResult, type N8nParseOptions } from '@/services/n8nGradeParser';
-import { supabase } from '@/integrations/supabase/client';
+  Settings,
+} from "lucide-react";
+import {
+  n8nGradeParser,
+  type N8nParseResult,
+  type N8nParseOptions,
+} from "@/services/n8nGradeParser";
+import { supabase } from "@/integrations/supabase/client";
 
 interface N8nGradeImporterProps {
   onImportComplete?: (result: N8nParseResult) => void;
@@ -28,27 +38,27 @@ interface N8nGradeImporterProps {
   className?: string;
 }
 
-export function N8nGradeImporter({ 
-  onImportComplete, 
-  onError, 
-  className = '' 
+export function N8nGradeImporter({
+  onImportComplete,
+  onError,
+  className = "",
 }: N8nGradeImporterProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [parseOptions, setParseOptions] = useState<N8nParseOptions>({
-    ai_provider: 'openai',
+    ai_provider: "openai",
     batch_size: 50,
-    enable_validation: true
+    enable_validation: true,
   });
   const [parseResult, setParseResult] = useState<N8nParseResult | null>(null);
-  
+
   const queryClient = useQueryClient();
 
   // 检查n8n健康状态
   const { data: n8nHealthy, isLoading: checkingHealth } = useQuery({
-    queryKey: ['n8n-health'],
+    queryKey: ["n8n-health"],
     queryFn: () => n8nGradeParser.checkHealth(),
     refetchInterval: 30000, // 每30秒检查一次
-    staleTime: 10000
+    staleTime: 10000,
   });
 
   // 文件解析mutation
@@ -59,48 +69,54 @@ export function N8nGradeImporter({
     onSuccess: (result) => {
       setParseResult(result);
       if (result.success) {
-        toast.success(` 解析完成！处理了 ${result.summary.processedRows} 条记录`);
+        toast.success(
+          ` 解析完成！处理了 ${result.summary.processedRows} 条记录`
+        );
         onImportComplete?.(result);
-        queryClient.invalidateQueries({ queryKey: ['grade-data'] });
+        queryClient.invalidateQueries({ queryKey: ["grade-data"] });
       } else {
         toast.error(`解析失败: ${result.message}`);
         onError?.(result.message);
       }
     },
     onError: (error) => {
-      const errorMessage = error instanceof Error ? error.message : '解析过程中发生未知错误';
+      const errorMessage =
+        error instanceof Error ? error.message : "解析过程中发生未知错误";
       toast.error(`解析失败: ${errorMessage}`);
       onError?.(errorMessage);
-    }
+    },
   });
 
   // 文件选择处理
-  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const handleFileSelect = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
 
-    // 验证文件
-    const validation = n8nGradeParser.validateFile(file);
-    if (!validation.valid) {
-      toast.error(validation.error);
-      return;
-    }
+      // 验证文件
+      const validation = n8nGradeParser.validateFile(file);
+      if (!validation.valid) {
+        toast.error(validation.error);
+        return;
+      }
 
-    setSelectedFile(file);
-    setParseResult(null); // 清除之前的结果
-    
-    toast.success(`📁 已选择文件: ${file.name}`);
-  }, []);
+      setSelectedFile(file);
+      setParseResult(null); // 清除之前的结果
+
+      toast.success(`📁 已选择文件: ${file.name}`);
+    },
+    []
+  );
 
   // 开始解析
   const handleStartParse = useCallback(() => {
     if (!selectedFile) {
-      toast.error('请先选择文件');
+      toast.error("请先选择文件");
       return;
     }
 
     if (!n8nHealthy) {
-      toast.error('n8n服务不可用，请检查连接');
+      toast.error("n8n服务不可用，请检查连接");
       return;
     }
 
@@ -131,7 +147,7 @@ export function N8nGradeImporter({
               ) : (
                 <AlertCircle className="w-3 h-3 mr-1" />
               )}
-              {checkingHealth ? '检查中...' : n8nHealthy ? '在线' : '离线'}
+              {checkingHealth ? "检查中..." : n8nHealthy ? "在线" : "离线"}
             </Badge>
           </div>
           <CardDescription>
@@ -148,7 +164,8 @@ export function N8nGradeImporter({
             文件上传
           </CardTitle>
           <CardDescription>
-            支持格式: {n8nGradeParser.getSupportedFormats().join(', ')} | 最大10MB
+            支持格式: {n8nGradeParser.getSupportedFormats().join(", ")} |
+            最大10MB
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -157,7 +174,7 @@ export function N8nGradeImporter({
             <Input
               id="file-upload"
               type="file"
-              accept={n8nGradeParser.getSupportedFormats().join(',')}
+              accept={n8nGradeParser.getSupportedFormats().join(",")}
               onChange={handleFileSelect}
               disabled={parseFileMutation.isPending}
             />
@@ -168,7 +185,9 @@ export function N8nGradeImporter({
               <div className="flex items-center gap-3">
                 <FileSpreadsheet className="w-5 h-5 text-blue-600" />
                 <div className="flex-1">
-                  <p className="font-medium text-blue-900">{selectedFile.name}</p>
+                  <p className="font-medium text-blue-900">
+                    {selectedFile.name}
+                  </p>
                   <p className="text-sm text-blue-600">
                     {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
                   </p>
@@ -194,10 +213,12 @@ export function N8nGradeImporter({
               <select
                 className="w-full p-2 border rounded-md"
                 value={parseOptions.ai_provider}
-                onChange={(e) => setParseOptions(prev => ({ 
-                  ...prev, 
-                  ai_provider: e.target.value as any 
-                }))}
+                onChange={(e) =>
+                  setParseOptions((prev) => ({
+                    ...prev,
+                    ai_provider: e.target.value as any,
+                  }))
+                }
                 disabled={parseFileMutation.isPending}
               >
                 <option value="openai">OpenAI</option>
@@ -213,10 +234,12 @@ export function N8nGradeImporter({
                 min="10"
                 max="200"
                 value={parseOptions.batch_size}
-                onChange={(e) => setParseOptions(prev => ({ 
-                  ...prev, 
-                  batch_size: parseInt(e.target.value) || 50 
-                }))}
+                onChange={(e) =>
+                  setParseOptions((prev) => ({
+                    ...prev,
+                    batch_size: parseInt(e.target.value) || 50,
+                  }))
+                }
                 disabled={parseFileMutation.isPending}
               />
             </div>
@@ -226,10 +249,12 @@ export function N8nGradeImporter({
                 <input
                   type="checkbox"
                   checked={parseOptions.enable_validation}
-                  onChange={(e) => setParseOptions(prev => ({ 
-                    ...prev, 
-                    enable_validation: e.target.checked 
-                  }))}
+                  onChange={(e) =>
+                    setParseOptions((prev) => ({
+                      ...prev,
+                      enable_validation: e.target.checked,
+                    }))
+                  }
                   disabled={parseFileMutation.isPending}
                 />
                 启用数据验证
@@ -259,7 +284,11 @@ export function N8nGradeImporter({
           )}
         </Button>
 
-        <Button variant="outline" onClick={handleReset} disabled={parseFileMutation.isPending}>
+        <Button
+          variant="outline"
+          onClick={handleReset}
+          disabled={parseFileMutation.isPending}
+        >
           重置
         </Button>
       </div>
@@ -292,16 +321,12 @@ export function N8nGradeImporter({
             {parseResult.success ? (
               <Alert>
                 <CheckCircle2 className="w-4 h-4" />
-                <AlertDescription>
-                   {parseResult.message}
-                </AlertDescription>
+                <AlertDescription>{parseResult.message}</AlertDescription>
               </Alert>
             ) : (
               <Alert variant="destructive">
                 <AlertCircle className="w-4 h-4" />
-                <AlertDescription>
-                  {parseResult.message}
-                </AlertDescription>
+                <AlertDescription>{parseResult.message}</AlertDescription>
               </Alert>
             )}
 
@@ -350,7 +375,9 @@ export function N8nGradeImporter({
             {/* 错误信息 */}
             {parseResult.errors.length > 0 && (
               <div>
-                <Label className="text-sm font-medium text-red-600">错误信息</Label>
+                <Label className="text-sm font-medium text-red-600">
+                  错误信息
+                </Label>
                 <div className="mt-2 p-3 bg-red-50 rounded-lg border border-red-200 max-h-40 overflow-y-auto">
                   {parseResult.errors.map((error, index) => (
                     <div key={index} className="text-sm text-red-700 mb-1">
@@ -367,4 +394,4 @@ export function N8nGradeImporter({
   );
 }
 
-export default N8nGradeImporter; 
+export default N8nGradeImporter;

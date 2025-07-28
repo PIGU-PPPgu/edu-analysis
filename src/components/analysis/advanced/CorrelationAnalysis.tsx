@@ -1,21 +1,21 @@
-import React, { useMemo, memo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { 
-  ScatterChart, 
-  Scatter, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import React, { useMemo, memo } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  ScatterChart,
+  Scatter,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
-  Cell
-} from 'recharts';
-import { ResponsiveHeatMap } from '@nivo/heatmap';
-import { 
+  Cell,
+} from "recharts";
+import { ResponsiveHeatMap } from "@nivo/heatmap";
+import {
   Grid,
   TrendingUp,
   TrendingDown,
@@ -23,8 +23,8 @@ import {
   Info,
   Download,
   BarChart3,
-  Activity
-} from 'lucide-react';
+  Activity,
+} from "lucide-react";
 
 // ============================================================================
 // 类型定义
@@ -49,7 +49,7 @@ interface CorrelationData {
   correlation: number;
   pValue: number;
   sampleSize: number;
-  significance: 'high' | 'medium' | 'low' | 'none';
+  significance: "high" | "medium" | "low" | "none";
 }
 
 interface SubjectPairData {
@@ -74,7 +74,10 @@ interface CorrelationAnalysisProps {
 // ============================================================================
 
 // 计算皮尔逊相关系数
-const calculatePearsonCorrelation = (x: number[], y: number[]): { correlation: number; pValue: number } => {
+const calculatePearsonCorrelation = (
+  x: number[],
+  y: number[]
+): { correlation: number; pValue: number } => {
   if (x.length !== y.length || x.length < 3) {
     return { correlation: 0, pValue: 1 };
   }
@@ -87,44 +90,58 @@ const calculatePearsonCorrelation = (x: number[], y: number[]): { correlation: n
   const sumY2 = y.reduce((sum, yi) => sum + yi * yi, 0);
 
   const numerator = n * sumXY - sumX * sumY;
-  const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+  const denominator = Math.sqrt(
+    (n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY)
+  );
 
   if (denominator === 0) {
     return { correlation: 0, pValue: 1 };
   }
 
   const correlation = numerator / denominator;
-  
+
   // 简化的p值计算
   const t = correlation * Math.sqrt((n - 2) / (1 - correlation * correlation));
-  const pValue = Math.min(1, Math.max(0, 2 * (1 - Math.abs(t) / Math.sqrt(n - 2 + t * t))));
+  const pValue = Math.min(
+    1,
+    Math.max(0, 2 * (1 - Math.abs(t) / Math.sqrt(n - 2 + t * t)))
+  );
 
   return { correlation, pValue };
 };
 
 // 获取相关性强度等级
-const getCorrelationStrength = (correlation: number, pValue: number): 'high' | 'medium' | 'low' | 'none' => {
+const getCorrelationStrength = (
+  correlation: number,
+  pValue: number
+): "high" | "medium" | "low" | "none" => {
   const absCorr = Math.abs(correlation);
-  
-  if (pValue > 0.05) return 'none';
-  if (absCorr >= 0.7) return 'high';
-  if (absCorr >= 0.4) return 'medium';
-  if (absCorr >= 0.2) return 'low';
-  return 'none';
+
+  if (pValue > 0.05) return "none";
+  if (absCorr >= 0.7) return "high";
+  if (absCorr >= 0.4) return "medium";
+  if (absCorr >= 0.2) return "low";
+  return "none";
 };
 
 // 计算所有科目间的相关性
-const calculateCorrelationMatrix = (gradeData: GradeRecord[]): CorrelationData[] => {
+const calculateCorrelationMatrix = (
+  gradeData: GradeRecord[]
+): CorrelationData[] => {
   // 按科目分组数据
-  const subjectData = gradeData.reduce((acc, record) => {
-    if (!record.subject || !record.score || isNaN(Number(record.score))) return acc;
-    
-    if (!acc[record.subject]) {
-      acc[record.subject] = {};
-    }
-    acc[record.subject][record.student_id] = Number(record.score);
-    return acc;
-  }, {} as Record<string, Record<string, number>>);
+  const subjectData = gradeData.reduce(
+    (acc, record) => {
+      if (!record.subject || !record.score || isNaN(Number(record.score)))
+        return acc;
+
+      if (!acc[record.subject]) {
+        acc[record.subject] = {};
+      }
+      acc[record.subject][record.student_id] = Number(record.score);
+      return acc;
+    },
+    {} as Record<string, Record<string, number>>
+  );
 
   const subjects = Object.keys(subjectData);
   const correlations: CorrelationData[] = [];
@@ -134,18 +151,25 @@ const calculateCorrelationMatrix = (gradeData: GradeRecord[]): CorrelationData[]
     for (let j = i + 1; j < subjects.length; j++) {
       const subject1 = subjects[i];
       const subject2 = subjects[j];
-      
+
       // 找到两个科目都有成绩的学生
       const commonStudents = Object.keys(subjectData[subject1]).filter(
-        studentId => studentId in subjectData[subject2]
+        (studentId) => studentId in subjectData[subject2]
       );
 
       if (commonStudents.length < 3) continue;
 
-      const scores1 = commonStudents.map(studentId => subjectData[subject1][studentId]);
-      const scores2 = commonStudents.map(studentId => subjectData[subject2][studentId]);
+      const scores1 = commonStudents.map(
+        (studentId) => subjectData[subject1][studentId]
+      );
+      const scores2 = commonStudents.map(
+        (studentId) => subjectData[subject2][studentId]
+      );
 
-      const { correlation, pValue } = calculatePearsonCorrelation(scores1, scores2);
+      const { correlation, pValue } = calculatePearsonCorrelation(
+        scores1,
+        scores2
+      );
       const significance = getCorrelationStrength(correlation, pValue);
 
       correlations.push({
@@ -154,38 +178,44 @@ const calculateCorrelationMatrix = (gradeData: GradeRecord[]): CorrelationData[]
         correlation,
         pValue,
         sampleSize: commonStudents.length,
-        significance
+        significance,
       });
     }
   }
 
-  return correlations.sort((a, b) => Math.abs(b.correlation) - Math.abs(a.correlation));
+  return correlations.sort(
+    (a, b) => Math.abs(b.correlation) - Math.abs(a.correlation)
+  );
 };
 
 // 准备热力图数据
 const prepareHeatmapData = (correlations: CorrelationData[]) => {
-  const subjects = Array.from(new Set([
-    ...correlations.map(c => c.subject1),
-    ...correlations.map(c => c.subject2)
-  ]));
+  const subjects = Array.from(
+    new Set([
+      ...correlations.map((c) => c.subject1),
+      ...correlations.map((c) => c.subject2),
+    ])
+  );
 
-  const matrix: Array<{ id: string; data: Array<{ x: string; y: number }> }> = [];
+  const matrix: Array<{ id: string; data: Array<{ x: string; y: number }> }> =
+    [];
 
-  subjects.forEach(subject1 => {
+  subjects.forEach((subject1) => {
     const row = {
       id: subject1,
-      data: subjects.map(subject2 => {
+      data: subjects.map((subject2) => {
         if (subject1 === subject2) {
           return { x: subject2, y: 1 };
         }
-        
+
         const correlation = correlations.find(
-          c => (c.subject1 === subject1 && c.subject2 === subject2) ||
-               (c.subject1 === subject2 && c.subject2 === subject1)
+          (c) =>
+            (c.subject1 === subject1 && c.subject2 === subject2) ||
+            (c.subject1 === subject2 && c.subject2 === subject1)
         );
-        
+
         return { x: subject2, y: correlation?.correlation || 0 };
-      })
+      }),
     };
     matrix.push(row);
   });
@@ -194,16 +224,26 @@ const prepareHeatmapData = (correlations: CorrelationData[]) => {
 };
 
 // 准备散点图数据
-const prepareScatterData = (gradeData: GradeRecord[], subject1: string, subject2: string) => {
-  const studentScores = new Map<string, { name: string; score1?: number; score2?: number }>();
+const prepareScatterData = (
+  gradeData: GradeRecord[],
+  subject1: string,
+  subject2: string
+) => {
+  const studentScores = new Map<
+    string,
+    { name: string; score1?: number; score2?: number }
+  >();
 
-  gradeData.forEach(record => {
-    if (!record.student_id || !record.score || isNaN(Number(record.score))) return;
-    
+  gradeData.forEach((record) => {
+    if (!record.student_id || !record.score || isNaN(Number(record.score)))
+      return;
+
     if (!studentScores.has(record.student_id)) {
-      studentScores.set(record.student_id, { name: record.name || record.student_id });
+      studentScores.set(record.student_id, {
+        name: record.name || record.student_id,
+      });
     }
-    
+
     const student = studentScores.get(record.student_id)!;
     if (record.subject === subject1) {
       student.score1 = Number(record.score);
@@ -213,14 +253,17 @@ const prepareScatterData = (gradeData: GradeRecord[], subject1: string, subject2
   });
 
   return Array.from(studentScores.entries())
-    .filter(([_, student]) => student.score1 !== undefined && student.score2 !== undefined)
+    .filter(
+      ([_, student]) =>
+        student.score1 !== undefined && student.score2 !== undefined
+    )
     .map(([student_id, student]) => ({
       student_id,
       name: student.name,
       x: student.score1!,
       y: student.score2!,
       [subject1]: student.score1!,
-      [subject2]: student.score2!
+      [subject2]: student.score2!,
     }));
 };
 
@@ -232,19 +275,20 @@ const CorrelationMatrix = memo<{
   correlations: CorrelationData[];
 }>(({ correlations }) => {
   const getCorrelationColor = (correlation: number, significance: string) => {
-    if (significance === 'none') return '#f3f4f6';
-    
+    if (significance === "none") return "#f3f4f6";
+
     const intensity = Math.abs(correlation);
     if (correlation > 0) {
-      return `rgba(34, 197, 94, ${intensity})`;  // 绿色表示正相关
+      return `rgba(34, 197, 94, ${intensity})`; // 绿色表示正相关
     } else {
-      return `rgba(239, 68, 68, ${intensity})`;  // 红色表示负相关
+      return `rgba(239, 68, 68, ${intensity})`; // 红色表示负相关
     }
   };
 
   const getCorrelationIcon = (correlation: number, significance: string) => {
-    if (significance === 'none') return <Minus className="w-4 h-4 text-gray-400" />;
-    
+    if (significance === "none")
+      return <Minus className="w-4 h-4 text-gray-400" />;
+
     if (correlation > 0) {
       return <TrendingUp className="w-4 h-4 text-green-600" />;
     } else {
@@ -270,25 +314,38 @@ const CorrelationMatrix = memo<{
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="text-right">
                   <div className="flex items-center gap-2">
-                    <span 
+                    <span
                       className="px-2 py-1 rounded text-xs font-medium text-white"
-                      style={{ backgroundColor: getCorrelationColor(corr.correlation, corr.significance) }}
+                      style={{
+                        backgroundColor: getCorrelationColor(
+                          corr.correlation,
+                          corr.significance
+                        ),
+                      }}
                     >
                       {corr.correlation.toFixed(3)}
                     </span>
-                    <Badge 
+                    <Badge
                       variant={
-                        corr.significance === 'high' ? 'default' :
-                        corr.significance === 'medium' ? 'secondary' :
-                        corr.significance === 'low' ? 'outline' : 'destructive'
+                        corr.significance === "high"
+                          ? "default"
+                          : corr.significance === "medium"
+                            ? "secondary"
+                            : corr.significance === "low"
+                              ? "outline"
+                              : "destructive"
                       }
                     >
-                      {corr.significance === 'high' ? '强相关' :
-                       corr.significance === 'medium' ? '中等相关' :
-                       corr.significance === 'low' ? '弱相关' : '无显著相关'}
+                      {corr.significance === "high"
+                        ? "强相关"
+                        : corr.significance === "medium"
+                          ? "中等相关"
+                          : corr.significance === "low"
+                            ? "弱相关"
+                            : "无显著相关"}
                     </Badge>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
@@ -307,7 +364,10 @@ const CorrelationMatrix = memo<{
 const CorrelationHeatmap = memo<{
   correlations: CorrelationData[];
 }>(({ correlations }) => {
-  const heatmapData = useMemo(() => prepareHeatmapData(correlations), [correlations]);
+  const heatmapData = useMemo(
+    () => prepareHeatmapData(correlations),
+    [correlations]
+  );
 
   if (heatmapData.length === 0) {
     return (
@@ -330,38 +390,38 @@ const CorrelationHeatmap = memo<{
           tickSize: 5,
           tickPadding: 5,
           tickRotation: -45,
-          legend: '',
-          legendOffset: 46
+          legend: "",
+          legendOffset: 46,
         }}
         axisRight={{
           tickSize: 5,
           tickPadding: 5,
           tickRotation: 0,
-          legend: '科目',
-          legendPosition: 'middle',
-          legendOffset: 70
+          legend: "科目",
+          legendPosition: "middle",
+          legendOffset: 70,
         }}
         axisBottom={{
           tickSize: 5,
           tickPadding: 5,
           tickRotation: -45,
-          legend: '科目',
-          legendPosition: 'middle',
-          legendOffset: 46
+          legend: "科目",
+          legendPosition: "middle",
+          legendOffset: 46,
         }}
         axisLeft={{
           tickSize: 5,
           tickPadding: 5,
           tickRotation: 0,
-          legend: '',
-          legendOffset: -72
+          legend: "",
+          legendOffset: -72,
         }}
         colors={{
-          type: 'diverging',
-          scheme: 'red_yellow_green',
+          type: "diverging",
+          scheme: "red_yellow_green",
           divergeAt: 0.5,
           minValue: -1,
-          maxValue: 1
+          maxValue: 1,
         }}
         emptyColor="#f3f4f6"
         borderColor="#ffffff"
@@ -369,9 +429,12 @@ const CorrelationHeatmap = memo<{
         labelTextColor="#333333"
         tooltip={({ cell }) => (
           <div className="bg-white p-3 shadow-lg rounded border">
-            <p className="font-semibold">{cell.serieId} ↔ {cell.data.x}</p>
+            <p className="font-semibold">
+              {cell.serieId} ↔ {cell.data.x}
+            </p>
             <p className="text-sm text-gray-600">
-              相关系数: {typeof cell.value === 'number' ? cell.value.toFixed(3) : 'N/A'}
+              相关系数:{" "}
+              {typeof cell.value === "number" ? cell.value.toFixed(3) : "N/A"}
             </p>
           </div>
         )}
@@ -384,13 +447,18 @@ const ScatterPlotAnalysis = memo<{
   gradeData: GradeRecord[];
   correlations: CorrelationData[];
 }>(({ gradeData, correlations }) => {
-  const [selectedPair, setSelectedPair] = React.useState<CorrelationData | null>(
-    correlations.length > 0 ? correlations[0] : null
-  );
+  const [selectedPair, setSelectedPair] =
+    React.useState<CorrelationData | null>(
+      correlations.length > 0 ? correlations[0] : null
+    );
 
   const scatterData = useMemo(() => {
     if (!selectedPair) return [];
-    return prepareScatterData(gradeData, selectedPair.subject1, selectedPair.subject2);
+    return prepareScatterData(
+      gradeData,
+      selectedPair.subject1,
+      selectedPair.subject2
+    );
   }, [gradeData, selectedPair]);
 
   if (correlations.length === 0) {
@@ -440,24 +508,35 @@ const ScatterPlotAnalysis = memo<{
               </Badge>
             </div>
           </div>
-          
+
           <ResponsiveContainer width="100%" height={400}>
-            <ScatterChart data={scatterData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+            <ScatterChart
+              data={scatterData}
+              margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+            >
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
-                type="number" 
-                dataKey="x" 
+              <XAxis
+                type="number"
+                dataKey="x"
                 name={selectedPair.subject1}
-                label={{ value: selectedPair.subject1, position: 'insideBottom', offset: -10 }}
+                label={{
+                  value: selectedPair.subject1,
+                  position: "insideBottom",
+                  offset: -10,
+                }}
               />
-              <YAxis 
-                type="number" 
-                dataKey="y" 
+              <YAxis
+                type="number"
+                dataKey="y"
                 name={selectedPair.subject2}
-                label={{ value: selectedPair.subject2, angle: -90, position: 'insideLeft' }}
+                label={{
+                  value: selectedPair.subject2,
+                  angle: -90,
+                  position: "insideLeft",
+                }}
               />
-              <Tooltip 
-                cursor={{ strokeDasharray: '3 3' }}
+              <Tooltip
+                cursor={{ strokeDasharray: "3 3" }}
                 content={({ active, payload }) => {
                   if (active && payload && payload.length) {
                     const data = payload[0].payload;
@@ -476,8 +555,8 @@ const ScatterPlotAnalysis = memo<{
                   return null;
                 }}
               />
-              <Scatter 
-                dataKey="y" 
+              <Scatter
+                dataKey="y"
                 fill={selectedPair.correlation > 0 ? "#10b981" : "#ef4444"}
                 fillOpacity={0.6}
               />
@@ -496,39 +575,52 @@ const ScatterPlotAnalysis = memo<{
 const CorrelationAnalysis: React.FC<CorrelationAnalysisProps> = ({
   gradeData,
   title = "科目相关性分析",
-  className = ""
+  className = "",
 }) => {
-  const correlations = useMemo(() => calculateCorrelationMatrix(gradeData), [gradeData]);
-  
+  const correlations = useMemo(
+    () => calculateCorrelationMatrix(gradeData),
+    [gradeData]
+  );
+
   const subjects = useMemo(() => {
-    return Array.from(new Set(gradeData.map(record => record.subject).filter(Boolean)));
+    return Array.from(
+      new Set(gradeData.map((record) => record.subject).filter(Boolean))
+    );
   }, [gradeData]);
 
-  const strongCorrelations = correlations.filter(c => c.significance === 'high');
-  const averageCorrelation = correlations.length > 0 
-    ? correlations.reduce((sum, c) => sum + Math.abs(c.correlation), 0) / correlations.length 
-    : 0;
+  const strongCorrelations = correlations.filter(
+    (c) => c.significance === "high"
+  );
+  const averageCorrelation =
+    correlations.length > 0
+      ? correlations.reduce((sum, c) => sum + Math.abs(c.correlation), 0) /
+        correlations.length
+      : 0;
 
   // 导出相关性数据
   const handleExportData = () => {
     const csvContent = [
-      ['科目1', '科目2', '相关系数', 'P值', '样本量', '显著性'],
-      ...correlations.map(c => [
+      ["科目1", "科目2", "相关系数", "P值", "样本量", "显著性"],
+      ...correlations.map((c) => [
         c.subject1,
         c.subject2,
         c.correlation.toFixed(4),
         c.pValue.toFixed(4),
         c.sampleSize.toString(),
-        c.significance
-      ])
-    ].map(row => row.join(',')).join('\n');
+        c.significance,
+      ]),
+    ]
+      .map((row) => row.join(","))
+      .join("\n");
 
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
+    const blob = new Blob(["\uFEFF" + csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', '科目相关性分析.csv');
-    link.style.visibility = 'hidden';
+    link.setAttribute("href", url);
+    link.setAttribute("download", "科目相关性分析.csv");
+    link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -539,8 +631,12 @@ const CorrelationAnalysis: React.FC<CorrelationAnalysisProps> = ({
       <Card className={className}>
         <CardContent className="p-8 text-center">
           <Grid className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-          <p className="text-lg font-medium text-gray-600">需要至少2个科目的数据</p>
-          <p className="text-sm text-gray-500 mt-1">请确保导入的数据包含多个科目的成绩</p>
+          <p className="text-lg font-medium text-gray-600">
+            需要至少2个科目的数据
+          </p>
+          <p className="text-sm text-gray-500 mt-1">
+            请确保导入的数据包含多个科目的成绩
+          </p>
         </CardContent>
       </Card>
     );
@@ -556,7 +652,8 @@ const CorrelationAnalysis: React.FC<CorrelationAnalysisProps> = ({
             {title}
           </h2>
           <p className="text-sm text-gray-600 mt-1">
-            分析 {subjects.length} 个科目间的相关性 • {correlations.length} 个科目对 • 平均相关性 {averageCorrelation.toFixed(3)}
+            分析 {subjects.length} 个科目间的相关性 • {correlations.length}{" "}
+            个科目对 • 平均相关性 {averageCorrelation.toFixed(3)}
           </p>
         </div>
         <div className="flex gap-2">
@@ -577,10 +674,19 @@ const CorrelationAnalysis: React.FC<CorrelationAnalysisProps> = ({
         <AlertTitle>相关性分析说明</AlertTitle>
         <AlertDescription>
           <div className="space-y-1 text-sm">
-            <p>• <strong>相关系数范围</strong>: -1 到 1，绝对值越大相关性越强</p>
-            <p>• <strong>正相关</strong>: 一个科目分数高，另一个科目分数也倾向于高</p>
-            <p>• <strong>负相关</strong>: 一个科目分数高，另一个科目分数倾向于低</p>
-            <p>• <strong>显著性</strong>: 基于p值判断，p&lt;0.05为显著相关</p>
+            <p>
+              • <strong>相关系数范围</strong>: -1 到 1，绝对值越大相关性越强
+            </p>
+            <p>
+              • <strong>正相关</strong>:
+              一个科目分数高，另一个科目分数也倾向于高
+            </p>
+            <p>
+              • <strong>负相关</strong>: 一个科目分数高，另一个科目分数倾向于低
+            </p>
+            <p>
+              • <strong>显著性</strong>: 基于p值判断，p&lt;0.05为显著相关
+            </p>
           </div>
         </AlertDescription>
       </Alert>
@@ -621,7 +727,10 @@ const CorrelationAnalysis: React.FC<CorrelationAnalysisProps> = ({
             <TabsContent value="scatter" className="mt-6">
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">科目对散点图分析</h3>
-                <ScatterPlotAnalysis gradeData={gradeData} correlations={correlations} />
+                <ScatterPlotAnalysis
+                  gradeData={gradeData}
+                  correlations={correlations}
+                />
               </div>
             </TabsContent>
           </Tabs>
@@ -631,4 +740,4 @@ const CorrelationAnalysis: React.FC<CorrelationAnalysisProps> = ({
   );
 };
 
-export default memo(CorrelationAnalysis); 
+export default memo(CorrelationAnalysis);

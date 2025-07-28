@@ -3,13 +3,13 @@
  * 实时显示系统状态、性能指标、错误日志和健康检查
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { cn } from '@/lib/utils';
+import React, { useState, useEffect, useCallback } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 import {
   Activity,
   AlertTriangle,
@@ -34,8 +34,8 @@ import {
   Cpu,
   AlertCircle,
   Settings,
-  BarChart3
-} from 'lucide-react';
+  BarChart3,
+} from "lucide-react";
 import {
   LineChart,
   Line,
@@ -50,30 +50,35 @@ import {
   Pie,
   Cell,
   BarChart,
-  Bar
-} from 'recharts';
-import SystemMonitor, { LogLevel, LogCategory, LogEntry, SystemMetrics } from '@/utils/systemMonitor';
+  Bar,
+} from "recharts";
+import SystemMonitor, {
+  LogLevel,
+  LogCategory,
+  LogEntry,
+  SystemMetrics,
+} from "@/utils/systemMonitor";
 
 // 状态颜色配置
 const STATUS_COLORS = {
   healthy: {
-    bg: 'bg-[#B9FF66]',
-    text: 'text-black',
-    border: 'border-[#B9FF66]',
-    shadow: 'shadow-[6px_6px_0px_0px_#B9FF66]'
+    bg: "bg-[#B9FF66]",
+    text: "text-black",
+    border: "border-[#B9FF66]",
+    shadow: "shadow-[6px_6px_0px_0px_#B9FF66]",
   },
   warning: {
-    bg: 'bg-[#F59E0B]',
-    text: 'text-white',
-    border: 'border-[#F59E0B]',
-    shadow: 'shadow-[6px_6px_0px_0px_#F59E0B]'
+    bg: "bg-[#F59E0B]",
+    text: "text-white",
+    border: "border-[#F59E0B]",
+    shadow: "shadow-[6px_6px_0px_0px_#F59E0B]",
   },
   critical: {
-    bg: 'bg-[#EF4444]',
-    text: 'text-white',
-    border: 'border-[#EF4444]',
-    shadow: 'shadow-[6px_6px_0px_0px_#EF4444]'
-  }
+    bg: "bg-[#EF4444]",
+    text: "text-white",
+    border: "border-[#EF4444]",
+    shadow: "shadow-[6px_6px_0px_0px_#EF4444]",
+  },
 };
 
 interface StatCardProps {
@@ -81,9 +86,9 @@ interface StatCardProps {
   value: string | number;
   subtitle?: string;
   icon: React.ElementType;
-  trend?: 'up' | 'down' | 'neutral';
+  trend?: "up" | "down" | "neutral";
   trendValue?: string;
-  status?: 'healthy' | 'warning' | 'critical';
+  status?: "healthy" | "warning" | "critical";
   className?: string;
 }
 
@@ -94,43 +99,59 @@ const StatCard: React.FC<StatCardProps> = ({
   icon: Icon,
   trend,
   trendValue,
-  status = 'healthy',
-  className
+  status = "healthy",
+  className,
 }) => {
   const colors = STATUS_COLORS[status];
 
   return (
-    <Card className={cn(
-      'bg-white border-2 border-black transition-all hover:translate-x-[-2px] hover:translate-y-[-2px]',
-      colors.shadow,
-      className
-    )}>
+    <Card
+      className={cn(
+        "bg-white border-2 border-black transition-all hover:translate-x-[-2px] hover:translate-y-[-2px]",
+        colors.shadow,
+        className
+      )}
+    >
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
           <div className="space-y-3 flex-1">
             <div className="flex items-center gap-2">
-              <div className={cn(
-                'p-2 rounded-full border-2 border-black',
-                colors.bg,
-                colors.text
-              )}>
+              <div
+                className={cn(
+                  "p-2 rounded-full border-2 border-black",
+                  colors.bg,
+                  colors.text
+                )}
+              >
                 <Icon className="w-5 h-5" />
               </div>
-              <p className="text-base font-bold text-black uppercase tracking-wide">{title}</p>
+              <p className="text-base font-bold text-black uppercase tracking-wide">
+                {title}
+              </p>
             </div>
             <div className="space-y-2">
-              <h3 className="text-4xl font-black text-black leading-none">{value}</h3>
+              <h3 className="text-4xl font-black text-black leading-none">
+                {value}
+              </h3>
               {trend && trendValue && (
-                <div className={cn(
-                  "inline-flex items-center gap-1 px-3 py-1 rounded-full border-2 border-black text-sm font-bold",
-                  trend === 'up' && status === 'critical' && "bg-[#EF4444] text-white",
-                  trend === 'up' && status === 'warning' && "bg-[#F59E0B] text-white",
-                  trend === 'up' && status === 'healthy' && "bg-[#B9FF66] text-black",
-                  trend === 'down' && "bg-[#6B7280] text-white",
-                  trend === 'neutral' && "bg-white text-black"
-                )}>
-                  {trend === 'up' && <TrendingUp className="w-4 h-4" />}
-                  {trend === 'down' && <TrendingDown className="w-4 h-4" />}
+                <div
+                  className={cn(
+                    "inline-flex items-center gap-1 px-3 py-1 rounded-full border-2 border-black text-sm font-bold",
+                    trend === "up" &&
+                      status === "critical" &&
+                      "bg-[#EF4444] text-white",
+                    trend === "up" &&
+                      status === "warning" &&
+                      "bg-[#F59E0B] text-white",
+                    trend === "up" &&
+                      status === "healthy" &&
+                      "bg-[#B9FF66] text-black",
+                    trend === "down" && "bg-[#6B7280] text-white",
+                    trend === "neutral" && "bg-white text-black"
+                  )}
+                >
+                  {trend === "up" && <TrendingUp className="w-4 h-4" />}
+                  {trend === "down" && <TrendingDown className="w-4 h-4" />}
                   <span className="uppercase tracking-wide">{trendValue}</span>
                 </div>
               )}
@@ -148,30 +169,38 @@ const StatCard: React.FC<StatCardProps> = ({
 };
 
 const SystemMonitoringDashboard: React.FC = () => {
-  const [monitor] = useState(() => SystemMonitor.getInstance({
-    logLevel: LogLevel.INFO,
-    enableConsoleOutput: true,
-    enableRemoteLogging: false,
-    enablePerformanceMonitoring: true,
-    enableErrorTracking: true,
-    enableUserTracking: true
-  }));
+  const [monitor] = useState(() =>
+    SystemMonitor.getInstance({
+      logLevel: LogLevel.INFO,
+      enableConsoleOutput: true,
+      enableRemoteLogging: false,
+      enablePerformanceMonitoring: true,
+      enableErrorTracking: true,
+      enableUserTracking: true,
+    })
+  );
 
   const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [healthStatus, setHealthStatus] = useState<{
-    status: 'healthy' | 'warning' | 'critical';
+    status: "healthy" | "warning" | "critical";
     issues: string[];
-  }>({ status: 'healthy', issues: [] });
+  }>({ status: "healthy", issues: [] });
   const [isMonitoring, setIsMonitoring] = useState(true);
-  const [selectedLogLevel, setSelectedLogLevel] = useState<LogLevel>(LogLevel.INFO);
-  const [selectedCategory, setSelectedCategory] = useState<LogCategory | 'all'>('all');
-  const [realTimeData, setRealTimeData] = useState<Array<{
-    time: string;
-    memory: number;
-    errors: number;
-    requests: number;
-  }>>([]);
+  const [selectedLogLevel, setSelectedLogLevel] = useState<LogLevel>(
+    LogLevel.INFO
+  );
+  const [selectedCategory, setSelectedCategory] = useState<LogCategory | "all">(
+    "all"
+  );
+  const [realTimeData, setRealTimeData] = useState<
+    Array<{
+      time: string;
+      memory: number;
+      errors: number;
+      requests: number;
+    }>
+  >([]);
 
   // 实时数据更新
   useEffect(() => {
@@ -189,17 +218,20 @@ const SystemMonitoringDashboard: React.FC = () => {
         setHealthStatus({ status: health.status, issues: health.issues });
 
         // 更新实时图表数据
-        setRealTimeData(prev => {
-          const newData = [...prev, {
-            time: new Date().toLocaleTimeString(),
-            memory: currentMetrics.performance.memory.used / 1024 / 1024, // MB
-            errors: currentMetrics.errors.totalErrors,
-            requests: currentMetrics.performance.resources.totalRequests
-          }];
+        setRealTimeData((prev) => {
+          const newData = [
+            ...prev,
+            {
+              time: new Date().toLocaleTimeString(),
+              memory: currentMetrics.performance.memory.used / 1024 / 1024, // MB
+              errors: currentMetrics.errors.totalErrors,
+              requests: currentMetrics.performance.resources.totalRequests,
+            },
+          ];
           return newData.slice(-20); // 只保留最近20个数据点
         });
       } catch (error) {
-        monitor.logError('Failed to update monitoring data', error);
+        monitor.logError("Failed to update monitoring data", error);
       }
     };
 
@@ -210,9 +242,10 @@ const SystemMonitoringDashboard: React.FC = () => {
   }, [monitor, isMonitoring]);
 
   // 过滤日志
-  const filteredLogs = logs.filter(log => {
+  const filteredLogs = logs.filter((log) => {
     const levelMatch = log.level >= selectedLogLevel;
-    const categoryMatch = selectedCategory === 'all' || log.category === selectedCategory;
+    const categoryMatch =
+      selectedCategory === "all" || log.category === selectedCategory;
     return levelMatch && categoryMatch;
   });
 
@@ -222,15 +255,15 @@ const SystemMonitoringDashboard: React.FC = () => {
       logs: filteredLogs,
       metrics,
       healthStatus,
-      exportTime: new Date().toISOString()
+      exportTime: new Date().toISOString(),
     };
 
     const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-      type: 'application/json'
+      type: "application/json",
     });
-    
+
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = `system-monitoring-${Date.now()}.json`;
     a.click();
@@ -252,36 +285,46 @@ const SystemMonitoringDashboard: React.FC = () => {
   const getLogLevelColor = (level: LogLevel): string => {
     switch (level) {
       case LogLevel.DEBUG:
-        return 'bg-[#6B7280] text-white';
+        return "bg-[#6B7280] text-white";
       case LogLevel.INFO:
-        return 'bg-[#B9FF66] text-black';
+        return "bg-[#B9FF66] text-black";
       case LogLevel.WARN:
-        return 'bg-[#F59E0B] text-white';
+        return "bg-[#F59E0B] text-white";
       case LogLevel.ERROR:
-        return 'bg-[#EF4444] text-white';
+        return "bg-[#EF4444] text-white";
       case LogLevel.CRITICAL:
-        return 'bg-[#991B1B] text-white';
+        return "bg-[#991B1B] text-white";
       default:
-        return 'bg-[#6B7280] text-white';
+        return "bg-[#6B7280] text-white";
     }
   };
 
   // 获取系统状态
   const getSystemStatus = () => {
-    if (!metrics) return { status: 'healthy', color: STATUS_COLORS.healthy };
-    
-    const memoryUsage = (metrics.performance.memory.used / metrics.performance.memory.limit) * 100;
+    if (!metrics) return { status: "healthy", color: STATUS_COLORS.healthy };
+
+    const memoryUsage =
+      (metrics.performance.memory.used / metrics.performance.memory.limit) *
+      100;
     const errorRate = metrics.errors.errorRate;
 
-    if (memoryUsage > 90 || errorRate > 0.1 || healthStatus.status === 'critical') {
-      return { status: 'critical', color: STATUS_COLORS.critical };
+    if (
+      memoryUsage > 90 ||
+      errorRate > 0.1 ||
+      healthStatus.status === "critical"
+    ) {
+      return { status: "critical", color: STATUS_COLORS.critical };
     }
-    
-    if (memoryUsage > 75 || errorRate > 0.05 || healthStatus.status === 'warning') {
-      return { status: 'warning', color: STATUS_COLORS.warning };
+
+    if (
+      memoryUsage > 75 ||
+      errorRate > 0.05 ||
+      healthStatus.status === "warning"
+    ) {
+      return { status: "warning", color: STATUS_COLORS.warning };
     }
-    
-    return { status: 'healthy', color: STATUS_COLORS.healthy };
+
+    return { status: "healthy", color: STATUS_COLORS.healthy };
   };
 
   const systemStatus = getSystemStatus();
@@ -293,11 +336,13 @@ const SystemMonitoringDashboard: React.FC = () => {
         <div className="space-y-3">
           <h1 className="text-5xl font-black text-[#191A23] leading-tight">
             系统监控
-            <span className={cn(
-              "inline-block ml-3 px-4 py-2 text-xl font-black border-2 border-black rounded-lg shadow-[4px_4px_0px_0px_#191A23]",
-              systemStatus.color.bg,
-              systemStatus.color.text
-            )}>
+            <span
+              className={cn(
+                "inline-block ml-3 px-4 py-2 text-xl font-black border-2 border-black rounded-lg shadow-[4px_4px_0px_0px_#191A23]",
+                systemStatus.color.bg,
+                systemStatus.color.text
+              )}
+            >
               {systemStatus.status.toUpperCase()}
             </span>
           </h1>
@@ -305,13 +350,15 @@ const SystemMonitoringDashboard: React.FC = () => {
             实时监控系统健康状态和性能指标
           </p>
         </div>
-        
+
         <div className="flex items-center gap-4">
           <Button
             onClick={() => setIsMonitoring(!isMonitoring)}
             className={cn(
               "flex items-center gap-2 border-2 border-black font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all",
-              isMonitoring ? "bg-[#EF4444] hover:bg-[#EF4444] text-white" : "bg-[#B9FF66] hover:bg-[#B9FF66] text-black"
+              isMonitoring
+                ? "bg-[#EF4444] hover:bg-[#EF4444] text-white"
+                : "bg-[#B9FF66] hover:bg-[#B9FF66] text-black"
             )}
           >
             {isMonitoring ? (
@@ -326,7 +373,7 @@ const SystemMonitoringDashboard: React.FC = () => {
               </>
             )}
           </Button>
-          
+
           <Button
             onClick={handleExportLogs}
             variant="outline"
@@ -340,10 +387,14 @@ const SystemMonitoringDashboard: React.FC = () => {
 
       {/* 健康状态警告 */}
       {healthStatus.issues.length > 0 && (
-        <Alert className={cn(
-          "border-2 border-black",
-          healthStatus.status === 'critical' ? "bg-[#EF4444]/10 border-[#EF4444]" : "bg-[#F59E0B]/10 border-[#F59E0B]"
-        )}>
+        <Alert
+          className={cn(
+            "border-2 border-black",
+            healthStatus.status === "critical"
+              ? "bg-[#EF4444]/10 border-[#EF4444]"
+              : "bg-[#F59E0B]/10 border-[#F59E0B]"
+          )}
+        >
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription className="font-medium">
             <div className="space-y-2">
@@ -368,32 +419,64 @@ const SystemMonitoringDashboard: React.FC = () => {
             value={`${(metrics.performance.memory.used / 1024 / 1024).toFixed(1)}MB`}
             subtitle={`总量: ${(metrics.performance.memory.limit / 1024 / 1024).toFixed(1)}MB`}
             icon={MemoryStick}
-            status={((metrics.performance.memory.used / metrics.performance.memory.limit) * 100) > 90 ? 'critical' : 
-                   ((metrics.performance.memory.used / metrics.performance.memory.limit) * 100) > 75 ? 'warning' : 'healthy'}
-            trend={((metrics.performance.memory.used / metrics.performance.memory.limit) * 100) > 75 ? 'up' : 'neutral'}
+            status={
+              (metrics.performance.memory.used /
+                metrics.performance.memory.limit) *
+                100 >
+              90
+                ? "critical"
+                : (metrics.performance.memory.used /
+                      metrics.performance.memory.limit) *
+                      100 >
+                    75
+                  ? "warning"
+                  : "healthy"
+            }
+            trend={
+              (metrics.performance.memory.used /
+                metrics.performance.memory.limit) *
+                100 >
+              75
+                ? "up"
+                : "neutral"
+            }
             trendValue={`${((metrics.performance.memory.used / metrics.performance.memory.limit) * 100).toFixed(1)}%`}
           />
-          
+
           <StatCard
             title="错误数量"
             value={metrics.errors.totalErrors}
             subtitle={`错误率: ${(metrics.errors.errorRate * 100).toFixed(2)}%`}
             icon={Bug}
-            status={metrics.errors.errorRate > 0.1 ? 'critical' : metrics.errors.errorRate > 0.05 ? 'warning' : 'healthy'}
-            trend={metrics.errors.totalErrors > 0 ? 'up' : 'down'}
+            status={
+              metrics.errors.errorRate > 0.1
+                ? "critical"
+                : metrics.errors.errorRate > 0.05
+                  ? "warning"
+                  : "healthy"
+            }
+            trend={metrics.errors.totalErrors > 0 ? "up" : "down"}
             trendValue={`${metrics.errors.criticalErrors} 严重`}
           />
-          
+
           <StatCard
             title="网络请求"
             value={metrics.performance.resources.totalRequests}
             subtitle={`失败: ${metrics.performance.resources.failedRequests} 次`}
             icon={Globe}
-            status={metrics.performance.resources.failedRequests > 10 ? 'warning' : 'healthy'}
-            trend={metrics.performance.resources.avgResponseTime > 2000 ? 'up' : 'neutral'}
+            status={
+              metrics.performance.resources.failedRequests > 10
+                ? "warning"
+                : "healthy"
+            }
+            trend={
+              metrics.performance.resources.avgResponseTime > 2000
+                ? "up"
+                : "neutral"
+            }
             trendValue={`${metrics.performance.resources.avgResponseTime.toFixed(0)}ms 平均`}
           />
-          
+
           <StatCard
             title="运行时长"
             value={`${Math.floor(metrics.system.uptime / 60000)}分钟`}
@@ -409,29 +492,29 @@ const SystemMonitoringDashboard: React.FC = () => {
       {/* 监控面板主要内容 */}
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList className="grid w-fit grid-cols-4 bg-white border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] p-1">
-          <TabsTrigger 
-            value="overview" 
+          <TabsTrigger
+            value="overview"
             className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-black font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide px-6 py-3"
           >
             <Monitor className="w-5 h-5" />
             概览
           </TabsTrigger>
-          <TabsTrigger 
-            value="performance" 
+          <TabsTrigger
+            value="performance"
             className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-black font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide px-6 py-3"
           >
             <BarChart3 className="w-5 h-5" />
             性能
           </TabsTrigger>
-          <TabsTrigger 
-            value="logs" 
+          <TabsTrigger
+            value="logs"
             className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-black font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide px-6 py-3"
           >
             <Eye className="w-5 h-5" />
             日志
           </TabsTrigger>
-          <TabsTrigger 
-            value="system" 
+          <TabsTrigger
+            value="system"
             className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-black font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide px-6 py-3"
           >
             <Server className="w-5 h-5" />
@@ -455,21 +538,24 @@ const SystemMonitoringDashboard: React.FC = () => {
                   <ResponsiveContainer width="100%" height={300}>
                     <AreaChart data={realTimeData}>
                       <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                      <XAxis dataKey="time" tick={{ fontSize: 12, fontWeight: 'bold' }} />
-                      <YAxis tick={{ fontSize: 12, fontWeight: 'bold' }} />
-                      <Tooltip 
+                      <XAxis
+                        dataKey="time"
+                        tick={{ fontSize: 12, fontWeight: "bold" }}
+                      />
+                      <YAxis tick={{ fontSize: 12, fontWeight: "bold" }} />
+                      <Tooltip
                         contentStyle={{
-                          backgroundColor: 'white',
-                          border: '2px solid black',
-                          borderRadius: '8px',
-                          boxShadow: '4px 4px 0px 0px #191A23'
+                          backgroundColor: "white",
+                          border: "2px solid black",
+                          borderRadius: "8px",
+                          boxShadow: "4px 4px 0px 0px #191A23",
                         }}
                       />
-                      <Area 
-                        type="monotone" 
-                        dataKey="memory" 
-                        stroke="#B9FF66" 
-                        fill="#B9FF66" 
+                      <Area
+                        type="monotone"
+                        dataKey="memory"
+                        stroke="#B9FF66"
+                        fill="#B9FF66"
                         fillOpacity={0.3}
                         strokeWidth={3}
                       />
@@ -490,22 +576,29 @@ const SystemMonitoringDashboard: React.FC = () => {
                   <ResponsiveContainer width="100%" height={300}>
                     <LineChart data={realTimeData}>
                       <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                      <XAxis dataKey="time" tick={{ fontSize: 12, fontWeight: 'bold' }} />
-                      <YAxis tick={{ fontSize: 12, fontWeight: 'bold' }} />
-                      <Tooltip 
+                      <XAxis
+                        dataKey="time"
+                        tick={{ fontSize: 12, fontWeight: "bold" }}
+                      />
+                      <YAxis tick={{ fontSize: 12, fontWeight: "bold" }} />
+                      <Tooltip
                         contentStyle={{
-                          backgroundColor: 'white',
-                          border: '2px solid black',
-                          borderRadius: '8px',
-                          boxShadow: '4px 4px 0px 0px #EF4444'
+                          backgroundColor: "white",
+                          border: "2px solid black",
+                          borderRadius: "8px",
+                          boxShadow: "4px 4px 0px 0px #EF4444",
                         }}
                       />
-                      <Line 
-                        type="monotone" 
-                        dataKey="errors" 
-                        stroke="#EF4444" 
+                      <Line
+                        type="monotone"
+                        dataKey="errors"
+                        stroke="#EF4444"
                         strokeWidth={3}
-                        dot={{ fill: '#EF4444', strokeWidth: 2, stroke: '#191A23' }}
+                        dot={{
+                          fill: "#EF4444",
+                          strokeWidth: 2,
+                          stroke: "#191A23",
+                        }}
                       />
                     </LineChart>
                   </ResponsiveContainer>
@@ -525,23 +618,35 @@ const SystemMonitoringDashboard: React.FC = () => {
             <CardContent className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="text-center">
-                  <div className={cn(
-                    "w-20 h-20 rounded-full border-4 border-black flex items-center justify-center mx-auto mb-3",
-                    systemStatus.color.bg
-                  )}>
-                    {systemStatus.status === 'healthy' && <CheckCircle className="w-10 h-10 text-black" />}
-                    {systemStatus.status === 'warning' && <AlertTriangle className="w-10 h-10 text-white" />}
-                    {systemStatus.status === 'critical' && <AlertCircle className="w-10 h-10 text-white" />}
+                  <div
+                    className={cn(
+                      "w-20 h-20 rounded-full border-4 border-black flex items-center justify-center mx-auto mb-3",
+                      systemStatus.color.bg
+                    )}
+                  >
+                    {systemStatus.status === "healthy" && (
+                      <CheckCircle className="w-10 h-10 text-black" />
+                    )}
+                    {systemStatus.status === "warning" && (
+                      <AlertTriangle className="w-10 h-10 text-white" />
+                    )}
+                    {systemStatus.status === "critical" && (
+                      <AlertCircle className="w-10 h-10 text-white" />
+                    )}
                   </div>
-                  <h3 className="text-xl font-black text-black mb-1">系统健康度</h3>
-                  <Badge className={cn(
-                    "font-bold border-2 border-black text-lg px-4 py-2",
-                    systemStatus.color.bg,
-                    systemStatus.color.text
-                  )}>
-                    {systemStatus.status === 'healthy' && '健康'}
-                    {systemStatus.status === 'warning' && '警告'}
-                    {systemStatus.status === 'critical' && '严重'}
+                  <h3 className="text-xl font-black text-black mb-1">
+                    系统健康度
+                  </h3>
+                  <Badge
+                    className={cn(
+                      "font-bold border-2 border-black text-lg px-4 py-2",
+                      systemStatus.color.bg,
+                      systemStatus.color.text
+                    )}
+                  >
+                    {systemStatus.status === "healthy" && "健康"}
+                    {systemStatus.status === "warning" && "警告"}
+                    {systemStatus.status === "critical" && "严重"}
                   </Badge>
                 </div>
 
@@ -549,11 +654,29 @@ const SystemMonitoringDashboard: React.FC = () => {
                   <>
                     <div className="text-center">
                       <div className="text-4xl font-black text-black mb-2">
-                        {((metrics.performance.memory.used / metrics.performance.memory.limit) * 100).toFixed(1)}%
+                        {(
+                          (metrics.performance.memory.used /
+                            metrics.performance.memory.limit) *
+                          100
+                        ).toFixed(1)}
+                        %
                       </div>
-                      <h3 className="text-lg font-bold text-black mb-1">内存使用率</h3>
+                      <h3 className="text-lg font-bold text-black mb-1">
+                        内存使用率
+                      </h3>
                       <p className="text-sm text-[#6B7280]">
-                        {(metrics.performance.memory.used / 1024 / 1024).toFixed(1)}MB / {(metrics.performance.memory.limit / 1024 / 1024).toFixed(1)}MB
+                        {(
+                          metrics.performance.memory.used /
+                          1024 /
+                          1024
+                        ).toFixed(1)}
+                        MB /{" "}
+                        {(
+                          metrics.performance.memory.limit /
+                          1024 /
+                          1024
+                        ).toFixed(1)}
+                        MB
                       </p>
                     </div>
 
@@ -561,9 +684,12 @@ const SystemMonitoringDashboard: React.FC = () => {
                       <div className="text-4xl font-black text-black mb-2">
                         {(metrics.errors.errorRate * 100).toFixed(2)}%
                       </div>
-                      <h3 className="text-lg font-bold text-black mb-1">错误率</h3>
+                      <h3 className="text-lg font-bold text-black mb-1">
+                        错误率
+                      </h3>
                       <p className="text-sm text-[#6B7280]">
-                        {metrics.errors.totalErrors} 总错误，{metrics.errors.criticalErrors} 严重
+                        {metrics.errors.totalErrors} 总错误，
+                        {metrics.errors.criticalErrors} 严重
                       </p>
                     </div>
                   </>
@@ -591,14 +717,19 @@ const SystemMonitoringDashboard: React.FC = () => {
                       <div className="flex justify-between items-center mb-2">
                         <span className="font-bold text-black">内存使用</span>
                         <span className="text-sm text-[#6B7280]">
-                          {(metrics.performance.memory.used / 1024 / 1024).toFixed(1)}MB
+                          {(
+                            metrics.performance.memory.used /
+                            1024 /
+                            1024
+                          ).toFixed(1)}
+                          MB
                         </span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-3 border-2 border-black">
-                        <div 
+                        <div
                           className="bg-[#B9FF66] h-full rounded-full transition-all duration-300"
-                          style={{ 
-                            width: `${Math.min(100, (metrics.performance.memory.used / metrics.performance.memory.limit) * 100)}%` 
+                          style={{
+                            width: `${Math.min(100, (metrics.performance.memory.used / metrics.performance.memory.limit) * 100)}%`,
                           }}
                         />
                       </div>
@@ -608,14 +739,20 @@ const SystemMonitoringDashboard: React.FC = () => {
                       <div className="flex justify-between items-center mb-2">
                         <span className="font-bold text-black">请求成功率</span>
                         <span className="text-sm text-[#6B7280]">
-                          {(((metrics.performance.resources.totalRequests - metrics.performance.resources.failedRequests) / metrics.performance.resources.totalRequests) * 100).toFixed(1)}%
+                          {(
+                            ((metrics.performance.resources.totalRequests -
+                              metrics.performance.resources.failedRequests) /
+                              metrics.performance.resources.totalRequests) *
+                            100
+                          ).toFixed(1)}
+                          %
                         </span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-3 border-2 border-black">
-                        <div 
+                        <div
                           className="bg-[#B9FF66] h-full rounded-full transition-all duration-300"
-                          style={{ 
-                            width: `${((metrics.performance.resources.totalRequests - metrics.performance.resources.failedRequests) / metrics.performance.resources.totalRequests) * 100}%` 
+                          style={{
+                            width: `${((metrics.performance.resources.totalRequests - metrics.performance.resources.failedRequests) / metrics.performance.resources.totalRequests) * 100}%`,
                           }}
                         />
                       </div>
@@ -637,7 +774,10 @@ const SystemMonitoringDashboard: React.FC = () => {
                     <div className="flex justify-between items-center">
                       <span className="font-bold text-black">平均响应时间</span>
                       <Badge className="bg-white border-2 border-black text-black font-bold">
-                        {metrics.performance.resources.avgResponseTime.toFixed(0)}ms
+                        {metrics.performance.resources.avgResponseTime.toFixed(
+                          0
+                        )}
+                        ms
                       </Badge>
                     </div>
                     <div className="flex justify-between items-center">
@@ -681,7 +821,9 @@ const SystemMonitoringDashboard: React.FC = () => {
                   <label className="font-bold text-black">级别:</label>
                   <select
                     value={selectedLogLevel}
-                    onChange={(e) => setSelectedLogLevel(Number(e.target.value) as LogLevel)}
+                    onChange={(e) =>
+                      setSelectedLogLevel(Number(e.target.value) as LogLevel)
+                    }
                     className="border-2 border-black rounded px-3 py-1 font-bold bg-white"
                   >
                     <option value={LogLevel.DEBUG}>DEBUG</option>
@@ -696,7 +838,9 @@ const SystemMonitoringDashboard: React.FC = () => {
                   <label className="font-bold text-black">类别:</label>
                   <select
                     value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value as LogCategory | 'all')}
+                    onChange={(e) =>
+                      setSelectedCategory(e.target.value as LogCategory | "all")
+                    }
                     className="border-2 border-black rounded px-3 py-1 font-bold bg-white"
                   >
                     <option value="all">全部</option>
@@ -737,29 +881,41 @@ const SystemMonitoringDashboard: React.FC = () => {
                   <div className="p-8 text-center">
                     <Eye className="w-12 h-12 text-[#6B7280] mx-auto mb-4" />
                     <p className="text-xl font-bold text-black">暂无日志</p>
-                    <p className="text-[#6B7280] font-medium">调整过滤条件或等待新的日志生成</p>
+                    <p className="text-[#6B7280] font-medium">
+                      调整过滤条件或等待新的日志生成
+                    </p>
                   </div>
                 ) : (
                   <div className="divide-y-2 divide-black">
                     {filteredLogs.slice(0, 50).map((log) => (
-                      <div key={log.id} className="p-4 hover:bg-[#F9F9F9] transition-colors">
+                      <div
+                        key={log.id}
+                        className="p-4 hover:bg-[#F9F9F9] transition-colors"
+                      >
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 space-y-2">
                             <div className="flex items-center gap-2">
-                              <Badge className={cn(
-                                "font-bold border-2 border-black",
-                                getLogLevelColor(log.level)
-                              )}>
+                              <Badge
+                                className={cn(
+                                  "font-bold border-2 border-black",
+                                  getLogLevelColor(log.level)
+                                )}
+                              >
                                 {formatLogLevel(log.level)}
                               </Badge>
-                              <Badge variant="outline" className="border-2 border-black font-bold">
+                              <Badge
+                                variant="outline"
+                                className="border-2 border-black font-bold"
+                              >
                                 {log.category}
                               </Badge>
                               <span className="text-sm text-[#6B7280] font-medium">
                                 {new Date(log.timestamp).toLocaleString()}
                               </span>
                             </div>
-                            <p className="font-bold text-black">{log.message}</p>
+                            <p className="font-bold text-black">
+                              {log.message}
+                            </p>
                             {log.data && (
                               <details className="text-sm text-[#6B7280]">
                                 <summary className="cursor-pointer font-medium hover:text-black">
@@ -809,7 +965,9 @@ const SystemMonitoringDashboard: React.FC = () => {
                   <div className="flex justify-between items-center">
                     <span className="font-bold text-black">运行时长</span>
                     <Badge className="bg-white border-2 border-black text-black font-bold">
-                      {Math.floor(metrics.system.uptime / 3600000)}小时 {Math.floor((metrics.system.uptime % 3600000) / 60000)}分钟
+                      {Math.floor(metrics.system.uptime / 3600000)}小时{" "}
+                      {Math.floor((metrics.system.uptime % 3600000) / 60000)}
+                      分钟
                     </Badge>
                   </div>
                   <div className="flex justify-between items-center">

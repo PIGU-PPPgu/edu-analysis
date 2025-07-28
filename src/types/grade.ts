@@ -5,24 +5,24 @@
 
 // 科目枚举
 export enum Subject {
-  TOTAL = '总分',
-  CHINESE = '语文', 
-  MATH = '数学',
-  ENGLISH = '英语',
-  PHYSICS = '物理',
-  CHEMISTRY = '化学',
-  POLITICS = '政治',
-  HISTORY = '历史'
+  TOTAL = "总分",
+  CHINESE = "语文",
+  MATH = "数学",
+  ENGLISH = "英语",
+  PHYSICS = "物理",
+  CHEMISTRY = "化学",
+  POLITICS = "政治",
+  HISTORY = "历史",
 }
 
 // 等级枚举
 export enum GradeLevel {
-  A_PLUS = 'A+',
-  A = 'A',
-  B_PLUS = 'B+',
-  B = 'B',
-  C_PLUS = 'C+',
-  C = 'C'
+  A_PLUS = "A+",
+  A = "A",
+  B_PLUS = "B+",
+  B = "B",
+  C_PLUS = "C+",
+  C = "C",
 }
 
 // 基础成绩记录接口
@@ -98,7 +98,7 @@ export interface DatabaseGradeRecord extends BaseGradeRecord {
   chemistry_grade?: string;
   politics_grade?: string;
   history_grade?: string;
-  
+
   // 排名相关字段
   rank_in_class?: number;
   rank_in_school?: number;
@@ -124,7 +124,7 @@ export interface GradeRecord extends BaseGradeRecord {
   道法等级?: string;
   历史分数?: number;
   历史等级?: string;
-  
+
   // 排名字段
   总分班名?: number;
   总分校名?: number;
@@ -150,7 +150,7 @@ export interface GradeRecord extends BaseGradeRecord {
   历史班名?: number;
   历史校名?: number;
   历史级名?: number;
-  
+
   // 扩展字段（用于灵活性）
   [key: string]: any;
 }
@@ -264,8 +264,8 @@ export interface ClassComparison {
 // 班级筛选状态
 export interface ClassFilterState {
   selectedClasses: string[]; // 选中的班级
-  viewMode: 'all' | 'selected' | 'comparison'; // 视图模式
-  comparisonTarget?: 'grade' | 'classes'; // 对比目标
+  viewMode: "all" | "selected" | "comparison"; // 视图模式
+  comparisonTarget?: "grade" | "classes"; // 对比目标
 }
 
 // 班级分析配置
@@ -273,7 +273,7 @@ export interface ClassAnalysisConfig {
   includeGradeComparison: boolean; // 是否包含年级对比
   showClassRankings: boolean; // 是否显示班级排名
   enableMultiSelect: boolean; // 是否启用多选
-  defaultView: 'all' | 'individual'; // 默认视图
+  defaultView: "all" | "individual"; // 默认视图
 }
 
 // 班级数据聚合结果
@@ -282,4 +282,4 @@ export interface ClassDataAggregation {
   classNames: string[];
   totalStudents: number;
   classStudentCounts: Map<string, number>;
-} 
+}

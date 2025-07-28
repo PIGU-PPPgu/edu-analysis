@@ -187,4 +187,4 @@ const GlowingEffect = memo(
 
 GlowingEffect.displayName = "GlowingEffect";
 
-export { GlowingEffect }; 
+export { GlowingEffect };

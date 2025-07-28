@@ -1,7 +1,21 @@
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Brain, Loader2, Tag, Plus, X, Pencil, CheckCircle } from "lucide-react";
+import {
+  Brain,
+  Loader2,
+  Tag,
+  Plus,
+  X,
+  Pencil,
+  CheckCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 import { getUserAIModelConfig, getUserSimpleAPIKey } from "@/utils/userAuth";
 import { StudentData } from "./types";
@@ -27,7 +41,7 @@ const colorMap = {
   strengths: "bg-green-100 text-green-800",
   improvements: "bg-amber-100 text-amber-800",
   personalityTraits: "bg-purple-100 text-purple-800",
-  custom: "bg-gray-100 text-gray-800"
+  custom: "bg-gray-100 text-gray-800",
 };
 
 const AIProfileTags: React.FC<Props> = ({ student }) => {
@@ -39,26 +53,26 @@ const AIProfileTags: React.FC<Props> = ({ student }) => {
   const queryClient = useQueryClient();
 
   // 使用React Query获取学生的AI标签和自定义标签
-  const { 
-    data: portraitData, 
-    isLoading: isLoadingPortrait
-  } = useQuery({
-    queryKey: ['studentPortrait', student.studentId],
+  const { data: portraitData, isLoading: isLoadingPortrait } = useQuery({
+    queryKey: ["studentPortrait", student.studentId],
     queryFn: () => portraitAPI.getStudentPortrait(student.studentId),
     enabled: !!student.studentId,
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
   });
-  
+
   // 使用React Query Mutation保存自定义标签
   const saveTagsMutation = useMutation({
-    mutationFn: (tags: string[]) => portraitAPI.saveCustomTags(student.studentId, tags),
+    mutationFn: (tags: string[]) =>
+      portraitAPI.saveCustomTags(student.studentId, tags),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['studentPortrait', student.studentId] });
+      queryClient.invalidateQueries({
+        queryKey: ["studentPortrait", student.studentId],
+      });
       toast.success("自定义标签已保存");
     },
     onError: (error) => {
       toast.error("保存标签失败", { description: error.message });
-    }
+    },
   });
 
   useEffect(() => {
@@ -69,66 +83,68 @@ const AIProfileTags: React.FC<Props> = ({ student }) => {
 
   const generateProfileTags = async () => {
     setIsAnalyzing(true);
-    
+
     try {
       const config = getUserAIModelConfig();
       const apiKey = getUserSimpleAPIKey();
-      
+
       if (!config || !apiKey) {
         throw new Error("请先在AI设置中配置大模型API");
       }
-      
+
       // 调用portraitAPI生成标签
       await portraitAPI.generateAIPortraitTags(student.studentId, {
         provider: config.provider,
         version: config.version,
         apiKey: apiKey,
-        customProviders: config.customProviders
+        customProviders: config.customProviders,
       });
-      
+
       // 更新标签数据
-      queryClient.invalidateQueries({ queryKey: ['studentPortrait', student.studentId] });
-      
+      queryClient.invalidateQueries({
+        queryKey: ["studentPortrait", student.studentId],
+      });
+
       toast.success("学生画像分析完成", {
-        description: "AI已生成个性化学生画像标签"
+        description: "AI已生成个性化学生画像标签",
       });
     } catch (error) {
       console.error("AI分析失败:", error);
       toast.error("AI分析失败", {
-        description: error.message || "无法生成学生画像标签，请稍后重试"
+        description: error.message || "无法生成学生画像标签，请稍后重试",
       });
     } finally {
       setIsAnalyzing(false);
     }
   };
-  
+
   const handleAddCustomTag = () => {
     if (!newCustomTag.trim()) return;
-    
+
     // 提取当前自定义标签
     const currentCustomTags = portraitData?.customTags || [];
-    
+
     // 确保不添加重复标签
     if (currentCustomTags.includes(newCustomTag.trim())) {
       toast.error("标签已存在");
       return;
     }
-    
+
     // 添加新标签并保存
     const updatedTags = [...currentCustomTags, newCustomTag.trim()];
     saveTagsMutation.mutate(updatedTags);
     setNewCustomTag("");
   };
-  
+
   const handleRemoveCustomTag = (tagToRemove: string) => {
     const currentCustomTags = portraitData?.customTags || [];
-    const updatedTags = currentCustomTags.filter(tag => tag !== tagToRemove);
+    const updatedTags = currentCustomTags.filter((tag) => tag !== tagToRemove);
     saveTagsMutation.mutate(updatedTags);
   };
-  
+
   const renderAITags = () => {
     const aiTags = portraitData?.aiTags;
-    
+
     if (!aiTags) {
       return (
         <div className="space-y-4">
@@ -160,7 +176,7 @@ const AIProfileTags: React.FC<Props> = ({ student }) => {
         </div>
       );
     }
-    
+
     return (
       <div className="space-y-4">
         {Object.entries(aiTags).map(([category, tags]) => {
@@ -169,21 +185,26 @@ const AIProfileTags: React.FC<Props> = ({ student }) => {
             learningStyle: "学习风格",
             strengths: "优势领域",
             improvements: "提升空间",
-            personalityTraits: "性格特质"
+            personalityTraits: "性格特质",
           };
-          
-          const categoryName = categoryDisplayNames[category as keyof typeof categoryDisplayNames] || category;
-          const colorClass = colorMap[category as keyof typeof colorMap] || "bg-gray-100 text-gray-800";
-          
+
+          const categoryName =
+            categoryDisplayNames[
+              category as keyof typeof categoryDisplayNames
+            ] || category;
+          const colorClass =
+            colorMap[category as keyof typeof colorMap] ||
+            "bg-gray-100 text-gray-800";
+
           if (!tags || tags.length === 0) return null;
-          
+
           return (
             <div key={category}>
               <h3 className="text-sm font-medium mb-2">{categoryName}</h3>
               <div className="flex flex-wrap gap-2">
                 {tags.map((tag, index) => (
-                  <span 
-                    key={index} 
+                  <span
+                    key={index}
                     className={`px-2 py-1 rounded-full text-xs font-medium flex items-center ${colorClass}`}
                   >
                     <Tag className="h-3 w-3 mr-1" />
@@ -194,7 +215,7 @@ const AIProfileTags: React.FC<Props> = ({ student }) => {
             </div>
           );
         })}
-        
+
         <Button
           onClick={generateProfileTags}
           variant="outline"
@@ -214,10 +235,10 @@ const AIProfileTags: React.FC<Props> = ({ student }) => {
       </div>
     );
   };
-  
+
   const renderCustomTags = () => {
     const customTags = portraitData?.customTags || [];
-    
+
     return (
       <div className="space-y-4">
         <div className="flex items-center space-x-2">
@@ -227,20 +248,20 @@ const AIProfileTags: React.FC<Props> = ({ student }) => {
             onChange={(e) => setNewCustomTag(e.target.value)}
             className="flex-grow"
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {
+              if (e.key === "Enter") {
                 handleAddCustomTag();
               }
             }}
           />
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
             onClick={handleAddCustomTag}
             disabled={saveTagsMutation.isPending || !newCustomTag.trim()}
           >
             <Plus className="h-4 w-4" />
           </Button>
         </div>
-        
+
         {customTags.length === 0 ? (
           <p className="text-sm text-gray-500 text-center py-4">
             暂无自定义标签，请添加
@@ -249,9 +270,9 @@ const AIProfileTags: React.FC<Props> = ({ student }) => {
           <>
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-medium">教师标签</h3>
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setIsEditing(!isEditing)}
               >
                 {isEditing ? (
@@ -267,11 +288,11 @@ const AIProfileTags: React.FC<Props> = ({ student }) => {
                 )}
               </Button>
             </div>
-            
+
             <div className="flex flex-wrap gap-2">
               {customTags.map((tag, index) => (
-                <span 
-                  key={index} 
+                <span
+                  key={index}
                   className={`px-2 py-1 rounded-full text-xs font-medium flex items-center ${colorMap.custom}`}
                 >
                   <Tag className="h-3 w-3 mr-1" />
@@ -290,7 +311,7 @@ const AIProfileTags: React.FC<Props> = ({ student }) => {
             </div>
           </>
         )}
-        
+
         {saveTagsMutation.isPending && (
           <div className="flex items-center justify-center py-2">
             <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -324,7 +345,9 @@ const AIProfileTags: React.FC<Props> = ({ student }) => {
           <Brain className="h-5 w-5" />
           学生画像分析
         </CardTitle>
-        <CardDescription>基于学生表现自动生成个性化标签和教师自定义标签</CardDescription>
+        <CardDescription>
+          基于学生表现自动生成个性化标签和教师自定义标签
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -332,11 +355,11 @@ const AIProfileTags: React.FC<Props> = ({ student }) => {
             <TabsTrigger value="ai">AI评估标签</TabsTrigger>
             <TabsTrigger value="custom">教师自定义标签</TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="ai" className="mt-0">
             {renderAITags()}
           </TabsContent>
-          
+
           <TabsContent value="custom" className="mt-0">
             {renderCustomTags()}
           </TabsContent>

@@ -17,21 +17,24 @@ const AdvancedAnalysis: React.FC = () => {
   // 错误处理器
   useEffect(() => {
     const handleError = (event: ErrorEvent) => {
-      if (!event.error || 
-          (typeof event.error === 'object' && event.error === null) ||
-          (event.error?.message && event.error.message.toLowerCase().includes('resizeobserver'))) {
+      if (
+        !event.error ||
+        (typeof event.error === "object" && event.error === null) ||
+        (event.error?.message &&
+          event.error.message.toLowerCase().includes("resizeobserver"))
+      ) {
         return;
       }
-      
-      console.error('捕获到全局错误:', event.error);
-      setError(`页面加载错误: ${event.error?.message || '未知错误'}`);
+
+      console.error("捕获到全局错误:", event.error);
+      setError(`页面加载错误: ${event.error?.message || "未知错误"}`);
       event.preventDefault();
     };
 
-    window.addEventListener('error', handleError);
-    
+    window.addEventListener("error", handleError);
+
     return () => {
-      window.removeEventListener('error', handleError);
+      window.removeEventListener("error", handleError);
     };
   }, []);
 
@@ -46,16 +49,13 @@ const AdvancedAnalysis: React.FC = () => {
             请确保已在AI设置中配置相关服务，并刷新页面。
           </p>
           <div className="mt-4 flex gap-3">
-            <Button 
+            <Button
               variant="destructive"
               onClick={() => window.location.reload()}
             >
               刷新页面
             </Button>
-            <Button 
-              variant="outline"
-              onClick={() => navigate("/")}
-            >
+            <Button variant="outline" onClick={() => navigate("/")}>
               返回首页
             </Button>
           </div>
@@ -63,7 +63,7 @@ const AdvancedAnalysis: React.FC = () => {
       </div>
     );
   }
-  
+
   // 正常渲染高级分析界面
   try {
     return (
@@ -75,8 +75,8 @@ const AdvancedAnalysis: React.FC = () => {
       </div>
     );
   } catch (err) {
-    console.error('渲染错误:', err);
-    setError(`渲染错误: ${err instanceof Error ? err.message : '未知错误'}`);
+    console.error("渲染错误:", err);
+    setError(`渲染错误: ${err instanceof Error ? err.message : "未知错误"}`);
     return null;
   }
 };

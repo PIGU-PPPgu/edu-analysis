@@ -15,10 +15,10 @@ interface ProtectedRouteProps {
  */
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   allowedRoles = [],
-  redirectPath = "/login"
+  redirectPath = "/login",
 }) => {
   const { user, userRole, isAuthReady } = useAuthContext();
-  
+
   // 认证尚未就绪，显示加载指示器
   if (!isAuthReady) {
     return (
@@ -27,20 +27,23 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       </div>
     );
   }
-  
+
   // 用户未登录，重定向到登录页
   if (!user) {
     return <Navigate to={redirectPath} replace />;
   }
-  
+
   // 检查用户角色是否被允许访问（如果指定了角色限制）
-  if (allowedRoles.length > 0 && (!userRole || !allowedRoles.includes(userRole))) {
+  if (
+    allowedRoles.length > 0 &&
+    (!userRole || !allowedRoles.includes(userRole))
+  ) {
     // 用户没有所需权限，重定向到未授权页面
     return <Navigate to="/unauthorized" replace />;
   }
-  
+
   // 用户有访问权限，渲染子路由
   return <Outlet />;
 };
 
-export default ProtectedRoute; 
+export default ProtectedRoute;

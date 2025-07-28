@@ -1,7 +1,7 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
-import { Button } from './button';
-import { Card, CardContent, CardHeader, CardTitle } from './card';
+import React, { Component, ErrorInfo, ReactNode } from "react";
+import { AlertTriangle, RefreshCw, Home } from "lucide-react";
+import { Button } from "./button";
+import { Card, CardContent, CardHeader, CardTitle } from "./card";
 
 interface Props {
   children: ReactNode;
@@ -29,7 +29,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    console.error("ErrorBoundary caught an error:", error, errorInfo);
     this.props.onError?.(error, errorInfo);
   }
 
@@ -38,7 +38,7 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   handleGoHome = () => {
-    window.location.href = '/';
+    window.location.href = "/";
   };
 
   render() {
@@ -62,17 +62,17 @@ export class ErrorBoundary extends Component<Props, State> {
               <p className="text-sm text-gray-600 text-center">
                 抱歉，页面遇到了一些问题。您可以尝试刷新页面或返回首页。
               </p>
-              
-              {process.env.NODE_ENV === 'development' && this.state.error && (
+
+              {process.env.NODE_ENV === "development" && this.state.error && (
                 <div className="bg-gray-100 p-3 rounded-md">
                   <p className="text-xs text-gray-700 font-mono">
                     {this.state.error.message}
                   </p>
                 </div>
               )}
-              
+
               <div className="flex flex-col sm:flex-row gap-3">
-                <Button 
+                <Button
                   onClick={this.handleRetry}
                   className="flex-1"
                   variant="default"
@@ -80,7 +80,7 @@ export class ErrorBoundary extends Component<Props, State> {
                   <RefreshCw className="w-4 h-4 mr-2" />
                   重试
                 </Button>
-                <Button 
+                <Button
                   onClick={this.handleGoHome}
                   className="flex-1"
                   variant="outline"
@@ -116,12 +116,14 @@ export const withErrorBoundary = <P extends object>(
 /**
  * 页面级错误边界
  */
-export const PageErrorBoundary: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const PageErrorBoundary: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
   return (
     <ErrorBoundary
       onError={(error, errorInfo) => {
         // 这里可以添加错误日志上报
-        console.error('Page Error:', error, errorInfo);
+        console.error("Page Error:", error, errorInfo);
       }}
     >
       {children}
@@ -132,10 +134,10 @@ export const PageErrorBoundary: React.FC<{ children: ReactNode }> = ({ children 
 /**
  * 组件级错误边界
  */
-export const ComponentErrorBoundary: React.FC<{ 
+export const ComponentErrorBoundary: React.FC<{
   children: ReactNode;
   componentName?: string;
-}> = ({ children, componentName = '组件' }) => {
+}> = ({ children, componentName = "组件" }) => {
   return (
     <ErrorBoundary
       fallback={
@@ -154,4 +156,4 @@ export const ComponentErrorBoundary: React.FC<{
   );
 };
 
-export default ErrorBoundary; 
+export default ErrorBoundary;

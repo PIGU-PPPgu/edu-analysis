@@ -3,8 +3,8 @@
  * 根据科目配置动态计算及格率，替代硬编码的60分及格线
  */
 
-import { SUBJECT_MAX_SCORES } from '@/utils/gradeUtils';
-import { Subject } from '@/types/grade';
+import { SUBJECT_MAX_SCORES } from "@/utils/gradeUtils";
+import { Subject } from "@/types/grade";
 
 // 科目配置接口
 interface SubjectConfig {
@@ -35,24 +35,24 @@ export class PassRateCalculator {
   // 初始化默认配置
   private initializeDefaultConfigs() {
     const defaultSubjects = [
-      { key: Subject.TOTAL, name: '总分', maxScore: 523 },
-      { key: Subject.CHINESE, name: '语文', maxScore: 120 },
-      { key: Subject.MATH, name: '数学', maxScore: 100 },
-      { key: Subject.ENGLISH, name: '英语', maxScore: 75 },
-      { key: Subject.PHYSICS, name: '物理', maxScore: 63 },
-      { key: Subject.CHEMISTRY, name: '化学', maxScore: 45 },
-      { key: Subject.POLITICS, name: '道法', maxScore: 50 },
-      { key: Subject.HISTORY, name: '历史', maxScore: 70 }
+      { key: Subject.TOTAL, name: "总分", maxScore: 523 },
+      { key: Subject.CHINESE, name: "语文", maxScore: 120 },
+      { key: Subject.MATH, name: "数学", maxScore: 100 },
+      { key: Subject.ENGLISH, name: "英语", maxScore: 75 },
+      { key: Subject.PHYSICS, name: "物理", maxScore: 63 },
+      { key: Subject.CHEMISTRY, name: "化学", maxScore: 45 },
+      { key: Subject.POLITICS, name: "道法", maxScore: 50 },
+      { key: Subject.HISTORY, name: "历史", maxScore: 70 },
     ];
 
-    defaultSubjects.forEach(subject => {
+    defaultSubjects.forEach((subject) => {
       const config: SubjectConfig = {
         name: subject.key,
         displayName: subject.name,
         maxScore: subject.maxScore,
         passScore: Math.round(subject.maxScore * 0.6), // 60%及格
         excellentScore: Math.round(subject.maxScore * 0.85), // 85%优秀
-        isCustom: false
+        isCustom: false,
       };
       this.subjectConfigs.set(subject.key, config);
     });
@@ -64,7 +64,7 @@ export class PassRateCalculator {
    */
   public updateSubjectConfigs(configs: SubjectConfig[]): void {
     this.subjectConfigs.clear();
-    configs.forEach(config => {
+    configs.forEach((config) => {
       this.subjectConfigs.set(config.name, config);
     });
   }
@@ -145,9 +145,9 @@ export class PassRateCalculator {
    */
   public calculatePassRate(scores: number[], subject: string): number {
     if (!scores.length) return 0;
-    
+
     const passScore = this.getPassScore(subject);
-    const passCount = scores.filter(score => score >= passScore).length;
+    const passCount = scores.filter((score) => score >= passScore).length;
     return Math.round((passCount / scores.length) * 100 * 100) / 100; // 保留两位小数
   }
 
@@ -159,9 +159,11 @@ export class PassRateCalculator {
    */
   public calculateExcellentRate(scores: number[], subject: string): number {
     if (!scores.length) return 0;
-    
+
     const excellentScore = this.getExcellentScore(subject);
-    const excellentCount = scores.filter(score => score >= excellentScore).length;
+    const excellentCount = scores.filter(
+      (score) => score >= excellentScore
+    ).length;
     return Math.round((excellentCount / scores.length) * 100 * 100) / 100; // 保留两位小数
   }
 
@@ -196,9 +198,9 @@ export class PassRateCalculator {
     const passScore = this.getPassScore(subject);
     const maxScore = this.getMaxScore(subject);
 
-    if (score >= excellentScore) return '优秀';
-    if (score >= passScore) return '及格';
-    return '不及格';
+    if (score >= excellentScore) return "优秀";
+    if (score >= passScore) return "及格";
+    return "不及格";
   }
 
   /**
@@ -215,13 +217,17 @@ export class PassRateCalculator {
    * @param gradeData 成绩数据 { [subject: string]: number[] }
    * @returns 及格率统计 { [subject: string]: { passRate: number, excellentRate: number } }
    */
-  public calculateBatchPassRates(gradeData: { [subject: string]: number[] }): { [subject: string]: { passRate: number; excellentRate: number } } {
-    const result: { [subject: string]: { passRate: number; excellentRate: number } } = {};
+  public calculateBatchPassRates(gradeData: { [subject: string]: number[] }): {
+    [subject: string]: { passRate: number; excellentRate: number };
+  } {
+    const result: {
+      [subject: string]: { passRate: number; excellentRate: number };
+    } = {};
 
     for (const [subject, scores] of Object.entries(gradeData)) {
       result[subject] = {
         passRate: this.calculatePassRate(scores, subject),
-        excellentRate: this.calculateExcellentRate(scores, subject)
+        excellentRate: this.calculateExcellentRate(scores, subject),
       };
     }
 
@@ -250,13 +256,13 @@ export class PassRateCalculator {
    */
   public loadConfigsFromStorage(): void {
     try {
-      const stored = localStorage.getItem('subjectMaxScoreConfigs');
+      const stored = localStorage.getItem("subjectMaxScoreConfigs");
       if (stored) {
         const configs: SubjectConfig[] = JSON.parse(stored);
         this.updateSubjectConfigs(configs);
       }
     } catch (error) {
-      console.warn('Failed to load subject configs from storage:', error);
+      console.warn("Failed to load subject configs from storage:", error);
     }
   }
 
@@ -266,9 +272,9 @@ export class PassRateCalculator {
   public saveConfigsToStorage(): void {
     try {
       const configs = this.getAllConfigs();
-      localStorage.setItem('subjectMaxScoreConfigs', JSON.stringify(configs));
+      localStorage.setItem("subjectMaxScoreConfigs", JSON.stringify(configs));
     } catch (error) {
-      console.warn('Failed to save subject configs to storage:', error);
+      console.warn("Failed to save subject configs to storage:", error);
     }
   }
 }
@@ -277,14 +283,24 @@ export class PassRateCalculator {
 export const passRateCalculator = PassRateCalculator.getInstance();
 
 // 便捷函数
-export const getPassScore = (subject: string): number => passRateCalculator.getPassScore(subject);
-export const getExcellentScore = (subject: string): number => passRateCalculator.getExcellentScore(subject);
-export const getMaxScore = (subject: string): number => passRateCalculator.getMaxScore(subject);
-export const calculatePassRate = (scores: number[], subject: string): number => passRateCalculator.calculatePassRate(scores, subject);
-export const calculateExcellentRate = (scores: number[], subject: string): number => passRateCalculator.calculateExcellentRate(scores, subject);
-export const isPass = (score: number, subject: string): boolean => passRateCalculator.isPass(score, subject);
-export const isExcellent = (score: number, subject: string): boolean => passRateCalculator.isExcellent(score, subject);
-export const getGradeLevel = (score: number, subject: string): string => passRateCalculator.getGradeLevel(score, subject);
+export const getPassScore = (subject: string): number =>
+  passRateCalculator.getPassScore(subject);
+export const getExcellentScore = (subject: string): number =>
+  passRateCalculator.getExcellentScore(subject);
+export const getMaxScore = (subject: string): number =>
+  passRateCalculator.getMaxScore(subject);
+export const calculatePassRate = (scores: number[], subject: string): number =>
+  passRateCalculator.calculatePassRate(scores, subject);
+export const calculateExcellentRate = (
+  scores: number[],
+  subject: string
+): number => passRateCalculator.calculateExcellentRate(scores, subject);
+export const isPass = (score: number, subject: string): boolean =>
+  passRateCalculator.isPass(score, subject);
+export const isExcellent = (score: number, subject: string): boolean =>
+  passRateCalculator.isExcellent(score, subject);
+export const getGradeLevel = (score: number, subject: string): string =>
+  passRateCalculator.getGradeLevel(score, subject);
 
 // 初始化时从本地存储加载配置
-passRateCalculator.loadConfigsFromStorage(); 
+passRateCalculator.loadConfigsFromStorage();

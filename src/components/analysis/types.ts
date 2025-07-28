@@ -22,7 +22,7 @@ export interface ParsedData {
     data: any[];
     metadata: {
       originalHeaders: string[];
-      detectedStructure: 'wide' | 'long' | 'mixed';
+      detectedStructure: "wide" | "long" | "mixed";
       confidence: number;
       suggestedMappings: Record<string, string>;
       detectedSubjects: string[];
@@ -49,8 +49,8 @@ export interface FileProcessingProps {
 
 export interface IntelligentFileParserProps {
   onFileParsedForReview: (
-    fileData: FileDataForReview, 
-    initialMappings: Record<string, string>, 
+    fileData: FileDataForReview,
+    initialMappings: Record<string, string>,
     examInfo: ExamInfo
   ) => void;
   onImportIntent?: (fileName: string, fileSize: number) => void;
@@ -79,7 +79,7 @@ export interface AIAnalysisResponse {
 }
 
 export interface ChartGenerationConfig {
-  chartType: 'bar' | 'line' | 'pie' | 'scatter' | 'area' | 'boxplot';
+  chartType: "bar" | "line" | "pie" | "scatter" | "area" | "boxplot";
   dataFields: {
     xAxis?: string;
     yAxis?: string[];
@@ -89,9 +89,9 @@ export interface ChartGenerationConfig {
 }
 
 export interface WarningCondition {
-  type: 'score' | 'attendance' | 'homework' | 'participation' | 'trend';
+  type: "score" | "attendance" | "homework" | "participation" | "trend";
   subject?: string;
-  operator: 'less_than' | 'greater_than' | 'equal_to';
+  operator: "less_than" | "greater_than" | "equal_to";
   threshold: number;
   description: string;
 }
@@ -101,7 +101,7 @@ export interface WarningRule {
   name: string;
   description?: string;
   conditions: WarningCondition[];
-  severity: 'low' | 'medium' | 'high';
+  severity: "low" | "medium" | "high";
   is_system?: boolean;
   is_active?: boolean;
 }

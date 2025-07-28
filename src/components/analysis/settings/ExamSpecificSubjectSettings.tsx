@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { X, Copy, Trash2, Plus, Save, RotateCcw, Settings } from 'lucide-react';
-import { examSpecificPassRateCalculator } from '@/services/examSpecificPassRateCalculator';
+import React, { useState, useEffect } from "react";
+import { X, Copy, Trash2, Plus, Save, RotateCcw, Settings } from "lucide-react";
+import { examSpecificPassRateCalculator } from "@/services/examSpecificPassRateCalculator";
 
 interface SubjectConfig {
   name: string;
@@ -19,19 +19,15 @@ interface ExamSpecificSubjectSettingsProps {
   currentExamName?: string; // 当前查看的考试名称
 }
 
-export const ExamSpecificSubjectSettings: React.FC<ExamSpecificSubjectSettingsProps> = ({
-  isOpen,
-  onClose,
-  onSave,
-  currentExamId,
-  currentExamName
-}) => {
-  const [activeTab, setActiveTab] = useState<'global' | 'exam'>('global');
+export const ExamSpecificSubjectSettings: React.FC<
+  ExamSpecificSubjectSettingsProps
+> = ({ isOpen, onClose, onSave, currentExamId, currentExamName }) => {
+  const [activeTab, setActiveTab] = useState<"global" | "exam">("global");
   const [globalConfigs, setGlobalConfigs] = useState<SubjectConfig[]>([]);
   const [examConfigs, setExamConfigs] = useState<SubjectConfig[]>([]);
   const [examList, setExamList] = useState<any[]>([]);
-  const [selectedExamId, setSelectedExamId] = useState<string>('');
-  const [newExamName, setNewExamName] = useState<string>('');
+  const [selectedExamId, setSelectedExamId] = useState<string>("");
+  const [newExamName, setNewExamName] = useState<string>("");
   const [autoCalculate, setAutoCalculate] = useState(true);
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -41,7 +37,7 @@ export const ExamSpecificSubjectSettings: React.FC<ExamSpecificSubjectSettingsPr
       loadExamList();
       if (currentExamId) {
         setSelectedExamId(currentExamId);
-        setActiveTab('exam');
+        setActiveTab("exam");
       }
     }
   }, [isOpen, currentExamId]);
@@ -78,8 +74,8 @@ export const ExamSpecificSubjectSettings: React.FC<ExamSpecificSubjectSettingsPr
   ) => {
     const configs = isExamConfig ? [...examConfigs] : [...globalConfigs];
     const config = { ...configs[index] };
-    
-    if (field === 'maxScore' && typeof value === 'number') {
+
+    if (field === "maxScore" && typeof value === "number") {
       config.maxScore = value;
       if (autoCalculate) {
         config.passScore = Math.round(value * 0.6);
@@ -88,9 +84,9 @@ export const ExamSpecificSubjectSettings: React.FC<ExamSpecificSubjectSettingsPr
     } else {
       (config as any)[field] = value;
     }
-    
+
     configs[index] = config;
-    
+
     if (isExamConfig) {
       setExamConfigs(configs);
     } else {
@@ -102,18 +98,25 @@ export const ExamSpecificSubjectSettings: React.FC<ExamSpecificSubjectSettingsPr
   const handleSaveGlobal = () => {
     examSpecificPassRateCalculator.updateGlobalConfig(globalConfigs);
     setHasChanges(false);
-    alert('全局配置已保存！');
+    alert("全局配置已保存！");
     if (onSave) onSave();
   };
 
   const handleSaveExam = () => {
     if (!selectedExamId) {
-      alert('请选择或创建一个考试');
+      alert("请选择或创建一个考试");
       return;
     }
-    
-    const examName = examList.find(e => e.examId === selectedExamId)?.examName || newExamName || selectedExamId;
-    examSpecificPassRateCalculator.setExamConfig(selectedExamId, examName, examConfigs);
+
+    const examName =
+      examList.find((e) => e.examId === selectedExamId)?.examName ||
+      newExamName ||
+      selectedExamId;
+    examSpecificPassRateCalculator.setExamConfig(
+      selectedExamId,
+      examName,
+      examConfigs
+    );
     loadExamList();
     setHasChanges(false);
     alert(`考试"${examName}"的配置已保存！`);
@@ -122,19 +125,20 @@ export const ExamSpecificSubjectSettings: React.FC<ExamSpecificSubjectSettingsPr
 
   const handleCreateExam = () => {
     if (!newExamName.trim()) {
-      alert('请输入考试名称');
+      alert("请输入考试名称");
       return;
     }
-    
+
     const examId = `exam_${Date.now()}`;
     setSelectedExamId(examId);
     setExamConfigs([...globalConfigs]); // 使用全局配置作为模板
-    setNewExamName('');
+    setNewExamName("");
     setHasChanges(true);
   };
 
   const handleCopyFromExam = (sourceExamId: string) => {
-    const sourceConfig = examSpecificPassRateCalculator.getExamConfig(sourceExamId);
+    const sourceConfig =
+      examSpecificPassRateCalculator.getExamConfig(sourceExamId);
     if (sourceConfig) {
       setExamConfigs(Array.from(sourceConfig.subjects.values()));
       setHasChanges(true);
@@ -142,11 +146,11 @@ export const ExamSpecificSubjectSettings: React.FC<ExamSpecificSubjectSettingsPr
   };
 
   const handleDeleteExam = (examId: string) => {
-    if (confirm('确定要删除这个考试的配置吗？')) {
+    if (confirm("确定要删除这个考试的配置吗？")) {
       examSpecificPassRateCalculator.deleteExamConfig(examId);
       loadExamList();
       if (selectedExamId === examId) {
-        setSelectedExamId('');
+        setSelectedExamId("");
         setExamConfigs([]);
       }
     }
@@ -175,28 +179,28 @@ export const ExamSpecificSubjectSettings: React.FC<ExamSpecificSubjectSettingsPr
         <div className="flex border-b">
           <button
             className={`px-6 py-3 font-medium transition-colors ${
-              activeTab === 'global'
-                ? 'text-orange-600 border-b-2 border-orange-600 bg-orange-50'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              activeTab === "global"
+                ? "text-orange-600 border-b-2 border-orange-600 bg-orange-50"
+                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
             }`}
-            onClick={() => setActiveTab('global')}
+            onClick={() => setActiveTab("global")}
           >
             全局默认配置
           </button>
           <button
             className={`px-6 py-3 font-medium transition-colors ${
-              activeTab === 'exam'
-                ? 'text-orange-600 border-b-2 border-orange-600 bg-orange-50'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              activeTab === "exam"
+                ? "text-orange-600 border-b-2 border-orange-600 bg-orange-50"
+                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
             }`}
-            onClick={() => setActiveTab('exam')}
+            onClick={() => setActiveTab("exam")}
           >
             考试特定配置
           </button>
         </div>
 
         <div className="p-6 overflow-y-auto max-h-[65vh]">
-          {activeTab === 'global' ? (
+          {activeTab === "global" ? (
             /* 全局配置 */
             <div>
               <div className="mb-6">
@@ -204,7 +208,7 @@ export const ExamSpecificSubjectSettings: React.FC<ExamSpecificSubjectSettingsPr
                 <p className="text-sm text-gray-600 mb-4">
                   这些设置将作为所有考试的默认配置。如果某个考试没有特定配置，将使用这些值。
                 </p>
-                
+
                 <div className="flex items-center gap-4 mb-4">
                   <label className="flex items-center gap-2">
                     <input
@@ -213,7 +217,9 @@ export const ExamSpecificSubjectSettings: React.FC<ExamSpecificSubjectSettingsPr
                       onChange={(e) => setAutoCalculate(e.target.checked)}
                       className="rounded"
                     />
-                    <span className="text-sm">自动计算及格线（60%）和优秀线（85%）</span>
+                    <span className="text-sm">
+                      自动计算及格线（60%）和优秀线（85%）
+                    </span>
                   </label>
                 </div>
               </div>
@@ -227,15 +233,26 @@ export const ExamSpecificSubjectSettings: React.FC<ExamSpecificSubjectSettingsPr
                   <div>及格率标准</div>
                   <div>优秀率标准</div>
                 </div>
-                
+
                 {globalConfigs.map((config, index) => (
-                  <div key={config.name} className="grid grid-cols-6 gap-4 items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                    <div className="font-medium text-gray-900">{config.displayName}</div>
+                  <div
+                    key={config.name}
+                    className="grid grid-cols-6 gap-4 items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    <div className="font-medium text-gray-900">
+                      {config.displayName}
+                    </div>
                     <div>
                       <input
                         type="number"
                         value={config.maxScore}
-                        onChange={(e) => handleSubjectChange(index, 'maxScore', parseInt(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleSubjectChange(
+                            index,
+                            "maxScore",
+                            parseInt(e.target.value) || 0
+                          )
+                        }
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                         placeholder="满分"
                         min="1"
@@ -246,7 +263,13 @@ export const ExamSpecificSubjectSettings: React.FC<ExamSpecificSubjectSettingsPr
                       <input
                         type="number"
                         value={config.passScore}
-                        onChange={(e) => handleSubjectChange(index, 'passScore', parseInt(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleSubjectChange(
+                            index,
+                            "passScore",
+                            parseInt(e.target.value) || 0
+                          )
+                        }
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                         placeholder="及格线"
                         disabled={autoCalculate}
@@ -258,7 +281,13 @@ export const ExamSpecificSubjectSettings: React.FC<ExamSpecificSubjectSettingsPr
                       <input
                         type="number"
                         value={config.excellentScore}
-                        onChange={(e) => handleSubjectChange(index, 'excellentScore', parseInt(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleSubjectChange(
+                            index,
+                            "excellentScore",
+                            parseInt(e.target.value) || 0
+                          )
+                        }
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                         placeholder="优秀线"
                         disabled={autoCalculate}
@@ -267,10 +296,18 @@ export const ExamSpecificSubjectSettings: React.FC<ExamSpecificSubjectSettingsPr
                       />
                     </div>
                     <div className="text-sm text-green-600 font-medium">
-                      {config.maxScore > 0 ? Math.round((config.passScore / config.maxScore) * 100) : 0}%
+                      {config.maxScore > 0
+                        ? Math.round((config.passScore / config.maxScore) * 100)
+                        : 0}
+                      %
                     </div>
                     <div className="text-sm text-blue-600 font-medium">
-                      {config.maxScore > 0 ? Math.round((config.excellentScore / config.maxScore) * 100) : 0}%
+                      {config.maxScore > 0
+                        ? Math.round(
+                            (config.excellentScore / config.maxScore) * 100
+                          )
+                        : 0}
+                      %
                     </div>
                   </div>
                 ))}
@@ -322,13 +359,13 @@ export const ExamSpecificSubjectSettings: React.FC<ExamSpecificSubjectSettingsPr
                     className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   >
                     <option value="">选择现有考试</option>
-                    {examList.map(exam => (
+                    {examList.map((exam) => (
                       <option key={exam.examId} value={exam.examId}>
                         {exam.examName} ({exam.examId})
                       </option>
                     ))}
                   </select>
-                  
+
                   <div className="flex items-center gap-2">
                     <input
                       type="text"
@@ -355,19 +392,21 @@ export const ExamSpecificSubjectSettings: React.FC<ExamSpecificSubjectSettingsPr
                         if (e.target.value) {
                           handleCopyFromExam(e.target.value);
                         }
-                        e.target.value = '';
+                        e.target.value = "";
                       }}
                       defaultValue=""
                       className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">从其他考试复制配置</option>
-                      {examList.filter(e => e.examId !== selectedExamId).map(exam => (
-                        <option key={exam.examId} value={exam.examId}>
-                          {exam.examName}
-                        </option>
-                      ))}
+                      {examList
+                        .filter((e) => e.examId !== selectedExamId)
+                        .map((exam) => (
+                          <option key={exam.examId} value={exam.examId}>
+                            {exam.examName}
+                          </option>
+                        ))}
                     </select>
-                    
+
                     {selectedExamId && (
                       <button
                         onClick={() => handleDeleteExam(selectedExamId)}
@@ -391,15 +430,27 @@ export const ExamSpecificSubjectSettings: React.FC<ExamSpecificSubjectSettingsPr
                     <div>及格率标准</div>
                     <div>优秀率标准</div>
                   </div>
-                  
+
                   {examConfigs.map((config, index) => (
-                    <div key={config.name} className="grid grid-cols-6 gap-4 items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
-                      <div className="font-medium text-gray-900">{config.displayName}</div>
+                    <div
+                      key={config.name}
+                      className="grid grid-cols-6 gap-4 items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                    >
+                      <div className="font-medium text-gray-900">
+                        {config.displayName}
+                      </div>
                       <div>
                         <input
                           type="number"
                           value={config.maxScore}
-                          onChange={(e) => handleSubjectChange(index, 'maxScore', parseInt(e.target.value) || 0, true)}
+                          onChange={(e) =>
+                            handleSubjectChange(
+                              index,
+                              "maxScore",
+                              parseInt(e.target.value) || 0,
+                              true
+                            )
+                          }
                           className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           placeholder="满分"
                           min="1"
@@ -410,7 +461,14 @@ export const ExamSpecificSubjectSettings: React.FC<ExamSpecificSubjectSettingsPr
                         <input
                           type="number"
                           value={config.passScore}
-                          onChange={(e) => handleSubjectChange(index, 'passScore', parseInt(e.target.value) || 0, true)}
+                          onChange={(e) =>
+                            handleSubjectChange(
+                              index,
+                              "passScore",
+                              parseInt(e.target.value) || 0,
+                              true
+                            )
+                          }
                           className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           placeholder="及格线"
                           min="0"
@@ -421,7 +479,14 @@ export const ExamSpecificSubjectSettings: React.FC<ExamSpecificSubjectSettingsPr
                         <input
                           type="number"
                           value={config.excellentScore}
-                          onChange={(e) => handleSubjectChange(index, 'excellentScore', parseInt(e.target.value) || 0, true)}
+                          onChange={(e) =>
+                            handleSubjectChange(
+                              index,
+                              "excellentScore",
+                              parseInt(e.target.value) || 0,
+                              true
+                            )
+                          }
                           className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           placeholder="优秀线"
                           min={config.passScore}
@@ -429,10 +494,20 @@ export const ExamSpecificSubjectSettings: React.FC<ExamSpecificSubjectSettingsPr
                         />
                       </div>
                       <div className="text-sm text-green-600 font-medium">
-                        {config.maxScore > 0 ? Math.round((config.passScore / config.maxScore) * 100) : 0}%
+                        {config.maxScore > 0
+                          ? Math.round(
+                              (config.passScore / config.maxScore) * 100
+                            )
+                          : 0}
+                        %
                       </div>
                       <div className="text-sm text-blue-600 font-medium">
-                        {config.maxScore > 0 ? Math.round((config.excellentScore / config.maxScore) * 100) : 0}%
+                        {config.maxScore > 0
+                          ? Math.round(
+                              (config.excellentScore / config.maxScore) * 100
+                            )
+                          : 0}
+                        %
                       </div>
                     </div>
                   ))}
@@ -467,4 +542,4 @@ export const ExamSpecificSubjectSettings: React.FC<ExamSpecificSubjectSettingsPr
       </div>
     </div>
   );
-}; 
+};

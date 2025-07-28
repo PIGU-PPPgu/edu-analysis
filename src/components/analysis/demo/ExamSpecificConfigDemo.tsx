@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ExamSpecificSubjectSettings } from '@/components/analysis/settings/ExamSpecificSubjectSettings';
-import { examSpecificPassRateCalculator } from '@/services/examSpecificPassRateCalculator';
-import { Settings, Play, RotateCcw, CheckCircle, XCircle } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ExamSpecificSubjectSettings } from "@/components/analysis/settings/ExamSpecificSubjectSettings";
+import { examSpecificPassRateCalculator } from "@/services/examSpecificPassRateCalculator";
+import { Settings, Play, RotateCcw, CheckCircle, XCircle } from "lucide-react";
 
 export const ExamSpecificConfigDemo: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
@@ -17,90 +17,150 @@ export const ExamSpecificConfigDemo: React.FC = () => {
   // 创建演示考试配置
   const setupDemoExams = () => {
     setIsRunning(true);
-    
+
     // 期中考试：语文100分满分
-    examSpecificPassRateCalculator.setExamConfig('demo_midterm', '期中考试', [
+    examSpecificPassRateCalculator.setExamConfig("demo_midterm", "期中考试", [
       {
-        name: '语文',
-        displayName: '语文',
+        name: "语文",
+        displayName: "语文",
         maxScore: 100,
         passScore: 60,
         excellentScore: 85,
-        isCustom: false
-      }
+        isCustom: false,
+      },
     ]);
 
     // 期末考试：语文120分满分
-    examSpecificPassRateCalculator.setExamConfig('demo_final', '期末考试', [
+    examSpecificPassRateCalculator.setExamConfig("demo_final", "期末考试", [
       {
-        name: '语文',
-        displayName: '语文',
+        name: "语文",
+        displayName: "语文",
         maxScore: 120,
         passScore: 72,
         excellentScore: 102,
-        isCustom: false
-      }
+        isCustom: false,
+      },
     ]);
 
     // 月考：语文80分满分
-    examSpecificPassRateCalculator.setExamConfig('demo_monthly', '月考', [
+    examSpecificPassRateCalculator.setExamConfig("demo_monthly", "月考", [
       {
-        name: '语文',
-        displayName: '语文',
+        name: "语文",
+        displayName: "语文",
         maxScore: 80,
         passScore: 48,
         excellentScore: 68,
-        isCustom: false
-      }
+        isCustom: false,
+      },
     ]);
 
     // 计算各考试的结果
     const results = [
       {
-        examId: 'demo_midterm',
-        examName: '期中考试',
+        examId: "demo_midterm",
+        examName: "期中考试",
         maxScore: 100,
         passScore: 60,
         excellentScore: 85,
-        passRate: examSpecificPassRateCalculator.calculatePassRate(demoScores, '语文', 'demo_midterm'),
-        excellentRate: examSpecificPassRateCalculator.calculateExcellentRate(demoScores, '语文', 'demo_midterm'),
-        results: demoScores.map(score => ({
+        passRate: examSpecificPassRateCalculator.calculatePassRate(
+          demoScores,
+          "语文",
+          "demo_midterm"
+        ),
+        excellentRate: examSpecificPassRateCalculator.calculateExcellentRate(
+          demoScores,
+          "语文",
+          "demo_midterm"
+        ),
+        results: demoScores.map((score) => ({
           score,
-          isPass: examSpecificPassRateCalculator.isPass(score, '语文', 'demo_midterm'),
-          isExcellent: examSpecificPassRateCalculator.isExcellent(score, '语文', 'demo_midterm'),
-          level: examSpecificPassRateCalculator.getGradeLevel(score, '语文', 'demo_midterm')
-        }))
+          isPass: examSpecificPassRateCalculator.isPass(
+            score,
+            "语文",
+            "demo_midterm"
+          ),
+          isExcellent: examSpecificPassRateCalculator.isExcellent(
+            score,
+            "语文",
+            "demo_midterm"
+          ),
+          level: examSpecificPassRateCalculator.getGradeLevel(
+            score,
+            "语文",
+            "demo_midterm"
+          ),
+        })),
       },
       {
-        examId: 'demo_final',
-        examName: '期末考试',
+        examId: "demo_final",
+        examName: "期末考试",
         maxScore: 120,
         passScore: 72,
         excellentScore: 102,
-        passRate: examSpecificPassRateCalculator.calculatePassRate(demoScores, '语文', 'demo_final'),
-        excellentRate: examSpecificPassRateCalculator.calculateExcellentRate(demoScores, '语文', 'demo_final'),
-        results: demoScores.map(score => ({
+        passRate: examSpecificPassRateCalculator.calculatePassRate(
+          demoScores,
+          "语文",
+          "demo_final"
+        ),
+        excellentRate: examSpecificPassRateCalculator.calculateExcellentRate(
+          demoScores,
+          "语文",
+          "demo_final"
+        ),
+        results: demoScores.map((score) => ({
           score,
-          isPass: examSpecificPassRateCalculator.isPass(score, '语文', 'demo_final'),
-          isExcellent: examSpecificPassRateCalculator.isExcellent(score, '语文', 'demo_final'),
-          level: examSpecificPassRateCalculator.getGradeLevel(score, '语文', 'demo_final')
-        }))
+          isPass: examSpecificPassRateCalculator.isPass(
+            score,
+            "语文",
+            "demo_final"
+          ),
+          isExcellent: examSpecificPassRateCalculator.isExcellent(
+            score,
+            "语文",
+            "demo_final"
+          ),
+          level: examSpecificPassRateCalculator.getGradeLevel(
+            score,
+            "语文",
+            "demo_final"
+          ),
+        })),
       },
       {
-        examId: 'demo_monthly',
-        examName: '月考',
+        examId: "demo_monthly",
+        examName: "月考",
         maxScore: 80,
         passScore: 48,
         excellentScore: 68,
-        passRate: examSpecificPassRateCalculator.calculatePassRate(demoScores, '语文', 'demo_monthly'),
-        excellentRate: examSpecificPassRateCalculator.calculateExcellentRate(demoScores, '语文', 'demo_monthly'),
-        results: demoScores.map(score => ({
+        passRate: examSpecificPassRateCalculator.calculatePassRate(
+          demoScores,
+          "语文",
+          "demo_monthly"
+        ),
+        excellentRate: examSpecificPassRateCalculator.calculateExcellentRate(
+          demoScores,
+          "语文",
+          "demo_monthly"
+        ),
+        results: demoScores.map((score) => ({
           score,
-          isPass: examSpecificPassRateCalculator.isPass(score, '语文', 'demo_monthly'),
-          isExcellent: examSpecificPassRateCalculator.isExcellent(score, '语文', 'demo_monthly'),
-          level: examSpecificPassRateCalculator.getGradeLevel(score, '语文', 'demo_monthly')
-        }))
-      }
+          isPass: examSpecificPassRateCalculator.isPass(
+            score,
+            "语文",
+            "demo_monthly"
+          ),
+          isExcellent: examSpecificPassRateCalculator.isExcellent(
+            score,
+            "语文",
+            "demo_monthly"
+          ),
+          level: examSpecificPassRateCalculator.getGradeLevel(
+            score,
+            "语文",
+            "demo_monthly"
+          ),
+        })),
+      },
     ];
 
     setDemoResults(results);
@@ -109,9 +169,9 @@ export const ExamSpecificConfigDemo: React.FC = () => {
 
   const resetDemo = () => {
     // 清除演示配置
-    examSpecificPassRateCalculator.deleteExamConfig('demo_midterm');
-    examSpecificPassRateCalculator.deleteExamConfig('demo_final');
-    examSpecificPassRateCalculator.deleteExamConfig('demo_monthly');
+    examSpecificPassRateCalculator.deleteExamConfig("demo_midterm");
+    examSpecificPassRateCalculator.deleteExamConfig("demo_final");
+    examSpecificPassRateCalculator.deleteExamConfig("demo_monthly");
     setDemoResults([]);
   };
 
@@ -129,7 +189,7 @@ export const ExamSpecificConfigDemo: React.FC = () => {
             <p className="text-gray-600 leading-relaxed">
               此演示展示如何为不同考试设置不同的科目满分，以及同样的分数在不同配置下的评判结果。
             </p>
-            
+
             <div className="flex gap-4">
               <Button
                 onClick={setupDemoExams}
@@ -137,9 +197,9 @@ export const ExamSpecificConfigDemo: React.FC = () => {
                 className="flex items-center gap-2 border-2 border-black bg-[#B9FF66] hover:bg-[#B9FF66] text-black font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all"
               >
                 <Play className="w-4 h-4" />
-                {isRunning ? '设置中...' : '运行演示'}
+                {isRunning ? "设置中..." : "运行演示"}
               </Button>
-              
+
               <Button
                 onClick={() => setShowSettings(true)}
                 className="flex items-center gap-2 border-2 border-black bg-orange-500 hover:bg-orange-600 text-white font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all"
@@ -147,7 +207,7 @@ export const ExamSpecificConfigDemo: React.FC = () => {
                 <Settings className="w-4 h-4" />
                 打开设置
               </Button>
-              
+
               {demoResults.length > 0 && (
                 <Button
                   onClick={resetDemo}
@@ -167,11 +227,14 @@ export const ExamSpecificConfigDemo: React.FC = () => {
       {demoResults.length > 0 && (
         <div className="space-y-6">
           <h3 className="text-2xl font-bold text-[#191A23]">演示结果对比</h3>
-          
+
           {/* 概览对比 */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {demoResults.map((result) => (
-              <Card key={result.examId} className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_#6B7280]">
+              <Card
+                key={result.examId}
+                className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_#6B7280]"
+              >
                 <CardHeader className="bg-blue-100 border-b-2 border-black">
                   <CardTitle className="text-lg font-bold text-[#191A23]">
                     {result.examName}
@@ -185,20 +248,28 @@ export const ExamSpecificConfigDemo: React.FC = () => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">及格线：</span>
-                      <span className="font-bold text-green-600">{result.passScore}分</span>
+                      <span className="font-bold text-green-600">
+                        {result.passScore}分
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">优秀线：</span>
-                      <span className="font-bold text-blue-600">{result.excellentScore}分</span>
+                      <span className="font-bold text-blue-600">
+                        {result.excellentScore}分
+                      </span>
                     </div>
                     <hr className="border-gray-200" />
                     <div className="flex justify-between">
                       <span className="text-gray-600">及格率：</span>
-                      <span className="font-bold text-green-600">{result.passRate}%</span>
+                      <span className="font-bold text-green-600">
+                        {result.passRate}%
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">优秀率：</span>
-                      <span className="font-bold text-blue-600">{result.excellentRate}%</span>
+                      <span className="font-bold text-blue-600">
+                        {result.excellentRate}%
+                      </span>
                     </div>
                   </div>
                 </CardContent>
@@ -218,11 +289,19 @@ export const ExamSpecificConfigDemo: React.FC = () => {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-gray-50">
-                      <th className="border-2 border-black p-3 font-bold text-left">分数</th>
+                      <th className="border-2 border-black p-3 font-bold text-left">
+                        分数
+                      </th>
                       {demoResults.map((result) => (
-                        <th key={result.examId} className="border-2 border-black p-3 font-bold text-center">
-                          {result.examName}<br />
-                          <small className="text-gray-600">满分{result.maxScore}</small>
+                        <th
+                          key={result.examId}
+                          className="border-2 border-black p-3 font-bold text-center"
+                        >
+                          {result.examName}
+                          <br />
+                          <small className="text-gray-600">
+                            满分{result.maxScore}
+                          </small>
                         </th>
                       ))}
                     </tr>
@@ -236,10 +315,19 @@ export const ExamSpecificConfigDemo: React.FC = () => {
                         {demoResults.map((result) => {
                           const scoreResult = result.results[index];
                           return (
-                            <td key={result.examId} className="border-2 border-black p-3 text-center">
+                            <td
+                              key={result.examId}
+                              className="border-2 border-black p-3 text-center"
+                            >
                               <div className="space-y-1">
-                                <Badge 
-                                  variant={scoreResult.isExcellent ? "default" : scoreResult.isPass ? "secondary" : "destructive"}
+                                <Badge
+                                  variant={
+                                    scoreResult.isExcellent
+                                      ? "default"
+                                      : scoreResult.isPass
+                                        ? "secondary"
+                                        : "destructive"
+                                  }
                                   className="font-bold"
                                 >
                                   {scoreResult.level}
@@ -251,7 +339,9 @@ export const ExamSpecificConfigDemo: React.FC = () => {
                                     <XCircle className="w-4 h-4 text-red-500" />
                                   )}
                                   {scoreResult.isExcellent && (
-                                    <span className="text-blue-500 font-bold">★</span>
+                                    <span className="text-blue-500 font-bold">
+                                      ★
+                                    </span>
                                   )}
                                 </div>
                               </div>
@@ -263,13 +353,23 @@ export const ExamSpecificConfigDemo: React.FC = () => {
                   </tbody>
                 </table>
               </div>
-              
+
               <div className="mt-4 p-4 bg-yellow-50 border-2 border-yellow-400 rounded-lg">
-                <h4 className="font-bold text-yellow-800 mb-2">💡 观察要点：</h4>
+                <h4 className="font-bold text-yellow-800 mb-2">
+                  💡 观察要点：
+                </h4>
                 <ul className="text-sm text-yellow-700 space-y-1">
-                  <li>• 同样85分的语文成绩，在100分制的期中考试中是"优秀"，但在120分制的期末考试中只是"及格"</li>
-                  <li>• 75分在80分制的月考中是"及格"，但在100分制中可能是"不及格"</li>
-                  <li>• 这说明考试特定配置能更准确地反映学生在不同评分标准下的真实表现</li>
+                  <li>
+                    •
+                    同样85分的语文成绩，在100分制的期中考试中是"优秀"，但在120分制的期末考试中只是"及格"
+                  </li>
+                  <li>
+                    • 75分在80分制的月考中是"及格"，但在100分制中可能是"不及格"
+                  </li>
+                  <li>
+                    •
+                    这说明考试特定配置能更准确地反映学生在不同评分标准下的真实表现
+                  </li>
                 </ul>
               </div>
             </CardContent>
@@ -290,4 +390,4 @@ export const ExamSpecificConfigDemo: React.FC = () => {
       />
     </div>
   );
-}; 
+};

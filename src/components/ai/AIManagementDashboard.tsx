@@ -3,31 +3,34 @@
  * 提供AI多提供商管理、成本监控和性能分析的统一界面
  */
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Progress } from '@/components/ui/progress';
-import { 
-  DollarSign, 
-  Activity, 
-  Zap, 
-  AlertTriangle, 
-  Settings, 
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
+import {
+  DollarSign,
+  Activity,
+  Zap,
+  AlertTriangle,
+  Settings,
   BarChart3,
   Clock,
   CheckCircle,
   XCircle,
   TrendingUp,
   Database,
-  Gauge
-} from 'lucide-react';
-import { enhancedAIService, getAIStatistics } from '@/services/ai/enhancedAIService';
-import { aiCostManager } from '@/services/ai/core/aiCostManager';
-import { aiRouter } from '@/services/ai/core/aiRouter';
-import { aiCacheManager } from '@/services/ai/core/aiCache';
-import { toast } from 'sonner';
+  Gauge,
+} from "lucide-react";
+import {
+  enhancedAIService,
+  getAIStatistics,
+} from "@/services/ai/enhancedAIService";
+import { aiCostManager } from "@/services/ai/core/aiCostManager";
+import { aiRouter } from "@/services/ai/core/aiRouter";
+import { aiCacheManager } from "@/services/ai/core/aiCache";
+import { toast } from "sonner";
 
 // 统计数据接口
 interface DashboardStats {
@@ -46,7 +49,7 @@ interface DashboardStats {
 export const AIManagementDashboard: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState("overview");
 
   // 加载统计数据
   const loadStats = async () => {
@@ -55,8 +58,8 @@ export const AIManagementDashboard: React.FC = () => {
       const data = await getAIStatistics();
       setStats(data);
     } catch (error) {
-      console.error('加载AI统计数据失败:', error);
-      toast.error('加载统计数据失败');
+      console.error("加载AI统计数据失败:", error);
+      toast.error("加载统计数据失败");
     } finally {
       setLoading(false);
     }
@@ -64,7 +67,7 @@ export const AIManagementDashboard: React.FC = () => {
 
   useEffect(() => {
     loadStats();
-    
+
     // 定时刷新
     const interval = setInterval(loadStats, 30000); // 30秒刷新一次
     return () => clearInterval(interval);
@@ -102,7 +105,10 @@ export const AIManagementDashboard: React.FC = () => {
           <Button variant="outline" onClick={loadStats}>
             刷新数据
           </Button>
-          <Button variant="outline" onClick={() => enhancedAIService.clearCache()}>
+          <Button
+            variant="outline"
+            onClick={() => enhancedAIService.clearCache()}
+          >
             清空缓存
           </Button>
         </div>
@@ -117,7 +123,9 @@ export const AIManagementDashboard: React.FC = () => {
             <DollarSign className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${stats.summary.totalCost.toFixed(4)}</div>
+            <div className="text-2xl font-bold">
+              ${stats.summary.totalCost.toFixed(4)}
+            </div>
             <p className="text-xs text-gray-600">
               累计 {stats.summary.totalRequests} 次请求
             </p>
@@ -131,10 +139,10 @@ export const AIManagementDashboard: React.FC = () => {
             <Clock className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.summary.avgLatency.toFixed(0)}ms</div>
-            <p className="text-xs text-gray-600">
-              响应速度指标
-            </p>
+            <div className="text-2xl font-bold">
+              {stats.summary.avgLatency.toFixed(0)}ms
+            </div>
+            <p className="text-xs text-gray-600">响应速度指标</p>
           </CardContent>
         </Card>
 
@@ -145,7 +153,9 @@ export const AIManagementDashboard: React.FC = () => {
             <Database className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.summary.cacheHitRate.toFixed(1)}%</div>
+            <div className="text-2xl font-bold">
+              {stats.summary.cacheHitRate.toFixed(1)}%
+            </div>
             <p className="text-xs text-gray-600">
               节省成本 ${stats.summary.costSavings.toFixed(4)}
             </p>
@@ -160,7 +170,7 @@ export const AIManagementDashboard: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {stats.providers.filter(p => p.isAvailable).length}
+              {stats.providers.filter((p) => p.isAvailable).length}
             </div>
             <p className="text-xs text-gray-600">
               / {stats.providers.length} 个提供商
@@ -192,15 +202,24 @@ export const AIManagementDashboard: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {stats.cost.timeSeriesData?.slice(-7).map((item: any, index: number) => (
-                    <div key={index} className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">{item.date}</span>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-medium">${item.cost.toFixed(4)}</span>
-                        <Badge variant="outline">{item.requests}次</Badge>
+                  {stats.cost.timeSeriesData
+                    ?.slice(-7)
+                    .map((item: any, index: number) => (
+                      <div
+                        key={index}
+                        className="flex justify-between items-center"
+                      >
+                        <span className="text-sm text-gray-600">
+                          {item.date}
+                        </span>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-medium">
+                            ${item.cost.toFixed(4)}
+                          </span>
+                          <Badge variant="outline">{item.requests}次</Badge>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               </CardContent>
             </Card>
@@ -215,17 +234,22 @@ export const AIManagementDashboard: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {stats.cost.topProviders?.map((provider: any, index: number) => (
-                    <div key={index} className="space-y-1">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">{provider.providerId}</span>
-                        <span className="text-sm text-gray-600">
-                          ${provider.cost.toFixed(4)} ({provider.percentage.toFixed(1)}%)
-                        </span>
+                  {stats.cost.topProviders?.map(
+                    (provider: any, index: number) => (
+                      <div key={index} className="space-y-1">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium">
+                            {provider.providerId}
+                          </span>
+                          <span className="text-sm text-gray-600">
+                            ${provider.cost.toFixed(4)} (
+                            {provider.percentage.toFixed(1)}%)
+                          </span>
+                        </div>
+                        <Progress value={provider.percentage} className="h-2" />
                       </div>
-                      <Progress value={provider.percentage} className="h-2" />
-                    </div>
-                  ))}
+                    )
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -248,18 +272,27 @@ export const AIManagementDashboard: React.FC = () => {
                       <div key={budget.id} className="space-y-2">
                         <div className="flex justify-between">
                           <span className="font-medium">{budget.name}</span>
-                          <Badge variant={usage > 90 ? "destructive" : usage > 70 ? "secondary" : "default"}>
+                          <Badge
+                            variant={
+                              usage > 90
+                                ? "destructive"
+                                : usage > 70
+                                  ? "secondary"
+                                  : "default"
+                            }
+                          >
                             {usage.toFixed(1)}%
                           </Badge>
                         </div>
                         <Progress value={usage} className="h-2" />
                         <p className="text-xs text-gray-600">
-                          ${(budget.limit * usage / 100).toFixed(2)} / ${budget.limit}
+                          ${((budget.limit * usage) / 100).toFixed(2)} / $
+                          {budget.limit}
                         </p>
                       </div>
                     );
                   })}
-                  
+
                   {aiCostManager.getBudgets().length === 0 && (
                     <p className="text-gray-500 text-center py-4">
                       暂无预算配置
@@ -277,11 +310,18 @@ export const AIManagementDashboard: React.FC = () => {
               <CardContent>
                 <div className="space-y-3">
                   {stats.cost.topModels?.map((model: any, index: number) => (
-                    <div key={index} className="flex justify-between items-center">
+                    <div
+                      key={index}
+                      className="flex justify-between items-center"
+                    >
                       <span className="text-sm">{model.modelId}</span>
                       <div className="text-right">
-                        <div className="text-sm font-medium">${model.cost.toFixed(4)}</div>
-                        <div className="text-xs text-gray-600">{model.percentage.toFixed(1)}%</div>
+                        <div className="text-sm font-medium">
+                          ${model.cost.toFixed(4)}
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          {model.percentage.toFixed(1)}%
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -304,19 +344,27 @@ export const AIManagementDashboard: React.FC = () => {
                       <div className="flex justify-between items-start">
                         <div>
                           <p className="text-sm font-medium">{alert.message}</p>
-                          <p className="text-xs text-gray-600">{alert.timestamp.toLocaleString()}</p>
+                          <p className="text-xs text-gray-600">
+                            {alert.timestamp.toLocaleString()}
+                          </p>
                         </div>
-                        <Badge variant={
-                          alert.severity === 'critical' ? 'destructive' :
-                          alert.severity === 'error' ? 'destructive' :
-                          alert.severity === 'warning' ? 'secondary' : 'default'
-                        }>
+                        <Badge
+                          variant={
+                            alert.severity === "critical"
+                              ? "destructive"
+                              : alert.severity === "error"
+                                ? "destructive"
+                                : alert.severity === "warning"
+                                  ? "secondary"
+                                  : "default"
+                          }
+                        >
                           {alert.severity}
                         </Badge>
                       </div>
                     </div>
                   ))}
-                  
+
                   {aiCostManager.getActiveAlerts().length === 0 && (
                     <div className="text-center py-4">
                       <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
@@ -336,8 +384,12 @@ export const AIManagementDashboard: React.FC = () => {
               <Card key={provider.providerId}>
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">{provider.providerId}</CardTitle>
-                    <Badge variant={provider.isAvailable ? "default" : "destructive"}>
+                    <CardTitle className="text-base">
+                      {provider.providerId}
+                    </CardTitle>
+                    <Badge
+                      variant={provider.isAvailable ? "default" : "destructive"}
+                    >
                       {provider.isAvailable ? "在线" : "离线"}
                     </Badge>
                   </div>
@@ -347,11 +399,15 @@ export const AIManagementDashboard: React.FC = () => {
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
                       <span className="text-gray-600">延迟</span>
-                      <div className="font-medium">{provider.latency.toFixed(0)}ms</div>
+                      <div className="font-medium">
+                        {provider.latency.toFixed(0)}ms
+                      </div>
                     </div>
                     <div>
                       <span className="text-gray-600">成功率</span>
-                      <div className="font-medium">{provider.successRate.toFixed(1)}%</div>
+                      <div className="font-medium">
+                        {provider.successRate.toFixed(1)}%
+                      </div>
                     </div>
                   </div>
 
@@ -359,7 +415,7 @@ export const AIManagementDashboard: React.FC = () => {
                   <div className="space-y-2">
                     <div className="flex justify-between text-xs">
                       <span>健康度</span>
-                      <span>{(provider.successRate).toFixed(0)}%</span>
+                      <span>{provider.successRate.toFixed(0)}%</span>
                     </div>
                     <Progress value={provider.successRate} className="h-2" />
                   </div>
@@ -375,9 +431,10 @@ export const AIManagementDashboard: React.FC = () => {
 
                   {/* 最近状态 */}
                   <div className="text-xs text-gray-600">
-                    最后检查: {new Date(provider.lastHealthCheck).toLocaleTimeString()}
+                    最后检查:{" "}
+                    {new Date(provider.lastHealthCheck).toLocaleTimeString()}
                   </div>
-                  
+
                   {provider.consecutiveFailures > 0 && (
                     <div className="flex items-center text-xs text-red-600">
                       <XCircle className="h-3 w-3 mr-1" />
@@ -402,7 +459,9 @@ export const AIManagementDashboard: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-gray-600">总条目数</span>
-                    <div className="text-lg font-medium">{stats.cache.totalEntries}</div>
+                    <div className="text-lg font-medium">
+                      {stats.cache.totalEntries}
+                    </div>
                   </div>
                   <div>
                     <span className="text-gray-600">总大小</span>
@@ -442,10 +501,17 @@ export const AIManagementDashboard: React.FC = () => {
               <CardContent>
                 <div className="space-y-2">
                   {stats.cache.topKeys?.map((item: any, index: number) => (
-                    <div key={index} className="flex justify-between items-center p-2 border rounded">
+                    <div
+                      key={index}
+                      className="flex justify-between items-center p-2 border rounded"
+                    >
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{item.key}</p>
-                        <p className="text-xs text-gray-600">{item.hits} 次命中</p>
+                        <p className="text-sm font-medium truncate">
+                          {item.key}
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          {item.hits} 次命中
+                        </p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-medium text-green-600">
@@ -466,27 +532,31 @@ export const AIManagementDashboard: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="flex space-x-2">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => enhancedAIService.clearCache()}
                 >
                   清空所有缓存
                 </Button>
-                <Button 
+                <Button
                   variant="outline"
-                  onClick={() => enhancedAIService.clearCache(['ai-response'])}
+                  onClick={() => enhancedAIService.clearCache(["ai-response"])}
                 >
                   清空AI响应缓存
                 </Button>
-                <Button 
+                <Button
                   variant="outline"
-                  onClick={() => enhancedAIService.setCachePolicy('快速响应策略')}
+                  onClick={() =>
+                    enhancedAIService.setCachePolicy("快速响应策略")
+                  }
                 >
                   快速响应模式
                 </Button>
-                <Button 
+                <Button
                   variant="outline"
-                  onClick={() => enhancedAIService.setCachePolicy('长期缓存策略')}
+                  onClick={() =>
+                    enhancedAIService.setCachePolicy("长期缓存策略")
+                  }
                 >
                   长期缓存模式
                 </Button>
@@ -525,7 +595,9 @@ export const AIManagementDashboard: React.FC = () => {
                         key={strategy.type}
                         variant="outline"
                         size="sm"
-                        onClick={() => enhancedAIService.setRouterStrategy(strategy.type)}
+                        onClick={() =>
+                          enhancedAIService.setRouterStrategy(strategy.type)
+                        }
                         className="text-left"
                       >
                         {strategy.name}
@@ -564,17 +636,19 @@ export const AIManagementDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                <Button 
-                  className="w-full" 
+                <Button
+                  className="w-full"
                   onClick={async () => {
                     const exported = await enhancedAIService.exportStatistics();
-                    const blob = new Blob([JSON.stringify(exported, null, 2)], { type: 'application/json' });
+                    const blob = new Blob([JSON.stringify(exported, null, 2)], {
+                      type: "application/json",
+                    });
                     const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
+                    const a = document.createElement("a");
                     a.href = url;
-                    a.download = `ai-statistics-${new Date().toISOString().split('T')[0]}.json`;
+                    a.download = `ai-statistics-${new Date().toISOString().split("T")[0]}.json`;
                     a.click();
-                    toast.success('统计数据已导出');
+                    toast.success("统计数据已导出");
                   }}
                 >
                   导出统计数据

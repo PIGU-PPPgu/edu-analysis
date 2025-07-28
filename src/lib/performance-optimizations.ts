@@ -1,8 +1,8 @@
 // 学生画像系统性能优化工具库
 // 基于性能分析结果实施的优化策略
 
-import { QueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { QueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 // 1. React Query 配置优化
 export const optimizedQueryClient = new QueryClient({
@@ -32,19 +32,21 @@ export class DatabaseOptimizer {
   // 优化的学生数据查询
   static async getStudentsOptimized(classId?: string, limit = 50) {
     const query = supabase
-      .from('students')
-      .select(`
+      .from("students")
+      .select(
+        `
         id,
         student_id,
         name,
         class_name,
         grade
-      `) // 只选择必要字段
-      .order('created_at', { ascending: false })
+      `
+      ) // 只选择必要字段
+      .order("created_at", { ascending: false })
       .limit(limit); // 限制查询数量
 
     if (classId) {
-      query.eq('class_id', classId);
+      query.eq("class_id", classId);
     }
 
     return query;
@@ -52,16 +54,17 @@ export class DatabaseOptimizer {
 
   // 优化的成绩数据查询 - 分页查询
   static async getGradeDataPaginated(
-    page = 1, 
-    pageSize = 20, 
+    page = 1,
+    pageSize = 20,
     examId?: string,
     classFilter?: string
   ) {
     const startIndex = (page - 1) * pageSize;
-    
+
     let query = supabase
-      .from('grade_data')
-      .select(`
+      .from("grade_data")
+      .select(
+        `
         id,
         student_id,
         name,
@@ -70,16 +73,18 @@ export class DatabaseOptimizer {
         score,
         exam_title,
         exam_date
-      `, { count: 'exact' }) // 获取总数用于分页
-      .order('created_at', { ascending: false })
+      `,
+        { count: "exact" }
+      ) // 获取总数用于分页
+      .order("created_at", { ascending: false })
       .range(startIndex, startIndex + pageSize - 1);
 
     if (examId) {
-      query = query.eq('exam_id', examId);
+      query = query.eq("exam_id", examId);
     }
 
     if (classFilter) {
-      query = query.eq('class_name', classFilter);
+      query = query.eq("class_name", classFilter);
     }
 
     return query;
@@ -89,8 +94,8 @@ export class DatabaseOptimizer {
   static async getClassStatisticsOptimized() {
     // 使用数据库视图或预计算的统计数据
     return supabase
-      .from('class_performance_summary') // 假设这是一个优化过的视图
-      .select('*')
+      .from("class_performance_summary") // 假设这是一个优化过的视图
+      .select("*")
       .limit(20);
   }
 
@@ -98,9 +103,9 @@ export class DatabaseOptimizer {
   static async getBatchData(studentIds: string[]) {
     // 使用 IN 查询而不是多个单独查询
     return supabase
-      .from('grade_data')
-      .select('*')
-      .in('student_id', studentIds)
+      .from("grade_data")
+      .select("*")
+      .in("student_id", studentIds)
       .limit(1000);
   }
 }
@@ -123,7 +128,7 @@ export const VirtualizedTableConfig = {
   itemHeight: 48, // 行高
   overscan: 5, // 预渲染行数
   scrollThreshold: 100, // 滚动阈值
-  
+
   // 获取虚拟化props
   getVirtualProps: (totalItems: number, containerHeight = 400) => ({
     height: containerHeight,
@@ -138,7 +143,7 @@ export class ChartOptimizer {
   // 数据采样 - 大数据集时减少数据点
   static sampleData<T>(data: T[], maxPoints = 100): T[] {
     if (data.length <= maxPoints) return data;
-    
+
     const step = Math.ceil(data.length / maxPoints);
     return data.filter((_, index) => index % step === 0);
   }
@@ -157,21 +162,27 @@ export class ChartOptimizer {
   }
 
   // 图表数据预处理
-  static preprocessChartData(rawData: any[], chartType: 'bar' | 'line' | 'pie') {
+  static preprocessChartData(
+    rawData: any[],
+    chartType: "bar" | "line" | "pie"
+  ) {
     switch (chartType) {
-      case 'bar':
-      case 'line':
+      case "bar":
+      case "line":
         return this.sampleData(rawData, 50);
-      case 'pie':
+      case "pie":
         // 饼图只显示前10项，其他合并为"其他"
         if (rawData.length <= 10) return rawData;
-        
+
         const top9 = rawData.slice(0, 9);
         const others = rawData.slice(9);
-        const othersSum = others.reduce((sum, item) => sum + (item.value || 0), 0);
-        
-        return [...top9, { name: '其他', value: othersSum }];
-      
+        const othersSum = others.reduce(
+          (sum, item) => sum + (item.value || 0),
+          0
+        );
+
+        return [...top9, { name: "其他", value: othersSum }];
+
       default:
         return rawData;
     }
@@ -180,7 +191,10 @@ export class ChartOptimizer {
 
 // 6. 缓存策略优化
 export class CacheOptimizer {
-  private static cache = new Map<string, { data: any; timestamp: number; ttl: number }>();
+  private static cache = new Map<
+    string,
+    { data: any; timestamp: number; ttl: number }
+  >();
 
   // 设置缓存
   static set(key: string, data: any, ttlMs = 5 * 60 * 1000) {
@@ -219,8 +233,8 @@ export class CacheOptimizer {
   static generateKey(prefix: string, params: Record<string, any>) {
     const sortedParams = Object.keys(params)
       .sort()
-      .map(key => `${key}:${params[key]}`)
-      .join('|');
+      .map((key) => `${key}:${params[key]}`)
+      .join("|");
     return `${prefix}:${sortedParams}`;
   }
 }
@@ -229,8 +243,8 @@ export class CacheOptimizer {
 export const LazyComponentLoader = {
   // 创建懒加载组件
   createLazyComponent: (importFunc: () => Promise<any>) => {
-    return React.lazy(() => 
-      importFunc().then(module => ({
+    return React.lazy(() =>
+      importFunc().then((module) => ({
         default: module.default || module,
       }))
     );
@@ -239,7 +253,7 @@ export const LazyComponentLoader = {
   // 预加载组件
   preloadComponent: (importFunc: () => Promise<any>) => {
     // 在空闲时间预加载
-    if ('requestIdleCallback' in window) {
+    if ("requestIdleCallback" in window) {
       (window as any).requestIdleCallback(() => {
         importFunc();
       });
@@ -257,8 +271,8 @@ export class MemoryOptimizer {
   // 清理事件监听器
   static cleanupEventListeners() {
     // 清理性能监控
-    if (typeof window !== 'undefined') {
-      window.removeEventListener('beforeunload', this.handleBeforeUnload);
+    if (typeof window !== "undefined") {
+      window.removeEventListener("beforeunload", this.handleBeforeUnload);
     }
   }
 
@@ -266,7 +280,7 @@ export class MemoryOptimizer {
   private static handleBeforeUnload = () => {
     // 清理缓存
     CacheOptimizer.cleanup();
-    
+
     // 清理其他资源
     if (optimizedQueryClient) {
       optimizedQueryClient.clear();
@@ -275,31 +289,38 @@ export class MemoryOptimizer {
 
   // 初始化内存优化
   static initialize() {
-    if (typeof window !== 'undefined') {
-      window.addEventListener('beforeunload', this.handleBeforeUnload);
-      
+    if (typeof window !== "undefined") {
+      window.addEventListener("beforeunload", this.handleBeforeUnload);
+
       // 定期清理缓存
-      setInterval(() => {
-        CacheOptimizer.cleanup();
-      }, 10 * 60 * 1000); // 每10分钟清理一次
+      setInterval(
+        () => {
+          CacheOptimizer.cleanup();
+        },
+        10 * 60 * 1000
+      ); // 每10分钟清理一次
     }
   }
 }
 
 // 9. 性能监控装饰器
 export function performanceMonitor(name: string) {
-  return function (target: any, propertyName: string, descriptor: PropertyDescriptor) {
+  return function (
+    target: any,
+    propertyName: string,
+    descriptor: PropertyDescriptor
+  ) {
     const method = descriptor.value;
 
     descriptor.value = async function (...args: any[]) {
       const start = performance.now();
-      
+
       try {
         const result = await method.apply(this, args);
         const end = performance.now();
-        
+
         console.log(`⚡ ${name} 执行时间: ${Math.round(end - start)}ms`);
-        
+
         return result;
       } catch (error) {
         const end = performance.now();
@@ -348,7 +369,12 @@ export class BatchProcessor {
   private static batches = new Map<string, any[]>();
   private static timers = new Map<string, NodeJS.Timeout>();
 
-  static addToBatch(key: string, item: any, processor: (items: any[]) => Promise<void>, delay = 100) {
+  static addToBatch(
+    key: string,
+    item: any,
+    processor: (items: any[]) => Promise<void>,
+    delay = 100
+  ) {
     // 添加到批次
     if (!this.batches.has(key)) {
       this.batches.set(key, []);
@@ -380,7 +406,7 @@ export class BatchProcessor {
 }
 
 // 初始化性能优化
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   MemoryOptimizer.initialize();
 }
 
@@ -397,5 +423,5 @@ export default {
 };
 
 // 导入必要的依赖
-import React, { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query'; 
+import React, { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";

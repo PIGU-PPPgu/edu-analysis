@@ -10,7 +10,13 @@ import ScoreBoxPlot from "@/components/class/ScoreBoxPlot";
 // import CompetencyRadar from "@/components/analysis/CompetencyRadar"; // 已删除
 // import CorrelationBubble from "@/components/analysis/CorrelationBubble"; // 已删除
 // import AIDataAnalysis from "@/components/analysis/AIDataAnalysis"; // 已删除
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { getClassDetailedAnalysisData } from "@/services/classService";
@@ -50,28 +56,34 @@ interface Props {
   scoreDistributionData?: any[]; // Made optional
 }
 
-const DetailTab: React.FC<Props> = ({ 
+const DetailTab: React.FC<Props> = ({
   selectedClass,
   competencyData: initialCompetencyData,
   correlationData: initialCorrelationData,
-  scoreDistributionData: initialScoreDistributionData
+  scoreDistributionData: initialScoreDistributionData,
 }) => {
   const [detailTab, setDetailTab] = React.useState("analysis");
   const [isLoading, setIsLoading] = useState(false);
-  const [competencyData, setCompetencyData] = useState<any[]>(initialCompetencyData || []);
-  const [correlationData, setCorrelationData] = useState<any[]>(initialCorrelationData || []);
-  const [scoreDistributionData, setScoreDistributionData] = useState<any[]>(initialScoreDistributionData || []);
+  const [competencyData, setCompetencyData] = useState<any[]>(
+    initialCompetencyData || []
+  );
+  const [correlationData, setCorrelationData] = useState<any[]>(
+    initialCorrelationData || []
+  );
+  const [scoreDistributionData, setScoreDistributionData] = useState<any[]>(
+    initialScoreDistributionData || []
+  );
   const [classProfileData, setClassProfileData] = useState<any>({});
   const [classTrendData, setClassTrendData] = useState<any[]>([]);
   const [weaknessAnalysisData, setWeaknessAnalysisData] = useState<any[]>([]);
   const [examComparisonData, setExamComparisonData] = useState<{
-    examList: any[],
-    initialSelected: string[],
-    displayScores: any[]
+    examList: any[];
+    initialSelected: string[];
+    displayScores: any[];
   }>({
     examList: [],
     initialSelected: [],
-    displayScores: []
+    displayScores: [],
   });
   const [studentsListData, setStudentsListData] = useState<any[]>([]);
   const [boxPlotData, setBoxPlotData] = useState<any[]>([]);
@@ -84,89 +96,106 @@ const DetailTab: React.FC<Props> = ({
   useEffect(() => {
     if (selectedClass && selectedClass.id) {
       setIsLoading(true);
-      
+
       console.log(`正在获取班级 ${selectedClass.id} 的详细分析数据...`);
-      
+
       getClassDetailedAnalysisData(selectedClass.id)
-        .then(data => {
+        .then((data) => {
           console.log("API返回的数据:", data); // 记录API返回数据用于调试
           setApiResponseData(data);
-          
+
           // 处理能力维度数据
           if (data.competencyData && data.competencyData.length > 0) {
             setCompetencyData(data.competencyData);
             console.log("能力维度数据:", data.competencyData);
-          } else if (initialCompetencyData && initialCompetencyData.length > 0) {
+          } else if (
+            initialCompetencyData &&
+            initialCompetencyData.length > 0
+          ) {
             setCompetencyData(initialCompetencyData);
           }
-          
+
           // 处理相关性数据
           if (data.studentsListData && data.studentsListData.length > 0) {
             // 创建相关性数据
-            const corrData = data.studentsListData.map((student: any, index: number) => {
-              // 假设课堂表现和作业质量是根据平均分的随机变化
-              const avgScore = student.averageScore || 0;
-              const randomFactor1 = 0.8 + Math.random() * 0.4; // 0.8-1.2之间的随机因子
-              const randomFactor2 = 0.8 + Math.random() * 0.4;
-              
-              return {
-                name: student.name,
-                // 课堂表现、作业质量和考试成绩的关联性
-                xValue: Math.min(100, Math.max(0, avgScore * randomFactor1)),
-                yValue: Math.min(100, Math.max(0, avgScore * randomFactor2)),
-                zValue: avgScore * 10, // 放大显示效果
-                subject: index % 2 === 0 ? "数学" : "语文" // 简单分配学科
-              };
-            }).slice(0, 10); // 只取前10个学生
-            
+            const corrData = data.studentsListData
+              .map((student: any, index: number) => {
+                // 假设课堂表现和作业质量是根据平均分的随机变化
+                const avgScore = student.averageScore || 0;
+                const randomFactor1 = 0.8 + Math.random() * 0.4; // 0.8-1.2之间的随机因子
+                const randomFactor2 = 0.8 + Math.random() * 0.4;
+
+                return {
+                  name: student.name,
+                  // 课堂表现、作业质量和考试成绩的关联性
+                  xValue: Math.min(100, Math.max(0, avgScore * randomFactor1)),
+                  yValue: Math.min(100, Math.max(0, avgScore * randomFactor2)),
+                  zValue: avgScore * 10, // 放大显示效果
+                  subject: index % 2 === 0 ? "数学" : "语文", // 简单分配学科
+                };
+              })
+              .slice(0, 10); // 只取前10个学生
+
             setCorrelationData(corrData);
             console.log("相关性数据 (从学生列表生成):", corrData);
-          } else if (initialCorrelationData && initialCorrelationData.length > 0) {
+          } else if (
+            initialCorrelationData &&
+            initialCorrelationData.length > 0
+          ) {
             setCorrelationData(initialCorrelationData);
           }
-          
+
           // 处理分数分布数据
-          if (data.scoreDistributionData && data.scoreDistributionData.length > 0) {
+          if (
+            data.scoreDistributionData &&
+            data.scoreDistributionData.length > 0
+          ) {
             setScoreDistributionData(data.scoreDistributionData);
             console.log("分数分布数据:", data.scoreDistributionData);
-          } else if (initialScoreDistributionData && initialScoreDistributionData.length > 0) {
+          } else if (
+            initialScoreDistributionData &&
+            initialScoreDistributionData.length > 0
+          ) {
             setScoreDistributionData(initialScoreDistributionData);
           }
-          
+
           // 处理班级趋势数据
           if (data.trendData && data.trendData.length > 0) {
             setClassTrendData(data.trendData);
             console.log("班级趋势数据:", data.trendData);
           }
-          
+
           // 处理弱点分析数据
-          if (data.weaknessAnalysisData && data.weaknessAnalysisData.length > 0) {
+          if (
+            data.weaknessAnalysisData &&
+            data.weaknessAnalysisData.length > 0
+          ) {
             setWeaknessAnalysisData(data.weaknessAnalysisData);
             console.log("弱点分析数据:", data.weaknessAnalysisData);
           }
-          
+
           // 处理考试对比数据
           if (data.examComparisonData) {
             setExamComparisonData({
               examList: data.examComparisonData.examList || [],
               initialSelected: data.examComparisonData.initialSelected || [],
-              displayScores: data.examComparisonData.displayScores || []
+              displayScores: data.examComparisonData.displayScores || [],
             });
             console.log("考试对比数据:", data.examComparisonData);
           }
-          
+
           // 处理学生列表数据
           if (data.studentsListData && data.studentsListData.length > 0) {
             setStudentsListData(data.studentsListData);
             console.log("学生列表数据:", data.studentsListData);
           }
-          
+
           // 班级概要数据
           if (data.classProfileData) {
             setClassProfileData(data.classProfileData);
             console.log("班级概要数据:", data.classProfileData);
           }
-          
+
           // BoxPlot数据
           if (data.boxPlotData && data.boxPlotData.length > 0) {
             setBoxPlotData(data.boxPlotData);
@@ -175,25 +204,38 @@ const DetailTab: React.FC<Props> = ({
             console.warn("API未返回有效的BoxPlot数据");
           }
         })
-        .catch(error => {
-          console.error('获取班级详细分析数据失败:', error);
+        .catch((error) => {
+          console.error("获取班级详细分析数据失败:", error);
           toast.error(`获取班级详细分析数据失败: ${error.message}`);
         })
         .finally(() => {
           setIsLoading(false);
         });
     }
-  }, [selectedClass.id, initialCompetencyData, initialCorrelationData, initialScoreDistributionData]);
+  }, [
+    selectedClass.id,
+    initialCompetencyData,
+    initialCorrelationData,
+    initialScoreDistributionData,
+  ]);
 
   const renderDebugInfo = () => {
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.NODE_ENV !== "production") {
       return (
         <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
           <h3 className="text-sm font-medium text-yellow-800">调试信息</h3>
-          <p className="text-xs text-yellow-700 mt-1">选中班级ID: {selectedClass?.id}</p>
-          <p className="text-xs text-yellow-700">BoxPlot数据长度: {boxPlotData?.length || 0}</p>
-          <p className="text-xs text-yellow-700">学生数据长度: {studentsListData?.length || 0}</p>
-          <p className="text-xs text-yellow-700">API是否返回数据: {apiResponseData ? '是' : '否'}</p>
+          <p className="text-xs text-yellow-700 mt-1">
+            选中班级ID: {selectedClass?.id}
+          </p>
+          <p className="text-xs text-yellow-700">
+            BoxPlot数据长度: {boxPlotData?.length || 0}
+          </p>
+          <p className="text-xs text-yellow-700">
+            学生数据长度: {studentsListData?.length || 0}
+          </p>
+          <p className="text-xs text-yellow-700">
+            API是否返回数据: {apiResponseData ? "是" : "否"}
+          </p>
         </div>
       );
     }
@@ -203,16 +245,22 @@ const DetailTab: React.FC<Props> = ({
   return (
     <div className="space-y-6">
       <div id={selectedClass.id}>
-        <ClassProfileCard classData={Object.keys(classProfileData).length > 0 ? classProfileData : selectedClass} />
+        <ClassProfileCard
+          classData={
+            Object.keys(classProfileData).length > 0
+              ? classProfileData
+              : selectedClass
+          }
+        />
         {renderDebugInfo()}
       </div>
-      
+
       <Tabs value={detailTab} onValueChange={setDetailTab}>
         <TabsList className="w-full grid grid-cols-2 max-w-[300px] mb-6">
           <TabsTrigger value="analysis">班级分析</TabsTrigger>
           <TabsTrigger value="students">学生列表</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="analysis" className="space-y-6">
           {isLoading ? (
             <div className="flex items-center justify-center h-96">
@@ -225,7 +273,9 @@ const DetailTab: React.FC<Props> = ({
                 <Card>
                   <CardHeader>
                     <CardTitle>班级成绩趋势</CardTitle>
-                    <CardDescription>{safeClassName}与年级平均分对比趋势</CardDescription>
+                    <CardDescription>
+                      {safeClassName}与年级平均分对比趋势
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {classTrendData.length > 0 ? (
@@ -234,8 +284,12 @@ const DetailTab: React.FC<Props> = ({
                           <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
                             📈
                           </div>
-                          <p className="text-lg font-medium">班级趋势图表正在重构中</p>
-                          <p className="text-sm">此功能将在后续版本中重新设计</p>
+                          <p className="text-lg font-medium">
+                            班级趋势图表正在重构中
+                          </p>
+                          <p className="text-sm">
+                            此功能将在后续版本中重新设计
+                          </p>
                         </div>
                       </div>
                     ) : (
@@ -248,7 +302,9 @@ const DetailTab: React.FC<Props> = ({
                 <Card>
                   <CardHeader>
                     <CardTitle>学科优劣势分析</CardTitle>
-                    <CardDescription>{safeClassName}需要重点关注的学科</CardDescription>
+                    <CardDescription>
+                      {safeClassName}需要重点关注的学科
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {weaknessAnalysisData.length > 0 ? (
@@ -257,8 +313,12 @@ const DetailTab: React.FC<Props> = ({
                           <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
                             📊
                           </div>
-                          <p className="text-lg font-medium">班级弱点分析正在重构中</p>
-                          <p className="text-sm">此功能将在后续版本中重新设计</p>
+                          <p className="text-lg font-medium">
+                            班级弱点分析正在重构中
+                          </p>
+                          <p className="text-sm">
+                            此功能将在后续版本中重新设计
+                          </p>
                         </div>
                       </div>
                     ) : (
@@ -269,7 +329,7 @@ const DetailTab: React.FC<Props> = ({
                   </CardContent>
                 </Card>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
                   <CardHeader>
@@ -278,9 +338,11 @@ const DetailTab: React.FC<Props> = ({
                   </CardHeader>
                   <CardContent>
                     {examComparisonData.examList.length > 0 ? (
-                      <ExamComparison 
+                      <ExamComparison
                         mockExamList={examComparisonData.examList}
-                        initialSelectedExams={examComparisonData.initialSelected}
+                        initialSelectedExams={
+                          examComparisonData.initialSelected
+                        }
                         mockDisplayScores={examComparisonData.displayScores}
                       />
                     ) : (
@@ -306,7 +368,7 @@ const DetailTab: React.FC<Props> = ({
                   </CardContent>
                 </Card>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
                   <CardHeader>
@@ -341,11 +403,13 @@ const DetailTab: React.FC<Props> = ({
                   </CardContent>
                 </Card>
               </div>
-              
+
               <Card>
                 <CardHeader>
                   <CardTitle>{safeClassName}学习表现关联分析</CardTitle>
-                  <CardDescription>课堂表现、作业质量与考试成绩的关联性</CardDescription>
+                  <CardDescription>
+                    课堂表现、作业质量与考试成绩的关联性
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-col items-center justify-center h-64">
@@ -362,11 +426,11 @@ const DetailTab: React.FC<Props> = ({
             </>
           )}
         </TabsContent>
-        
+
         <TabsContent value="students">
-          <ClassStudentsList 
+          <ClassStudentsList
             classId={selectedClass?.id || ""}
-            students={studentsListData} 
+            students={studentsListData}
             className={safeClassName}
             studentCount={studentsListData.length}
             mockStudentData={studentsListData}

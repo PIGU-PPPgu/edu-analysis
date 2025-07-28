@@ -3,40 +3,40 @@
  * 针对预警分析系统的性能优化，提供不同数据类型的专门缓存策略
  */
 
-import { requestCache } from './cacheUtils';
+import { requestCache } from "./cacheUtils";
 
 // 缓存层级定义
 export enum CacheLayer {
   // L1: 快速访问缓存 (30秒-2分钟)
-  IMMEDIATE = 'immediate',
+  IMMEDIATE = "immediate",
   // L2: 短期缓存 (5-15分钟)
-  SHORT_TERM = 'short_term', 
+  SHORT_TERM = "short_term",
   // L3: 中期缓存 (30分钟-2小时)
-  MEDIUM_TERM = 'medium_term',
+  MEDIUM_TERM = "medium_term",
   // L4: 长期缓存 (4小时-24小时)
-  LONG_TERM = 'long_term',
+  LONG_TERM = "long_term",
   // L5: 静态缓存 (24小时+)
-  STATIC = 'static'
+  STATIC = "static",
 }
 
 // 缓存数据类型
 export enum CacheDataType {
   // 预警统计数据
-  WARNING_STATS = 'warning_stats',
+  WARNING_STATS = "warning_stats",
   // 考试数据
-  EXAM_DATA = 'exam_data',
+  EXAM_DATA = "exam_data",
   // 学生数据
-  STUDENT_DATA = 'student_data',
+  STUDENT_DATA = "student_data",
   // 历史对比数据
-  HISTORY_COMPARISON = 'history_comparison',
+  HISTORY_COMPARISON = "history_comparison",
   // 趋势数据
-  TREND_DATA = 'trend_data',
+  TREND_DATA = "trend_data",
   // AI分析结果
-  AI_ANALYSIS = 'ai_analysis',
+  AI_ANALYSIS = "ai_analysis",
   // 规则数据
-  RULE_DATA = 'rule_data',
+  RULE_DATA = "rule_data",
   // 班级数据
-  CLASS_DATA = 'class_data'
+  CLASS_DATA = "class_data",
 }
 
 // 缓存配置
@@ -54,75 +54,77 @@ const CACHE_STRATEGIES: Record<CacheDataType, CacheConfig> = {
     layer: CacheLayer.SHORT_TERM,
     ttlMs: 5 * 60 * 1000, // 5分钟
     maxSize: 100,
-    priority: 9
+    priority: 9,
   },
   [CacheDataType.EXAM_DATA]: {
     layer: CacheLayer.MEDIUM_TERM,
     ttlMs: 30 * 60 * 1000, // 30分钟
     maxSize: 200,
-    priority: 8
+    priority: 8,
   },
   [CacheDataType.STUDENT_DATA]: {
     layer: CacheLayer.LONG_TERM,
     ttlMs: 2 * 60 * 60 * 1000, // 2小时
     maxSize: 500,
-    priority: 7
+    priority: 7,
   },
   [CacheDataType.HISTORY_COMPARISON]: {
     layer: CacheLayer.MEDIUM_TERM,
     ttlMs: 60 * 60 * 1000, // 1小时
     maxSize: 50,
-    priority: 6
+    priority: 6,
   },
   [CacheDataType.TREND_DATA]: {
     layer: CacheLayer.MEDIUM_TERM,
     ttlMs: 45 * 60 * 1000, // 45分钟
     maxSize: 80,
-    priority: 6
+    priority: 6,
   },
   [CacheDataType.AI_ANALYSIS]: {
     layer: CacheLayer.LONG_TERM,
     ttlMs: 4 * 60 * 60 * 1000, // 4小时
     maxSize: 30,
     priority: 5,
-    compression: true
+    compression: true,
   },
   [CacheDataType.RULE_DATA]: {
     layer: CacheLayer.STATIC,
     ttlMs: 24 * 60 * 60 * 1000, // 24小时
     maxSize: 200,
-    priority: 10
+    priority: 10,
   },
   [CacheDataType.CLASS_DATA]: {
     layer: CacheLayer.LONG_TERM,
     ttlMs: 6 * 60 * 60 * 1000, // 6小时
     maxSize: 100,
-    priority: 8
-  }
+    priority: 8,
+  },
 };
 
 // 缓存键生成器
 export class CacheKeyGenerator {
   static forWarningStats(filters?: any): string {
-    const baseKey = 'warning_stats';
+    const baseKey = "warning_stats";
     if (!filters) return baseKey;
     const filterStr = JSON.stringify(filters);
-    return `${baseKey}_${btoa(filterStr).replace(/[^a-zA-Z0-9]/g, '_')}`;
+    return `${baseKey}_${btoa(filterStr).replace(/[^a-zA-Z0-9]/g, "_")}`;
   }
 
   static forExamData(examId?: string, filters?: any): string {
-    const baseKey = 'exam_data';
+    const baseKey = "exam_data";
     const parts = [baseKey];
     if (examId) parts.push(examId);
-    if (filters) parts.push(btoa(JSON.stringify(filters)).replace(/[^a-zA-Z0-9]/g, '_'));
-    return parts.join('_');
+    if (filters)
+      parts.push(btoa(JSON.stringify(filters)).replace(/[^a-zA-Z0-9]/g, "_"));
+    return parts.join("_");
   }
 
   static forHistoryComparison(timeRange: string, filters?: any): string {
-    const baseKey = 'history_comparison';
+    const baseKey = "history_comparison";
     const parts = [baseKey, timeRange];
-    if (filters) parts.push(btoa(JSON.stringify(filters)).replace(/[^a-zA-Z0-9]/g, '_'));
-    return parts.join('_');
+    if (filters)
+      parts.push(btoa(JSON.stringify(filters)).replace(/[^a-zA-Z0-9]/g, "_"));
+    return parts.join("_");
   }
 
   static forAIAnalysis(type: string, dataHash: string): string {
@@ -130,10 +132,10 @@ export class CacheKeyGenerator {
   }
 
   static forStudentData(studentId?: string, classId?: string): string {
-    const parts = ['student_data'];
+    const parts = ["student_data"];
     if (studentId) parts.push(studentId);
     if (classId) parts.push(`class_${classId}`);
-    return parts.join('_');
+    return parts.join("_");
   }
 }
 
@@ -159,22 +161,26 @@ export class PerformanceCacheManager {
   ): Promise<T> {
     const config = CACHE_STRATEGIES[dataType];
     const cacheKey = `${config.layer}_${key}`;
-    
+
     // 尝试从缓存获取
     if (requestCache.has(cacheKey)) {
       this.recordHit(cacheKey);
       // requestCache.get是异步方法，需要使用无操作的异步函数包装
       return await requestCache.get<T>(cacheKey, async () => {
-        throw new Error('Should not be called');
+        throw new Error("Should not be called");
       });
     }
 
     // 缓存未命中，执行请求
     this.recordMiss(cacheKey);
-    
+
     try {
       // 使用requestCache.get的异步特性
-      return await requestCache.get<T>(cacheKey, fetcher, customTtl || config.ttlMs);
+      return await requestCache.get<T>(
+        cacheKey,
+        fetcher,
+        customTtl || config.ttlMs
+      );
     } catch (error) {
       console.error(`Cache fetch error for key ${cacheKey}:`, error);
       throw error;
@@ -189,7 +195,7 @@ export class PerformanceCacheManager {
   ): Promise<void> {
     const config = CACHE_STRATEGIES[dataType];
     const cacheKey = `${config.layer}_${key}`;
-    
+
     if (!requestCache.has(cacheKey)) {
       try {
         await requestCache.get<T>(cacheKey, fetcher, config.ttlMs);
@@ -200,15 +206,17 @@ export class PerformanceCacheManager {
   }
 
   // 批量预加载
-  async batchPreload(preloadTasks: Array<{
-    key: string;
-    dataType: CacheDataType;
-    fetcher: () => Promise<any>;
-  }>): Promise<void> {
-    const promises = preloadTasks.map(task => 
+  async batchPreload(
+    preloadTasks: Array<{
+      key: string;
+      dataType: CacheDataType;
+      fetcher: () => Promise<any>;
+    }>
+  ): Promise<void> {
+    const promises = preloadTasks.map((task) =>
       this.preload(task.key, task.dataType, task.fetcher)
     );
-    
+
     await Promise.allSettled(promises);
   }
 
@@ -238,30 +246,47 @@ export class PerformanceCacheManager {
     hitRate: number;
     totalHits: number;
     totalMisses: number;
-    topKeys: Array<{ key: string; hits: number; misses: number; ratio: number }>;
+    topKeys: Array<{
+      key: string;
+      hits: number;
+      misses: number;
+      ratio: number;
+    }>;
   } {
-    const totalHits = Array.from(this.hitCounts.values()).reduce((a, b) => a + b, 0);
-    const totalMisses = Array.from(this.missCounts.values()).reduce((a, b) => a + b, 0);
-    const hitRate = totalHits + totalMisses > 0 ? totalHits / (totalHits + totalMisses) : 0;
+    const totalHits = Array.from(this.hitCounts.values()).reduce(
+      (a, b) => a + b,
+      0
+    );
+    const totalMisses = Array.from(this.missCounts.values()).reduce(
+      (a, b) => a + b,
+      0
+    );
+    const hitRate =
+      totalHits + totalMisses > 0 ? totalHits / (totalHits + totalMisses) : 0;
 
     // 计算每个键的统计
-    const allKeys = new Set([...this.hitCounts.keys(), ...this.missCounts.keys()]);
+    const allKeys = new Set([
+      ...this.hitCounts.keys(),
+      ...this.missCounts.keys(),
+    ]);
     const topKeys = Array.from(allKeys)
-      .map(key => ({
+      .map((key) => ({
         key,
         hits: this.hitCounts.get(key) || 0,
         misses: this.missCounts.get(key) || 0,
-        ratio: ((this.hitCounts.get(key) || 0) / 
-               ((this.hitCounts.get(key) || 0) + (this.missCounts.get(key) || 0))) || 0
+        ratio:
+          (this.hitCounts.get(key) || 0) /
+            ((this.hitCounts.get(key) || 0) +
+              (this.missCounts.get(key) || 0)) || 0,
       }))
-      .sort((a, b) => (b.hits + b.misses) - (a.hits + a.misses))
+      .sort((a, b) => b.hits + b.misses - (a.hits + a.misses))
       .slice(0, 10);
 
     return {
       hitRate,
       totalHits,
       totalMisses,
-      topKeys
+      topKeys,
     };
   }
 
@@ -286,7 +311,11 @@ export class WarningAnalysisCache {
     filters?: any
   ): Promise<T> {
     const key = CacheKeyGenerator.forWarningStats(filters);
-    return this.cacheManager.withCache(key, CacheDataType.WARNING_STATS, fetcher);
+    return this.cacheManager.withCache(
+      key,
+      CacheDataType.WARNING_STATS,
+      fetcher
+    );
   }
 
   // 考试数据缓存
@@ -306,7 +335,11 @@ export class WarningAnalysisCache {
     filters?: any
   ): Promise<T> {
     const key = CacheKeyGenerator.forHistoryComparison(timeRange, filters);
-    return this.cacheManager.withCache(key, CacheDataType.HISTORY_COMPARISON, fetcher);
+    return this.cacheManager.withCache(
+      key,
+      CacheDataType.HISTORY_COMPARISON,
+      fetcher
+    );
   }
 
   // AI分析结果缓存
@@ -317,8 +350,8 @@ export class WarningAnalysisCache {
   ): Promise<T> {
     const key = CacheKeyGenerator.forAIAnalysis(analysisType, dataHash);
     return this.cacheManager.withCache(
-      key, 
-      CacheDataType.AI_ANALYSIS, 
+      key,
+      CacheDataType.AI_ANALYSIS,
       fetcher,
       4 * 60 * 60 * 1000 // 4小时缓存
     );
@@ -331,7 +364,11 @@ export class WarningAnalysisCache {
     classId?: string
   ): Promise<T> {
     const key = CacheKeyGenerator.forStudentData(studentId, classId);
-    return this.cacheManager.withCache(key, CacheDataType.STUDENT_DATA, fetcher);
+    return this.cacheManager.withCache(
+      key,
+      CacheDataType.STUDENT_DATA,
+      fetcher
+    );
   }
 
   // 规则数据缓存
@@ -339,7 +376,7 @@ export class WarningAnalysisCache {
     fetcher: () => Promise<T>,
     ruleType?: string
   ): Promise<T> {
-    const key = `rule_data${ruleType ? `_${ruleType}` : ''}`;
+    const key = `rule_data${ruleType ? `_${ruleType}` : ""}`;
     return this.cacheManager.withCache(key, CacheDataType.RULE_DATA, fetcher);
   }
 
@@ -353,7 +390,7 @@ export class WarningAnalysisCache {
         fetcher: async () => {
           // 这里可以调用实际的数据获取函数
           return null;
-        }
+        },
       },
       // 预加载最近考试数据
       {
@@ -361,8 +398,8 @@ export class WarningAnalysisCache {
         dataType: CacheDataType.EXAM_DATA,
         fetcher: async () => {
           return null;
-        }
-      }
+        },
+      },
     ];
 
     await this.cacheManager.batchPreload(preloadTasks);
@@ -388,4 +425,4 @@ export class WarningAnalysisCache {
 }
 
 // 导出单例实例
-export const warningAnalysisCache = new WarningAnalysisCache(); 
+export const warningAnalysisCache = new WarningAnalysisCache();

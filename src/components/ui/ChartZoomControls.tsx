@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Maximize, Minimize, ZoomIn, ZoomOut } from "lucide-react";
 
@@ -13,10 +12,13 @@ const ChartZoomControls: React.FC<ChartZoomControlsProps> = ({
   zoomLevel,
   onZoomIn,
   onZoomOut,
-  onReset
+  onReset,
 }) => {
   return (
-    <div className="absolute z-10 right-3 top-3 bg-white/80 rounded shadow-sm flex gap-2 p-1 animate-fade-in" style={{backdropFilter:'blur(3px)'}}>
+    <div
+      className="absolute z-10 right-3 top-3 bg-white/80 rounded shadow-sm flex gap-2 p-1 animate-fade-in"
+      style={{ backdropFilter: "blur(3px)" }}
+    >
       <button
         title="放大"
         onClick={onZoomIn}

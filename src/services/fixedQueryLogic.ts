@@ -1,19 +1,18 @@
-
 // 🚑 修复的查询逻辑 - 避免406错误
 
 // 修复exams查询（移除有问题的字段）
 const checkExamDuplicate = async (examInfo) => {
   try {
     const { data, error } = await supabase
-      .from('exams')
-      .select('id, title, type, date, created_at') // 移除subject和grade_data(count)
-      .eq('title', examInfo.title)
-      .eq('type', examInfo.type)
-      .eq('date', examInfo.date);
-    
+      .from("exams")
+      .select("id, title, type, date, created_at") // 移除subject和grade_data(count)
+      .eq("title", examInfo.title)
+      .eq("type", examInfo.type)
+      .eq("date", examInfo.date);
+
     return { data, error };
   } catch (err) {
-    console.error('Exam查询错误:', err);
+    console.error("Exam查询错误:", err);
     return { data: null, error: err };
   }
 };
@@ -22,14 +21,14 @@ const checkExamDuplicate = async (examInfo) => {
 const checkGradeDataDuplicate = async (examId, studentId) => {
   try {
     const { data, error } = await supabase
-      .from('grade_data')
-      .select('id')
-      .eq('exam_id', examId)
-      .eq('student_id', studentId);
-    
+      .from("grade_data")
+      .select("id")
+      .eq("exam_id", examId)
+      .eq("student_id", studentId);
+
     return { data, error };
   } catch (err) {
-    console.error('GradeData查询错误:', err);
+    console.error("GradeData查询错误:", err);
     return { data: null, error: err };
   }
 };
@@ -49,20 +48,20 @@ const insertGradeData = async (gradeRecord) => {
     exam_title: gradeRecord.exam_title,
     exam_type: gradeRecord.exam_type,
     exam_date: gradeRecord.exam_date,
-    subject: gradeRecord.subject || '',
-    metadata: gradeRecord.metadata || {}
+    subject: gradeRecord.subject || "",
+    metadata: gradeRecord.metadata || {},
   };
-  
+
   try {
     const { data, error } = await supabase
-      .from('grade_data')
+      .from("grade_data")
       .insert(safeRecord)
       .select()
       .single();
-    
+
     return { data, error };
   } catch (err) {
-    console.error('插入错误:', err);
+    console.error("插入错误:", err);
     return { data: null, error: err };
   }
 };

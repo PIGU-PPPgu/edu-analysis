@@ -1,5 +1,5 @@
-import React from 'react';
-import { AlertTriangle, Info, CheckCircle, XCircle } from 'lucide-react';
+import React from "react";
+import { AlertTriangle, Info, CheckCircle, XCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -7,8 +7,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from './dialog';
-import { Button } from './button';
+} from "./dialog";
+import { Button } from "./button";
 
 export interface ConfirmationDialogProps {
   open: boolean;
@@ -17,7 +17,7 @@ export interface ConfirmationDialogProps {
   description: string;
   confirmText?: string;
   cancelText?: string;
-  variant?: 'default' | 'destructive' | 'warning' | 'info';
+  variant?: "default" | "destructive" | "warning" | "info";
   onConfirm: () => void;
   onCancel?: () => void;
   loading?: boolean;
@@ -32,9 +32,9 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
   onOpenChange,
   title,
   description,
-  confirmText = '确认',
-  cancelText = '取消',
-  variant = 'default',
+  confirmText = "确认",
+  cancelText = "取消",
+  variant = "default",
   onConfirm,
   onCancel,
   loading = false,
@@ -50,11 +50,11 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
 
   const getIcon = () => {
     switch (variant) {
-      case 'destructive':
+      case "destructive":
         return <XCircle className="w-6 h-6 text-red-600" />;
-      case 'warning':
+      case "warning":
         return <AlertTriangle className="w-6 h-6 text-yellow-600" />;
-      case 'info':
+      case "info":
         return <Info className="w-6 h-6 text-blue-600" />;
       default:
         return <CheckCircle className="w-6 h-6 text-green-600" />;
@@ -63,12 +63,12 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
 
   const getConfirmButtonVariant = () => {
     switch (variant) {
-      case 'destructive':
-        return 'destructive' as const;
-      case 'warning':
-        return 'default' as const;
+      case "destructive":
+        return "destructive" as const;
+      case "warning":
+        return "default" as const;
       default:
-        return 'default' as const;
+        return "default" as const;
     }
   };
 
@@ -78,9 +78,7 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
         <DialogHeader>
           <div className="flex items-center gap-3">
             {getIcon()}
-            <DialogTitle className="text-lg font-semibold">
-              {title}
-            </DialogTitle>
+            <DialogTitle className="text-lg font-semibold">{title}</DialogTitle>
           </div>
           <DialogDescription className="text-sm text-gray-600 mt-2">
             {description}
@@ -101,7 +99,7 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
             disabled={loading}
             className="flex-1"
           >
-            {loading ? '处理中...' : confirmText}
+            {loading ? "处理中..." : confirmText}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -151,8 +149,8 @@ export const SaveConfirmationDialog: React.FC<{
       title="保存更改"
       description={
         changes.length > 0
-          ? `以下内容将被保存：\n${changes.map(change => `• ${change}`).join('\n')}`
-          : '确认保存当前更改？'
+          ? `以下内容将被保存：\n${changes.map((change) => `• ${change}`).join("\n")}`
+          : "确认保存当前更改？"
       }
       confirmText="保存"
       cancelText="取消"
@@ -211,4 +209,4 @@ export const BatchOperationDialog: React.FC<{
   );
 };
 
-export default ConfirmationDialog; 
+export default ConfirmationDialog;

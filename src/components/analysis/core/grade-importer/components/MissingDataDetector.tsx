@@ -1,21 +1,33 @@
 /**
  *  MissingDataDetector - 缺失数据检测器
- * 
+ *
  * 智能检测用户可能需要但系统没有识别到的数据字段
  * 基于教育数据的常见模式，主动提醒用户可能缺失的重要信息
  */
 
-import React, { useState, useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { 
-  Search, 
-  AlertTriangle, 
+import React, { useState, useMemo } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Search,
+  AlertTriangle,
   Lightbulb,
   Target,
   TrendingUp,
@@ -25,23 +37,26 @@ import {
   BookOpen,
   CheckCircle,
   HelpCircle,
-  Plus
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+  Plus,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // 使用现有的类型定义
-import type { MappingConfig } from '../types';
+import type { MappingConfig } from "../types";
 
 // 常见的缺失数据类型
 export interface MissingDataPattern {
-  category: 'scores' | 'grades' | 'rankings' | 'statistics' | 'metadata';
+  category: "scores" | "grades" | "rankings" | "statistics" | "metadata";
   fieldKey: string;
   displayName: string;
   description: string;
-  importance: 'high' | 'medium' | 'low';
+  importance: "high" | "medium" | "low";
   icon: React.ComponentType<any>;
   commonNames: string[];
-  detectionLogic: (headers: string[], mappings: Record<string, string>) => boolean;
+  detectionLogic: (
+    headers: string[],
+    mappings: Record<string, string>
+  ) => boolean;
   suggestedSources?: string[];
 }
 
@@ -57,7 +72,10 @@ export interface MissingDataDetectorProps {
   headers: string[];
   sampleData: any[];
   currentMapping: MappingConfig;
-  onDataFound: (fieldMapping: Record<string, string>, customFields: Record<string, string>) => void;
+  onDataFound: (
+    fieldMapping: Record<string, string>,
+    customFields: Record<string, string>
+  ) => void;
   onSkip: () => void;
 }
 
@@ -66,95 +84,106 @@ const MissingDataDetector: React.FC<MissingDataDetectorProps> = ({
   sampleData,
   currentMapping,
   onDataFound,
-  onSkip
+  onSkip,
 }) => {
-  const [selectedMappings, setSelectedMappings] = useState<Record<string, string>>({});
+  const [selectedMappings, setSelectedMappings] = useState<
+    Record<string, string>
+  >({});
   const [userDismissed, setUserDismissed] = useState<Set<string>>(new Set());
 
   // 定义常见的缺失数据模式
   const missingDataPatterns: MissingDataPattern[] = [
     {
-      category: 'scores',
-      fieldKey: 'total_score',
-      displayName: '总分',
-      description: '学生的总成绩，通常是各科成绩的总和',
-      importance: 'high',
+      category: "scores",
+      fieldKey: "total_score",
+      displayName: "总分",
+      description: "学生的总成绩，通常是各科成绩的总和",
+      importance: "high",
       icon: Calculator,
-      commonNames: ['总分', '总成绩', '合计', '总计', 'total', 'sum'],
+      commonNames: ["总分", "总成绩", "合计", "总计", "total", "sum"],
       detectionLogic: (headers, mappings) => {
-        return !Object.values(mappings).includes('total_score') && 
-               Object.values(mappings).some(v => v.includes('score'));
-      }
+        return (
+          !Object.values(mappings).includes("total_score") &&
+          Object.values(mappings).some((v) => v.includes("score"))
+        );
+      },
     },
     {
-      category: 'rankings',
-      fieldKey: 'rank_in_class',
-      displayName: '班级排名',
-      description: '学生在班级中的排名位置',
-      importance: 'high',
+      category: "rankings",
+      fieldKey: "rank_in_class",
+      displayName: "班级排名",
+      description: "学生在班级中的排名位置",
+      importance: "high",
       icon: Trophy,
-      commonNames: ['班级排名', '班排名', '班内排名', '排名', 'rank'],
+      commonNames: ["班级排名", "班排名", "班内排名", "排名", "rank"],
       detectionLogic: (headers, mappings) => {
-        return !Object.values(mappings).some(v => v.includes('rank')) &&
-               Object.values(mappings).includes('total_score');
-      }
+        return (
+          !Object.values(mappings).some((v) => v.includes("rank")) &&
+          Object.values(mappings).includes("total_score")
+        );
+      },
     },
     {
-      category: 'rankings',
-      fieldKey: 'rank_in_grade',
-      displayName: '年级排名',
-      description: '学生在年级中的排名位置',
-      importance: 'medium',
+      category: "rankings",
+      fieldKey: "rank_in_grade",
+      displayName: "年级排名",
+      description: "学生在年级中的排名位置",
+      importance: "medium",
       icon: TrendingUp,
-      commonNames: ['年级排名', '年排名', '级排名', '全年级排名'],
+      commonNames: ["年级排名", "年排名", "级排名", "全年级排名"],
       detectionLogic: (headers, mappings) => {
-        return !Object.values(mappings).includes('rank_in_grade') &&
-               Object.values(mappings).includes('rank_in_class');
-      }
+        return (
+          !Object.values(mappings).includes("rank_in_grade") &&
+          Object.values(mappings).includes("rank_in_class")
+        );
+      },
     },
     {
-      category: 'grades',
-      fieldKey: 'original_grade',
-      displayName: '等级评定',
-      description: '成绩等级，如A+、A、B+等',
-      importance: 'medium',
+      category: "grades",
+      fieldKey: "original_grade",
+      displayName: "等级评定",
+      description: "成绩等级，如A+、A、B+等",
+      importance: "medium",
       icon: BookOpen,
-      commonNames: ['等级', '评级', '成绩等级', 'grade', '级别'],
+      commonNames: ["等级", "评级", "成绩等级", "grade", "级别"],
       detectionLogic: (headers, mappings) => {
-        return !Object.values(mappings).some(v => v.includes('grade')) &&
-               Object.values(mappings).some(v => v.includes('score'));
-      }
+        return (
+          !Object.values(mappings).some((v) => v.includes("grade")) &&
+          Object.values(mappings).some((v) => v.includes("score"))
+        );
+      },
     },
     {
-      category: 'metadata',
-      fieldKey: 'exam_title',
-      displayName: '考试名称',
-      description: '本次考试的标题或名称',
-      importance: 'low',
+      category: "metadata",
+      fieldKey: "exam_title",
+      displayName: "考试名称",
+      description: "本次考试的标题或名称",
+      importance: "low",
       icon: Users,
-      commonNames: ['考试名称', '考试标题', '考试', '测试名称', 'exam'],
+      commonNames: ["考试名称", "考试标题", "考试", "测试名称", "exam"],
       detectionLogic: (headers, mappings) => {
-        return !Object.values(mappings).includes('exam_title');
-      }
-    }
+        return !Object.values(mappings).includes("exam_title");
+      },
+    },
   ];
 
   // 检测缺失的数据
   const detectMissingData = (): MissingDataResult[] => {
     const results: MissingDataResult[] = [];
     const mappedFields = currentMapping.fieldMappings || {};
-    
-    missingDataPatterns.forEach(pattern => {
+
+    missingDataPatterns.forEach((pattern) => {
       if (userDismissed.has(pattern.fieldKey)) return;
-      
+
       // 检测是否缺失
       if (pattern.detectionLogic(headers, mappedFields)) {
         // 查找可能匹配的字段
-        const suggestedHeaders = headers.filter(header => {
+        const suggestedHeaders = headers.filter((header) => {
           const headerLower = header.toLowerCase();
-          return pattern.commonNames.some(name => 
-            headerLower.includes(name.toLowerCase()) ||
-            name.toLowerCase().includes(headerLower)
+          return pattern.commonNames.some(
+            (name) =>
+              headerLower.includes(name.toLowerCase()) ||
+              name.toLowerCase().includes(headerLower)
           );
         });
 
@@ -168,7 +197,7 @@ const MissingDataDetector: React.FC<MissingDataDetectorProps> = ({
           pattern,
           confidence,
           suggestedHeaders,
-          reason: generateReason(pattern, suggestedHeaders, mappedFields)
+          reason: generateReason(pattern, suggestedHeaders, mappedFields),
         });
       }
     });
@@ -184,71 +213,101 @@ const MissingDataDetector: React.FC<MissingDataDetectorProps> = ({
 
   // 生成检测原因说明
   const generateReason = (
-    pattern: MissingDataPattern, 
-    suggestedHeaders: string[], 
+    pattern: MissingDataPattern,
+    suggestedHeaders: string[],
     mappedFields: Record<string, string>
   ): string => {
     if (suggestedHeaders.length > 0) {
-      return `发现可能的"${pattern.displayName}"字段：${suggestedHeaders.join('、')}`;
+      return `发现可能的"${pattern.displayName}"字段：${suggestedHeaders.join("、")}`;
     }
-    
+
     switch (pattern.fieldKey) {
-      case 'total_score':
-        return '您已导入科目成绩，通常还会有总分数据';
-      case 'rank_in_class':
-        return '有总分数据的考试通常也包含排名信息';
-      case 'rank_in_grade':
-        return '有班级排名的考试可能也包含年级排名';
-      case 'original_grade':
-        return '成绩数据通常还包含等级评定（A、B、C等）';
+      case "total_score":
+        return "您已导入科目成绩，通常还会有总分数据";
+      case "rank_in_class":
+        return "有总分数据的考试通常也包含排名信息";
+      case "rank_in_grade":
+        return "有班级排名的考试可能也包含年级排名";
+      case "original_grade":
+        return "成绩数据通常还包含等级评定（A、B、C等）";
       default:
         return `建议检查是否有"${pattern.displayName}"相关数据`;
     }
   };
 
   // 获取重要性颜色
-  const getImportanceColor = (importance: MissingDataPattern['importance']) => {
+  const getImportanceColor = (importance: MissingDataPattern["importance"]) => {
     switch (importance) {
-      case 'high': return 'border-red-200 bg-red-50';
-      case 'medium': return 'border-orange-200 bg-orange-50';
-      case 'low': return 'border-blue-200 bg-blue-50';
+      case "high":
+        return "border-red-200 bg-red-50";
+      case "medium":
+        return "border-orange-200 bg-orange-50";
+      case "low":
+        return "border-blue-200 bg-blue-50";
     }
   };
 
   // 获取重要性标签
-  const getImportanceBadge = (importance: MissingDataPattern['importance']) => {
+  const getImportanceBadge = (importance: MissingDataPattern["importance"]) => {
     switch (importance) {
-      case 'high': return <Badge variant="destructive" className="text-xs">重要</Badge>;
-      case 'medium': return <Badge variant="secondary" className="text-xs">建议</Badge>;
-      case 'low': return <Badge variant="outline" className="text-xs">可选</Badge>;
+      case "high":
+        return (
+          <Badge variant="destructive" className="text-xs">
+            重要
+          </Badge>
+        );
+      case "medium":
+        return (
+          <Badge variant="secondary" className="text-xs">
+            建议
+          </Badge>
+        );
+      case "low":
+        return (
+          <Badge variant="outline" className="text-xs">
+            可选
+          </Badge>
+        );
     }
   };
 
   // 处理字段映射选择
   const handleFieldMapping = (patternKey: string, headerName: string) => {
-    setSelectedMappings(prev => ({
+    setSelectedMappings((prev) => ({
       ...prev,
-      [patternKey]: headerName
+      [patternKey]: headerName,
     }));
   };
 
   // 忽略某个建议
   const handleDismiss = (patternKey: string) => {
-    setUserDismissed(prev => new Set([...prev, patternKey]));
+    setUserDismissed((prev) => new Set([...prev, patternKey]));
   };
 
   // 确认添加字段
   const handleConfirmMappings = () => {
     const newFieldMappings: Record<string, string> = {};
     const newCustomFields: Record<string, string> = {};
-    
+
     Object.entries(selectedMappings).forEach(([patternKey, headerName]) => {
-      const pattern = missingDataPatterns.find(p => p.fieldKey === patternKey);
+      const pattern = missingDataPatterns.find(
+        (p) => p.fieldKey === patternKey
+      );
       if (pattern) {
         newFieldMappings[headerName] = pattern.fieldKey;
-        
+
         // 如果是自定义字段，添加到customFields
-        if (!['student_id', 'name', 'class_name', 'total_score', 'rank_in_class', 'rank_in_grade', 'original_grade'].includes(pattern.fieldKey)) {
+        if (
+          ![
+            "student_id",
+            "name",
+            "class_name",
+            "total_score",
+            "rank_in_class",
+            "rank_in_grade",
+            "original_grade",
+          ].includes(pattern.fieldKey)
+        ) {
           newCustomFields[pattern.fieldKey] = pattern.displayName;
         }
       }
@@ -257,7 +316,10 @@ const MissingDataDetector: React.FC<MissingDataDetectorProps> = ({
     onDataFound(newFieldMappings, newCustomFields);
   };
 
-  const missingDataResults = useMemo(() => detectMissingData(), [headers, currentMapping, userDismissed]);
+  const missingDataResults = useMemo(
+    () => detectMissingData(),
+    [headers, currentMapping, userDismissed]
+  );
 
   if (missingDataResults.length === 0) {
     return (
@@ -265,7 +327,9 @@ const MissingDataDetector: React.FC<MissingDataDetectorProps> = ({
         <CardContent className="pt-6">
           <div className="text-center py-8">
             <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
-            <h3 className="font-semibold text-green-700 mb-2">数据完整性很好！</h3>
+            <h3 className="font-semibold text-green-700 mb-2">
+              数据完整性很好！
+            </h3>
             <p className="text-gray-600">
               没有发现明显缺失的数据字段，您可以继续处理。
             </p>
@@ -286,18 +350,21 @@ const MissingDataDetector: React.FC<MissingDataDetectorProps> = ({
           我们发现您的数据可能还包含一些有用的信息，请确认是否需要导入这些数据
         </CardDescription>
       </CardHeader>
-      
+
       <CardContent className="space-y-6">
         {/* 检测结果列表 */}
         <div className="space-y-4">
           {missingDataResults.map((result) => {
             const IconComponent = result.pattern.icon;
             const isSelected = selectedMappings[result.pattern.fieldKey];
-            
+
             return (
-              <Alert 
-                key={result.pattern.fieldKey} 
-                className={cn("border-l-4", getImportanceColor(result.pattern.importance))}
+              <Alert
+                key={result.pattern.fieldKey}
+                className={cn(
+                  "border-l-4",
+                  getImportanceColor(result.pattern.importance)
+                )}
               >
                 <AlertDescription>
                   <div className="space-y-3">
@@ -339,8 +406,12 @@ const MissingDataDetector: React.FC<MissingDataDetectorProps> = ({
                           请选择对应的字段：
                         </Label>
                         <Select
-                          value={selectedMappings[result.pattern.fieldKey] || ''}
-                          onValueChange={(value) => handleFieldMapping(result.pattern.fieldKey, value)}
+                          value={
+                            selectedMappings[result.pattern.fieldKey] || ""
+                          }
+                          onValueChange={(value) =>
+                            handleFieldMapping(result.pattern.fieldKey, value)
+                          }
                         >
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="选择字段..." />
@@ -351,8 +422,15 @@ const MissingDataDetector: React.FC<MissingDataDetectorProps> = ({
                                 <div className="flex items-center gap-2">
                                   <span>{header}</span>
                                   {sampleData[0]?.[header] && (
-                                    <Badge variant="outline" className="text-xs">
-                                      示例: {String(sampleData[0][header]).slice(0, 10)}
+                                    <Badge
+                                      variant="outline"
+                                      className="text-xs"
+                                    >
+                                      示例:{" "}
+                                      {String(sampleData[0][header]).slice(
+                                        0,
+                                        10
+                                      )}
                                     </Badge>
                                   )}
                                 </div>
@@ -365,7 +443,8 @@ const MissingDataDetector: React.FC<MissingDataDetectorProps> = ({
                       <Alert className="bg-gray-50">
                         <HelpCircle className="w-4 h-4" />
                         <AlertDescription className="text-sm">
-                          没有找到明显匹配的字段。如果您的文件中确实包含"{result.pattern.displayName}"，
+                          没有找到明显匹配的字段。如果您的文件中确实包含"
+                          {result.pattern.displayName}"，
                           您可以稍后在高级设置中手动指定。
                         </AlertDescription>
                       </Alert>
@@ -392,15 +471,19 @@ const MissingDataDetector: React.FC<MissingDataDetectorProps> = ({
           <Button variant="outline" onClick={onSkip}>
             跳过，使用当前数据
           </Button>
-          
+
           <div className="flex gap-2">
-            <Button 
+            <Button
               variant="outline"
-              onClick={() => setUserDismissed(new Set(missingDataResults.map(r => r.pattern.fieldKey)))}
+              onClick={() =>
+                setUserDismissed(
+                  new Set(missingDataResults.map((r) => r.pattern.fieldKey))
+                )
+              }
             >
               全部忽略
             </Button>
-            <Button 
+            <Button
               onClick={handleConfirmMappings}
               disabled={Object.keys(selectedMappings).length === 0}
               className="min-w-[120px]"

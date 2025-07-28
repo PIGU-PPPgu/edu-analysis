@@ -1,5 +1,11 @@
 import React, { memo } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CircleUser, UserCircle } from "lucide-react";
@@ -28,17 +34,12 @@ const StudentCard: React.FC<StudentCardProps> = memo(({ student, onView }) => {
               <CardDescription>学号: {student.student_id}</CardDescription>
             </div>
           </div>
-          <Badge variant="outline">
-            {student.gender || '未知'}
-          </Badge>
+          <Badge variant="outline">{student.gender || "未知"}</Badge>
         </div>
       </CardHeader>
       <CardContent className="pt-2 pb-2">
         <div className="flex justify-end">
-          <Button 
-            size="sm" 
-            onClick={() => onView(student.id)}
-          >
+          <Button size="sm" onClick={() => onView(student.id)}>
             <UserCircle className="h-4 w-4 mr-2" />
             查看学生画像
           </Button>
@@ -50,4 +51,4 @@ const StudentCard: React.FC<StudentCardProps> = memo(({ student, onView }) => {
 
 StudentCard.displayName = "StudentCard";
 
-export default StudentCard; 
+export default StudentCard;

@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
@@ -11,7 +10,12 @@ interface HeroProps {
   onFreeLogin?: () => void;
 }
 
-const Hero = ({ isLoggedIn, onLogin, onWechatLogin, onFreeLogin }: HeroProps) => {
+const Hero = ({
+  isLoggedIn,
+  onLogin,
+  onWechatLogin,
+  onFreeLogin,
+}: HeroProps) => {
   return (
     <div className="flex flex-col md:flex-row gap-12 items-center py-16">
       <div className="md:w-1/2 space-y-6">
@@ -23,14 +27,14 @@ const Hero = ({ isLoggedIn, onLogin, onWechatLogin, onFreeLogin }: HeroProps) =>
         </p>
         <div className="pt-4 space-x-4">
           {!isLoggedIn && (
-            <AuthButtons 
-              onLogin={onLogin} 
+            <AuthButtons
+              onLogin={onLogin}
               onWechatLogin={onWechatLogin}
               onFreeLogin={onFreeLogin}
             />
           )}
           {isLoggedIn && (
-            <Button 
+            <Button
               size="lg"
               className="bg-[#B9FF66] text-black hover:bg-[#a8e85c]"
               asChild

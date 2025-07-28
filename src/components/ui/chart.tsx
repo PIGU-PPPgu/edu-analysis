@@ -1,8 +1,23 @@
-
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { Tooltip, TooltipProps, Bar, BarChart, Area, AreaChart, CartesianGrid, Line, LineChart, XAxis, YAxis, ResponsiveContainer } from "recharts";
-import { ValueType, NameType } from "recharts/types/component/DefaultTooltipContent";
+import {
+  Tooltip,
+  TooltipProps,
+  Bar,
+  BarChart,
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  XAxis,
+  YAxis,
+  ResponsiveContainer,
+} from "recharts";
+import {
+  ValueType,
+  NameType,
+} from "recharts/types/component/DefaultTooltipContent";
 import ChartZoomControls from "./ChartZoomControls";
 import ChartLegendToggle from "./ChartLegendToggle";
 import ChartExportButton from "./ChartExportButton";
@@ -18,30 +33,27 @@ interface ChartContainerProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
 }
 
-export const ChartContainer = React.memo(({
-  children,
-  config,
-  className,
-  ...props
-}: ChartContainerProps) => {
-  return (
-    <div
-      className={cn(
-        "relative w-full rounded-xl border bg-card p-4 shadow-sm transition-all duration-200 hover:shadow-md animate-fade-in",
-        className
-      )}
-      {...props}
-    >
-      <div className="h-full w-full">
-        {children}
+export const ChartContainer = React.memo(
+  ({ children, config, className, ...props }: ChartContainerProps) => {
+    return (
+      <div
+        className={cn(
+          "relative w-full rounded-xl border bg-card p-4 shadow-sm transition-all duration-200 hover:shadow-md animate-fade-in",
+          className
+        )}
+        {...props}
+      >
+        <div className="h-full w-full">{children}</div>
       </div>
-    </div>
-  );
-});
+    );
+  }
+);
 
 ChartContainer.displayName = "ChartContainer";
 
-export const ChartTooltip = (props: Partial<TooltipProps<ValueType, NameType>>) => {
+export const ChartTooltip = (
+  props: Partial<TooltipProps<ValueType, NameType>>
+) => {
   return (
     <Tooltip
       contentStyle={{
@@ -54,14 +66,14 @@ export const ChartTooltip = (props: Partial<TooltipProps<ValueType, NameType>>) 
       labelStyle={{
         color: "hsl(var(--foreground))",
         fontWeight: "500",
-        marginBottom: "4px"
+        marginBottom: "4px",
       }}
       itemStyle={{
         color: "hsl(var(--foreground))",
-        padding: "2px 0"
+        padding: "2px 0",
       }}
       wrapperStyle={{
-        outline: "none"
+        outline: "none",
       }}
       {...props}
     />
@@ -73,7 +85,7 @@ interface AutoChartProps {
   xKey: string;
   yKeys: string[];
   colors?: string[];
-  chartType?: 'bar' | 'line' | 'area';
+  chartType?: "bar" | "line" | "area";
   stacked?: boolean;
   height?: number | string;
   showGrid?: boolean;
@@ -84,8 +96,16 @@ interface AutoChartProps {
 }
 
 const DEFAULT_COLORS = [
-  "#B9FF66", "#4CAF50", "#2196F3", "#9C27B0", "#FF9800", 
-  "#795548", "#607D8B", "#E91E63", "#673AB7", "#FFEB3B"
+  "#B9FF66",
+  "#4CAF50",
+  "#2196F3",
+  "#9C27B0",
+  "#FF9800",
+  "#795548",
+  "#607D8B",
+  "#E91E63",
+  "#673AB7",
+  "#FFEB3B",
 ];
 
 export const AutoChart: React.FC<AutoChartProps> = ({
@@ -93,14 +113,14 @@ export const AutoChart: React.FC<AutoChartProps> = ({
   xKey,
   yKeys,
   colors = DEFAULT_COLORS,
-  chartType = 'bar',
+  chartType = "bar",
   stacked = false,
   height = 300,
   showGrid = true,
   showTooltip = true,
   showAxis = true,
   showLegend = true,
-  className
+  className,
 }) => {
   const ensuredColors = yKeys.map((_, i) => colors[i % colors.length]);
   const svgWrapperRef = useRef<HTMLDivElement>(null);
@@ -113,14 +133,14 @@ export const AutoChart: React.FC<AutoChartProps> = ({
   const getDataDomain = () => {
     if (stacked) {
       const maxValue = Math.max(
-        ...data.map(item => 
+        ...data.map((item) =>
           shownYKeys.reduce((sum, key) => sum + (Number(item[key]) || 0), 0)
         )
       );
       return [0, maxValue * 1.1];
     } else {
-      const allValues = data.flatMap(item => 
-        shownYKeys.map(key => Number(item[key]) || 0)
+      const allValues = data.flatMap((item) =>
+        shownYKeys.map((key) => Number(item[key]) || 0)
       );
       const maxValue = Math.max(...allValues);
       return [0, maxValue * 1.1];
@@ -128,24 +148,27 @@ export const AutoChart: React.FC<AutoChartProps> = ({
   };
 
   const handleToggleYKey = (key: string) => {
-    setShownYKeys(shownYKeys => 
+    setShownYKeys((shownYKeys) =>
       shownYKeys.includes(key)
         ? shownYKeys.length > 1
-          ? shownYKeys.filter(k => k !== key)
+          ? shownYKeys.filter((k) => k !== key)
           : shownYKeys
         : [...shownYKeys, key]
     );
   };
 
-  const handleZoomIn = () => setZoomLevel(z => Math.min(3, z + 0.25));
-  const handleZoomOut = () => setZoomLevel(z => Math.max(1, z - 0.25));
+  const handleZoomIn = () => setZoomLevel((z) => Math.min(3, z + 0.25));
+  const handleZoomOut = () => setZoomLevel((z) => Math.max(1, z - 0.25));
   const handleZoomReset = () => setZoomLevel(1);
 
-  const yTitle = useMemo(() => (
-    yKeys.length === 1 ? yKeys[0] : "数值"
-  ), [yKeys]);
+  const yTitle = useMemo(
+    () => (yKeys.length === 1 ? yKeys[0] : "数值"),
+    [yKeys]
+  );
 
-  const usedColors = shownYKeys.map(k => colors[yKeys.indexOf(k) % colors.length]);
+  const usedColors = shownYKeys.map(
+    (k) => colors[yKeys.indexOf(k) % colors.length]
+  );
   const usedLabels = shownYKeys.map((k, i) => k);
 
   const renderChart = () => {
@@ -154,27 +177,29 @@ export const AutoChart: React.FC<AutoChartProps> = ({
       margin: { top: 10, right: 30, left: 0, bottom: 5 },
     };
 
-    switch(chartType) {
-      case 'bar':
+    switch (chartType) {
+      case "bar":
         return (
           <BarChart {...commonProps} barCategoryGap={zoomLevel * 20}>
-            {showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} />}
+            {showGrid && (
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            )}
             {showAxis && <XAxis dataKey={xKey} />}
             {showAxis && <YAxis domain={getDataDomain()} />}
             {showTooltip && <ChartTooltip />}
             {shownYKeys.map((key, index) => (
-              <Bar 
+              <Bar
                 key={key}
-                dataKey={key} 
+                dataKey={key}
                 fill={usedColors[index]}
-                stackId={stacked ? 'stack' : undefined}
+                stackId={stacked ? "stack" : undefined}
                 isAnimationActive={animated}
                 animationBegin={index * 100}
               />
             ))}
           </BarChart>
         );
-      case 'line':
+      case "line":
         return (
           <LineChart {...commonProps}>
             {showGrid && <CartesianGrid strokeDasharray="3 3" />}
@@ -182,10 +207,10 @@ export const AutoChart: React.FC<AutoChartProps> = ({
             {showAxis && <YAxis domain={getDataDomain()} />}
             {showTooltip && <ChartTooltip />}
             {shownYKeys.map((key, index) => (
-              <Line 
+              <Line
                 key={key}
                 type="monotone"
-                dataKey={key} 
+                dataKey={key}
                 stroke={usedColors[index]}
                 activeDot={{ r: 7 }}
                 strokeWidth={2}
@@ -195,7 +220,7 @@ export const AutoChart: React.FC<AutoChartProps> = ({
             ))}
           </LineChart>
         );
-      case 'area':
+      case "area":
         return (
           <AreaChart {...commonProps}>
             {showGrid && <CartesianGrid strokeDasharray="3 3" />}
@@ -203,14 +228,14 @@ export const AutoChart: React.FC<AutoChartProps> = ({
             {showAxis && <YAxis domain={getDataDomain()} />}
             {showTooltip && <ChartTooltip />}
             {shownYKeys.map((key, index) => (
-              <Area 
+              <Area
                 key={key}
                 type="monotone"
-                dataKey={key} 
+                dataKey={key}
                 fill={usedColors[index]}
                 stroke={usedColors[index]}
                 fillOpacity={0.6}
-                stackId={stacked ? 'stack' : undefined}
+                stackId={stacked ? "stack" : undefined}
                 isAnimationActive={animated}
                 animationBegin={index * 100}
               />
@@ -256,7 +281,7 @@ export const AutoChart: React.FC<AutoChartProps> = ({
             width: "100%",
             height: height,
             transform: `scale(${zoomLevel})`,
-            transition: "transform 0.3s cubic-bezier(.4,0,.2,1)"
+            transition: "transform 0.3s cubic-bezier(.4,0,.2,1)",
           }}
         >
           <ResponsiveContainer width="100%" height={height}>

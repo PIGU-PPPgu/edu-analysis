@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { 
-  Activity, 
-  Clock, 
-  Database, 
+import React, { useState, useEffect, useRef } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import {
+  Activity,
+  Clock,
+  Database,
   Zap,
   MemoryStick,
   HardDrive,
@@ -15,17 +15,17 @@ import {
   CheckCircle2,
   TrendingUp,
   TrendingDown,
-  Gauge
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+  Gauge,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface PerformanceMetric {
   name: string;
   value: number;
   unit: string;
-  status: 'good' | 'warning' | 'poor';
+  status: "good" | "warning" | "poor";
   description: string;
-  trend?: 'up' | 'down' | 'stable';
+  trend?: "up" | "down" | "stable";
 }
 
 interface PerformanceData {
@@ -47,7 +47,7 @@ interface PerformanceMonitorProps {
 const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
   onOptimize,
   className,
-  showAdvanced = false
+  showAdvanced = false,
 }) => {
   const [performanceData, setPerformanceData] = useState<PerformanceData[]>([]);
   const [currentMetrics, setCurrentMetrics] = useState<PerformanceMetric[]>([]);
@@ -62,22 +62,25 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
     databaseQueries: { good: 10, warning: 25 }, // 每秒
     networkLatency: { good: 100, warning: 300 }, // ms
     cacheHitRate: { good: 80, warning: 60 }, // %
-    errorRate: { good: 1, warning: 5 } // %
+    errorRate: { good: 1, warning: 5 }, // %
   };
 
   // 获取性能状态
-  const getStatus = (value: number, metric: keyof typeof benchmarks): 'good' | 'warning' | 'poor' => {
+  const getStatus = (
+    value: number,
+    metric: keyof typeof benchmarks
+  ): "good" | "warning" | "poor" => {
     const benchmark = benchmarks[metric];
-    if (metric === 'cacheHitRate') {
+    if (metric === "cacheHitRate") {
       // 缓存命中率越高越好
-      if (value >= benchmark.good) return 'good';
-      if (value >= benchmark.warning) return 'warning';
-      return 'poor';
+      if (value >= benchmark.good) return "good";
+      if (value >= benchmark.warning) return "warning";
+      return "poor";
     } else {
       // 其他指标越低越好
-      if (value <= benchmark.good) return 'good';
-      if (value <= benchmark.warning) return 'warning';
-      return 'poor';
+      if (value <= benchmark.good) return "good";
+      if (value <= benchmark.warning) return "warning";
+      return "poor";
     }
   };
 
@@ -85,10 +88,10 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
   const collectPerformanceData = async (): Promise<PerformanceData> => {
     // 模拟真实的性能指标采集
     const loadTime = performance.now() + Math.random() * 3000;
-    const memoryUsage = (performance as any).memory 
-      ? (performance as any).memory.usedJSHeapSize / 1024 / 1024 
+    const memoryUsage = (performance as any).memory
+      ? (performance as any).memory.usedJSHeapSize / 1024 / 1024
       : 30 + Math.random() * 50;
-    
+
     return {
       loadTime,
       memoryUsage,
@@ -96,7 +99,7 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
       networkLatency: 50 + Math.random() * 400,
       cacheHitRate: 60 + Math.random() * 35,
       errorRate: Math.random() * 8,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
   };
 
@@ -104,47 +107,47 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
   const updateMetrics = (data: PerformanceData) => {
     const metrics: PerformanceMetric[] = [
       {
-        name: '页面加载时间',
+        name: "页面加载时间",
         value: data.loadTime,
-        unit: 'ms',
-        status: getStatus(data.loadTime, 'loadTime'),
-        description: '页面完全加载所需时间'
+        unit: "ms",
+        status: getStatus(data.loadTime, "loadTime"),
+        description: "页面完全加载所需时间",
       },
       {
-        name: '内存使用量',
+        name: "内存使用量",
         value: data.memoryUsage,
-        unit: 'MB',
-        status: getStatus(data.memoryUsage, 'memoryUsage'),
-        description: 'JavaScript堆内存使用量'
+        unit: "MB",
+        status: getStatus(data.memoryUsage, "memoryUsage"),
+        description: "JavaScript堆内存使用量",
       },
       {
-        name: '数据库查询',
+        name: "数据库查询",
         value: data.databaseQueries,
-        unit: '/s',
-        status: getStatus(data.databaseQueries, 'databaseQueries'),
-        description: '每秒数据库查询次数'
+        unit: "/s",
+        status: getStatus(data.databaseQueries, "databaseQueries"),
+        description: "每秒数据库查询次数",
       },
       {
-        name: '网络延迟',
+        name: "网络延迟",
         value: data.networkLatency,
-        unit: 'ms',
-        status: getStatus(data.networkLatency, 'networkLatency'),
-        description: '网络请求平均延迟'
+        unit: "ms",
+        status: getStatus(data.networkLatency, "networkLatency"),
+        description: "网络请求平均延迟",
       },
       {
-        name: '缓存命中率',
+        name: "缓存命中率",
         value: data.cacheHitRate,
-        unit: '%',
-        status: getStatus(data.cacheHitRate, 'cacheHitRate'),
-        description: '数据缓存命中比例'
+        unit: "%",
+        status: getStatus(data.cacheHitRate, "cacheHitRate"),
+        description: "数据缓存命中比例",
       },
       {
-        name: '错误率',
+        name: "错误率",
         value: data.errorRate,
-        unit: '%',
-        status: getStatus(data.errorRate, 'errorRate'),
-        description: '系统错误发生比例'
-      }
+        unit: "%",
+        status: getStatus(data.errorRate, "errorRate"),
+        description: "系统错误发生比例",
+      },
     ];
 
     setCurrentMetrics(metrics);
@@ -153,11 +156,11 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
     const score = metrics.reduce((total, metric) => {
       const weight = 1 / metrics.length;
       let metricScore = 100;
-      
-      if (metric.status === 'warning') metricScore = 70;
-      else if (metric.status === 'poor') metricScore = 30;
-      
-      return total + (metricScore * weight);
+
+      if (metric.status === "warning") metricScore = 70;
+      else if (metric.status === "poor") metricScore = 30;
+
+      return total + metricScore * weight;
     }, 0);
 
     setOverallScore(Math.round(score));
@@ -166,17 +169,17 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
   // 开始监控
   const startMonitoring = () => {
     setIsMonitoring(true);
-    
+
     // 立即收集一次数据
-    collectPerformanceData().then(data => {
-      setPerformanceData(prev => [...prev, data].slice(-20)); // 保留最近20个数据点
+    collectPerformanceData().then((data) => {
+      setPerformanceData((prev) => [...prev, data].slice(-20)); // 保留最近20个数据点
       updateMetrics(data);
     });
 
     // 定期收集数据
     intervalRef.current = setInterval(async () => {
       const data = await collectPerformanceData();
-      setPerformanceData(prev => [...prev, data].slice(-20));
+      setPerformanceData((prev) => [...prev, data].slice(-20));
       updateMetrics(data);
     }, 5000); // 每5秒收集一次
   };
@@ -192,33 +195,33 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
   // 性能优化建议
   const getOptimizationSuggestions = (): string[] => {
     const suggestions: string[] = [];
-    
-    currentMetrics.forEach(metric => {
-      if (metric.status === 'poor' || metric.status === 'warning') {
+
+    currentMetrics.forEach((metric) => {
+      if (metric.status === "poor" || metric.status === "warning") {
         switch (metric.name) {
-          case '页面加载时间':
-            suggestions.push('启用代码分割和懒加载');
-            suggestions.push('优化图片和静态资源压缩');
+          case "页面加载时间":
+            suggestions.push("启用代码分割和懒加载");
+            suggestions.push("优化图片和静态资源压缩");
             break;
-          case '内存使用量':
-            suggestions.push('检查内存泄漏，优化组件卸载');
-            suggestions.push('使用React.memo减少不必要的重渲染');
+          case "内存使用量":
+            suggestions.push("检查内存泄漏，优化组件卸载");
+            suggestions.push("使用React.memo减少不必要的重渲染");
             break;
-          case '数据库查询':
-            suggestions.push('优化SQL查询，添加适当索引');
-            suggestions.push('实现查询结果缓存');
+          case "数据库查询":
+            suggestions.push("优化SQL查询，添加适当索引");
+            suggestions.push("实现查询结果缓存");
             break;
-          case '网络延迟':
-            suggestions.push('使用CDN加速静态资源');
-            suggestions.push('实现接口响应缓存');
+          case "网络延迟":
+            suggestions.push("使用CDN加速静态资源");
+            suggestions.push("实现接口响应缓存");
             break;
-          case '缓存命中率':
-            suggestions.push('优化缓存策略和失效时间');
-            suggestions.push('增加常用数据的预缓存');
+          case "缓存命中率":
+            suggestions.push("优化缓存策略和失效时间");
+            suggestions.push("增加常用数据的预缓存");
             break;
-          case '错误率':
-            suggestions.push('完善错误处理和重试机制');
-            suggestions.push('增加系统健康检查');
+          case "错误率":
+            suggestions.push("完善错误处理和重试机制");
+            suggestions.push("增加系统健康检查");
             break;
         }
       }
@@ -230,11 +233,11 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
   // 获取状态图标
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'good':
+      case "good":
         return <CheckCircle2 className="h-4 w-4 text-green-500" />;
-      case 'warning':
+      case "warning":
         return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
-      case 'poor':
+      case "poor":
         return <AlertTriangle className="h-4 w-4 text-red-500" />;
       default:
         return <Activity className="h-4 w-4 text-gray-500" />;
@@ -244,17 +247,17 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
   // 获取指标图标
   const getMetricIcon = (name: string) => {
     switch (name) {
-      case '页面加载时间':
+      case "页面加载时间":
         return <Clock className="h-4 w-4" />;
-      case '内存使用量':
+      case "内存使用量":
         return <MemoryStick className="h-4 w-4" />;
-      case '数据库查询':
+      case "数据库查询":
         return <Database className="h-4 w-4" />;
-      case '网络延迟':
+      case "网络延迟":
         return <Wifi className="h-4 w-4" />;
-      case '缓存命中率':
+      case "缓存命中率":
         return <HardDrive className="h-4 w-4" />;
-      case '错误率':
+      case "错误率":
         return <AlertTriangle className="h-4 w-4" />;
       default:
         return <Activity className="h-4 w-4" />;
@@ -273,7 +276,12 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
   const suggestions = getOptimizationSuggestions();
 
   return (
-    <Card className={cn('bg-gradient-to-br from-white to-gray-50 shadow-lg border-0', className)}>
+    <Card
+      className={cn(
+        "bg-gradient-to-br from-white to-gray-50 shadow-lg border-0",
+        className
+      )}
+    >
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
@@ -281,8 +289,14 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
             性能监控
           </CardTitle>
           <div className="flex items-center gap-2">
-            <Badge 
-              variant={overallScore >= 80 ? "default" : overallScore >= 60 ? "secondary" : "destructive"}
+            <Badge
+              variant={
+                overallScore >= 80
+                  ? "default"
+                  : overallScore >= 60
+                    ? "secondary"
+                    : "destructive"
+              }
             >
               评分: {overallScore}/100
             </Badge>
@@ -291,7 +305,7 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
               size="sm"
               onClick={isMonitoring ? stopMonitoring : startMonitoring}
             >
-              {isMonitoring ? '停止监控' : '开始监控'}
+              {isMonitoring ? "停止监控" : "开始监控"}
             </Button>
           </div>
         </div>
@@ -301,25 +315,36 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
         {/* 总体性能评分 */}
         <div className="text-center space-y-2">
           <div className="text-3xl font-bold">
-            <span className={cn(
-              overallScore >= 80 ? 'text-green-600' : 
-              overallScore >= 60 ? 'text-yellow-600' : 'text-red-600'
-            )}>
+            <span
+              className={cn(
+                overallScore >= 80
+                  ? "text-green-600"
+                  : overallScore >= 60
+                    ? "text-yellow-600"
+                    : "text-red-600"
+              )}
+            >
               {overallScore}
             </span>
             <span className="text-lg text-gray-500">/100</span>
           </div>
-          <Progress 
-            value={overallScore} 
+          <Progress
+            value={overallScore}
             className={cn(
               "h-3",
-              overallScore >= 80 ? '[&>div]:bg-green-500' : 
-              overallScore >= 60 ? '[&>div]:bg-yellow-500' : '[&>div]:bg-red-500'
+              overallScore >= 80
+                ? "[&>div]:bg-green-500"
+                : overallScore >= 60
+                  ? "[&>div]:bg-yellow-500"
+                  : "[&>div]:bg-red-500"
             )}
           />
           <p className="text-sm text-gray-600">
-            {overallScore >= 80 ? '性能优秀' : 
-             overallScore >= 60 ? '性能良好，有优化空间' : '需要优化性能'}
+            {overallScore >= 80
+              ? "性能优秀"
+              : overallScore >= 60
+                ? "性能良好，有优化空间"
+                : "需要优化性能"}
           </p>
         </div>
 
@@ -327,13 +352,15 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
         {currentMetrics.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {currentMetrics.map((metric, index) => (
-              <div 
+              <div
                 key={index}
                 className={cn(
                   "p-4 rounded-lg border-2 transition-colors",
-                  metric.status === 'good' ? 'border-green-200 bg-green-50' :
-                  metric.status === 'warning' ? 'border-yellow-200 bg-yellow-50' :
-                  'border-red-200 bg-red-50'
+                  metric.status === "good"
+                    ? "border-green-200 bg-green-50"
+                    : metric.status === "warning"
+                      ? "border-yellow-200 bg-yellow-50"
+                      : "border-red-200 bg-red-50"
                 )}
               >
                 <div className="flex items-center justify-between mb-2">
@@ -343,14 +370,18 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
                   </div>
                   {getStatusIcon(metric.status)}
                 </div>
-                
+
                 <div className="text-2xl font-bold mb-1">
-                  {metric.value.toFixed(metric.name === '页面加载时间' || metric.name === '网络延迟' ? 0 : 1)}
+                  {metric.value.toFixed(
+                    metric.name === "页面加载时间" || metric.name === "网络延迟"
+                      ? 0
+                      : 1
+                  )}
                   <span className="text-sm font-normal text-gray-500 ml-1">
                     {metric.unit}
                   </span>
                 </div>
-                
+
                 <p className="text-xs text-gray-600">{metric.description}</p>
               </div>
             ))}
@@ -365,17 +396,19 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
               <span className="font-medium text-gray-700">优化建议</span>
             </div>
             <div className="grid gap-2">
-              {suggestions.slice(0, showAdvanced ? suggestions.length : 3).map((suggestion, index) => (
-                <div 
-                  key={index}
-                  className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200"
-                >
-                  <TrendingUp className="h-4 w-4 text-blue-600 flex-shrink-0" />
-                  <span className="text-sm text-blue-700">{suggestion}</span>
-                </div>
-              ))}
+              {suggestions
+                .slice(0, showAdvanced ? suggestions.length : 3)
+                .map((suggestion, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200"
+                  >
+                    <TrendingUp className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                    <span className="text-sm text-blue-700">{suggestion}</span>
+                  </div>
+                ))}
             </div>
-            
+
             {suggestions.length > 3 && !showAdvanced && (
               <p className="text-xs text-gray-500 text-center">
                 还有 {suggestions.length - 3} 条建议...
@@ -392,7 +425,7 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
               应用优化
             </Button>
           )}
-          <Button 
+          <Button
             variant="outline"
             onClick={() => {
               setPerformanceData([]);
@@ -430,4 +463,4 @@ const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
   );
 };
 
-export default PerformanceMonitor; 
+export default PerformanceMonitor;

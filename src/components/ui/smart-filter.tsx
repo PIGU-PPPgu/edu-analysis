@@ -1,9 +1,9 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
+import React, { useState, useCallback, useMemo, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,21 +11,21 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
   DropdownMenuLabel,
-} from '@/components/ui/dropdown-menu';
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { cn } from '@/lib/utils';
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 import {
   Filter,
   X,
@@ -45,27 +45,36 @@ import {
   Sparkles,
   Target,
   Bookmark,
-} from 'lucide-react';
-import { format } from 'date-fns';
+} from "lucide-react";
+import { format } from "date-fns";
 
 // Positivus设计配色
 const POSITIVUS_COLORS = {
-  primary: '#B9FF66',
-  secondary: '#191A23',
-  accent: '#F7931E',
-  danger: '#FF6B6B',
-  purple: '#9C88FF',
-  white: '#FFFFFF',
+  primary: "#B9FF66",
+  secondary: "#191A23",
+  accent: "#F7931E",
+  danger: "#FF6B6B",
+  purple: "#9C88FF",
+  white: "#FFFFFF",
 };
 
 // 筛选器类型定义
 export interface FilterCondition {
   id: string;
   field: string;
-  operator: 'equals' | 'contains' | 'startsWith' | 'endsWith' | 'greaterThan' | 'lessThan' | 'between' | 'in' | 'notIn';
+  operator:
+    | "equals"
+    | "contains"
+    | "startsWith"
+    | "endsWith"
+    | "greaterThan"
+    | "lessThan"
+    | "between"
+    | "in"
+    | "notIn";
   value: any;
   label?: string;
-  type: 'text' | 'number' | 'date' | 'select' | 'boolean';
+  type: "text" | "number" | "date" | "select" | "boolean";
 }
 
 export interface FilterTemplate {
@@ -83,7 +92,7 @@ export interface SmartFilterProps {
   fields: Array<{
     key: string;
     label: string;
-    type: 'text' | 'number' | 'date' | 'select' | 'boolean';
+    type: "text" | "number" | "date" | "select" | "boolean";
     options?: Array<{ label: string; value: any }>;
     placeholder?: string;
   }>;
@@ -111,43 +120,53 @@ export const SmartFilter: React.FC<SmartFilterProps> = ({
   maxConditions = 10,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [newCondition, setNewCondition] = useState<Partial<FilterCondition>>({});
+  const [newCondition, setNewCondition] = useState<Partial<FilterCondition>>(
+    {}
+  );
   const [filterHistory, setFilterHistory] = useState<FilterCondition[][]>([]);
-  const [templateName, setTemplateName] = useState('');
+  const [templateName, setTemplateName] = useState("");
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
 
   // 计算筛选预览
   const filterPreview = useMemo(() => {
     const activeCount = conditions.length;
-    const fieldCount = new Set(conditions.map(c => c.field)).size;
-    
-    if (activeCount === 0) return '无筛选条件';
+    const fieldCount = new Set(conditions.map((c) => c.field)).size;
+
+    if (activeCount === 0) return "无筛选条件";
     if (activeCount === 1) return `1个条件`;
     return `${activeCount}个条件，涉及${fieldCount}个字段`;
   }, [conditions]);
 
   // 智能建议生成
-  const generateSuggestions = useCallback((fieldKey: string, partialValue: string) => {
-    // 基于历史数据和字段类型生成建议
-    const suggestions: string[] = [];
-    
-    // 从历史记录中提取相似条件
-    filterHistory.flat().forEach(condition => {
-      if (condition.field === fieldKey && condition.value.toString().includes(partialValue)) {
-        suggestions.push(condition.value.toString());
+  const generateSuggestions = useCallback(
+    (fieldKey: string, partialValue: string) => {
+      // 基于历史数据和字段类型生成建议
+      const suggestions: string[] = [];
+
+      // 从历史记录中提取相似条件
+      filterHistory.flat().forEach((condition) => {
+        if (
+          condition.field === fieldKey &&
+          condition.value.toString().includes(partialValue)
+        ) {
+          suggestions.push(condition.value.toString());
+        }
+      });
+
+      // 为常见字段添加预设建议
+      const field = fields.find((f) => f.key === fieldKey);
+      if (field?.type === "text") {
+        const commonPatterns = ["包含", "等于", "开始于", "结束于"];
+        suggestions.push(
+          ...commonPatterns.filter((p) => p.includes(partialValue))
+        );
       }
-    });
 
-    // 为常见字段添加预设建议
-    const field = fields.find(f => f.key === fieldKey);
-    if (field?.type === 'text') {
-      const commonPatterns = ['包含', '等于', '开始于', '结束于'];
-      suggestions.push(...commonPatterns.filter(p => p.includes(partialValue)));
-    }
-
-    setSearchSuggestions([...new Set(suggestions)].slice(0, 5));
-  }, [filterHistory, fields]);
+      setSearchSuggestions([...new Set(suggestions)].slice(0, 5));
+    },
+    [filterHistory, fields]
+  );
 
   // 添加新条件
   const addCondition = useCallback(() => {
@@ -156,27 +175,32 @@ export const SmartFilter: React.FC<SmartFilterProps> = ({
     const condition: FilterCondition = {
       id: `filter_${Date.now()}`,
       field: newCondition.field,
-      operator: newCondition.operator || 'equals',
+      operator: newCondition.operator || "equals",
       value: newCondition.value,
-      type: newCondition.type || 'text',
-      label: newCondition.label || fields.find(f => f.key === newCondition.field)?.label,
+      type: newCondition.type || "text",
+      label:
+        newCondition.label ||
+        fields.find((f) => f.key === newCondition.field)?.label,
     };
 
     const newConditions = [...conditions, condition];
     onConditionsChange(newConditions);
-    
+
     // 更新历史记录
-    setFilterHistory(prev => [newConditions, ...prev.slice(0, 9)]);
-    
+    setFilterHistory((prev) => [newConditions, ...prev.slice(0, 9)]);
+
     // 重置新条件表单
     setNewCondition({});
   }, [newCondition, conditions, onConditionsChange, fields]);
 
   // 移除条件
-  const removeCondition = useCallback((conditionId: string) => {
-    const newConditions = conditions.filter(c => c.id !== conditionId);
-    onConditionsChange(newConditions);
-  }, [conditions, onConditionsChange]);
+  const removeCondition = useCallback(
+    (conditionId: string) => {
+      const newConditions = conditions.filter((c) => c.id !== conditionId);
+      onConditionsChange(newConditions);
+    },
+    [conditions, onConditionsChange]
+  );
 
   // 清空所有条件
   const clearAllConditions = useCallback(() => {
@@ -196,44 +220,49 @@ export const SmartFilter: React.FC<SmartFilterProps> = ({
     };
 
     onTemplatesSave?.(template);
-    setTemplateName('');
+    setTemplateName("");
     setShowTemplateDialog(false);
   }, [templateName, conditions, onTemplatesSave]);
 
   // 应用模板
-  const applyTemplate = useCallback((template: FilterTemplate) => {
-    onConditionsChange([...template.conditions]);
-    onTemplatesLoad?.(template);
-  }, [onConditionsChange, onTemplatesLoad]);
+  const applyTemplate = useCallback(
+    (template: FilterTemplate) => {
+      onConditionsChange([...template.conditions]);
+      onTemplatesLoad?.(template);
+    },
+    [onConditionsChange, onTemplatesLoad]
+  );
 
   // 渲染操作符选择
-  const renderOperatorSelect = (type: string, value: string, onChange: (value: string) => void) => {
+  const renderOperatorSelect = (
+    type: string,
+    value: string,
+    onChange: (value: string) => void
+  ) => {
     const operators = {
       text: [
-        { value: 'equals', label: '等于' },
-        { value: 'contains', label: '包含' },
-        { value: 'startsWith', label: '开始于' },
-        { value: 'endsWith', label: '结束于' },
+        { value: "equals", label: "等于" },
+        { value: "contains", label: "包含" },
+        { value: "startsWith", label: "开始于" },
+        { value: "endsWith", label: "结束于" },
       ],
       number: [
-        { value: 'equals', label: '等于' },
-        { value: 'greaterThan', label: '大于' },
-        { value: 'lessThan', label: '小于' },
-        { value: 'between', label: '介于' },
+        { value: "equals", label: "等于" },
+        { value: "greaterThan", label: "大于" },
+        { value: "lessThan", label: "小于" },
+        { value: "between", label: "介于" },
       ],
       date: [
-        { value: 'equals', label: '等于' },
-        { value: 'greaterThan', label: '晚于' },
-        { value: 'lessThan', label: '早于' },
-        { value: 'between', label: '介于' },
+        { value: "equals", label: "等于" },
+        { value: "greaterThan", label: "晚于" },
+        { value: "lessThan", label: "早于" },
+        { value: "between", label: "介于" },
       ],
       select: [
-        { value: 'in', label: '包含于' },
-        { value: 'notIn', label: '不包含于' },
+        { value: "in", label: "包含于" },
+        { value: "notIn", label: "不包含于" },
       ],
-      boolean: [
-        { value: 'equals', label: '等于' },
-      ],
+      boolean: [{ value: "equals", label: "等于" }],
     };
 
     return (
@@ -253,14 +282,19 @@ export const SmartFilter: React.FC<SmartFilterProps> = ({
   };
 
   // 渲染值输入
-  const renderValueInput = (field: any, operator: string, value: any, onChange: (value: any) => void) => {
+  const renderValueInput = (
+    field: any,
+    operator: string,
+    value: any,
+    onChange: (value: any) => void
+  ) => {
     switch (field.type) {
-      case 'text':
+      case "text":
         return (
           <div className="relative">
             <Input
               placeholder={field.placeholder || `输入${field.label}...`}
-              value={value || ''}
+              value={value || ""}
               onChange={(e) => {
                 onChange(e.target.value);
                 generateSuggestions(field.key, e.target.value);
@@ -286,18 +320,18 @@ export const SmartFilter: React.FC<SmartFilterProps> = ({
           </div>
         );
 
-      case 'number':
+      case "number":
         return (
           <Input
             type="number"
             placeholder={`输入${field.label}...`}
-            value={value || ''}
+            value={value || ""}
             onChange={(e) => onChange(Number(e.target.value))}
             className="border-2 border-black rounded-lg font-medium focus:border-[#B9FF66] focus:ring-2 focus:ring-[#B9FF66]/20"
           />
         );
 
-      case 'select':
+      case "select":
         return (
           <Select value={value} onValueChange={onChange}>
             <SelectTrigger className="border-2 border-black rounded-lg font-medium">
@@ -305,7 +339,11 @@ export const SmartFilter: React.FC<SmartFilterProps> = ({
             </SelectTrigger>
             <SelectContent className="border-2 border-black rounded-lg bg-white shadow-[4px_4px_0px_0px_#191A23]">
               {field.options?.map((option: any) => (
-                <SelectItem key={option.value} value={option.value} className="font-medium">
+                <SelectItem
+                  key={option.value}
+                  value={option.value}
+                  className="font-medium"
+                >
                   {option.label}
                 </SelectItem>
               ))}
@@ -313,7 +351,7 @@ export const SmartFilter: React.FC<SmartFilterProps> = ({
           </Select>
         );
 
-      case 'date':
+      case "date":
         return (
           <Popover>
             <PopoverTrigger asChild>
@@ -322,7 +360,7 @@ export const SmartFilter: React.FC<SmartFilterProps> = ({
                 className="border-2 border-black rounded-lg font-medium justify-start text-left"
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {value ? format(value, 'yyyy-MM-dd') : `选择${field.label}...`}
+                {value ? format(value, "yyyy-MM-dd") : `选择${field.label}...`}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0 border-2 border-black rounded-lg bg-white shadow-[4px_4px_0px_0px_#191A23]">
@@ -336,13 +374,10 @@ export const SmartFilter: React.FC<SmartFilterProps> = ({
           </Popover>
         );
 
-      case 'boolean':
+      case "boolean":
         return (
           <div className="flex items-center space-x-2">
-            <Checkbox
-              checked={value}
-              onCheckedChange={onChange}
-            />
+            <Checkbox checked={value} onCheckedChange={onChange} />
             <label className="text-sm font-medium text-[#191A23]">
               {field.label}
             </label>
@@ -355,7 +390,7 @@ export const SmartFilter: React.FC<SmartFilterProps> = ({
   };
 
   return (
-    <div className={cn('space-y-4', className)}>
+    <div className={cn("space-y-4", className)}>
       {/* 筛选器头部 */}
       <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] bg-white">
         <CardHeader className="pb-3">
@@ -374,7 +409,7 @@ export const SmartFilter: React.FC<SmartFilterProps> = ({
                 </p>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2">
               {/* 模板菜单 */}
               {allowTemplates && (
@@ -391,9 +426,11 @@ export const SmartFilter: React.FC<SmartFilterProps> = ({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-64 border-2 border-black rounded-lg bg-white shadow-[4px_4px_0px_0px_#191A23]">
-                    <DropdownMenuLabel className="font-bold text-[#191A23]">筛选模板</DropdownMenuLabel>
+                    <DropdownMenuLabel className="font-bold text-[#191A23]">
+                      筛选模板
+                    </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    
+
                     {templates.length > 0 ? (
                       templates.map((template) => (
                         <DropdownMenuItem
@@ -402,7 +439,9 @@ export const SmartFilter: React.FC<SmartFilterProps> = ({
                           className="flex items-center justify-between group"
                         >
                           <div className="flex items-center gap-2">
-                            {template.isStarred && <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />}
+                            {template.isStarred && (
+                              <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                            )}
                             <span className="font-medium">{template.name}</span>
                           </div>
                           <Badge variant="outline" className="text-xs">
@@ -415,7 +454,7 @@ export const SmartFilter: React.FC<SmartFilterProps> = ({
                         <span className="text-gray-500">暂无模板</span>
                       </DropdownMenuItem>
                     )}
-                    
+
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={() => setShowTemplateDialog(true)}
@@ -443,22 +482,26 @@ export const SmartFilter: React.FC<SmartFilterProps> = ({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-64 border-2 border-black rounded-lg bg-white shadow-[4px_4px_0px_0px_#191A23]">
-                    <DropdownMenuLabel className="font-bold text-[#191A23]">筛选历史</DropdownMenuLabel>
+                    <DropdownMenuLabel className="font-bold text-[#191A23]">
+                      筛选历史
+                    </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    {filterHistory.slice(0, 5).map((historyConditions, index) => (
-                      <DropdownMenuItem
-                        key={index}
-                        onClick={() => onConditionsChange(historyConditions)}
-                        className="flex items-center justify-between"
-                      >
-                        <span className="font-medium text-sm">
-                          筛选 #{index + 1}
-                        </span>
-                        <Badge variant="outline" className="text-xs">
-                          {historyConditions.length} 条件
-                        </Badge>
-                      </DropdownMenuItem>
-                    ))}
+                    {filterHistory
+                      .slice(0, 5)
+                      .map((historyConditions, index) => (
+                        <DropdownMenuItem
+                          key={index}
+                          onClick={() => onConditionsChange(historyConditions)}
+                          className="flex items-center justify-between"
+                        >
+                          <span className="font-medium text-sm">
+                            筛选 #{index + 1}
+                          </span>
+                          <Badge variant="outline" className="text-xs">
+                            {historyConditions.length} 条件
+                          </Badge>
+                        </DropdownMenuItem>
+                      ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
@@ -470,8 +513,13 @@ export const SmartFilter: React.FC<SmartFilterProps> = ({
                 onClick={() => setIsExpanded(!isExpanded)}
                 className="border-2 border-black rounded-lg font-bold hover:bg-[#B9FF66] hover:text-black shadow-[2px_2px_0px_0px_#191A23]"
               >
-                {isExpanded ? '收起' : '展开'}
-                <ChevronDown className={cn('w-4 h-4 ml-1 transition-transform', isExpanded && 'rotate-180')} />
+                {isExpanded ? "收起" : "展开"}
+                <ChevronDown
+                  className={cn(
+                    "w-4 h-4 ml-1 transition-transform",
+                    isExpanded && "rotate-180"
+                  )}
+                />
               </Button>
             </div>
           </div>
@@ -496,7 +544,7 @@ export const SmartFilter: React.FC<SmartFilterProps> = ({
                     清空全部
                   </Button>
                 </div>
-                
+
                 <div className="flex flex-wrap gap-2">
                   {conditions.map((condition) => (
                     <Badge
@@ -525,18 +573,18 @@ export const SmartFilter: React.FC<SmartFilterProps> = ({
                   <Plus className="w-4 h-4" />
                   添加筛选条件
                 </h4>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   {/* 字段选择 */}
                   <Select
                     value={newCondition.field}
                     onValueChange={(value) => {
-                      const field = fields.find(f => f.key === value);
-                      setNewCondition(prev => ({
+                      const field = fields.find((f) => f.key === value);
+                      setNewCondition((prev) => ({
                         ...prev,
                         field: value,
                         type: field?.type,
-                        operator: 'equals',
+                        operator: "equals",
                         value: undefined,
                       }));
                     }}
@@ -546,12 +594,24 @@ export const SmartFilter: React.FC<SmartFilterProps> = ({
                     </SelectTrigger>
                     <SelectContent className="border-2 border-black rounded-lg bg-white shadow-[4px_4px_0px_0px_#191A23]">
                       {fields.map((field) => (
-                        <SelectItem key={field.key} value={field.key} className="font-medium">
+                        <SelectItem
+                          key={field.key}
+                          value={field.key}
+                          className="font-medium"
+                        >
                           <div className="flex items-center gap-2">
-                            {field.type === 'text' && <Type className="w-4 h-4" />}
-                            {field.type === 'number' && <Hash className="w-4 h-4" />}
-                            {field.type === 'date' && <CalendarIcon className="w-4 h-4" />}
-                            {field.type === 'boolean' && <ToggleLeft className="w-4 h-4" />}
+                            {field.type === "text" && (
+                              <Type className="w-4 h-4" />
+                            )}
+                            {field.type === "number" && (
+                              <Hash className="w-4 h-4" />
+                            )}
+                            {field.type === "date" && (
+                              <CalendarIcon className="w-4 h-4" />
+                            )}
+                            {field.type === "boolean" && (
+                              <ToggleLeft className="w-4 h-4" />
+                            )}
                             {field.label}
                           </div>
                         </SelectItem>
@@ -564,22 +624,30 @@ export const SmartFilter: React.FC<SmartFilterProps> = ({
                     <>
                       {renderOperatorSelect(
                         newCondition.type,
-                        newCondition.operator || 'equals',
-                        (operator) => setNewCondition(prev => ({ ...prev, operator: operator as any }))
+                        newCondition.operator || "equals",
+                        (operator) =>
+                          setNewCondition((prev) => ({
+                            ...prev,
+                            operator: operator as any,
+                          }))
                       )}
 
                       {/* 值输入 */}
                       {renderValueInput(
-                        fields.find(f => f.key === newCondition.field),
-                        newCondition.operator || 'equals',
+                        fields.find((f) => f.key === newCondition.field),
+                        newCondition.operator || "equals",
                         newCondition.value,
-                        (value) => setNewCondition(prev => ({ ...prev, value }))
+                        (value) =>
+                          setNewCondition((prev) => ({ ...prev, value }))
                       )}
 
                       {/* 添加按钮 */}
                       <Button
                         onClick={addCondition}
-                        disabled={newCondition.value === undefined || newCondition.value === ''}
+                        disabled={
+                          newCondition.value === undefined ||
+                          newCondition.value === ""
+                        }
                         className="border-2 border-black rounded-lg font-bold bg-[#B9FF66] text-black hover:bg-[#A8E055] shadow-[2px_2px_0px_0px_#191A23] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_0px_#191A23]"
                       >
                         <Plus className="w-4 h-4 mr-1" />
@@ -649,4 +717,4 @@ export const SmartFilter: React.FC<SmartFilterProps> = ({
       )}
     </div>
   );
-}; 
+};

@@ -1,21 +1,33 @@
 /**
  *  CompleteMappingViewer - 完整映射结果查看器
- * 
+ *
  * 显示所有映射结果，包括AI成功映射和用户手动映射
  * 解决用户无法看到AI映射结果的问题
  */
 
-import React, { useState, useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Progress } from '@/components/ui/progress';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  CheckCircle, 
-  AlertTriangle, 
+import React, { useState, useMemo } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  CheckCircle,
+  AlertTriangle,
   Settings,
   Eye,
   Sparkles,
@@ -23,11 +35,11 @@ import {
   User,
   ArrowRight,
   Edit,
-  RotateCcw
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
-import type { MappingConfig, AIAnalysisResult } from '../types';
+  RotateCcw,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import type { MappingConfig, AIAnalysisResult } from "../types";
 
 interface CompleteMappingViewerProps {
   headers: string[];
@@ -43,51 +55,51 @@ interface MappingInfo {
   mappedField: string;
   dataType: string;
   confidence: number;
-  source: 'AI' | 'USER' | 'SUGGESTED';
+  source: "AI" | "USER" | "SUGGESTED";
   isEditable: boolean;
 }
 
 // 预定义的字段选项
 const AVAILABLE_FIELDS = {
   student_info: {
-    label: '学生信息',
+    label: "学生信息",
     fields: {
-      name: '学生姓名',
-      student_id: '学号',
-      class_name: '班级',
-      grade_level: '年级'
-    }
+      name: "学生姓名",
+      student_id: "学号",
+      class_name: "班级",
+      grade_level: "年级",
+    },
   },
   scores: {
-    label: '学科成绩',
+    label: "学科成绩",
     fields: {
-      chinese_score: '语文成绩',
-      math_score: '数学成绩', 
-      english_score: '英语成绩',
-      physics_score: '物理成绩',
-      chemistry_score: '化学成绩',
-      biology_score: '生物成绩',
-      politics_score: '政治成绩',
-      history_score: '历史成绩',
-      geography_score: '地理成绩',
-      total_score: '总分'
-    }
+      chinese_score: "语文成绩",
+      math_score: "数学成绩",
+      english_score: "英语成绩",
+      physics_score: "物理成绩",
+      chemistry_score: "化学成绩",
+      biology_score: "生物成绩",
+      politics_score: "政治成绩",
+      history_score: "历史成绩",
+      geography_score: "地理成绩",
+      total_score: "总分",
+    },
   },
   rankings: {
-    label: '排名信息',
+    label: "排名信息",
     fields: {
-      rank_in_class: '班级排名',
-      rank_in_grade: '年级排名', 
-      rank_in_school: '全校排名'
-    }
+      rank_in_class: "班级排名",
+      rank_in_grade: "年级排名",
+      rank_in_school: "全校排名",
+    },
   },
   grades: {
-    label: '等级信息',
+    label: "等级信息",
     fields: {
-      original_grade: '成绩等级',
-      computed_grade: '计算等级'
-    }
-  }
+      original_grade: "成绩等级",
+      computed_grade: "计算等级",
+    },
+  },
 };
 
 export default function CompleteMappingViewer({
@@ -96,48 +108,50 @@ export default function CompleteMappingViewer({
   aiAnalysis,
   onMappingUpdate,
   onConfirm,
-  className
+  className,
 }: CompleteMappingViewerProps) {
   const [editingField, setEditingField] = useState<string | null>(null);
-  const [localMappings, setLocalMappings] = useState(mappingConfig.fieldMappings || {});
+  const [localMappings, setLocalMappings] = useState(
+    mappingConfig.fieldMappings || {}
+  );
 
   // 分析映射结果
   const mappingAnalysis = useMemo(() => {
     const mappings: MappingInfo[] = [];
     const unmappedHeaders: string[] = [];
-    
-    headers.forEach(header => {
+
+    headers.forEach((header) => {
       const mappedField = localMappings[header];
-      
+
       if (mappedField) {
         // 判断映射来源
-        let source: 'AI' | 'USER' | 'SUGGESTED' = 'USER';
+        let source: "AI" | "USER" | "SUGGESTED" = "USER";
         let confidence = 0.5;
-        
+
         // 从AI分析中查找置信度
         if (aiAnalysis?.mappings) {
-          const aiMapping = aiAnalysis.mappings.find(m => 
-            m.originalField === header && m.mappedField === mappedField
+          const aiMapping = aiAnalysis.mappings.find(
+            (m) => m.originalField === header && m.mappedField === mappedField
           );
           if (aiMapping) {
-            source = 'AI';
+            source = "AI";
             confidence = aiMapping.confidence || 0.9;
           }
         }
-        
+
         mappings.push({
           originalField: header,
           mappedField,
           dataType: getFieldDataType(mappedField),
           confidence,
           source,
-          isEditable: true
+          isEditable: true,
         });
       } else {
         unmappedHeaders.push(header);
       }
     });
-    
+
     return { mappings, unmappedHeaders };
   }, [headers, localMappings, aiAnalysis]);
 
@@ -148,7 +162,7 @@ export default function CompleteMappingViewer({
         return category;
       }
     }
-    return 'unknown';
+    return "unknown";
   };
 
   // 获取字段显示名称
@@ -165,12 +179,12 @@ export default function CompleteMappingViewer({
   const updateMapping = (originalField: string, newMappedField: string) => {
     const updatedMappings = {
       ...localMappings,
-      [originalField]: newMappedField
+      [originalField]: newMappedField,
     };
     setLocalMappings(updatedMappings);
     onMappingUpdate({
       ...mappingConfig,
-      fieldMappings: updatedMappings
+      fieldMappings: updatedMappings,
     });
   };
 
@@ -181,28 +195,33 @@ export default function CompleteMappingViewer({
     setLocalMappings(updatedMappings);
     onMappingUpdate({
       ...mappingConfig,
-      fieldMappings: updatedMappings
+      fieldMappings: updatedMappings,
     });
   };
 
   // 应用AI建议
   const applyAISuggestion = (originalField: string) => {
     if (!aiAnalysis?.mappings) return;
-    
-    const aiMapping = aiAnalysis.mappings.find(m => m.originalField === originalField);
+
+    const aiMapping = aiAnalysis.mappings.find(
+      (m) => m.originalField === originalField
+    );
     if (aiMapping) {
       updateMapping(originalField, aiMapping.mappedField);
-      toast.success(`已应用AI建议：${originalField} → ${getFieldDisplayName(aiMapping.mappedField)}`);
+      toast.success(
+        `已应用AI建议：${originalField} → ${getFieldDisplayName(aiMapping.mappedField)}`
+      );
     }
   };
 
   const totalFields = headers.length;
   const mappedFields = mappingAnalysis.mappings.length;
-  const mappingProgress = totalFields > 0 ? (mappedFields / totalFields) * 100 : 0;
+  const mappingProgress =
+    totalFields > 0 ? (mappedFields / totalFields) * 100 : 0;
   const aiConfidence = aiAnalysis?.confidence || 0;
 
   return (
-    <div className={cn('space-y-6', className)}>
+    <div className={cn("space-y-6", className)}>
       {/* 映射概览 */}
       <Card>
         <CardHeader>
@@ -220,7 +239,9 @@ export default function CompleteMappingViewer({
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Settings className="w-4 h-4 text-blue-600" />
-                <span className="text-sm font-medium text-blue-800">映射进度</span>
+                <span className="text-sm font-medium text-blue-800">
+                  映射进度
+                </span>
               </div>
               <div className="text-2xl font-bold text-blue-600 mb-1">
                 {mappedFields} / {totalFields}
@@ -232,7 +253,9 @@ export default function CompleteMappingViewer({
             <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles className="w-4 h-4 text-purple-600" />
-                <span className="text-sm font-medium text-purple-800">AI置信度</span>
+                <span className="text-sm font-medium text-purple-800">
+                  AI置信度
+                </span>
               </div>
               <div className="text-2xl font-bold text-purple-600 mb-1">
                 {Math.round(aiConfidence * 100)}%
@@ -244,7 +267,9 @@ export default function CompleteMappingViewer({
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
                 <AlertTriangle className="w-4 h-4 text-orange-600" />
-                <span className="text-sm font-medium text-orange-800">待处理</span>
+                <span className="text-sm font-medium text-orange-800">
+                  待处理
+                </span>
               </div>
               <div className="text-2xl font-bold text-orange-600 mb-1">
                 {mappingAnalysis.unmappedHeaders.length}
@@ -284,11 +309,13 @@ export default function CompleteMappingViewer({
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <Badge 
-                            variant={mapping.source === 'AI' ? 'default' : 'secondary'}
+                          <Badge
+                            variant={
+                              mapping.source === "AI" ? "default" : "secondary"
+                            }
                             className="text-xs"
                           >
-                            {mapping.source === 'AI' ? (
+                            {mapping.source === "AI" ? (
                               <>
                                 <Brain className="w-3 h-3 mr-1" />
                                 AI识别
@@ -300,7 +327,7 @@ export default function CompleteMappingViewer({
                               </>
                             )}
                           </Badge>
-                          {mapping.source === 'AI' && (
+                          {mapping.source === "AI" && (
                             <Badge variant="outline" className="text-xs">
                               置信度 {Math.round(mapping.confidence * 100)}%
                             </Badge>
@@ -319,7 +346,7 @@ export default function CompleteMappingViewer({
                           {getFieldDataType(mapping.mappedField)} 类型
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center gap-2">
                         {editingField === mapping.originalField ? (
                           <div className="flex items-center gap-2">
@@ -334,18 +361,22 @@ export default function CompleteMappingViewer({
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                {Object.entries(AVAILABLE_FIELDS).map(([category, config]) => (
-                                  <div key={category}>
-                                    <div className="px-2 py-1 text-xs font-medium text-gray-500 uppercase">
-                                      {config.label}
+                                {Object.entries(AVAILABLE_FIELDS).map(
+                                  ([category, config]) => (
+                                    <div key={category}>
+                                      <div className="px-2 py-1 text-xs font-medium text-gray-500 uppercase">
+                                        {config.label}
+                                      </div>
+                                      {Object.entries(config.fields).map(
+                                        ([key, label]) => (
+                                          <SelectItem key={key} value={key}>
+                                            {label}
+                                          </SelectItem>
+                                        )
+                                      )}
                                     </div>
-                                    {Object.entries(config.fields).map(([key, label]) => (
-                                      <SelectItem key={key} value={key}>
-                                        {label}
-                                      </SelectItem>
-                                    ))}
-                                  </div>
-                                ))}
+                                  )
+                                )}
                               </SelectContent>
                             </Select>
                             <Button
@@ -361,14 +392,18 @@ export default function CompleteMappingViewer({
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => setEditingField(mapping.originalField)}
+                              onClick={() =>
+                                setEditingField(mapping.originalField)
+                              }
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => removeMapping(mapping.originalField)}
+                              onClick={() =>
+                                removeMapping(mapping.originalField)
+                              }
                             >
                               <RotateCcw className="w-4 h-4" />
                             </Button>
@@ -395,25 +430,30 @@ export default function CompleteMappingViewer({
           ) : (
             <div className="space-y-3">
               {mappingAnalysis.unmappedHeaders.map((header, index) => {
-                const aiSuggestion = aiAnalysis?.mappings?.find(m => m.originalField === header);
-                
+                const aiSuggestion = aiAnalysis?.mappings?.find(
+                  (m) => m.originalField === header
+                );
+
                 return (
                   <Card key={index} className="border-l-4 border-l-orange-500">
                     <CardContent className="pt-4">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <div className="font-medium text-gray-900 mb-1">{header}</div>
+                          <div className="font-medium text-gray-900 mb-1">
+                            {header}
+                          </div>
                           {aiSuggestion && (
                             <div className="flex items-center gap-2 text-sm text-gray-600">
                               <Sparkles className="w-3 h-3 text-purple-500" />
-                              AI建议: {getFieldDisplayName(aiSuggestion.mappedField)}
+                              AI建议:{" "}
+                              {getFieldDisplayName(aiSuggestion.mappedField)}
                               <Badge variant="outline" className="text-xs">
                                 {Math.round(aiSuggestion.confidence * 100)}%
                               </Badge>
                             </div>
                           )}
                         </div>
-                        
+
                         <div className="flex items-center gap-2">
                           {aiSuggestion && (
                             <Button
@@ -427,24 +467,30 @@ export default function CompleteMappingViewer({
                             </Button>
                           )}
                           <Select
-                            onValueChange={(value) => updateMapping(header, value)}
+                            onValueChange={(value) =>
+                              updateMapping(header, value)
+                            }
                           >
                             <SelectTrigger className="w-40">
                               <SelectValue placeholder="选择字段类型" />
                             </SelectTrigger>
                             <SelectContent>
-                              {Object.entries(AVAILABLE_FIELDS).map(([category, config]) => (
-                                <div key={category}>
-                                  <div className="px-2 py-1 text-xs font-medium text-gray-500 uppercase">
-                                    {config.label}
+                              {Object.entries(AVAILABLE_FIELDS).map(
+                                ([category, config]) => (
+                                  <div key={category}>
+                                    <div className="px-2 py-1 text-xs font-medium text-gray-500 uppercase">
+                                      {config.label}
+                                    </div>
+                                    {Object.entries(config.fields).map(
+                                      ([key, label]) => (
+                                        <SelectItem key={key} value={key}>
+                                          {label}
+                                        </SelectItem>
+                                      )
+                                    )}
                                   </div>
-                                  {Object.entries(config.fields).map(([key, label]) => (
-                                    <SelectItem key={key} value={key}>
-                                      {label}
-                                    </SelectItem>
-                                  ))}
-                                </div>
-                              ))}
+                                )
+                              )}
                             </SelectContent>
                           </Select>
                         </div>
@@ -467,7 +513,7 @@ export default function CompleteMappingViewer({
           <Button variant="outline" onClick={() => setLocalMappings({})}>
             重置所有映射
           </Button>
-          <Button 
+          <Button
             onClick={onConfirm}
             disabled={mappingAnalysis.unmappedHeaders.length > 0}
             className="bg-green-600 hover:bg-green-700"

@@ -1,10 +1,21 @@
 import React from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getGradingScales } from "@/services/gradingService";
@@ -29,18 +40,18 @@ const EditHomeworkDialog: React.FC<EditHomeworkDialogProps> = ({
   open,
   onOpenChange,
   onHomeworkUpdated,
-  homework
+  homework,
 }) => {
   const [classes, setClasses] = React.useState<any[]>([]);
   const [gradingScales, setGradingScales] = React.useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const [formData, setFormData] = React.useState({
-    title: '',
-    description: '',
-    classId: '',
-    dueDate: '',
-    gradingScaleId: ''
+    title: "",
+    description: "",
+    classId: "",
+    dueDate: "",
+    gradingScaleId: "",
   });
 
   React.useEffect(() => {
@@ -54,8 +65,8 @@ const EditHomeworkDialog: React.FC<EditHomeworkDialogProps> = ({
         const gradingScalesData = await getGradingScales();
         setGradingScales(gradingScalesData || []);
       } catch (error) {
-        console.error('获取数据失败:', error);
-        toast.error('获取数据失败');
+        console.error("获取数据失败:", error);
+        toast.error("获取数据失败");
       }
     };
 
@@ -66,23 +77,23 @@ const EditHomeworkDialog: React.FC<EditHomeworkDialogProps> = ({
   React.useEffect(() => {
     if (homework) {
       setFormData({
-        title: homework.title || '',
-        description: homework.description || '',
-        classId: homework.class_id || '',
-        dueDate: homework.due_date || '',
-        gradingScaleId: homework.grading_scale_id || ''
+        title: homework.title || "",
+        description: homework.description || "",
+        classId: homework.class_id || "",
+        dueDate: homework.due_date || "",
+        gradingScaleId: homework.grading_scale_id || "",
       });
     }
   }, [homework]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!homework) {
-      toast.error('没有要编辑的作业数据');
+      toast.error("没有要编辑的作业数据");
       return;
     }
-    
+
     setIsSubmitting(true);
 
     try {
@@ -91,17 +102,20 @@ const EditHomeworkDialog: React.FC<EditHomeworkDialogProps> = ({
         description: formData.description,
         class_id: formData.classId,
         due_date: formData.dueDate || null,
-        grading_scale_id: formData.gradingScaleId === "default" ? null : formData.gradingScaleId || null,
+        grading_scale_id:
+          formData.gradingScaleId === "default"
+            ? null
+            : formData.gradingScaleId || null,
       });
 
       if (success) {
-        toast.success('作业更新成功');
+        toast.success("作业更新成功");
         onHomeworkUpdated();
         onOpenChange(false);
       }
     } catch (error) {
-      console.error('更新作业失败:', error);
-      toast.error('更新作业失败');
+      console.error("更新作业失败:", error);
+      toast.error("更新作业失败");
     } finally {
       setIsSubmitting(false);
     }
@@ -120,7 +134,9 @@ const EditHomeworkDialog: React.FC<EditHomeworkDialogProps> = ({
             <Input
               id="title"
               value={formData.title}
-              onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, title: e.target.value }))
+              }
               required
             />
           </div>
@@ -130,7 +146,12 @@ const EditHomeworkDialog: React.FC<EditHomeworkDialogProps> = ({
             <Textarea
               id="description"
               value={formData.description}
-              onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
             />
           </div>
 
@@ -138,13 +159,15 @@ const EditHomeworkDialog: React.FC<EditHomeworkDialogProps> = ({
             <Label htmlFor="class">班级</Label>
             <Select
               value={formData.classId}
-              onValueChange={value => setFormData(prev => ({ ...prev, classId: value }))}
+              onValueChange={(value) =>
+                setFormData((prev) => ({ ...prev, classId: value }))
+              }
             >
               <SelectTrigger>
                 <SelectValue placeholder="选择班级" />
               </SelectTrigger>
               <SelectContent>
-                {classes.map(c => (
+                {classes.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.name}
                   </SelectItem>
@@ -159,7 +182,9 @@ const EditHomeworkDialog: React.FC<EditHomeworkDialogProps> = ({
               id="dueDate"
               type="date"
               value={formData.dueDate}
-              onChange={e => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, dueDate: e.target.value }))
+              }
             />
           </div>
 
@@ -167,7 +192,9 @@ const EditHomeworkDialog: React.FC<EditHomeworkDialogProps> = ({
             <Label htmlFor="gradingScale">评级标准</Label>
             <Select
               value={formData.gradingScaleId}
-              onValueChange={value => setFormData(prev => ({ ...prev, gradingScaleId: value }))}
+              onValueChange={(value) =>
+                setFormData((prev) => ({ ...prev, gradingScaleId: value }))
+              }
             >
               <SelectTrigger>
                 <SelectValue placeholder="选择评级标准" />
@@ -175,12 +202,12 @@ const EditHomeworkDialog: React.FC<EditHomeworkDialogProps> = ({
               <SelectContent>
                 <SelectItem value="default">默认评级</SelectItem>
                 {gradingScales
-                  .filter(scale => scale.id && scale.id.trim() !== '')
-                  .map(scale => (
-                  <SelectItem key={scale.id} value={scale.id}>
-                    {scale.name} {scale.is_default ? '(默认)' : ''}
-                  </SelectItem>
-                ))}
+                  .filter((scale) => scale.id && scale.id.trim() !== "")
+                  .map((scale) => (
+                    <SelectItem key={scale.id} value={scale.id}>
+                      {scale.name} {scale.is_default ? "(默认)" : ""}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
             <p className="text-xs text-gray-500 mt-1">
@@ -189,7 +216,7 @@ const EditHomeworkDialog: React.FC<EditHomeworkDialogProps> = ({
           </div>
 
           <Button type="submit" disabled={isSubmitting} className="w-full">
-            {isSubmitting ? '更新中...' : '更新作业'}
+            {isSubmitting ? "更新中..." : "更新作业"}
           </Button>
         </form>
       </DialogContent>
@@ -197,4 +224,4 @@ const EditHomeworkDialog: React.FC<EditHomeworkDialogProps> = ({
   );
 };
 
-export default EditHomeworkDialog; 
+export default EditHomeworkDialog;

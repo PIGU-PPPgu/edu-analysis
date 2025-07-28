@@ -1,11 +1,17 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { toast } from 'sonner';
+import React, { useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
 import {
   CheckCircle,
   AlertTriangle,
@@ -15,24 +21,24 @@ import {
   Download,
   RotateCcw,
   ArrowLeft,
-  ArrowRight
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+  ArrowRight,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   FileUploader,
   DataMapper,
   DataValidator,
   ImportProcessor,
   ConfigManager,
-  useGradeImporter
-} from './core/grade-importer';
+  useGradeImporter,
+} from "./core/grade-importer";
 import type {
   ExamInfo,
   MappingConfig,
   ValidationResult,
   ImportResult,
-  ImportStep
-} from './core/grade-importer';
+  ImportStep,
+} from "./core/grade-importer";
 
 // GradeImporter 主组件
 const GradeImporter: React.FC = () => {
@@ -42,63 +48,68 @@ const GradeImporter: React.FC = () => {
   // 步骤配置
   const steps = [
     {
-      id: 'upload' as ImportStep,
-      title: '文件上传',
-      description: '上传Excel或CSV格式的成绩文件',
+      id: "upload" as ImportStep,
+      title: "文件上传",
+      description: "上传Excel或CSV格式的成绩文件",
       icon: Upload,
-      component: FileUploader
+      component: FileUploader,
     },
     {
-      id: 'mapping' as ImportStep,
-      title: '字段映射',
-      description: '配置文件字段与系统字段的对应关系',
+      id: "mapping" as ImportStep,
+      title: "字段映射",
+      description: "配置文件字段与系统字段的对应关系",
       icon: Mapping,
-      component: DataMapper
+      component: DataMapper,
     },
     {
-      id: 'validation' as ImportStep,
-      title: '数据验证',
-      description: '验证数据质量，检查错误和警告',
+      id: "validation" as ImportStep,
+      title: "数据验证",
+      description: "验证数据质量，检查错误和警告",
       icon: CheckSquare,
-      component: DataValidator
+      component: DataValidator,
     },
     {
-      id: 'import' as ImportStep,
-      title: '导入处理',
-      description: '执行数据导入，监控进度和结果',
+      id: "import" as ImportStep,
+      title: "导入处理",
+      description: "执行数据导入，监控进度和结果",
       icon: Download,
-      component: ImportProcessor
+      component: ImportProcessor,
     },
     {
-      id: 'complete' as ImportStep,
-      title: '导入完成',
-      description: '查看导入结果和统计信息',
+      id: "complete" as ImportStep,
+      title: "导入完成",
+      description: "查看导入结果和统计信息",
       icon: CheckCircle,
-      component: null
-    }
+      component: null,
+    },
   ];
 
   // 获取当前步骤配置
-  const currentStepConfig = steps.find(step => step.id === state.currentStep);
-  const currentStepIndex = steps.findIndex(step => step.id === state.currentStep);
+  const currentStepConfig = steps.find((step) => step.id === state.currentStep);
+  const currentStepIndex = steps.findIndex(
+    (step) => step.id === state.currentStep
+  );
 
   // 处理文件上传完成
   const handleFileUploadComplete = (fileData: any[], file: File) => {
-    toast.success('文件上传成功');
+    toast.success("文件上传成功");
     actions.nextStep();
   };
 
   // 处理字段映射完成
   const handleMappingComplete = (mappingConfig: MappingConfig) => {
     actions.setMappingConfig(mappingConfig);
-    toast.success('字段映射配置完成');
+    toast.success("字段映射配置完成");
     actions.nextStep();
   };
 
   // 处理数据验证完成
-  const handleValidationComplete = (result: ValidationResult, validData: any[]) => {
+  const handleValidationComplete = (
+    result: ValidationResult,
+    validData: any[]
+  ) => {
     if (result.isValid || result.errors.length === 0) {
-      toast.success('数据验证通过');
+      toast.success("数据验证通过");
       actions.nextStep();
     } else {
       toast.warning(`发现 ${result.errors.length} 个错误，请修复后继续`);
@@ -107,7 +118,9 @@ const GradeImporter: React.FC = () => {
 
   // 处理导入完成
   const handleImportComplete = (result: ImportResult) => {
-    toast.success(`导入完成！成功 ${result.successCount} 条，失败 ${result.failedCount} 条`);
+    toast.success(
+      `导入完成！成功 ${result.successCount} 条，失败 ${result.failedCount} 条`
+    );
     actions.nextStep();
   };
 
@@ -129,32 +142,32 @@ const GradeImporter: React.FC = () => {
       mapping: 25,
       validation: 25,
       import: 25,
-      complete: 5
+      complete: 5,
     };
 
     let totalProgress = 0;
-    
+
     // 已完成步骤的进度
-    state.stepsCompleted.forEach(step => {
+    state.stepsCompleted.forEach((step) => {
       totalProgress += stepWeights[step] || 0;
     });
 
     // 当前步骤的进度
-    if (state.currentStep !== 'complete') {
+    if (state.currentStep !== "complete") {
       const currentStepWeight = stepWeights[state.currentStep] || 0;
       let currentStepProgress = 0;
 
       switch (state.currentStep) {
-        case 'upload':
+        case "upload":
           currentStepProgress = state.parseProgress;
           break;
-        case 'mapping':
+        case "mapping":
           currentStepProgress = state.mappingProgress;
           break;
-        case 'validation':
+        case "validation":
           currentStepProgress = state.validationProgress;
           break;
-        case 'import':
+        case "import":
           currentStepProgress = state.importProgress.percentage;
           break;
       }
@@ -185,7 +198,9 @@ const GradeImporter: React.FC = () => {
                   "w-12 h-12 rounded-full flex items-center justify-center border-2 transition-colors",
                   isActive && "border-blue-500 bg-blue-50 text-blue-600",
                   isCompleted && "border-green-500 bg-green-50 text-green-600",
-                  !isActive && !isCompleted && "border-gray-300 bg-gray-50 text-gray-400"
+                  !isActive &&
+                    !isCompleted &&
+                    "border-gray-300 bg-gray-50 text-gray-400"
                 )}
               >
                 {isCompleted ? (
@@ -195,12 +210,14 @@ const GradeImporter: React.FC = () => {
                 )}
               </div>
               <div className="mt-2 text-center">
-                <p className={cn(
-                  "text-sm font-medium",
-                  isActive && "text-blue-600",
-                  isCompleted && "text-green-600",
-                  !isActive && !isCompleted && "text-gray-500"
-                )}>
+                <p
+                  className={cn(
+                    "text-sm font-medium",
+                    isActive && "text-blue-600",
+                    isCompleted && "text-green-600",
+                    !isActive && !isCompleted && "text-gray-500"
+                  )}
+                >
                   {step.title}
                 </p>
                 <p className="text-xs text-gray-500 max-w-[120px] break-words">
@@ -208,12 +225,16 @@ const GradeImporter: React.FC = () => {
                 </p>
               </div>
             </div>
-            
+
             {index < steps.length - 1 && (
-              <div className={cn(
-                "flex-1 h-0.5 mx-4 transition-colors",
-                state.stepsCompleted.includes(step.id) ? "bg-green-300" : "bg-gray-200"
-              )} />
+              <div
+                className={cn(
+                  "flex-1 h-0.5 mx-4 transition-colors",
+                  state.stepsCompleted.includes(step.id)
+                    ? "bg-green-300"
+                    : "bg-gray-200"
+                )}
+              />
             )}
           </React.Fragment>
         );
@@ -246,32 +267,46 @@ const GradeImporter: React.FC = () => {
             {state.importResult && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Card className="p-4 text-center">
-                  <p className="text-2xl font-bold text-blue-600">{state.importResult.totalCount}</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {state.importResult.totalCount}
+                  </p>
                   <p className="text-sm text-gray-600">总记录数</p>
                 </Card>
                 <Card className="p-4 text-center">
-                  <p className="text-2xl font-bold text-green-600">{state.importResult.successCount}</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {state.importResult.successCount}
+                  </p>
                   <p className="text-sm text-gray-600">成功导入</p>
                 </Card>
                 <Card className="p-4 text-center">
-                  <p className="text-2xl font-bold text-red-600">{state.importResult.failedCount}</p>
+                  <p className="text-2xl font-bold text-red-600">
+                    {state.importResult.failedCount}
+                  </p>
                   <p className="text-sm text-gray-600">导入失败</p>
                 </Card>
                 <Card className="p-4 text-center">
                   <p className="text-2xl font-bold text-blue-600">
-                    {Math.round((state.importResult.successCount / state.importResult.totalCount) * 100)}%
+                    {Math.round(
+                      (state.importResult.successCount /
+                        state.importResult.totalCount) *
+                        100
+                    )}
+                    %
                   </p>
                   <p className="text-sm text-gray-600">成功率</p>
                 </Card>
               </div>
             )}
-            
+
             <div className="flex gap-4 justify-center">
               <Button onClick={actions.resetImport}>
                 <RotateCcw className="w-4 h-4 mr-2" />
                 重新导入
               </Button>
-              <Button variant="outline" onClick={() => window.location.reload()}>
+              <Button
+                variant="outline"
+                onClick={() => window.location.reload()}
+              >
                 返回首页
               </Button>
             </div>
@@ -282,11 +317,11 @@ const GradeImporter: React.FC = () => {
 
     // 渲染对应的组件
     const componentProps: any = {
-      onError: handleError
+      onError: handleError,
     };
 
     switch (state.currentStep) {
-      case 'upload':
+      case "upload":
         return (
           <Component
             onFileUploaded={handleFileUploadComplete}
@@ -295,7 +330,7 @@ const GradeImporter: React.FC = () => {
           />
         );
 
-      case 'mapping':
+      case "mapping":
         return (
           <Component
             data={state.fileData}
@@ -306,7 +341,7 @@ const GradeImporter: React.FC = () => {
           />
         );
 
-      case 'validation':
+      case "validation":
         return (
           <Component
             data={state.fileData}
@@ -318,7 +353,7 @@ const GradeImporter: React.FC = () => {
           />
         );
 
-      case 'import':
+      case "import":
         return (
           <Component
             validData={state.validData}
@@ -345,7 +380,7 @@ const GradeImporter: React.FC = () => {
             上传并导入学生成绩数据，支持Excel和CSV格式文件
           </p>
         </div>
-        
+
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -364,7 +399,9 @@ const GradeImporter: React.FC = () => {
       <Card className="p-4">
         <div className="flex justify-between items-center mb-2">
           <span className="text-sm font-medium">整体进度</span>
-          <span className="text-sm text-gray-600">{Math.round(overallProgress)}%</span>
+          <span className="text-sm text-gray-600">
+            {Math.round(overallProgress)}%
+          </span>
         </div>
         <Progress value={overallProgress} className="h-2" />
       </Card>
@@ -395,9 +432,7 @@ const GradeImporter: React.FC = () => {
       {renderStepIndicator()}
 
       {/* 当前步骤内容 */}
-      <div className="min-h-[600px]">
-        {renderCurrentStep()}
-      </div>
+      <div className="min-h-[600px]">{renderCurrentStep()}</div>
 
       {/* 导航按钮 */}
       <div className="flex justify-between">
@@ -411,20 +446,22 @@ const GradeImporter: React.FC = () => {
         </Button>
 
         <div className="flex gap-2">
-          {state.currentStep !== 'complete' && state.currentStep !== 'import' && (
-            <Button
-              onClick={actions.nextStep}
-              disabled={
-                (state.currentStep === 'upload' && !state.selectedFile) ||
-                (state.currentStep === 'mapping' && !state.mappingConfig) ||
-                (state.currentStep === 'validation' && !state.validationResult?.isValid) ||
-                state.loading
-              }
-            >
-              <ArrowRight className="w-4 h-4 ml-2" />
-              下一步
-            </Button>
-          )}
+          {state.currentStep !== "complete" &&
+            state.currentStep !== "import" && (
+              <Button
+                onClick={actions.nextStep}
+                disabled={
+                  (state.currentStep === "upload" && !state.selectedFile) ||
+                  (state.currentStep === "mapping" && !state.mappingConfig) ||
+                  (state.currentStep === "validation" &&
+                    !state.validationResult?.isValid) ||
+                  state.loading
+                }
+              >
+                <ArrowRight className="w-4 h-4 ml-2" />
+                下一步
+              </Button>
+            )}
         </div>
       </div>
 
@@ -434,10 +471,10 @@ const GradeImporter: React.FC = () => {
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
             <span className="text-sm font-medium">
-              {state.currentStep === 'upload' && '正在解析文件...'}
-              {state.currentStep === 'mapping' && '正在分析字段...'}
-              {state.currentStep === 'validation' && '正在验证数据...'}
-              {state.currentStep === 'import' && '正在导入数据...'}
+              {state.currentStep === "upload" && "正在解析文件..."}
+              {state.currentStep === "mapping" && "正在分析字段..."}
+              {state.currentStep === "validation" && "正在验证数据..."}
+              {state.currentStep === "import" && "正在导入数据..."}
             </span>
           </div>
         </div>
@@ -446,4 +483,4 @@ const GradeImporter: React.FC = () => {
   );
 };
 
-export default GradeImporter; 
+export default GradeImporter;

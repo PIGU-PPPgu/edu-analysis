@@ -9,8 +9,27 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BrainCircuit, Sparkles, Book, AlertTriangle, CheckCircle, BookOpen } from "lucide-react";
-import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip, Legend, ResponsiveContainer, Cell, PieChart, Pie } from "recharts";
+import {
+  BrainCircuit,
+  Sparkles,
+  Book,
+  AlertTriangle,
+  CheckCircle,
+  BookOpen,
+} from "lucide-react";
+import {
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Cell,
+  PieChart,
+  Pie,
+} from "recharts";
 import { getKnowledgePointsByHomeworkId } from "@/services/knowledgePointService";
 import { KnowledgePoint as HomeworkKnowledgePoint } from "@/types/homework";
 import { AIKnowledgePointAnalyzer } from "./AIKnowledgePointAnalyzer";
@@ -19,7 +38,7 @@ import { AIKnowledgePointAnalyzer } from "./AIKnowledgePointAnalyzer";
 const MasteryIndicator = ({ level }: { level: number }) => {
   let bgColor = "bg-red-500";
   let text = "未掌握";
-  
+
   if (level >= 90) {
     bgColor = "bg-green-500";
     text = "精通";
@@ -33,11 +52,13 @@ const MasteryIndicator = ({ level }: { level: number }) => {
     bgColor = "bg-orange-500";
     text = "薄弱";
   }
-  
+
   return (
     <div className="flex items-center">
       <div className={`w-2 h-2 rounded-full ${bgColor} mr-1`}></div>
-      <span className="text-xs">{text} ({level}%)</span>
+      <span className="text-xs">
+        {text} ({level}%)
+      </span>
     </div>
   );
 };
@@ -57,58 +78,67 @@ export default function KnowledgePointAnalysis({
   onKnowledgePointsUpdated,
   isAiAnalyzing = false,
 }: KnowledgePointAnalysisProps) {
-  const [currentTab, setCurrentTab] = useState<"overview" | "mastery" | "breakdown">("overview");
+  const [currentTab, setCurrentTab] = useState<
+    "overview" | "mastery" | "breakdown"
+  >("overview");
   const [showAIAnalyzer, setShowAIAnalyzer] = useState(false);
   const [viewMode, setViewMode] = useState<"radar" | "distribution">("radar");
-  
+
   // 计算每个知识点的掌握情况
-  const knowledgePointMastery = knowledgePoints.map(kp => {
+  const knowledgePointMastery = knowledgePoints.map((kp) => {
     // 找出所有包含此知识点评估的提交
     const evaluations = submissions
-      .filter(s => s.status === "graded")
-      .flatMap(s => s.knowledge_point_evaluation || [])
-      .filter(e => e.knowledge_points?.id === kp.id);
-      
+      .filter((s) => s.status === "graded")
+      .flatMap((s) => s.knowledge_point_evaluation || [])
+      .filter((e) => e.knowledge_points?.id === kp.id);
+
     // 计算平均掌握度
-    const avgMastery = evaluations.length 
-      ? evaluations.reduce((sum, e) => sum + (e.mastery_level || 0), 0) / evaluations.length
+    const avgMastery = evaluations.length
+      ? evaluations.reduce((sum, e) => sum + (e.mastery_level || 0), 0) /
+        evaluations.length
       : 0;
-      
+
     // 掌握情况分布
     const masteryDistribution = {
-      excellent: evaluations.filter(e => e.mastery_level >= 90).length,
-      good: evaluations.filter(e => e.mastery_level >= 70 && e.mastery_level < 90).length,
-      adequate: evaluations.filter(e => e.mastery_level >= 50 && e.mastery_level < 70).length,
-      poor: evaluations.filter(e => e.mastery_level >= 30 && e.mastery_level < 50).length,
-      inadequate: evaluations.filter(e => e.mastery_level < 30).length,
+      excellent: evaluations.filter((e) => e.mastery_level >= 90).length,
+      good: evaluations.filter(
+        (e) => e.mastery_level >= 70 && e.mastery_level < 90
+      ).length,
+      adequate: evaluations.filter(
+        (e) => e.mastery_level >= 50 && e.mastery_level < 70
+      ).length,
+      poor: evaluations.filter(
+        (e) => e.mastery_level >= 30 && e.mastery_level < 50
+      ).length,
+      inadequate: evaluations.filter((e) => e.mastery_level < 30).length,
     };
-    
+
     return {
       ...kp,
       avgMastery,
       masteryDistribution,
-      evaluations: evaluations.length
+      evaluations: evaluations.length,
     };
   });
-  
+
   // 处理AI分析后的知识点更新
   const handleAIExtractKnowledgePoints = (
-    newPoints: HomeworkKnowledgePoint[], 
+    newPoints: HomeworkKnowledgePoint[],
     summary: string,
-    providerInfo: {provider: string, model: string}
+    providerInfo: { provider: string; model: string }
   ) => {
     if (onKnowledgePointsUpdated) {
       onKnowledgePointsUpdated(newPoints);
     }
     setShowAIAnalyzer(false);
   };
-  
+
   // 组合知识点图表数据
-  const radarChartData = knowledgePointMastery.map(kp => ({
+  const radarChartData = knowledgePointMastery.map((kp) => ({
     name: kp.name,
     value: kp.avgMastery || 0,
   }));
-  
+
   // 计算班级整体知识点掌握情况
   const overallMasteryDistribution = knowledgePointMastery.reduce(
     (acc, kp) => {
@@ -123,18 +153,33 @@ export default function KnowledgePointAnalysis({
     },
     { excellent: 0, good: 0, adequate: 0, poor: 0, inadequate: 0 }
   );
-  
+
   // 计算整体掌握情况分布百分比
-  const totalEvaluations = Object.values(overallMasteryDistribution).reduce((sum, val) => sum + val, 0);
-  
+  const totalEvaluations = Object.values(overallMasteryDistribution).reduce(
+    (sum, val) => sum + val,
+    0
+  );
+
   const pieChartData = [
-    { name: "精通", value: overallMasteryDistribution.excellent, color: "#4ade80" },
+    {
+      name: "精通",
+      value: overallMasteryDistribution.excellent,
+      color: "#4ade80",
+    },
     { name: "熟练", value: overallMasteryDistribution.good, color: "#60a5fa" },
-    { name: "基础", value: overallMasteryDistribution.adequate, color: "#facc15" },
+    {
+      name: "基础",
+      value: overallMasteryDistribution.adequate,
+      color: "#facc15",
+    },
     { name: "薄弱", value: overallMasteryDistribution.poor, color: "#f97316" },
-    { name: "未掌握", value: overallMasteryDistribution.inadequate, color: "#ef4444" }
-  ].filter(item => item.value > 0);
-  
+    {
+      name: "未掌握",
+      value: overallMasteryDistribution.inadequate,
+      color: "#ef4444",
+    },
+  ].filter((item) => item.value > 0);
+
   return (
     <div className="space-y-4">
       {/* AI分析器对话框 */}
@@ -156,7 +201,7 @@ export default function KnowledgePointAnalysis({
           </CardContent>
         </Card>
       )}
-      
+
       {/* 主内容 */}
       <div>
         <div className="flex justify-between items-center mb-4">
@@ -177,7 +222,7 @@ export default function KnowledgePointAnalysis({
             </Button>
           )}
         </div>
-        
+
         {/* 显示加载动画 */}
         {isAiAnalyzing ? (
           <div className="p-8 text-center">
@@ -198,7 +243,11 @@ export default function KnowledgePointAnalysis({
             ) : (
               <>
                 {/* 知识点分析标签页 */}
-                <Tabs value={currentTab} onValueChange={(value: any) => setCurrentTab(value)} className="mt-2">
+                <Tabs
+                  value={currentTab}
+                  onValueChange={(value: any) => setCurrentTab(value)}
+                  className="mt-2"
+                >
                   <TabsList className="mb-4">
                     <TabsTrigger value="overview">
                       <BookOpen className="h-4 w-4 mr-2" />
@@ -218,9 +267,14 @@ export default function KnowledgePointAnalysis({
                   <TabsContent value="overview">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                       {knowledgePoints.map((kp) => (
-                        <Card key={kp.id || `temp-${kp.name}`} className="bg-muted/30">
+                        <Card
+                          key={kp.id || `temp-${kp.name}`}
+                          className="bg-muted/30"
+                        >
                           <CardHeader className="p-3 pb-2">
-                            <CardTitle className="text-base">{kp.name}</CardTitle>
+                            <CardTitle className="text-base">
+                              {kp.name}
+                            </CardTitle>
                             {kp.description && (
                               <CardDescription className="text-xs line-clamp-2">
                                 {kp.description}
@@ -245,7 +299,9 @@ export default function KnowledgePointAnalysis({
                           雷达图
                         </Button>
                         <Button
-                          variant={viewMode === "distribution" ? "default" : "ghost"}
+                          variant={
+                            viewMode === "distribution" ? "default" : "ghost"
+                          }
                           size="sm"
                           onClick={() => setViewMode("distribution")}
                           className="text-xs h-8"
@@ -254,13 +310,18 @@ export default function KnowledgePointAnalysis({
                         </Button>
                       </div>
                     </div>
-                    
+
                     {viewMode === "radar" ? (
                       // 雷达图展示
                       <div className="h-[350px]">
                         {radarChartData.length > 0 ? (
                           <ResponsiveContainer width="100%" height="100%">
-                            <RadarChart outerRadius={90} width={730} height={250} data={radarChartData}>
+                            <RadarChart
+                              outerRadius={90}
+                              width={730}
+                              height={250}
+                              data={radarChartData}
+                            >
                               <PolarGrid />
                               <PolarAngleAxis dataKey="name" />
                               <PolarRadiusAxis angle={90} domain={[0, 100]} />
@@ -271,13 +332,20 @@ export default function KnowledgePointAnalysis({
                                 fill="#B9FF66"
                                 fillOpacity={0.6}
                               />
-                              <Tooltip formatter={(value: any) => [`${Number(value).toFixed(1)}%`, "掌握度"]} />
+                              <Tooltip
+                                formatter={(value: any) => [
+                                  `${Number(value).toFixed(1)}%`,
+                                  "掌握度",
+                                ]}
+                              />
                               <Legend />
                             </RadarChart>
                           </ResponsiveContainer>
                         ) : (
                           <div className="flex items-center justify-center h-full">
-                            <p className="text-muted-foreground">暂无知识点评估数据</p>
+                            <p className="text-muted-foreground">
+                              暂无知识点评估数据
+                            </p>
                           </div>
                         )}
                       </div>
@@ -296,19 +364,31 @@ export default function KnowledgePointAnalysis({
                                 fill="#8884d8"
                                 dataKey="value"
                                 nameKey="name"
-                                label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                label={({ name, percent }) =>
+                                  `${name}: ${(percent * 100).toFixed(0)}%`
+                                }
                               >
                                 {pieChartData.map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={entry.color} />
+                                  <Cell
+                                    key={`cell-${index}`}
+                                    fill={entry.color}
+                                  />
                                 ))}
                               </Pie>
-                              <Tooltip formatter={(value) => [`${value} 次评估`, "数量"]} />
+                              <Tooltip
+                                formatter={(value) => [
+                                  `${value} 次评估`,
+                                  "数量",
+                                ]}
+                              />
                               <Legend />
                             </PieChart>
                           </ResponsiveContainer>
                         ) : (
                           <div className="flex items-center justify-center h-full">
-                            <p className="text-muted-foreground">暂无知识点评估数据</p>
+                            <p className="text-muted-foreground">
+                              暂无知识点评估数据
+                            </p>
                           </div>
                         )}
                       </div>
@@ -322,7 +402,9 @@ export default function KnowledgePointAnalysis({
                         <Card key={kp.id || `temp-${kp.name}`}>
                           <CardHeader className="p-4 pb-2">
                             <div className="flex justify-between">
-                              <CardTitle className="text-base">{kp.name}</CardTitle>
+                              <CardTitle className="text-base">
+                                {kp.name}
+                              </CardTitle>
                               {kp.evaluations > 0 ? (
                                 <MasteryIndicator level={kp.avgMastery} />
                               ) : (
@@ -344,37 +426,47 @@ export default function KnowledgePointAnalysis({
                                 </div>
                                 <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden flex">
                                   {kp.masteryDistribution.excellent > 0 && (
-                                    <div 
-                                      className="h-full bg-green-500" 
-                                      style={{width: `${(kp.masteryDistribution.excellent / kp.evaluations) * 100}%`}}
+                                    <div
+                                      className="h-full bg-green-500"
+                                      style={{
+                                        width: `${(kp.masteryDistribution.excellent / kp.evaluations) * 100}%`,
+                                      }}
                                       title={`精通: ${kp.masteryDistribution.excellent}人`}
                                     ></div>
                                   )}
                                   {kp.masteryDistribution.good > 0 && (
-                                    <div 
-                                      className="h-full bg-blue-500" 
-                                      style={{width: `${(kp.masteryDistribution.good / kp.evaluations) * 100}%`}}
+                                    <div
+                                      className="h-full bg-blue-500"
+                                      style={{
+                                        width: `${(kp.masteryDistribution.good / kp.evaluations) * 100}%`,
+                                      }}
                                       title={`熟练: ${kp.masteryDistribution.good}人`}
                                     ></div>
                                   )}
                                   {kp.masteryDistribution.adequate > 0 && (
-                                    <div 
-                                      className="h-full bg-yellow-500" 
-                                      style={{width: `${(kp.masteryDistribution.adequate / kp.evaluations) * 100}%`}}
+                                    <div
+                                      className="h-full bg-yellow-500"
+                                      style={{
+                                        width: `${(kp.masteryDistribution.adequate / kp.evaluations) * 100}%`,
+                                      }}
                                       title={`基础: ${kp.masteryDistribution.adequate}人`}
                                     ></div>
                                   )}
                                   {kp.masteryDistribution.poor > 0 && (
-                                    <div 
-                                      className="h-full bg-orange-500" 
-                                      style={{width: `${(kp.masteryDistribution.poor / kp.evaluations) * 100}%`}}
+                                    <div
+                                      className="h-full bg-orange-500"
+                                      style={{
+                                        width: `${(kp.masteryDistribution.poor / kp.evaluations) * 100}%`,
+                                      }}
                                       title={`薄弱: ${kp.masteryDistribution.poor}人`}
                                     ></div>
                                   )}
                                   {kp.masteryDistribution.inadequate > 0 && (
-                                    <div 
-                                      className="h-full bg-red-500" 
-                                      style={{width: `${(kp.masteryDistribution.inadequate / kp.evaluations) * 100}%`}}
+                                    <div
+                                      className="h-full bg-red-500"
+                                      style={{
+                                        width: `${(kp.masteryDistribution.inadequate / kp.evaluations) * 100}%`,
+                                      }}
                                       title={`未掌握: ${kp.masteryDistribution.inadequate}人`}
                                     ></div>
                                   )}
@@ -402,4 +494,4 @@ export default function KnowledgePointAnalysis({
       </div>
     </div>
   );
-} 
+}

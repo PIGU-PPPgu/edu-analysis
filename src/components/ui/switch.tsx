@@ -3,8 +3,8 @@
  * 提供开关切换功能
  */
 
-import React from 'react';
-import { cn } from '@/lib/utils';
+import React from "react";
+import { cn } from "@/lib/utils";
 
 interface SwitchProps {
   id?: string;
@@ -19,7 +19,7 @@ const Switch: React.FC<SwitchProps> = ({
   checked = false,
   onCheckedChange,
   disabled = false,
-      className
+  className,
 }) => {
   return (
     <button
@@ -39,8 +39,8 @@ const Switch: React.FC<SwitchProps> = ({
         className={cn(
           "inline-block h-4 w-4 transform rounded-full bg-white border-2 border-black transition-transform shadow-[1px_1px_0px_0px_#191A23]",
           checked ? "translate-x-5" : "translate-x-0"
-      )}
-    />
+        )}
+      />
     </button>
   );
 };

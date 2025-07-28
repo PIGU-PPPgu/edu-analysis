@@ -1,8 +1,8 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -15,7 +15,10 @@ interface ErrorBoundaryProps {
   fallback?: React.ComponentType<{ error?: Error; resetError: () => void }>;
 }
 
-export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+export class ErrorBoundary extends React.Component<
+  ErrorBoundaryProps,
+  ErrorBoundaryState
+> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false };
@@ -26,7 +29,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    console.error("ErrorBoundary caught an error:", error, errorInfo);
     this.setState({ error, errorInfo });
   }
 
@@ -38,7 +41,12 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     if (this.state.hasError) {
       if (this.props.fallback) {
         const FallbackComponent = this.props.fallback;
-        return <FallbackComponent error={this.state.error} resetError={this.resetError} />;
+        return (
+          <FallbackComponent
+            error={this.state.error}
+            resetError={this.resetError}
+          />
+        );
       }
 
       return (
@@ -56,16 +64,18 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
                 页面渲染时发生错误，这可能是由于组件状态冲突导致的。请尝试重新加载页面。
               </AlertDescription>
             </Alert>
-            
+
             {this.state.error && (
               <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded">
                 <p className="font-medium mb-2">错误详情：</p>
-                <p className="text-xs text-red-600 font-mono">{this.state.error.message}</p>
+                <p className="text-xs text-red-600 font-mono">
+                  {this.state.error.message}
+                </p>
               </div>
             )}
-            
+
             <div className="flex gap-2">
-              <Button 
+              <Button
                 onClick={this.resetError}
                 variant="outline"
                 className="flex items-center gap-2"
@@ -73,7 +83,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
                 <RefreshCw className="w-4 h-4" />
                 重试
               </Button>
-              <Button 
+              <Button
                 onClick={() => window.location.reload()}
                 variant="default"
               >

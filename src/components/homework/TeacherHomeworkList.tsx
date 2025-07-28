@@ -78,7 +78,10 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { formatDate } from "@/lib/utils";
 import { getAllHomeworks, deleteHomework } from "@/services/homeworkService";
-import { getKnowledgePointsByHomeworkId, createKnowledgePoints } from "@/services/knowledgePointService";
+import {
+  getKnowledgePointsByHomeworkId,
+  createKnowledgePoints,
+} from "@/services/knowledgePointService";
 import { supabase } from "@/integrations/supabase/client";
 import { mockApi, knowledgePoints } from "@/data/mockData";
 import {
@@ -111,7 +114,9 @@ export default function TeacherHomeworkList() {
   const [filter, setFilter] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [selectedKnowledgePoints, setSelectedKnowledgePoints] = useState<string[]>([]);
+  const [selectedKnowledgePoints, setSelectedKnowledgePoints] = useState<
+    string[]
+  >([]);
   const [currentTab, setCurrentTab] = useState("all");
   const [isForceDeleteDialogOpen, setIsForceDeleteDialogOpen] = useState(false);
 
@@ -131,20 +136,19 @@ export default function TeacherHomeworkList() {
       try {
         setLoading(true);
         setError(null);
-        
+
         console.log("正在获取教师数据...");
-        
+
         // 获取班级数据（使用模拟API）
         const classesData = await mockApi.teacher.getClasses();
         console.log("班级数据:", classesData);
         setClasses(classesData);
-        
+
         // 获取作业数据（使用Supabase服务）
         const homeworksData = await getAllHomeworks();
         console.log("作业数据:", homeworksData);
         setHomeworks(homeworksData);
         setFilteredHomeworks(homeworksData);
-        
       } catch (error) {
         console.error("获取数据失败:", error);
         setError("数据加载失败，请刷新页面重试");
@@ -168,8 +172,10 @@ export default function TeacherHomeworkList() {
       const filtered = homeworks.filter(
         (hw) =>
           hw.title?.toLowerCase().includes(filter.toLowerCase()) ||
-          (hw.classes?.name && hw.classes.name.toLowerCase().includes(filter.toLowerCase())) ||
-          (hw.classes?.subject && hw.classes.subject.toLowerCase().includes(filter.toLowerCase()))
+          (hw.classes?.name &&
+            hw.classes.name.toLowerCase().includes(filter.toLowerCase())) ||
+          (hw.classes?.subject &&
+            hw.classes.subject.toLowerCase().includes(filter.toLowerCase()))
       );
       setFilteredHomeworks(filtered);
     }
@@ -202,112 +208,122 @@ export default function TeacherHomeworkList() {
     setFilter(value);
   }, []);
 
-  const onSubmit = useCallback(async (values: z.infer<typeof homeworkSchema>) => {
-    try {
-      // 获取当前用户ID
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error("未登录");
-      }
-      
-      // 使用Supabase创建作业
-      const { data: newHomework, error } = await supabase
-        .from('homework')
-        .insert({
-          title: values.title,
-          description: values.description,
-          class_id: values.classId,
-          due_date: values.dueDate,
-          created_by: user.id
-        })
-        .select()
-        .single();
-        
-      if (error) {
-        throw error;
-      }
-      
-      // 如果选择了知识点，为作业创建知识点
-      if (selectedKnowledgePoints.length > 0) {
-        // 处理选择的知识点 (这里假设selectedKnowledgePoints包含知识点名称)
-        const knowledgePointsToCreate = selectedKnowledgePoints.map(name => ({
-          name,
-          description: null
-        }));
-        
-        // 创建知识点
-        await createKnowledgePoints(newHomework.id, knowledgePointsToCreate);
-      }
-      
-      toast({
-        title: "创建成功",
-        description: "作业已成功创建",
-      });
-      
-      // 更新作业列表
-      setHomeworks((prev) => [newHomework, ...prev]);
+  const onSubmit = useCallback(
+    async (values: z.infer<typeof homeworkSchema>) => {
+      try {
+        // 获取当前用户ID
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          throw new Error("未登录");
+        }
 
-      // 重置表单
-      form.reset();
-      setSelectedKnowledgePoints([]);
-      setCreateDialogOpen(false);
-    } catch (error: any) {
-      console.error("创建作业失败:", error);
-      toast({
-        variant: "destructive",
-        title: "错误",
-        description: `创建作业失败: ${error.message || "未知错误"}`,
-      });
-    }
-  }, [form, selectedKnowledgePoints, toast]);
+        // 使用Supabase创建作业
+        const { data: newHomework, error } = await supabase
+          .from("homework")
+          .insert({
+            title: values.title,
+            description: values.description,
+            class_id: values.classId,
+            due_date: values.dueDate,
+            created_by: user.id,
+          })
+          .select()
+          .single();
 
-  const handleDeleteHomework = useCallback(async (id: string) => {
-    try {
-      setLoading(true);
-      // 使用homeworkService的deleteHomework函数
-      const result = await deleteHomework(id);
-      
-      if (result.success) {
-        // 删除成功
-        setHomeworks((prev) => prev.filter((hw) => hw.id !== id));
+        if (error) {
+          throw error;
+        }
+
+        // 如果选择了知识点，为作业创建知识点
+        if (selectedKnowledgePoints.length > 0) {
+          // 处理选择的知识点 (这里假设selectedKnowledgePoints包含知识点名称)
+          const knowledgePointsToCreate = selectedKnowledgePoints.map(
+            (name) => ({
+              name,
+              description: null,
+            })
+          );
+
+          // 创建知识点
+          await createKnowledgePoints(newHomework.id, knowledgePointsToCreate);
+        }
+
         toast({
-          title: "删除成功",
-          description: "作业已成功删除",
+          title: "创建成功",
+          description: "作业已成功创建",
         });
-      } else if (result.hasSubmissions) {
-        // 作业有提交，但用户希望强制删除
-        setIsForceDeleteDialogOpen(true); // 打开强制删除对话框
-      } else {
+
+        // 更新作业列表
+        setHomeworks((prev) => [newHomework, ...prev]);
+
+        // 重置表单
+        form.reset();
+        setSelectedKnowledgePoints([]);
+        setCreateDialogOpen(false);
+      } catch (error: any) {
+        console.error("创建作业失败:", error);
         toast({
           variant: "destructive",
           title: "错误",
-          description: `删除作业失败: ${result.error || "未知错误"}`,
+          description: `创建作业失败: ${error.message || "未知错误"}`,
         });
       }
-    } catch (error: any) {
-      console.error("删除作业失败:", error);
-      toast({
-        variant: "destructive",
-        title: "错误",
-        description: `删除作业失败: ${error.message || "未知错误"}`,
-      });
-    } finally {
-      setLoading(false);
-      // 不要清空confirmDeleteId，因为可能需要用于强制删除
-      if (!isForceDeleteDialogOpen) {
-        setConfirmDeleteId(null);
+    },
+    [form, selectedKnowledgePoints, toast]
+  );
+
+  const handleDeleteHomework = useCallback(
+    async (id: string) => {
+      try {
+        setLoading(true);
+        // 使用homeworkService的deleteHomework函数
+        const result = await deleteHomework(id);
+
+        if (result.success) {
+          // 删除成功
+          setHomeworks((prev) => prev.filter((hw) => hw.id !== id));
+          toast({
+            title: "删除成功",
+            description: "作业已成功删除",
+          });
+        } else if (result.hasSubmissions) {
+          // 作业有提交，但用户希望强制删除
+          setIsForceDeleteDialogOpen(true); // 打开强制删除对话框
+        } else {
+          toast({
+            variant: "destructive",
+            title: "错误",
+            description: `删除作业失败: ${result.error || "未知错误"}`,
+          });
+        }
+      } catch (error: any) {
+        console.error("删除作业失败:", error);
+        toast({
+          variant: "destructive",
+          title: "错误",
+          description: `删除作业失败: ${error.message || "未知错误"}`,
+        });
+      } finally {
+        setLoading(false);
+        // 不要清空confirmDeleteId，因为可能需要用于强制删除
+        if (!isForceDeleteDialogOpen) {
+          setConfirmDeleteId(null);
+        }
       }
-    }
-  }, [toast]);
-  
+    },
+    [toast]
+  );
+
   // 确认强制删除作业
   const handleForceDeleteHomework = useCallback(async () => {
     if (!confirmDeleteId) return;
-    
+
     try {
       setLoading(true);
       const result = await deleteHomework(confirmDeleteId, true); // 使用force=true强制删除
-      
+
       if (result.success) {
         // 删除成功
         setHomeworks((prev) => prev.filter((hw) => hw.id !== confirmDeleteId));
@@ -338,12 +354,25 @@ export default function TeacherHomeworkList() {
 
   const getCompletionStatus = useCallback((homework: any) => {
     const submissions = homework.homework_submission || [];
-    const gradedCount = submissions.filter((s: any) => s.status === "graded").length;
-    const pendingCount = submissions.filter((s: any) => s.status === "pending").length;
-    const submittedCount = submissions.filter((s: any) => s.status === "submitted").length;
+    const gradedCount = submissions.filter(
+      (s: any) => s.status === "graded"
+    ).length;
+    const pendingCount = submissions.filter(
+      (s: any) => s.status === "pending"
+    ).length;
+    const submittedCount = submissions.filter(
+      (s: any) => s.status === "submitted"
+    ).length;
     const totalCount = submissions.length;
 
-    if (totalCount === 0) return { percent: 0, gradedCount: 0, pendingCount: 0, submittedCount: 0, totalCount: 0 };
+    if (totalCount === 0)
+      return {
+        percent: 0,
+        gradedCount: 0,
+        pendingCount: 0,
+        submittedCount: 0,
+        totalCount: 0,
+      };
 
     return {
       percent: Math.round((gradedCount / totalCount) * 100),
@@ -356,7 +385,7 @@ export default function TeacherHomeworkList() {
 
   // 显示加载状态
   if (loading) return <Loading />;
-  
+
   // 显示错误状态
   if (error) {
     return (
@@ -364,11 +393,9 @@ export default function TeacherHomeworkList() {
         <AlertTriangle className="h-16 w-16 text-red-500" />
         <h2 className="text-2xl font-bold">加载失败</h2>
         <p className="text-muted-foreground text-center max-w-md">{error}</p>
-        <Button onClick={() => window.location.reload()}>
-          刷新页面
-        </Button>
+        <Button onClick={() => window.location.reload()}>刷新页面</Button>
       </div>
-    )
+    );
   }
 
   return (
@@ -584,15 +611,22 @@ export default function TeacherHomeworkList() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      
+
       {/* 强制删除确认对话框 */}
-      <AlertDialog open={isForceDeleteDialogOpen} onOpenChange={setIsForceDeleteDialogOpen}>
+      <AlertDialog
+        open={isForceDeleteDialogOpen}
+        onOpenChange={setIsForceDeleteDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-red-600">强制删除作业及所有提交</AlertDialogTitle>
+            <AlertDialogTitle className="text-red-600">
+              强制删除作业及所有提交
+            </AlertDialogTitle>
             <AlertDialogDescription>
               <div className="mb-4">
-                <span className="text-red-600 font-semibold">警告：此操作将删除该作业的所有学生提交记录和评分数据，且不可恢复！</span>
+                <span className="text-red-600 font-semibold">
+                  警告：此操作将删除该作业的所有学生提交记录和评分数据，且不可恢复！
+                </span>
               </div>
               此操作会：
               <ul className="list-disc ml-6 mt-2 space-y-1">
@@ -604,9 +638,11 @@ export default function TeacherHomeworkList() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setConfirmDeleteId(null)}>取消</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleForceDeleteHomework} 
+            <AlertDialogCancel onClick={() => setConfirmDeleteId(null)}>
+              取消
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleForceDeleteHomework}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
               确认强制删除
@@ -626,10 +662,7 @@ export default function TeacherHomeworkList() {
           <p className="mt-2 text-muted-foreground">
             点击"创建作业"按钮开始添加作业
           </p>
-          <Button
-            onClick={() => setCreateDialogOpen(true)}
-            className="mt-4"
-          >
+          <Button onClick={() => setCreateDialogOpen(true)} className="mt-4">
             <PlusCircle className="h-4 w-4 mr-2" /> 创建作业
           </Button>
         </div>
@@ -652,13 +685,14 @@ export default function TeacherHomeworkList() {
           {homeworks.map((homework) => {
             const status = getCompletionStatus(homework);
             const isOverdue =
-              new Date(homework.due_date) < new Date() &&
-              status.percent < 100;
+              new Date(homework.due_date) < new Date() && status.percent < 100;
             return (
               <TableRow key={homework.id}>
                 <TableCell className="font-medium">{homework.title}</TableCell>
                 <TableCell>
-                  {homework.classes?.name ? `${homework.classes.name} (${homework.classes.subject || '未知'})` : '未知班级'}
+                  {homework.classes?.name
+                    ? `${homework.classes.name} (${homework.classes.subject || "未知"})`
+                    : "未知班级"}
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center">
@@ -740,7 +774,8 @@ export default function TeacherHomeworkList() {
                                   .slice(2)
                                   .map((kp: any) => (
                                     <span key={kp.knowledge_point_id}>
-                                      {kp.knowledge_points?.name || "未知知识点"}
+                                      {kp.knowledge_points?.name ||
+                                        "未知知识点"}
                                     </span>
                                   ))}
                               </div>
@@ -762,10 +797,13 @@ export default function TeacherHomeworkList() {
                       <DropdownMenuItem
                         onClick={(e) => {
                           try {
-                            console.log("点击查看详情按钮，作业ID:", homework.id);
+                            console.log(
+                              "点击查看详情按钮，作业ID:",
+                              homework.id
+                            );
                             const url = `/homework/${homework.id}`;
                             console.log("将导航到:", url);
-                            
+
                             // 使用两种方式尝试导航
                             window.location.href = url;
                           } catch (error) {

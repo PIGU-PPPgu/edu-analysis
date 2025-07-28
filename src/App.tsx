@@ -32,19 +32,22 @@ import CreateWarningTablePage from "./pages/tools/CreateWarningTable";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ICPNotice from "./pages/ICPNotice";
 import QuickDiagnosisPage from "./pages/QuickDiagnosisPage";
-import { initGlobalErrorHandlers, reduceBrowserWorkload, checkBrowserResources } from "./utils/errorHandlers";
+import {
+  initGlobalErrorHandlers,
+  reduceBrowserWorkload,
+  checkBrowserResources,
+} from "./utils/errorHandlers";
 import ErrorBoundary from "./components/performance/ErrorBoundary";
 import { initializePerformanceOptimizer } from "./utils/performanceOptimizer";
 import SystemMonitor, { LogLevel, LogCategory } from "./utils/systemMonitor";
 import PerformanceMonitoring from "./pages/PerformanceMonitoring";
-
 
 // 全局配置QueryClient
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 2,
-      retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
       staleTime: 10 * 60 * 1000, // 10分钟缓存
     },
   },
@@ -63,20 +66,20 @@ const DatabaseInitializer = ({ children }: { children: React.ReactNode }) => {
         // 初始化默认AI配置（豆包API），强制重置配置
         await initDefaultAIConfig(true);
       } catch (error) {
-        console.error('数据库初始化失败:', error);
+        console.error("数据库初始化失败:", error);
       }
     };
-    
+
     setupDatabase();
-    
+
     // 检查浏览器资源，如果资源不足，自动减少动画和特效
     if (!checkBrowserResources()) {
       reduceBrowserWorkload();
     }
-    
+
     // 初始化性能优化系统
     initializePerformanceOptimizer();
-    
+
     // 初始化系统监控
     const isDev = import.meta.env.DEV;
     const monitor = SystemMonitor.getInstance({
@@ -87,16 +90,21 @@ const DatabaseInitializer = ({ children }: { children: React.ReactNode }) => {
       enableErrorTracking: true,
       enableUserTracking: true,
       maxLogEntries: 1000,
-      flushInterval: 30000
+      flushInterval: 30000,
     });
-    
-    monitor.log(LogLevel.INFO, LogCategory.SYSTEM, 'Application initialized successfully', {
-      environment: isDev ? 'development' : 'production',
-      version: import.meta.env.VITE_APP_VERSION || 'unknown',
-      timestamp: Date.now()
-    });
+
+    monitor.log(
+      LogLevel.INFO,
+      LogCategory.SYSTEM,
+      "Application initialized successfully",
+      {
+        environment: isDev ? "development" : "production",
+        version: import.meta.env.VITE_APP_VERSION || "unknown",
+        timestamp: Date.now(),
+      }
+    );
   }, []);
-  
+
   return <>{children}</>;
 };
 
@@ -108,58 +116,107 @@ function App() {
         <Sonner />
         <AuthProvider>
           <DatabaseInitializer>
-            <ErrorBoundary 
+            <ErrorBoundary
               componentName="App"
               enableRecovery={true}
               showErrorDetails={true}
               isolateFailures={false}
             >
               <BrowserRouter>
-          <Routes>
-                {/* 公开路由 */}
-                <Route path="/" element={<ModernHomepage />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/privacy" element={<PrivacyPolicy />} />
-                <Route path="/icp-notice" element={<ICPNotice />} />
-                <Route path="/unauthorized" element={<UnauthorizedPage />} />
-                <Route path="/test/cascade-analysis" element={<CascadeAnalysisTestPage />} />
-                
-                {/* 诊断工具路由（保持公开用于系统维护） */}
-                <Route path="/tools/diagnostics" element={<DiagnosticsTool />} />
-                <Route path="/tools/init-tables" element={<InitTables />} />
-                <Route path="/tools/create-warning-table" element={<CreateWarningTablePage />} />
-                <Route path="/performance-monitoring" element={<PerformanceMonitoring />} />
-                <Route path="/diagnosis" element={<QuickDiagnosisPage />} />
-                
-                {/* 受保护的路由 - 需要登录验证 */}
-                <Route element={<ProtectedRoute />}>
-                  <Route path="/dashboard" element={<Index />} />
-                  <Route path="/data-import" element={<Index />} />
-                  <Route path="/simple-import" element={<Index />} />
-                  <Route path="/profile" element={<ProfilePage />} />
-                  
-                  <Route element={<ProtectedRoute allowedRoles={['admin', 'teacher']} />}>
-                    <Route path="/grade-analysis" element={<GradeAnalysis />} />
-                    <Route path="/advanced-analysis" element={<AdvancedAnalysis />} />
-                    <Route path="/warning-analysis" element={<WarningAnalysis />} />
-                    <Route path="/student-management" element={<StudentManagement />} />
-                    <Route path="/class-management" element={<ClassManagement />} />
-                    <Route path="/class-profile/:classId" element={<ClassProfile />} />
-                    <Route path="/student-portrait-management" element={<StudentPortraitManagement />} />
+                <Routes>
+                  {/* 公开路由 */}
+                  <Route path="/" element={<ModernHomepage />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/privacy" element={<PrivacyPolicy />} />
+                  <Route path="/icp-notice" element={<ICPNotice />} />
+                  <Route path="/unauthorized" element={<UnauthorizedPage />} />
+                  <Route
+                    path="/test/cascade-analysis"
+                    element={<CascadeAnalysisTestPage />}
+                  />
+
+                  {/* 诊断工具路由（保持公开用于系统维护） */}
+                  <Route
+                    path="/tools/diagnostics"
+                    element={<DiagnosticsTool />}
+                  />
+                  <Route path="/tools/init-tables" element={<InitTables />} />
+                  <Route
+                    path="/tools/create-warning-table"
+                    element={<CreateWarningTablePage />}
+                  />
+                  <Route
+                    path="/performance-monitoring"
+                    element={<PerformanceMonitoring />}
+                  />
+                  <Route path="/diagnosis" element={<QuickDiagnosisPage />} />
+
+                  {/* 受保护的路由 - 需要登录验证 */}
+                  <Route element={<ProtectedRoute />}>
+                    <Route path="/dashboard" element={<Index />} />
+                    <Route path="/data-import" element={<Index />} />
+                    <Route path="/simple-import" element={<Index />} />
+                    <Route path="/profile" element={<ProfilePage />} />
+
+                    <Route
+                      element={
+                        <ProtectedRoute allowedRoles={["admin", "teacher"]} />
+                      }
+                    >
+                      <Route
+                        path="/grade-analysis"
+                        element={<GradeAnalysis />}
+                      />
+                      <Route
+                        path="/advanced-analysis"
+                        element={<AdvancedAnalysis />}
+                      />
+                      <Route
+                        path="/warning-analysis"
+                        element={<WarningAnalysis />}
+                      />
+                      <Route
+                        path="/student-management"
+                        element={<StudentManagement />}
+                      />
+                      <Route
+                        path="/class-management"
+                        element={<ClassManagement />}
+                      />
+                      <Route
+                        path="/class-profile/:classId"
+                        element={<ClassProfile />}
+                      />
+                      <Route
+                        path="/student-portrait-management"
+                        element={<StudentPortraitManagement />}
+                      />
+                    </Route>
+
+                    <Route
+                      path="/student-profile/:studentId"
+                      element={<StudentProfile />}
+                    />
+                    <Route path="/ai-settings" element={<AISettings />} />
+
+                    <Route path="/homework" element={<HomeworkManagement />} />
+                    <Route
+                      path="/homework/edit/:homeworkId"
+                      element={<HomeworkManagement />}
+                    />
+                    <Route
+                      path="/homework/:homeworkId"
+                      element={<HomeworkDetailPage />}
+                    />
+                    <Route
+                      path="/student-homework"
+                      element={<StudentManagement />}
+                    />
                   </Route>
-            
-                  <Route path="/student-profile/:studentId" element={<StudentProfile />} />
-                  <Route path="/ai-settings" element={<AISettings />} />
-                  
-                  <Route path="/homework" element={<HomeworkManagement />} />
-                  <Route path="/homework/edit/:homeworkId" element={<HomeworkManagement />} />
-                  <Route path="/homework/:homeworkId" element={<HomeworkDetailPage />} />
-                  <Route path="/student-homework" element={<StudentManagement />} />
-                </Route>
-                
-                {/* 默认404路由 */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+
+                  {/* 默认404路由 */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
               </BrowserRouter>
             </ErrorBoundary>
           </DatabaseInitializer>

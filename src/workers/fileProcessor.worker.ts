@@ -1,19 +1,19 @@
 // Web Worker for processing large Excel/CSV files
 // 解决大文件处理时的UI卡顿问题
 
-import * as XLSX from 'xlsx';
-import Papa from 'papaparse';
+import * as XLSX from "xlsx";
+import Papa from "papaparse";
 
 // Worker消息类型定义
 export interface WorkerMessage {
-  type: 'PARSE_FILE' | 'PARSE_PROGRESS' | 'PARSE_COMPLETE' | 'PARSE_ERROR';
+  type: "PARSE_FILE" | "PARSE_PROGRESS" | "PARSE_COMPLETE" | "PARSE_ERROR";
   payload?: any;
 }
 
 export interface ParseFileRequest {
   file: ArrayBuffer;
   fileName: string;
-  fileType: 'excel' | 'csv';
+  fileType: "excel" | "csv";
   options?: {
     sheetName?: string;
     encoding?: string;
@@ -23,7 +23,7 @@ export interface ParseFileRequest {
 }
 
 export interface ParseProgress {
-  phase: 'reading' | 'parsing' | 'validating' | 'formatting';
+  phase: "reading" | "parsing" | "validating" | "formatting";
   progress: number; // 0-100
   message: string;
   currentRow?: number;
@@ -48,12 +48,12 @@ export interface ParseResult {
 }
 
 // 主处理函数
-self.onmessage = async function(e: MessageEvent<WorkerMessage>) {
+self.onmessage = async function (e: MessageEvent<WorkerMessage>) {
   const { type, payload } = e.data;
 
   try {
     switch (type) {
-      case 'PARSE_FILE':
+      case "PARSE_FILE":
         await parseFile(payload as ParseFileRequest);
         break;
       default:
@@ -61,10 +61,10 @@ self.onmessage = async function(e: MessageEvent<WorkerMessage>) {
     }
   } catch (error) {
     postMessage({
-      type: 'PARSE_ERROR',
+      type: "PARSE_ERROR",
       payload: {
-        error: error instanceof Error ? error.message : String(error)
-      }
+        error: error instanceof Error ? error.message : String(error),
+      },
     } as WorkerMessage);
   }
 };
@@ -76,14 +76,14 @@ async function parseFile(request: ParseFileRequest): Promise<void> {
   try {
     // 阶段1: 读取文件
     postProgress({
-      phase: 'reading',
+      phase: "reading",
       progress: 10,
-      message: '正在读取文件内容...'
+      message: "正在读取文件内容...",
     });
 
     let parseResult: ParseResult;
 
-    if (fileType === 'excel') {
+    if (fileType === "excel") {
       parseResult = await parseExcelFile(file, fileName, options);
     } else {
       parseResult = await parseCsvFile(file, fileName, options);
@@ -94,80 +94,84 @@ async function parseFile(request: ParseFileRequest): Promise<void> {
 
     // 发送完成消息
     postMessage({
-      type: 'PARSE_COMPLETE',
-      payload: parseResult
+      type: "PARSE_COMPLETE",
+      payload: parseResult,
     } as WorkerMessage);
-
   } catch (error) {
     postMessage({
-      type: 'PARSE_ERROR',
+      type: "PARSE_ERROR",
       payload: {
         error: error instanceof Error ? error.message : String(error),
-        fileName
-      }
+        fileName,
+      },
     } as WorkerMessage);
   }
 }
 
 async function parseExcelFile(
-  buffer: ArrayBuffer, 
-  fileName: string, 
+  buffer: ArrayBuffer,
+  fileName: string,
   options: any
 ): Promise<ParseResult> {
   postProgress({
-    phase: 'parsing',
+    phase: "parsing",
     progress: 30,
-    message: '正在解析Excel文件...'
+    message: "正在解析Excel文件...",
   });
 
-  const workbook = XLSX.read(buffer, { 
-    type: 'array',
+  const workbook = XLSX.read(buffer, {
+    type: "array",
     cellDates: true,
     cellNF: false,
-    cellText: false
+    cellText: false,
   });
 
   // 获取工作表名称
   const sheetNames = workbook.SheetNames;
   const sheetName = options.sheetName || sheetNames[0];
-  
+
   if (!sheetNames.includes(sheetName)) {
-    throw new Error(`工作表 "${sheetName}" 不存在。可用工作表: ${sheetNames.join(', ')}`);
+    throw new Error(
+      `工作表 "${sheetName}" 不存在。可用工作表: ${sheetNames.join(", ")}`
+    );
   }
 
   const worksheet = workbook.Sheets[sheetName];
-  
+
   postProgress({
-    phase: 'parsing',
+    phase: "parsing",
     progress: 50,
-    message: '正在转换数据格式...'
+    message: "正在转换数据格式...",
   });
 
   // 获取数据范围
-  const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+  const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1");
   const totalRows = range.e.r + 1;
   const totalColumns = range.e.c + 1;
 
   // 转换为JSON格式，保持空值
   const jsonData = XLSX.utils.sheet_to_json(worksheet, {
     header: 1, // 使用数组格式，保持原始结构
-    defval: '', // 空单元格默认值
-    blankrows: false // 跳过空行
+    defval: "", // 空单元格默认值
+    blankrows: false, // 跳过空行
   }) as any[][];
 
   postProgress({
-    phase: 'validating',
+    phase: "validating",
     progress: 70,
-    message: '正在验证数据质量...'
+    message: "正在验证数据质量...",
   });
 
   // 数据验证和清理
-  const { cleanData, headers, errors, warnings } = await validateAndCleanData(jsonData, fileName);
+  const { cleanData, headers, errors, warnings } = await validateAndCleanData(
+    jsonData,
+    fileName
+  );
 
   postProgress({
-    phase: 'formatting',
+    phase: "formatting",
     progress: 90,
-    message: '正在格式化数据...'
+    message: "正在格式化数据...",
   });
 
   // 最终格式化
@@ -183,35 +187,35 @@ async function parseExcelFile(
       totalRows: cleanData.length,
       totalColumns,
       parseTime: 0, // 将在外部计算
-      sheetNames
+      sheetNames,
     },
     errors,
-    warnings
+    warnings,
   };
 }
 
 async function parseCsvFile(
-  buffer: ArrayBuffer, 
-  fileName: string, 
+  buffer: ArrayBuffer,
+  fileName: string,
   options: any
 ): Promise<ParseResult> {
   postProgress({
-    phase: 'parsing',
+    phase: "parsing",
     progress: 30,
-    message: '正在解析CSV文件...'
+    message: "正在解析CSV文件...",
   });
 
   // 检测编码
   const encoding = options.encoding || detectEncoding(buffer);
-  
+
   // 转换为文本
   const decoder = new TextDecoder(encoding);
   const text = decoder.decode(buffer);
 
   postProgress({
-    phase: 'parsing',
+    phase: "parsing",
     progress: 50,
-    message: '正在分析文件结构...'
+    message: "正在分析文件结构...",
   });
 
   // 解析CSV
@@ -221,14 +225,16 @@ async function parseCsvFile(
     skipEmptyLines: true,
     transformHeader: (header: string) => header.trim(),
     transform: (value: string) => value.trim(),
-    chunk: options.chunkSize ? (results: Papa.ParseResult<any>) => {
-      // 分块处理进度回调
-      postProgress({
-        phase: 'parsing',
-        progress: 50 + (results.meta.cursor || 0) / text.length * 20,
-        message: `正在处理数据... ${Math.round((results.meta.cursor || 0) / text.length * 100)}%`
-      });
-    } : undefined
+    chunk: options.chunkSize
+      ? (results: Papa.ParseResult<any>) => {
+          // 分块处理进度回调
+          postProgress({
+            phase: "parsing",
+            progress: 50 + ((results.meta.cursor || 0) / text.length) * 20,
+            message: `正在处理数据... ${Math.round(((results.meta.cursor || 0) / text.length) * 100)}%`,
+          });
+        }
+      : undefined,
   };
 
   return new Promise((resolve, reject) => {
@@ -237,17 +243,18 @@ async function parseCsvFile(
       complete: async (results: Papa.ParseResult<any>) => {
         try {
           postProgress({
-            phase: 'validating',
+            phase: "validating",
             progress: 70,
-            message: '正在验证数据质量...'
+            message: "正在验证数据质量...",
           });
 
-          const { cleanData, headers, errors, warnings } = await validateAndCleanData(results.data, fileName);
+          const { cleanData, headers, errors, warnings } =
+            await validateAndCleanData(results.data, fileName);
 
           postProgress({
-            phase: 'formatting',
+            phase: "formatting",
             progress: 90,
-            message: '正在格式化数据...'
+            message: "正在格式化数据...",
           });
 
           const formattedData = await formatDataForImport(cleanData, headers);
@@ -262,10 +269,10 @@ async function parseCsvFile(
               totalRows: cleanData.length,
               totalColumns: headers.length,
               parseTime: 0,
-              encoding
+              encoding,
             },
-            errors: [...errors, ...results.errors.map(e => e.message)],
-            warnings
+            errors: [...errors, ...results.errors.map((e) => e.message)],
+            warnings,
           });
         } catch (error) {
           reject(error);
@@ -273,13 +280,13 @@ async function parseCsvFile(
       },
       error: (error: Papa.ParseError) => {
         reject(new Error(`CSV解析失败: ${error.message}`));
-      }
+      },
     });
   });
 }
 
 async function validateAndCleanData(
-  rawData: any[][], 
+  rawData: any[][],
   fileName: string
 ): Promise<{
   cleanData: any[][];
@@ -291,7 +298,7 @@ async function validateAndCleanData(
   const warnings: string[] = [];
 
   if (!rawData || rawData.length === 0) {
-    throw new Error('文件中没有找到数据');
+    throw new Error("文件中没有找到数据");
   }
 
   // 检测表头
@@ -303,18 +310,20 @@ async function validateAndCleanData(
   const secondRow = rawData[1];
 
   if (firstRow && secondRow) {
-    const firstRowIsNumbers = firstRow.some(cell => 
-      typeof cell === 'number' || (typeof cell === 'string' && /^\d+\.?\d*$/.test(cell))
+    const firstRowIsNumbers = firstRow.some(
+      (cell) =>
+        typeof cell === "number" ||
+        (typeof cell === "string" && /^\d+\.?\d*$/.test(cell))
     );
-    
+
     if (firstRowIsNumbers) {
       // 第一行看起来像数据，自动生成表头
       headers = firstRow.map((_, index) => `列${index + 1}`);
       dataStartRow = 0;
-      warnings.push('文件缺少表头，已自动生成列名');
+      warnings.push("文件缺少表头，已自动生成列名");
     } else {
       // 第一行是表头
-      headers = firstRow.map(cell => String(cell || '').trim());
+      headers = firstRow.map((cell) => String(cell || "").trim());
       dataStartRow = 1;
     }
   } else {
@@ -323,21 +332,30 @@ async function validateAndCleanData(
   }
 
   // 清理数据
-  const cleanData = rawData.slice(dataStartRow).filter(row => {
-    // 过滤完全空白的行
-    return row && row.some(cell => cell !== null && cell !== undefined && String(cell).trim() !== '');
-  }).map(row => {
-    // 确保每行的列数与表头一致
-    const cleanRow = [...row];
-    while (cleanRow.length < headers.length) {
-      cleanRow.push('');
-    }
-    return cleanRow.slice(0, headers.length);
-  });
+  const cleanData = rawData
+    .slice(dataStartRow)
+    .filter((row) => {
+      // 过滤完全空白的行
+      return (
+        row &&
+        row.some(
+          (cell) =>
+            cell !== null && cell !== undefined && String(cell).trim() !== ""
+        )
+      );
+    })
+    .map((row) => {
+      // 确保每行的列数与表头一致
+      const cleanRow = [...row];
+      while (cleanRow.length < headers.length) {
+        cleanRow.push("");
+      }
+      return cleanRow.slice(0, headers.length);
+    });
 
   // 数据质量检查
   if (cleanData.length === 0) {
-    throw new Error('文件中没有找到有效数据');
+    throw new Error("文件中没有找到有效数据");
   }
 
   if (cleanData.length > 10000) {
@@ -345,15 +363,17 @@ async function validateAndCleanData(
   }
 
   // 检查列名重复
-  const duplicateHeaders = headers.filter((header, index) => 
-    headers.indexOf(header) !== index && header.trim() !== ''
+  const duplicateHeaders = headers.filter(
+    (header, index) => headers.indexOf(header) !== index && header.trim() !== ""
   );
   if (duplicateHeaders.length > 0) {
-    warnings.push(`发现重复的列名: ${duplicateHeaders.join(', ')}`);
+    warnings.push(`发现重复的列名: ${duplicateHeaders.join(", ")}`);
   }
 
   // 检查数据一致性
-  const inconsistentRows = cleanData.filter(row => row.length !== headers.length);
+  const inconsistentRows = cleanData.filter(
+    (row) => row.length !== headers.length
+  );
   if (inconsistentRows.length > 0) {
     warnings.push(`${inconsistentRows.length} 行数据的列数与表头不一致`);
   }
@@ -361,11 +381,14 @@ async function validateAndCleanData(
   return { cleanData, headers, errors, warnings };
 }
 
-async function formatDataForImport(data: any[][], headers: string[]): Promise<any[]> {
-  return data.map(row => {
+async function formatDataForImport(
+  data: any[][],
+  headers: string[]
+): Promise<any[]> {
+  return data.map((row) => {
     const obj: any = {};
     headers.forEach((header, index) => {
-      obj[header] = row[index] || '';
+      obj[header] = row[index] || "";
     });
     return obj;
   });
@@ -374,50 +397,55 @@ async function formatDataForImport(data: any[][], headers: string[]): Promise<an
 function detectEncoding(buffer: ArrayBuffer): string {
   // 简单的编码检测
   const uint8Array = new Uint8Array(buffer.slice(0, 1024)); // 检查前1KB
-  
+
   // 检查BOM
-  if (uint8Array[0] === 0xEF && uint8Array[1] === 0xBB && uint8Array[2] === 0xBF) {
-    return 'utf-8';
+  if (
+    uint8Array[0] === 0xef &&
+    uint8Array[1] === 0xbb &&
+    uint8Array[2] === 0xbf
+  ) {
+    return "utf-8";
   }
-  if (uint8Array[0] === 0xFF && uint8Array[1] === 0xFE) {
-    return 'utf-16le';
+  if (uint8Array[0] === 0xff && uint8Array[1] === 0xfe) {
+    return "utf-16le";
   }
-  if (uint8Array[0] === 0xFE && uint8Array[1] === 0xFF) {
-    return 'utf-16be';
+  if (uint8Array[0] === 0xfe && uint8Array[1] === 0xff) {
+    return "utf-16be";
   }
 
   // 尝试UTF-8解码，如果失败则使用GBK
   try {
-    const decoder = new TextDecoder('utf-8', { fatal: true });
+    const decoder = new TextDecoder("utf-8", { fatal: true });
     decoder.decode(uint8Array);
-    return 'utf-8';
+    return "utf-8";
   } catch {
-    return 'gbk';
+    return "gbk";
   }
 }
 
 function detectDelimiter(text: string): string {
   const sample = text.substring(0, 1024); // 检查前1KB
-  const delimiters = [',', '\t', ';', '|'];
-  
+  const delimiters = [",", "\t", ";", "|"];
+
   let maxCount = 0;
-  let bestDelimiter = ',';
-  
+  let bestDelimiter = ",";
+
   for (const delimiter of delimiters) {
-    const count = (sample.match(new RegExp(`\\${delimiter}`, 'g')) || []).length;
+    const count = (sample.match(new RegExp(`\\${delimiter}`, "g")) || [])
+      .length;
     if (count > maxCount) {
       maxCount = count;
       bestDelimiter = delimiter;
     }
   }
-  
+
   return bestDelimiter;
 }
 
 function postProgress(progress: ParseProgress): void {
   postMessage({
-    type: 'PARSE_PROGRESS',
-    payload: progress
+    type: "PARSE_PROGRESS",
+    payload: progress,
   } as WorkerMessage);
 }
 

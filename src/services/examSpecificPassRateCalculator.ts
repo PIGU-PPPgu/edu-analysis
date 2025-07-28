@@ -3,8 +3,8 @@
  * 支持为每次考试设置不同的科目满分和及格线
  */
 
-import { SUBJECT_MAX_SCORES } from '@/utils/gradeUtils';
-import { Subject } from '@/types/grade';
+import { SUBJECT_MAX_SCORES } from "@/utils/gradeUtils";
+import { Subject } from "@/types/grade";
 
 // 科目配置接口
 interface SubjectConfig {
@@ -38,7 +38,8 @@ export class ExamSpecificPassRateCalculator {
 
   public static getInstance(): ExamSpecificPassRateCalculator {
     if (!ExamSpecificPassRateCalculator.instance) {
-      ExamSpecificPassRateCalculator.instance = new ExamSpecificPassRateCalculator();
+      ExamSpecificPassRateCalculator.instance =
+        new ExamSpecificPassRateCalculator();
     }
     return ExamSpecificPassRateCalculator.instance;
   }
@@ -46,24 +47,24 @@ export class ExamSpecificPassRateCalculator {
   // 初始化默认全局配置
   private initializeDefaultConfigs() {
     const defaultSubjects = [
-      { key: Subject.TOTAL, name: '总分', maxScore: 523 },
-      { key: Subject.CHINESE, name: '语文', maxScore: 120 },
-      { key: Subject.MATH, name: '数学', maxScore: 100 },
-      { key: Subject.ENGLISH, name: '英语', maxScore: 75 },
-      { key: Subject.PHYSICS, name: '物理', maxScore: 63 },
-      { key: Subject.CHEMISTRY, name: '化学', maxScore: 45 },
-      { key: Subject.POLITICS, name: '道法', maxScore: 50 },
-      { key: Subject.HISTORY, name: '历史', maxScore: 70 }
+      { key: Subject.TOTAL, name: "总分", maxScore: 523 },
+      { key: Subject.CHINESE, name: "语文", maxScore: 120 },
+      { key: Subject.MATH, name: "数学", maxScore: 100 },
+      { key: Subject.ENGLISH, name: "英语", maxScore: 75 },
+      { key: Subject.PHYSICS, name: "物理", maxScore: 63 },
+      { key: Subject.CHEMISTRY, name: "化学", maxScore: 45 },
+      { key: Subject.POLITICS, name: "道法", maxScore: 50 },
+      { key: Subject.HISTORY, name: "历史", maxScore: 70 },
     ];
 
-    defaultSubjects.forEach(subject => {
+    defaultSubjects.forEach((subject) => {
       const config: SubjectConfig = {
         name: subject.key,
         displayName: subject.name,
         maxScore: subject.maxScore,
         passScore: Math.round(subject.maxScore * 0.6),
         excellentScore: Math.round(subject.maxScore * 0.85),
-        isCustom: false
+        isCustom: false,
       };
       this.globalConfig.set(subject.key, config);
     });
@@ -75,9 +76,13 @@ export class ExamSpecificPassRateCalculator {
    * @param examName 考试名称
    * @param subjectConfigs 科目配置数组
    */
-  public setExamConfig(examId: string, examName: string, subjectConfigs: SubjectConfig[]): void {
+  public setExamConfig(
+    examId: string,
+    examName: string,
+    subjectConfigs: SubjectConfig[]
+  ): void {
     const subjects = new Map<string, SubjectConfig>();
-    subjectConfigs.forEach(config => {
+    subjectConfigs.forEach((config) => {
       subjects.set(config.name, config);
     });
 
@@ -86,7 +91,7 @@ export class ExamSpecificPassRateCalculator {
       examName,
       subjects,
       createdAt: this.examConfigs.get(examId)?.createdAt || new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
 
     this.examConfigs.set(examId, examConfig);
@@ -198,11 +203,15 @@ export class ExamSpecificPassRateCalculator {
    * @param examId 考试ID（可选）
    * @returns 及格率（0-100）
    */
-  public calculatePassRate(scores: number[], subject: string, examId?: string): number {
+  public calculatePassRate(
+    scores: number[],
+    subject: string,
+    examId?: string
+  ): number {
     if (scores.length === 0) return 0;
-    
+
     const passScore = this.getPassScore(subject, examId);
-    const passCount = scores.filter(score => score >= passScore).length;
+    const passCount = scores.filter((score) => score >= passScore).length;
     return Math.round((passCount / scores.length) * 100);
   }
 
@@ -213,11 +222,17 @@ export class ExamSpecificPassRateCalculator {
    * @param examId 考试ID（可选）
    * @returns 优秀率（0-100）
    */
-  public calculateExcellentRate(scores: number[], subject: string, examId?: string): number {
+  public calculateExcellentRate(
+    scores: number[],
+    subject: string,
+    examId?: string
+  ): number {
     if (scores.length === 0) return 0;
-    
+
     const excellentScore = this.getExcellentScore(subject, examId);
-    const excellentCount = scores.filter(score => score >= excellentScore).length;
+    const excellentCount = scores.filter(
+      (score) => score >= excellentScore
+    ).length;
     return Math.round((excellentCount / scores.length) * 100);
   }
 
@@ -250,13 +265,17 @@ export class ExamSpecificPassRateCalculator {
    * @param examId 考试ID（可选）
    * @returns 成绩等级
    */
-  public getGradeLevel(score: number, subject: string, examId?: string): string {
+  public getGradeLevel(
+    score: number,
+    subject: string,
+    examId?: string
+  ): string {
     const passScore = this.getPassScore(subject, examId);
     const excellentScore = this.getExcellentScore(subject, examId);
-    
-    if (score >= excellentScore) return '优秀';
-    if (score >= passScore) return '及格';
-    return '不及格';
+
+    if (score >= excellentScore) return "优秀";
+    if (score >= passScore) return "及格";
+    return "不及格";
   }
 
   /**
@@ -302,7 +321,11 @@ export class ExamSpecificPassRateCalculator {
    * @param targetExamId 目标考试ID
    * @param targetExamName 目标考试名称
    */
-  public copyExamConfig(sourceExamId: string, targetExamId: string, targetExamName: string): boolean {
+  public copyExamConfig(
+    sourceExamId: string,
+    targetExamId: string,
+    targetExamName: string
+  ): boolean {
     const sourceConfig = this.examConfigs.get(sourceExamId);
     if (!sourceConfig) return false;
 
@@ -311,7 +334,7 @@ export class ExamSpecificPassRateCalculator {
       examName: targetExamName,
       subjects: new Map(sourceConfig.subjects),
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
 
     this.examConfigs.set(targetExamId, targetConfig);
@@ -324,7 +347,7 @@ export class ExamSpecificPassRateCalculator {
    * @param subjectConfigs 科目配置数组
    */
   public updateGlobalConfig(subjectConfigs: SubjectConfig[]): void {
-    subjectConfigs.forEach(config => {
+    subjectConfigs.forEach((config) => {
       this.globalConfig.set(config.name, config);
     });
     this.saveConfigsToStorage();
@@ -336,36 +359,36 @@ export class ExamSpecificPassRateCalculator {
   private loadConfigsFromStorage(): void {
     try {
       // 加载全局配置
-      const globalStored = localStorage.getItem('globalSubjectConfigs');
+      const globalStored = localStorage.getItem("globalSubjectConfigs");
       if (globalStored) {
         const configs: SubjectConfig[] = JSON.parse(globalStored);
-        configs.forEach(config => {
+        configs.forEach((config) => {
           this.globalConfig.set(config.name, config);
         });
       }
 
       // 加载考试特定配置
-      const examStored = localStorage.getItem('examSpecificConfigs');
+      const examStored = localStorage.getItem("examSpecificConfigs");
       if (examStored) {
         const examConfigs: any[] = JSON.parse(examStored);
-        examConfigs.forEach(config => {
+        examConfigs.forEach((config) => {
           const subjects = new Map<string, SubjectConfig>();
           if (config.subjects) {
             Object.entries(config.subjects).forEach(([key, value]) => {
               subjects.set(key, value as SubjectConfig);
             });
           }
-          
+
           this.examConfigs.set(config.examId, {
             ...config,
             subjects,
             createdAt: new Date(config.createdAt),
-            updatedAt: new Date(config.updatedAt)
+            updatedAt: new Date(config.updatedAt),
           });
         });
       }
     } catch (error) {
-      console.warn('Failed to load exam specific configs from storage:', error);
+      console.warn("Failed to load exam specific configs from storage:", error);
     }
   }
 
@@ -376,47 +399,76 @@ export class ExamSpecificPassRateCalculator {
     try {
       // 保存全局配置
       const globalConfigs = Array.from(this.globalConfig.values());
-      localStorage.setItem('globalSubjectConfigs', JSON.stringify(globalConfigs));
+      localStorage.setItem(
+        "globalSubjectConfigs",
+        JSON.stringify(globalConfigs)
+      );
 
       // 保存考试特定配置
-      const examConfigs = Array.from(this.examConfigs.values()).map(config => ({
-        ...config,
-        subjects: Object.fromEntries(config.subjects)
-      }));
-      localStorage.setItem('examSpecificConfigs', JSON.stringify(examConfigs));
+      const examConfigs = Array.from(this.examConfigs.values()).map(
+        (config) => ({
+          ...config,
+          subjects: Object.fromEntries(config.subjects),
+        })
+      );
+      localStorage.setItem("examSpecificConfigs", JSON.stringify(examConfigs));
     } catch (error) {
-      console.warn('Failed to save exam specific configs to storage:', error);
+      console.warn("Failed to save exam specific configs to storage:", error);
     }
   }
 }
 
 // 导出单例实例
-export const examSpecificPassRateCalculator = ExamSpecificPassRateCalculator.getInstance();
+export const examSpecificPassRateCalculator =
+  ExamSpecificPassRateCalculator.getInstance();
 
 // 便捷函数
-export const getPassScore = (subject: string, examId?: string): number => 
+export const getPassScore = (subject: string, examId?: string): number =>
   examSpecificPassRateCalculator.getPassScore(subject, examId);
 
-export const getExcellentScore = (subject: string, examId?: string): number => 
+export const getExcellentScore = (subject: string, examId?: string): number =>
   examSpecificPassRateCalculator.getExcellentScore(subject, examId);
 
-export const getMaxScore = (subject: string, examId?: string): number => 
+export const getMaxScore = (subject: string, examId?: string): number =>
   examSpecificPassRateCalculator.getMaxScore(subject, examId);
 
-export const calculatePassRate = (scores: number[], subject: string, examId?: string): number => 
+export const calculatePassRate = (
+  scores: number[],
+  subject: string,
+  examId?: string
+): number =>
   examSpecificPassRateCalculator.calculatePassRate(scores, subject, examId);
 
-export const calculateExcellentRate = (scores: number[], subject: string, examId?: string): number => 
-  examSpecificPassRateCalculator.calculateExcellentRate(scores, subject, examId);
+export const calculateExcellentRate = (
+  scores: number[],
+  subject: string,
+  examId?: string
+): number =>
+  examSpecificPassRateCalculator.calculateExcellentRate(
+    scores,
+    subject,
+    examId
+  );
 
-export const isPass = (score: number, subject: string, examId?: string): boolean => 
-  examSpecificPassRateCalculator.isPass(score, subject, examId);
+export const isPass = (
+  score: number,
+  subject: string,
+  examId?: string
+): boolean => examSpecificPassRateCalculator.isPass(score, subject, examId);
 
-export const isExcellent = (score: number, subject: string, examId?: string): boolean => 
+export const isExcellent = (
+  score: number,
+  subject: string,
+  examId?: string
+): boolean =>
   examSpecificPassRateCalculator.isExcellent(score, subject, examId);
 
-export const getGradeLevel = (score: number, subject: string, examId?: string): string => 
+export const getGradeLevel = (
+  score: number,
+  subject: string,
+  examId?: string
+): string =>
   examSpecificPassRateCalculator.getGradeLevel(score, subject, examId);
 
 // 初始化时从本地存储加载配置
-examSpecificPassRateCalculator.loadConfigsFromStorage(); 
+examSpecificPassRateCalculator.loadConfigsFromStorage();

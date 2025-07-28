@@ -1,5 +1,5 @@
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 // 风险聚类接口
 export interface RiskCluster {
@@ -42,49 +42,53 @@ export interface PrimaryFactor {
 // 获取风险聚类
 export const getRiskClusters = async (): Promise<RiskCluster[]> => {
   try {
-    const { data, error } = await supabase.rpc('get_risk_clusters');
-    
+    const { data, error } = await supabase.rpc("get_risk_clusters");
+
     if (error) {
-      console.error('获取风险聚类失败:', error);
+      console.error("获取风险聚类失败:", error);
       throw error;
     }
-    
+
     return data.map((cluster: any) => ({
       ...cluster,
       risk_factors: cluster.risk_factors || [],
-      recommended_interventions: cluster.recommended_interventions || []
+      recommended_interventions: cluster.recommended_interventions || [],
     })) as RiskCluster[];
   } catch (error) {
-    console.error('获取风险聚类失败:', error);
-    toast.error('获取风险聚类失败');
+    console.error("获取风险聚类失败:", error);
+    toast.error("获取风险聚类失败");
     return [];
   }
 };
 
 // 获取学生风险聚类分配
-export const getStudentRiskClusterAssignments = async (): Promise<StudentRiskClusterAssignment[]> => {
+export const getStudentRiskClusterAssignments = async (): Promise<
+  StudentRiskClusterAssignment[]
+> => {
   try {
-    const { data, error } = await supabase.rpc('get_student_risk_cluster_assignments');
-    
+    const { data, error } = await supabase.rpc(
+      "get_student_risk_cluster_assignments"
+    );
+
     if (error) {
-      console.error('获取学生风险聚类分配失败:', error);
+      console.error("获取学生风险聚类分配失败:", error);
       throw error;
     }
-    
+
     return data.map((assignment: any) => ({
       ...assignment,
-      primary_factors: assignment.primary_factors || []
+      primary_factors: assignment.primary_factors || [],
     })) as StudentRiskClusterAssignment[];
   } catch (error) {
-    console.error('获取学生风险聚类分配失败:', error);
-    toast.error('获取学生风险聚类分配失败');
+    console.error("获取学生风险聚类分配失败:", error);
+    toast.error("获取学生风险聚类分配失败");
     return [];
   }
 };
 
 // 为特定聚类生成批量干预计划
 export const generateBulkInterventionPlan = async (
-  clusterId: number, 
+  clusterId: number,
   title: string,
   description: string,
   interventionTypes: string[]
@@ -98,8 +102,8 @@ export const generateBulkInterventionPlan = async (
     toast.success(`已为聚类${clusterId}生成干预计划`);
     return true;
   } catch (error) {
-    console.error('生成批量干预计划失败:', error);
-    toast.error('生成批量干预计划失败');
+    console.error("生成批量干预计划失败:", error);
+    toast.error("生成批量干预计划失败");
     return false;
   }
-}; 
+};

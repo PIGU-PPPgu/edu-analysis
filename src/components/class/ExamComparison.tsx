@@ -1,9 +1,18 @@
-import React, { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { CalendarDays, TrendingUp, Users } from 'lucide-react';
+import React, { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+import { CalendarDays, TrendingUp, Users } from "lucide-react";
 
 interface ExamData {
   id: string;
@@ -23,20 +32,23 @@ interface ExamComparisonProps {
 const ExamComparison: React.FC<ExamComparisonProps> = ({
   mockExamList,
   initialSelectedExams,
-  mockDisplayScores
+  mockDisplayScores,
 }) => {
-  const [selectedExams, setSelectedExams] = useState<string[]>(initialSelectedExams);
+  const [selectedExams, setSelectedExams] =
+    useState<string[]>(initialSelectedExams);
 
   const handleExamToggle = (examId: string) => {
-    setSelectedExams(prev => 
+    setSelectedExams((prev) =>
       prev.includes(examId)
-        ? prev.filter(id => id !== examId)
+        ? prev.filter((id) => id !== examId)
         : [...prev, examId]
     );
   };
 
   // 准备图表数据
-  const chartData = mockDisplayScores.filter(exam => selectedExams.includes(exam.id));
+  const chartData = mockDisplayScores.filter((exam) =>
+    selectedExams.includes(exam.id)
+  );
 
   // 如果没有数据，显示占位符
   if (mockExamList.length === 0) {
@@ -61,7 +73,10 @@ const ExamComparison: React.FC<ExamComparisonProps> = ({
         </h4>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {mockExamList.map((exam) => (
-            <div key={exam.id} className="flex items-center space-x-2 p-2 border rounded-lg hover:bg-gray-50">
+            <div
+              key={exam.id}
+              className="flex items-center space-x-2 p-2 border rounded-lg hover:bg-gray-50"
+            >
               <Checkbox
                 id={exam.id}
                 checked={selectedExams.includes(exam.id)}
@@ -69,7 +84,9 @@ const ExamComparison: React.FC<ExamComparisonProps> = ({
               />
               <label htmlFor={exam.id} className="flex-1 cursor-pointer">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-900">{exam.name}</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {exam.name}
+                  </span>
                   <Badge variant="outline" className="text-xs">
                     {exam.date}
                   </Badge>
@@ -92,39 +109,46 @@ const ExamComparison: React.FC<ExamComparisonProps> = ({
               <div className="flex flex-wrap gap-2">
                 {chartData.map((exam) => (
                   <Badge key={exam.id} variant="secondary" className="text-xs">
-                    {exam.name}: {exam.score?.toFixed(1) || 'N/A'}分
+                    {exam.name}: {exam.score?.toFixed(1) || "N/A"}分
                   </Badge>
                 ))}
               </div>
             </div>
-            
+
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <BarChart
+                  data={chartData}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis 
-                    dataKey="name" 
+                  <XAxis
+                    dataKey="name"
                     tick={{ fontSize: 12 }}
                     angle={-45}
                     textAnchor="end"
                     height={60}
                   />
                   <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip 
+                  <Tooltip
                     formatter={(value: any, name: string) => [
-                      `${value?.toFixed(1) || 'N/A'}分`, 
-                      name === 'score' ? '班级平均分' : 
-                      name === 'classAvg' ? '班级平均' : 
-                      name === 'gradeAvg' ? '年级平均' : name
+                      `${value?.toFixed(1) || "N/A"}分`,
+                      name === "score"
+                        ? "班级平均分"
+                        : name === "classAvg"
+                          ? "班级平均"
+                          : name === "gradeAvg"
+                            ? "年级平均"
+                            : name,
                     ]}
                     labelFormatter={(label) => `考试: ${label}`}
                   />
                   <Legend />
                   <Bar dataKey="score" fill="#3B82F6" name="班级平均分" />
-                  {chartData.some(d => d.classAvg !== undefined) && (
+                  {chartData.some((d) => d.classAvg !== undefined) && (
                     <Bar dataKey="classAvg" fill="#10B981" name="班级平均" />
                   )}
-                  {chartData.some(d => d.gradeAvg !== undefined) && (
+                  {chartData.some((d) => d.gradeAvg !== undefined) && (
                     <Bar dataKey="gradeAvg" fill="#F59E0B" name="年级平均" />
                   )}
                 </BarChart>
@@ -143,4 +167,4 @@ const ExamComparison: React.FC<ExamComparisonProps> = ({
   );
 };
 
-export default ExamComparison; 
+export default ExamComparison;

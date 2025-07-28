@@ -27,10 +27,10 @@ export const DEFAULT_CACHE_TTL = 60 * 60 * 1000;
 export const configureLowResourceMode = (enabled: boolean): void => {
   if (enabled) {
     (window as any).__LOW_RESOURCE_MODE = true;
-    console.log('已启用低资源模式，减少并发请求数');
+    console.log("已启用低资源模式，减少并发请求数");
   } else {
     (window as any).__LOW_RESOURCE_MODE = false;
-    console.log('已禁用低资源模式');
+    console.log("已禁用低资源模式");
   }
 };
 
@@ -46,14 +46,14 @@ export const getCurrentConcurrentLimit = (): number => {
 
 // 定义网络错误类型
 export enum NetworkErrorType {
-  TIMEOUT = 'timeout',
-  CONNECTION = 'connection',
-  SERVER = 'server',
-  UNAUTHORIZED = 'unauthorized',
-  FORBIDDEN = 'forbidden',
-  NOT_FOUND = 'not_found',
-  VALIDATION = 'validation',
-  UNKNOWN = 'unknown'
+  TIMEOUT = "timeout",
+  CONNECTION = "connection",
+  SERVER = "server",
+  UNAUTHORIZED = "unauthorized",
+  FORBIDDEN = "forbidden",
+  NOT_FOUND = "not_found",
+  VALIDATION = "validation",
+  UNKNOWN = "unknown",
 }
 
 // 网络错误处理器配置
@@ -73,11 +73,11 @@ export const registerErrorHandler = (handler: NetworkErrorHandler): void => {
 // 处理网络错误
 export const handleNetworkError = (error: any): void => {
   let errorType = NetworkErrorType.UNKNOWN;
-  
+
   // 确定错误类型
-  if (error.message && error.message.includes('timeout')) {
+  if (error.message && error.message.includes("timeout")) {
     errorType = NetworkErrorType.TIMEOUT;
-  } else if (error.message && error.message.includes('Failed to fetch')) {
+  } else if (error.message && error.message.includes("Failed to fetch")) {
     errorType = NetworkErrorType.CONNECTION;
   } else if (error.status === 401) {
     errorType = NetworkErrorType.UNAUTHORIZED;
@@ -90,13 +90,13 @@ export const handleNetworkError = (error: any): void => {
   } else if (error.status === 422) {
     errorType = NetworkErrorType.VALIDATION;
   }
-  
+
   // 调用匹配的错误处理器
-  const matchedHandlers = errorHandlers.filter(h => h.type === errorType);
-  matchedHandlers.forEach(handler => handler.handler(error));
-  
+  const matchedHandlers = errorHandlers.filter((h) => h.type === errorType);
+  matchedHandlers.forEach((handler) => handler.handler(error));
+
   // 如果没有匹配的处理器，记录错误
   if (matchedHandlers.length === 0) {
     console.error(`未处理的网络错误(${errorType}):`, error);
   }
-}; 
+};

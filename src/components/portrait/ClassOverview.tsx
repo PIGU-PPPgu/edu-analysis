@@ -24,12 +24,12 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
   className,
   stats,
   onViewClassPortrait,
-  isLoading
+  isLoading,
 }) => {
   if (isLoading) {
     return <PageLoading text="加载班级统计数据..." />;
   }
-  
+
   if (!stats) {
     return (
       <EmptyState
@@ -39,12 +39,12 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
         action={{
           label: "重新加载",
           onClick: () => window.location.reload(),
-          variant: "outline"
+          variant: "outline",
         }}
       />
     );
   }
-  
+
   return (
     <div className="space-y-4">
       <div className="p-6 border rounded-lg bg-muted/50 space-y-4">
@@ -58,30 +58,42 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
           查看完整班级画像
         </Button>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard 
-          title="班级平均成绩" 
-          value={stats.averageScore.toFixed(1)} 
-          badgeText={stats.averageScore >= 90 ? "A" : stats.averageScore >= 80 ? "B+" : "B"}
+        <StatCard
+          title="班级平均成绩"
+          value={stats.averageScore.toFixed(1)}
+          badgeText={
+            stats.averageScore >= 90
+              ? "A"
+              : stats.averageScore >= 80
+                ? "B+"
+                : "B"
+          }
           badgeColor="blue"
         />
-        
-        <StatCard 
-          title="优秀率" 
-          value={`${stats.excellentRate}%`} 
-          badgeText={`${Math.round(stats.studentCount * stats.excellentRate / 100)}人`}
+
+        <StatCard
+          title="优秀率"
+          value={`${stats.excellentRate}%`}
+          badgeText={`${Math.round((stats.studentCount * stats.excellentRate) / 100)}人`}
           badgeColor="green"
         />
-        
-        <StatCard 
-          title="学习进度" 
-          value={`${stats.progressRate}%`} 
-          badgeText={stats.progressRate > 90 ? "领先" : stats.progressRate > 75 ? "正常" : "滞后"}
+
+        <StatCard
+          title="学习进度"
+          value={`${stats.progressRate}%`}
+          badgeText={
+            stats.progressRate > 90
+              ? "领先"
+              : stats.progressRate > 75
+                ? "正常"
+                : "滞后"
+          }
           badgeColor="amber"
         />
       </div>
-      
+
       {/* 学科统计 */}
       <Card>
         <CardContent className="py-4">
@@ -91,7 +103,9 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
               <div key={index} className="space-y-1">
                 <div className="flex justify-between items-center">
                   <span className="text-sm">{subject.name}</span>
-                  <span className="text-sm font-medium">{subject.averageScore.toFixed(1)}</span>
+                  <span className="text-sm font-medium">
+                    {subject.averageScore.toFixed(1)}
+                  </span>
                 </div>
                 <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                   <div
@@ -108,7 +122,7 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
           </div>
         </CardContent>
       </Card>
-      
+
       {/* 学生性别分布 */}
       <Card>
         <CardContent className="py-4">
@@ -132,16 +146,22 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
           <div className="h-4 bg-gray-200 rounded-full mt-2 flex overflow-hidden">
             <div
               className="h-full bg-blue-500"
-              style={{ width: `${(stats.gender.male / stats.studentCount) * 100}%` }}
+              style={{
+                width: `${(stats.gender.male / stats.studentCount) * 100}%`,
+              }}
             ></div>
             <div
               className="h-full bg-pink-500"
-              style={{ width: `${(stats.gender.female / stats.studentCount) * 100}%` }}
+              style={{
+                width: `${(stats.gender.female / stats.studentCount) * 100}%`,
+              }}
             ></div>
             {stats.gender.other > 0 && (
               <div
                 className="h-full bg-gray-500"
-                style={{ width: `${(stats.gender.other / stats.studentCount) * 100}%` }}
+                style={{
+                  width: `${(stats.gender.other / stats.studentCount) * 100}%`,
+                }}
               ></div>
             )}
           </div>
@@ -151,4 +171,4 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
   );
 };
 
-export default ClassOverview; 
+export default ClassOverview;

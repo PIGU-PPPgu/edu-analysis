@@ -1,27 +1,66 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertTriangle, Plus, Trash2, Edit, RefreshCw, ChevronRight, ExternalLink, Filter, Search, Wand2 } from "lucide-react";
-import { toast } from 'sonner';
-import { 
-  getWarningRules, 
-  createWarningRule, 
-  updateWarningRule, 
-  deleteWarningRule, 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertTriangle,
+  Plus,
+  Trash2,
+  Edit,
+  RefreshCw,
+  ChevronRight,
+  ExternalLink,
+  Filter,
+  Search,
+  Wand2,
+} from "lucide-react";
+import { toast } from "sonner";
+import {
+  getWarningRules,
+  createWarningRule,
+  updateWarningRule,
+  deleteWarningRule,
   toggleRuleStatus,
   getWarningRuleTemplates,
-  WarningRule, 
+  WarningRule,
   RuleFilter,
-  RuleTemplate 
-} from '@/services/warningService';
+  RuleTemplate,
+} from "@/services/warningService";
 
 interface WarningRulesProps {
   simplified?: boolean;
@@ -34,7 +73,7 @@ const WarningRules: React.FC<WarningRulesProps> = ({
   simplified = false,
   limit,
   showViewAllButton = false,
-  onViewAllClick
+  onViewAllClick,
 }) => {
   const [rules, setRules] = useState<WarningRule[]>([]);
   const [filteredRules, setFilteredRules] = useState<WarningRule[]>([]);
@@ -42,23 +81,29 @@ const WarningRules: React.FC<WarningRulesProps> = ({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedRule, setSelectedRule] = useState<WarningRule | null>(null);
-  
+
   // 筛选状态
   const [filter, setFilter] = useState<RuleFilter>({});
-  const [searchTerm, setSearchTerm] = useState('');
-  
+  const [searchTerm, setSearchTerm] = useState("");
+
   // 表单状态
-  const [ruleName, setRuleName] = useState('');
-  const [ruleDescription, setRuleDescription] = useState('');
-  const [ruleSeverity, setRuleSeverity] = useState<'low' | 'medium' | 'high'>('medium');
-  const [ruleScope, setRuleScope] = useState<'global' | 'exam' | 'class' | 'student'>('global');
-  const [ruleCategory, setRuleCategory] = useState<'grade' | 'attendance' | 'behavior' | 'progress' | 'homework' | 'composite'>('grade');
+  const [ruleName, setRuleName] = useState("");
+  const [ruleDescription, setRuleDescription] = useState("");
+  const [ruleSeverity, setRuleSeverity] = useState<"low" | "medium" | "high">(
+    "medium"
+  );
+  const [ruleScope, setRuleScope] = useState<
+    "global" | "exam" | "class" | "student"
+  >("global");
+  const [ruleCategory, setRuleCategory] = useState<
+    "grade" | "attendance" | "behavior" | "progress" | "homework" | "composite"
+  >("grade");
   const [rulePriority, setRulePriority] = useState(5);
   const [ruleConditions, setRuleConditions] = useState<any>({
-    type: '成绩',
+    type: "成绩",
     threshold: 60,
-    operator: '<',
-    subject: '全部'
+    operator: "<",
+    subject: "全部",
   });
   const [autoTrigger, setAutoTrigger] = useState(true);
   const [notificationEnabled, setNotificationEnabled] = useState(true);
@@ -66,12 +111,12 @@ const WarningRules: React.FC<WarningRulesProps> = ({
   // 模板选择状态
   const [showTemplates, setShowTemplates] = useState(false);
   const [templates] = useState<RuleTemplate[]>(getWarningRuleTemplates());
-  
+
   const isMounted = useRef(true);
-  
+
   useEffect(() => {
     fetchRules();
-    
+
     return () => {
       isMounted.current = false;
     };
@@ -80,45 +125,46 @@ const WarningRules: React.FC<WarningRulesProps> = ({
   // 应用筛选
   useEffect(() => {
     let filtered = rules;
-    
+
     if (filter.scope) {
-      filtered = filtered.filter(rule => rule.scope === filter.scope);
+      filtered = filtered.filter((rule) => rule.scope === filter.scope);
     }
     if (filter.category) {
-      filtered = filtered.filter(rule => rule.category === filter.category);
+      filtered = filtered.filter((rule) => rule.category === filter.category);
     }
     if (filter.severity) {
-      filtered = filtered.filter(rule => rule.severity === filter.severity);
+      filtered = filtered.filter((rule) => rule.severity === filter.severity);
     }
     if (filter.is_active !== undefined) {
-      filtered = filtered.filter(rule => rule.is_active === filter.is_active);
+      filtered = filtered.filter((rule) => rule.is_active === filter.is_active);
     }
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(rule => 
-        rule.name.toLowerCase().includes(term) ||
-        (rule.description && rule.description.toLowerCase().includes(term))
+      filtered = filtered.filter(
+        (rule) =>
+          rule.name.toLowerCase().includes(term) ||
+          (rule.description && rule.description.toLowerCase().includes(term))
       );
     }
-    
+
     setFilteredRules(filtered);
   }, [rules, filter, searchTerm]);
-  
+
   // 获取预警规则
   const fetchRules = async () => {
     if (!isMounted.current) return;
-    
+
     try {
       setIsLoading(true);
       const data = await getWarningRules();
-      
+
       if (isMounted.current) {
         setRules(data);
       }
     } catch (error) {
-      console.error('获取预警规则失败:', error);
+      console.error("获取预警规则失败:", error);
       if (isMounted.current) {
-        toast.error('获取预警规则失败');
+        toast.error("获取预警规则失败");
       }
     } finally {
       if (isMounted.current) {
@@ -130,12 +176,12 @@ const WarningRules: React.FC<WarningRulesProps> = ({
   // 处理表单提交
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!ruleName.trim()) {
-      toast.error('规则名称不能为空');
+      toast.error("规则名称不能为空");
       return;
     }
-    
+
     const ruleData = {
       name: ruleName,
       description: ruleDescription,
@@ -148,24 +194,24 @@ const WarningRules: React.FC<WarningRulesProps> = ({
       is_system: false,
       auto_trigger: autoTrigger,
       notification_enabled: notificationEnabled,
-      created_by: null
+      created_by: null,
     };
-    
+
     try {
       if (isEditMode && selectedRule) {
         await updateWarningRule(selectedRule.id, ruleData);
-        toast.success('规则已更新');
+        toast.success("规则已更新");
       } else {
         await createWarningRule(ruleData);
-        toast.success('规则已创建');
+        toast.success("规则已创建");
       }
-      
+
       await fetchRules();
       setIsDialogOpen(false);
       resetForm();
     } catch (error) {
-      console.error('保存规则失败:', error);
-      toast.error('保存规则失败');
+      console.error("保存规则失败:", error);
+      toast.error("保存规则失败");
     }
   };
 
@@ -174,14 +220,14 @@ const WarningRules: React.FC<WarningRulesProps> = ({
     if (!confirm(`确定要删除规则 "${rule.name}" 吗?`)) {
       return;
     }
-    
+
     try {
       await deleteWarningRule(rule.id);
       await fetchRules();
-      toast.success('规则已删除');
+      toast.success("规则已删除");
     } catch (error) {
-      console.error('删除规则失败:', error);
-      toast.error('删除规则失败');
+      console.error("删除规则失败:", error);
+      toast.error("删除规则失败");
     }
   };
 
@@ -189,15 +235,15 @@ const WarningRules: React.FC<WarningRulesProps> = ({
   const handleToggleActive = async (rule: WarningRule, active: boolean) => {
     try {
       await toggleRuleStatus(rule.id, active);
-      
-      setRules(prev => prev.map(r => 
-        r.id === rule.id ? { ...r, is_active: active } : r
-      ));
-      
-      toast.success(`规则已${active ? '启用' : '禁用'}`);
+
+      setRules((prev) =>
+        prev.map((r) => (r.id === rule.id ? { ...r, is_active: active } : r))
+      );
+
+      toast.success(`规则已${active ? "启用" : "禁用"}`);
     } catch (error) {
-      console.error('更新规则状态失败:', error);
-      toast.error('更新规则状态失败');
+      console.error("更新规则状态失败:", error);
+      toast.error("更新规则状态失败");
     }
   };
 
@@ -205,7 +251,7 @@ const WarningRules: React.FC<WarningRulesProps> = ({
   const handleEditRule = (rule: WarningRule) => {
     setSelectedRule(rule);
     setRuleName(rule.name);
-    setRuleDescription(rule.description || '');
+    setRuleDescription(rule.description || "");
     setRuleSeverity(rule.severity);
     setRuleScope(rule.scope);
     setRuleCategory(rule.category);
@@ -242,17 +288,17 @@ const WarningRules: React.FC<WarningRulesProps> = ({
 
   // 重置表单
   const resetForm = () => {
-    setRuleName('');
-    setRuleDescription('');
-    setRuleSeverity('medium');
-    setRuleScope('global');
-    setRuleCategory('grade');
+    setRuleName("");
+    setRuleDescription("");
+    setRuleSeverity("medium");
+    setRuleScope("global");
+    setRuleCategory("grade");
     setRulePriority(5);
     setRuleConditions({
-      type: '成绩',
+      type: "成绩",
       threshold: 60,
-      operator: '<',
-      subject: '全部'
+      operator: "<",
+      subject: "全部",
     });
     setAutoTrigger(true);
     setNotificationEnabled(true);
@@ -262,18 +308,39 @@ const WarningRules: React.FC<WarningRulesProps> = ({
   // 清除筛选
   const clearFilters = () => {
     setFilter({});
-    setSearchTerm('');
+    setSearchTerm("");
   };
 
   // 获取严重程度标签样式
   const getSeverityBadge = (severity: string) => {
     switch (severity) {
-      case 'high':
-        return <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">高</Badge>;
-      case 'medium':
-        return <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200">中</Badge>;
-      case 'low':
-        return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">低</Badge>;
+      case "high":
+        return (
+          <Badge
+            variant="outline"
+            className="bg-red-100 text-red-800 border-red-200"
+          >
+            高
+          </Badge>
+        );
+      case "medium":
+        return (
+          <Badge
+            variant="outline"
+            className="bg-amber-100 text-amber-800 border-amber-200"
+          >
+            中
+          </Badge>
+        );
+      case "low":
+        return (
+          <Badge
+            variant="outline"
+            className="bg-blue-100 text-blue-800 border-blue-200"
+          >
+            低
+          </Badge>
+        );
       default:
         return <Badge variant="outline">未知</Badge>;
     }
@@ -282,64 +349,108 @@ const WarningRules: React.FC<WarningRulesProps> = ({
   // 获取范围标签
   const getScopeBadge = (scope: string) => {
     const scopeMap = {
-      global: { label: '全局', className: 'bg-purple-100 text-purple-800 border-purple-200' },
-      exam: { label: '考试', className: 'bg-green-100 text-green-800 border-green-200' },
-      class: { label: '班级', className: 'bg-blue-100 text-blue-800 border-blue-200' },
-      student: { label: '学生', className: 'bg-orange-100 text-orange-800 border-orange-200' }
+      global: {
+        label: "全局",
+        className: "bg-purple-100 text-purple-800 border-purple-200",
+      },
+      exam: {
+        label: "考试",
+        className: "bg-green-100 text-green-800 border-green-200",
+      },
+      class: {
+        label: "班级",
+        className: "bg-blue-100 text-blue-800 border-blue-200",
+      },
+      student: {
+        label: "学生",
+        className: "bg-orange-100 text-orange-800 border-orange-200",
+      },
     };
-    
-    const config = scopeMap[scope as keyof typeof scopeMap] || { label: scope, className: '' };
-    return <Badge variant="outline" className={config.className}>{config.label}</Badge>;
+
+    const config = scopeMap[scope as keyof typeof scopeMap] || {
+      label: scope,
+      className: "",
+    };
+    return (
+      <Badge variant="outline" className={config.className}>
+        {config.label}
+      </Badge>
+    );
   };
 
   // 获取分类标签
   const getCategoryBadge = (category: string) => {
     const categoryMap = {
-      grade: { label: '成绩', className: 'bg-red-100 text-red-800 border-red-200' },
-      progress: { label: '进步', className: 'bg-green-100 text-green-800 border-green-200' },
-      homework: { label: '作业', className: 'bg-blue-100 text-blue-800 border-blue-200' },
-      attendance: { label: '出勤', className: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
-      behavior: { label: '行为', className: 'bg-purple-100 text-purple-800 border-purple-200' },
-      composite: { label: '综合', className: 'bg-gray-100 text-gray-800 border-gray-200' }
+      grade: {
+        label: "成绩",
+        className: "bg-red-100 text-red-800 border-red-200",
+      },
+      progress: {
+        label: "进步",
+        className: "bg-green-100 text-green-800 border-green-200",
+      },
+      homework: {
+        label: "作业",
+        className: "bg-blue-100 text-blue-800 border-blue-200",
+      },
+      attendance: {
+        label: "出勤",
+        className: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      },
+      behavior: {
+        label: "行为",
+        className: "bg-purple-100 text-purple-800 border-purple-200",
+      },
+      composite: {
+        label: "综合",
+        className: "bg-gray-100 text-gray-800 border-gray-200",
+      },
     };
-    
-    const config = categoryMap[category as keyof typeof categoryMap] || { label: category, className: '' };
-    return <Badge variant="outline" className={config.className}>{config.label}</Badge>;
+
+    const config = categoryMap[category as keyof typeof categoryMap] || {
+      label: category,
+      className: "",
+    };
+    return (
+      <Badge variant="outline" className={config.className}>
+        {config.label}
+      </Badge>
+    );
   };
-  
+
   // 格式化规则条件
   const formatConditions = (conditions: any): string => {
-    if (!conditions) return '无条件';
-    
+    if (!conditions) return "无条件";
+
     try {
-      let result = '';
-      
+      let result = "";
+
       if (conditions.type) {
         result += `${conditions.type}`;
       }
-      
-      if (conditions.subject && conditions.subject !== '全部') {
+
+      if (conditions.subject && conditions.subject !== "全部") {
         result += ` (${conditions.subject})`;
       }
-      
+
       if (conditions.threshold && conditions.operator) {
         result += ` ${conditions.operator} ${conditions.threshold}`;
       }
-      
+
       if (conditions.unit) {
         result += ` ${conditions.unit}`;
       }
-      
+
       if (Array.isArray(conditions.factors) && conditions.factors.length > 0) {
-        result += ` [${conditions.factors.join(', ')}]`;
+        result += ` [${conditions.factors.join(", ")}]`;
       }
-      
-      return result || '复合条件';
+
+      return result || "复合条件";
     } catch (e) {
       return JSON.stringify(conditions);
     }
   };
-  
+
   // 限制显示的规则数量
   const displayedRules = limit ? filteredRules.slice(0, limit) : filteredRules;
 
@@ -355,7 +466,10 @@ const WarningRules: React.FC<WarningRulesProps> = ({
         ) : isLoading ? (
           <div className="space-y-2">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="rounded-md border p-3 animate-pulse bg-gray-50">
+              <div
+                key={i}
+                className="rounded-md border p-3 animate-pulse bg-gray-50"
+              >
                 <div className="w-1/3 h-4 bg-gray-200 rounded mb-2"></div>
                 <div className="w-2/3 h-3 bg-gray-200 rounded"></div>
               </div>
@@ -365,8 +479,8 @@ const WarningRules: React.FC<WarningRulesProps> = ({
           <>
             <div className="space-y-2">
               {displayedRules.map((rule) => (
-                <div 
-                  key={rule.id} 
+                <div
+                  key={rule.id}
                   className="flex justify-between items-center p-3 rounded-md border hover:bg-gray-50 cursor-pointer"
                   onClick={() => handleEditRule(rule)}
                 >
@@ -375,8 +489,8 @@ const WarningRules: React.FC<WarningRulesProps> = ({
                       <span className="font-medium text-sm">{rule.name}</span>
                       {getSeverityBadge(rule.severity)}
                       {getScopeBadge(rule.scope)}
-                      <Switch 
-                        checked={rule.is_active} 
+                      <Switch
+                        checked={rule.is_active}
                         onCheckedChange={(checked) => {
                           handleToggleActive(rule, checked);
                           // 防止点击开关时触发父元素的点击事件
@@ -393,11 +507,11 @@ const WarningRules: React.FC<WarningRulesProps> = ({
                 </div>
               ))}
             </div>
-            
+
             {showViewAllButton && (
-              <Button 
-                variant="outline" 
-                onClick={onViewAllClick} 
+              <Button
+                variant="outline"
+                onClick={onViewAllClick}
                 className="w-full mt-2 text-sm h-9"
               >
                 管理预警规则
@@ -409,7 +523,7 @@ const WarningRules: React.FC<WarningRulesProps> = ({
       </div>
     );
   }
-  
+
   return (
     <Card>
       <CardHeader>
@@ -424,16 +538,18 @@ const WarningRules: React.FC<WarningRulesProps> = ({
             </CardDescription>
           </div>
           <div className="flex gap-2">
-            <Button 
+            <Button
               variant="outline"
               size="sm"
               onClick={fetchRules}
               disabled={isLoading}
             >
-              <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
-              {isLoading ? '刷新中...' : '刷新'}
+              <RefreshCw
+                className={`h-4 w-4 mr-1 ${isLoading ? "animate-spin" : ""}`}
+              />
+              {isLoading ? "刷新中..." : "刷新"}
             </Button>
-            <Button 
+            <Button
               variant="outline"
               size="sm"
               onClick={() => setShowTemplates(true)}
@@ -463,7 +579,12 @@ const WarningRules: React.FC<WarningRulesProps> = ({
                 />
               </div>
             </div>
-            <Select value={filter.scope || ''} onValueChange={(value) => setFilter({...filter, scope: value || undefined})}>
+            <Select
+              value={filter.scope || ""}
+              onValueChange={(value) =>
+                setFilter({ ...filter, scope: value || undefined })
+              }
+            >
               <SelectTrigger className="w-[120px]">
                 <SelectValue placeholder="范围" />
               </SelectTrigger>
@@ -475,7 +596,12 @@ const WarningRules: React.FC<WarningRulesProps> = ({
                 <SelectItem value="student">学生</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={filter.category || ''} onValueChange={(value) => setFilter({...filter, category: value || undefined})}>
+            <Select
+              value={filter.category || ""}
+              onValueChange={(value) =>
+                setFilter({ ...filter, category: value || undefined })
+              }
+            >
               <SelectTrigger className="w-[120px]">
                 <SelectValue placeholder="分类" />
               </SelectTrigger>
@@ -489,7 +615,12 @@ const WarningRules: React.FC<WarningRulesProps> = ({
                 <SelectItem value="composite">综合</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={filter.severity || ''} onValueChange={(value) => setFilter({...filter, severity: value || undefined})}>
+            <Select
+              value={filter.severity || ""}
+              onValueChange={(value) =>
+                setFilter({ ...filter, severity: value || undefined })
+              }
+            >
               <SelectTrigger className="w-[120px]">
                 <SelectValue placeholder="严重程度" />
               </SelectTrigger>
@@ -500,7 +631,15 @@ const WarningRules: React.FC<WarningRulesProps> = ({
                 <SelectItem value="low">低</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={filter.is_active?.toString() || ''} onValueChange={(value) => setFilter({...filter, is_active: value ? value === 'true' : undefined})}>
+            <Select
+              value={filter.is_active?.toString() || ""}
+              onValueChange={(value) =>
+                setFilter({
+                  ...filter,
+                  is_active: value ? value === "true" : undefined,
+                })
+              }
+            >
               <SelectTrigger className="w-[120px]">
                 <SelectValue placeholder="状态" />
               </SelectTrigger>
@@ -541,7 +680,10 @@ const WarningRules: React.FC<WarningRulesProps> = ({
                 </TableRow>
               ) : displayedRules.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                  <TableCell
+                    colSpan={8}
+                    className="h-24 text-center text-muted-foreground"
+                  >
                     暂无预警规则
                   </TableCell>
                 </TableRow>
@@ -552,7 +694,10 @@ const WarningRules: React.FC<WarningRulesProps> = ({
                       <div>
                         <div>{rule.name}</div>
                         {rule.description && (
-                          <div className="text-sm text-gray-500 mt-1 max-w-[200px] truncate" title={rule.description}>
+                          <div
+                            className="text-sm text-gray-500 mt-1 max-w-[200px] truncate"
+                            title={rule.description}
+                          >
                             {rule.description}
                           </div>
                         )}
@@ -567,24 +712,37 @@ const WarningRules: React.FC<WarningRulesProps> = ({
                       </Badge>
                     </TableCell>
                     <TableCell className="max-w-[200px]">
-                      <div className="truncate" title={formatConditions(rule.conditions)}>
+                      <div
+                        className="truncate"
+                        title={formatConditions(rule.conditions)}
+                      >
                         {formatConditions(rule.conditions)}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Switch 
-                        checked={rule.is_active} 
-                        onCheckedChange={(checked) => handleToggleActive(rule, checked)}
+                      <Switch
+                        checked={rule.is_active}
+                        onCheckedChange={(checked) =>
+                          handleToggleActive(rule, checked)
+                        }
                         className="data-[state=checked]:bg-[#c0ff3f]"
                       />
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end space-x-2">
-                        <Button variant="ghost" size="icon" onClick={() => handleEditRule(rule)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEditRule(rule)}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
                         {!rule.is_system && (
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteRule(rule)}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteRule(rule)}
+                          >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         )}
@@ -596,7 +754,7 @@ const WarningRules: React.FC<WarningRulesProps> = ({
             </TableBody>
           </Table>
         </div>
-        
+
         {/* 限制数量时显示查看全部按钮 */}
         {limit && filteredRules.length > limit && showViewAllButton && (
           <div className="mt-4 text-center">
@@ -613,13 +771,13 @@ const WarningRules: React.FC<WarningRulesProps> = ({
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
-              {isEditMode ? '编辑预警规则' : '创建预警规则'}
+              {isEditMode ? "编辑预警规则" : "创建预警规则"}
             </DialogTitle>
             <DialogDescription>
               配置预警规则的基本信息和触发条件
             </DialogDescription>
           </DialogHeader>
-          
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -659,7 +817,10 @@ const WarningRules: React.FC<WarningRulesProps> = ({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="ruleScope">适用范围</Label>
-                <Select value={ruleScope} onValueChange={(value: any) => setRuleScope(value)}>
+                <Select
+                  value={ruleScope}
+                  onValueChange={(value: any) => setRuleScope(value)}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -673,7 +834,10 @@ const WarningRules: React.FC<WarningRulesProps> = ({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="ruleCategory">规则分类</Label>
-                <Select value={ruleCategory} onValueChange={(value: any) => setRuleCategory(value)}>
+                <Select
+                  value={ruleCategory}
+                  onValueChange={(value: any) => setRuleCategory(value)}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -691,7 +855,10 @@ const WarningRules: React.FC<WarningRulesProps> = ({
 
             <div className="space-y-2">
               <Label htmlFor="ruleSeverity">严重程度</Label>
-              <Select value={ruleSeverity} onValueChange={(value: any) => setRuleSeverity(value)}>
+              <Select
+                value={ruleSeverity}
+                onValueChange={(value: any) => setRuleSeverity(value)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -722,7 +889,7 @@ const WarningRules: React.FC<WarningRulesProps> = ({
 
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <Switch 
+                <Switch
                   id="autoTrigger"
                   checked={autoTrigger}
                   onCheckedChange={setAutoTrigger}
@@ -731,7 +898,7 @@ const WarningRules: React.FC<WarningRulesProps> = ({
                 <Label htmlFor="autoTrigger">自动触发</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <Switch 
+                <Switch
                   id="notificationEnabled"
                   checked={notificationEnabled}
                   onCheckedChange={setNotificationEnabled}
@@ -747,7 +914,7 @@ const WarningRules: React.FC<WarningRulesProps> = ({
               取消
             </Button>
             <Button onClick={handleSubmit}>
-              {isEditMode ? '更新规则' : '创建规则'}
+              {isEditMode ? "更新规则" : "创建规则"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -762,10 +929,14 @@ const WarningRules: React.FC<WarningRulesProps> = ({
               选择一个预设模板快速创建预警规则，您可以在创建后进行进一步自定义
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
             {templates.map((template, index) => (
-              <Card key={index} className="cursor-pointer hover:shadow-md transition-shadow border" onClick={() => handleCreateFromTemplate(template)}>
+              <Card
+                key={index}
+                className="cursor-pointer hover:shadow-md transition-shadow border"
+                onClick={() => handleCreateFromTemplate(template)}
+              >
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center justify-between">
                     {template.name}

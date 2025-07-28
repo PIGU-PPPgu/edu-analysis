@@ -3,37 +3,47 @@
  * 在桌面端显示表格，在移动端自动切换为卡片布局
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
-import { cn } from '@/lib/utils';
-import { useViewport } from '@/hooks/use-viewport';
-import { useTouch } from '@/hooks/use-touch';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { MobileButton } from './MobileButton';
-import { MobileDataCard, GradeDataCard, MobileCardList } from './MobileDataCard';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Download, 
+import React, { useState, useMemo, useCallback } from "react";
+import { cn } from "@/lib/utils";
+import { useViewport } from "@/hooks/use-viewport";
+import { useTouch } from "@/hooks/use-touch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { MobileButton } from "./MobileButton";
+import {
+  MobileDataCard,
+  GradeDataCard,
+  MobileCardList,
+} from "./MobileDataCard";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
   Search,
   Filter,
   RotateCcw,
   Grid,
   List as ListIcon,
   SlidersHorizontal,
-  X
-} from 'lucide-react';
+  X,
+} from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -41,7 +51,7 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from '@/components/ui/sheet';
+} from "@/components/ui/sheet";
 
 // 表格列定义
 export interface TableColumn {
@@ -51,15 +61,15 @@ export interface TableColumn {
   filterable?: boolean;
   render?: (value: any, row: any) => React.ReactNode;
   className?: string;
-  priority?: 'high' | 'medium' | 'low';  // 移动端显示优先级
-  mobileHidden?: boolean;  // 移动端是否隐藏
+  priority?: "high" | "medium" | "low"; // 移动端显示优先级
+  mobileHidden?: boolean; // 移动端是否隐藏
 }
 
 // 筛选器配置
 export interface FilterConfig {
   key: string;
   label: string;
-  type: 'select' | 'range' | 'search' | 'date';
+  type: "select" | "range" | "search" | "date";
   options?: Array<{ label: string; value: string }>;
   placeholder?: string;
 }
@@ -70,7 +80,7 @@ export interface ResponsiveDataTableProps<T = any> {
   columns: TableColumn[];
   loading?: boolean;
   className?: string;
-  
+
   // 分页
   pagination?: {
     current: number;
@@ -78,33 +88,33 @@ export interface ResponsiveDataTableProps<T = any> {
     total: number;
     onChange: (page: number, pageSize: number) => void;
   };
-  
+
   // 筛选
   filters?: FilterConfig[];
   onFilter?: (filters: Record<string, any>) => void;
-  
+
   // 排序
   sortable?: boolean;
-  onSort?: (key: string, direction: 'asc' | 'desc') => void;
-  
+  onSort?: (key: string, direction: "asc" | "desc") => void;
+
   // 选择
   selectable?: boolean;
   selectedKeys?: string[];
   onSelect?: (keys: string[]) => void;
   rowKey?: string;
-  
+
   // 移动端特定
   mobileCardRenderer?: (item: T, index: number) => React.ReactNode;
-  mobileViewToggle?: boolean;  // 是否显示视图切换按钮
-  
+  mobileViewToggle?: boolean; // 是否显示视图切换按钮
+
   // 操作
   actions?: Array<{
     label: string;
     icon?: React.ReactNode;
     onClick: (row: T) => void;
-    variant?: 'default' | 'destructive';
+    variant?: "default" | "destructive";
   }>;
-  
+
   // 其他
   emptyText?: string;
   onRowClick?: (row: T) => void;
@@ -112,29 +122,41 @@ export interface ResponsiveDataTableProps<T = any> {
 
 // 默认的移动端卡片渲染器
 const defaultMobileCardRenderer = <T extends Record<string, any>>(
-  item: T, 
+  item: T,
   columns: TableColumn[],
   onRowClick?: (row: T) => void
 ): React.ReactNode => {
   // 提取关键字段
-  const titleField = columns.find(col => col.priority === 'high') || columns[0];
-  const subtitleField = columns.find(col => col.key === 'subtitle' || col.key === 'description');
-  
+  const titleField =
+    columns.find((col) => col.priority === "high") || columns[0];
+  const subtitleField = columns.find(
+    (col) => col.key === "subtitle" || col.key === "description"
+  );
+
   // 构建卡片数据
   const cardData = {
     id: item[titleField.key] || item.id,
-    title: titleField.render ? titleField.render(item[titleField.key], item) : item[titleField.key],
-    subtitle: subtitleField ? (
-      subtitleField.render ? subtitleField.render(item[subtitleField.key], item) : item[subtitleField.key]
-    ) : undefined,
+    title: titleField.render
+      ? titleField.render(item[titleField.key], item)
+      : item[titleField.key],
+    subtitle: subtitleField
+      ? subtitleField.render
+        ? subtitleField.render(item[subtitleField.key], item)
+        : item[subtitleField.key]
+      : undefined,
     fields: columns
-      .filter(col => !col.mobileHidden && col.key !== titleField.key && col.key !== subtitleField?.key)
-      .map(col => ({
+      .filter(
+        (col) =>
+          !col.mobileHidden &&
+          col.key !== titleField.key &&
+          col.key !== subtitleField?.key
+      )
+      .map((col) => ({
         key: col.key,
         label: col.label,
         value: col.render ? col.render(item[col.key], item) : item[col.key],
-        priority: col.priority || 'medium'
-      }))
+        priority: col.priority || "medium",
+      })),
   };
 
   return (
@@ -160,47 +182,50 @@ export const ResponsiveDataTable = <T extends Record<string, any>>({
   selectable = false,
   selectedKeys = [],
   onSelect,
-  rowKey = 'id',
+  rowKey = "id",
   mobileCardRenderer,
   mobileViewToggle = true,
   actions,
-  emptyText = '暂无数据',
-  onRowClick
+  emptyText = "暂无数据",
+  onRowClick,
 }: ResponsiveDataTableProps<T>) => {
   const { isMobile, isTablet } = useViewport();
   const [currentPage, setCurrentPage] = useState(pagination?.current || 1);
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const [sortConfig, setSortConfig] = useState<{
+    key: string;
+    direction: "asc" | "desc";
+  } | null>(null);
   const [filterValues, setFilterValues] = useState<Record<string, any>>({});
-  const [searchValue, setSearchValue] = useState('');
-  const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
+  const [searchValue, setSearchValue] = useState("");
+  const [viewMode, setViewMode] = useState<"table" | "card">("table");
   const [showFilters, setShowFilters] = useState(false);
 
   // 强制在移动端使用卡片视图
-  const effectiveViewMode = isMobile ? 'card' : viewMode;
-  
+  const effectiveViewMode = isMobile ? "card" : viewMode;
+
   // 触摸处理
   const { touchHandlers } = useTouch({
     enableMultiTouch: false,
-    preventScroll: false
+    preventScroll: false,
   });
 
   // 筛选后的数据
   const filteredData = useMemo(() => {
     let result = [...data];
-    
+
     // 搜索筛选
     if (searchValue.trim()) {
-      result = result.filter(item =>
-        Object.values(item).some(value =>
+      result = result.filter((item) =>
+        Object.values(item).some((value) =>
           String(value).toLowerCase().includes(searchValue.toLowerCase())
         )
       );
     }
-    
+
     // 自定义筛选
     Object.entries(filterValues).forEach(([key, value]) => {
-      if (value && value !== 'all') {
-        result = result.filter(item => {
+      if (value && value !== "all") {
+        result = result.filter((item) => {
           const itemValue = item[key];
           if (Array.isArray(value)) {
             return value.includes(itemValue);
@@ -209,20 +234,20 @@ export const ResponsiveDataTable = <T extends Record<string, any>>({
         });
       }
     });
-    
+
     return result;
   }, [data, searchValue, filterValues]);
 
   // 排序后的数据
   const sortedData = useMemo(() => {
     if (!sortConfig) return filteredData;
-    
+
     return [...filteredData].sort((a, b) => {
       const aVal = a[sortConfig.key];
       const bVal = b[sortConfig.key];
-      
-      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+
+      if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
       return 0;
     });
   }, [filteredData, sortConfig]);
@@ -230,39 +255,51 @@ export const ResponsiveDataTable = <T extends Record<string, any>>({
   // 分页数据
   const paginatedData = useMemo(() => {
     if (!pagination) return sortedData;
-    
+
     const startIndex = (currentPage - 1) * pagination.pageSize;
     return sortedData.slice(startIndex, startIndex + pagination.pageSize);
   }, [sortedData, currentPage, pagination]);
 
   // 处理排序
-  const handleSort = useCallback((key: string) => {
-    if (!sortable) return;
-    
-    const newDirection = sortConfig?.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc';
-    const newSortConfig = { key, direction: newDirection };
-    
-    setSortConfig(newSortConfig);
-    onSort?.(key, newDirection);
-  }, [sortConfig, sortable, onSort]);
+  const handleSort = useCallback(
+    (key: string) => {
+      if (!sortable) return;
+
+      const newDirection =
+        sortConfig?.key === key && sortConfig.direction === "asc"
+          ? "desc"
+          : "asc";
+      const newSortConfig = { key, direction: newDirection };
+
+      setSortConfig(newSortConfig);
+      onSort?.(key, newDirection);
+    },
+    [sortConfig, sortable, onSort]
+  );
 
   // 处理筛选
-  const handleFilterChange = useCallback((key: string, value: any) => {
-    const newFilters = { ...filterValues, [key]: value };
-    setFilterValues(newFilters);
-    onFilter?.(newFilters);
-  }, [filterValues, onFilter]);
+  const handleFilterChange = useCallback(
+    (key: string, value: any) => {
+      const newFilters = { ...filterValues, [key]: value };
+      setFilterValues(newFilters);
+      onFilter?.(newFilters);
+    },
+    [filterValues, onFilter]
+  );
 
   // 处理页码变化
-  const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page);
-    pagination?.onChange(page, pagination.pageSize);
-  }, [pagination]);
+  const handlePageChange = useCallback(
+    (page: number) => {
+      setCurrentPage(page);
+      pagination?.onChange(page, pagination.pageSize);
+    },
+    [pagination]
+  );
 
   // 清空筛选
   const clearFilters = useCallback(() => {
     setFilterValues({});
-    setSearchValue('');
+    setSearchValue("");
     onFilter?.({});
   }, [onFilter]);
 
@@ -289,10 +326,10 @@ export const ResponsiveDataTable = <T extends Record<string, any>>({
             <label className="text-sm font-medium text-gray-700">
               {filter.label}
             </label>
-            
-            {filter.type === 'select' && (
+
+            {filter.type === "select" && (
               <Select
-                value={filterValues[filter.key] || 'all'}
+                value={filterValues[filter.key] || "all"}
                 onValueChange={(value) => handleFilterChange(filter.key, value)}
               >
                 <SelectTrigger>
@@ -331,13 +368,9 @@ export const ResponsiveDataTable = <T extends Record<string, any>>({
           <SheetContent side="bottom" className="h-[80vh]">
             <SheetHeader>
               <SheetTitle>筛选条件</SheetTitle>
-              <SheetDescription>
-                设置筛选条件来查找特定数据
-              </SheetDescription>
+              <SheetDescription>设置筛选条件来查找特定数据</SheetDescription>
             </SheetHeader>
-            <div className="mt-6">
-              {filterContent}
-            </div>
+            <div className="mt-6">{filterContent}</div>
           </SheetContent>
         </Sheet>
       );
@@ -358,8 +391,9 @@ export const ResponsiveDataTable = <T extends Record<string, any>>({
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
           {/* 筛选按钮 */}
-          {filters && filters.length > 0 && (
-            isMobile ? (
+          {filters &&
+            filters.length > 0 &&
+            (isMobile ? (
               <MobileButton
                 variant="outline"
                 size="default"
@@ -377,8 +411,7 @@ export const ResponsiveDataTable = <T extends Record<string, any>>({
                 <Filter className="w-4 h-4 mr-2" />
                 筛选
               </Button>
-            )
-          )}
+            ))}
 
           {/* 搜索框 (桌面端) */}
           {!isMobile && (
@@ -399,16 +432,16 @@ export const ResponsiveDataTable = <T extends Record<string, any>>({
           {!isMobile && mobileViewToggle && (
             <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
               <Button
-                variant={viewMode === 'table' ? 'default' : 'ghost'}
+                variant={viewMode === "table" ? "default" : "ghost"}
                 size="sm"
-                onClick={() => setViewMode('table')}
+                onClick={() => setViewMode("table")}
               >
                 <ListIcon className="w-4 h-4" />
               </Button>
               <Button
-                variant={viewMode === 'card' ? 'default' : 'ghost'}
+                variant={viewMode === "card" ? "default" : "ghost"}
                 size="sm"
-                onClick={() => setViewMode('card')}
+                onClick={() => setViewMode("card")}
               >
                 <Grid className="w-4 h-4" />
               </Button>
@@ -458,7 +491,7 @@ export const ResponsiveDataTable = <T extends Record<string, any>>({
                     checked={selectedKeys.length === paginatedData.length}
                     onChange={(e) => {
                       if (e.target.checked) {
-                        onSelect?.(paginatedData.map(item => item[rowKey]));
+                        onSelect?.(paginatedData.map((item) => item[rowKey]));
                       } else {
                         onSelect?.([]);
                       }
@@ -466,13 +499,15 @@ export const ResponsiveDataTable = <T extends Record<string, any>>({
                   />
                 </TableHead>
               )}
-              
+
               {columns.map((column) => (
                 <TableHead
                   key={column.key}
                   className={cn(
                     column.className,
-                    column.sortable && sortable && 'cursor-pointer hover:bg-gray-50'
+                    column.sortable &&
+                      sortable &&
+                      "cursor-pointer hover:bg-gray-50"
                   )}
                   onClick={() => column.sortable && handleSort(column.key)}
                 >
@@ -480,27 +515,27 @@ export const ResponsiveDataTable = <T extends Record<string, any>>({
                     <span>{column.label}</span>
                     {sortConfig?.key === column.key && (
                       <span className="text-xs">
-                        {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                        {sortConfig.direction === "asc" ? "↑" : "↓"}
                       </span>
                     )}
                   </div>
                 </TableHead>
               ))}
-              
+
               {actions && actions.length > 0 && (
                 <TableHead className="w-24">操作</TableHead>
               )}
             </TableRow>
           </TableHeader>
-          
+
           <TableBody>
             {paginatedData.map((item, index) => (
               <TableRow
                 key={item[rowKey] || index}
                 className={cn(
-                  'hover:bg-gray-50',
-                  onRowClick && 'cursor-pointer',
-                  selectedKeys.includes(item[rowKey]) && 'bg-blue-50'
+                  "hover:bg-gray-50",
+                  onRowClick && "cursor-pointer",
+                  selectedKeys.includes(item[rowKey]) && "bg-blue-50"
                 )}
                 onClick={() => onRowClick?.(item)}
               >
@@ -513,20 +548,22 @@ export const ResponsiveDataTable = <T extends Record<string, any>>({
                       onChange={(e) => {
                         const newSelected = e.target.checked
                           ? [...selectedKeys, item[rowKey]]
-                          : selectedKeys.filter(key => key !== item[rowKey]);
+                          : selectedKeys.filter((key) => key !== item[rowKey]);
                         onSelect?.(newSelected);
                       }}
                       onClick={(e) => e.stopPropagation()}
                     />
                   </TableCell>
                 )}
-                
+
                 {columns.map((column) => (
                   <TableCell key={column.key} className={column.className}>
-                    {column.render ? column.render(item[column.key], item) : item[column.key]}
+                    {column.render
+                      ? column.render(item[column.key], item)
+                      : item[column.key]}
                   </TableCell>
                 ))}
-                
+
                 {actions && actions.length > 0 && (
                   <TableCell>
                     <div className="flex space-x-1">
@@ -599,7 +636,7 @@ export const ResponsiveDataTable = <T extends Record<string, any>>({
         <div className="text-sm text-gray-600">
           共 {pagination.total} 条，第 {currentPage} / {totalPages} 页
         </div>
-        
+
         <div className="flex items-center space-x-2">
           {isMobile ? (
             <>
@@ -633,14 +670,14 @@ export const ResponsiveDataTable = <T extends Record<string, any>>({
                 <ChevronLeft className="w-4 h-4 mr-1" />
                 上一页
               </Button>
-              
+
               <div className="flex items-center space-x-1">
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                   const page = i + 1;
                   return (
                     <Button
                       key={page}
-                      variant={page === currentPage ? 'default' : 'outline'}
+                      variant={page === currentPage ? "default" : "outline"}
                       size="sm"
                       onClick={() => handlePageChange(page)}
                     >
@@ -649,7 +686,7 @@ export const ResponsiveDataTable = <T extends Record<string, any>>({
                   );
                 })}
               </div>
-              
+
               <Button
                 variant="outline"
                 size="sm"
@@ -667,13 +704,13 @@ export const ResponsiveDataTable = <T extends Record<string, any>>({
   };
 
   return (
-    <div className={cn('w-full', className)}>
+    <div className={cn("w-full", className)}>
       {renderToolbar()}
       {!isMobile && showFilters && renderFilters()}
       {renderFilters()}
-      
-      {effectiveViewMode === 'table' ? renderTableView() : renderCardView()}
-      
+
+      {effectiveViewMode === "table" ? renderTableView() : renderCardView()}
+
       {renderPagination()}
     </div>
   );

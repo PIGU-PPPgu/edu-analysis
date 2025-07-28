@@ -1,10 +1,16 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Upload, FileText, CheckCircle, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
-import { gradeAnalysisAutoTrigger } from '@/services/gradeAnalysisAutoTrigger';
-import AIAnalysisButton from './AIAnalysisButton';
+import React, { useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Upload, FileText, CheckCircle, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
+import { gradeAnalysisAutoTrigger } from "@/services/gradeAnalysisAutoTrigger";
+import AIAnalysisButton from "./AIAnalysisButton";
 
 interface ImportResult {
   success: boolean;
@@ -29,8 +35,8 @@ export const GradeImportWithAI: React.FC = () => {
 
     try {
       // 模拟导入过程
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
       // 模拟导入结果
       const mockResult: ImportResult = {
         success: true,
@@ -38,15 +44,15 @@ export const GradeImportWithAI: React.FC = () => {
         details: {
           fileName: file.name,
           fileSize: file.size,
-          timestamp: new Date().toISOString()
-        }
+          timestamp: new Date().toISOString(),
+        },
       };
 
       setImportResult(mockResult);
-      
-      toast.success('成绩导入成功！', {
+
+      toast.success("成绩导入成功！", {
         description: `已导入 ${mockResult.importedCount} 条记录`,
-        duration: 3000
+        duration: 3000,
       });
 
       // 🔥 关键：导入成功后自动触发AI分析
@@ -54,21 +60,20 @@ export const GradeImportWithAI: React.FC = () => {
         mockResult.importedCount,
         mockResult.details
       );
-
     } catch (error) {
-      console.error('导入失败:', error);
-      
+      console.error("导入失败:", error);
+
       const errorResult: ImportResult = {
         success: false,
         importedCount: 0,
-        errors: [error.message || '导入过程中发生错误']
+        errors: [error.message || "导入过程中发生错误"],
       };
-      
+
       setImportResult(errorResult);
-      
-      toast.error('成绩导入失败', {
-        description: error.message || '请检查文件格式',
-        duration: 5000
+
+      toast.error("成绩导入失败", {
+        description: error.message || "请检查文件格式",
+        duration: 5000,
       });
     } finally {
       setIsImporting(false);
@@ -80,22 +85,22 @@ export const GradeImportWithAI: React.FC = () => {
     const file = event.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      
+
       // 验证文件类型
       const allowedTypes = [
-        'application/vnd.ms-excel',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'text/csv'
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "text/csv",
       ];
-      
+
       if (!allowedTypes.includes(file.type)) {
-        toast.error('文件格式不支持', {
-          description: '请选择 Excel (.xlsx, .xls) 或 CSV 文件',
-          duration: 5000
+        toast.error("文件格式不支持", {
+          description: "请选择 Excel (.xlsx, .xls) 或 CSV 文件",
+          duration: 5000,
         });
         return;
       }
-      
+
       // 开始导入
       handleFileUpload(file);
     }
@@ -114,7 +119,7 @@ export const GradeImportWithAI: React.FC = () => {
             支持 Excel (.xlsx, .xls) 和 CSV 格式文件
           </CardDescription>
         </CardHeader>
-        
+
         <CardContent>
           <div className="space-y-4">
             {/* 文件选择 */}
@@ -127,14 +132,14 @@ export const GradeImportWithAI: React.FC = () => {
                 id="grade-file-upload"
                 disabled={isImporting}
               />
-              
+
               <label
                 htmlFor="grade-file-upload"
                 className="cursor-pointer flex flex-col items-center gap-2"
               >
                 <FileText className="h-8 w-8 text-gray-400" />
                 <span className="text-sm text-gray-600">
-                  {isImporting ? '正在导入...' : '点击选择文件或拖拽文件到此处'}
+                  {isImporting ? "正在导入..." : "点击选择文件或拖拽文件到此处"}
                 </span>
               </label>
             </div>
@@ -143,27 +148,30 @@ export const GradeImportWithAI: React.FC = () => {
             {isImporting && (
               <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                <span className="text-sm text-blue-800">正在导入成绩数据...</span>
+                <span className="text-sm text-blue-800">
+                  正在导入成绩数据...
+                </span>
               </div>
             )}
 
             {/* 导入结果 */}
             {importResult && (
-              <div className={`flex items-center gap-2 p-3 rounded-lg ${
-                importResult.success 
-                  ? 'bg-green-50 text-green-800' 
-                  : 'bg-red-50 text-red-800'
-              }`}>
+              <div
+                className={`flex items-center gap-2 p-3 rounded-lg ${
+                  importResult.success
+                    ? "bg-green-50 text-green-800"
+                    : "bg-red-50 text-red-800"
+                }`}
+              >
                 {importResult.success ? (
                   <CheckCircle className="h-4 w-4" />
                 ) : (
                   <AlertCircle className="h-4 w-4" />
                 )}
                 <span className="text-sm">
-                  {importResult.success 
+                  {importResult.success
                     ? `导入成功！共导入 ${importResult.importedCount} 条记录`
-                    : `导入失败: ${importResult.errors?.[0] || '未知错误'}`
-                  }
+                    : `导入失败: ${importResult.errors?.[0] || "未知错误"}`}
                 </span>
               </div>
             )}
@@ -195,7 +203,7 @@ export const GradeImportWithAI: React.FC = () => {
               </div>
               <div>
                 <span className="font-medium">导入时间：</span>
-                {new Date().toLocaleString('zh-CN')}
+                {new Date().toLocaleString("zh-CN")}
               </div>
               <div>
                 <span className="font-medium">记录数量：</span>

@@ -7,7 +7,13 @@ import ExamWarningAnalysis from "@/components/warning/ExamWarningAnalysis";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "react-router-dom";
-import { Settings, AlertTriangle, RefreshCcw, BarChart3, Calendar } from "lucide-react";
+import {
+  Settings,
+  AlertTriangle,
+  RefreshCcw,
+  BarChart3,
+  Calendar,
+} from "lucide-react";
 import { toast } from "sonner";
 import { getWarningStatistics, WarningStats } from "@/services/warningService";
 
@@ -17,11 +23,11 @@ const WarningAnalysis = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [warningStats, setWarningStats] = useState<WarningStats | null>(null);
   const [activeTab, setActiveTab] = useState("overall");
-  
+
   // 清理任何潜在的副作用
   useEffect(() => {
     fetchWarningData();
-    
+
     return () => {
       isMountedRef.current = false;
     };
@@ -30,19 +36,19 @@ const WarningAnalysis = () => {
   // 获取预警数据
   const fetchWarningData = async () => {
     if (!isMountedRef.current) return;
-    
+
     try {
       setIsLoading(true);
       const stats = await getWarningStatistics();
-      
+
       if (isMountedRef.current) {
         setWarningStats(stats);
       }
     } catch (error) {
-      console.error('获取预警数据失败:', error);
+      console.error("获取预警数据失败:", error);
       if (isMountedRef.current) {
-        toast.error('获取预警数据失败', {
-          description: '请稍后重试'
+        toast.error("获取预警数据失败", {
+          description: "请稍后重试",
         });
       }
     } finally {
@@ -69,14 +75,16 @@ const WarningAnalysis = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleRefresh} 
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
               disabled={isLoading}
             >
-              <RefreshCcw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-              {isLoading ? '刷新中...' : '刷新数据'}
+              <RefreshCcw
+                className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+              />
+              {isLoading ? "刷新中..." : "刷新数据"}
             </Button>
             <Button variant="outline" size="sm" asChild>
               <Link to="/ai-settings">
@@ -86,7 +94,7 @@ const WarningAnalysis = () => {
             </Button>
           </div>
         </div>
-        
+
         <div className="bg-amber-50 border-l-4 border-amber-500 p-4 mb-6">
           <div className="flex">
             <AlertTriangle className="h-6 w-6 text-amber-500 mr-2" />
@@ -100,18 +108,22 @@ const WarningAnalysis = () => {
             </div>
           </div>
         </div>
-        
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="space-y-6"
+        >
           <TabsList className="grid w-full grid-cols-2 bg-gray-100">
-            <TabsTrigger 
-              value="overall" 
+            <TabsTrigger
+              value="overall"
               className="flex items-center gap-2 data-[state=active]:bg-[#c0ff3f] data-[state=active]:text-black"
             >
               <BarChart3 className="h-4 w-4" />
               整体预警分析
             </TabsTrigger>
-            <TabsTrigger 
-              value="exam" 
+            <TabsTrigger
+              value="exam"
               className="flex items-center gap-2 data-[state=active]:bg-[#c0ff3f] data-[state=active]:text-black"
             >
               <Calendar className="h-4 w-4" />
@@ -120,12 +132,12 @@ const WarningAnalysis = () => {
           </TabsList>
 
           <TabsContent value="overall" className="space-y-6">
-          <WarningDashboard 
-            warningData={warningStats}
-            factorStats={warningStats?.commonRiskFactors}
-          />
-          <WarningList />
-          <WarningRules />
+            <WarningDashboard
+              warningData={warningStats}
+              factorStats={warningStats?.commonRiskFactors}
+            />
+            <WarningList />
+            <WarningRules />
           </TabsContent>
 
           <TabsContent value="exam" className="space-y-6">

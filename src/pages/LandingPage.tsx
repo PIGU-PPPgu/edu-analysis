@@ -6,4 +6,4 @@ const LandingPage = () => {
   return <EducationalLandingPage />;
 };
 
-export default LandingPage; 
+export default LandingPage;

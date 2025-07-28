@@ -1,115 +1,129 @@
 /**
  *  SimpleGradeImporter - 零干预智能导入组件
- * 
+ *
  * 核心理念：上传即导入，无需任何配置
  * 流程：选择文件 → 自动识别 → 导入成功 → 查看结果 → (可选)补充数据
  */
 
-import React, { useState, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Upload, 
-  BarChart3, 
+import React, { useState, useCallback } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Upload,
+  BarChart3,
   Sparkles,
   CheckCircle,
   ArrowRight,
   TrendingUp,
   Settings,
-  RefreshCw
-} from 'lucide-react';
-import { toast } from 'sonner';
+  RefreshCw,
+} from "lucide-react";
+import { toast } from "sonner";
 
 // 导入组件
-import OneClickImporter from './components/OneClickImporter';
-import PostImportCompletion from './components/PostImportCompletion';
+import OneClickImporter from "./components/OneClickImporter";
+import PostImportCompletion from "./components/PostImportCompletion";
 
 // 使用现有的类型定义
-import type { 
-  GradeImporterProps,
-  ImportResult,
-  MappingConfig
-} from './types';
-import type { MissingFieldInfo, PostImportAction } from '../../services/smartFallbackEngine';
+import type { GradeImporterProps, ImportResult, MappingConfig } from "./types";
+import type {
+  MissingFieldInfo,
+  PostImportAction,
+} from "../../services/smartFallbackEngine";
 
 // 导入状态
-type ImportStatus = 'idle' | 'importing' | 'completed' | 'enhancing';
+type ImportStatus = "idle" | "importing" | "completed" | "enhancing";
 
-const SimpleGradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) => {
+const SimpleGradeImporter: React.FC<GradeImporterProps> = ({
+  onDataImported,
+}) => {
   // 状态管理
-  const [importStatus, setImportStatus] = useState<ImportStatus>('idle');
+  const [importStatus, setImportStatus] = useState<ImportStatus>("idle");
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [importedData, setImportedData] = useState<any[]>([]);
   const [originalHeaders, setOriginalHeaders] = useState<string[]>([]);
-  const [currentMapping, setCurrentMapping] = useState<Record<string, string>>({});
+  const [currentMapping, setCurrentMapping] = useState<Record<string, string>>(
+    {}
+  );
   const [missingFields, setMissingFields] = useState<MissingFieldInfo[]>([]);
-  const [postImportActions, setPostImportActions] = useState<PostImportAction[]>([]);
-  
+  const [postImportActions, setPostImportActions] = useState<
+    PostImportAction[]
+  >([]);
+
   // 显示模式：simple（一键导入）或 advanced（传统模式）
-  const [viewMode, setViewMode] = useState<'simple' | 'advanced'>('simple');
+  const [viewMode, setViewMode] = useState<"simple" | "advanced">("simple");
 
   // 处理文件选择
   const handleFileSelected = useCallback((file: File) => {
-    setImportStatus('importing');
+    setImportStatus("importing");
     // OneClickImporter 会处理实际的文件上传和解析
   }, []);
 
   // 处理导入完成
-  const handleImportComplete = useCallback((
-    result: ImportResult, 
-    missingFieldsList: string[]
-  ) => {
-    setImportResult(result);
-    setImportedData(result.summary ? [] : []); // 这里应该是实际的导入数据
-    setImportStatus('completed');
-    
-    // 通知父组件数据已导入
-    if (onDataImported) {
-      onDataImported([]); // 传递实际导入的数据
-    }
+  const handleImportComplete = useCallback(
+    (result: ImportResult, missingFieldsList: string[]) => {
+      setImportResult(result);
+      setImportedData(result.summary ? [] : []); // 这里应该是实际的导入数据
+      setImportStatus("completed");
 
-    // 如果有缺失字段，显示增强选项
-    if (missingFieldsList.length > 0) {
-      setImportStatus('enhancing');
-    }
-    
-    toast.success(' 数据导入成功！', {
-      description: `共导入 ${result.summary.importedRows} 条记录`,
-      duration: 4000
-    });
-  }, [onDataImported]);
+      // 通知父组件数据已导入
+      if (onDataImported) {
+        onDataImported([]); // 传递实际导入的数据
+      }
+
+      // 如果有缺失字段，显示增强选项
+      if (missingFieldsList.length > 0) {
+        setImportStatus("enhancing");
+      }
+
+      toast.success(" 数据导入成功！", {
+        description: `共导入 ${result.summary.importedRows} 条记录`,
+        duration: 4000,
+      });
+    },
+    [onDataImported]
+  );
 
   // 处理导入错误
   const handleImportError = useCallback((error: string) => {
-    toast.error('导入失败', {
+    toast.error("导入失败", {
       description: error,
-      duration: 5000
+      duration: 5000,
     });
-    setImportStatus('idle');
+    setImportStatus("idle");
   }, []);
 
   // 处理字段增强
-  const handleFieldAdded = useCallback((fieldMapping: Record<string, string>) => {
-    setCurrentMapping(prev => ({ ...prev, ...fieldMapping }));
-    
-    // 这里应该重新处理数据以包含新字段
-    toast.success('字段已添加', {
-      description: '数据分析能力已增强',
-      duration: 3000
-    });
-  }, []);
+  const handleFieldAdded = useCallback(
+    (fieldMapping: Record<string, string>) => {
+      setCurrentMapping((prev) => ({ ...prev, ...fieldMapping }));
+
+      // 这里应该重新处理数据以包含新字段
+      toast.success("字段已添加", {
+        description: "数据分析能力已增强",
+        duration: 3000,
+      });
+    },
+    []
+  );
 
   // 处理增强完成
   const handleEnhancementComplete = useCallback(() => {
-    setImportStatus('completed');
+    setImportStatus("completed");
   }, []);
 
   // 重新开始
   const handleRestart = useCallback(() => {
-    setImportStatus('idle');
+    setImportStatus("idle");
     setImportResult(null);
     setImportedData([]);
     setOriginalHeaders([]);
@@ -122,7 +136,7 @@ const SimpleGradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) =
   const handleViewResults = useCallback(() => {
     // 这里应该导航到分析结果页面
     // 可以通过 router.push('/analysis') 或者触发父组件的回调
-    toast.info('即将跳转到分析页面...');
+    toast.info("即将跳转到分析页面...");
   }, []);
 
   return (
@@ -137,27 +151,30 @@ const SimpleGradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) =
                 智能成绩导入系统
               </CardTitle>
               <CardDescription className="mt-2">
-                {importStatus === 'idle' && '上传Excel文件，系统自动识别并导入所有数据'}
-                {importStatus === 'importing' && '正在智能处理您的数据...'}
-                {importStatus === 'completed' && '导入完成！您可以立即查看分析结果'}
-                {importStatus === 'enhancing' && '数据已导入，您可以选择添加更多字段来增强分析'}
+                {importStatus === "idle" &&
+                  "上传Excel文件，系统自动识别并导入所有数据"}
+                {importStatus === "importing" && "正在智能处理您的数据..."}
+                {importStatus === "completed" &&
+                  "导入完成！您可以立即查看分析结果"}
+                {importStatus === "enhancing" &&
+                  "数据已导入，您可以选择添加更多字段来增强分析"}
               </CardDescription>
             </div>
-            
+
             {/* 模式切换 */}
             <div className="flex gap-2">
               <Button
-                variant={viewMode === 'simple' ? 'default' : 'outline'}
+                variant={viewMode === "simple" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setViewMode('simple')}
+                onClick={() => setViewMode("simple")}
               >
                 <Sparkles className="w-4 h-4 mr-2" />
                 简单模式
               </Button>
               <Button
-                variant={viewMode === 'advanced' ? 'default' : 'outline'}
+                variant={viewMode === "advanced" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setViewMode('advanced')}
+                onClick={() => setViewMode("advanced")}
               >
                 <Settings className="w-4 h-4 mr-2" />
                 高级模式
@@ -168,10 +185,10 @@ const SimpleGradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) =
       </Card>
 
       {/* 简单模式 - 一键导入 */}
-      {viewMode === 'simple' && (
+      {viewMode === "simple" && (
         <div className="space-y-6">
           {/* 空闲状态 - 文件上传 */}
-          {importStatus === 'idle' && (
+          {importStatus === "idle" && (
             <OneClickImporter
               onFileSelected={handleFileSelected}
               onImportComplete={handleImportComplete}
@@ -180,7 +197,7 @@ const SimpleGradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) =
           )}
 
           {/* 导入中状态 */}
-          {importStatus === 'importing' && (
+          {importStatus === "importing" && (
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center py-12">
@@ -197,7 +214,10 @@ const SimpleGradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) =
                       <span>30-60秒</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{width: '60%'}}></div>
+                      <div
+                        className="bg-blue-600 h-2 rounded-full animate-pulse"
+                        style={{ width: "60%" }}
+                      ></div>
                     </div>
                   </div>
                 </div>
@@ -206,7 +226,7 @@ const SimpleGradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) =
           )}
 
           {/* 完成状态 */}
-          {importStatus === 'completed' && importResult && (
+          {importStatus === "completed" && importResult && (
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center py-8">
@@ -214,7 +234,7 @@ const SimpleGradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) =
                   <h3 className="text-2xl font-bold text-green-700 mb-4">
                     导入成功！
                   </h3>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto mb-8">
                     <div className="bg-blue-50 p-4 rounded-lg">
                       <div className="text-2xl font-bold text-blue-600">
@@ -222,14 +242,14 @@ const SimpleGradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) =
                       </div>
                       <div className="text-sm text-blue-700">成功导入记录</div>
                     </div>
-                    
+
                     <div className="bg-green-50 p-4 rounded-lg">
                       <div className="text-2xl font-bold text-green-600">
                         {Object.keys(currentMapping).length}
                       </div>
                       <div className="text-sm text-green-700">识别数据字段</div>
                     </div>
-                    
+
                     <div className="bg-purple-50 p-4 rounded-lg">
                       <div className="text-2xl font-bold text-purple-600">
                         {Math.round((importResult.duration || 3000) / 1000)}s
@@ -254,7 +274,7 @@ const SimpleGradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) =
           )}
 
           {/* 增强状态 */}
-          {importStatus === 'enhancing' && (
+          {importStatus === "enhancing" && (
             <PostImportCompletion
               importedData={importedData}
               originalHeaders={originalHeaders}
@@ -269,7 +289,7 @@ const SimpleGradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) =
       )}
 
       {/* 高级模式 - 传统流程 */}
-      {viewMode === 'advanced' && (
+      {viewMode === "advanced" && (
         <Card>
           <CardHeader>
             <CardTitle>高级导入模式</CardTitle>
@@ -281,17 +301,18 @@ const SimpleGradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) =
             <Alert>
               <Settings className="w-4 h-4" />
               <AlertDescription>
-                高级模式将显示完整的导入流程：文件上传 → 字段映射 → 数据验证 → 导入处理。
+                高级模式将显示完整的导入流程：文件上传 → 字段映射 → 数据验证 →
+                导入处理。
                 <br />
                 如果您是普通用户，建议使用简单模式以获得更好的体验。
               </AlertDescription>
             </Alert>
-            
+
             <div className="flex gap-2 mt-4">
-              <Button onClick={() => setViewMode('simple')} variant="outline">
+              <Button onClick={() => setViewMode("simple")} variant="outline">
                 返回简单模式
               </Button>
-              <Button onClick={() => toast.info('高级模式功能开发中...')}>
+              <Button onClick={() => toast.info("高级模式功能开发中...")}>
                 继续高级模式
               </Button>
             </div>
@@ -300,7 +321,7 @@ const SimpleGradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) =
       )}
 
       {/* 功能介绍 */}
-      {importStatus === 'idle' && (
+      {importStatus === "idle" && (
         <Card>
           <CardContent className="pt-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
@@ -313,7 +334,7 @@ const SimpleGradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) =
                   AI自动识别学生信息、各科成绩、排名等所有数据，无需手动配置
                 </p>
               </div>
-              
+
               <div className="space-y-3">
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto">
                   <CheckCircle className="w-6 h-6 text-green-600" />
@@ -323,7 +344,7 @@ const SimpleGradeImporter: React.FC<GradeImporterProps> = ({ onDataImported }) =
                   即使数据不完整，系统也能确保导入成功，不会因为格式问题失败
                 </p>
               </div>
-              
+
               <div className="space-y-3">
                 <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto">
                   <TrendingUp className="w-6 h-6 text-purple-600" />

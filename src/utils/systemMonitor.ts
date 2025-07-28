@@ -9,19 +9,19 @@ export enum LogLevel {
   INFO = 1,
   WARN = 2,
   ERROR = 3,
-  CRITICAL = 4
+  CRITICAL = 4,
 }
 
 // 日志类别
 export enum LogCategory {
-  SYSTEM = 'system',
-  PERFORMANCE = 'performance',
-  USER_ACTION = 'user_action',
-  API = 'api',
-  DATABASE = 'database',
-  ERROR = 'error',
-  SECURITY = 'security',
-  BUSINESS = 'business'
+  SYSTEM = "system",
+  PERFORMANCE = "performance",
+  USER_ACTION = "user_action",
+  API = "api",
+  DATABASE = "database",
+  ERROR = "error",
+  SECURITY = "security",
+  BUSINESS = "business",
 }
 
 // 日志条目接口
@@ -108,8 +108,8 @@ const DEFAULT_CONFIG: MonitorConfig = {
   enableUserTracking: true,
   maxLogEntries: 1000,
   flushInterval: 30000, // 30秒
-  remoteEndpoint: '/api/logs',
-  apiKey: undefined
+  remoteEndpoint: "/api/logs",
+  apiKey: undefined,
 };
 
 /**
@@ -157,18 +157,23 @@ class SystemMonitor {
     this.setupErrorTracking();
     this.setupUserTracking();
     this.startLogFlushing();
-    
-    this.log(LogLevel.INFO, LogCategory.SYSTEM, 'System monitoring initialized', {
-      sessionId: this.sessionId,
-      config: this.config
-    });
+
+    this.log(
+      LogLevel.INFO,
+      LogCategory.SYSTEM,
+      "System monitoring initialized",
+      {
+        sessionId: this.sessionId,
+        config: this.config,
+      }
+    );
   }
 
   private setupPerformanceMonitoring(): void {
     if (!this.config.enablePerformanceMonitoring) return;
 
     // Web Vitals监控
-    if ('PerformanceObserver' in window) {
+    if ("PerformanceObserver" in window) {
       this.performanceObserver = new PerformanceObserver((list) => {
         list.getEntries().forEach((entry) => {
           this.handlePerformanceEntry(entry);
@@ -176,10 +181,23 @@ class SystemMonitor {
       });
 
       try {
-        this.performanceObserver.observe({ entryTypes: ['navigation', 'paint', 'largest-contentful-paint', 'first-input', 'layout-shift'] });
+        this.performanceObserver.observe({
+          entryTypes: [
+            "navigation",
+            "paint",
+            "largest-contentful-paint",
+            "first-input",
+            "layout-shift",
+          ],
+        });
       } catch (e) {
         // 某些浏览器可能不支持所有类型
-        this.log(LogLevel.WARN, LogCategory.PERFORMANCE, 'Some performance metrics not supported', { error: e });
+        this.log(
+          LogLevel.WARN,
+          LogCategory.PERFORMANCE,
+          "Some performance metrics not supported",
+          { error: e }
+        );
       }
     }
 
@@ -194,38 +212,68 @@ class SystemMonitor {
       name: entry.name,
       type: entry.entryType,
       startTime: entry.startTime,
-      duration: entry.duration
+      duration: entry.duration,
     };
 
-    if (entry.entryType === 'navigation') {
+    if (entry.entryType === "navigation") {
       const navEntry = entry as PerformanceNavigationTiming;
-      this.log(LogLevel.INFO, LogCategory.PERFORMANCE, 'Page navigation timing', {
-        ...entryData,
-        domContentLoaded: navEntry.domContentLoadedEventEnd - navEntry.domContentLoadedEventStart,
-        loadComplete: navEntry.loadEventEnd - navEntry.loadEventStart,
-        connectTime: navEntry.connectEnd - navEntry.connectStart,
-        responseTime: navEntry.responseEnd - navEntry.responseStart
-      });
-    } else if (entry.entryType === 'paint') {
-      this.log(LogLevel.INFO, LogCategory.PERFORMANCE, `Paint timing: ${entry.name}`, entryData);
-    } else if (entry.entryType === 'largest-contentful-paint') {
-      const lcpEntry = entry as any; // LCP类型
-      if (lcpEntry.startTime > 2500) { // LCP > 2.5秒是Poor
-        this.log(LogLevel.WARN, LogCategory.PERFORMANCE, 'Poor LCP detected', entryData);
-      }
-    } else if (entry.entryType === 'first-input') {
-      const fidEntry = entry as any; // FID类型
-      if (fidEntry.processingStart - fidEntry.startTime > 100) { // FID > 100ms是Poor
-        this.log(LogLevel.WARN, LogCategory.PERFORMANCE, 'Poor FID detected', entryData);
-      }
-    } else if (entry.entryType === 'layout-shift') {
-      const clsEntry = entry as any; // CLS类型
-      if (clsEntry.value > 0.1) { // CLS > 0.1是Poor
-        this.log(LogLevel.WARN, LogCategory.PERFORMANCE, 'Layout shift detected', {
+      this.log(
+        LogLevel.INFO,
+        LogCategory.PERFORMANCE,
+        "Page navigation timing",
+        {
           ...entryData,
-          value: clsEntry.value,
-          hadRecentInput: clsEntry.hadRecentInput
-        });
+          domContentLoaded:
+            navEntry.domContentLoadedEventEnd -
+            navEntry.domContentLoadedEventStart,
+          loadComplete: navEntry.loadEventEnd - navEntry.loadEventStart,
+          connectTime: navEntry.connectEnd - navEntry.connectStart,
+          responseTime: navEntry.responseEnd - navEntry.responseStart,
+        }
+      );
+    } else if (entry.entryType === "paint") {
+      this.log(
+        LogLevel.INFO,
+        LogCategory.PERFORMANCE,
+        `Paint timing: ${entry.name}`,
+        entryData
+      );
+    } else if (entry.entryType === "largest-contentful-paint") {
+      const lcpEntry = entry as any; // LCP类型
+      if (lcpEntry.startTime > 2500) {
+        // LCP > 2.5秒是Poor
+        this.log(
+          LogLevel.WARN,
+          LogCategory.PERFORMANCE,
+          "Poor LCP detected",
+          entryData
+        );
+      }
+    } else if (entry.entryType === "first-input") {
+      const fidEntry = entry as any; // FID类型
+      if (fidEntry.processingStart - fidEntry.startTime > 100) {
+        // FID > 100ms是Poor
+        this.log(
+          LogLevel.WARN,
+          LogCategory.PERFORMANCE,
+          "Poor FID detected",
+          entryData
+        );
+      }
+    } else if (entry.entryType === "layout-shift") {
+      const clsEntry = entry as any; // CLS类型
+      if (clsEntry.value > 0.1) {
+        // CLS > 0.1是Poor
+        this.log(
+          LogLevel.WARN,
+          LogCategory.PERFORMANCE,
+          "Layout shift detected",
+          {
+            ...entryData,
+            value: clsEntry.value,
+            hadRecentInput: clsEntry.hadRecentInput,
+          }
+        );
       }
     }
   }
@@ -236,38 +284,43 @@ class SystemMonitor {
       performance: {
         memory: this.getMemoryInfo(),
         timing: this.getTimingInfo(),
-        resources: this.getResourceInfo()
+        resources: this.getResourceInfo(),
       },
       errors: {
         totalErrors: this.errorCount,
         criticalErrors: this.criticalErrorCount,
         errorRate: this.errorCount / Math.max(this.userActionCount, 1),
-        topErrors: this.getTopErrors()
+        topErrors: this.getTopErrors(),
       },
       user: {
         activeUsers: 1, // 当前会话
         sessionDuration: Date.now() - this.startTime,
         bounceRate: 0, // 需要额外实现
-        userActions: this.userActionCount
+        userActions: this.userActionCount,
       },
       system: {
         uptime: Date.now() - this.startTime,
-        version: import.meta.env.VITE_APP_VERSION || 'unknown',
-        environment: import.meta.env.DEV ? 'development' : 'production',
-        buildTime: import.meta.env.VITE_APP_BUILD_TIME || 'unknown'
-      }
+        version: import.meta.env.VITE_APP_VERSION || "unknown",
+        environment: import.meta.env.DEV ? "development" : "production",
+        buildTime: import.meta.env.VITE_APP_BUILD_TIME || "unknown",
+      },
     };
 
-    this.log(LogLevel.INFO, LogCategory.PERFORMANCE, 'Performance metrics collected', metrics);
+    this.log(
+      LogLevel.INFO,
+      LogCategory.PERFORMANCE,
+      "Performance metrics collected",
+      metrics
+    );
   }
 
   private getMemoryInfo() {
-    if ('memory' in performance) {
+    if ("memory" in performance) {
       const memory = (performance as any).memory;
       return {
         used: memory.usedJSHeapSize,
         total: memory.totalJSHeapSize,
-        limit: memory.jsHeapSizeLimit
+        limit: memory.jsHeapSizeLimit,
       };
     }
     return { used: 0, total: 0, limit: 0 };
@@ -276,36 +329,40 @@ class SystemMonitor {
   private getTimingInfo() {
     const timing = performance.timing;
     return {
-      domContentLoaded: timing.domContentLoadedEventEnd - timing.domContentLoadedEventStart,
+      domContentLoaded:
+        timing.domContentLoadedEventEnd - timing.domContentLoadedEventStart,
       loadComplete: timing.loadEventEnd - timing.loadEventStart,
       firstContentfulPaint: 0, // 需要从PerformanceObserver获取
       largestContentfulPaint: 0,
       firstInputDelay: 0,
-      cumulativeLayoutShift: 0
+      cumulativeLayoutShift: 0,
     };
   }
 
   private getResourceInfo() {
-    const resources = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
+    const resources = performance.getEntriesByType(
+      "resource"
+    ) as PerformanceResourceTiming[];
     const totalRequests = resources.length;
-    const failedRequests = resources.filter(r => r.transferSize === 0).length;
-    const avgResponseTime = resources.reduce((sum, r) => sum + r.duration, 0) / totalRequests;
-    const slowRequests = resources.filter(r => r.duration > 1000).length;
+    const failedRequests = resources.filter((r) => r.transferSize === 0).length;
+    const avgResponseTime =
+      resources.reduce((sum, r) => sum + r.duration, 0) / totalRequests;
+    const slowRequests = resources.filter((r) => r.duration > 1000).length;
 
     return {
       totalRequests,
       failedRequests,
       avgResponseTime,
-      slowRequests
+      slowRequests,
     };
   }
 
   private getTopErrors(): Array<{ message: string; count: number }> {
     const errorCounts = new Map<string, number>();
-    
+
     this.logBuffer
-      .filter(entry => entry.level >= LogLevel.ERROR)
-      .forEach(entry => {
+      .filter((entry) => entry.level >= LogLevel.ERROR)
+      .forEach((entry) => {
         const message = entry.message;
         errorCounts.set(message, (errorCounts.get(message) || 0) + 1);
       });
@@ -320,18 +377,18 @@ class SystemMonitor {
     if (!this.config.enableErrorTracking) return;
 
     // 全局错误处理
-    window.addEventListener('error', (event) => {
-      this.logError('Global Error', event.error, {
+    window.addEventListener("error", (event) => {
+      this.logError("Global Error", event.error, {
         filename: event.filename,
         lineno: event.lineno,
         colno: event.colno,
-        message: event.message
+        message: event.message,
       });
     });
 
     // Promise reject处理
-    window.addEventListener('unhandledrejection', (event) => {
-      this.logError('Unhandled Promise Rejection', event.reason);
+    window.addEventListener("unhandledrejection", (event) => {
+      this.logError("Unhandled Promise Rejection", event.reason);
     });
 
     // 网络请求错误
@@ -339,38 +396,38 @@ class SystemMonitor {
     window.fetch = async (...args) => {
       const requestId = this.generateLogId();
       const startTime = Date.now();
-      
+
       try {
         this.requestCount++;
         const response = await originalFetch(...args);
-        
+
         const duration = Date.now() - startTime;
-        const url = typeof args[0] === 'string' ? args[0] : args[0].url;
-        
+        const url = typeof args[0] === "string" ? args[0] : args[0].url;
+
         if (!response.ok) {
           this.failedRequestCount++;
-          this.log(LogLevel.WARN, LogCategory.API, 'HTTP request failed', {
+          this.log(LogLevel.WARN, LogCategory.API, "HTTP request failed", {
             url,
             status: response.status,
             statusText: response.statusText,
             duration,
-            requestId
+            requestId,
           });
         } else if (duration > 5000) {
-          this.log(LogLevel.WARN, LogCategory.API, 'Slow HTTP request', {
+          this.log(LogLevel.WARN, LogCategory.API, "Slow HTTP request", {
             url,
             duration,
-            requestId
+            requestId,
           });
         }
-        
+
         return response;
       } catch (error) {
         this.failedRequestCount++;
-        this.logError('Fetch Error', error, {
-          url: typeof args[0] === 'string' ? args[0] : args[0].url,
+        this.logError("Fetch Error", error, {
+          url: typeof args[0] === "string" ? args[0] : args[0].url,
           duration: Date.now() - startTime,
-          requestId
+          requestId,
         });
         throw error;
       }
@@ -381,24 +438,33 @@ class SystemMonitor {
     if (!this.config.enableUserTracking) return;
 
     // 用户交互事件
-    ['click', 'keydown', 'scroll', 'resize'].forEach(eventType => {
-      window.addEventListener(eventType, () => {
-        this.userActionCount++;
-      }, { passive: true });
+    ["click", "keydown", "scroll", "resize"].forEach((eventType) => {
+      window.addEventListener(
+        eventType,
+        () => {
+          this.userActionCount++;
+        },
+        { passive: true }
+      );
     });
 
     // 页面可见性变化
-    document.addEventListener('visibilitychange', () => {
-      this.log(LogLevel.INFO, LogCategory.USER_ACTION, 'Page visibility changed', {
-        visible: !document.hidden
-      });
+    document.addEventListener("visibilitychange", () => {
+      this.log(
+        LogLevel.INFO,
+        LogCategory.USER_ACTION,
+        "Page visibility changed",
+        {
+          visible: !document.hidden,
+        }
+      );
     });
 
     // 页面离开前
-    window.addEventListener('beforeunload', () => {
-      this.log(LogLevel.INFO, LogCategory.USER_ACTION, 'User leaving page', {
+    window.addEventListener("beforeunload", () => {
+      this.log(LogLevel.INFO, LogCategory.USER_ACTION, "User leaving page", {
         sessionDuration: Date.now() - this.startTime,
-        userActions: this.userActionCount
+        userActions: this.userActionCount,
       });
       this.flushLogs(); // 立即发送日志
     });
@@ -413,7 +479,13 @@ class SystemMonitor {
   /**
    * 记录日志
    */
-  log(level: LogLevel, category: LogCategory, message: string, data?: any, source?: string): void {
+  log(
+    level: LogLevel,
+    category: LogCategory,
+    message: string,
+    data?: any,
+    source?: string
+  ): void {
     if (level < this.config.logLevel) return;
 
     const entry: LogEntry = {
@@ -429,8 +501,8 @@ class SystemMonitor {
       metadata: {
         url: window.location.href,
         userAgent: navigator.userAgent,
-        referrer: document.referrer
-      }
+        referrer: document.referrer,
+      },
     };
 
     this.addLogEntry(entry);
@@ -457,18 +529,18 @@ class SystemMonitor {
         error: {
           name: error?.name,
           message: error?.message,
-          stack: error?.stack
+          stack: error?.stack,
         },
-        context
+        context,
       },
-      source: 'SystemMonitor',
+      source: "SystemMonitor",
       userId: this.userId,
       sessionId: this.sessionId,
       stackTrace: error?.stack,
       metadata: {
         url: window.location.href,
-        userAgent: navigator.userAgent
-      }
+        userAgent: navigator.userAgent,
+      },
     };
 
     this.addLogEntry(entry);
@@ -480,32 +552,61 @@ class SystemMonitor {
    */
   logUserAction(action: string, data?: any): void {
     this.userActionCount++;
-    this.log(LogLevel.INFO, LogCategory.USER_ACTION, action, data, 'UserAction');
+    this.log(
+      LogLevel.INFO,
+      LogCategory.USER_ACTION,
+      action,
+      data,
+      "UserAction"
+    );
   }
 
   /**
    * 记录API调用
    */
-  logApiCall(url: string, method: string, status: number, duration: number, data?: any): void {
+  logApiCall(
+    url: string,
+    method: string,
+    status: number,
+    duration: number,
+    data?: any
+  ): void {
     const level = status >= 400 ? LogLevel.WARN : LogLevel.INFO;
-    this.log(level, LogCategory.API, `API ${method} ${url}`, {
-      method,
-      status,
-      duration,
-      ...data
-    }, 'ApiCall');
+    this.log(
+      level,
+      LogCategory.API,
+      `API ${method} ${url}`,
+      {
+        method,
+        status,
+        duration,
+        ...data,
+      },
+      "ApiCall"
+    );
   }
 
   /**
    * 记录数据库操作
    */
-  logDatabaseOperation(operation: string, table: string, duration: number, data?: any): void {
-    this.log(LogLevel.INFO, LogCategory.DATABASE, `DB ${operation} ${table}`, {
-      operation,
-      table,
-      duration,
-      ...data
-    }, 'DatabaseOperation');
+  logDatabaseOperation(
+    operation: string,
+    table: string,
+    duration: number,
+    data?: any
+  ): void {
+    this.log(
+      LogLevel.INFO,
+      LogCategory.DATABASE,
+      `DB ${operation} ${table}`,
+      {
+        operation,
+        table,
+        duration,
+        ...data,
+      },
+      "DatabaseOperation"
+    );
   }
 
   private addLogEntry(entry: LogEntry): void {
@@ -560,7 +661,7 @@ class SystemMonitor {
     } catch (error) {
       // 发送失败，重新加入缓冲区
       this.logBuffer.unshift(...logs);
-      console.error('Failed to send logs to server:', error);
+      console.error("Failed to send logs to server:", error);
     }
   }
 
@@ -571,21 +672,21 @@ class SystemMonitor {
       logs,
       sessionId: this.sessionId,
       timestamp: Date.now(),
-      metrics: this.getSystemMetrics()
+      metrics: this.getSystemMetrics(),
     };
 
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json'
+      "Content-Type": "application/json",
     };
 
     if (this.config.apiKey) {
-      headers['Authorization'] = `Bearer ${this.config.apiKey}`;
+      headers["Authorization"] = `Bearer ${this.config.apiKey}`;
     }
 
     await fetch(this.config.remoteEndpoint, {
-      method: 'POST',
+      method: "POST",
       headers,
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
   }
 
@@ -598,41 +699,45 @@ class SystemMonitor {
       performance: {
         memory: this.getMemoryInfo(),
         timing: this.getTimingInfo(),
-        resources: this.getResourceInfo()
+        resources: this.getResourceInfo(),
       },
       errors: {
         totalErrors: this.errorCount,
         criticalErrors: this.criticalErrorCount,
         errorRate: this.errorCount / Math.max(this.userActionCount, 1),
-        topErrors: this.getTopErrors()
+        topErrors: this.getTopErrors(),
       },
       user: {
         activeUsers: 1,
         sessionDuration: Date.now() - this.startTime,
         bounceRate: 0,
-        userActions: this.userActionCount
+        userActions: this.userActionCount,
       },
       system: {
         uptime: Date.now() - this.startTime,
-        version: import.meta.env.VITE_APP_VERSION || 'unknown',
-        environment: import.meta.env.DEV ? 'development' : 'production',
-        buildTime: import.meta.env.VITE_APP_BUILD_TIME || 'unknown'
-      }
+        version: import.meta.env.VITE_APP_VERSION || "unknown",
+        environment: import.meta.env.DEV ? "development" : "production",
+        buildTime: import.meta.env.VITE_APP_BUILD_TIME || "unknown",
+      },
     };
   }
 
   /**
    * 获取日志
    */
-  getLogs(filter?: { level?: LogLevel; category?: LogCategory; limit?: number }): LogEntry[] {
+  getLogs(filter?: {
+    level?: LogLevel;
+    category?: LogCategory;
+    limit?: number;
+  }): LogEntry[] {
     let logs = [...this.logBuffer];
 
     if (filter?.level !== undefined) {
-      logs = logs.filter(log => log.level >= filter.level!);
+      logs = logs.filter((log) => log.level >= filter.level!);
     }
 
     if (filter?.category) {
-      logs = logs.filter(log => log.category === filter.category);
+      logs = logs.filter((log) => log.category === filter.category);
     }
 
     if (filter?.limit) {
@@ -647,7 +752,7 @@ class SystemMonitor {
    */
   clearLogs(): void {
     this.logBuffer = [];
-    this.log(LogLevel.INFO, LogCategory.SYSTEM, 'Logs cleared');
+    this.log(LogLevel.INFO, LogCategory.SYSTEM, "Logs cleared");
   }
 
   /**
@@ -655,7 +760,7 @@ class SystemMonitor {
    */
   setUserId(userId: string): void {
     this.userId = userId;
-    this.log(LogLevel.INFO, LogCategory.SYSTEM, 'User ID set', { userId });
+    this.log(LogLevel.INFO, LogCategory.SYSTEM, "User ID set", { userId });
   }
 
   /**
@@ -663,43 +768,54 @@ class SystemMonitor {
    */
   updateConfig(config: Partial<MonitorConfig>): void {
     this.config = { ...this.config, ...config };
-    this.log(LogLevel.INFO, LogCategory.SYSTEM, 'Configuration updated', { config });
+    this.log(LogLevel.INFO, LogCategory.SYSTEM, "Configuration updated", {
+      config,
+    });
   }
 
   /**
    * 健康检查
    */
-  async healthCheck(): Promise<{ status: 'healthy' | 'warning' | 'critical'; issues: string[]; metrics: SystemMetrics }> {
+  async healthCheck(): Promise<{
+    status: "healthy" | "warning" | "critical";
+    issues: string[];
+    metrics: SystemMetrics;
+  }> {
     const metrics = this.getSystemMetrics();
     const issues: string[] = [];
-    let status: 'healthy' | 'warning' | 'critical' = 'healthy';
+    let status: "healthy" | "warning" | "critical" = "healthy";
 
     // 检查内存使用
-    const memoryUsagePercent = (metrics.performance.memory.used / metrics.performance.memory.limit) * 100;
+    const memoryUsagePercent =
+      (metrics.performance.memory.used / metrics.performance.memory.limit) *
+      100;
     if (memoryUsagePercent > 90) {
-      issues.push('High memory usage');
-      status = 'critical';
+      issues.push("High memory usage");
+      status = "critical";
     } else if (memoryUsagePercent > 75) {
-      issues.push('Elevated memory usage');
-      if (status === 'healthy') status = 'warning';
+      issues.push("Elevated memory usage");
+      if (status === "healthy") status = "warning";
     }
 
     // 检查错误率
     if (metrics.errors.errorRate > 0.1) {
-      issues.push('High error rate');
-      status = 'critical';
+      issues.push("High error rate");
+      status = "critical";
     } else if (metrics.errors.errorRate > 0.05) {
-      issues.push('Elevated error rate');
-      if (status === 'healthy') status = 'warning';
+      issues.push("Elevated error rate");
+      if (status === "healthy") status = "warning";
     }
 
     // 检查性能
     if (metrics.performance.resources.avgResponseTime > 5000) {
-      issues.push('Slow response times');
-      if (status === 'healthy') status = 'warning';
+      issues.push("Slow response times");
+      if (status === "healthy") status = "warning";
     }
 
-    this.log(LogLevel.INFO, LogCategory.SYSTEM, 'Health check completed', { status, issues });
+    this.log(LogLevel.INFO, LogCategory.SYSTEM, "Health check completed", {
+      status,
+      issues,
+    });
 
     return { status, issues, metrics };
   }
@@ -717,7 +833,7 @@ class SystemMonitor {
     }
 
     this.flushLogs();
-    this.log(LogLevel.INFO, LogCategory.SYSTEM, 'System monitoring destroyed');
+    this.log(LogLevel.INFO, LogCategory.SYSTEM, "System monitoring destroyed");
   }
 }
 

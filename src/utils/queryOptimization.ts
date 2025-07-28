@@ -3,7 +3,7 @@
  * 配合数据库索引策略，提供前端查询优化方案
  */
 
-import { SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseClient } from "@supabase/supabase-js";
 
 // 查询性能配置
 export const QUERY_PERFORMANCE_CONFIG = {
@@ -43,8 +43,9 @@ export class OptimizedQueryBuilder {
     if (cached) return cached;
 
     let query = this.supabase
-      .from('grade_data')
-      .select(`
+      .from("grade_data")
+      .select(
+        `
         id,
         exam_id,
         exam_title,
@@ -57,24 +58,27 @@ export class OptimizedQueryBuilder {
         math_grade,
         english_grade,
         created_at
-      `)
-      .eq('student_id', studentId)
-      .order('exam_date', { ascending: false });
+      `
+      )
+      .eq("student_id", studentId)
+      .order("exam_date", { ascending: false });
 
     if (options.examId) {
-      query = query.eq('exam_id', options.examId);
+      query = query.eq("exam_id", options.examId);
     }
 
     if (options.dateRange) {
       query = query
-        .gte('exam_date', options.dateRange.start)
-        .lte('exam_date', options.dateRange.end);
+        .gte("exam_date", options.dateRange.start)
+        .lte("exam_date", options.dateRange.end);
     }
 
-    query = query.limit(options.limit || QUERY_PERFORMANCE_CONFIG.DEFAULT_PAGE_SIZE);
+    query = query.limit(
+      options.limit || QUERY_PERFORMANCE_CONFIG.DEFAULT_PAGE_SIZE
+    );
 
     const result = await query;
-    
+
     if (!result.error) {
       this.setCachedResult(cacheKey, result.data);
     }
@@ -99,7 +103,7 @@ export class OptimizedQueryBuilder {
     if (cached) return cached;
 
     const selectFields = options.includeDetails
-      ? '*'
+      ? "*"
       : `
         student_id,
         name,
@@ -111,13 +115,13 @@ export class OptimizedQueryBuilder {
       `;
 
     let query = this.supabase
-      .from('grade_data')
+      .from("grade_data")
       .select(selectFields)
-      .eq('class_name', className)
-      .order('total_score', { ascending: false });
+      .eq("class_name", className)
+      .order("total_score", { ascending: false });
 
     if (examId) {
-      query = query.eq('exam_id', examId);
+      query = query.eq("exam_id", examId);
     }
 
     if (options.limit) {
@@ -125,7 +129,7 @@ export class OptimizedQueryBuilder {
     }
 
     const result = await query;
-    
+
     if (!result.error) {
       this.setCachedResult(cacheKey, result.data);
     }
@@ -143,8 +147,8 @@ export class OptimizedQueryBuilder {
     if (cached) return cached;
 
     // 使用聚合查询，利用索引优化
-    const result = await this.supabase.rpc('get_exam_statistics', {
-      p_exam_id: examId
+    const result = await this.supabase.rpc("get_exam_statistics", {
+      p_exam_id: examId,
     });
 
     if (!result.error) {
@@ -165,7 +169,8 @@ export class OptimizedQueryBuilder {
       className?: string;
     } = {}
   ) {
-    const { days = 30, limit = QUERY_PERFORMANCE_CONFIG.REALTIME_LIMIT } = options;
+    const { days = 30, limit = QUERY_PERFORMANCE_CONFIG.REALTIME_LIMIT } =
+      options;
     const cacheKey = `recent_grades_${JSON.stringify(options)}`;
     const cached = this.getCachedResult(cacheKey);
     if (cached) return cached;
@@ -174,8 +179,9 @@ export class OptimizedQueryBuilder {
     cutoffDate.setDate(cutoffDate.getDate() - days);
 
     let query = this.supabase
-      .from('grade_data')
-      .select(`
+      .from("grade_data")
+      .select(
+        `
         id,
         student_id,
         name,
@@ -184,17 +190,18 @@ export class OptimizedQueryBuilder {
         exam_date,
         total_score,
         created_at
-      `)
-      .gte('exam_date', cutoffDate.toISOString().split('T')[0])
-      .order('created_at', { ascending: false })
+      `
+      )
+      .gte("exam_date", cutoffDate.toISOString().split("T")[0])
+      .order("created_at", { ascending: false })
       .limit(limit);
 
     if (options.className) {
-      query = query.eq('class_name', options.className);
+      query = query.eq("class_name", options.className);
     }
 
     const result = await query;
-    
+
     if (!result.error) {
       this.setCachedResult(cacheKey, result.data);
     }
@@ -207,7 +214,7 @@ export class OptimizedQueryBuilder {
    * 利用索引: idx_grade_data_chinese, idx_grade_data_math, idx_grade_data_english
    */
   async getSubjectGrades(
-    subject: 'chinese' | 'math' | 'english' | 'physics' | 'chemistry',
+    subject: "chinese" | "math" | "english" | "physics" | "chemistry",
     options: {
       examId?: string;
       className?: string;
@@ -223,8 +230,9 @@ export class OptimizedQueryBuilder {
     const gradeField = `${subject}_grade`;
 
     let query = this.supabase
-      .from('grade_data')
-      .select(`
+      .from("grade_data")
+      .select(
+        `
         student_id,
         name,
         class_name,
@@ -232,16 +240,17 @@ export class OptimizedQueryBuilder {
         exam_title,
         ${scoreField},
         ${gradeField}
-      `)
-      .not(scoreField, 'is', null)
+      `
+      )
+      .not(scoreField, "is", null)
       .order(scoreField, { ascending: false });
 
     if (options.examId) {
-      query = query.eq('exam_id', options.examId);
+      query = query.eq("exam_id", options.examId);
     }
 
     if (options.className) {
-      query = query.eq('class_name', options.className);
+      query = query.eq("class_name", options.className);
     }
 
     if (options.minScore) {
@@ -253,7 +262,7 @@ export class OptimizedQueryBuilder {
     }
 
     const result = await query;
-    
+
     if (!result.error) {
       this.setCachedResult(cacheKey, result.data);
     }
@@ -266,15 +275,15 @@ export class OptimizedQueryBuilder {
    * 减少数据库往返次数
    */
   async getBatchData(studentIds: string[], examId: string) {
-    const cacheKey = `batch_data_${examId}_${studentIds.join(',')}`;
+    const cacheKey = `batch_data_${examId}_${studentIds.join(",")}`;
     const cached = this.getCachedResult(cacheKey);
     if (cached) return cached;
 
     const result = await this.supabase
-      .from('grade_data')
-      .select('*')
-      .eq('exam_id', examId)
-      .in('student_id', studentIds);
+      .from("grade_data")
+      .select("*")
+      .eq("exam_id", examId)
+      .in("student_id", studentIds);
 
     if (!result.error) {
       this.setCachedResult(cacheKey, result.data);
@@ -288,7 +297,10 @@ export class OptimizedQueryBuilder {
    */
   private getCachedResult(key: string) {
     const cached = this.queryCache.get(key);
-    if (cached && Date.now() - cached.timestamp < QUERY_PERFORMANCE_CONFIG.CACHE_DURATION) {
+    if (
+      cached &&
+      Date.now() - cached.timestamp < QUERY_PERFORMANCE_CONFIG.CACHE_DURATION
+    ) {
       console.log(`📋 缓存命中: ${key}`);
       return cached.data;
     }
@@ -298,7 +310,7 @@ export class OptimizedQueryBuilder {
   private setCachedResult(key: string, data: any) {
     this.queryCache.set(key, {
       data,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
     console.log(`💾 缓存存储: ${key}`);
   }
@@ -320,7 +332,7 @@ export class OptimizedQueryBuilder {
    */
   clearAllCache() {
     this.queryCache.clear();
-    console.log('🧹 所有缓存已清空');
+    console.log("🧹 所有缓存已清空");
   }
 }
 
@@ -335,7 +347,10 @@ export class PaginationOptimizer {
   }
 
   static async getPaginatedData<T>(
-    queryFn: (offset: number, limit: number) => Promise<{ data: T[] | null; count?: number; error: any }>,
+    queryFn: (
+      offset: number,
+      limit: number
+    ) => Promise<{ data: T[] | null; count?: number; error: any }>,
     page: number = 1,
     pageSize?: number
   ) {
@@ -343,7 +358,7 @@ export class PaginationOptimizer {
     const offset = (page - 1) * limit;
 
     const result = await queryFn(offset, limit);
-    
+
     return {
       data: result.data || [],
       page,
@@ -351,7 +366,7 @@ export class PaginationOptimizer {
       totalCount: result.count || 0,
       totalPages: result.count ? Math.ceil(result.count / limit) : 0,
       hasNextPage: result.data && result.data.length === limit,
-      error: result.error
+      error: result.error,
     };
   }
 }
@@ -364,22 +379,24 @@ export class QueryPerformanceMonitor {
 
   static startTimer(queryName: string): () => void {
     const startTime = performance.now();
-    
+
     return () => {
       const endTime = performance.now();
       const duration = endTime - startTime;
-      
+
       if (!this.queryTimes.has(queryName)) {
         this.queryTimes.set(queryName, []);
       }
-      
+
       this.queryTimes.get(queryName)!.push(duration);
-      
+
       console.log(`🔍 查询性能: ${queryName} - ${duration.toFixed(2)}ms`);
-      
+
       // 如果查询时间超过阈值，发出警告
       if (duration > 1000) {
-        console.warn(`⚠️ 慢查询警告: ${queryName} 耗时 ${duration.toFixed(2)}ms`);
+        console.warn(
+          `⚠️ 慢查询警告: ${queryName} 耗时 ${duration.toFixed(2)}ms`
+        );
       }
     };
   }
@@ -397,7 +414,7 @@ export class QueryPerformanceMonitor {
       average: avg,
       min,
       max,
-      total: times.reduce((sum, time) => sum + time, 0)
+      total: times.reduce((sum, time) => sum + time, 0),
     };
   }
 
@@ -416,29 +433,33 @@ export class QueryPerformanceMonitor {
 export class QuerySuggestionEngine {
   static analyzeMostUsedQueries(supabase: SupabaseClient) {
     // 这里可以接入实际的查询日志分析
-    console.log('📊 分析查询模式...');
-    
+    console.log("📊 分析查询模式...");
+
     return {
       suggestions: [
-        '考虑为频繁查询的字段组合添加复合索引',
-        '使用SELECT指定字段而不是SELECT *',
-        '为大数据集查询添加LIMIT',
-        '使用适当的WHERE条件减少扫描行数'
-      ]
+        "考虑为频繁查询的字段组合添加复合索引",
+        "使用SELECT指定字段而不是SELECT *",
+        "为大数据集查询添加LIMIT",
+        "使用适当的WHERE条件减少扫描行数",
+      ],
     };
   }
 
   static recommendIndexes(queryPatterns: string[]): string[] {
     const recommendations = [];
-    
-    if (queryPatterns.includes('student_id + exam_date')) {
-      recommendations.push('CREATE INDEX ON grade_data(student_id, exam_date DESC)');
+
+    if (queryPatterns.includes("student_id + exam_date")) {
+      recommendations.push(
+        "CREATE INDEX ON grade_data(student_id, exam_date DESC)"
+      );
     }
-    
-    if (queryPatterns.includes('class_name + total_score')) {
-      recommendations.push('CREATE INDEX ON grade_data(class_name, total_score DESC)');
+
+    if (queryPatterns.includes("class_name + total_score")) {
+      recommendations.push(
+        "CREATE INDEX ON grade_data(class_name, total_score DESC)"
+      );
     }
-    
+
     return recommendations;
   }
 }
@@ -446,7 +467,9 @@ export class QuerySuggestionEngine {
 // 导出单例实例
 let optimizedQueryInstance: OptimizedQueryBuilder | null = null;
 
-export const getOptimizedQuery = (supabase: SupabaseClient): OptimizedQueryBuilder => {
+export const getOptimizedQuery = (
+  supabase: SupabaseClient
+): OptimizedQueryBuilder => {
   if (!optimizedQueryInstance) {
     optimizedQueryInstance = new OptimizedQueryBuilder(supabase);
   }

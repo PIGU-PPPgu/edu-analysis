@@ -1,10 +1,10 @@
-import React from 'react';
-import { Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import React from "react";
+import { Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface LoadingProps {
-  size?: 'sm' | 'md' | 'lg';
-  variant?: 'spinner' | 'dots' | 'pulse';
+  size?: "sm" | "md" | "lg";
+  variant?: "spinner" | "dots" | "pulse";
   text?: string;
   className?: string;
   fullScreen?: boolean;
@@ -15,26 +15,26 @@ interface LoadingProps {
  * 提供多种加载样式和尺寸选择
  */
 export const Loading: React.FC<LoadingProps> = ({
-  size = 'md',
-  variant = 'spinner',
+  size = "md",
+  variant = "spinner",
   text,
   className,
-  fullScreen = false
+  fullScreen = false,
 }) => {
   const sizeClasses = {
-    sm: 'h-4 w-4',
-    md: 'h-6 w-6',
-    lg: 'h-8 w-8'
+    sm: "h-4 w-4",
+    md: "h-6 w-6",
+    lg: "h-8 w-8",
   };
 
   const textSizeClasses = {
-    sm: 'text-sm',
-    md: 'text-base',
-    lg: 'text-lg'
+    sm: "text-sm",
+    md: "text-base",
+    lg: "text-lg",
   };
 
   const renderSpinner = () => (
-    <Loader2 className={cn('animate-spin text-primary', sizeClasses[size])} />
+    <Loader2 className={cn("animate-spin text-primary", sizeClasses[size])} />
   );
 
   const renderDots = () => (
@@ -43,12 +43,12 @@ export const Loading: React.FC<LoadingProps> = ({
         <div
           key={i}
           className={cn(
-            'bg-primary rounded-full animate-pulse',
-            size === 'sm' ? 'h-2 w-2' : size === 'md' ? 'h-3 w-3' : 'h-4 w-4'
+            "bg-primary rounded-full animate-pulse",
+            size === "sm" ? "h-2 w-2" : size === "md" ? "h-3 w-3" : "h-4 w-4"
           )}
           style={{
             animationDelay: `${i * 0.2}s`,
-            animationDuration: '1s'
+            animationDuration: "1s",
           }}
         />
       ))}
@@ -56,17 +56,19 @@ export const Loading: React.FC<LoadingProps> = ({
   );
 
   const renderPulse = () => (
-    <div className={cn(
-      'bg-primary/20 rounded-full animate-pulse',
-      sizeClasses[size]
-    )} />
+    <div
+      className={cn(
+        "bg-primary/20 rounded-full animate-pulse",
+        sizeClasses[size]
+      )}
+    />
   );
 
   const renderVariant = () => {
     switch (variant) {
-      case 'dots':
+      case "dots":
         return renderDots();
-      case 'pulse':
+      case "pulse":
         return renderPulse();
       default:
         return renderSpinner();
@@ -74,16 +76,20 @@ export const Loading: React.FC<LoadingProps> = ({
   };
 
   const content = (
-    <div className={cn(
-      'flex flex-col items-center justify-center space-y-2',
-      className
-    )}>
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center space-y-2",
+        className
+      )}
+    >
       {renderVariant()}
       {text && (
-        <p className={cn(
-          'text-muted-foreground animate-pulse',
-          textSizeClasses[size]
-        )}>
+        <p
+          className={cn(
+            "text-muted-foreground animate-pulse",
+            textSizeClasses[size]
+          )}
+        >
           {text}
         </p>
       )}
@@ -104,7 +110,9 @@ export const Loading: React.FC<LoadingProps> = ({
 /**
  * 页面级加载组件
  */
-export const PageLoading: React.FC<{ text?: string }> = ({ text = '加载中...' }) => (
+export const PageLoading: React.FC<{ text?: string }> = ({
+  text = "加载中...",
+}) => (
   <div className="flex justify-center items-center py-20">
     <Loading size="lg" text={text} />
   </div>
@@ -129,7 +137,9 @@ export const ButtonLoading: React.FC = () => (
 /**
  * 表格行加载骨架
  */
-export const TableRowSkeleton: React.FC<{ columns: number }> = ({ columns }) => (
+export const TableRowSkeleton: React.FC<{ columns: number }> = ({
+  columns,
+}) => (
   <tr>
     {Array.from({ length: columns }).map((_, i) => (
       <td key={i} className="px-4 py-2">
@@ -163,4 +173,4 @@ export const ListItemSkeleton: React.FC = () => (
   </div>
 );
 
-export default Loading; 
+export default Loading;

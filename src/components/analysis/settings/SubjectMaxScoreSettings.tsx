@@ -3,21 +3,21 @@
  * 允许用户设置和管理各个科目的满分，以便正确计算及格率和等级
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
+import React, { useState, useCallback, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,9 +28,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import {
   Settings2,
   BookOpen,
@@ -42,11 +42,11 @@ import {
   Award,
   Calculator,
   Target,
-  Info
-} from 'lucide-react';
-import { SUBJECT_MAX_SCORES } from '@/utils/gradeUtils';
-import { Subject } from '@/types/grade';
-import { passRateCalculator } from '@/services/passRateCalculator';
+  Info,
+} from "lucide-react";
+import { SUBJECT_MAX_SCORES } from "@/utils/gradeUtils";
+import { Subject } from "@/types/grade";
+import { passRateCalculator } from "@/services/passRateCalculator";
 
 // 科目配置接口
 interface SubjectConfig {
@@ -70,30 +70,30 @@ const SubjectMaxScoreSettings: React.FC<SubjectMaxScoreSettingsProps> = ({
   onSave,
   onCancel,
   initialConfigs,
-  className
+  className,
 }) => {
   const { toast } = useToast();
-  
+
   // 默认科目配置
   const getDefaultConfigs = (): SubjectConfig[] => {
     const defaultSubjects = [
-      { key: Subject.TOTAL, name: '总分', maxScore: 523 },
-      { key: Subject.CHINESE, name: '语文', maxScore: 120 },
-      { key: Subject.MATH, name: '数学', maxScore: 100 },
-      { key: Subject.ENGLISH, name: '英语', maxScore: 75 },
-      { key: Subject.PHYSICS, name: '物理', maxScore: 63 },
-      { key: Subject.CHEMISTRY, name: '化学', maxScore: 45 },
-      { key: Subject.POLITICS, name: '道法', maxScore: 50 },
-      { key: Subject.HISTORY, name: '历史', maxScore: 70 }
+      { key: Subject.TOTAL, name: "总分", maxScore: 523 },
+      { key: Subject.CHINESE, name: "语文", maxScore: 120 },
+      { key: Subject.MATH, name: "数学", maxScore: 100 },
+      { key: Subject.ENGLISH, name: "英语", maxScore: 75 },
+      { key: Subject.PHYSICS, name: "物理", maxScore: 63 },
+      { key: Subject.CHEMISTRY, name: "化学", maxScore: 45 },
+      { key: Subject.POLITICS, name: "道法", maxScore: 50 },
+      { key: Subject.HISTORY, name: "历史", maxScore: 70 },
     ];
-    
-    return defaultSubjects.map(subject => ({
+
+    return defaultSubjects.map((subject) => ({
       name: subject.key,
       displayName: subject.name,
       maxScore: subject.maxScore,
       passScore: Math.round(subject.maxScore * 0.6), // 60%及格
       excellentScore: Math.round(subject.maxScore * 0.85), // 85%优秀
-      isCustom: false
+      isCustom: false,
     }));
   };
 
@@ -102,39 +102,47 @@ const SubjectMaxScoreSettings: React.FC<SubjectMaxScoreSettingsProps> = ({
   );
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [newSubject, setNewSubject] = useState({
-    name: '',
-    displayName: '',
+    name: "",
+    displayName: "",
     maxScore: 100,
     passScore: 60,
-    excellentScore: 85
+    excellentScore: 85,
   });
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [autoCalculateRates, setAutoCalculateRates] = useState(true);
 
   // 自动计算及格分和优秀分
-  const calculateScores = useCallback((maxScore: number) => ({
-    passScore: Math.round(maxScore * 0.6),
-    excellentScore: Math.round(maxScore * 0.85)
-  }), []);
+  const calculateScores = useCallback(
+    (maxScore: number) => ({
+      passScore: Math.round(maxScore * 0.6),
+      excellentScore: Math.round(maxScore * 0.85),
+    }),
+    []
+  );
 
   // 更新科目配置
-  const updateConfig = useCallback((index: number, updates: Partial<SubjectConfig>) => {
-    setConfigs(prev => prev.map((config, i) => {
-      if (i === index) {
-        const updated = { ...config, ...updates };
-        
-        // 如果启用自动计算且修改了满分，自动更新及格分和优秀分
-        if (autoCalculateRates && updates.maxScore !== undefined) {
-          const calculated = calculateScores(updated.maxScore);
-          updated.passScore = calculated.passScore;
-          updated.excellentScore = calculated.excellentScore;
-        }
-        
-        return updated;
-      }
-      return config;
-    }));
-  }, [autoCalculateRates, calculateScores]);
+  const updateConfig = useCallback(
+    (index: number, updates: Partial<SubjectConfig>) => {
+      setConfigs((prev) =>
+        prev.map((config, i) => {
+          if (i === index) {
+            const updated = { ...config, ...updates };
+
+            // 如果启用自动计算且修改了满分，自动更新及格分和优秀分
+            if (autoCalculateRates && updates.maxScore !== undefined) {
+              const calculated = calculateScores(updated.maxScore);
+              updated.passScore = calculated.passScore;
+              updated.excellentScore = calculated.excellentScore;
+            }
+
+            return updated;
+          }
+          return config;
+        })
+      );
+    },
+    [autoCalculateRates, calculateScores]
+  );
 
   // 添加自定义科目
   const addCustomSubject = useCallback(() => {
@@ -142,7 +150,7 @@ const SubjectMaxScoreSettings: React.FC<SubjectMaxScoreSettingsProps> = ({
       toast({
         title: "输入错误",
         description: "请填写科目名称和显示名称",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
@@ -151,7 +159,7 @@ const SubjectMaxScoreSettings: React.FC<SubjectMaxScoreSettingsProps> = ({
       ...newSubject,
       name: newSubject.name.trim(),
       displayName: newSubject.displayName.trim(),
-      isCustom: true
+      isCustom: true,
     };
 
     if (autoCalculateRates) {
@@ -160,13 +168,13 @@ const SubjectMaxScoreSettings: React.FC<SubjectMaxScoreSettingsProps> = ({
       config.excellentScore = calculated.excellentScore;
     }
 
-    setConfigs(prev => [...prev, config]);
+    setConfigs((prev) => [...prev, config]);
     setNewSubject({
-      name: '',
-      displayName: '',
+      name: "",
+      displayName: "",
       maxScore: 100,
       passScore: 60,
-      excellentScore: 85
+      excellentScore: 85,
     });
     setShowAddDialog(false);
 
@@ -177,15 +185,18 @@ const SubjectMaxScoreSettings: React.FC<SubjectMaxScoreSettingsProps> = ({
   }, [newSubject, autoCalculateRates, calculateScores, toast]);
 
   // 删除科目
-  const deleteSubject = useCallback((index: number) => {
-    const config = configs[index];
-    setConfigs(prev => prev.filter((_, i) => i !== index));
-    
-    toast({
-      title: "删除成功",
-      description: `科目 "${config.displayName}" 已删除`,
-    });
-  }, [configs, toast]);
+  const deleteSubject = useCallback(
+    (index: number) => {
+      const config = configs[index];
+      setConfigs((prev) => prev.filter((_, i) => i !== index));
+
+      toast({
+        title: "删除成功",
+        description: `科目 "${config.displayName}" 已删除`,
+      });
+    },
+    [configs, toast]
+  );
 
   // 重置为默认值
   const resetToDefaults = useCallback(() => {
@@ -199,19 +210,20 @@ const SubjectMaxScoreSettings: React.FC<SubjectMaxScoreSettingsProps> = ({
   // 保存配置
   const handleSave = useCallback(() => {
     // 验证配置
-    const hasInvalidConfig = configs.some(config => 
-      config.maxScore <= 0 || 
-      config.passScore < 0 || 
-      config.excellentScore < 0 ||
-      config.passScore > config.maxScore ||
-      config.excellentScore > config.maxScore
+    const hasInvalidConfig = configs.some(
+      (config) =>
+        config.maxScore <= 0 ||
+        config.passScore < 0 ||
+        config.excellentScore < 0 ||
+        config.passScore > config.maxScore ||
+        config.excellentScore > config.maxScore
     );
 
     if (hasInvalidConfig) {
       toast({
         title: "配置错误",
         description: "请检查配置，确保分数合理",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
@@ -228,10 +240,12 @@ const SubjectMaxScoreSettings: React.FC<SubjectMaxScoreSettingsProps> = ({
   }, [configs, onSave, toast]);
 
   return (
-    <Card className={cn(
-      "bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] transition-all",
-      className
-    )}>
+    <Card
+      className={cn(
+        "bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] transition-all",
+        className
+      )}
+    >
       <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -247,10 +261,13 @@ const SubjectMaxScoreSettings: React.FC<SubjectMaxScoreSettingsProps> = ({
               </p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-2 text-sm">
-              <Label htmlFor="auto-calculate" className="font-medium text-[#191A23]">
+              <Label
+                htmlFor="auto-calculate"
+                className="font-medium text-[#191A23]"
+              >
                 自动计算比例
               </Label>
               <Switch
@@ -287,13 +304,18 @@ const SubjectMaxScoreSettings: React.FC<SubjectMaxScoreSettingsProps> = ({
         {/* 科目配置列表 */}
         <div className="space-y-4">
           {configs.map((config, index) => (
-            <Card key={`${config.name}-${index}`} className="border-2 border-gray-200">
+            <Card
+              key={`${config.name}-${index}`}
+              className="border-2 border-gray-200"
+            >
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <BookOpen className="w-5 h-5 text-[#191A23]" />
                     <div>
-                      <h3 className="font-bold text-[#191A23]">{config.displayName}</h3>
+                      <h3 className="font-bold text-[#191A23]">
+                        {config.displayName}
+                      </h3>
                       <p className="text-sm text-gray-600">{config.name}</p>
                     </div>
                     {config.isCustom && (
@@ -302,17 +324,19 @@ const SubjectMaxScoreSettings: React.FC<SubjectMaxScoreSettingsProps> = ({
                       </Badge>
                     )}
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setEditingIndex(editingIndex === index ? null : index)}
+                      onClick={() =>
+                        setEditingIndex(editingIndex === index ? null : index)
+                      }
                       className="border-2 border-black bg-[#F7931E] text-white font-bold shadow-[2px_2px_0px_0px_#191A23] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_0px_#191A23] transition-all"
                     >
                       <Edit3 className="w-3 h-3" />
                     </Button>
-                    
+
                     {config.isCustom && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -328,12 +352,15 @@ const SubjectMaxScoreSettings: React.FC<SubjectMaxScoreSettingsProps> = ({
                           <AlertDialogHeader>
                             <AlertDialogTitle>确认删除</AlertDialogTitle>
                             <AlertDialogDescription>
-                              确定要删除科目 "{config.displayName}" 吗？此操作无法撤销。
+                              确定要删除科目 "{config.displayName}"
+                              吗？此操作无法撤销。
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>取消</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => deleteSubject(index)}>
+                            <AlertDialogAction
+                              onClick={() => deleteSubject(index)}
+                            >
                               删除
                             </AlertDialogAction>
                           </AlertDialogFooter>
@@ -351,7 +378,11 @@ const SubjectMaxScoreSettings: React.FC<SubjectMaxScoreSettingsProps> = ({
                         type="number"
                         min={1}
                         value={config.maxScore}
-                        onChange={(e) => updateConfig(index, { maxScore: Number(e.target.value) })}
+                        onChange={(e) =>
+                          updateConfig(index, {
+                            maxScore: Number(e.target.value),
+                          })
+                        }
                         className="border-2 border-gray-300 focus:border-[#B9FF66]"
                       />
                     </div>
@@ -362,7 +393,11 @@ const SubjectMaxScoreSettings: React.FC<SubjectMaxScoreSettingsProps> = ({
                         min={0}
                         max={config.maxScore}
                         value={config.passScore}
-                        onChange={(e) => updateConfig(index, { passScore: Number(e.target.value) })}
+                        onChange={(e) =>
+                          updateConfig(index, {
+                            passScore: Number(e.target.value),
+                          })
+                        }
                         className="border-2 border-gray-300 focus:border-[#F7931E]"
                         disabled={autoCalculateRates}
                       />
@@ -374,7 +409,11 @@ const SubjectMaxScoreSettings: React.FC<SubjectMaxScoreSettingsProps> = ({
                         min={0}
                         max={config.maxScore}
                         value={config.excellentScore}
-                        onChange={(e) => updateConfig(index, { excellentScore: Number(e.target.value) })}
+                        onChange={(e) =>
+                          updateConfig(index, {
+                            excellentScore: Number(e.target.value),
+                          })
+                        }
                         className="border-2 border-gray-300 focus:border-[#9C88FF]"
                         disabled={autoCalculateRates}
                       />
@@ -385,28 +424,44 @@ const SubjectMaxScoreSettings: React.FC<SubjectMaxScoreSettingsProps> = ({
                     <div className="text-center p-3 bg-[#B9FF66] rounded-lg border-2 border-black">
                       <div className="flex items-center justify-center gap-2 mb-1">
                         <Target className="w-4 h-4 text-[#191A23]" />
-                        <span className="text-sm font-medium text-[#191A23]">满分</span>
+                        <span className="text-sm font-medium text-[#191A23]">
+                          满分
+                        </span>
                       </div>
-                      <div className="text-xl font-black text-[#191A23]">{config.maxScore}</div>
+                      <div className="text-xl font-black text-[#191A23]">
+                        {config.maxScore}
+                      </div>
                     </div>
                     <div className="text-center p-3 bg-[#F7931E] rounded-lg border-2 border-black">
                       <div className="flex items-center justify-center gap-2 mb-1">
                         <Calculator className="w-4 h-4 text-white" />
-                        <span className="text-sm font-medium text-white">及格</span>
+                        <span className="text-sm font-medium text-white">
+                          及格
+                        </span>
                       </div>
-                      <div className="text-xl font-black text-white">{config.passScore}</div>
+                      <div className="text-xl font-black text-white">
+                        {config.passScore}
+                      </div>
                       <div className="text-xs text-white/80">
-                        {Math.round((config.passScore / config.maxScore) * 100)}%
+                        {Math.round((config.passScore / config.maxScore) * 100)}
+                        %
                       </div>
                     </div>
                     <div className="text-center p-3 bg-[#9C88FF] rounded-lg border-2 border-black">
                       <div className="flex items-center justify-center gap-2 mb-1">
                         <Award className="w-4 h-4 text-white" />
-                        <span className="text-sm font-medium text-white">优秀</span>
+                        <span className="text-sm font-medium text-white">
+                          优秀
+                        </span>
                       </div>
-                      <div className="text-xl font-black text-white">{config.excellentScore}</div>
+                      <div className="text-xl font-black text-white">
+                        {config.excellentScore}
+                      </div>
                       <div className="text-xs text-white/80">
-                        {Math.round((config.excellentScore / config.maxScore) * 100)}%
+                        {Math.round(
+                          (config.excellentScore / config.maxScore) * 100
+                        )}
+                        %
                       </div>
                     </div>
                   </div>
@@ -439,7 +494,12 @@ const SubjectMaxScoreSettings: React.FC<SubjectMaxScoreSettingsProps> = ({
                     <Label className="text-sm font-medium">科目名称</Label>
                     <Input
                       value={newSubject.name}
-                      onChange={(e) => setNewSubject(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) =>
+                        setNewSubject((prev) => ({
+                          ...prev,
+                          name: e.target.value,
+                        }))
+                      }
                       placeholder="如：geography"
                       className="border-2 border-gray-300 focus:border-[#B9FF66]"
                     />
@@ -448,13 +508,18 @@ const SubjectMaxScoreSettings: React.FC<SubjectMaxScoreSettingsProps> = ({
                     <Label className="text-sm font-medium">显示名称</Label>
                     <Input
                       value={newSubject.displayName}
-                      onChange={(e) => setNewSubject(prev => ({ ...prev, displayName: e.target.value }))}
+                      onChange={(e) =>
+                        setNewSubject((prev) => ({
+                          ...prev,
+                          displayName: e.target.value,
+                        }))
+                      }
                       placeholder="如：地理"
                       className="border-2 border-gray-300 focus:border-[#B9FF66]"
                     />
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <Label className="text-sm font-medium">满分</Label>
@@ -464,7 +529,7 @@ const SubjectMaxScoreSettings: React.FC<SubjectMaxScoreSettingsProps> = ({
                       value={newSubject.maxScore}
                       onChange={(e) => {
                         const maxScore = Number(e.target.value);
-                        setNewSubject(prev => {
+                        setNewSubject((prev) => {
                           const updated = { ...prev, maxScore };
                           if (autoCalculateRates) {
                             const calculated = calculateScores(maxScore);
@@ -484,7 +549,12 @@ const SubjectMaxScoreSettings: React.FC<SubjectMaxScoreSettingsProps> = ({
                       min={0}
                       max={newSubject.maxScore}
                       value={newSubject.passScore}
-                      onChange={(e) => setNewSubject(prev => ({ ...prev, passScore: Number(e.target.value) }))}
+                      onChange={(e) =>
+                        setNewSubject((prev) => ({
+                          ...prev,
+                          passScore: Number(e.target.value),
+                        }))
+                      }
                       className="border-2 border-gray-300 focus:border-[#F7931E]"
                       disabled={autoCalculateRates}
                     />
@@ -496,7 +566,12 @@ const SubjectMaxScoreSettings: React.FC<SubjectMaxScoreSettingsProps> = ({
                       min={0}
                       max={newSubject.maxScore}
                       value={newSubject.excellentScore}
-                      onChange={(e) => setNewSubject(prev => ({ ...prev, excellentScore: Number(e.target.value) }))}
+                      onChange={(e) =>
+                        setNewSubject((prev) => ({
+                          ...prev,
+                          excellentScore: Number(e.target.value),
+                        }))
+                      }
                       className="border-2 border-gray-300 focus:border-[#9C88FF]"
                       disabled={autoCalculateRates}
                     />
@@ -560,4 +635,4 @@ const SubjectMaxScoreSettings: React.FC<SubjectMaxScoreSettingsProps> = ({
   );
 };
 
-export default SubjectMaxScoreSettings; 
+export default SubjectMaxScoreSettings;

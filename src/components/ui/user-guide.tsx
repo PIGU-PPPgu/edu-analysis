@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Lightbulb, 
-  ChevronRight, 
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Lightbulb,
+  ChevronRight,
   ChevronLeft,
   X,
   BookOpen,
@@ -12,9 +12,9 @@ import {
   CheckCircle,
   ArrowRight,
   HelpCircle,
-  Sparkles
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+  Sparkles,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface GuideStep {
   id: string;
@@ -38,7 +38,7 @@ interface UserGuideProps {
   onDismiss?: () => void;
   autoPlay?: boolean;
   showProgress?: boolean;
-  variant?: 'tour' | 'tips' | 'onboarding';
+  variant?: "tour" | "tips" | "onboarding";
   className?: string;
 }
 
@@ -50,8 +50,8 @@ const UserGuide: React.FC<UserGuideProps> = ({
   onDismiss,
   autoPlay = false,
   showProgress = true,
-  variant = 'tips',
-  className
+  variant = "tips",
+  className,
 }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [isVisible, setIsVisible] = useState(true);
@@ -74,14 +74,14 @@ const UserGuide: React.FC<UserGuideProps> = ({
 
   const nextStep = () => {
     if (!isLastStep) {
-      setCurrentStep(current => current + 1);
+      setCurrentStep((current) => current + 1);
       markStepCompleted(currentStepData.id);
     }
   };
 
   const prevStep = () => {
     if (!isFirstStep) {
-      setCurrentStep(current => current - 1);
+      setCurrentStep((current) => current - 1);
     }
   };
 
@@ -90,7 +90,7 @@ const UserGuide: React.FC<UserGuideProps> = ({
   };
 
   const markStepCompleted = (stepId: string) => {
-    setCompletedSteps(prev => new Set([...prev, stepId]));
+    setCompletedSteps((prev) => new Set([...prev, stepId]));
   };
 
   const handleComplete = () => {
@@ -108,7 +108,7 @@ const UserGuide: React.FC<UserGuideProps> = ({
     if (currentStepData.action?.onClick) {
       currentStepData.action.onClick();
     } else if (currentStepData.action?.href) {
-      window.open(currentStepData.action.href, '_blank');
+      window.open(currentStepData.action.href, "_blank");
     }
     markStepCompleted(currentStepData.id);
   };
@@ -120,23 +120,26 @@ const UserGuide: React.FC<UserGuideProps> = ({
   // 根据变体返回不同的样式
   const getVariantStyles = () => {
     switch (variant) {
-      case 'tour':
+      case "tour":
         return {
-          container: 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200',
-          header: 'text-purple-700',
-          content: 'text-purple-600'
+          container:
+            "bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200",
+          header: "text-purple-700",
+          content: "text-purple-600",
         };
-      case 'onboarding':
+      case "onboarding":
         return {
-          container: 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200',
-          header: 'text-blue-700',
-          content: 'text-blue-600'
+          container:
+            "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200",
+          header: "text-blue-700",
+          content: "text-blue-600",
         };
       default: // tips
         return {
-          container: 'bg-gradient-to-r from-amber-50 to-yellow-50 border-amber-200',
-          header: 'text-amber-700',
-          content: 'text-amber-600'
+          container:
+            "bg-gradient-to-r from-amber-50 to-yellow-50 border-amber-200",
+          header: "text-amber-700",
+          content: "text-amber-600",
         };
     }
   };
@@ -144,14 +147,20 @@ const UserGuide: React.FC<UserGuideProps> = ({
   const styles = getVariantStyles();
 
   return (
-    <Card className={cn(styles.container, 'shadow-lg', className)}>
+    <Card className={cn(styles.container, "shadow-lg", className)}>
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {variant === 'tour' && <Sparkles className="h-5 w-5 text-purple-600" />}
-            {variant === 'onboarding' && <BookOpen className="h-5 w-5 text-blue-600" />}
-            {variant === 'tips' && <Lightbulb className="h-5 w-5 text-amber-600" />}
-            <CardTitle className={cn('text-lg font-semibold', styles.header)}>
+            {variant === "tour" && (
+              <Sparkles className="h-5 w-5 text-purple-600" />
+            )}
+            {variant === "onboarding" && (
+              <BookOpen className="h-5 w-5 text-blue-600" />
+            )}
+            {variant === "tips" && (
+              <Lightbulb className="h-5 w-5 text-amber-600" />
+            )}
+            <CardTitle className={cn("text-lg font-semibold", styles.header)}>
               {title}
             </CardTitle>
           </div>
@@ -172,7 +181,7 @@ const UserGuide: React.FC<UserGuideProps> = ({
           </div>
         </div>
         {description && (
-          <p className={cn('text-sm', styles.content)}>{description}</p>
+          <p className={cn("text-sm", styles.content)}>{description}</p>
         )}
       </CardHeader>
 
@@ -186,12 +195,12 @@ const UserGuide: React.FC<UserGuideProps> = ({
                   key={step.id}
                   onClick={() => goToStep(index)}
                   className={cn(
-                    'w-2 h-2 rounded-full transition-all',
-                    index === currentStep 
-                      ? 'bg-blue-500 w-6' 
+                    "w-2 h-2 rounded-full transition-all",
+                    index === currentStep
+                      ? "bg-blue-500 w-6"
                       : completedSteps.has(step.id)
-                      ? 'bg-green-500'
-                      : 'bg-gray-300 hover:bg-gray-400'
+                        ? "bg-green-500"
+                        : "bg-gray-300 hover:bg-gray-400"
                   )}
                 />
               ))}
@@ -220,7 +229,10 @@ const UserGuide: React.FC<UserGuideProps> = ({
             {currentStepData.tips && currentStepData.tips.length > 0 && (
               <div className="pl-11 space-y-1">
                 {currentStepData.tips.map((tip, index) => (
-                  <div key={index} className="flex items-center gap-2 text-xs text-gray-500">
+                  <div
+                    key={index}
+                    className="flex items-center gap-2 text-xs text-gray-500"
+                  >
                     <CheckCircle className="h-3 w-3 text-green-500" />
                     <span>{tip}</span>
                   </div>
@@ -231,8 +243,8 @@ const UserGuide: React.FC<UserGuideProps> = ({
             {/* 媒体内容 */}
             {currentStepData.image && (
               <div className="pl-11">
-                <img 
-                  src={currentStepData.image} 
+                <img
+                  src={currentStepData.image}
                   alt={currentStepData.title}
                   className="rounded-lg border border-gray-200 max-w-full h-auto"
                 />
@@ -241,7 +253,7 @@ const UserGuide: React.FC<UserGuideProps> = ({
 
             {currentStepData.video && (
               <div className="pl-11">
-                <video 
+                <video
                   src={currentStepData.video}
                   controls
                   className="rounded-lg border border-gray-200 max-w-full h-auto"
@@ -316,4 +328,4 @@ const UserGuide: React.FC<UserGuideProps> = ({
   );
 };
 
-export default UserGuide; 
+export default UserGuide;

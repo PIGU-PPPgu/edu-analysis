@@ -1,68 +1,99 @@
 import React, { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import Navbar from "@/components/shared/Navbar";
-import { getUserAIConfig, getUserAPIKey, saveUserAPIKey, saveUserAIConfig } from "@/utils/userAuth";
+import {
+  getUserAIConfig,
+  getUserAPIKey,
+  saveUserAPIKey,
+  saveUserAIConfig,
+} from "@/utils/userAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { getProviderById } from "@/services/providers";
 import { DEFAULT_PROVIDERS } from "@/config/aiProviders";
-import { Check, RefreshCw, Plus, Save, Trash2, MessageSquare, Bot, Bell, AlertCircle } from "lucide-react";
-import { testProviderConnection } from '@/services/aiService';
-import BotManagement from '@/components/settings/BotManagement';
+import {
+  Check,
+  RefreshCw,
+  Plus,
+  Save,
+  Trash2,
+  MessageSquare,
+  Bot,
+  Bell,
+  AlertCircle,
+} from "lucide-react";
+import { testProviderConnection } from "@/services/aiService";
+import BotManagement from "@/components/settings/BotManagement";
 
 const AISettings: React.FC = () => {
   // 通用状态
-  const [selectedProvider, setSelectedProvider] = useState<string>('doubao'); // 默认选择豆包
-  const [availableProviders, setAvailableProviders] = useState<Array<{id: string, name: string}>>([]);
+  const [selectedProvider, setSelectedProvider] = useState<string>("doubao"); // 默认选择豆包
+  const [availableProviders, setAvailableProviders] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
   const [aiConfig, setAiConfig] = useState<any>(null);
   const [isConfigSaved, setIsConfigSaved] = useState(false);
-  
+
   // API配置状态
-  const [apiKey, setApiKey] = useState<string>('');
-  const [apiId, setApiId] = useState<string>(''); // 适用于需要额外ID的提供商
+  const [apiKey, setApiKey] = useState<string>("");
+  const [apiId, setApiId] = useState<string>(""); // 适用于需要额外ID的提供商
   const [savedApiKey, setSavedApiKey] = useState<string | null>(null);
-  const [savedApiId, setSavedApiId] = useState<string>('');
+  const [savedApiId, setSavedApiId] = useState<string>("");
   const [isTestingConnection, setIsTestingConnection] = useState(false);
-  
+
   // 模型选择状态
-  const [availableModels, setAvailableModels] = useState<Array<{id: string, name: string, selected: boolean}>>([]);
-  const [customModelName, setCustomModelName] = useState<string>('');
-  
+  const [availableModels, setAvailableModels] = useState<
+    Array<{ id: string; name: string; selected: boolean }>
+  >([]);
+  const [customModelName, setCustomModelName] = useState<string>("");
+
   // 用户分析偏好状态
   const [analysisPreferences, setAnalysisPreferences] = useState({
-    analysis_type: 'detailed',
-    preferred_model: 'deepseek-reasoner',
+    analysis_type: "detailed",
+    preferred_model: "deepseek-reasoner",
     auto_trigger_enabled: true,
-    focus_mode: 'all'
+    focus_mode: "all",
   });
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(false);
   const [isSavingPreferences, setIsSavingPreferences] = useState(false);
-  
+
   // 机器人推送管理状态 - 现在由BotManagement组件处理
-  
+
   // 初始化可用提供商列表
   useEffect(() => {
     const providers = Object.entries(DEFAULT_PROVIDERS).map(([id, config]) => ({
       id,
-      name: getProviderDisplayName(id)
+      name: getProviderDisplayName(id),
     }));
     setAvailableProviders(providers);
   }, []);
-  
+
   // 加载用户配置和初始化
   useEffect(() => {
     loadUserConfig();
     loadAnalysisPreferences();
   }, []);
-  
+
   // 当提供商变更时获取该提供商的模型列表和API密钥
   useEffect(() => {
     if (selectedProvider) {
@@ -70,114 +101,116 @@ const AISettings: React.FC = () => {
       fetchProviderApiKey(selectedProvider);
     }
   }, [selectedProvider]);
-  
+
   // 加载用户配置
   const loadUserConfig = async () => {
     try {
       const config = await getUserAIConfig();
       setAiConfig(config);
-      
+
       // 如果有已保存的提供商，设置为当前选择
       if (config?.provider) {
         setSelectedProvider(config.provider);
       }
     } catch (error) {
-      console.error('加载AI配置失败:', error);
+      console.error("加载AI配置失败:", error);
     }
   };
-  
+
   // 加载提供商的模型列表
   const loadProviderModels = (providerId: string) => {
     const provider = getProviderById(providerId);
     if (provider && provider.models) {
-      const models = provider.models.map(model => ({
+      const models = provider.models.map((model) => ({
         id: model.id,
         name: model.name,
-        selected: aiConfig?.provider === providerId && aiConfig?.version === model.id
+        selected:
+          aiConfig?.provider === providerId && aiConfig?.version === model.id,
       }));
       setAvailableModels(models);
     } else {
       setAvailableModels([]);
     }
   };
-  
+
   // 获取提供商的友好显示名称
   const getProviderDisplayName = (providerId: string): string => {
     const displayNames: Record<string, string> = {
-      'openai': '智能语言模型',
-      'anthropic': '对话助手模型',
-      'deepseek': 'DeepSeek',
-      'baichuan': '百川大模型',
-      'qwen': '通义千问',
-      'sbjt': '硅基流动',
-      'doubao': '豆包视觉 (火山方舟)',
-      'moonshot': 'Moonshot AI',
-      'zhipu': '智谱 AI',
-      'minimax': 'MiniMax',
+      openai: "智能语言模型",
+      anthropic: "对话助手模型",
+      deepseek: "DeepSeek",
+      baichuan: "百川大模型",
+      qwen: "通义千问",
+      sbjt: "硅基流动",
+      doubao: "豆包视觉 (火山方舟)",
+      moonshot: "Moonshot AI",
+      zhipu: "智谱 AI",
+      minimax: "MiniMax",
     };
     return displayNames[providerId] || providerId;
   };
-  
+
   // 获取保存的API密钥
   const fetchProviderApiKey = async (providerId: string) => {
     try {
       const key = await getUserAPIKey(providerId);
       setSavedApiKey(key);
-      
+
       // 如果有保存的密钥，显示掩码
       if (key) {
         // 显示掩码，只显示前4位和后4位
-        const maskKey = key.length > 8 
-          ? `${key.substring(0, 4)}...${key.substring(key.length - 4)}`
-          : '••••';
+        const maskKey =
+          key.length > 8
+            ? `${key.substring(0, 4)}...${key.substring(key.length - 4)}`
+            : "••••";
         setApiKey(maskKey);
       } else {
-        setApiKey('');
+        setApiKey("");
       }
-      
+
       // 获取保存的API ID - 仅当providerId为'doubao'时
-      if (providerId === 'doubao') {
+      if (providerId === "doubao") {
         const savedId = localStorage.getItem(`${providerId}_api_id`);
         if (savedId) {
           setApiId(savedId);
           setSavedApiId(savedId);
         } else {
           // 清空API ID输入框
-          setApiId('');
-          setSavedApiId('');
+          setApiId("");
+          setSavedApiId("");
         }
       } else {
         // 其他提供商清空API ID
-        setApiId('');
-        setSavedApiId('');
+        setApiId("");
+        setSavedApiId("");
       }
     } catch (error) {
       console.error(`获取${providerId} API密钥失败:`, error);
       setSavedApiKey(null);
-      setApiKey('');
+      setApiKey("");
       // 同时清空API ID
-      setApiId('');
-      setSavedApiId('');
+      setApiId("");
+      setSavedApiId("");
     }
   };
-  
+
   // 保存API密钥
   const handleSaveApiKey = async () => {
     if (!apiKey) {
-      toast.error('请输入API密钥');
+      toast.error("请输入API密钥");
       return;
     }
-    
+
     // 判断是否是掩码值，如果是则不保存（用户没有修改）
-    if (apiKey.includes('...') && savedApiKey) {
-      toast.info('API密钥未更改');
+    if (apiKey.includes("...") && savedApiKey) {
+      toast.info("API密钥未更改");
       return;
     }
-    
+
     try {
       // 保存API密钥
       await saveUserAPIKey(selectedProvider, apiKey);
-      
+
       // 如果有API ID，也保存它
       if (providerRequiresApiId && apiId) {
         // 使用localStorage或其他方式存储API ID
@@ -186,110 +219,116 @@ const AISettings: React.FC = () => {
       } else if (providerRequiresApiId) {
         // 如果需要API ID但用户未输入，清除之前存储的值
         localStorage.removeItem(`${selectedProvider}_api_id`);
-        setSavedApiId('');
+        setSavedApiId("");
       }
-      
-      toast.success(`${getProviderDisplayName(selectedProvider)} API密钥已保存`);
+
+      toast.success(
+        `${getProviderDisplayName(selectedProvider)} API密钥已保存`
+      );
       setSavedApiKey(apiKey);
-      
+
       // 刷新掩码显示
       fetchProviderApiKey(selectedProvider);
     } catch (error) {
-      toast.error(`保存API密钥失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      toast.error(
+        `保存API密钥失败: ${error instanceof Error ? error.message : "未知错误"}`
+      );
     }
   };
-  
+
   // 测试连接
   const handleTestConnection = async () => {
     if (!savedApiKey) {
-      toast.error('请先保存API密钥');
+      toast.error("请先保存API密钥");
       return;
     }
-    
+
     setIsTestingConnection(true);
-    
+
     try {
       // 获取选中的模型
-      const selectedModel = availableModels.find(model => model.selected);
+      const selectedModel = availableModels.find((model) => model.selected);
       if (!selectedModel) {
-        toast.error('请先选择一个模型');
+        toast.error("请先选择一个模型");
         setIsTestingConnection(false);
         return;
       }
-      
+
       // 记录实际测试的模型
-      console.log('测试连接使用模型:', selectedModel.id);
-      
+      console.log("测试连接使用模型:", selectedModel.id);
+
       // 调用真实API测试连接
       const result = await testProviderConnection(
         selectedProvider,
         savedApiKey,
         savedApiId,
-        selectedModel.id  // 传递所选模型ID
+        selectedModel.id // 传递所选模型ID
       );
-      
+
       if (result.success) {
-        toast.success(`${getProviderDisplayName(selectedProvider)} API连接测试成功`);
+        toast.success(
+          `${getProviderDisplayName(selectedProvider)} API连接测试成功`
+        );
       } else {
         toast.error(`连接测试失败: ${result.message}`);
       }
     } catch (error) {
-      toast.error(`连接测试失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      toast.error(
+        `连接测试失败: ${error instanceof Error ? error.message : "未知错误"}`
+      );
     } finally {
       setIsTestingConnection(false);
     }
   };
-  
+
   // 切换模型选择状态
   const toggleModelSelection = (modelId: string) => {
-    setAvailableModels(models => 
-      models.map(model => 
-        model.id === modelId 
-          ? { ...model, selected: !model.selected } 
-          : model
+    setAvailableModels((models) =>
+      models.map((model) =>
+        model.id === modelId ? { ...model, selected: !model.selected } : model
       )
     );
   };
-  
+
   // 添加自定义模型
   const handleAddCustomModel = () => {
     if (!customModelName.trim()) {
-      toast.error('请输入自定义模型名称');
+      toast.error("请输入自定义模型名称");
       return;
     }
-    
+
     // 创建自定义模型ID
     const customId = `custom-${selectedProvider}-${Date.now()}`;
-    
+
     setAvailableModels([
       ...availableModels,
       {
         id: customId,
         name: customModelName.trim(),
-        selected: true // 默认选中新添加的自定义模型
-      }
+        selected: true, // 默认选中新添加的自定义模型
+      },
     ]);
-    
-    setCustomModelName('');
-    toast.success('自定义模型已添加');
+
+    setCustomModelName("");
+    toast.success("自定义模型已添加");
   };
-  
+
   // 保存整体配置
   const handleSaveConfig = async () => {
     try {
       // 获取选中的模型
-      const selectedModel = availableModels.find(model => model.selected);
-      
+      const selectedModel = availableModels.find((model) => model.selected);
+
       if (!selectedModel) {
-        toast.error('请至少选择一个模型');
+        toast.error("请至少选择一个模型");
         return;
       }
-      
+
       if (!savedApiKey) {
-        toast.error('请先保存API密钥');
+        toast.error("请先保存API密钥");
         return;
       }
-      
+
       // 保存配置
       const config = {
         provider: selectedProvider,
@@ -297,58 +336,64 @@ const AISettings: React.FC = () => {
         enabled: true,
         lastUpdated: new Date().toISOString(),
       };
-      
+
       await saveUserAIConfig(config);
       setAiConfig(config);
       setIsConfigSaved(true);
-      toast.success('AI设置已保存', {
-        description: `已将${getProviderDisplayName(selectedProvider)}设为默认模型`
+      toast.success("AI设置已保存", {
+        description: `已将${getProviderDisplayName(selectedProvider)}设为默认模型`,
       });
-      
+
       // 3秒后重置保存状态
       setTimeout(() => setIsConfigSaved(false), 3000);
     } catch (error) {
-      toast.error(`保存设置失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      toast.error(
+        `保存设置失败: ${error instanceof Error ? error.message : "未知错误"}`
+      );
     }
   };
-  
+
   // 获取已选择的模型数量
-  const selectedModelsCount = availableModels.filter(model => model.selected).length;
-  
+  const selectedModelsCount = availableModels.filter(
+    (model) => model.selected
+  ).length;
+
   // 判断当前提供商是否需要API ID
-  const providerRequiresApiId = selectedProvider === 'doubao';
-  
+  const providerRequiresApiId = selectedProvider === "doubao";
+
   // 加载分析偏好
   const loadAnalysisPreferences = async () => {
     setIsLoadingPreferences(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
-        console.warn('用户未登录，使用默认分析偏好');
+        console.warn("用户未登录，使用默认分析偏好");
         return;
       }
 
       const { data, error } = await supabase
-        .from('user_analysis_preferences')
-        .select('*')
-        .eq('user_id', user.id)
+        .from("user_analysis_preferences")
+        .select("*")
+        .eq("user_id", user.id)
         .maybeSingle(); // 使用 maybeSingle 避免抛出异常
 
       if (error) {
-        console.error('查询分析偏好时出错:', error);
+        console.error("查询分析偏好时出错:", error);
         return; // 静默失败，使用默认值
       }
 
       if (data) {
         setAnalysisPreferences({
-          analysis_type: data.analysis_type || 'detailed',
-          preferred_model: data.preferred_model || 'deepseek-reasoner',
+          analysis_type: data.analysis_type || "detailed",
+          preferred_model: data.preferred_model || "deepseek-reasoner",
           auto_trigger_enabled: data.auto_trigger_enabled ?? true,
-          focus_mode: data.focus_mode || 'all'
+          focus_mode: data.focus_mode || "all",
         });
       }
     } catch (error) {
-      console.error('加载分析偏好失败:', error);
+      console.error("加载分析偏好失败:", error);
       // 静默失败，保持默认值
     } finally {
       setIsLoadingPreferences(false);
@@ -359,65 +404,78 @@ const AISettings: React.FC = () => {
   const saveAnalysisPreferences = async () => {
     setIsSavingPreferences(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('用户未登录');
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("用户未登录");
 
-      const { error } = await supabase
-        .from('user_analysis_preferences')
-        .upsert({
+      const { error } = await supabase.from("user_analysis_preferences").upsert(
+        {
           user_id: user.id,
           analysis_type: analysisPreferences.analysis_type,
           preferred_model: analysisPreferences.preferred_model,
           auto_trigger_enabled: analysisPreferences.auto_trigger_enabled,
           focus_mode: analysisPreferences.focus_mode,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id'
-        });
+          updated_at: new Date().toISOString(),
+        },
+        {
+          onConflict: "user_id",
+        }
+      );
 
       if (error) throw error;
-      
-      toast.success('分析偏好已保存');
+
+      toast.success("分析偏好已保存");
     } catch (error) {
-      console.error('保存分析偏好失败:', error);
-      toast.error('保存失败: ' + (error instanceof Error ? error.message : '未知错误'));
+      console.error("保存分析偏好失败:", error);
+      toast.error(
+        "保存失败: " + (error instanceof Error ? error.message : "未知错误")
+      );
     } finally {
       setIsSavingPreferences(false);
     }
   };
-  
+
   // 机器人推送设置现在由BotManagement组件处理
-  
+
   // 获取提供商的模型推荐说明
   const getProviderModelRecommendations = () => {
     switch (selectedProvider) {
-      case 'doubao':
+      case "doubao":
         return (
           <div className="space-y-3 mt-4 p-4 bg-gray-50 rounded-lg">
             <h4 className="font-medium">推荐模型</h4>
             <ul className="space-y-2 text-sm">
               <li className="flex items-start">
-                <span className="font-semibold inline-block w-64">doubao-1-5-vision-pro-32k-250115</span>
+                <span className="font-semibold inline-block w-64">
+                  doubao-1-5-vision-pro-32k-250115
+                </span>
                 <span>豆包视觉增强版，适合图片分析和知识点提取</span>
               </li>
               <li className="flex items-start">
-                <span className="font-semibold inline-block w-64">doubao-lite-128k</span>
+                <span className="font-semibold inline-block w-64">
+                  doubao-lite-128k
+                </span>
                 <span>大上下文窗口，适合长文本处理</span>
               </li>
             </ul>
           </div>
         );
-      case 'openai':
+      case "openai":
         return (
           <div className="space-y-3 mt-4 p-4 bg-gray-50 rounded-lg">
             <h4 className="font-medium">推荐模型</h4>
             <ul className="space-y-2 text-sm">
               <li className="flex items-start">
-                <span className="font-semibold inline-block w-64">智能模型-旗舰版</span>
+                <span className="font-semibold inline-block w-64">
+                  智能模型-旗舰版
+                </span>
                 <span>最新的多模态模型，支持图像和文本分析</span>
               </li>
               <li className="flex items-start">
-                <span className="font-semibold inline-block w-64">智能模型-增强版</span>
+                <span className="font-semibold inline-block w-64">
+                  智能模型-增强版
+                </span>
                 <span>功能强大的大型语言模型，适合复杂任务</span>
               </li>
             </ul>
@@ -458,13 +516,11 @@ const AISettings: React.FC = () => {
               )}
             </Button>
           </div>
-          
+
           <Card>
             <CardHeader>
               <CardTitle>AI模型配置</CardTitle>
-              <CardDescription>
-                选择AI提供商并配置相关参数
-              </CardDescription>
+              <CardDescription>选择AI提供商并配置相关参数</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* 提供商选择 */}
@@ -478,7 +534,7 @@ const AISettings: React.FC = () => {
                     <SelectValue placeholder="选择AI提供商" />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableProviders.map(provider => (
+                    {availableProviders.map((provider) => (
                       <SelectItem key={provider.id} value={provider.id}>
                         {provider.name}
                       </SelectItem>
@@ -489,25 +545,30 @@ const AISettings: React.FC = () => {
                   选择一个AI提供商来配置API密钥和选择模型
                 </p>
               </div>
-              
+
               {/* API密钥设置 */}
               <div className="space-y-4">
                 <h3 className="text-md font-medium">API密钥配置</h3>
-                
+
                 {providerRequiresApiId && (
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">API ID <span className="text-xs text-muted-foreground">(可选)</span></label>
+                    <label className="text-sm font-medium">
+                      API ID{" "}
+                      <span className="text-xs text-muted-foreground">
+                        (可选)
+                      </span>
+                    </label>
                     <Input
                       placeholder="输入API ID (如需要)"
                       value={apiId}
-                      onChange={e => setApiId(e.target.value)}
+                      onChange={(e) => setApiId(e.target.value)}
                     />
                     <p className="text-xs text-muted-foreground">
                       部分提供商需要额外的API ID
                     </p>
                   </div>
                 )}
-                
+
                 <div className="space-y-2">
                   <label className="text-sm font-medium">API密钥</label>
                   <div className="flex gap-2">
@@ -515,12 +576,10 @@ const AISettings: React.FC = () => {
                       type="password"
                       placeholder={`输入${getProviderDisplayName(selectedProvider)}的API密钥`}
                       value={apiKey}
-                      onChange={e => setApiKey(e.target.value)}
+                      onChange={(e) => setApiKey(e.target.value)}
                       className="flex-1"
                     />
-                    <Button onClick={handleSaveApiKey}>
-                      保存密钥
-                    </Button>
+                    <Button onClick={handleSaveApiKey}>保存密钥</Button>
                   </div>
                   {savedApiKey && (
                     <div className="flex items-center mt-2 text-sm text-green-600">
@@ -529,12 +588,12 @@ const AISettings: React.FC = () => {
                     </div>
                   )}
                 </div>
-                
+
                 {/* 测试连接按钮 */}
                 {savedApiKey && (
                   <div className="mt-4">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={handleTestConnection}
                       disabled={isTestingConnection}
                       className="w-full"
@@ -554,24 +613,29 @@ const AISettings: React.FC = () => {
                   </div>
                 )}
               </div>
-              
+
               {/* 模型选择 */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-md font-medium">{getProviderDisplayName(selectedProvider)}可用模型</h3>
+                  <h3 className="text-md font-medium">
+                    {getProviderDisplayName(selectedProvider)}可用模型
+                  </h3>
                   <Badge variant="outline">{selectedModelsCount} 个已选</Badge>
                 </div>
-                
+
                 {availableModels.length > 0 ? (
                   <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                    {availableModels.map(model => (
-                      <div key={model.id} className="flex items-center space-x-2 p-2 rounded border">
-                        <Checkbox 
+                    {availableModels.map((model) => (
+                      <div
+                        key={model.id}
+                        className="flex items-center space-x-2 p-2 rounded border"
+                      >
+                        <Checkbox
                           id={`model-${model.id}`}
                           checked={model.selected}
                           onCheckedChange={() => toggleModelSelection(model.id)}
                         />
-                        <label 
+                        <label
                           htmlFor={`model-${model.id}`}
                           className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex-1"
                         >
@@ -588,20 +652,22 @@ const AISettings: React.FC = () => {
                     此提供商没有可用模型
                   </div>
                 )}
-                
+
                 <Separator />
-                
+
                 {/* 添加自定义模型 */}
                 <div className="flex items-end gap-2">
                   <div className="flex-1 space-y-2">
-                    <label className="text-sm font-medium">添加自定义模型</label>
+                    <label className="text-sm font-medium">
+                      添加自定义模型
+                    </label>
                     <Input
                       placeholder="输入自定义模型名称"
                       value={customModelName}
-                      onChange={e => setCustomModelName(e.target.value)}
+                      onChange={(e) => setCustomModelName(e.target.value)}
                     />
                   </div>
-                  <Button 
+                  <Button
                     onClick={handleAddCustomModel}
                     disabled={!customModelName.trim()}
                   >
@@ -609,7 +675,7 @@ const AISettings: React.FC = () => {
                     添加
                   </Button>
                 </div>
-                
+
                 {/* 提供商模型推荐说明 */}
                 {getProviderModelRecommendations()}
               </div>
@@ -634,13 +700,18 @@ const AISettings: React.FC = () => {
                   <AlertCircle className="h-4 w-4 text-blue-600" />
                   <h3 className="font-semibold text-lg">AI分析配置</h3>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <Label className="text-sm font-medium">分析复杂度</Label>
-                    <Select 
+                    <Select
                       value={analysisPreferences.analysis_type}
-                      onValueChange={(value) => setAnalysisPreferences(prev => ({...prev, analysis_type: value}))}
+                      onValueChange={(value) =>
+                        setAnalysisPreferences((prev) => ({
+                          ...prev,
+                          analysis_type: value,
+                        }))
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="选择分析复杂度" />
@@ -649,25 +720,33 @@ const AISettings: React.FC = () => {
                         <SelectItem value="simple">
                           <div className="flex flex-col items-start">
                             <span className="font-medium">简易分析</span>
-                            <span className="text-xs text-gray-500">快速概览，800字以内</span>
+                            <span className="text-xs text-gray-500">
+                              快速概览，800字以内
+                            </span>
                           </div>
                         </SelectItem>
                         <SelectItem value="detailed">
                           <div className="flex flex-col items-start">
                             <span className="font-medium">详细分析</span>
-                            <span className="text-xs text-gray-500">全面分析，2000字以内</span>
+                            <span className="text-xs text-gray-500">
+                              全面分析，2000字以内
+                            </span>
                           </div>
                         </SelectItem>
                         <SelectItem value="premium">
                           <div className="flex flex-col items-start">
                             <span className="font-medium">超级分析</span>
-                            <span className="text-xs text-gray-500">深度结构化分析，4000字以内</span>
+                            <span className="text-xs text-gray-500">
+                              深度结构化分析，4000字以内
+                            </span>
                           </div>
                         </SelectItem>
                         <SelectItem value="batch">
                           <div className="flex flex-col items-start">
                             <span className="font-medium">批量分析</span>
-                            <span className="text-xs text-gray-500">大规模数据分析，1500字以内</span>
+                            <span className="text-xs text-gray-500">
+                              大规模数据分析，1500字以内
+                            </span>
                           </div>
                         </SelectItem>
                       </SelectContent>
@@ -676,9 +755,14 @@ const AISettings: React.FC = () => {
 
                   <div className="space-y-4">
                     <Label className="text-sm font-medium">AI模型选择</Label>
-                    <Select 
+                    <Select
                       value={analysisPreferences.preferred_model}
-                      onValueChange={(value) => setAnalysisPreferences(prev => ({...prev, preferred_model: value}))}
+                      onValueChange={(value) =>
+                        setAnalysisPreferences((prev) => ({
+                          ...prev,
+                          preferred_model: value,
+                        }))
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="选择AI模型" />
@@ -687,13 +771,19 @@ const AISettings: React.FC = () => {
                         <SelectItem value="deepseek-chat">
                           <div className="flex flex-col items-start">
                             <span className="font-medium">DeepSeek Chat</span>
-                            <span className="text-xs text-gray-500">快速响应，适合日常分析</span>
+                            <span className="text-xs text-gray-500">
+                              快速响应，适合日常分析
+                            </span>
                           </div>
                         </SelectItem>
                         <SelectItem value="deepseek-reasoner">
                           <div className="flex flex-col items-start">
-                            <span className="font-medium">DeepSeek Reasoner</span>
-                            <span className="text-xs text-gray-500">推理能力强，适合复杂分析</span>
+                            <span className="font-medium">
+                              DeepSeek Reasoner
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              推理能力强，适合复杂分析
+                            </span>
                           </div>
                         </SelectItem>
                       </SelectContent>
@@ -704,9 +794,14 @@ const AISettings: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <Label className="text-sm font-medium">聚焦模式</Label>
-                    <Select 
+                    <Select
                       value={analysisPreferences.focus_mode}
-                      onValueChange={(value) => setAnalysisPreferences(prev => ({...prev, focus_mode: value}))}
+                      onValueChange={(value) =>
+                        setAnalysisPreferences((prev) => ({
+                          ...prev,
+                          focus_mode: value,
+                        }))
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="选择聚焦模式" />
@@ -721,13 +816,21 @@ const AISettings: React.FC = () => {
 
                   <div className="space-y-3">
                     <div className="flex items-center space-x-2">
-                      <Switch 
-                        id="auto-trigger" 
+                      <Switch
+                        id="auto-trigger"
                         checked={analysisPreferences.auto_trigger_enabled}
-                        onCheckedChange={(checked) => setAnalysisPreferences(prev => ({...prev, auto_trigger_enabled: checked}))}
+                        onCheckedChange={(checked) =>
+                          setAnalysisPreferences((prev) => ({
+                            ...prev,
+                            auto_trigger_enabled: checked,
+                          }))
+                        }
                       />
                       <div className="space-y-0.5">
-                        <Label htmlFor="auto-trigger" className="text-sm font-medium">
+                        <Label
+                          htmlFor="auto-trigger"
+                          className="text-sm font-medium"
+                        >
                           启用自动分析推送
                         </Label>
                         <p className="text-xs text-muted-foreground">
@@ -735,31 +838,50 @@ const AISettings: React.FC = () => {
                         </p>
                       </div>
                     </div>
-                    
+
                     {analysisPreferences.auto_trigger_enabled && (
                       <div className="ml-6 p-3 bg-green-50 border border-green-200 rounded-md">
                         <div className="flex items-start gap-2">
                           <MessageSquare className="h-4 w-4 text-green-600 mt-0.5" />
                           <div className="text-sm">
-                            <p className="font-medium text-green-800">自动推送已启用</p>
+                            <p className="font-medium text-green-800">
+                              自动推送已启用
+                            </p>
                             <p className="text-green-700 mt-1">
-                              使用<strong>{analysisPreferences.analysis_type === 'simple' ? '简易' : 
-                              analysisPreferences.analysis_type === 'detailed' ? '详细' : 
-                              analysisPreferences.analysis_type === 'premium' ? '超级' : '批量'}</strong>分析模式，
-                              通过<strong>{analysisPreferences.preferred_model === 'deepseek-chat' ? 'DeepSeek Chat' : 'DeepSeek Reasoner'}</strong>模型
-                              自动生成分析报告并推送到下方配置的机器人
+                              使用
+                              <strong>
+                                {analysisPreferences.analysis_type === "simple"
+                                  ? "简易"
+                                  : analysisPreferences.analysis_type ===
+                                      "detailed"
+                                    ? "详细"
+                                    : analysisPreferences.analysis_type ===
+                                        "premium"
+                                      ? "超级"
+                                      : "批量"}
+                              </strong>
+                              分析模式， 通过
+                              <strong>
+                                {analysisPreferences.preferred_model ===
+                                "deepseek-chat"
+                                  ? "DeepSeek Chat"
+                                  : "DeepSeek Reasoner"}
+                              </strong>
+                              模型 自动生成分析报告并推送到下方配置的机器人
                             </p>
                           </div>
                         </div>
                       </div>
                     )}
-                    
+
                     {!analysisPreferences.auto_trigger_enabled && (
                       <div className="ml-6 p-3 bg-gray-50 border border-gray-200 rounded-md">
                         <div className="flex items-start gap-2">
                           <AlertCircle className="h-4 w-4 text-gray-500 mt-0.5" />
                           <div className="text-sm">
-                            <p className="font-medium text-gray-700">手动分析模式</p>
+                            <p className="font-medium text-gray-700">
+                              手动分析模式
+                            </p>
                             <p className="text-gray-600 mt-1">
                               需要在成绩导入后手动点击分析按钮，或使用下方机器人的手动推送功能
                             </p>
@@ -771,7 +893,7 @@ const AISettings: React.FC = () => {
                 </div>
 
                 <div className="pt-4 border-t">
-                  <Button 
+                  <Button
                     className="w-full"
                     onClick={saveAnalysisPreferences}
                     disabled={isSavingPreferences}
@@ -797,7 +919,9 @@ const AISettings: React.FC = () => {
                   <div className="w-full border-t border-gray-300"></div>
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-white px-4 text-gray-500 font-medium">推送目标配置</span>
+                  <span className="bg-white px-4 text-gray-500 font-medium">
+                    推送目标配置
+                  </span>
                 </div>
               </div>
 
@@ -807,7 +931,7 @@ const AISettings: React.FC = () => {
                   <MessageSquare className="h-4 w-4 text-blue-600" />
                   <h3 className="font-semibold text-lg">机器人推送配置</h3>
                 </div>
-                
+
                 <BotManagement className="border-0 p-0" />
               </div>
             </CardContent>
@@ -816,9 +940,7 @@ const AISettings: React.FC = () => {
           <Card>
             <CardHeader>
               <CardTitle>AI分析范围</CardTitle>
-              <CardDescription>
-                设置AI分析的具体范围和深度
-              </CardDescription>
+              <CardDescription>设置AI分析的具体范围和深度</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -831,7 +953,7 @@ const AISettings: React.FC = () => {
                     <li>• 学习习惯分析</li>
                   </ul>
                 </Card>
-                
+
                 <Card className="p-4">
                   <h3 className="font-semibold mb-2">深度分析</h3>
                   <ul className="space-y-2 text-sm text-gray-600">
@@ -842,67 +964,97 @@ const AISettings: React.FC = () => {
                   </ul>
                 </Card>
               </div>
-              
+
               {aiConfig && (
                 <div className="p-4 bg-gray-50 border rounded-lg mt-4">
                   <p className="text-sm font-medium">当前AI配置信息</p>
                   <div className="mt-2 text-sm text-gray-600">
-                    <p>• 使用提供商: {getProviderDisplayName(aiConfig.provider)}</p>
+                    <p>
+                      • 使用提供商: {getProviderDisplayName(aiConfig.provider)}
+                    </p>
                     <p>• 使用模型: {aiConfig.version}</p>
-                    <p>• 分析状态: {aiConfig.enabled ? '已启用' : '已禁用'}</p>
-                    <p>• 更新时间: {aiConfig.lastUpdated ? new Date(aiConfig.lastUpdated).toLocaleString() : '未知'}</p>
+                    <p>• 分析状态: {aiConfig.enabled ? "已启用" : "已禁用"}</p>
+                    <p>
+                      • 更新时间:{" "}
+                      {aiConfig.lastUpdated
+                        ? new Date(aiConfig.lastUpdated).toLocaleString()
+                        : "未知"}
+                    </p>
                   </div>
                 </div>
               )}
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader>
               <CardTitle>支持的模型列表</CardTitle>
-              <CardDescription>
-                系统内置支持的AI模型及其特点
-              </CardDescription>
+              <CardDescription>系统内置支持的AI模型及其特点</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <Card className="p-4">
-                                  <h3 className="font-semibold mb-2">智能语言模型</h3>
-                <p className="text-sm text-gray-600 mb-2">提供先进的语言模型，支持多种语言的文本分析和生成。</p>
-                <div className="text-xs text-gray-500">支持版本: 旗舰版, 增强版, 标准版</div>
+                  <h3 className="font-semibold mb-2">智能语言模型</h3>
+                  <p className="text-sm text-gray-600 mb-2">
+                    提供先进的语言模型，支持多种语言的文本分析和生成。
+                  </p>
+                  <div className="text-xs text-gray-500">
+                    支持版本: 旗舰版, 增强版, 标准版
+                  </div>
                 </Card>
-                
+
                 <Card className="p-4">
                   <h3 className="font-semibold mb-2">豆包 (火山方舟)</h3>
-                  <p className="text-sm text-gray-600 mb-2">专为中文优化的多模态模型，支持图像和文本分析。</p>
-                  <div className="text-xs text-gray-500">支持版本: doubao-1-5-vision-pro-32k-250115, doubao-lite-128k</div>
+                  <p className="text-sm text-gray-600 mb-2">
+                    专为中文优化的多模态模型，支持图像和文本分析。
+                  </p>
+                  <div className="text-xs text-gray-500">
+                    支持版本: doubao-1-5-vision-pro-32k-250115, doubao-lite-128k
+                  </div>
                 </Card>
-                
+
                 <Card className="p-4">
                   <h3 className="font-semibold mb-2">DeepSeek</h3>
-                  <p className="text-sm text-gray-600 mb-2">强大的中文理解能力，适合教育文本分析和理解。</p>
-                  <div className="text-xs text-gray-500">支持版本: deepseek-chat (DeepSeek-V3), deepseek-reasoner (DeepSeek-R1), deepseek-coder</div>
+                  <p className="text-sm text-gray-600 mb-2">
+                    强大的中文理解能力，适合教育文本分析和理解。
+                  </p>
+                  <div className="text-xs text-gray-500">
+                    支持版本: deepseek-chat (DeepSeek-V3), deepseek-reasoner
+                    (DeepSeek-R1), deepseek-coder
+                  </div>
                 </Card>
-                
+
                 <Card className="p-4">
                   <h3 className="font-semibold mb-2">百川大模型</h3>
-                  <p className="text-sm text-gray-600 mb-2">国产大模型，提供专业的教育领域知识和分析能力。</p>
-                  <div className="text-xs text-gray-500">支持版本: baichuan-v1, baichuan-v2</div>
+                  <p className="text-sm text-gray-600 mb-2">
+                    国产大模型，提供专业的教育领域知识和分析能力。
+                  </p>
+                  <div className="text-xs text-gray-500">
+                    支持版本: baichuan-v1, baichuan-v2
+                  </div>
                 </Card>
-                
+
                 <Card className="p-4">
                   <h3 className="font-semibold mb-2">通义千问</h3>
-                  <p className="text-sm text-gray-600 mb-2">阿里云提供的大语言模型，拥有丰富的知识库。</p>
-                  <div className="text-xs text-gray-500">支持版本: qwen-max, qwen-plus, qwen-lite</div>
+                  <p className="text-sm text-gray-600 mb-2">
+                    阿里云提供的大语言模型，拥有丰富的知识库。
+                  </p>
+                  <div className="text-xs text-gray-500">
+                    支持版本: qwen-max, qwen-plus, qwen-lite
+                  </div>
                 </Card>
-                
+
                 <Card className="p-4">
                   <h3 className="font-semibold mb-2">其他模型</h3>
-                  <p className="text-sm text-gray-600 mb-2">系统还支持硅基流动、Moonshot AI、智谱AI等多种模型。</p>
-                  <div className="text-xs text-gray-500">您还可以通过配置自定义模型来连接其他API。</div>
+                  <p className="text-sm text-gray-600 mb-2">
+                    系统还支持硅基流动、Moonshot AI、智谱AI等多种模型。
+                  </p>
+                  <div className="text-xs text-gray-500">
+                    您还可以通过配置自定义模型来连接其他API。
+                  </div>
                 </Card>
               </div>
-              
+
               <div className="mt-6 text-center">
                 <p className="text-sm text-gray-500">
                   需要连接其他模型？您可以使用自定义模型功能添加任意AI服务
@@ -917,4 +1069,3 @@ const AISettings: React.FC = () => {
 };
 
 export default AISettings;
-

@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { RefreshCw, BarChart3, Zap, Clock, TrendingUp } from 'lucide-react';
-import { warningAnalysisCache } from '../../utils/performanceCache';
-import { getWarningStatistics } from '../../services/warningService';
-import { getExams } from '../../services/examService';
-import { getWarningHistoryComparison } from '../../services/warningHistoryService';
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { RefreshCw, BarChart3, Zap, Clock, TrendingUp } from "lucide-react";
+import { warningAnalysisCache } from "../../utils/performanceCache";
+import { getWarningStatistics } from "../../services/warningService";
+import { getExams } from "../../services/examService";
+import { getWarningHistoryComparison } from "../../services/warningHistoryService";
 
 interface CacheStats {
   hitRate: number;
@@ -23,10 +23,10 @@ function CacheManager() {
   // 获取缓存统计
   const loadCacheStats = async () => {
     try {
-      const cacheStats = warningAnalysisCache['cacheManager'].getStats();
+      const cacheStats = warningAnalysisCache["cacheManager"].getStats();
       setStats(cacheStats);
     } catch (error) {
-      console.error('获取缓存统计失败:', error);
+      console.error("获取缓存统计失败:", error);
     }
   };
 
@@ -34,40 +34,36 @@ function CacheManager() {
   const preloadCache = async () => {
     setIsPreloading(true);
     try {
-      console.log('[CacheManager] 开始预热缓存...');
-      
+      console.log("[CacheManager] 开始预热缓存...");
+
       // 并行预热常用数据
       await Promise.allSettled([
         // 预警统计数据
-        warningAnalysisCache.getWarningStats(
-          () => getWarningStatistics()
-        ),
-        
+        warningAnalysisCache.getWarningStats(() => getWarningStatistics()),
+
         // 考试数据
-        warningAnalysisCache.getExamData(
-          () => getExams()
-        ),
-        
+        warningAnalysisCache.getExamData(() => getExams()),
+
         // 历史对比数据 - 最近7天
         warningAnalysisCache.getHistoryComparison(
-          () => getWarningHistoryComparison('7d'),
-          '7d'
+          () => getWarningHistoryComparison("7d"),
+          "7d"
         ),
-        
+
         // 历史对比数据 - 最近30天
         warningAnalysisCache.getHistoryComparison(
-          () => getWarningHistoryComparison('30d'),
-          '30d'
-        )
+          () => getWarningHistoryComparison("30d"),
+          "30d"
+        ),
       ]);
-      
+
       setLastPreload(new Date());
-      console.log('[CacheManager] 缓存预热完成');
-      
+      console.log("[CacheManager] 缓存预热完成");
+
       // 更新统计
       await loadCacheStats();
     } catch (error) {
-      console.error('[CacheManager] 缓存预热失败:', error);
+      console.error("[CacheManager] 缓存预热失败:", error);
     } finally {
       setIsPreloading(false);
     }
@@ -78,16 +74,16 @@ function CacheManager() {
     warningAnalysisCache.invalidateWarningData();
     warningAnalysisCache.invalidateExamData();
     setStats(null);
-    console.log('[CacheManager] 缓存已清除');
+    console.log("[CacheManager] 缓存已清除");
   };
 
   // 组件挂载时加载统计
   useEffect(() => {
     loadCacheStats();
-    
+
     // 定期更新统计
     const interval = setInterval(loadCacheStats, 30000); // 30秒更新一次
-    
+
     return () => clearInterval(interval);
   }, []);
 
@@ -154,10 +150,12 @@ function CacheManager() {
               className="flex items-center gap-2"
               variant="default"
             >
-              <RefreshCw className={`h-4 w-4 ${isPreloading ? 'animate-spin' : ''}`} />
-              {isPreloading ? '预热中...' : '预热缓存'}
+              <RefreshCw
+                className={`h-4 w-4 ${isPreloading ? "animate-spin" : ""}`}
+              />
+              {isPreloading ? "预热中..." : "预热缓存"}
             </Button>
-            
+
             <Button
               onClick={clearCache}
               variant="outline"
@@ -166,7 +164,7 @@ function CacheManager() {
               <RefreshCw className="h-4 w-4" />
               清除缓存
             </Button>
-            
+
             <Button
               onClick={loadCacheStats}
               variant="outline"
@@ -176,7 +174,7 @@ function CacheManager() {
               刷新统计
             </Button>
           </div>
-          
+
           {lastPreload && (
             <div className="mt-3 flex items-center gap-2 text-sm text-gray-600">
               <Clock className="h-4 w-4" />
@@ -211,14 +209,18 @@ function CacheManager() {
                     </div>
                   </div>
                   <div className="ml-3 flex items-center gap-2">
-                    <Badge 
-                      variant={item.ratio > 0.8 ? "default" : item.ratio > 0.5 ? "secondary" : "destructive"}
+                    <Badge
+                      variant={
+                        item.ratio > 0.8
+                          ? "default"
+                          : item.ratio > 0.5
+                            ? "secondary"
+                            : "destructive"
+                      }
                     >
                       {formatPercentage(item.ratio)}
                     </Badge>
-                    <div className="text-sm text-gray-500">
-                      #{index + 1}
-                    </div>
+                    <div className="text-sm text-gray-500">#{index + 1}</div>
                   </div>
                 </div>
               ))}
@@ -238,25 +240,31 @@ function CacheManager() {
               <>
                 {stats.hitRate < 0.7 && (
                   <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                    <div className="font-medium text-orange-800">命中率偏低</div>
+                    <div className="font-medium text-orange-800">
+                      命中率偏低
+                    </div>
                     <div className="text-sm text-orange-600">
                       建议增加缓存时间或优化缓存策略
                     </div>
                   </div>
                 )}
-                
+
                 {stats.totalHits + stats.totalMisses < 100 && (
                   <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="font-medium text-blue-800">数据样本较少</div>
+                    <div className="font-medium text-blue-800">
+                      数据样本较少
+                    </div>
                     <div className="text-sm text-blue-600">
                       建议使用一段时间后再查看缓存效果
                     </div>
                   </div>
                 )}
-                
+
                 {stats.hitRate > 0.9 && (
                   <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <div className="font-medium text-green-800">缓存效果优秀</div>
+                    <div className="font-medium text-green-800">
+                      缓存效果优秀
+                    </div>
                     <div className="text-sm text-green-600">
                       当前缓存策略工作良好，继续保持
                     </div>
@@ -264,7 +272,7 @@ function CacheManager() {
                 )}
               </>
             )}
-            
+
             <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
               <div className="font-medium text-gray-800">自动优化</div>
               <div className="text-sm text-gray-600">
@@ -278,4 +286,4 @@ function CacheManager() {
   );
 }
 
-export default CacheManager; 
+export default CacheManager;

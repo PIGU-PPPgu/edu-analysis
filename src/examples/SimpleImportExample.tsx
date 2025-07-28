@@ -1,13 +1,16 @@
 // 简化导入组件使用示例
 // 展示如何替换复杂的GradeImporter为用户友好的SimpleGradeImporter
 
-import React, { useState } from 'react';
-import { SimpleGradeImporter } from '@/components/import/SimpleGradeImporter';
-import { convertToFriendlyError, ErrorContext } from '@/utils/friendlyErrorHandler';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CheckCircle, ArrowLeft } from 'lucide-react';
+import React, { useState } from "react";
+import { SimpleGradeImporter } from "@/components/import/SimpleGradeImporter";
+import {
+  convertToFriendlyError,
+  ErrorContext,
+} from "@/utils/friendlyErrorHandler";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { CheckCircle, ArrowLeft } from "lucide-react";
 
 interface ImportResult {
   success: boolean;
@@ -23,13 +26,13 @@ export const SimpleImportExample: React.FC = () => {
   const [importHistory, setImportHistory] = useState<ImportResult[]>([]);
 
   const handleImportComplete = (result: ImportResult) => {
-    setImportHistory(prev => [result, ...prev]);
+    setImportHistory((prev) => [result, ...prev]);
     setShowImporter(false);
-    
+
     // 可以在这里添加后续操作，如跳转到分析页面
     if (result.success && result.examId) {
       // 跳转到成绩分析页面
-      console.log('跳转到分析页面:', result.examId);
+      console.log("跳转到分析页面:", result.examId);
     }
   };
 
@@ -39,8 +42,8 @@ export const SimpleImportExample: React.FC = () => {
 
   const handleError = (error: Error, context: ErrorContext) => {
     const friendlyError = convertToFriendlyError(error, context);
-    console.log('用户友好错误:', friendlyError);
-    
+    console.log("用户友好错误:", friendlyError);
+
     // 这里可以显示友好的错误信息给用户
     // 例如使用 toast 或 alert 组件
   };
@@ -50,8 +53,8 @@ export const SimpleImportExample: React.FC = () => {
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-6xl mx-auto py-8">
           <div className="mb-6">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setShowImporter(false)}
               className="flex items-center space-x-2"
             >
@@ -59,8 +62,8 @@ export const SimpleImportExample: React.FC = () => {
               <span>返回</span>
             </Button>
           </div>
-          
-          <SimpleGradeImporter 
+
+          <SimpleGradeImporter
             onComplete={handleImportComplete}
             onCancel={handleImportCancel}
           />
@@ -82,7 +85,7 @@ export const SimpleImportExample: React.FC = () => {
             <p className="text-gray-600 mb-6">
               使用我们全新的智能导入系统，3步完成成绩导入
             </p>
-            <Button 
+            <Button
               onClick={() => setShowImporter(true)}
               size="lg"
               className="bg-green-600 hover:bg-green-700 text-white px-8 py-3"
@@ -128,15 +131,19 @@ export const SimpleImportExample: React.FC = () => {
               <h3 className="text-lg font-semibold mb-4">最近导入记录</h3>
               <div className="space-y-3">
                 {importHistory.slice(0, 5).map((record, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-4 border rounded-lg"
+                  >
                     <div className="flex items-center space-x-3">
                       <CheckCircle className="w-5 h-5 text-green-600" />
                       <div>
                         <p className="font-medium">
-                          {record.success ? '导入成功' : '导入失败'}
+                          {record.success ? "导入成功" : "导入失败"}
                         </p>
                         <p className="text-sm text-gray-600">
-                          总计 {record.totalRecords} 条记录，成功 {record.successRecords} 条
+                          总计 {record.totalRecords} 条记录，成功{" "}
+                          {record.successRecords} 条
                         </p>
                       </div>
                     </div>
@@ -178,29 +185,40 @@ export const SimpleImportExample: React.FC = () => {
               <h4 className="font-semibold text-red-600">原有流程 (5步)</h4>
               <div className="space-y-2">
                 <div className="flex items-center space-x-2 text-sm">
-                  <span className="w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs">1</span>
+                  <span className="w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs">
+                    1
+                  </span>
                   <span>文件上传 (复杂验证)</span>
                 </div>
                 <div className="flex items-center space-x-2 text-sm">
-                  <span className="w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs">2</span>
+                  <span className="w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs">
+                    2
+                  </span>
                   <span>字段映射 (手动配置)</span>
                 </div>
                 <div className="flex items-center space-x-2 text-sm">
-                  <span className="w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs">3</span>
+                  <span className="w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs">
+                    3
+                  </span>
                   <span>数据验证 (8个开关)</span>
                 </div>
                 <div className="flex items-center space-x-2 text-sm">
-                  <span className="w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs">4</span>
+                  <span className="w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs">
+                    4
+                  </span>
                   <span>导入处理 (mock实现)</span>
                 </div>
                 <div className="flex items-center space-x-2 text-sm">
-                  <span className="w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs">5</span>
+                  <span className="w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs">
+                    5
+                  </span>
                   <span>完成总结</span>
                 </div>
               </div>
               <div className="mt-4 p-3 bg-red-50 rounded-lg">
                 <p className="text-sm text-red-700">
-                  <strong>问题:</strong> 流程复杂、技术术语多、错误处理差、成功率仅70%
+                  <strong>问题:</strong>{" "}
+                  流程复杂、技术术语多、错误处理差、成功率仅70%
                 </p>
               </div>
             </div>
@@ -210,21 +228,28 @@ export const SimpleImportExample: React.FC = () => {
               <h4 className="font-semibold text-green-600">新版流程 (3步)</h4>
               <div className="space-y-2">
                 <div className="flex items-center space-x-2 text-sm">
-                  <span className="w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs">1</span>
+                  <span className="w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs">
+                    1
+                  </span>
                   <span>一键智能上传 (AI自动解析)</span>
                 </div>
                 <div className="flex items-center space-x-2 text-sm">
-                  <span className="w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs">2</span>
+                  <span className="w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs">
+                    2
+                  </span>
                   <span>智能确认 (可视化预览)</span>
                 </div>
                 <div className="flex items-center space-x-2 text-sm">
-                  <span className="w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs">3</span>
+                  <span className="w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs">
+                    3
+                  </span>
                   <span>后台导入 (实时进度)</span>
                 </div>
               </div>
               <div className="mt-4 p-3 bg-green-50 rounded-lg">
                 <p className="text-sm text-green-700">
-                  <strong>优势:</strong> 流程简化、AI智能、友好错误、预期成功率95%+
+                  <strong>优势:</strong>{" "}
+                  流程简化、AI智能、友好错误、预期成功率95%+
                 </p>
               </div>
             </div>
@@ -240,17 +265,19 @@ export const ErrorHandlingExample: React.FC = () => {
   const handleFileError = () => {
     try {
       // 模拟文件解析错误
-      throw new Error('File format not supported, invalid xlsx structure detected');
+      throw new Error(
+        "File format not supported, invalid xlsx structure detected"
+      );
     } catch (error) {
       const context: ErrorContext = {
-        operation: 'file_parse',
-        fileName: 'grades.xlsx',
+        operation: "file_parse",
+        fileName: "grades.xlsx",
         fileSize: 2048000,
-        fileType: 'xlsx'
+        fileType: "xlsx",
       };
 
       const friendlyError = convertToFriendlyError(error as Error, context);
-      
+
       // 显示用户友好的错误信息
       alert(`
         ${friendlyError.title}
@@ -258,7 +285,7 @@ export const ErrorHandlingExample: React.FC = () => {
         ${friendlyError.message}
         
         建议解决方案：
-        ${friendlyError.solutions.map((solution, index) => `${index + 1}. ${solution}`).join('\n')}
+        ${friendlyError.solutions.map((solution, index) => `${index + 1}. ${solution}`).join("\n")}
       `);
     }
   };
@@ -266,9 +293,7 @@ export const ErrorHandlingExample: React.FC = () => {
   return (
     <div className="p-6">
       <h3 className="text-lg font-semibold mb-4">错误处理示例</h3>
-      <Button onClick={handleFileError}>
-        模拟文件格式错误
-      </Button>
+      <Button onClick={handleFileError}>模拟文件格式错误</Button>
     </div>
   );
 };

@@ -3,13 +3,13 @@
  * 提供设备类型、屏幕方向、安全区域等移动端检测功能
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from "react";
 
 // 设备类型
-export type DeviceType = 'mobile' | 'tablet' | 'desktop';
+export type DeviceType = "mobile" | "tablet" | "desktop";
 
 // 屏幕方向
-export type ScreenOrientation = 'portrait' | 'landscape';
+export type ScreenOrientation = "portrait" | "landscape";
 
 // 视口信息接口
 export interface ViewportInfo {
@@ -41,23 +41,26 @@ export interface BreakpointConfig {
 const DEFAULT_BREAKPOINTS: BreakpointConfig = {
   mobile: 768,
   tablet: 1024,
-  desktop: 1200
+  desktop: 1200,
 };
 
 /**
  * 获取设备类型
  */
-const getDeviceType = (width: number, breakpoints: BreakpointConfig): DeviceType => {
-  if (width < breakpoints.mobile) return 'mobile';
-  if (width < breakpoints.tablet) return 'tablet';
-  return 'desktop';
+const getDeviceType = (
+  width: number,
+  breakpoints: BreakpointConfig
+): DeviceType => {
+  if (width < breakpoints.mobile) return "mobile";
+  if (width < breakpoints.tablet) return "tablet";
+  return "desktop";
 };
 
 /**
  * 获取屏幕方向
  */
 const getOrientation = (width: number, height: number): ScreenOrientation => {
-  return width > height ? 'landscape' : 'portrait';
+  return width > height ? "landscape" : "portrait";
 };
 
 /**
@@ -65,7 +68,7 @@ const getOrientation = (width: number, height: number): ScreenOrientation => {
  */
 const checkTouchSupport = (): boolean => {
   return (
-    'ontouchstart' in window ||
+    "ontouchstart" in window ||
     navigator.maxTouchPoints > 0 ||
     // @ts-ignore
     navigator.msMaxTouchPoints > 0
@@ -77,11 +80,11 @@ const checkTouchSupport = (): boolean => {
  */
 const getSafeArea = () => {
   // 检测CSS env变量支持
-  const supportsEnv = CSS.supports('padding: env(safe-area-inset-top)');
-  
+  const supportsEnv = CSS.supports("padding: env(safe-area-inset-top)");
+
   if (supportsEnv) {
     const getEnvValue = (side: string): number => {
-      const testEl = document.createElement('div');
+      const testEl = document.createElement("div");
       testEl.style.padding = `env(safe-area-inset-${side})`;
       document.body.appendChild(testEl);
       const computed = window.getComputedStyle(testEl);
@@ -91,10 +94,10 @@ const getSafeArea = () => {
     };
 
     return {
-      top: getEnvValue('top'),
-      right: getEnvValue('right'),
-      bottom: getEnvValue('bottom'),
-      left: getEnvValue('left'),
+      top: getEnvValue("top"),
+      right: getEnvValue("right"),
+      bottom: getEnvValue("bottom"),
+      left: getEnvValue("left"),
     };
   }
 
@@ -105,21 +108,23 @@ const getSafeArea = () => {
 /**
  * 主要的视口检测 Hook
  */
-export const useViewport = (breakpoints: BreakpointConfig = DEFAULT_BREAKPOINTS): ViewportInfo => {
+export const useViewport = (
+  breakpoints: BreakpointConfig = DEFAULT_BREAKPOINTS
+): ViewportInfo => {
   const [viewportInfo, setViewportInfo] = useState<ViewportInfo>(() => {
     // 服务端渲染兼容性处理
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
       return {
         width: 1200,
         height: 800,
-        deviceType: 'desktop',
-        orientation: 'landscape',
+        deviceType: "desktop",
+        orientation: "landscape",
         isTouch: false,
         isMobile: false,
         isTablet: false,
         isDesktop: true,
         aspectRatio: 1.5,
-        safeArea: { top: 0, right: 0, bottom: 0, left: 0 }
+        safeArea: { top: 0, right: 0, bottom: 0, left: 0 },
       };
     }
 
@@ -135,11 +140,11 @@ export const useViewport = (breakpoints: BreakpointConfig = DEFAULT_BREAKPOINTS)
       deviceType,
       orientation,
       isTouch,
-      isMobile: deviceType === 'mobile',
-      isTablet: deviceType === 'tablet',
-      isDesktop: deviceType === 'desktop',
+      isMobile: deviceType === "mobile",
+      isTablet: deviceType === "tablet",
+      isDesktop: deviceType === "desktop",
       aspectRatio: width / height,
-      safeArea: getSafeArea()
+      safeArea: getSafeArea(),
     };
   });
 
@@ -156,11 +161,11 @@ export const useViewport = (breakpoints: BreakpointConfig = DEFAULT_BREAKPOINTS)
       deviceType,
       orientation,
       isTouch,
-      isMobile: deviceType === 'mobile',
-      isTablet: deviceType === 'tablet',
-      isDesktop: deviceType === 'desktop',
+      isMobile: deviceType === "mobile",
+      isTablet: deviceType === "tablet",
+      isDesktop: deviceType === "desktop",
       aspectRatio: width / height,
-      safeArea: getSafeArea()
+      safeArea: getSafeArea(),
     });
   }, [breakpoints]);
 
@@ -168,21 +173,21 @@ export const useViewport = (breakpoints: BreakpointConfig = DEFAULT_BREAKPOINTS)
     updateViewport();
 
     // 监听窗口大小变化
-    window.addEventListener('resize', updateViewport);
-    
+    window.addEventListener("resize", updateViewport);
+
     // 监听屏幕方向变化
-    if ('orientation' in screen) {
-      screen.orientation?.addEventListener('change', updateViewport);
-    } else if ('orientationchange' in window) {
-      window.addEventListener('orientationchange', updateViewport);
+    if ("orientation" in screen) {
+      screen.orientation?.addEventListener("change", updateViewport);
+    } else if ("orientationchange" in window) {
+      window.addEventListener("orientationchange", updateViewport);
     }
 
     return () => {
-      window.removeEventListener('resize', updateViewport);
-      if ('orientation' in screen) {
-        screen.orientation?.removeEventListener('change', updateViewport);
-      } else if ('orientationchange' in window) {
-        window.removeEventListener('orientationchange', updateViewport);
+      window.removeEventListener("resize", updateViewport);
+      if ("orientation" in screen) {
+        screen.orientation?.removeEventListener("change", updateViewport);
+      } else if ("orientationchange" in window) {
+        window.removeEventListener("orientationchange", updateViewport);
       }
     };
   }, [updateViewport]);
@@ -193,17 +198,22 @@ export const useViewport = (breakpoints: BreakpointConfig = DEFAULT_BREAKPOINTS)
 /**
  * 断点检测 Hook
  */
-export const useBreakpoint = (breakpoints: BreakpointConfig = DEFAULT_BREAKPOINTS) => {
+export const useBreakpoint = (
+  breakpoints: BreakpointConfig = DEFAULT_BREAKPOINTS
+) => {
   const { width, deviceType } = useViewport(breakpoints);
 
   return {
     width,
     deviceType,
-    isAbove: (breakpoint: keyof BreakpointConfig) => width >= breakpoints[breakpoint],
-    isBelow: (breakpoint: keyof BreakpointConfig) => width < breakpoints[breakpoint],
-    isBetween: (min: keyof BreakpointConfig, max: keyof BreakpointConfig) => 
+    isAbove: (breakpoint: keyof BreakpointConfig) =>
+      width >= breakpoints[breakpoint],
+    isBelow: (breakpoint: keyof BreakpointConfig) =>
+      width < breakpoints[breakpoint],
+    isBetween: (min: keyof BreakpointConfig, max: keyof BreakpointConfig) =>
       width >= breakpoints[min] && width < breakpoints[max],
-    isExactly: (breakpoint: keyof BreakpointConfig) => deviceType === breakpoint
+    isExactly: (breakpoint: keyof BreakpointConfig) =>
+      deviceType === breakpoint,
   };
 };
 
@@ -212,23 +222,23 @@ export const useBreakpoint = (breakpoints: BreakpointConfig = DEFAULT_BREAKPOINT
  */
 export const useOrientation = () => {
   const { orientation, width, height } = useViewport();
-  
+
   const [orientationSupport, setOrientationSupport] = useState({
     hasAPI: false,
     hasEvent: false,
-    angle: 0
+    angle: 0,
   });
 
   useEffect(() => {
     const checkOrientationAPI = () => {
-      const hasAPI = 'orientation' in screen;
-      const hasEvent = 'orientationchange' in window;
+      const hasAPI = "orientation" in screen;
+      const hasEvent = "orientationchange" in window;
       const angle = hasAPI ? screen.orientation?.angle || 0 : 0;
 
       setOrientationSupport({
         hasAPI,
         hasEvent,
-        angle
+        angle,
       });
     };
 
@@ -239,23 +249,26 @@ export const useOrientation = () => {
     };
 
     if (orientationSupport.hasEvent) {
-      window.addEventListener('orientationchange', handleOrientationChange);
+      window.addEventListener("orientationchange", handleOrientationChange);
     }
 
     return () => {
       if (orientationSupport.hasEvent) {
-        window.removeEventListener('orientationchange', handleOrientationChange);
+        window.removeEventListener(
+          "orientationchange",
+          handleOrientationChange
+        );
       }
     };
   }, [orientationSupport.hasEvent]);
 
   return {
     orientation,
-    isPortrait: orientation === 'portrait',
-    isLandscape: orientation === 'landscape',
+    isPortrait: orientation === "portrait",
+    isLandscape: orientation === "landscape",
     angle: orientationSupport.angle,
     hasOrientationAPI: orientationSupport.hasAPI,
-    dimensions: { width, height }
+    dimensions: { width, height },
   };
 };
 
@@ -264,17 +277,21 @@ export const useOrientation = () => {
  */
 export const useSafeArea = () => {
   const { safeArea } = useViewport();
-  
+
   return {
     safeArea,
     safeAreaStyle: {
       paddingTop: safeArea.top,
       paddingRight: safeArea.right,
       paddingBottom: safeArea.bottom,
-      paddingLeft: safeArea.left
+      paddingLeft: safeArea.left,
     },
     safeAreaInsets: `${safeArea.top}px ${safeArea.right}px ${safeArea.bottom}px ${safeArea.left}px`,
-    hasSafeArea: safeArea.top > 0 || safeArea.right > 0 || safeArea.bottom > 0 || safeArea.left > 0
+    hasSafeArea:
+      safeArea.top > 0 ||
+      safeArea.right > 0 ||
+      safeArea.bottom > 0 ||
+      safeArea.left > 0,
   };
 };
 
@@ -285,21 +302,21 @@ export const useMediaQuery = (query: string): boolean => {
   const [matches, setMatches] = useState(false);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
 
     const mediaQuery = window.matchMedia(query);
-    
+
     const handleChange = (e: MediaQueryListEvent) => {
       setMatches(e.matches);
     };
 
     setMatches(mediaQuery.matches);
-    
+
     // 现代浏览器使用 addEventListener
     if (mediaQuery.addEventListener) {
-      mediaQuery.addEventListener('change', handleChange);
-      return () => mediaQuery.removeEventListener('change', handleChange);
-    } 
+      mediaQuery.addEventListener("change", handleChange);
+      return () => mediaQuery.removeEventListener("change", handleChange);
+    }
     // 旧浏览器使用 addListener
     else {
       mediaQuery.addListener(handleChange);
@@ -315,49 +332,49 @@ export const useMediaQuery = (query: string): boolean => {
  */
 export const useDevicePerformance = () => {
   const [performance, setPerformance] = useState({
-    level: 'medium' as 'low' | 'medium' | 'high',
+    level: "medium" as "low" | "medium" | "high",
     cores: 1,
     memory: 4,
-    connection: 'unknown' as string,
+    connection: "unknown" as string,
     supportedFeatures: {
       webgl: false,
       webgl2: false,
       webworkers: false,
-      canvas: false
-    }
+      canvas: false,
+    },
   });
 
   useEffect(() => {
     const detectPerformance = () => {
       // CPU 核心数
       const cores = navigator.hardwareConcurrency || 1;
-      
+
       // 内存信息 (如果可用)
       // @ts-ignore
       const memory = navigator.deviceMemory || 4;
-      
+
       // 网络连接信息
       // @ts-ignore
-      const connection = navigator.connection?.effectiveType || 'unknown';
-      
+      const connection = navigator.connection?.effectiveType || "unknown";
+
       // 功能支持检测
-      const canvas = document.createElement('canvas');
-      const gl = canvas.getContext('webgl');
-      const gl2 = canvas.getContext('webgl2');
-      
+      const canvas = document.createElement("canvas");
+      const gl = canvas.getContext("webgl");
+      const gl2 = canvas.getContext("webgl2");
+
       const supportedFeatures = {
         webgl: !!gl,
         webgl2: !!gl2,
-        webworkers: typeof Worker !== 'undefined',
-        canvas: !!canvas.getContext('2d')
+        webworkers: typeof Worker !== "undefined",
+        canvas: !!canvas.getContext("2d"),
       };
 
       // 性能等级评估
-      let level: 'low' | 'medium' | 'high' = 'medium';
+      let level: "low" | "medium" | "high" = "medium";
       if (cores >= 4 && memory >= 8 && supportedFeatures.webgl2) {
-        level = 'high';
+        level = "high";
       } else if (cores <= 2 || memory <= 2) {
-        level = 'low';
+        level = "low";
       }
 
       setPerformance({
@@ -365,7 +382,7 @@ export const useDevicePerformance = () => {
         cores,
         memory,
         connection,
-        supportedFeatures
+        supportedFeatures,
       });
     };
 
@@ -384,22 +401,22 @@ export const RESPONSIVE_BREAKPOINTS = {
   md: 768,
   lg: 1024,
   xl: 1280,
-  '2xl': 1536
+  "2xl": 1536,
 } as const;
 
 /**
  * 常用媒体查询字符串
  */
 export const MEDIA_QUERIES = {
-  mobile: '(max-width: 767px)',
-  tablet: '(min-width: 768px) and (max-width: 1023px)',
-  desktop: '(min-width: 1024px)',
-  landscape: '(orientation: landscape)',
-  portrait: '(orientation: portrait)',
-  touch: '(pointer: coarse)',
-  hover: '(hover: hover)',
-  darkMode: '(prefers-color-scheme: dark)',
-  lightMode: '(prefers-color-scheme: light)',
-  reduceMotion: '(prefers-reduced-motion: reduce)',
-  highDPI: '(min-resolution: 192dpi)'
+  mobile: "(max-width: 767px)",
+  tablet: "(min-width: 768px) and (max-width: 1023px)",
+  desktop: "(min-width: 1024px)",
+  landscape: "(orientation: landscape)",
+  portrait: "(orientation: portrait)",
+  touch: "(pointer: coarse)",
+  hover: "(hover: hover)",
+  darkMode: "(prefers-color-scheme: dark)",
+  lightMode: "(prefers-color-scheme: light)",
+  reduceMotion: "(prefers-reduced-motion: reduce)",
+  highDPI: "(min-resolution: 192dpi)",
 } as const;

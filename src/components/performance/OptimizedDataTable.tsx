@@ -3,12 +3,18 @@
  * 使用虚拟滚动、智能分页、懒加载等技术优化大数据表格性能
  */
 
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import React, {
+  useState,
+  useMemo,
+  useCallback,
+  useRef,
+  useEffect,
+} from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import {
   ChevronLeft,
   ChevronRight,
@@ -24,14 +30,14 @@ import {
   ArrowUp,
   ArrowDown,
   Settings,
-  Loader2
-} from 'lucide-react';
+  Loader2,
+} from "lucide-react";
 import {
   useVirtualScrolling,
   useOptimizedDebounce,
   useRenderPerformance,
-  useLazyLoad
-} from '@/utils/performanceOptimizer';
+  useLazyLoad,
+} from "@/utils/performanceOptimizer";
 
 // 表格配置接口
 export interface TableColumn<T = any> {
@@ -39,11 +45,11 @@ export interface TableColumn<T = any> {
   title: string;
   dataIndex: keyof T;
   width?: number;
-  fixed?: 'left' | 'right';
+  fixed?: "left" | "right";
   sortable?: boolean;
   filterable?: boolean;
   render?: (value: any, record: T, index: number) => React.ReactNode;
-  align?: 'left' | 'center' | 'right';
+  align?: "left" | "center" | "right";
   ellipsis?: boolean;
 }
 
@@ -89,11 +95,11 @@ const DEFAULT_CONFIG: TableConfig = {
   stickyHeader: true,
   bordered: true,
   striped: true,
-  compact: false
+  compact: false,
 };
 
 // 排序类型
-type SortOrder = 'asc' | 'desc' | null;
+type SortOrder = "asc" | "desc" | null;
 
 interface SortState {
   key: string;
@@ -110,82 +116,91 @@ const VirtualRow: React.FC<{
   isSelected?: boolean;
   onSelectionChange?: (selected: boolean) => void;
   compact?: boolean;
-}> = React.memo(({
-  item,
-  index,
-  columns,
-  rowKey,
-  onRowClick,
-  isSelected,
-  onSelectionChange,
-  compact
-}) => {
-  const { renderStart, renderEnd } = useRenderPerformance(`VirtualRow-${index}`);
-  
-  useEffect(() => {
-    renderStart();
-    return renderEnd;
-  });
+}> = React.memo(
+  ({
+    item,
+    index,
+    columns,
+    rowKey,
+    onRowClick,
+    isSelected,
+    onSelectionChange,
+    compact,
+  }) => {
+    const { renderStart, renderEnd } = useRenderPerformance(
+      `VirtualRow-${index}`
+    );
 
-  const handleClick = useCallback(() => {
-    onRowClick?.(item, index);
-  }, [item, index, onRowClick]);
+    useEffect(() => {
+      renderStart();
+      return renderEnd;
+    });
 
-  const handleSelectionChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    onSelectionChange?.(e.target.checked);
-  }, [onSelectionChange]);
+    const handleClick = useCallback(() => {
+      onRowClick?.(item, index);
+    }, [item, index, onRowClick]);
 
-  const getRowKey = useCallback((record: any) => {
-    return typeof rowKey === 'function' ? rowKey(record) : record[rowKey];
-  }, [rowKey]);
+    const handleSelectionChange = useCallback(
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        onSelectionChange?.(e.target.checked);
+      },
+      [onSelectionChange]
+    );
 
-  return (
-    <tr 
-      className={cn(
-        "border-b border-black transition-colors cursor-pointer hover:bg-[#B9FF66]/20",
-        isSelected && "bg-[#B9FF66]/30",
-        index % 2 === 1 && "bg-gray-50"
-      )}
-      onClick={handleClick}
-      data-row-key={getRowKey(item)}
-    >
-      {onSelectionChange && (
-        <td className={cn("p-2 border-r border-black", compact && "p-1")}>
-          <input
-            type="checkbox"
-            checked={isSelected || false}
-            onChange={handleSelectionChange}
-            onClick={(e) => e.stopPropagation()}
-            className="w-4 h-4 border-2 border-black rounded focus:ring-[#B9FF66]"
-          />
-        </td>
-      )}
-      {columns.map((column) => (
-        <td 
-          key={column.key}
-          className={cn(
-            "p-3 border-r border-black font-medium text-black",
-            compact && "p-2 text-sm",
-            column.align === 'center' && "text-center",
-            column.align === 'right' && "text-right",
-            column.ellipsis && "truncate max-w-0"
-          )}
-          style={{ 
-            width: column.width,
-            minWidth: column.width 
-          }}
-        >
-          {column.render 
-            ? column.render(item[column.dataIndex], item, index)
-            : String(item[column.dataIndex] || '')
-          }
-        </td>
-      ))}
-    </tr>
-  );
-});
+    const getRowKey = useCallback(
+      (record: any) => {
+        return typeof rowKey === "function" ? rowKey(record) : record[rowKey];
+      },
+      [rowKey]
+    );
 
-VirtualRow.displayName = 'VirtualRow';
+    return (
+      <tr
+        className={cn(
+          "border-b border-black transition-colors cursor-pointer hover:bg-[#B9FF66]/20",
+          isSelected && "bg-[#B9FF66]/30",
+          index % 2 === 1 && "bg-gray-50"
+        )}
+        onClick={handleClick}
+        data-row-key={getRowKey(item)}
+      >
+        {onSelectionChange && (
+          <td className={cn("p-2 border-r border-black", compact && "p-1")}>
+            <input
+              type="checkbox"
+              checked={isSelected || false}
+              onChange={handleSelectionChange}
+              onClick={(e) => e.stopPropagation()}
+              className="w-4 h-4 border-2 border-black rounded focus:ring-[#B9FF66]"
+            />
+          </td>
+        )}
+        {columns.map((column) => (
+          <td
+            key={column.key}
+            className={cn(
+              "p-3 border-r border-black font-medium text-black",
+              compact && "p-2 text-sm",
+              column.align === "center" && "text-center",
+              column.align === "right" && "text-right",
+              column.ellipsis && "truncate max-w-0"
+            )}
+            style={{
+              width: column.width,
+              minWidth: column.width,
+            }}
+          >
+            {column.render
+              ? column.render(item[column.dataIndex], item, index)
+              : String(item[column.dataIndex] || "")}
+          </td>
+        ))}
+      </tr>
+    );
+  }
+);
+
+VirtualRow.displayName = "VirtualRow";
 
 const OptimizedDataTable = <T extends Record<string, any>>({
   data,
@@ -195,27 +210,30 @@ const OptimizedDataTable = <T extends Record<string, any>>({
   className,
   onRowClick,
   onSelectionChange,
-  rowKey = 'id',
-  emptyText = '暂无数据',
+  rowKey = "id",
+  emptyText = "暂无数据",
   title,
-  showExport = true
+  showExport = true,
 }: OptimizedDataTableProps<T>) => {
   const finalConfig = { ...DEFAULT_CONFIG, ...config };
-  const { renderStart, renderEnd } = useRenderPerformance('OptimizedDataTable');
-  
+  const { renderStart, renderEnd } = useRenderPerformance("OptimizedDataTable");
+
   // 状态管理
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortState, setSortState] = useState<SortState>({ key: '', order: null });
+  const [sortState, setSortState] = useState<SortState>({
+    key: "",
+    order: null,
+  });
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [visibleColumns, setVisibleColumns] = useState<Set<string>>(
-    new Set(columns.map(col => col.key))
+    new Set(columns.map((col) => col.key))
   );
   const [showColumnSettings, setShowColumnSettings] = useState(false);
-  
+
   const containerRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
-  
+
   // 性能监控
   useEffect(() => {
     renderStart();
@@ -231,113 +249,129 @@ const OptimizedDataTable = <T extends Record<string, any>>({
   // 过滤和搜索数据
   const filteredData = useMemo(() => {
     let result = [...data];
-    
+
     // 搜索过滤
     if (searchTerm) {
-      const searchKeys = finalConfig.searchKeys?.length 
-        ? finalConfig.searchKeys 
-        : columns.map(col => col.dataIndex as string);
-        
-      result = result.filter(item =>
-        searchKeys.some(key =>
-          String(item[key] || '').toLowerCase().includes(searchTerm.toLowerCase())
+      const searchKeys = finalConfig.searchKeys?.length
+        ? finalConfig.searchKeys
+        : columns.map((col) => col.dataIndex as string);
+
+      result = result.filter((item) =>
+        searchKeys.some((key) =>
+          String(item[key] || "")
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase())
         )
       );
     }
-    
+
     // 排序
     if (sortState.key && sortState.order) {
       result.sort((a, b) => {
         const aVal = a[sortState.key];
         const bVal = b[sortState.key];
-        
+
         if (aVal === bVal) return 0;
-        
+
         const comparison = aVal > bVal ? 1 : -1;
-        return sortState.order === 'asc' ? comparison : -comparison;
+        return sortState.order === "asc" ? comparison : -comparison;
       });
     }
-    
+
     return result;
   }, [data, searchTerm, sortState, finalConfig.searchKeys, columns]);
 
   // 可见列过滤
   const visibleColumnsData = useMemo(() => {
-    return columns.filter(col => visibleColumns.has(col.key));
+    return columns.filter((col) => visibleColumns.has(col.key));
   }, [columns, visibleColumns]);
 
   // 分页数据
   const paginatedData = useMemo(() => {
     if (!finalConfig.showPagination) return filteredData;
-    
+
     const startIndex = (currentPage - 1) * finalConfig.pageSize!;
     return filteredData.slice(startIndex, startIndex + finalConfig.pageSize!);
-  }, [filteredData, currentPage, finalConfig.pageSize, finalConfig.showPagination]);
+  }, [
+    filteredData,
+    currentPage,
+    finalConfig.pageSize,
+    finalConfig.showPagination,
+  ]);
 
   // 虚拟滚动
-  const { visibleItems, totalHeight, offsetY, handleScroll } = useVirtualScrolling(
-    finalConfig.virtual ? filteredData : paginatedData,
-    finalConfig.itemHeight!,
-    400, // 容器高度
-    3    // 预渲染项目数
-  );
+  const { visibleItems, totalHeight, offsetY, handleScroll } =
+    useVirtualScrolling(
+      finalConfig.virtual ? filteredData : paginatedData,
+      finalConfig.itemHeight!,
+      400, // 容器高度
+      3 // 预渲染项目数
+    );
 
   // 排序处理
   const handleSort = useCallback((columnKey: string) => {
-    setSortState(prev => {
+    setSortState((prev) => {
       if (prev.key !== columnKey) {
-        return { key: columnKey, order: 'asc' };
+        return { key: columnKey, order: "asc" };
       }
-      
+
       switch (prev.order) {
         case null:
-          return { key: columnKey, order: 'asc' };
-        case 'asc':
-          return { key: columnKey, order: 'desc' };
-        case 'desc':
-          return { key: '', order: null };
+          return { key: columnKey, order: "asc" };
+        case "asc":
+          return { key: columnKey, order: "desc" };
+        case "desc":
+          return { key: "", order: null };
         default:
-          return { key: '', order: null };
+          return { key: "", order: null };
       }
     });
   }, []);
 
   // 选择处理
-  const handleRowSelection = useCallback((rowKey: string, selected: boolean) => {
-    setSelectedRows(prev => {
-      const newSet = new Set(prev);
-      if (selected) {
-        newSet.add(rowKey);
-      } else {
-        newSet.delete(rowKey);
-      }
-      return newSet;
-    });
-  }, []);
+  const handleRowSelection = useCallback(
+    (rowKey: string, selected: boolean) => {
+      setSelectedRows((prev) => {
+        const newSet = new Set(prev);
+        if (selected) {
+          newSet.add(rowKey);
+        } else {
+          newSet.delete(rowKey);
+        }
+        return newSet;
+      });
+    },
+    []
+  );
 
-  const handleSelectAll = useCallback((selected: boolean) => {
-    if (selected) {
-      const allKeys = paginatedData.map(item => 
-        typeof rowKey === 'function' ? rowKey(item) : item[rowKey]
-      );
-      setSelectedRows(new Set(allKeys));
-    } else {
-      setSelectedRows(new Set());
-    }
-  }, [paginatedData, rowKey]);
+  const handleSelectAll = useCallback(
+    (selected: boolean) => {
+      if (selected) {
+        const allKeys = paginatedData.map((item) =>
+          typeof rowKey === "function" ? rowKey(item) : item[rowKey]
+        );
+        setSelectedRows(new Set(allKeys));
+      } else {
+        setSelectedRows(new Set());
+      }
+    },
+    [paginatedData, rowKey]
+  );
 
   // 导出功能
   const handleExport = useCallback(() => {
-    const headers = visibleColumnsData.map(col => col.title).join(',');
-    const rows = filteredData.map(item => 
-      visibleColumnsData.map(col => 
-        String(item[col.dataIndex] || '')
-      ).join(',')
-    ).join('\n');
-    
+    const headers = visibleColumnsData.map((col) => col.title).join(",");
+    const rows = filteredData
+      .map((item) =>
+        visibleColumnsData
+          .map((col) => String(item[col.dataIndex] || ""))
+          .join(",")
+      )
+      .join("\n");
+
     const csv = `${headers}\n${rows}`;
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = `table-export-${Date.now()}.csv`;
     link.click();
@@ -347,13 +381,16 @@ const OptimizedDataTable = <T extends Record<string, any>>({
   // 分页信息
   const totalPages = Math.ceil(filteredData.length / finalConfig.pageSize!);
   const startIndex = (currentPage - 1) * finalConfig.pageSize! + 1;
-  const endIndex = Math.min(currentPage * finalConfig.pageSize!, filteredData.length);
+  const endIndex = Math.min(
+    currentPage * finalConfig.pageSize!,
+    filteredData.length
+  );
 
   // 选中的行数据
   useEffect(() => {
     if (onSelectionChange) {
-      const selectedData = filteredData.filter(item => {
-        const key = typeof rowKey === 'function' ? rowKey(item) : item[rowKey];
+      const selectedData = filteredData.filter((item) => {
+        const key = typeof rowKey === "function" ? rowKey(item) : item[rowKey];
         return selectedRows.has(key);
       });
       onSelectionChange(selectedData);
@@ -361,10 +398,12 @@ const OptimizedDataTable = <T extends Record<string, any>>({
   }, [selectedRows, filteredData, onSelectionChange, rowKey]);
 
   return (
-    <Card className={cn(
-      "border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]",
-      className
-    )}>
+    <Card
+      className={cn(
+        "border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]",
+        className
+      )}
+    >
       {/* 表格标题和工具栏 */}
       {(title || finalConfig.showSearch || showExport) && (
         <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
@@ -375,7 +414,7 @@ const OptimizedDataTable = <T extends Record<string, any>>({
                 {loading && <Loader2 className="w-5 h-5 animate-spin" />}
               </CardTitle>
             )}
-            
+
             <div className="flex items-center gap-3">
               {finalConfig.showSearch && (
                 <div className="relative">
@@ -387,7 +426,7 @@ const OptimizedDataTable = <T extends Record<string, any>>({
                   />
                 </div>
               )}
-              
+
               {finalConfig.showColumnSettings && (
                 <Button
                   onClick={() => setShowColumnSettings(!showColumnSettings)}
@@ -398,7 +437,7 @@ const OptimizedDataTable = <T extends Record<string, any>>({
                   <Settings className="w-4 h-4" />
                 </Button>
               )}
-              
+
               {showExport && (
                 <Button
                   onClick={handleExport}
@@ -411,15 +450,15 @@ const OptimizedDataTable = <T extends Record<string, any>>({
               )}
             </div>
           </div>
-          
+
           {/* 数据统计 */}
           <div className="flex items-center gap-4 text-sm font-medium text-black">
             <span>总计: {filteredData.length} 条</span>
-            {selectedRows.size > 0 && (
-              <span>已选: {selectedRows.size} 条</span>
-            )}
+            {selectedRows.size > 0 && <span>已选: {selectedRows.size} 条</span>}
             {searchTerm && (
-              <span>搜索: "{searchTerm}" 找到 {filteredData.length} 条结果</span>
+              <span>
+                搜索: "{searchTerm}" 找到 {filteredData.length} 条结果
+              </span>
             )}
           </div>
         </CardHeader>
@@ -430,13 +469,13 @@ const OptimizedDataTable = <T extends Record<string, any>>({
         <div className="p-4 border-b-2 border-black bg-[#F9F9F9]">
           <h4 className="font-bold text-black mb-3">显示列</h4>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-            {columns.map(column => (
+            {columns.map((column) => (
               <label key={column.key} className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={visibleColumns.has(column.key)}
                   onChange={(e) => {
-                    setVisibleColumns(prev => {
+                    setVisibleColumns((prev) => {
                       const newSet = new Set(prev);
                       if (e.target.checked) {
                         newSet.add(column.key);
@@ -448,7 +487,9 @@ const OptimizedDataTable = <T extends Record<string, any>>({
                   }}
                   className="w-4 h-4 border-2 border-black rounded"
                 />
-                <span className="text-sm font-medium text-black">{column.title}</span>
+                <span className="text-sm font-medium text-black">
+                  {column.title}
+                </span>
               </label>
             ))}
           </div>
@@ -457,12 +498,9 @@ const OptimizedDataTable = <T extends Record<string, any>>({
 
       <CardContent className="p-0">
         {/* 表格容器 */}
-        <div 
+        <div
           ref={containerRef}
-          className={cn(
-            "overflow-auto",
-            finalConfig.virtual && "h-96"
-          )}
+          className={cn("overflow-auto", finalConfig.virtual && "h-96")}
           onScroll={finalConfig.virtual ? handleScroll : undefined}
         >
           {loading ? (
@@ -478,12 +516,12 @@ const OptimizedDataTable = <T extends Record<string, any>>({
                 <Eye className="w-12 h-12 text-[#6B7280] mx-auto" />
                 <p className="text-xl font-bold text-black">{emptyText}</p>
                 <p className="text-[#6B7280] font-medium">
-                  {searchTerm ? '尝试修改搜索条件' : '暂时没有可显示的数据'}
+                  {searchTerm ? "尝试修改搜索条件" : "暂时没有可显示的数据"}
                 </p>
               </div>
             </div>
           ) : (
-            <table 
+            <table
               ref={tableRef}
               className={cn(
                 "w-full border-collapse",
@@ -491,44 +529,54 @@ const OptimizedDataTable = <T extends Record<string, any>>({
               )}
             >
               {/* 表头 */}
-              <thead className={cn(
-                "bg-[#191A23] text-white",
-                finalConfig.stickyHeader && "sticky top-0 z-10"
-              )}>
+              <thead
+                className={cn(
+                  "bg-[#191A23] text-white",
+                  finalConfig.stickyHeader && "sticky top-0 z-10"
+                )}
+              >
                 <tr>
                   {onSelectionChange && (
                     <th className="p-3 border-r border-white font-bold text-left">
                       <input
                         type="checkbox"
-                        checked={paginatedData.length > 0 && selectedRows.size === paginatedData.length}
+                        checked={
+                          paginatedData.length > 0 &&
+                          selectedRows.size === paginatedData.length
+                        }
                         onChange={(e) => handleSelectAll(e.target.checked)}
                         className="w-4 h-4 border-2 border-white rounded"
                       />
                     </th>
                   )}
                   {visibleColumnsData.map((column) => (
-                    <th 
+                    <th
                       key={column.key}
                       className={cn(
                         "p-3 border-r border-white font-bold",
-                        column.align === 'center' && "text-center",
-                        column.align === 'right' && "text-right",
-                        column.sortable && "cursor-pointer hover:bg-white/10 transition-colors"
+                        column.align === "center" && "text-center",
+                        column.align === "right" && "text-right",
+                        column.sortable &&
+                          "cursor-pointer hover:bg-white/10 transition-colors"
                       )}
-                      style={{ 
+                      style={{
                         width: column.width,
-                        minWidth: column.width 
+                        minWidth: column.width,
                       }}
-                      onClick={column.sortable ? () => handleSort(column.key) : undefined}
+                      onClick={
+                        column.sortable
+                          ? () => handleSort(column.key)
+                          : undefined
+                      }
                     >
                       <div className="flex items-center gap-2">
                         <span>{column.title}</span>
                         {column.sortable && (
                           <div className="flex flex-col">
                             {sortState.key === column.key ? (
-                              sortState.order === 'asc' ? (
+                              sortState.order === "asc" ? (
                                 <ArrowUp className="w-4 h-4" />
-                              ) : sortState.order === 'desc' ? (
+                              ) : sortState.order === "desc" ? (
                                 <ArrowDown className="w-4 h-4" />
                               ) : (
                                 <ArrowUpDown className="w-4 h-4 opacity-50" />
@@ -543,31 +591,49 @@ const OptimizedDataTable = <T extends Record<string, any>>({
                   ))}
                 </tr>
               </thead>
-              
+
               {/* 表体 */}
               <tbody className="bg-white">
                 {finalConfig.virtual ? (
                   <>
                     {/* 虚拟滚动占位 */}
                     <tr style={{ height: totalHeight }}>
-                      <td colSpan={visibleColumnsData.length + (onSelectionChange ? 1 : 0)} />
+                      <td
+                        colSpan={
+                          visibleColumnsData.length +
+                          (onSelectionChange ? 1 : 0)
+                        }
+                      />
                     </tr>
                     {/* 可见行 */}
                     {visibleItems.map(({ item, index }) => (
                       <VirtualRow
-                        key={typeof rowKey === 'function' ? rowKey(item) : item[rowKey]}
+                        key={
+                          typeof rowKey === "function"
+                            ? rowKey(item)
+                            : item[rowKey]
+                        }
                         item={item}
                         index={index}
                         columns={visibleColumnsData}
                         rowKey={rowKey}
                         onRowClick={onRowClick}
                         isSelected={selectedRows.has(
-                          typeof rowKey === 'function' ? rowKey(item) : item[rowKey]
+                          typeof rowKey === "function"
+                            ? rowKey(item)
+                            : item[rowKey]
                         )}
-                        onSelectionChange={onSelectionChange ? (selected) => {
-                          const key = typeof rowKey === 'function' ? rowKey(item) : item[rowKey];
-                          handleRowSelection(key, selected);
-                        } : undefined}
+                        onSelectionChange={
+                          onSelectionChange
+                            ? (selected) => {
+                                const key =
+                                  typeof rowKey === "function"
+                                    ? rowKey(item)
+                                    : item[rowKey];
+                                handleRowSelection(key, selected);
+                              }
+                            : undefined
+                        }
                         compact={finalConfig.compact}
                       />
                     ))}
@@ -575,19 +641,32 @@ const OptimizedDataTable = <T extends Record<string, any>>({
                 ) : (
                   paginatedData.map((item, index) => (
                     <VirtualRow
-                      key={typeof rowKey === 'function' ? rowKey(item) : item[rowKey]}
+                      key={
+                        typeof rowKey === "function"
+                          ? rowKey(item)
+                          : item[rowKey]
+                      }
                       item={item}
                       index={index}
                       columns={visibleColumnsData}
                       rowKey={rowKey}
                       onRowClick={onRowClick}
                       isSelected={selectedRows.has(
-                        typeof rowKey === 'function' ? rowKey(item) : item[rowKey]
+                        typeof rowKey === "function"
+                          ? rowKey(item)
+                          : item[rowKey]
                       )}
-                      onSelectionChange={onSelectionChange ? (selected) => {
-                        const key = typeof rowKey === 'function' ? rowKey(item) : item[rowKey];
-                        handleRowSelection(key, selected);
-                      } : undefined}
+                      onSelectionChange={
+                        onSelectionChange
+                          ? (selected) => {
+                              const key =
+                                typeof rowKey === "function"
+                                  ? rowKey(item)
+                                  : item[rowKey];
+                              handleRowSelection(key, selected);
+                            }
+                          : undefined
+                      }
                       compact={finalConfig.compact}
                     />
                   ))
@@ -598,79 +677,83 @@ const OptimizedDataTable = <T extends Record<string, any>>({
         </div>
 
         {/* 分页 */}
-        {finalConfig.showPagination && !finalConfig.virtual && filteredData.length > 0 && (
-          <div className="p-4 border-t-2 border-black bg-[#F9F9F9] flex items-center justify-between">
-            <div className="text-sm font-medium text-black">
-              显示 {startIndex} - {endIndex} 条，共 {filteredData.length} 条
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1}
-                variant="outline"
-                size="sm"
-                className="border-2 border-black bg-white hover:bg-[#F3F3F3] text-black font-bold disabled:opacity-50"
-              >
-                <ChevronsLeft className="w-4 h-4" />
-              </Button>
-              
-              <Button
-                onClick={() => setCurrentPage(currentPage - 1)}
-                disabled={currentPage === 1}
-                variant="outline"
-                size="sm"
-                className="border-2 border-black bg-white hover:bg-[#F3F3F3] text-black font-bold disabled:opacity-50"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              
-              <div className="flex items-center gap-1">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  const pageNum = Math.max(1, currentPage - 2) + i;
-                  if (pageNum > totalPages) return null;
-                  
-                  return (
-                    <Button
-                      key={pageNum}
-                      onClick={() => setCurrentPage(pageNum)}
-                      variant={currentPage === pageNum ? "default" : "outline"}
-                      size="sm"
-                      className={cn(
-                        "w-8 h-8 p-0 border-2 border-black font-bold",
-                        currentPage === pageNum 
-                          ? "bg-[#B9FF66] hover:bg-[#B9FF66] text-black"
-                          : "bg-white hover:bg-[#F3F3F3] text-black"
-                      )}
-                    >
-                      {pageNum}
-                    </Button>
-                  );
-                })}
+        {finalConfig.showPagination &&
+          !finalConfig.virtual &&
+          filteredData.length > 0 && (
+            <div className="p-4 border-t-2 border-black bg-[#F9F9F9] flex items-center justify-between">
+              <div className="text-sm font-medium text-black">
+                显示 {startIndex} - {endIndex} 条，共 {filteredData.length} 条
               </div>
-              
-              <Button
-                onClick={() => setCurrentPage(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                variant="outline"
-                size="sm"
-                className="border-2 border-black bg-white hover:bg-[#F3F3F3] text-black font-bold disabled:opacity-50"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-              
-              <Button
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage === totalPages}
-                variant="outline"
-                size="sm"
-                className="border-2 border-black bg-white hover:bg-[#F3F3F3] text-black font-bold disabled:opacity-50"
-              >
-                <ChevronsRight className="w-4 h-4" />
-              </Button>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  variant="outline"
+                  size="sm"
+                  className="border-2 border-black bg-white hover:bg-[#F3F3F3] text-black font-bold disabled:opacity-50"
+                >
+                  <ChevronsLeft className="w-4 h-4" />
+                </Button>
+
+                <Button
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  variant="outline"
+                  size="sm"
+                  className="border-2 border-black bg-white hover:bg-[#F3F3F3] text-black font-bold disabled:opacity-50"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    const pageNum = Math.max(1, currentPage - 2) + i;
+                    if (pageNum > totalPages) return null;
+
+                    return (
+                      <Button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        variant={
+                          currentPage === pageNum ? "default" : "outline"
+                        }
+                        size="sm"
+                        className={cn(
+                          "w-8 h-8 p-0 border-2 border-black font-bold",
+                          currentPage === pageNum
+                            ? "bg-[#B9FF66] hover:bg-[#B9FF66] text-black"
+                            : "bg-white hover:bg-[#F3F3F3] text-black"
+                        )}
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+
+                <Button
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  variant="outline"
+                  size="sm"
+                  className="border-2 border-black bg-white hover:bg-[#F3F3F3] text-black font-bold disabled:opacity-50"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+
+                <Button
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  variant="outline"
+                  size="sm"
+                  className="border-2 border-black bg-white hover:bg-[#F3F3F3] text-black font-bold disabled:opacity-50"
+                >
+                  <ChevronsRight className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
       </CardContent>
     </Card>
   );

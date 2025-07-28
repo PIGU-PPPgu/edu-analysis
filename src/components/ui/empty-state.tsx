@@ -1,7 +1,7 @@
-import React from 'react';
-import { LucideIcon } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import React from "react";
+import { LucideIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface EmptyStateProps {
   icon?: LucideIcon;
@@ -10,10 +10,10 @@ interface EmptyStateProps {
   action?: {
     label: string;
     onClick: () => void;
-    variant?: 'default' | 'outline' | 'secondary';
+    variant?: "default" | "outline" | "secondary";
   };
   className?: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: "sm" | "md" | "lg";
 }
 
 /**
@@ -26,67 +26,62 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   description,
   action,
   className,
-  size = 'md'
+  size = "md",
 }) => {
   const sizeClasses = {
     sm: {
-      container: 'py-8',
-      icon: 'h-12 w-12',
-      title: 'text-lg',
-      description: 'text-sm'
+      container: "py-8",
+      icon: "h-12 w-12",
+      title: "text-lg",
+      description: "text-sm",
     },
     md: {
-      container: 'py-12',
-      icon: 'h-16 w-16',
-      title: 'text-xl',
-      description: 'text-base'
+      container: "py-12",
+      icon: "h-16 w-16",
+      title: "text-xl",
+      description: "text-base",
     },
     lg: {
-      container: 'py-20',
-      icon: 'h-20 w-20',
-      title: 'text-2xl',
-      description: 'text-lg'
-    }
+      container: "py-20",
+      icon: "h-20 w-20",
+      title: "text-2xl",
+      description: "text-lg",
+    },
   };
 
   const currentSize = sizeClasses[size];
 
   return (
-    <div className={cn(
-      'flex flex-col items-center justify-center text-center',
-      currentSize.container,
-      className
-    )}>
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center text-center",
+        currentSize.container,
+        className
+      )}
+    >
       {Icon && (
         <div className="mb-4">
-          <Icon className={cn(
-            'text-muted-foreground/50',
-            currentSize.icon
-          )} />
+          <Icon className={cn("text-muted-foreground/50", currentSize.icon)} />
         </div>
       )}
-      
-      <h3 className={cn(
-        'font-semibold text-gray-900 mb-2',
-        currentSize.title
-      )}>
+
+      <h3 className={cn("font-semibold text-gray-900 mb-2", currentSize.title)}>
         {title}
       </h3>
-      
+
       {description && (
-        <p className={cn(
-          'text-muted-foreground mb-6 max-w-md',
-          currentSize.description
-        )}>
+        <p
+          className={cn(
+            "text-muted-foreground mb-6 max-w-md",
+            currentSize.description
+          )}
+        >
           {description}
         </p>
       )}
-      
+
       {action && (
-        <Button
-          onClick={action.onClick}
-          variant={action.variant || 'default'}
-        >
+        <Button onClick={action.onClick} variant={action.variant || "default"}>
           {action.label}
         </Button>
       )}
@@ -94,4 +89,4 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   );
 };
 
-export default EmptyState; 
+export default EmptyState;

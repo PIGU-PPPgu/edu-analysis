@@ -1,6 +1,6 @@
 /**
  *  AIAnalysisProgress - AI分析进度实时反馈组件
- * 
+ *
  * 功能：
  * 1. 实时显示AI分析各个阶段的进度
  * 2. 展示置信度变化和分析质量
@@ -8,13 +8,19 @@
  * 4. 支持进度中断和重试机制
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
   Brain,
   Search,
   Target,
@@ -26,9 +32,9 @@ import {
   TrendingUp,
   FileText,
   Database,
-  Sparkles
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+  Sparkles,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // 分析阶段定义
 export interface AnalysisStage {
@@ -37,7 +43,7 @@ export interface AnalysisStage {
   description: string;
   estimatedTime: number; // 预估时间（秒）
   icon: React.ComponentType<any>;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: "pending" | "running" | "completed" | "failed";
   confidence?: number; // 置信度 0-1
   details?: string;
   startTime?: number;
@@ -66,7 +72,7 @@ const AIAnalysisProgress: React.FC<AIAnalysisProgressProps> = ({
   onRetry,
   onCancel,
   estimatedRemainingTime,
-  showDetails = true
+  showDetails = true,
 }) => {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [animatedProgress, setAnimatedProgress] = useState(0);
@@ -74,7 +80,7 @@ const AIAnalysisProgress: React.FC<AIAnalysisProgressProps> = ({
   // 计时器
   useEffect(() => {
     if (!isAnalyzing) return;
-    
+
     const startTime = Date.now();
     const timer = setInterval(() => {
       setElapsedTime(Math.floor((Date.now() - startTime) / 1000));
@@ -92,9 +98,11 @@ const AIAnalysisProgress: React.FC<AIAnalysisProgressProps> = ({
   }, [overallProgress]);
 
   // 获取当前运行阶段
-  const currentStageInfo = stages.find(stage => stage.id === currentStage);
-  const completedStages = stages.filter(stage => stage.status === 'completed');
-  const failedStages = stages.filter(stage => stage.status === 'failed');
+  const currentStageInfo = stages.find((stage) => stage.id === currentStage);
+  const completedStages = stages.filter(
+    (stage) => stage.status === "completed"
+  );
+  const failedStages = stages.filter((stage) => stage.status === "failed");
 
   // 格式化时间
   const formatTime = (seconds: number) => {
@@ -105,18 +113,18 @@ const AIAnalysisProgress: React.FC<AIAnalysisProgressProps> = ({
 
   // 获取置信度颜色
   const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 0.9) return 'text-green-600 bg-green-100';
-    if (confidence >= 0.7) return 'text-blue-600 bg-blue-100';
-    if (confidence >= 0.5) return 'text-yellow-600 bg-yellow-100';
-    return 'text-red-600 bg-red-100';
+    if (confidence >= 0.9) return "text-green-600 bg-green-100";
+    if (confidence >= 0.7) return "text-blue-600 bg-blue-100";
+    if (confidence >= 0.5) return "text-yellow-600 bg-yellow-100";
+    return "text-red-600 bg-red-100";
   };
 
   // 获取进度条颜色
   const getProgressColor = () => {
-    if (failedStages.length > 0) return 'bg-red-500';
-    if (overallConfidence >= 0.8) return 'bg-green-500';
-    if (overallConfidence >= 0.6) return 'bg-blue-500';
-    return 'bg-yellow-500';
+    if (failedStages.length > 0) return "bg-red-500";
+    if (overallConfidence >= 0.8) return "bg-green-500";
+    if (overallConfidence >= 0.6) return "bg-blue-500";
+    return "bg-yellow-500";
   };
 
   return (
@@ -133,17 +141,19 @@ const AIAnalysisProgress: React.FC<AIAnalysisProgressProps> = ({
             <div>
               <CardTitle className="text-lg">AI智能分析</CardTitle>
               <CardDescription>
-                {isAnalyzing ? '正在分析您的数据...' : '分析已完成'}
+                {isAnalyzing ? "正在分析您的数据..." : "分析已完成"}
               </CardDescription>
             </div>
           </div>
-          
+
           {/* 整体置信度 */}
           <div className="text-right">
-            <div className={cn(
-              "px-3 py-1 rounded-full text-sm font-medium",
-              getConfidenceColor(overallConfidence)
-            )}>
+            <div
+              className={cn(
+                "px-3 py-1 rounded-full text-sm font-medium",
+                getConfidenceColor(overallConfidence)
+              )}
+            >
               置信度: {Math.round(overallConfidence * 100)}%
             </div>
             <div className="text-xs text-gray-500 mt-1">
@@ -160,9 +170,12 @@ const AIAnalysisProgress: React.FC<AIAnalysisProgressProps> = ({
             <span className="font-medium">整体进度</span>
             <span>{Math.round(animatedProgress)}%</span>
           </div>
-          <Progress 
-            value={animatedProgress} 
-            className={cn("h-2 transition-all duration-500", getProgressColor())}
+          <Progress
+            value={animatedProgress}
+            className={cn(
+              "h-2 transition-all duration-500",
+              getProgressColor()
+            )}
           />
           {estimatedRemainingTime && estimatedRemainingTime > 0 && (
             <div className="text-xs text-gray-500 flex items-center gap-1">
@@ -177,9 +190,9 @@ const AIAnalysisProgress: React.FC<AIAnalysisProgressProps> = ({
           <div className="space-y-3">
             {stages.map((stage, index) => {
               const isActive = stage.id === currentStage;
-              const isCompleted = stage.status === 'completed';
-              const isFailed = stage.status === 'failed';
-              
+              const isCompleted = stage.status === "completed";
+              const isFailed = stage.status === "failed";
+
               return (
                 <div
                   key={stage.id}
@@ -192,16 +205,24 @@ const AIAnalysisProgress: React.FC<AIAnalysisProgressProps> = ({
                   )}
                 >
                   {/* 阶段图标 */}
-                  <div className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center",
-                    isCompleted && "bg-green-100",
-                    isActive && "bg-blue-100",
-                    isFailed && "bg-red-100",
-                    !isActive && !isCompleted && !isFailed && "bg-gray-100"
-                  )}>
-                    {isCompleted && <CheckCircle className="w-4 h-4 text-green-600" />}
-                    {isFailed && <AlertTriangle className="w-4 h-4 text-red-600" />}
-                    {isActive && <stage.icon className="w-4 h-4 text-blue-600 animate-pulse" />}
+                  <div
+                    className={cn(
+                      "w-8 h-8 rounded-full flex items-center justify-center",
+                      isCompleted && "bg-green-100",
+                      isActive && "bg-blue-100",
+                      isFailed && "bg-red-100",
+                      !isActive && !isCompleted && !isFailed && "bg-gray-100"
+                    )}
+                  >
+                    {isCompleted && (
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                    )}
+                    {isFailed && (
+                      <AlertTriangle className="w-4 h-4 text-red-600" />
+                    )}
+                    {isActive && (
+                      <stage.icon className="w-4 h-4 text-blue-600 animate-pulse" />
+                    )}
                     {!isActive && !isCompleted && !isFailed && (
                       <stage.icon className="w-4 h-4 text-gray-400" />
                     )}
@@ -210,24 +231,29 @@ const AIAnalysisProgress: React.FC<AIAnalysisProgressProps> = ({
                   {/* 阶段信息 */}
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <span className={cn(
-                        "font-medium",
-                        isActive && "text-blue-700",
-                        isCompleted && "text-green-700",
-                        isFailed && "text-red-700"
-                      )}>
+                      <span
+                        className={cn(
+                          "font-medium",
+                          isActive && "text-blue-700",
+                          isCompleted && "text-green-700",
+                          isFailed && "text-red-700"
+                        )}
+                      >
                         {stage.name}
                       </span>
-                      
+
                       {stage.confidence !== undefined && (
-                        <Badge 
-                          variant="outline" 
-                          className={cn("text-xs", getConfidenceColor(stage.confidence))}
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-xs",
+                            getConfidenceColor(stage.confidence)
+                          )}
                         >
                           {Math.round(stage.confidence * 100)}%
                         </Badge>
                       )}
-                      
+
                       {isActive && (
                         <div className="flex items-center gap-1 text-xs text-blue-600">
                           <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
@@ -235,11 +261,11 @@ const AIAnalysisProgress: React.FC<AIAnalysisProgressProps> = ({
                         </div>
                       )}
                     </div>
-                    
+
                     <p className="text-sm text-gray-600 mt-1">
                       {stage.description}
                     </p>
-                    
+
                     {stage.details && (
                       <p className="text-xs text-gray-500 mt-1">
                         {stage.details}
@@ -250,7 +276,12 @@ const AIAnalysisProgress: React.FC<AIAnalysisProgressProps> = ({
                   {/* 阶段时间 */}
                   <div className="text-xs text-gray-500 text-right">
                     {stage.endTime && stage.startTime && (
-                      <div>用时: {formatTime(Math.floor((stage.endTime - stage.startTime) / 1000))}</div>
+                      <div>
+                        用时:{" "}
+                        {formatTime(
+                          Math.floor((stage.endTime - stage.startTime) / 1000)
+                        )}
+                      </div>
                     )}
                     {isActive && (
                       <div>预计: {formatTime(stage.estimatedTime)}</div>
@@ -267,11 +298,12 @@ const AIAnalysisProgress: React.FC<AIAnalysisProgressProps> = ({
           <Alert className="border-red-200 bg-red-50">
             <AlertTriangle className="w-4 h-4" />
             <AlertDescription>
-              有 {failedStages.length} 个分析步骤失败，但系统会使用备用算法确保分析完成。
+              有 {failedStages.length}{" "}
+              个分析步骤失败，但系统会使用备用算法确保分析完成。
               {onRetry && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="ml-2"
                   onClick={onRetry}
                 >

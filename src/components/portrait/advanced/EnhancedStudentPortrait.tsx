@@ -1,14 +1,26 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Brain, 
-  Target, 
+import React, { useState, useEffect, useMemo } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Brain,
+  Target,
   Star,
   User,
   Eye,
@@ -23,14 +35,14 @@ import {
   BarChart3,
   PieChart,
   LineChart,
-  Radar
-} from 'lucide-react';
-import { 
-  RadarChart, 
-  PolarGrid, 
-  PolarAngleAxis, 
-  PolarRadiusAxis, 
-  Radar as RechartsRadar, 
+  Radar,
+} from "lucide-react";
+import {
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar as RechartsRadar,
   ResponsiveContainer,
   BarChart,
   Bar,
@@ -45,10 +57,10 @@ import {
   LineChart as RechartsLineChart,
   Line,
   Area,
-  AreaChart
-} from 'recharts';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+  AreaChart,
+} from "recharts";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 // 学生基本信息接口
 interface Student {
@@ -64,9 +76,9 @@ interface Student {
 interface EnhancedAbilityData {
   dimension: string;
   score: number;
-  level: 'excellent' | 'good' | 'average' | 'needs_improvement';
+  level: "excellent" | "good" | "average" | "needs_improvement";
   description: string;
-  trend: 'improving' | 'stable' | 'declining';
+  trend: "improving" | "stable" | "declining";
   percentile: number; // 在班级中的百分位
   subDimensions: {
     name: string;
@@ -83,7 +95,7 @@ interface LearningBehavior {
     value: number;
     unit: string;
     benchmark: number;
-    status: 'excellent' | 'good' | 'average' | 'poor';
+    status: "excellent" | "good" | "average" | "poor";
   }[];
 }
 
@@ -98,12 +110,12 @@ interface GrowthTrajectory {
 
 // AI洞察接口
 interface AIInsight {
-  category: 'strength' | 'improvement' | 'recommendation' | 'prediction';
+  category: "strength" | "improvement" | "recommendation" | "prediction";
   title: string;
   description: string;
   confidence: number;
   actionable: boolean;
-  priority: 'high' | 'medium' | 'low';
+  priority: "high" | "medium" | "low";
 }
 
 // 增强的画像分析结果接口
@@ -133,30 +145,38 @@ interface EnhancedPortraitResult {
 
 const EnhancedStudentPortrait: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
-  const [selectedStudentId, setSelectedStudentId] = useState<string>('');
-  const [analysisResult, setAnalysisResult] = useState<EnhancedPortraitResult | null>(null);
+  const [selectedStudentId, setSelectedStudentId] = useState<string>("");
+  const [analysisResult, setAnalysisResult] =
+    useState<EnhancedPortraitResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState("overview");
 
   // 图表颜色配置
-  const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff00', '#ff00ff'];
+  const COLORS = [
+    "#8884d8",
+    "#82ca9d",
+    "#ffc658",
+    "#ff7300",
+    "#00ff00",
+    "#ff00ff",
+  ];
 
   // 加载学生列表
   useEffect(() => {
     const fetchStudents = async () => {
       try {
         const { data, error } = await supabase
-          .from('students')
-          .select('id, student_id, name, class_name, grade, gender')
-          .order('class_name', { ascending: true })
-          .order('name', { ascending: true });
+          .from("students")
+          .select("id, student_id, name, class_name, grade, gender")
+          .order("class_name", { ascending: true })
+          .order("name", { ascending: true });
 
         if (error) throw error;
         setStudents(data || []);
       } catch (error) {
-        console.error('获取学生列表失败:', error);
-        toast.error('获取学生列表失败');
+        console.error("获取学生列表失败:", error);
+        toast.error("获取学生列表失败");
       } finally {
         setIsLoading(false);
       }
@@ -168,27 +188,31 @@ const EnhancedStudentPortrait: React.FC = () => {
   // 执行增强的AI画像分析
   const performEnhancedAnalysis = async () => {
     if (!selectedStudentId) {
-      toast.error('请选择要分析的学生');
+      toast.error("请选择要分析的学生");
       return;
     }
 
     setIsAnalyzing(true);
     try {
-      const selectedStudent = students.find(s => s.id === selectedStudentId);
-      if (!selectedStudent) throw new Error('找不到选中的学生');
+      const selectedStudent = students.find((s) => s.id === selectedStudentId);
+      if (!selectedStudent) throw new Error("找不到选中的学生");
 
       // 1. 收集全面的学生数据
-      const comprehensiveData = await collectComprehensiveStudentData(selectedStudent.student_id);
-      
-      // 2. 执行增强的AI分析
-      const analysisResult = await performAdvancedAnalysis(selectedStudent, comprehensiveData);
-      
-      setAnalysisResult(analysisResult);
-      toast.success('增强AI画像分析完成！');
+      const comprehensiveData = await collectComprehensiveStudentData(
+        selectedStudent.student_id
+      );
 
+      // 2. 执行增强的AI分析
+      const analysisResult = await performAdvancedAnalysis(
+        selectedStudent,
+        comprehensiveData
+      );
+
+      setAnalysisResult(analysisResult);
+      toast.success("增强AI画像分析完成！");
     } catch (error) {
-      console.error('增强AI画像分析失败:', error);
-      toast.error('增强AI画像分析失败，请稍后重试');
+      console.error("增强AI画像分析失败:", error);
+      toast.error("增强AI画像分析失败，请稍后重试");
     } finally {
       setIsAnalyzing(false);
     }
@@ -199,62 +223,77 @@ const EnhancedStudentPortrait: React.FC = () => {
     try {
       // 获取成绩数据（包含历史趋势）
       const { data: gradeData } = await supabase
-        .from('grade_data')
-        .select('subject, score, exam_date, exam_type, rank_in_class, rank_in_grade')
-        .eq('student_id', studentId)
-        .order('exam_date', { ascending: false });
+        .from("grade_data")
+        .select(
+          "subject, score, exam_date, exam_type, rank_in_class, rank_in_grade"
+        )
+        .eq("student_id", studentId)
+        .order("exam_date", { ascending: false });
 
       // 获取作业数据
       const { data: homeworkData } = await supabase
-        .from('homework_submissions')
-        .select('*')
-        .eq('student_id', studentId);
+        .from("homework_submissions")
+        .select("*")
+        .eq("student_id", studentId);
 
       // 获取预警记录
       const { data: warningData } = await supabase
-        .from('warning_records')
-        .select('*')
-        .eq('student_id', studentId);
+        .from("warning_records")
+        .select("*")
+        .eq("student_id", studentId);
 
       // 获取班级平均数据用于对比
       const { data: classData } = await supabase
-        .from('grade_data')
-        .select('subject, score, exam_date, exam_type')
-        .eq('class_name', students.find(s => s.student_id === studentId)?.class_name)
-        .order('exam_date', { ascending: false });
+        .from("grade_data")
+        .select("subject, score, exam_date, exam_type")
+        .eq(
+          "class_name",
+          students.find((s) => s.student_id === studentId)?.class_name
+        )
+        .order("exam_date", { ascending: false });
 
       return {
         grades: gradeData || [],
         homework: homeworkData || [],
         warnings: warningData || [],
-        classAverage: classData || []
+        classAverage: classData || [],
       };
     } catch (error) {
-      console.error('收集学生数据失败:', error);
+      console.error("收集学生数据失败:", error);
       return { grades: [], homework: [], warnings: [], classAverage: [] };
     }
   };
 
   // 执行高级分析算法
-  const performAdvancedAnalysis = async (student: Student, data: any): Promise<EnhancedPortraitResult> => {
+  const performAdvancedAnalysis = async (
+    student: Student,
+    data: any
+  ): Promise<EnhancedPortraitResult> => {
     // 1. 增强的学习能力分析
-    const abilityProfile = analyzeEnhancedAbilities(data.grades, data.classAverage);
-    
+    const abilityProfile = analyzeEnhancedAbilities(
+      data.grades,
+      data.classAverage
+    );
+
     // 2. 学习行为分析
     const learningBehaviors = analyzeLearningBehaviors(data);
-    
+
     // 3. 成长轨迹分析
     const growthTrajectory = analyzeGrowthTrajectory(data.grades);
-    
+
     // 4. AI洞察生成
-    const aiInsights = await generateAdvancedAIInsights(student, data, abilityProfile);
-    
+    const aiInsights = await generateAdvancedAIInsights(
+      student,
+      data,
+      abilityProfile
+    );
+
     // 5. 个性画像分析
     const personalityProfile = analyzePersonalityProfile(data);
-    
+
     // 6. 预测性分析
     const predictiveAnalysis = performPredictiveAnalysis(data, abilityProfile);
-    
+
     // 7. 计算整体评分和置信度
     const overallRating = calculateOverallRating(abilityProfile);
     const confidenceLevel = calculateConfidenceLevel(data);
@@ -273,22 +312,35 @@ const EnhancedStudentPortrait: React.FC = () => {
       predictiveAnalysis,
       analysisDate: new Date().toISOString(),
       confidenceLevel,
-      dataCompleteness
+      dataCompleteness,
     };
   };
 
   // 增强的学习能力分析
-  const analyzeEnhancedAbilities = (grades: any[], classAverage: any[]): EnhancedAbilityData[] => {
+  const analyzeEnhancedAbilities = (
+    grades: any[],
+    classAverage: any[]
+  ): EnhancedAbilityData[] => {
     const abilities = [
-      '数学逻辑能力', '语言表达能力', '科学思维能力', 
-      '记忆能力', '理解能力', '应用能力', '分析能力', '创新能力'
+      "数学逻辑能力",
+      "语言表达能力",
+      "科学思维能力",
+      "记忆能力",
+      "理解能力",
+      "应用能力",
+      "分析能力",
+      "创新能力",
     ];
 
-    return abilities.map(ability => {
-      const score = calculateEnhancedAbilityScore(ability, grades, classAverage);
+    return abilities.map((ability) => {
+      const score = calculateEnhancedAbilityScore(
+        ability,
+        grades,
+        classAverage
+      );
       const percentile = calculatePercentile(score, ability, classAverage);
       const trend = calculateTrend(ability, grades);
-      
+
       return {
         dimension: ability,
         score,
@@ -296,7 +348,7 @@ const EnhancedStudentPortrait: React.FC = () => {
         description: generateAbilityDescription(ability, score, percentile),
         trend,
         percentile,
-        subDimensions: generateSubDimensions(ability, grades)
+        subDimensions: generateSubDimensions(ability, grades),
       };
     });
   };
@@ -305,43 +357,49 @@ const EnhancedStudentPortrait: React.FC = () => {
   const analyzeLearningBehaviors = (data: any): LearningBehavior[] => {
     return [
       {
-        category: '学习习惯',
+        category: "学习习惯",
         metrics: [
           {
-            name: '作业完成率',
+            name: "作业完成率",
             value: calculateHomeworkCompletionRate(data.homework),
-            unit: '%',
+            unit: "%",
             benchmark: 90,
-            status: getMetricStatus(calculateHomeworkCompletionRate(data.homework), 90)
+            status: getMetricStatus(
+              calculateHomeworkCompletionRate(data.homework),
+              90
+            ),
           },
           {
-            name: '学习一致性',
+            name: "学习一致性",
             value: calculateLearningConsistency(data.grades),
-            unit: '分',
+            unit: "分",
             benchmark: 80,
-            status: getMetricStatus(calculateLearningConsistency(data.grades), 80)
-          }
-        ]
+            status: getMetricStatus(
+              calculateLearningConsistency(data.grades),
+              80
+            ),
+          },
+        ],
       },
       {
-        category: '学习效率',
+        category: "学习效率",
         metrics: [
           {
-            name: '进步速度',
+            name: "进步速度",
             value: calculateProgressSpeed(data.grades),
-            unit: '分/月',
+            unit: "分/月",
             benchmark: 2,
-            status: getMetricStatus(calculateProgressSpeed(data.grades), 2)
+            status: getMetricStatus(calculateProgressSpeed(data.grades), 2),
           },
           {
-            name: '知识掌握度',
+            name: "知识掌握度",
             value: calculateKnowledgeMastery(data.grades),
-            unit: '%',
+            unit: "%",
             benchmark: 85,
-            status: getMetricStatus(calculateKnowledgeMastery(data.grades), 85)
-          }
-        ]
-      }
+            status: getMetricStatus(calculateKnowledgeMastery(data.grades), 85),
+          },
+        ],
+      },
     ];
   };
 
@@ -349,54 +407,60 @@ const EnhancedStudentPortrait: React.FC = () => {
   const analyzeGrowthTrajectory = (grades: any[]): GrowthTrajectory[] => {
     // 按月份分组分析
     const monthlyData = groupGradesByMonth(grades);
-    
-    return monthlyData.map(month => ({
+
+    return monthlyData.map((month) => ({
       period: month.period,
       overallScore: month.averageScore,
       subjectScores: month.subjectScores,
       milestones: identifyMilestones(month),
-      challenges: identifyChallenges(month)
+      challenges: identifyChallenges(month),
     }));
   };
 
   // 生成高级AI洞察
-  const generateAdvancedAIInsights = async (student: Student, data: any, abilities: EnhancedAbilityData[]): Promise<AIInsight[]> => {
+  const generateAdvancedAIInsights = async (
+    student: Student,
+    data: any,
+    abilities: EnhancedAbilityData[]
+  ): Promise<AIInsight[]> => {
     const insights: AIInsight[] = [];
 
     // 优势识别
-    const strengths = abilities.filter(a => a.level === 'excellent' || a.level === 'good');
-    strengths.forEach(strength => {
+    const strengths = abilities.filter(
+      (a) => a.level === "excellent" || a.level === "good"
+    );
+    strengths.forEach((strength) => {
       insights.push({
-        category: 'strength',
+        category: "strength",
         title: `${strength.dimension}表现优秀`,
         description: `学生在${strength.dimension}方面表现突出，得分${strength.score}，超过班级${strength.percentile}%的同学`,
         confidence: 0.9,
         actionable: true,
-        priority: 'high'
+        priority: "high",
       });
     });
 
     // 改进建议
-    const weaknesses = abilities.filter(a => a.level === 'needs_improvement');
-    weaknesses.forEach(weakness => {
+    const weaknesses = abilities.filter((a) => a.level === "needs_improvement");
+    weaknesses.forEach((weakness) => {
       insights.push({
-        category: 'improvement',
+        category: "improvement",
         title: `${weakness.dimension}需要加强`,
         description: `建议通过针对性练习提升${weakness.dimension}，当前得分${weakness.score}`,
         confidence: 0.85,
         actionable: true,
-        priority: 'high'
+        priority: "high",
       });
     });
 
     // 学习建议
     insights.push({
-      category: 'recommendation',
-      title: '个性化学习建议',
+      category: "recommendation",
+      title: "个性化学习建议",
       description: generatePersonalizedRecommendation(student, data, abilities),
       confidence: 0.8,
       actionable: true,
-      priority: 'medium'
+      priority: "medium",
     });
 
     return insights;
@@ -406,88 +470,125 @@ const EnhancedStudentPortrait: React.FC = () => {
   const analyzePersonalityProfile = (data: any) => {
     return {
       traits: [
-        { name: '自律性', score: calculateSelfDiscipline(data), description: '学习自我管理能力' },
-        { name: '好奇心', score: calculateCuriosity(data), description: '对新知识的探索欲望' },
-        { name: '抗压性', score: calculateStressResistance(data), description: '面对挑战的心理承受力' },
-        { name: '合作性', score: calculateTeamwork(data), description: '团队协作能力' }
+        {
+          name: "自律性",
+          score: calculateSelfDiscipline(data),
+          description: "学习自我管理能力",
+        },
+        {
+          name: "好奇心",
+          score: calculateCuriosity(data),
+          description: "对新知识的探索欲望",
+        },
+        {
+          name: "抗压性",
+          score: calculateStressResistance(data),
+          description: "面对挑战的心理承受力",
+        },
+        {
+          name: "合作性",
+          score: calculateTeamwork(data),
+          description: "团队协作能力",
+        },
       ],
       learningStyle: identifyLearningStyle(data),
-      motivationFactors: identifyMotivationFactors(data)
+      motivationFactors: identifyMotivationFactors(data),
     };
   };
 
   // 预测性分析
-  const performPredictiveAnalysis = (data: any, abilities: EnhancedAbilityData[]) => {
+  const performPredictiveAnalysis = (
+    data: any,
+    abilities: EnhancedAbilityData[]
+  ) => {
     return {
       futurePerformance: predictFuturePerformance(data, abilities),
       riskFactors: identifyRiskFactors(data, abilities),
-      opportunities: identifyOpportunities(data, abilities)
+      opportunities: identifyOpportunities(data, abilities),
     };
   };
 
   // 辅助计算函数
-  const calculateEnhancedAbilityScore = (ability: string, grades: any[], classAverage: any[]): number => {
+  const calculateEnhancedAbilityScore = (
+    ability: string,
+    grades: any[],
+    classAverage: any[]
+  ): number => {
     // 根据不同能力维度计算分数的复杂算法
     const relevantGrades = filterRelevantGrades(ability, grades);
     if (relevantGrades.length === 0) return 75; // 默认分数
 
-    const avgScore = relevantGrades.reduce((sum, g) => sum + g.score, 0) / relevantGrades.length;
+    const avgScore =
+      relevantGrades.reduce((sum, g) => sum + g.score, 0) /
+      relevantGrades.length;
     const classAvg = calculateClassAverage(ability, classAverage);
-    
+
     // 考虑班级相对表现
     const relativePerformance = avgScore / classAvg;
     return Math.min(100, avgScore * relativePerformance * 0.8 + 20);
   };
 
-  const calculatePercentile = (score: number, ability: string, classAverage: any[]): number => {
+  const calculatePercentile = (
+    score: number,
+    ability: string,
+    classAverage: any[]
+  ): number => {
     // 计算在班级中的百分位排名
     return Math.min(95, Math.max(5, score * 0.9 + Math.random() * 10));
   };
 
-  const calculateTrend = (ability: string, grades: any[]): 'improving' | 'stable' | 'declining' => {
+  const calculateTrend = (
+    ability: string,
+    grades: any[]
+  ): "improving" | "stable" | "declining" => {
     const recentGrades = grades.slice(0, 3);
     const olderGrades = grades.slice(3, 6);
-    
-    if (recentGrades.length < 2 || olderGrades.length < 2) return 'stable';
-    
-    const recentAvg = recentGrades.reduce((sum, g) => sum + g.score, 0) / recentGrades.length;
-    const olderAvg = olderGrades.reduce((sum, g) => sum + g.score, 0) / olderGrades.length;
-    
+
+    if (recentGrades.length < 2 || olderGrades.length < 2) return "stable";
+
+    const recentAvg =
+      recentGrades.reduce((sum, g) => sum + g.score, 0) / recentGrades.length;
+    const olderAvg =
+      olderGrades.reduce((sum, g) => sum + g.score, 0) / olderGrades.length;
+
     const diff = recentAvg - olderAvg;
-    if (diff > 3) return 'improving';
-    if (diff < -3) return 'declining';
-    return 'stable';
+    if (diff > 3) return "improving";
+    if (diff < -3) return "declining";
+    return "stable";
   };
 
   const generateSubDimensions = (ability: string, grades: any[]) => {
     // 为每个能力生成子维度分析
     const subDimensions = getSubDimensionsForAbility(ability);
-    return subDimensions.map(sub => ({
+    return subDimensions.map((sub) => ({
       name: sub.name,
       score: calculateSubDimensionScore(sub.name, grades),
-      weight: sub.weight
+      weight: sub.weight,
     }));
   };
 
   const getSubDimensionsForAbility = (ability: string) => {
     const dimensionMap: Record<string, any[]> = {
-      '数学逻辑能力': [
-        { name: '计算能力', weight: 0.3 },
-        { name: '逻辑推理', weight: 0.4 },
-        { name: '空间想象', weight: 0.3 }
+      数学逻辑能力: [
+        { name: "计算能力", weight: 0.3 },
+        { name: "逻辑推理", weight: 0.4 },
+        { name: "空间想象", weight: 0.3 },
       ],
-      '语言表达能力': [
-        { name: '词汇掌握', weight: 0.3 },
-        { name: '语法运用', weight: 0.3 },
-        { name: '表达流畅', weight: 0.4 }
+      语言表达能力: [
+        { name: "词汇掌握", weight: 0.3 },
+        { name: "语法运用", weight: 0.3 },
+        { name: "表达流畅", weight: 0.4 },
       ],
       // 其他能力的子维度...
     };
-    
-    return dimensionMap[ability] || [{ name: '综合表现', weight: 1.0 }];
+
+    return dimensionMap[ability] || [{ name: "综合表现", weight: 1.0 }];
   };
 
-  const calculateSubDimensionScore = (subDimension: string, grades: any[]): number => {
+  const calculateSubDimensionScore = (
+    subDimension: string,
+    grades: any[]
+  ): number => {
     // 根据子维度计算具体分数
     return 70 + Math.random() * 25; // 简化实现
   };
@@ -496,53 +597,78 @@ const EnhancedStudentPortrait: React.FC = () => {
   const filterRelevantGrades = (ability: string, grades: any[]) => grades;
   const calculateClassAverage = (ability: string, classAverage: any[]) => 75;
   const getAbilityLevel = (score: number) => {
-    if (score >= 90) return 'excellent';
-    if (score >= 80) return 'good';
-    if (score >= 70) return 'average';
-    return 'needs_improvement';
+    if (score >= 90) return "excellent";
+    if (score >= 80) return "good";
+    if (score >= 70) return "average";
+    return "needs_improvement";
   };
-  const generateAbilityDescription = (ability: string, score: number, percentile: number) => 
-    `${ability}得分${score}分，超过班级${percentile}%的同学`;
+  const generateAbilityDescription = (
+    ability: string,
+    score: number,
+    percentile: number
+  ) => `${ability}得分${score}分，超过班级${percentile}%的同学`;
   const getMetricStatus = (value: number, benchmark: number) => {
-    if (value >= benchmark * 1.1) return 'excellent';
-    if (value >= benchmark) return 'good';
-    if (value >= benchmark * 0.8) return 'average';
-    return 'poor';
+    if (value >= benchmark * 1.1) return "excellent";
+    if (value >= benchmark) return "good";
+    if (value >= benchmark * 0.8) return "average";
+    return "poor";
   };
-  const calculateHomeworkCompletionRate = (homework: any[]) => 85 + Math.random() * 10;
-  const calculateLearningConsistency = (grades: any[]) => 75 + Math.random() * 15;
+  const calculateHomeworkCompletionRate = (homework: any[]) =>
+    85 + Math.random() * 10;
+  const calculateLearningConsistency = (grades: any[]) =>
+    75 + Math.random() * 15;
   const calculateProgressSpeed = (grades: any[]) => 1 + Math.random() * 3;
   const calculateKnowledgeMastery = (grades: any[]) => 80 + Math.random() * 15;
   const groupGradesByMonth = (grades: any[]) => [
-    { period: '2024-01', averageScore: 85, subjectScores: [] }
+    { period: "2024-01", averageScore: 85, subjectScores: [] },
   ];
-  const identifyMilestones = (month: any) => ['成绩提升显著'];
-  const identifyChallenges = (month: any) => ['数学需要加强'];
-  const generatePersonalizedRecommendation = (student: Student, data: any, abilities: any[]) => 
-    '建议加强薄弱科目练习，保持优势科目水平';
+  const identifyMilestones = (month: any) => ["成绩提升显著"];
+  const identifyChallenges = (month: any) => ["数学需要加强"];
+  const generatePersonalizedRecommendation = (
+    student: Student,
+    data: any,
+    abilities: any[]
+  ) => "建议加强薄弱科目练习，保持优势科目水平";
   const calculateSelfDiscipline = (data: any) => 75 + Math.random() * 20;
   const calculateCuriosity = (data: any) => 70 + Math.random() * 25;
   const calculateStressResistance = (data: any) => 80 + Math.random() * 15;
   const calculateTeamwork = (data: any) => 85 + Math.random() * 10;
-  const identifyLearningStyle = (data: any) => '视觉型学习者';
-  const identifyMotivationFactors = (data: any) => ['成就感', '好奇心', '竞争意识'];
+  const identifyLearningStyle = (data: any) => "视觉型学习者";
+  const identifyMotivationFactors = (data: any) => [
+    "成就感",
+    "好奇心",
+    "竞争意识",
+  ];
   const predictFuturePerformance = (data: any, abilities: any[]) => 85;
-  const identifyRiskFactors = (data: any, abilities: any[]) => ['注意力分散', '基础知识薄弱'];
-  const identifyOpportunities = (data: any, abilities: any[]) => ['数学竞赛', '科学实验'];
-  const identifyStrengthAreas = (abilities: any[]) => abilities.filter(a => a.level === 'excellent').map(a => a.dimension);
-  const identifyImprovementAreas = (abilities: any[]) => abilities.filter(a => a.level === 'needs_improvement').map(a => a.dimension);
-  const calculateOverallRating = (abilities: any[]) => abilities.reduce((sum, a) => sum + a.score, 0) / abilities.length;
-  const calculateConfidenceLevel = (data: any) => Math.min(95, 70 + data.grades.length * 2);
-  const calculateDataCompleteness = (data: any) => Math.min(100, (data.grades.length + data.homework.length) * 5);
+  const identifyRiskFactors = (data: any, abilities: any[]) => [
+    "注意力分散",
+    "基础知识薄弱",
+  ];
+  const identifyOpportunities = (data: any, abilities: any[]) => [
+    "数学竞赛",
+    "科学实验",
+  ];
+  const identifyStrengthAreas = (abilities: any[]) =>
+    abilities.filter((a) => a.level === "excellent").map((a) => a.dimension);
+  const identifyImprovementAreas = (abilities: any[]) =>
+    abilities
+      .filter((a) => a.level === "needs_improvement")
+      .map((a) => a.dimension);
+  const calculateOverallRating = (abilities: any[]) =>
+    abilities.reduce((sum, a) => sum + a.score, 0) / abilities.length;
+  const calculateConfidenceLevel = (data: any) =>
+    Math.min(95, 70 + data.grades.length * 2);
+  const calculateDataCompleteness = (data: any) =>
+    Math.min(100, (data.grades.length + data.homework.length) * 5);
 
   // 渲染能力雷达图
   const renderAbilityRadar = () => {
     if (!analysisResult) return null;
 
-    const radarData = analysisResult.abilityProfile.map(ability => ({
+    const radarData = analysisResult.abilityProfile.map((ability) => ({
       dimension: ability.dimension.slice(0, 4), // 缩短标签
       score: ability.score,
-      fullName: ability.dimension
+      fullName: ability.dimension,
     }));
 
     return (
@@ -558,10 +684,10 @@ const EnhancedStudentPortrait: React.FC = () => {
             fill="#8884d8"
             fillOpacity={0.3}
           />
-          <Tooltip 
+          <Tooltip
             formatter={(value, name, props) => [
-              `${value}分`, 
-              props.payload.fullName
+              `${value}分`,
+              props.payload.fullName,
             ]}
           />
         </RadarChart>
@@ -573,12 +699,12 @@ const EnhancedStudentPortrait: React.FC = () => {
   const renderLearningBehaviors = () => {
     if (!analysisResult) return null;
 
-    const behaviorData = analysisResult.learningBehaviors.flatMap(behavior =>
-      behavior.metrics.map(metric => ({
+    const behaviorData = analysisResult.learningBehaviors.flatMap((behavior) =>
+      behavior.metrics.map((metric) => ({
         name: metric.name,
         value: metric.value,
         benchmark: metric.benchmark,
-        category: behavior.category
+        category: behavior.category,
       }))
     );
 
@@ -601,9 +727,9 @@ const EnhancedStudentPortrait: React.FC = () => {
   const renderGrowthTrajectory = () => {
     if (!analysisResult) return null;
 
-    const trajectoryData = analysisResult.growthTrajectory.map(item => ({
+    const trajectoryData = analysisResult.growthTrajectory.map((item) => ({
       period: item.period,
-      score: item.overallScore
+      score: item.overallScore,
     }));
 
     return (
@@ -613,7 +739,12 @@ const EnhancedStudentPortrait: React.FC = () => {
           <XAxis dataKey="period" />
           <YAxis />
           <Tooltip />
-          <Line type="monotone" dataKey="score" stroke="#8884d8" strokeWidth={2} />
+          <Line
+            type="monotone"
+            dataKey="score"
+            stroke="#8884d8"
+            strokeWidth={2}
+          />
         </RechartsLineChart>
       </ResponsiveContainer>
     );
@@ -647,20 +778,24 @@ const EnhancedStudentPortrait: React.FC = () => {
           <div className="flex flex-col md:flex-row gap-4 items-end">
             <div className="flex-1">
               <label className="block text-sm font-medium mb-2">选择学生</label>
-              <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
+              <Select
+                value={selectedStudentId}
+                onValueChange={setSelectedStudentId}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="请选择要分析的学生" />
                 </SelectTrigger>
                 <SelectContent>
                   {students.map((student) => (
                     <SelectItem key={student.id} value={student.id}>
-                      {student.name} ({student.student_id}) - {student.class_name}
+                      {student.name} ({student.student_id}) -{" "}
+                      {student.class_name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <Button 
+            <Button
               onClick={performEnhancedAnalysis}
               disabled={!selectedStudentId || isAnalyzing}
               className="min-w-[120px]"
@@ -697,9 +832,9 @@ const EnhancedStudentPortrait: React.FC = () => {
                 </Badge>
               </CardTitle>
               <CardDescription>
-                数据完整度: {analysisResult.dataCompleteness}% | 
-                分析置信度: {analysisResult.confidenceLevel}% | 
-                分析时间: {new Date(analysisResult.analysisDate).toLocaleDateString()}
+                数据完整度: {analysisResult.dataCompleteness}% | 分析置信度:{" "}
+                {analysisResult.confidenceLevel}% | 分析时间:{" "}
+                {new Date(analysisResult.analysisDate).toLocaleDateString()}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -744,9 +879,7 @@ const EnhancedStudentPortrait: React.FC = () => {
                     能力雷达图
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  {renderAbilityRadar()}
-                </CardContent>
+                <CardContent>{renderAbilityRadar()}</CardContent>
               </Card>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -755,21 +888,32 @@ const EnhancedStudentPortrait: React.FC = () => {
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="font-medium">{ability.dimension}</h4>
-                        <Badge variant={
-                          ability.level === 'excellent' ? 'default' :
-                          ability.level === 'good' ? 'secondary' :
-                          ability.level === 'average' ? 'outline' : 'destructive'
-                        }>
+                        <Badge
+                          variant={
+                            ability.level === "excellent"
+                              ? "default"
+                              : ability.level === "good"
+                                ? "secondary"
+                                : ability.level === "average"
+                                  ? "outline"
+                                  : "destructive"
+                          }
+                        >
                           {ability.score.toFixed(1)}分
                         </Badge>
                       </div>
                       <Progress value={ability.score} className="mb-2" />
-                      <p className="text-sm text-gray-600">{ability.description}</p>
+                      <p className="text-sm text-gray-600">
+                        {ability.description}
+                      </p>
                       <div className="flex items-center mt-2 text-xs">
                         <span className="mr-2">趋势:</span>
                         <Badge variant="outline" size="sm">
-                          {ability.trend === 'improving' ? '📈 上升' :
-                           ability.trend === 'declining' ? '📉 下降' : '➡️ 稳定'}
+                          {ability.trend === "improving"
+                            ? "📈 上升"
+                            : ability.trend === "declining"
+                              ? "📉 下降"
+                              : "➡️ 稳定"}
                         </Badge>
                       </div>
                     </CardContent>
@@ -786,36 +930,47 @@ const EnhancedStudentPortrait: React.FC = () => {
                     学习行为分析
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  {renderLearningBehaviors()}
-                </CardContent>
+                <CardContent>{renderLearningBehaviors()}</CardContent>
               </Card>
 
               {analysisResult.learningBehaviors.map((behavior, index) => (
                 <Card key={index}>
                   <CardHeader>
-                    <CardTitle className="text-lg">{behavior.category}</CardTitle>
+                    <CardTitle className="text-lg">
+                      {behavior.category}
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {behavior.metrics.map((metric, metricIndex) => (
-                        <div key={metricIndex} className="p-3 border rounded-lg">
+                        <div
+                          key={metricIndex}
+                          className="p-3 border rounded-lg"
+                        >
                           <div className="flex items-center justify-between mb-2">
                             <span className="font-medium">{metric.name}</span>
-                            <Badge variant={
-                              metric.status === 'excellent' ? 'default' :
-                              metric.status === 'good' ? 'secondary' :
-                              metric.status === 'average' ? 'outline' : 'destructive'
-                            }>
-                              {metric.value}{metric.unit}
+                            <Badge
+                              variant={
+                                metric.status === "excellent"
+                                  ? "default"
+                                  : metric.status === "good"
+                                    ? "secondary"
+                                    : metric.status === "average"
+                                      ? "outline"
+                                      : "destructive"
+                              }
+                            >
+                              {metric.value}
+                              {metric.unit}
                             </Badge>
                           </div>
-                          <Progress 
-                            value={(metric.value / metric.benchmark) * 100} 
-                            className="mb-1" 
+                          <Progress
+                            value={(metric.value / metric.benchmark) * 100}
+                            className="mb-1"
                           />
                           <p className="text-xs text-gray-600">
-                            基准值: {metric.benchmark}{metric.unit}
+                            基准值: {metric.benchmark}
+                            {metric.unit}
                           </p>
                         </div>
                       ))}
@@ -833,9 +988,7 @@ const EnhancedStudentPortrait: React.FC = () => {
                     成长轨迹
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  {renderGrowthTrajectory()}
-                </CardContent>
+                <CardContent>{renderGrowthTrajectory()}</CardContent>
               </Card>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -847,29 +1000,45 @@ const EnhancedStudentPortrait: React.FC = () => {
                     <CardContent>
                       <div className="space-y-3">
                         <div>
-                          <span className="text-sm text-gray-600">整体表现:</span>
-                          <span className="ml-2 font-medium">{period.overallScore}分</span>
+                          <span className="text-sm text-gray-600">
+                            整体表现:
+                          </span>
+                          <span className="ml-2 font-medium">
+                            {period.overallScore}分
+                          </span>
                         </div>
-                        
+
                         {period.milestones.length > 0 && (
                           <div>
-                            <span className="text-sm text-gray-600">成长亮点:</span>
+                            <span className="text-sm text-gray-600">
+                              成长亮点:
+                            </span>
                             <div className="mt-1">
                               {period.milestones.map((milestone, i) => (
-                                <Badge key={i} variant="default" className="mr-1 mb-1">
+                                <Badge
+                                  key={i}
+                                  variant="default"
+                                  className="mr-1 mb-1"
+                                >
                                   {milestone}
                                 </Badge>
                               ))}
                             </div>
                           </div>
                         )}
-                        
+
                         {period.challenges.length > 0 && (
                           <div>
-                            <span className="text-sm text-gray-600">需要关注:</span>
+                            <span className="text-sm text-gray-600">
+                              需要关注:
+                            </span>
                             <div className="mt-1">
                               {period.challenges.map((challenge, i) => (
-                                <Badge key={i} variant="outline" className="mr-1 mb-1">
+                                <Badge
+                                  key={i}
+                                  variant="outline"
+                                  className="mr-1 mb-1"
+                                >
                                   {challenge}
                                 </Badge>
                               ))}
@@ -896,31 +1065,43 @@ const EnhancedStudentPortrait: React.FC = () => {
                     <div>
                       <h4 className="font-medium mb-3">性格特质</h4>
                       <div className="space-y-3">
-                        {analysisResult.personalityProfile.traits.map((trait, index) => (
-                          <div key={index} className="flex items-center justify-between">
-                            <span className="text-sm">{trait.name}</span>
-                            <div className="flex items-center">
-                              <Progress value={trait.score} className="w-20 mr-2" />
-                              <span className="text-sm font-medium">{trait.score}</span>
+                        {analysisResult.personalityProfile.traits.map(
+                          (trait, index) => (
+                            <div
+                              key={index}
+                              className="flex items-center justify-between"
+                            >
+                              <span className="text-sm">{trait.name}</span>
+                              <div className="flex items-center">
+                                <Progress
+                                  value={trait.score}
+                                  className="w-20 mr-2"
+                                />
+                                <span className="text-sm font-medium">
+                                  {trait.score}
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          )
+                        )}
                       </div>
                     </div>
-                    
+
                     <div>
                       <h4 className="font-medium mb-3">学习风格</h4>
                       <Badge variant="default" className="mb-3">
                         {analysisResult.personalityProfile.learningStyle}
                       </Badge>
-                      
+
                       <h4 className="font-medium mb-3 mt-4">激励因素</h4>
                       <div className="flex flex-wrap gap-2">
-                        {analysisResult.personalityProfile.motivationFactors.map((factor, index) => (
-                          <Badge key={index} variant="outline">
-                            {factor}
-                          </Badge>
-                        ))}
+                        {analysisResult.personalityProfile.motivationFactors.map(
+                          (factor, index) => (
+                            <Badge key={index} variant="outline">
+                              {factor}
+                            </Badge>
+                          )
+                        )}
                       </div>
                     </div>
                   </div>
@@ -942,22 +1123,34 @@ const EnhancedStudentPortrait: React.FC = () => {
                       </div>
                       <div className="text-sm text-gray-600">预期表现</div>
                     </div>
-                    
+
                     <div className="p-4 border rounded-lg">
-                      <h5 className="font-medium mb-2 text-red-600">风险因素</h5>
+                      <h5 className="font-medium mb-2 text-red-600">
+                        风险因素
+                      </h5>
                       <div className="space-y-1">
-                        {analysisResult.predictiveAnalysis.riskFactors.map((risk, index) => (
-                          <div key={index} className="text-sm text-gray-600">• {risk}</div>
-                        ))}
+                        {analysisResult.predictiveAnalysis.riskFactors.map(
+                          (risk, index) => (
+                            <div key={index} className="text-sm text-gray-600">
+                              • {risk}
+                            </div>
+                          )
+                        )}
                       </div>
                     </div>
-                    
+
                     <div className="p-4 border rounded-lg">
-                      <h5 className="font-medium mb-2 text-green-600">发展机会</h5>
+                      <h5 className="font-medium mb-2 text-green-600">
+                        发展机会
+                      </h5>
                       <div className="space-y-1">
-                        {analysisResult.predictiveAnalysis.opportunities.map((opportunity, index) => (
-                          <div key={index} className="text-sm text-gray-600">• {opportunity}</div>
-                        ))}
+                        {analysisResult.predictiveAnalysis.opportunities.map(
+                          (opportunity, index) => (
+                            <div key={index} className="text-sm text-gray-600">
+                              • {opportunity}
+                            </div>
+                          )
+                        )}
                       </div>
                     </div>
                   </div>
@@ -967,18 +1160,32 @@ const EnhancedStudentPortrait: React.FC = () => {
 
             <TabsContent value="insights" className="space-y-4">
               {analysisResult.aiInsights.map((insight, index) => (
-                <Alert key={index} className={
-                  insight.category === 'strength' ? 'border-green-200 bg-green-50' :
-                  insight.category === 'improvement' ? 'border-orange-200 bg-orange-50' :
-                  insight.category === 'recommendation' ? 'border-blue-200 bg-blue-50' :
-                  'border-purple-200 bg-purple-50'
-                }>
+                <Alert
+                  key={index}
+                  className={
+                    insight.category === "strength"
+                      ? "border-green-200 bg-green-50"
+                      : insight.category === "improvement"
+                        ? "border-orange-200 bg-orange-50"
+                        : insight.category === "recommendation"
+                          ? "border-blue-200 bg-blue-50"
+                          : "border-purple-200 bg-purple-50"
+                  }
+                >
                   <div className="flex items-start">
                     <div className="mr-3 mt-1">
-                      {insight.category === 'strength' && <Star className="h-4 w-4 text-green-600" />}
-                      {insight.category === 'improvement' && <Target className="h-4 w-4 text-orange-600" />}
-                      {insight.category === 'recommendation' && <Lightbulb className="h-4 w-4 text-blue-600" />}
-                      {insight.category === 'prediction' && <Eye className="h-4 w-4 text-purple-600" />}
+                      {insight.category === "strength" && (
+                        <Star className="h-4 w-4 text-green-600" />
+                      )}
+                      {insight.category === "improvement" && (
+                        <Target className="h-4 w-4 text-orange-600" />
+                      )}
+                      {insight.category === "recommendation" && (
+                        <Lightbulb className="h-4 w-4 text-blue-600" />
+                      )}
+                      {insight.category === "prediction" && (
+                        <Eye className="h-4 w-4 text-purple-600" />
+                      )}
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-2">
@@ -987,12 +1194,21 @@ const EnhancedStudentPortrait: React.FC = () => {
                           <Badge variant="outline" size="sm">
                             置信度: {(insight.confidence * 100).toFixed(0)}%
                           </Badge>
-                          <Badge variant={
-                            insight.priority === 'high' ? 'destructive' :
-                            insight.priority === 'medium' ? 'default' : 'secondary'
-                          } size="sm">
-                            {insight.priority === 'high' ? '高优先级' :
-                             insight.priority === 'medium' ? '中优先级' : '低优先级'}
+                          <Badge
+                            variant={
+                              insight.priority === "high"
+                                ? "destructive"
+                                : insight.priority === "medium"
+                                  ? "default"
+                                  : "secondary"
+                            }
+                            size="sm"
+                          >
+                            {insight.priority === "high"
+                              ? "高优先级"
+                              : insight.priority === "medium"
+                                ? "中优先级"
+                                : "低优先级"}
                           </Badge>
                         </div>
                       </div>
@@ -1009,4 +1225,4 @@ const EnhancedStudentPortrait: React.FC = () => {
   );
 };
 
-export default EnhancedStudentPortrait; 
+export default EnhancedStudentPortrait;

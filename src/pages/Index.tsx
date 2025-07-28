@@ -3,9 +3,37 @@ import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/shared";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Users, Loader2, List, BarChart3, ListFilter, Download, FileSpreadsheet, FileInput, Plus, Settings, BookOpen, AlertTriangle, User, Upload, TrendingUp, Brain, Construction, CheckCircle, RotateCcw, Play } from "lucide-react";
+import {
+  FileText,
+  Users,
+  Loader2,
+  List,
+  BarChart3,
+  ListFilter,
+  Download,
+  FileSpreadsheet,
+  FileInput,
+  Plus,
+  Settings,
+  BookOpen,
+  AlertTriangle,
+  User,
+  Upload,
+  TrendingUp,
+  Brain,
+  Construction,
+  CheckCircle,
+  RotateCcw,
+  Play,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { gradeAnalysisService } from "@/services/gradeAnalysisService";
 import StudentDataImporter from "@/components/analysis/core/StudentDataImporter";
@@ -15,10 +43,10 @@ import GradeImporter from "@/components/analysis/core/grade-importer/GradeImport
 import { SimpleGradeImporter } from "@/components/import/SimpleGradeImporter";
 import { FileUploader } from "@/components/analysis/core/grade-importer";
 import { supabase } from "@/integrations/supabase/client";
-import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 // import Footer from "@/components/shared/Footer"; // 暂时移除
@@ -33,13 +61,13 @@ const Index = () => {
   const { user, isAuthReady } = useAuthContext();
 
   // 整合GradeDataImport的状态
-  const [gradesActiveTab, setGradesActiveTab] = useState('import');
+  const [gradesActiveTab, setGradesActiveTab] = useState("import");
   const [importedData, setImportedData] = useState<any[]>([]);
   const [isAnalysisLoading, setIsAnalysisLoading] = useState(false);
-  
+
   // 导入方式选择状态 - 根据路由决定默认模式
-  const [importMode, setImportMode] = useState<'standard' | 'simple'>(() => {
-    return location.pathname === '/simple-import' ? 'simple' : 'simple'; // 默认都使用简化模式
+  const [importMode, setImportMode] = useState<"standard" | "simple">(() => {
+    return location.pathname === "/simple-import" ? "simple" : "simple"; // 默认都使用简化模式
   });
 
   // 检查必要的数据表是否存在，并在需要时创建
@@ -47,39 +75,45 @@ const Index = () => {
     const checkAndInitializeTables = async () => {
       try {
         setIsInitializingTables(true);
-        
+
         // 检查数据表是否存在
-        const requiredTables = ['exams', 'grade_data', 'grade_tags', 'grade_data_tags'];
+        const requiredTables = [
+          "exams",
+          "grade_data",
+          "grade_tags",
+          "grade_data_tags",
+        ];
         let allTablesExist = true;
-        
+
         for (const table of requiredTables) {
           const { count, error } = await supabase
             .from(table)
-            .select('*', { count: 'exact', head: true });
-          
-          if (error && error.code === '42P01') { // 表不存在的错误代码
+            .select("*", { count: "exact", head: true });
+
+          if (error && error.code === "42P01") {
+            // 表不存在的错误代码
             allTablesExist = false;
             break;
           }
         }
-        
+
         // 如果有表不存在，初始化所有表
         if (!allTablesExist) {
           console.log("检测到数据表不完整，准备初始化...");
           const result = await gradeAnalysisService.initializeTables();
-          
+
           if (result.success) {
             toast.success("数据表初始化成功", {
-              description: "成绩分析所需的数据表已成功创建"
+              description: "成绩分析所需的数据表已成功创建",
             });
           } else if (result.needsManualExecution) {
             toast.warning("无法自动创建数据表", {
-              description: "请联系管理员在Supabase控制台手动执行SQL脚本"
+              description: "请联系管理员在Supabase控制台手动执行SQL脚本",
             });
             console.error("需要手动执行的SQL:", result.manualSqlScripts);
           } else {
             toast.error("数据表初始化失败", {
-              description: result.message || "请查看控制台了解详情"
+              description: result.message || "请查看控制台了解详情",
             });
           }
         } else {
@@ -88,13 +122,13 @@ const Index = () => {
       } catch (error) {
         console.error("检查和初始化数据表时出错:", error);
         toast.error("数据表检查失败", {
-          description: "无法确认必要的数据表是否存在"
+          description: "无法确认必要的数据表是否存在",
         });
       } finally {
         setIsInitializingTables(false);
       }
     };
-    
+
     if (isAuthReady && user) {
       checkAndInitializeTables();
     }
@@ -110,10 +144,10 @@ const Index = () => {
   // 处理成绩分析跳转
   const handleGoToAnalysis = () => {
     setIsAnalysisLoading(true);
-    
+
     // 模拟加载过程
     setTimeout(() => {
-      navigate('/grade-analysis');
+      navigate("/grade-analysis");
       setIsAnalysisLoading(false);
     }, 800);
   };
@@ -121,37 +155,40 @@ const Index = () => {
   // 整合GradeDataImport的处理函数
   const handleDataImported = (data: any[]) => {
     setImportedData(data);
-    setGradesActiveTab('preview');
-    
-    toast.success('数据导入成功', {
-      description: `已成功导入 ${data.length} 条成绩记录`
+    setGradesActiveTab("preview");
+
+    toast.success("数据导入成功", {
+      description: `已成功导入 ${data.length} 条成绩记录`,
     });
   };
 
   const handleStudentDataImported = (data: any[]) => {
     toast.success("数据导入成功", {
-      description: `已成功导入 ${data.length} 条记录`
+      description: `已成功导入 ${data.length} 条记录`,
     });
   };
 
   // 处理简化导入完成
   const handleSimpleImportComplete = (result: any) => {
-    console.log('简化导入完成:', result);
-    toast.success('导入完成', {
-      description: `成功导入 ${result.successRecords} 条记录`
+    console.log("简化导入完成:", result);
+    toast.success("导入完成", {
+      description: `成功导入 ${result.successRecords} 条记录`,
     });
-    
+
     // 可以在这里添加跳转到分析页面的逻辑
     if (result.success && result.successRecords > 0) {
       // 设置预览数据以便显示统计信息
-      const mockData = Array.from({ length: result.successRecords }, (_, i) => ({
-        id: i + 1,
-        student_name: `学生${i + 1}`,
-        class_name: '示例班级',
-        subject: '数学'
-      }));
+      const mockData = Array.from(
+        { length: result.successRecords },
+        (_, i) => ({
+          id: i + 1,
+          student_name: `学生${i + 1}`,
+          class_name: "示例班级",
+          subject: "数学",
+        })
+      );
       setImportedData(mockData);
-      setGradesActiveTab('preview');
+      setGradesActiveTab("preview");
     }
   };
 
@@ -162,16 +199,16 @@ const Index = () => {
         // 尝试获取考试列表，如果失败可能是表不存在
         const { data, error } = await gradeAnalysisService.getExamList();
         if (error) {
-          console.error('检查表是否存在出错:', error);
+          console.error("检查表是否存在出错:", error);
           // 如果错误消息包含表不存在的提示，则设置状态
-          if (error.message.includes('不存在')) {
+          if (error.message.includes("不存在")) {
             setTablesExist(false);
           }
         } else {
           setTablesExist(true);
         }
       } catch (error) {
-        console.error('检查表是否存在时发生异常:', error);
+        console.error("检查表是否存在时发生异常:", error);
         setTablesExist(false);
       }
     };
@@ -194,44 +231,57 @@ const Index = () => {
       <div className="container mx-auto py-8 px-4">
         <h1 className="text-3xl font-bold mb-2">数据导入中心</h1>
         <p className="text-gray-500 mb-4">导入和管理学生信息与成绩数据</p>
-        
+
         {/* 新功能提示 */}
         <div className="mb-8 p-4 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg">
           <div className="flex items-center gap-2 mb-2">
             <CheckCircle className="h-5 w-5 text-green-600" />
-            <span className="font-semibold text-green-800">🎉 新版导入功能上线！</span>
+            <span className="font-semibold text-green-800">
+              🎉 新版导入功能上线！
+            </span>
           </div>
           <p className="text-sm text-green-700">
-            体验全新的智能导入流程：<strong>一键上传 → AI智能识别 → 快速完成</strong>，让数据导入变得更简单！
+            体验全新的智能导入流程：
+            <strong>一键上传 → AI智能识别 → 快速完成</strong>
+            ，让数据导入变得更简单！
           </p>
         </div>
-        
+
         {!tablesExist && (
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>数据库表不存在</AlertTitle>
             <AlertDescription>
               成绩分析系统需要的数据库表尚未创建。请先
-              <Link to="/tools/init-tables" className="ml-1 font-medium underline">
+              <Link
+                to="/tools/init-tables"
+                className="ml-1 font-medium underline"
+              >
                 初始化数据库表
               </Link>
               ，然后再继续操作。
             </AlertDescription>
           </Alert>
         )}
-        
+
         <Tabs key="main-tabs" defaultValue="students" className="w-full">
           <TabsList className="mb-6 bg-white border shadow-sm">
-            <TabsTrigger value="students" className="gap-2 data-[state=active]:bg-[#F2FCE2]">
+            <TabsTrigger
+              value="students"
+              className="gap-2 data-[state=active]:bg-[#F2FCE2]"
+            >
               <Users className="h-4 w-4" />
               学生信息导入
             </TabsTrigger>
-            <TabsTrigger value="grades" className="gap-2 data-[state=active]:bg-[#E5DEFF]">
+            <TabsTrigger
+              value="grades"
+              className="gap-2 data-[state=active]:bg-[#E5DEFF]"
+            >
               <FileText className="h-4 w-4" />
               成绩数据导入
             </TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="students">
             <div className="grid gap-6">
               <Card className="border-t-4 border-t-green-400">
@@ -245,12 +295,14 @@ const Index = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <StudentDataImporter onDataImported={handleStudentDataImported} />
+                  <StudentDataImporter
+                    onDataImported={handleStudentDataImported}
+                  />
                   <div className="mt-4 pt-4 border-t flex justify-end">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       className="flex items-center gap-2"
-                      onClick={() => navigate('/student-management')}
+                      onClick={() => navigate("/student-management")}
                     >
                       <List className="h-4 w-4" />
                       查看学生列表
@@ -260,7 +312,7 @@ const Index = () => {
               </Card>
             </div>
           </TabsContent>
-          
+
           <TabsContent value="grades">
             <div className="grid gap-6">
               <Card className="border-t-4 border-t-purple-400">
@@ -279,18 +331,22 @@ const Index = () => {
                     <h3 className="text-sm font-medium mb-3">选择导入方式</h3>
                     <div className="flex gap-3">
                       <Button
-                        variant={importMode === 'simple' ? 'default' : 'outline'}
+                        variant={
+                          importMode === "simple" ? "default" : "outline"
+                        }
                         size="sm"
-                        onClick={() => setImportMode('simple')}
+                        onClick={() => setImportMode("simple")}
                         className="flex items-center gap-2"
                       >
                         <CheckCircle className="h-4 w-4" />
                         新版导入 (推荐)
                       </Button>
                       <Button
-                        variant={importMode === 'standard' ? 'default' : 'outline'}
+                        variant={
+                          importMode === "standard" ? "default" : "outline"
+                        }
                         size="sm"
-                        onClick={() => setImportMode('standard')}
+                        onClick={() => setImportMode("standard")}
                         className="flex items-center gap-2"
                       >
                         <Settings className="h-4 w-4" />
@@ -298,100 +354,145 @@ const Index = () => {
                       </Button>
                     </div>
                     <p className="text-xs text-gray-600 mt-2">
-                      {importMode === 'simple' 
-                        ? '🌟 新版导入：一键智能识别，三步完成导入，适合大多数用户' 
-                        : '⚙️ 标准导入：提供完整的字段映射和高级配置选项，适合专业用户'
-                      }
+                      {importMode === "simple"
+                        ? "🌟 新版导入：一键智能识别，三步完成导入，适合大多数用户"
+                        : "⚙️ 标准导入：提供完整的字段映射和高级配置选项，适合专业用户"}
                     </p>
                   </div>
 
                   {/* 简化的成绩导入 */}
-                  <Tabs key="grades-tabs" defaultValue="import" className="w-full" onValueChange={setGradesActiveTab} value={gradesActiveTab}>
+                  <Tabs
+                    key="grades-tabs"
+                    defaultValue="import"
+                    className="w-full"
+                    onValueChange={setGradesActiveTab}
+                    value={gradesActiveTab}
+                  >
                     <TabsList className="mb-6 w-full justify-start">
-                      <TabsTrigger value="import" className="flex items-center gap-1">
+                      <TabsTrigger
+                        value="import"
+                        className="flex items-center gap-1"
+                      >
                         <FileInput className="h-4 w-4" />
                         <span>数据导入</span>
                       </TabsTrigger>
-                      <TabsTrigger value="preview" className="flex items-center gap-1">
+                      <TabsTrigger
+                        value="preview"
+                        className="flex items-center gap-1"
+                      >
                         <ListFilter className="h-4 w-4" />
                         <span>数据预览</span>
                       </TabsTrigger>
                     </TabsList>
-                    
+
                     <TabsContent value="import" className="space-y-6">
-                      {importMode === 'simple' ? (
-                        <SimpleGradeImporter 
+                      {importMode === "simple" ? (
+                        <SimpleGradeImporter
                           onComplete={handleSimpleImportComplete}
-                          onCancel={() => console.log('用户取消导入')}
+                          onCancel={() => console.log("用户取消导入")}
                         />
                       ) : (
                         <GradeImporter onDataImported={handleDataImported} />
                       )}
                     </TabsContent>
-                    
+
                     <TabsContent value="preview">
                       {importedData.length > 0 ? (
                         <div className="space-y-6">
                           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <Card>
                               <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-500">导入数据总量</CardTitle>
+                                <CardTitle className="text-sm font-medium text-gray-500">
+                                  导入数据总量
+                                </CardTitle>
                               </CardHeader>
                               <CardContent>
-                                <div className="text-2xl font-bold">{importedData.length}</div>
-                                <p className="text-xs text-gray-500 mt-1">条成绩记录</p>
+                                <div className="text-2xl font-bold">
+                                  {importedData.length}
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  条成绩记录
+                                </p>
                               </CardContent>
                             </Card>
-                            
+
                             <Card>
                               <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-500">数据完整率</CardTitle>
+                                <CardTitle className="text-sm font-medium text-gray-500">
+                                  数据完整率
+                                </CardTitle>
                               </CardHeader>
                               <CardContent>
                                 <div className="text-2xl font-bold">100%</div>
                                 <Progress value={100} className="h-1 mt-1" />
                               </CardContent>
                             </Card>
-                            
+
                             <Card>
                               <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-500">班级覆盖</CardTitle>
+                                <CardTitle className="text-sm font-medium text-gray-500">
+                                  班级覆盖
+                                </CardTitle>
                               </CardHeader>
                               <CardContent>
                                 <div className="text-2xl font-bold">
-                                  {new Set(importedData.map(item => item.class_name)).size}
+                                  {
+                                    new Set(
+                                      importedData.map(
+                                        (item) => item.class_name
+                                      )
+                                    ).size
+                                  }
                                 </div>
-                                <p className="text-xs text-gray-500 mt-1">个班级</p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  个班级
+                                </p>
                               </CardContent>
                             </Card>
-                            
+
                             <Card>
                               <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-500">科目类型</CardTitle>
+                                <CardTitle className="text-sm font-medium text-gray-500">
+                                  科目类型
+                                </CardTitle>
                               </CardHeader>
                               <CardContent>
                                 <div className="text-2xl font-bold">
-                                  {new Set(importedData.map(item => item.subject)).size}
+                                  {
+                                    new Set(
+                                      importedData.map((item) => item.subject)
+                                    ).size
+                                  }
                                 </div>
-                                <p className="text-xs text-gray-500 mt-1">个科目</p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  个科目
+                                </p>
                               </CardContent>
                             </Card>
                           </div>
-                          
+
                           <div className="flex items-center justify-between">
-                            <h2 className="text-xl font-semibold">导入数据预览</h2>
-                            <Button variant="outline" className="flex items-center gap-1">
+                            <h2 className="text-xl font-semibold">
+                              导入数据预览
+                            </h2>
+                            <Button
+                              variant="outline"
+                              className="flex items-center gap-1"
+                            >
                               <Download className="h-4 w-4" />
                               <span>导出数据</span>
                             </Button>
                           </div>
-                          
+
                           <div className="flex justify-end gap-4">
-                            <Button variant="outline" onClick={() => setGradesActiveTab('import')}>
+                            <Button
+                              variant="outline"
+                              onClick={() => setGradesActiveTab("import")}
+                            >
                               返回导入
                             </Button>
-                            <Button 
-                              onClick={handleGoToAnalysis} 
+                            <Button
+                              onClick={handleGoToAnalysis}
                               className="bg-[#c0ff3f] text-black hover:bg-[#a8e85c]"
                               disabled={isAnalysisLoading}
                             >
@@ -412,12 +513,14 @@ const Index = () => {
                       ) : (
                         <div className="flex flex-col items-center justify-center py-24 bg-slate-50 rounded-lg border border-dashed border-slate-200">
                           <FileSpreadsheet className="h-16 w-16 text-slate-300 mb-4" />
-                          <h3 className="text-xl font-medium mb-2">暂无导入数据</h3>
+                          <h3 className="text-xl font-medium mb-2">
+                            暂无导入数据
+                          </h3>
                           <p className="text-slate-500 mb-6 text-center max-w-md">
                             请先使用数据导入功能导入成绩数据，导入后的数据将在此处预览
                           </p>
-                          <Button 
-                            onClick={() => setGradesActiveTab('import')}
+                          <Button
+                            onClick={() => setGradesActiveTab("import")}
                             className="bg-[#c0ff3f] text-black hover:bg-[#a8e85c]"
                           >
                             <FileInput className="mr-2 h-4 w-4" />
@@ -433,7 +536,7 @@ const Index = () => {
           </TabsContent>
         </Tabs>
       </div>
-              {/* <Footer /> */}
+      {/* <Footer /> */}
     </div>
   );
 };

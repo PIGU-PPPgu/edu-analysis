@@ -1,4 +1,3 @@
-
 export interface StudentData {
   studentId: string;
   name: string;

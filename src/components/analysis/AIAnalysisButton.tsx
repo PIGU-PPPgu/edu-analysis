@@ -1,11 +1,27 @@
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
-import { Settings, Zap, MessageCircle, Calendar, Users, BarChart3 } from 'lucide-react';
-import { gradeAnalysisAutoTrigger, AnalysisTriggerConfig } from '@/services/gradeAnalysisAutoTrigger';
-import { toast } from 'sonner';
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import {
+  Settings,
+  Zap,
+  MessageCircle,
+  Calendar,
+  Users,
+  BarChart3,
+} from "lucide-react";
+import {
+  gradeAnalysisAutoTrigger,
+  AnalysisTriggerConfig,
+} from "@/services/gradeAnalysisAutoTrigger";
+import { toast } from "sonner";
 
 interface AIAnalysisButtonProps {
   // 可选：传入导入的记录数，用于显示状态
@@ -18,8 +34,8 @@ interface AIAnalysisButtonProps {
 
 export const AIAnalysisButton: React.FC<AIAnalysisButtonProps> = ({
   importedRecords = 0,
-  className = '',
-  showConfig = false
+  className = "",
+  showConfig = false,
 }) => {
   const [config, setConfig] = useState<AnalysisTriggerConfig>(
     gradeAnalysisAutoTrigger.getConfig()
@@ -33,7 +49,7 @@ export const AIAnalysisButton: React.FC<AIAnalysisButtonProps> = ({
     try {
       await gradeAnalysisAutoTrigger.manualTrigger();
     } catch (error) {
-      console.error('手动触发分析失败:', error);
+      console.error("手动触发分析失败:", error);
     } finally {
       setIsAnalyzing(false);
     }
@@ -44,30 +60,38 @@ export const AIAnalysisButton: React.FC<AIAnalysisButtonProps> = ({
     const newConfig = { ...config, [key]: value };
     setConfig(newConfig);
     gradeAnalysisAutoTrigger.updateConfig(newConfig);
-    
-    toast.success('配置已更新', {
+
+    toast.success("配置已更新", {
       description: `${key} 已设置为 ${value}`,
-      duration: 2000
+      duration: 2000,
     });
   };
 
   // 获取状态显示
   const getStatusBadge = () => {
     if (isAnalyzing) {
-      return <Badge variant="default" className="bg-blue-500">🤖 分析中</Badge>;
+      return (
+        <Badge variant="default" className="bg-blue-500">
+          🤖 分析中
+        </Badge>
+      );
     }
     if (config.enabled) {
-      return <Badge variant="default" className="bg-green-500">✅ 已启用</Badge>;
+      return (
+        <Badge variant="default" className="bg-green-500">
+          ✅ 已启用
+        </Badge>
+      );
     }
     return <Badge variant="secondary">⏸️ 已禁用</Badge>;
   };
 
   const getAnalysisStatus = () => {
-    if (importedRecords === 0) return '暂无数据';
+    if (importedRecords === 0) return "暂无数据";
     if (importedRecords < config.minRecords) {
       return `需要 ${config.minRecords - importedRecords} 条记录才能触发`;
     }
-    return '可以触发分析';
+    return "可以触发分析";
   };
 
   return (
@@ -94,11 +118,11 @@ export const AIAnalysisButton: React.FC<AIAnalysisButtonProps> = ({
             </div>
           </div>
           <CardDescription>
-            {config.enabled ? '自动分析已启用，' : '自动分析已禁用，'}
+            {config.enabled ? "自动分析已启用，" : "自动分析已禁用，"}
             {getAnalysisStatus()}
           </CardDescription>
         </CardHeader>
-        
+
         <CardContent className="space-y-4">
           {/* 状态指示器 */}
           <div className="grid grid-cols-2 gap-4">
@@ -106,14 +130,18 @@ export const AIAnalysisButton: React.FC<AIAnalysisButtonProps> = ({
               <Users className="h-4 w-4 text-blue-600" />
               <div>
                 <div className="text-sm font-medium">已导入记录</div>
-                <div className="text-lg font-bold text-blue-600">{importedRecords}</div>
+                <div className="text-lg font-bold text-blue-600">
+                  {importedRecords}
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
               <BarChart3 className="h-4 w-4 text-green-600" />
               <div>
                 <div className="text-sm font-medium">触发阈值</div>
-                <div className="text-lg font-bold text-green-600">{config.minRecords}</div>
+                <div className="text-lg font-bold text-green-600">
+                  {config.minRecords}
+                </div>
               </div>
             </div>
           </div>
@@ -124,9 +152,9 @@ export const AIAnalysisButton: React.FC<AIAnalysisButtonProps> = ({
             <div className="flex-1">
               <div className="text-sm font-medium">推送渠道</div>
               <div className="text-xs text-gray-600">
-                {config.pushToWechat && '企业微信 '}
-                {config.pushToLinear && 'Linear '}
-                {!config.pushToWechat && !config.pushToLinear && '无'}
+                {config.pushToWechat && "企业微信 "}
+                {config.pushToLinear && "Linear "}
+                {!config.pushToWechat && !config.pushToLinear && "无"}
               </div>
             </div>
           </div>
@@ -138,7 +166,7 @@ export const AIAnalysisButton: React.FC<AIAnalysisButtonProps> = ({
               disabled={isAnalyzing}
               className="flex-1"
             >
-              {isAnalyzing ? '分析中...' : '手动触发分析'}
+              {isAnalyzing ? "分析中..." : "手动触发分析"}
             </Button>
           </div>
         </CardContent>
@@ -156,11 +184,15 @@ export const AIAnalysisButton: React.FC<AIAnalysisButtonProps> = ({
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-medium">自动分析</div>
-                <div className="text-sm text-gray-600">导入成绩后自动触发AI分析</div>
+                <div className="text-sm text-gray-600">
+                  导入成绩后自动触发AI分析
+                </div>
               </div>
               <Switch
                 checked={config.enabled}
-                onCheckedChange={(checked) => handleConfigChange('enabled', checked)}
+                onCheckedChange={(checked) =>
+                  handleConfigChange("enabled", checked)
+                }
               />
             </div>
 
@@ -173,7 +205,9 @@ export const AIAnalysisButton: React.FC<AIAnalysisButtonProps> = ({
                   min="1"
                   max="100"
                   value={config.minRecords}
-                  onChange={(e) => handleConfigChange('minRecords', parseInt(e.target.value))}
+                  onChange={(e) =>
+                    handleConfigChange("minRecords", parseInt(e.target.value))
+                  }
                   className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <span className="text-sm text-gray-600">条</span>
@@ -192,7 +226,12 @@ export const AIAnalysisButton: React.FC<AIAnalysisButtonProps> = ({
                   min="0"
                   max="60"
                   value={config.delayMs / 1000}
-                  onChange={(e) => handleConfigChange('delayMs', parseInt(e.target.value) * 1000)}
+                  onChange={(e) =>
+                    handleConfigChange(
+                      "delayMs",
+                      parseInt(e.target.value) * 1000
+                    )
+                  }
                   className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <span className="text-sm text-gray-600">秒</span>
@@ -205,7 +244,7 @@ export const AIAnalysisButton: React.FC<AIAnalysisButtonProps> = ({
             {/* 推送设置 */}
             <div className="space-y-4">
               <div className="font-medium">推送渠道</div>
-              
+
               <div className="flex items-center justify-between">
                 <div>
                   <div className="font-medium">企业微信</div>
@@ -213,10 +252,12 @@ export const AIAnalysisButton: React.FC<AIAnalysisButtonProps> = ({
                 </div>
                 <Switch
                   checked={config.pushToWechat}
-                  onCheckedChange={(checked) => handleConfigChange('pushToWechat', checked)}
+                  onCheckedChange={(checked) =>
+                    handleConfigChange("pushToWechat", checked)
+                  }
                 />
               </div>
-              
+
               <div className="flex items-center justify-between">
                 <div>
                   <div className="font-medium">Linear</div>
@@ -224,7 +265,9 @@ export const AIAnalysisButton: React.FC<AIAnalysisButtonProps> = ({
                 </div>
                 <Switch
                   checked={config.pushToLinear}
-                  onCheckedChange={(checked) => handleConfigChange('pushToLinear', checked)}
+                  onCheckedChange={(checked) =>
+                    handleConfigChange("pushToLinear", checked)
+                  }
                 />
               </div>
             </div>
@@ -239,11 +282,11 @@ export const AIAnalysisButton: React.FC<AIAnalysisButtonProps> = ({
                     minRecords: 5,
                     delayMs: 2000,
                     pushToWechat: true,
-                    pushToLinear: true
+                    pushToLinear: true,
                   };
                   setConfig(defaultConfig);
                   gradeAnalysisAutoTrigger.updateConfig(defaultConfig);
-                  toast.success('配置已重置为默认值');
+                  toast.success("配置已重置为默认值");
                 }}
               >
                 恢复默认设置

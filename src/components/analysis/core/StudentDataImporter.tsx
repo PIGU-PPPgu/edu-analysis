@@ -10,10 +10,14 @@ interface StudentDataImporterProps {
   onDataImported: (data: any[]) => void;
 }
 
-export default function StudentDataImporter({ onDataImported }: StudentDataImporterProps) {
+export default function StudentDataImporter({
+  onDataImported,
+}: StudentDataImporterProps) {
   const [isUploading, setIsUploading] = useState(false);
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -22,8 +26,8 @@ export default function StudentDataImporter({ onDataImported }: StudentDataImpor
     try {
       // 这里应该是实际的文件处理逻辑
       // 暂时模拟一下数据导入过程
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
       // 模拟导入的学生数据
       const mockData = [
         { student_id: "20241001", name: "张三", class_name: "初三1班" },
@@ -33,12 +37,12 @@ export default function StudentDataImporter({ onDataImported }: StudentDataImpor
 
       onDataImported(mockData);
       toast.success("学生数据导入成功", {
-        description: `已成功导入 ${mockData.length} 名学生信息`
+        description: `已成功导入 ${mockData.length} 名学生信息`,
       });
     } catch (error) {
       console.error("导入学生数据失败:", error);
       toast.error("导入失败", {
-        description: "请检查文件格式是否正确"
+        description: "请检查文件格式是否正确",
       });
     } finally {
       setIsUploading(false);
@@ -58,7 +62,7 @@ export default function StudentDataImporter({ onDataImported }: StudentDataImpor
                 支持 Excel (.xlsx) 和 CSV (.csv) 格式
               </p>
             </div>
-            
+
             <div className="relative">
               <Input
                 type="file"
@@ -69,8 +73,8 @@ export default function StudentDataImporter({ onDataImported }: StudentDataImpor
                 id="student-file-upload"
               />
               <Label htmlFor="student-file-upload">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   disabled={isUploading}
                   className="cursor-pointer"
                   asChild
@@ -108,25 +112,40 @@ export default function StudentDataImporter({ onDataImported }: StudentDataImpor
             <div>
               <h4 className="font-medium mb-2">必填字段：</h4>
               <ul className="text-sm text-gray-600 space-y-1">
-                <li>• <strong>学号 (student_id)</strong>: 学生唯一标识</li>
-                <li>• <strong>姓名 (name)</strong>: 学生真实姓名</li>
-                <li>• <strong>班级 (class_name)</strong>: 所属班级</li>
+                <li>
+                  • <strong>学号 (student_id)</strong>: 学生唯一标识
+                </li>
+                <li>
+                  • <strong>姓名 (name)</strong>: 学生真实姓名
+                </li>
+                <li>
+                  • <strong>班级 (class_name)</strong>: 所属班级
+                </li>
               </ul>
             </div>
-            
+
             <div>
               <h4 className="font-medium mb-2">选填字段：</h4>
               <ul className="text-sm text-gray-600 space-y-1">
-                <li>• <strong>年级 (grade)</strong>: 年级信息</li>
-                <li>• <strong>性别 (gender)</strong>: 男/女</li>
-                <li>• <strong>联系电话 (contact_phone)</strong>: 联系方式</li>
-                <li>• <strong>联系邮箱 (contact_email)</strong>: 邮箱地址</li>
+                <li>
+                  • <strong>年级 (grade)</strong>: 年级信息
+                </li>
+                <li>
+                  • <strong>性别 (gender)</strong>: 男/女
+                </li>
+                <li>
+                  • <strong>联系电话 (contact_phone)</strong>: 联系方式
+                </li>
+                <li>
+                  • <strong>联系邮箱 (contact_email)</strong>: 邮箱地址
+                </li>
               </ul>
             </div>
-            
+
             <div className="bg-blue-50 p-3 rounded-lg">
               <p className="text-sm text-blue-800">
-                <strong>提示：</strong>确保Excel或CSV文件的第一行为字段名，与上述字段名称保持一致
+                <strong>提示：</strong>
+                确保Excel或CSV文件的第一行为字段名，与上述字段名称保持一致
               </p>
             </div>
           </div>
@@ -134,4 +153,4 @@ export default function StudentDataImporter({ onDataImported }: StudentDataImpor
       </Card>
     </div>
   );
-} 
+}

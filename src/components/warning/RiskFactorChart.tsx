@@ -1,16 +1,61 @@
 import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell, LabelList, LineChart, Line, PieChart, Pie } from "recharts";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+  Cell,
+  LabelList,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+} from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { SlidersHorizontal, Info, ArrowUpDown, Download, BarChart3, LineChart as LineChartIcon, PieChart as PieChartIcon, Filter, Expand } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  SlidersHorizontal,
+  Info,
+  ArrowUpDown,
+  Download,
+  BarChart3,
+  LineChart as LineChartIcon,
+  PieChart as PieChartIcon,
+  Filter,
+  Expand,
+} from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 // 组件属性接口
 interface RiskFactorChartProps {
-  data?: Array<{ factor: string; count: number; percentage: number; trend?: number[]; category?: string; severity?: string }>;
+  data?: Array<{
+    factor: string;
+    count: number;
+    percentage: number;
+    trend?: number[];
+    category?: string;
+    severity?: string;
+  }>;
   className?: string;
   enableDrillDown?: boolean;
   enableExport?: boolean;
@@ -29,7 +74,7 @@ const defaultRiskFactorData = [
     percentage: 35,
     trend: [20, 25, 32, 35, 38, 35],
     category: "学业表现",
-    severity: "high"
+    severity: "high",
   },
   {
     factor: "作业完成率低",
@@ -37,7 +82,7 @@ const defaultRiskFactorData = [
     percentage: 31,
     trend: [28, 30, 29, 31, 33, 31],
     category: "学习习惯",
-    severity: "high"
+    severity: "high",
   },
   {
     factor: "课堂参与度不足",
@@ -45,7 +90,7 @@ const defaultRiskFactorData = [
     percentage: 23,
     trend: [25, 24, 22, 23, 24, 23],
     category: "课堂表现",
-    severity: "medium"
+    severity: "medium",
   },
   {
     factor: "缺交作业次数增加",
@@ -53,7 +98,7 @@ const defaultRiskFactorData = [
     percentage: 15,
     trend: [18, 16, 14, 15, 16, 15],
     category: "学习习惯",
-    severity: "medium"
+    severity: "medium",
   },
   {
     factor: "考试科目成绩不均衡",
@@ -61,8 +106,8 @@ const defaultRiskFactorData = [
     percentage: 10,
     trend: [12, 11, 10, 10, 9, 10],
     category: "学业表现",
-    severity: "low"
-  }
+    severity: "low",
+  },
 ];
 
 // 增强的自定义工具提示组件
@@ -84,17 +129,29 @@ const CustomTooltip = ({ active, payload, label, showTrend = false }: any) => {
           {data.category && (
             <div className="flex items-center justify-between gap-4 text-gray-700">
               <span>分类:</span>
-              <Badge variant="outline" className="text-xs">{data.category}</Badge>
+              <Badge variant="outline" className="text-xs">
+                {data.category}
+              </Badge>
             </div>
           )}
           {data.severity && (
             <div className="flex items-center justify-between gap-4 text-gray-700">
               <span>严重程度:</span>
-              <Badge 
-                variant={data.severity === 'high' ? 'destructive' : data.severity === 'medium' ? 'default' : 'secondary'}
+              <Badge
+                variant={
+                  data.severity === "high"
+                    ? "destructive"
+                    : data.severity === "medium"
+                      ? "default"
+                      : "secondary"
+                }
                 className="text-xs"
               >
-                {data.severity === 'high' ? '高' : data.severity === 'medium' ? '中' : '低'}
+                {data.severity === "high"
+                  ? "高"
+                  : data.severity === "medium"
+                    ? "中"
+                    : "低"}
               </Badge>
             </div>
           )}
@@ -103,11 +160,11 @@ const CustomTooltip = ({ active, payload, label, showTrend = false }: any) => {
               <span className="text-xs text-gray-500">最近6周趋势</span>
               <div className="flex items-center gap-1 mt-1">
                 {data.trend.map((value: number, index: number) => (
-                  <div 
+                  <div
                     key={index}
                     className="h-1 w-4 bg-gray-200 rounded"
-                    style={{ 
-                      backgroundColor: `rgba(99, 102, 241, ${value / Math.max(...data.trend)})` 
+                    style={{
+                      backgroundColor: `rgba(99, 102, 241, ${value / Math.max(...data.trend)})`,
                     }}
                   />
                 ))}
@@ -163,22 +220,24 @@ const RiskLevelLegend = () => (
 // 数据导出功能
 const exportData = (data: any[], filename: string) => {
   const csvContent = [
-    ['风险因素', '发生次数', '影响占比(%)', '分类', '严重程度'].join(','),
-    ...data.map(item => [
-      `"${item.factor}"`,
-      item.count,
-      item.percentage,
-      item.category || '',
-      item.severity || ''
-    ].join(','))
-  ].join('\n');
+    ["风险因素", "发生次数", "影响占比(%)", "分类", "严重程度"].join(","),
+    ...data.map((item) =>
+      [
+        `"${item.factor}"`,
+        item.count,
+        item.percentage,
+        item.category || "",
+        item.severity || "",
+      ].join(",")
+    ),
+  ].join("\n");
 
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
   const url = URL.createObjectURL(blob);
-  link.setAttribute('href', url);
-  link.setAttribute('download', `${filename}.csv`);
-  link.style.visibility = 'hidden';
+  link.setAttribute("href", url);
+  link.setAttribute("download", `${filename}.csv`);
+  link.style.visibility = "hidden";
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -187,17 +246,20 @@ const exportData = (data: any[], filename: string) => {
 // 趋势分析组件
 const TrendAnalysis = ({ data }: { data: any[] }) => {
   const trendData = useMemo(() => {
-    const maxLength = Math.max(...data.map(item => item.trend?.length || 0));
+    const maxLength = Math.max(...data.map((item) => item.trend?.length || 0));
     return Array.from({ length: maxLength }, (_, index) => ({
       week: `第${index + 1}周`,
-      ...data.reduce((acc, item) => ({
-        ...acc,
-        [item.factor]: item.trend?.[index] || 0
-      }), {})
+      ...data.reduce(
+        (acc, item) => ({
+          ...acc,
+          [item.factor]: item.trend?.[index] || 0,
+        }),
+        {}
+      ),
     }));
   }, [data]);
 
-  const colors = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6'];
+  const colors = ["#3b82f6", "#ef4444", "#f59e0b", "#10b981", "#8b5cf6"];
 
   return (
     <div className="h-[300px]">
@@ -230,7 +292,7 @@ const PieChartView = ({ data }: { data: any[] }) => {
   const pieData = data.map((item, index) => ({
     name: item.factor,
     value: item.percentage,
-    fill: getRiskLevelColor(item.percentage)
+    fill: getRiskLevelColor(item.percentage),
   }));
 
   return (
@@ -242,7 +304,9 @@ const PieChartView = ({ data }: { data: any[] }) => {
             cx="50%"
             cy="50%"
             labelLine={false}
-            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+            label={({ name, percent }) =>
+              `${name}: ${(percent * 100).toFixed(0)}%`
+            }
             outerRadius={80}
             fill="#8884d8"
             dataKey="value"
@@ -259,11 +323,16 @@ const PieChartView = ({ data }: { data: any[] }) => {
 };
 
 // 数据钻取对话框
-const DrillDownDialog = ({ factor, data, isOpen, onClose }: { 
-  factor: string; 
-  data: any; 
-  isOpen: boolean; 
-  onClose: () => void; 
+const DrillDownDialog = ({
+  factor,
+  data,
+  isOpen,
+  onClose,
+}: {
+  factor: string;
+  data: any;
+  isOpen: boolean;
+  onClose: () => void;
 }) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -291,17 +360,24 @@ const DrillDownDialog = ({ factor, data, isOpen, onClose }: {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">分类:</span>
-                  <Badge variant="outline">{data?.category || '未分类'}</Badge>
+                  <Badge variant="outline">{data?.category || "未分类"}</Badge>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">严重程度:</span>
-                  <Badge 
+                  <Badge
                     variant={
-                      data?.severity === 'high' ? 'destructive' : 
-                      data?.severity === 'medium' ? 'default' : 'secondary'
+                      data?.severity === "high"
+                        ? "destructive"
+                        : data?.severity === "medium"
+                          ? "default"
+                          : "secondary"
                     }
                   >
-                    {data?.severity === 'high' ? '高' : data?.severity === 'medium' ? '中' : '低'}
+                    {data?.severity === "high"
+                      ? "高"
+                      : data?.severity === "medium"
+                        ? "中"
+                        : "低"}
                   </Badge>
                 </div>
               </CardContent>
@@ -336,17 +412,17 @@ const DrillDownDialog = ({ factor, data, isOpen, onClose }: {
   );
 };
 
-const RiskFactorChart: React.FC<RiskFactorChartProps> = ({ 
-  data, 
+const RiskFactorChart: React.FC<RiskFactorChartProps> = ({
+  data,
   className,
   enableDrillDown = true,
   enableExport = true,
   showTrendAnalysis = true,
-  onFactorClick 
+  onFactorClick,
 }) => {
   // 使用传入的数据或默认数据
   const chartData = data || defaultRiskFactorData;
-  
+
   // 状态管理
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [chartType, setChartType] = useState<ChartType>("bar");
@@ -357,30 +433,36 @@ const RiskFactorChart: React.FC<RiskFactorChartProps> = ({
 
   // 获取所有分类和严重程度选项
   const categories = useMemo(() => {
-    const cats = Array.from(new Set(chartData.map(item => item.category).filter(Boolean)));
+    const cats = Array.from(
+      new Set(chartData.map((item) => item.category).filter(Boolean))
+    );
     return cats;
   }, [chartData]);
 
   const severities = useMemo(() => {
-    const sevs = Array.from(new Set(chartData.map(item => item.severity).filter(Boolean)));
+    const sevs = Array.from(
+      new Set(chartData.map((item) => item.severity).filter(Boolean))
+    );
     return sevs;
   }, [chartData]);
 
   // 过滤和排序数据
   const filteredData = useMemo(() => {
-    let filtered = chartData.filter(item => {
-      if (filterCategory !== "all" && item.category !== filterCategory) return false;
-      if (filterSeverity !== "all" && item.severity !== filterSeverity) return false;
+    let filtered = chartData.filter((item) => {
+      if (filterCategory !== "all" && item.category !== filterCategory)
+        return false;
+      if (filterSeverity !== "all" && item.severity !== filterSeverity)
+        return false;
       return true;
     });
 
-    return filtered.sort((a, b) => 
-      sortOrder === "desc" 
-        ? b.percentage - a.percentage 
+    return filtered.sort((a, b) =>
+      sortOrder === "desc"
+        ? b.percentage - a.percentage
         : a.percentage - b.percentage
     );
   }, [chartData, sortOrder, filterCategory, filterSeverity]);
-  
+
   // 切换排序顺序
   const toggleSortOrder = () => {
     setSortOrder(sortOrder === "desc" ? "asc" : "desc");
@@ -397,28 +479,33 @@ const RiskFactorChart: React.FC<RiskFactorChartProps> = ({
 
   // 导出数据
   const handleExport = () => {
-    exportData(filteredData, `风险因素分析_${new Date().toISOString().split('T')[0]}`);
+    exportData(
+      filteredData,
+      `风险因素分析_${new Date().toISOString().split("T")[0]}`
+    );
   };
-  
+
   // 映射数据以符合图表要求
-  const formattedData = filteredData.map(item => ({
+  const formattedData = filteredData.map((item) => ({
     name: item.factor,
     value: item.percentage,
     count: item.count,
     color: getRiskLevelColor(item.percentage),
-    ...item
+    ...item,
   }));
 
   // 获取选中因素的详细数据
-  const selectedFactorData = selectedFactor 
-    ? chartData.find(item => item.factor === selectedFactor)
+  const selectedFactorData = selectedFactor
+    ? chartData.find((item) => item.factor === selectedFactor)
     : null;
 
   return (
     <div className={className}>
       {/* 控制面板 */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-        <h3 className="text-lg font-medium text-gray-800">风险因素可视化分析</h3>
+        <h3 className="text-lg font-medium text-gray-800">
+          风险因素可视化分析
+        </h3>
         <div className="flex items-center gap-2">
           {/* 图表类型选择 */}
           <div className="flex items-center gap-1 border rounded-md p-1">
@@ -449,9 +536,9 @@ const RiskFactorChart: React.FC<RiskFactorChartProps> = ({
           </div>
 
           {/* 排序按钮 */}
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             className="h-8"
             onClick={toggleSortOrder}
           >
@@ -461,9 +548,9 @@ const RiskFactorChart: React.FC<RiskFactorChartProps> = ({
 
           {/* 导出按钮 */}
           {enableExport && (
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               className="h-8"
               onClick={handleExport}
             >
@@ -486,8 +573,10 @@ const RiskFactorChart: React.FC<RiskFactorChartProps> = ({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">全部分类</SelectItem>
-            {categories.map(cat => (
-              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+            {categories.map((cat) => (
+              <SelectItem key={cat} value={cat}>
+                {cat}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -497,9 +586,9 @@ const RiskFactorChart: React.FC<RiskFactorChartProps> = ({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">全部程度</SelectItem>
-            {severities.map(sev => (
+            {severities.map((sev) => (
               <SelectItem key={sev} value={sev}>
-                {sev === 'high' ? '高' : sev === 'medium' ? '中' : '低'}
+                {sev === "high" ? "高" : sev === "medium" ? "中" : "低"}
               </SelectItem>
             ))}
           </SelectContent>
@@ -507,14 +596,17 @@ const RiskFactorChart: React.FC<RiskFactorChartProps> = ({
       </div>
 
       {/* 主图表区域 */}
-      <Tabs value={chartType === "line" && showTrendAnalysis ? "trend" : "main"} className="w-full">
+      <Tabs
+        value={chartType === "line" && showTrendAnalysis ? "trend" : "main"}
+        className="w-full"
+      >
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="main">主要分析</TabsTrigger>
           {showTrendAnalysis && (
             <TabsTrigger value="trend">趋势分析</TabsTrigger>
           )}
         </TabsList>
-        
+
         <TabsContent value="main" className="space-y-4">
           <div className="h-[400px]">
             {chartType === "bar" && (
@@ -525,36 +617,48 @@ const RiskFactorChart: React.FC<RiskFactorChartProps> = ({
                   margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                   barSize={24}
                 >
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" />
-                  <XAxis 
-                    type="number" 
-                    domain={[0, Math.max(100, Math.ceil(formattedData[0]?.value || 0) + 10)]} 
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    horizontal={false}
+                    stroke="#e5e7eb"
+                  />
+                  <XAxis
+                    type="number"
+                    domain={[
+                      0,
+                      Math.max(
+                        100,
+                        Math.ceil(formattedData[0]?.value || 0) + 10
+                      ),
+                    ]}
                     tickFormatter={(value) => `${value}%`}
                     stroke="#9ca3af"
                     fontSize={12}
                     tickLine={false}
                   />
-                  <YAxis 
-                    type="category" 
-                    dataKey="name" 
+                  <YAxis
+                    type="category"
+                    dataKey="name"
                     width={180}
                     tickLine={false}
                     axisLine={false}
                     tick={{ fontSize: 12, fill: "#4b5563" }}
                   />
-                  <Tooltip content={<CustomTooltip showTrend={showTrendAnalysis} />} />
-                  <Bar 
+                  <Tooltip
+                    content={<CustomTooltip showTrend={showTrendAnalysis} />}
+                  />
+                  <Bar
                     dataKey="value"
                     name="影响占比"
                     radius={[0, 4, 4, 0]}
                     background={{ fill: "#f3f4f6" }}
                     animationDuration={750}
                     onClick={(data) => handleFactorClick(data.name)}
-                    style={{ cursor: enableDrillDown ? 'pointer' : 'default' }}
+                    style={{ cursor: enableDrillDown ? "pointer" : "default" }}
                   >
                     {formattedData.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
+                      <Cell
+                        key={`cell-${index}`}
                         fill={entry.color}
                         className="hover:opacity-80 transition-opacity duration-200"
                       />
@@ -564,9 +668,7 @@ const RiskFactorChart: React.FC<RiskFactorChartProps> = ({
               </ResponsiveContainer>
             )}
 
-            {chartType === "pie" && (
-              <PieChartView data={formattedData} />
-            )}
+            {chartType === "pie" && <PieChartView data={formattedData} />}
           </div>
         </TabsContent>
 
@@ -576,13 +678,14 @@ const RiskFactorChart: React.FC<RiskFactorChartProps> = ({
           </TabsContent>
         )}
       </Tabs>
-      
+
       <RiskLevelLegend />
-      
+
       <div className="mt-4 pt-4 border-t text-xs text-gray-500 flex justify-between items-center">
         <span className="flex items-center">
           <Info className="h-3.5 w-3.5 mr-1" />
-          显示{formattedData.length}个风险因素，总计{formattedData.reduce((sum, item) => sum + item.count, 0)}个预警事件
+          显示{formattedData.length}个风险因素，总计
+          {formattedData.reduce((sum, item) => sum + item.count, 0)}个预警事件
         </span>
         <span className="flex items-center">
           <SlidersHorizontal className="h-3.5 w-3.5 mr-1" />
@@ -604,4 +707,3 @@ const RiskFactorChart: React.FC<RiskFactorChartProps> = ({
 };
 
 export default RiskFactorChart;
-
