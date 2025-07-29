@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
-import { useAuthContext } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/unified/modules/AuthModule";
 import { Navbar } from "@/components/shared";
 import {
   Card,
@@ -58,7 +58,7 @@ const Index = () => {
   const [isInitializingTables, setIsInitializingTables] = useState(false);
   const [tablesExist, setTablesExist] = useState<boolean>(true);
   const navigate = useNavigate();
-  const { user, isAuthReady } = useAuthContext();
+  const { user, isAuthReady } = useAuth();
 
   // 整合GradeDataImport的状态
   const [gradesActiveTab, setGradesActiveTab] = useState("import");

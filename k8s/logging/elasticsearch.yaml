@@ -1,0 +1,347 @@
+# 🔍 Elasticsearch日志存储和搜索引擎
+# 为ELK日志系统提供分布式搜索和存储功能
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: logging
+  labels:
+    name: logging
+    tier: infrastructure
+
+---
+# 📋 ConfigMap - Elasticsearch配置
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elasticsearch-config
+  namespace: logging
+  labels:
+    app: elasticsearch
+data:
+  elasticsearch.yml: |
+    cluster.name: figma-frame-faithful-logs
+    node.name: ${HOSTNAME}
+    
+    # 网络配置
+    network.host: 0.0.0.0
+    http.port: 9200
+    transport.port: 9300
+    
+    # 发现配置
+    discovery.seed_hosts: ["elasticsearch-master-headless"]
+    cluster.initial_master_nodes: ["elasticsearch-master-0"]
+    
+    # 内存配置
+    bootstrap.memory_lock: true
+    
+    # 安全配置
+    xpack.security.enabled: false
+    xpack.monitoring.enabled: true
+    xpack.graph.enabled: false
+    xpack.watcher.enabled: false
+    xpack.ml.enabled: false
+    
+    # 索引配置
+    action.auto_create_index: true
+    action.destructive_requires_name: true
+    
+    # 性能优化
+    thread_pool.write.queue_size: 1000
+    thread_pool.search.queue_size: 1000
+    indices.memory.index_buffer_size: 30%
+    indices.fielddata.cache.size: 40%
+    
+    # 日志配置
+    logger.level: INFO
+    logger.deprecation.level: WARN
+    
+    # JVM堆内存设置
+    # 在deployment中通过环境变量设置
+  
+  jvm.options: |
+    # 基础JVM选项
+    -Xms2g
+    -Xmx2g
+    
+    # GC配置
+    -XX:+UseG1GC
+    -XX:G1HeapRegionSize=16m
+    -XX:+UnlockExperimentalVMOptions
+    -XX:+UseCGroupMemoryLimitForHeap
+    
+    # 内存映射
+    -XX:+AlwaysPreTouch
+    -XX:+UseTransparentHugePages
+    
+    # 调试和监控
+    -XX:+PrintGCDetails
+    -XX:+PrintGCTimeStamps
+    -XX:+PrintGCApplicationStoppedTime
+    -Xloggc:/usr/share/elasticsearch/logs/gc.log
+    -XX:+UseGCLogFileRotation
+    -XX:NumberOfGCLogFiles=32
+    -XX:GCLogFileSize=64m
+    
+    # 错误处理
+    -XX:+HeapDumpOnOutOfMemoryError
+    -XX:HeapDumpPath=/usr/share/elasticsearch/logs/
+    -XX:ErrorFile=/usr/share/elasticsearch/logs/hs_err_pid%p.log
+
+---
+# 🏪 StorageClass - Elasticsearch高性能存储
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: elasticsearch-ssd
+  labels:
+    app: elasticsearch
+provisioner: kubernetes.io/aws-ebs
+parameters:
+  type: gp3
+  iops: "3000"
+  throughput: "125"
+  fsType: ext4
+allowVolumeExpansion: true
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer
+
+---
+# 🎛️ StatefulSet - Elasticsearch Master节点
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elasticsearch-master
+  namespace: logging
+  labels:
+    app: elasticsearch
+    component: master
+spec:
+  serviceName: elasticsearch-master-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: elasticsearch
+      component: master
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+        component: master
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9200"
+        prometheus.io/path: "/_prometheus/metrics"
+    spec:
+      affinity:
+        # Pod反亲和性
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - elasticsearch
+              - key: component
+                operator: In
+                values:
+                - master
+            topologyKey: kubernetes.io/hostname
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      initContainers:
+      # 初始化系统设置
+      - name: configure-sysctl
+        image: busybox:1.35
+        command: ['sh', '-c', 'sysctl -w vm.max_map_count=262144']
+        securityContext:
+          privileged: true
+      - name: configure-ownership
+        image: busybox:1.35
+        command: ['sh', '-c', 'chown -R 1000:1000 /usr/share/elasticsearch/data']
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+        securityContext:
+          privileged: true
+      containers:
+      - name: elasticsearch
+        image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
+        resources:
+          requests:
+            memory: "4Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        ports:
+        - name: http
+          containerPort: 9200
+          protocol: TCP
+        - name: transport
+          containerPort: 9300
+          protocol: TCP
+        env:
+        - name: node.name
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: cluster.name
+          value: "figma-frame-faithful-logs"
+        - name: discovery.seed_hosts
+          value: "elasticsearch-master-headless"
+        - name: cluster.initial_master_nodes
+          value: "elasticsearch-master-0,elasticsearch-master-1,elasticsearch-master-2"
+        - name: ES_JAVA_OPTS
+          value: "-Xms2g -Xmx2g"
+        - name: node.roles
+          value: "master,data,ingest"
+        - name: ELASTIC_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: elasticsearch-credentials
+              key: password
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+        - name: config
+          mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
+          subPath: elasticsearch.yml
+          readOnly: true
+        - name: config
+          mountPath: /usr/share/elasticsearch/config/jvm.options
+          subPath: jvm.options
+          readOnly: true
+        livenessProbe:
+          httpGet:
+            path: /_cluster/health?local=true
+            port: 9200
+          initialDelaySeconds: 90
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /_cluster/health?wait_for_status=yellow&timeout=5s
+            port: 9200
+          initialDelaySeconds: 90
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 3
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+            add:
+            - SYS_CHROOT
+      volumes:
+      - name: config
+        configMap:
+          name: elasticsearch-config
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      labels:
+        app: elasticsearch
+        component: master
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: elasticsearch-ssd
+      resources:
+        requests:
+          storage: 100Gi
+
+---
+# 🌐 Service - Elasticsearch主服务
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: logging
+  labels:
+    app: elasticsearch
+    component: master
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9200"
+    prometheus.io/path: "/_prometheus/metrics"
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 9200
+    targetPort: http
+    protocol: TCP
+  - name: transport
+    port: 9300
+    targetPort: transport
+    protocol: TCP
+  selector:
+    app: elasticsearch
+    component: master
+
+---
+# 🔍 Service - Elasticsearch Headless服务
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch-master-headless
+  namespace: logging
+  labels:
+    app: elasticsearch
+    component: master
+    service-type: headless
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+  - name: http
+    port: 9200
+    targetPort: http
+    protocol: TCP
+  - name: transport
+    port: 9300
+    targetPort: transport
+    protocol: TCP
+  selector:
+    app: elasticsearch
+    component: master
+
+---
+# 🔐 Secret - Elasticsearch认证信息
+apiVersion: v1
+kind: Secret
+metadata:
+  name: elasticsearch-credentials
+  namespace: logging
+  labels:
+    app: elasticsearch
+type: Opaque
+data:
+  username: ZWxhc3RpYw==  # elastic (base64编码)
+  password: ZWxhc3RpY3Bhc3N3b3Jk  # elasticpassword (base64编码)
+
+---
+# 📊 ServiceMonitor - Prometheus监控Elasticsearch
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: elasticsearch
+  namespace: logging
+  labels:
+    app: elasticsearch
+spec:
+  selector:
+    matchLabels:
+      app: elasticsearch
+      component: master
+  endpoints:
+  - port: http
+    path: /_prometheus/metrics
+    interval: 30s
+    scrapeTimeout: 10s

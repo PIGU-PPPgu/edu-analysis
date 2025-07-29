@@ -1,0 +1,366 @@
+# 📁 Filebeat日志收集器
+# 从Kubernetes节点和容器收集日志数据，发送到Logstash进行处理
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: filebeat-config
+  namespace: logging
+  labels:
+    app: filebeat
+data:
+  filebeat.yml: |
+    # Filebeat配置
+    filebeat.config:
+      modules:
+        path: ${path.config}/modules.d/*.yml
+        reload.enabled: false
+    
+    # 输入配置
+    filebeat.inputs:
+    # 容器日志收集
+    - type: container
+      paths:
+        - /var/log/containers/*figma-frame-faithful*.log
+      processors:
+        - add_kubernetes_metadata:
+            host: ${NODE_NAME}
+            matchers:
+            - logs_path:
+                logs_path: "/var/log/containers/"
+        - drop_event:
+            when:
+              or:
+                - contains:
+                    kubernetes.container.name: "filebeat"
+                - contains:
+                    kubernetes.container.name: "logstash"
+                - contains:
+                    kubernetes.container.name: "elasticsearch"
+      fields:
+        log_source: "application"
+        environment: "production"
+      fields_under_root: true
+      multiline.pattern: '^\d{4}-\d{2}-\d{2}'
+      multiline.negate: true
+      multiline.match: after
+      
+    # Nginx日志收集
+    - type: log
+      paths:
+        - /var/log/nginx/access.log
+        - /var/log/nginx/error.log
+      fields:
+        log_source: "nginx"
+        service: "figma-frame-faithful"
+        environment: "production"
+      fields_under_root: true
+      multiline.pattern: '^\d{4}/\d{2}/\d{2}'
+      multiline.negate: true
+      multiline.match: after
+      
+    # Kubernetes系统日志
+    - type: log
+      paths:
+        - /var/log/kubelet.log
+        - /var/log/kube-proxy.log
+        - /var/log/docker.log
+      fields:
+        log_source: "kubernetes"
+        component: "system"
+        environment: "production"
+      fields_under_root: true
+      
+    # 系统日志
+    - type: log
+      paths:
+        - /var/log/syslog
+        - /var/log/messages
+      fields:
+        log_source: "system"
+        environment: "production"
+      fields_under_root: true
+    
+    # 处理器配置
+    processors:
+    - add_host_metadata:
+        when.not.contains.tags: forwarded
+    - add_cloud_metadata: ~
+    - add_docker_metadata: ~
+    - add_kubernetes_metadata:
+        host: ${NODE_NAME}
+        matchers:
+        - logs_path:
+            logs_path: "/var/log/containers/"
+    
+    # 输出配置 - 发送到Logstash
+    output.logstash:
+      hosts: ["logstash:5044", "logstash:5045", "logstash:5046"]
+      loadbalance: true
+      worker: 2
+      compression_level: 3
+      escape_html: false
+      
+    # 日志配置
+    logging.level: info
+    logging.to_stderr: false
+    logging.files:
+      path: /var/log/filebeat
+      name: filebeat
+      keepfiles: 7
+      permissions: 0644
+    
+    # 监控配置
+    monitoring.enabled: true
+    monitoring.elasticsearch:
+      hosts: ["http://elasticsearch:9200"]
+      
+    # 性能配置
+    queue.mem:
+      events: 4096
+      flush.min_events: 512
+      flush.timeout: 1s
+    
+    # HTTP端点配置（用于健康检查）
+    http.enabled: true
+    http.host: 0.0.0.0
+    http.port: 5066
+
+  # Nginx模块配置
+  nginx.yml: |
+    - module: nginx
+      access:
+        enabled: true
+        var.paths: ["/var/log/nginx/access.log"]
+      error:
+        enabled: true
+        var.paths: ["/var/log/nginx/error.log"]
+
+  # Kubernetes模块配置  
+  kubernetes.yml: |
+    - module: kubernetes
+      node:
+        enabled: true
+        var.paths:
+          - /var/log/kubelet.log
+      apiserver:
+        enabled: true
+        var.paths:
+          - /var/log/kube-apiserver.log
+      controller:
+        enabled: true
+        var.paths:
+          - /var/log/kube-controller-manager.log
+      scheduler:
+        enabled: true
+        var.paths:
+          - /var/log/kube-scheduler.log
+      proxy:
+        enabled: true
+        var.paths:
+          - /var/log/kube-proxy.log
+
+---
+# 🚀 DaemonSet - Filebeat
+# 在每个节点上运行Filebeat实例来收集日志
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: filebeat
+  namespace: logging
+  labels:
+    app: filebeat
+spec:
+  selector:
+    matchLabels:
+      app: filebeat
+  template:
+    metadata:
+      labels:
+        app: filebeat
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "5066"
+        prometheus.io/path: "/stats"
+    spec:
+      serviceAccountName: filebeat
+      terminationGracePeriodSeconds: 30
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: filebeat
+        image: docker.elastic.co/beats/filebeat:8.8.0
+        args: [
+          "-c", "/etc/filebeat.yml",
+          "-e",
+        ]
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: ELASTICSEARCH_HOST
+          value: elasticsearch
+        - name: ELASTICSEARCH_PORT
+          value: "9200"
+        - name: LOGSTASH_HOST
+          value: logstash
+        securityContext:
+          runAsUser: 0
+        resources:
+          limits:
+            memory: 500Mi
+            cpu: 200m
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        volumeMounts:
+        - name: config
+          mountPath: /etc/filebeat.yml
+          readOnly: true
+          subPath: filebeat.yml
+        - name: modules
+          mountPath: /usr/share/filebeat/modules.d
+          readOnly: true
+        - name: data
+          mountPath: /usr/share/filebeat/data
+        - name: varlibdockercontainers
+          mountPath: /var/lib/docker/containers
+          readOnly: true
+        - name: varlog
+          mountPath: /var/log
+          readOnly: true
+        - name: varlognginx
+          mountPath: /var/log/nginx
+          readOnly: true
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - |
+              curl -f http://localhost:5066/stats || exit 1
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - |
+              filebeat test config -c /etc/filebeat.yml
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: config
+        configMap:
+          defaultMode: 0640
+          name: filebeat-config
+      - name: modules
+        configMap:
+          defaultMode: 0640
+          name: filebeat-config
+          items:
+          - key: nginx.yml
+            path: nginx.yml
+          - key: kubernetes.yml
+            path: kubernetes.yml
+      - name: varlibdockercontainers
+        hostPath:
+          path: /var/lib/docker/containers
+      - name: varlog
+        hostPath:
+          path: /var/log
+      - name: varlognginx
+        hostPath:
+          path: /var/log/nginx
+      - name: data
+        hostPath:
+          path: /var/lib/filebeat-data
+          type: DirectoryOrCreate
+
+---
+# 🔐 ServiceAccount - Filebeat
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: filebeat
+  namespace: logging
+  labels:
+    app: filebeat
+
+---
+# 🔑 ClusterRole - Filebeat
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: filebeat
+  labels:
+    app: filebeat
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - namespaces
+  - events
+  - pods
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["extensions"]
+  resources:
+  - replicasets
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources:
+  - statefulsets
+  - deployments
+  - replicasets
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources:
+  - nodes/stats
+  verbs: ["get"]
+
+---
+# 🔗 ClusterRoleBinding - Filebeat
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: filebeat
+  labels:
+    app: filebeat
+subjects:
+- kind: ServiceAccount
+  name: filebeat
+  namespace: logging
+roleRef:
+  kind: ClusterRole
+  name: filebeat
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# 🌐 Service - Filebeat监控端点
+apiVersion: v1
+kind: Service
+metadata:
+  name: filebeat
+  namespace: logging
+  labels:
+    app: filebeat
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "5066"
+    prometheus.io/path: "/stats"
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+  - name: http
+    port: 5066
+    targetPort: 5066
+    protocol: TCP
+  selector:
+    app: filebeat

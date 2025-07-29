@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import UserAuthForm from "@/components/auth/UserAuthForm";
-import { useAuthContext } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/unified/modules/AuthModule";
 import { Navbar } from "@/components/shared";
 
 const Login = () => {
   const navigate = useNavigate();
-  const { user, isAuthReady } = useAuthContext();
+  const { user, isAuthReady } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
 
   // 如果用户已登录，重定向到首页

@@ -1,6 +1,7 @@
 /**
- * 🚀 前端性能优化工具集
- * 提供组件渲染优化、内存管理、懒加载等性能优化功能
+ * 🚀 第6周性能优化增强版 - 前端性能优化工具集
+ * 提供组件渲染优化、内存管理、懒加载、日志清理等性能优化功能
+ * 新增：生产环境日志清理、Bundle分析、性能预警系统
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -73,11 +74,10 @@ class MemoryMonitor {
       const usage = memory.usedJSHeapSize;
 
       if (usage > PERFORMANCE_CONFIG.MEMORY_WARNING_THRESHOLD) {
-        console.warn("🚨 内存使用过高:", {
-          used: `${(usage / 1024 / 1024).toFixed(2)}MB`,
-          total: `${(memory.totalJSHeapSize / 1024 / 1024).toFixed(2)}MB`,
-          limit: `${(memory.jsHeapSizeLimit / 1024 / 1024).toFixed(2)}MB`,
-        });
+        PerformanceAlert.warn(
+          "memory",
+          `内存使用过高: ${(usage / 1024 / 1024).toFixed(2)}MB / ${(memory.jsHeapSizeLimit / 1024 / 1024).toFixed(2)}MB`
+        );
 
         // 触发垃圾回收建议
         this.suggestGarbageCollection();
@@ -150,12 +150,9 @@ export function useRenderPerformance(componentName: string, props?: any) {
 
       // 慢渲染警告
       if (renderTime > PERFORMANCE_CONFIG.SLOW_RENDER_THRESHOLD_MS) {
-        console.warn(
-          `🐌 慢渲染检测: ${componentName} 耗时 ${renderTime.toFixed(2)}ms`,
-          {
-            rerenderCount: rerenderCountRef.current,
-            propsSize: metric.props,
-          }
+        PerformanceAlert.warn(
+          renderTime > 200 ? "critical" : "warning",
+          `${componentName}渲染耗时${renderTime.toFixed(2)}ms (重渲染${rerenderCountRef.current}次)`
         );
       }
     }
@@ -402,7 +399,7 @@ export function useBatchProcessor<T, R>(
         callback(results[index]);
       });
     } catch (error) {
-      console.error("批量处理失败:", error);
+      PerformanceAlert.warn("batch", `批量处理失败: ${error}`);
     } finally {
       processingRef.current = false;
 
@@ -513,29 +510,233 @@ export function trackErrorBoundary(
 
   memoryMonitor.addMetric(metric);
 
-  console.error("🚨 组件错误追踪:", {
-    component: componentName,
-    error: error.message,
-    memory: `${(metric.memoryUsage / 1024 / 1024).toFixed(2)}MB`,
-  });
+  PerformanceAlert.warn(
+    "critical",
+    `组件错误: ${componentName} - ${error.message} (内存: ${(metric.memoryUsage / 1024 / 1024).toFixed(2)}MB)`
+  );
 }
 
 /**
- * 初始化性能优化系统
+ * 生产环境日志清理 - 第6周新增功能
+ * 彻底移除生产环境的console输出，提升性能
+ */
+export function removeProductionLogs() {
+  if (process.env.NODE_ENV === "production") {
+    // 保存原始方法的引用
+    const originalError = console.error;
+
+    // 重写console方法为空函数，除了error
+    console.log = () => {};
+    console.warn = () => {};
+    console.info = () => {};
+    console.debug = () => {};
+    console.trace = () => {};
+
+    // 保留console.error但限制频率
+    let errorCount = 0;
+    const MAX_ERRORS = 10;
+    console.error = (...args: any[]) => {
+      if (errorCount < MAX_ERRORS) {
+        originalError.apply(console, args);
+        errorCount++;
+      }
+    };
+
+    console.log("🚀 生产环境日志清理完成");
+  }
+}
+
+/**
+ * Bundle大小分析器
+ */
+export class BundleAnalyzer {
+  private static chunkSizes = new Map<string, number>();
+
+  static recordChunkSize(chunkName: string, size: number) {
+    this.chunkSizes.set(chunkName, size);
+  }
+
+  static getAnalysis() {
+    const chunks = Array.from(this.chunkSizes.entries());
+    const totalSize = chunks.reduce((sum, [, size]) => sum + size, 0);
+
+    return {
+      totalSize: totalSize / 1024 / 1024, // MB
+      chunks: chunks
+        .map(([name, size]) => ({
+          name,
+          size: size / 1024, // KB
+          percentage: ((size / totalSize) * 100).toFixed(2),
+        }))
+        .sort((a, b) => b.size - a.size),
+      recommendations: this.generateRecommendations(chunks, totalSize),
+    };
+  }
+
+  private static generateRecommendations(
+    chunks: [string, number][],
+    totalSize: number
+  ): string[] {
+    const recommendations: string[] = [];
+
+    if (totalSize > 2 * 1024 * 1024) {
+      // > 2MB
+      recommendations.push("总Bundle过大，考虑代码分割");
+    }
+
+    const largeChunks = chunks.filter(([, size]) => size > 500 * 1024); // > 500KB
+    if (largeChunks.length > 0) {
+      recommendations.push(
+        `大型chunk: ${largeChunks.map(([name]) => name).join(", ")}`
+      );
+    }
+
+    return recommendations;
+  }
+}
+
+/**
+ * 性能预警系统
+ */
+export class PerformanceAlert {
+  private static alerts: Array<{
+    type: string;
+    message: string;
+    timestamp: number;
+  }> = [];
+
+  static warn(type: string, message: string) {
+    const alert = { type, message, timestamp: Date.now() };
+    this.alerts.push(alert);
+
+    // 限制预警数量
+    if (this.alerts.length > 50) {
+      this.alerts.shift();
+    }
+
+    // 生产环境静默，开发环境显示
+    if (process.env.NODE_ENV === "development") {
+      console.warn(`⚠️ [性能预警] ${type}: ${message}`);
+    }
+
+    // 严重问题立即通知
+    if (type === "critical") {
+      this.notifyUser(message);
+    }
+  }
+
+  private static notifyUser(message: string) {
+    // 可以集成到UI通知系统
+    window.dispatchEvent(
+      new CustomEvent("performance-critical", {
+        detail: { message },
+      })
+    );
+  }
+
+  static getAlerts() {
+    return [...this.alerts];
+  }
+
+  static clearAlerts() {
+    this.alerts = [];
+  }
+}
+
+/**
+ * 智能资源预加载
+ */
+export function useResourcePreloader() {
+  const preloadResource = useCallback((href: string, as: string) => {
+    // 避免重复预加载
+    const existing = document.querySelector(`link[href="${href}"]`);
+    if (existing) return;
+
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.href = href;
+    link.as = as;
+
+    // 添加错误处理
+    link.onerror = () => {
+      PerformanceAlert.warn("preload", `预加载失败: ${href}`);
+    };
+
+    document.head.appendChild(link);
+  }, []);
+
+  const preloadImage = useCallback((src: string) => {
+    return new Promise<void>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve();
+      img.onerror = reject;
+      img.src = src;
+    });
+  }, []);
+
+  return { preloadResource, preloadImage };
+}
+
+/**
+ * 初始化性能优化系统 - 增强版
  */
 export function initializePerformanceOptimizer() {
+  // 🔥 生产环境日志清理
+  removeProductionLogs();
+
   // 启动内存监控
   memoryMonitor.startMonitoring();
 
   // 监听内存压力事件
   window.addEventListener("memory-pressure", (event: any) => {
-    console.warn("🚨 内存压力警告:", event.detail);
+    PerformanceAlert.warn("memory", `内存压力: ${event.detail.suggestion}`);
+  });
+
+  // 监听性能关键事件
+  window.addEventListener("performance-critical", (event: any) => {
+    // 可以集成到UI通知系统或发送到监控服务
+    console.error("🚨 性能关键问题:", event.detail.message);
   });
 
   // 监听页面卸载，清理资源
   window.addEventListener("beforeunload", () => {
     memoryMonitor.stopMonitoring();
+    PerformanceAlert.clearAlerts();
   });
 
-  console.log("🚀 性能优化系统已启动");
+  // 监控页面性能指标
+  if ("PerformanceObserver" in window) {
+    const observer = new PerformanceObserver((list) => {
+      list.getEntries().forEach((entry) => {
+        if (
+          entry.entryType === "largest-contentful-paint" &&
+          entry.startTime > 2500
+        ) {
+          PerformanceAlert.warn(
+            "lcp",
+            `LCP过慢: ${entry.startTime.toFixed(2)}ms`
+          );
+        }
+        if (
+          entry.entryType === "first-input" &&
+          (entry as any).processingStart - entry.startTime > 100
+        ) {
+          PerformanceAlert.warn(
+            "fid",
+            `FID过长: ${((entry as any).processingStart - entry.startTime).toFixed(2)}ms`
+          );
+        }
+      });
+    });
+
+    try {
+      observer.observe({
+        entryTypes: ["largest-contentful-paint", "first-input"],
+      });
+    } catch (e) {
+      // 忽略不支持的浏览器
+    }
+  }
+
+  console.log("🚀 性能优化系统增强版已启动");
 }

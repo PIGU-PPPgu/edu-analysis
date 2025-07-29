@@ -1,0 +1,388 @@
+# 🚨 AlertManager告警管理系统
+# 处理Prometheus告警的路由、分组和通知
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: monitoring
+  labels:
+    app: alertmanager
+data:
+  alertmanager.yml: |
+    global:
+      # SMTP配置
+      smtp_smarthost: 'smtp.gmail.com:587'
+      smtp_from: 'alerts@figma-frame-faithful.com'
+      smtp_auth_username: 'alerts@figma-frame-faithful.com'
+      smtp_auth_password: 'your-app-password'
+      smtp_require_tls: true
+      
+      # Slack配置
+      slack_api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+    
+    # 告警模板
+    templates:
+      - '/etc/alertmanager/templates/*.tmpl'
+    
+    # 路由配置
+    route:
+      group_by: ['alertname', 'cluster', 'service']
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 1h
+      receiver: 'web.hook'
+      routes:
+        # 严重告警立即通知
+        - match:
+            severity: critical
+          receiver: 'critical-alerts'
+          group_wait: 5s
+          repeat_interval: 5m
+        
+        # 警告告警分组通知
+        - match:
+            severity: warning
+          receiver: 'warning-alerts'
+          group_wait: 30s
+          repeat_interval: 30m
+        
+        # 基础设施告警
+        - match_re:
+            alertname: 'Node.*|Kubernetes.*'
+          receiver: 'infrastructure-alerts'
+        
+        # 应用告警
+        - match_re:
+            alertname: 'Pod.*|High.*'
+          receiver: 'application-alerts'
+    
+    # 抑制规则
+    inhibit_rules:
+      # 如果节点宕机，抑制该节点上的所有其他告警
+      - source_match:
+          alertname: 'NodeDown'
+        target_match_re:
+          alertname: 'Node.*|Pod.*'
+        equal: ['instance']
+      
+      # 如果Pod崩溃循环，抑制资源相关告警
+      - source_match:
+          alertname: 'PodCrashLooping'
+        target_match_re:
+          alertname: 'PodHigh.*'
+        equal: ['pod', 'namespace']
+    
+    # 接收器配置
+    receivers:
+      # 默认接收器
+      - name: 'web.hook'
+        webhook_configs:
+          - url: 'http://localhost:5001/'
+            send_resolved: true
+      
+      # 严重告警接收器
+      - name: 'critical-alerts'
+        email_configs:
+          - to: 'admin@figma-frame-faithful.com'
+            subject: '🚨 严重告警 - {{ .GroupLabels.alertname }}'
+            body: |
+              {{ range .Alerts }}
+              告警: {{ .Annotations.summary }}
+              描述: {{ .Annotations.description }}
+              时间: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+              标签: {{ range .Labels.SortedPairs }}{{ .Name }}={{ .Value }} {{ end }}
+              {{ end }}
+            html: |
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <style>
+                  body { font-family: Arial, sans-serif; }
+                  .alert { background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; margin: 10px 0; border-radius: 5px; }
+                  .critical { background-color: #dc3545; color: white; }
+                </style>
+              </head>
+              <body>
+                <h2>🚨 严重告警通知</h2>
+                {{ range .Alerts }}
+                <div class="alert critical">
+                  <h3>{{ .Annotations.summary }}</h3>
+                  <p><strong>描述:</strong> {{ .Annotations.description }}</p>
+                  <p><strong>时间:</strong> {{ .StartsAt.Format "2006-01-02 15:04:05" }}</p>
+                  <p><strong>标签:</strong> {{ range .Labels.SortedPairs }}{{ .Name }}={{ .Value }} {{ end }}</p>
+                </div>
+                {{ end }}
+              </body>
+              </html>
+        slack_configs:
+          - channel: '#alerts-critical'
+            title: '🚨 严重告警'
+            text: |
+              {{ range .Alerts }}
+              *告警:* {{ .Annotations.summary }}
+              *描述:* {{ .Annotations.description }}
+              *时间:* {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+              {{ end }}
+            color: 'danger'
+      
+      # 警告告警接收器
+      - name: 'warning-alerts'
+        email_configs:
+          - to: 'ops@figma-frame-faithful.com'
+            subject: '⚠️ 警告告警 - {{ .GroupLabels.alertname }}'
+            body: |
+              {{ range .Alerts }}
+              告警: {{ .Annotations.summary }}
+              描述: {{ .Annotations.description }}
+              时间: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+              {{ end }}
+        slack_configs:
+          - channel: '#alerts-warning'
+            title: '⚠️ 警告告警'
+            text: |
+              {{ range .Alerts }}
+              *告警:* {{ .Annotations.summary }}
+              *描述:* {{ .Annotations.description }}
+              {{ end }}
+            color: 'warning'
+      
+      # 基础设施告警接收器
+      - name: 'infrastructure-alerts'
+        email_configs:
+          - to: 'infrastructure@figma-frame-faithful.com'
+            subject: '🏗️ 基础设施告警 - {{ .GroupLabels.alertname }}'
+            body: |
+              {{ range .Alerts }}
+              告警: {{ .Annotations.summary }}
+              描述: {{ .Annotations.description }}
+              节点: {{ .Labels.instance }}
+              时间: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+              {{ end }}
+        slack_configs:
+          - channel: '#infrastructure'
+            title: '🏗️ 基础设施告警'
+            text: |
+              {{ range .Alerts }}
+              *节点:* {{ .Labels.instance }}
+              *告警:* {{ .Annotations.summary }}
+              *描述:* {{ .Annotations.description }}
+              {{ end }}
+      
+      # 应用告警接收器
+      - name: 'application-alerts'
+        email_configs:
+          - to: 'development@figma-frame-faithful.com'
+            subject: '📱 应用告警 - {{ .GroupLabels.alertname }}'
+            body: |
+              {{ range .Alerts }}
+              告警: {{ .Annotations.summary }}
+              描述: {{ .Annotations.description }}
+              服务: {{ .Labels.pod }}
+              命名空间: {{ .Labels.namespace }}
+              时间: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+              {{ end }}
+        slack_configs:
+          - channel: '#applications'
+          title: '📱 应用告警'
+          text: |
+            {{ range .Alerts }}
+            *服务:* {{ .Labels.pod }}
+            *命名空间:* {{ .Labels.namespace }}
+            *告警:* {{ .Annotations.summary }}
+            *描述:* {{ .Annotations.description }}
+            {{ end }}
+
+  # 告警模板
+  email.tmpl: |
+    {{ define "email.default.subject" }}
+    [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .GroupLabels.alertname }}
+    {{ end }}
+    
+    {{ define "email.default.html" }}
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
+        .alert { border: 1px solid #dee2e6; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .firing { background-color: #f8d7da; border-color: #f5c6cb; }
+        .resolved { background-color: #d4edda; border-color: #c3e6cb; }
+        .summary { font-weight: bold; font-size: 16px; margin-bottom: 10px; }
+        .description { margin-bottom: 10px; }
+        .labels { font-size: 12px; color: #6c757d; }
+        .timestamp { font-size: 12px; color: #6c757d; margin-top: 10px; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>{{ if eq .Status "firing" }}🚨{{ else }}✅{{ end }} 告警通知</h1>
+        <p>集群: figma-frame-faithful-production</p>
+        <p>状态: {{ .Status | title }}</p>
+        <p>时间: {{ .CommonAnnotations.timestamp }}</p>
+      </div>
+      
+      {{ if .Alerts.Firing }}
+      <h2>🔥 活跃告警 ({{ .Alerts.Firing | len }})</h2>
+      {{ range .Alerts.Firing }}
+      <div class="alert firing">
+        <div class="summary">{{ .Annotations.summary }}</div>
+        <div class="description">{{ .Annotations.description }}</div>
+        <div class="labels">
+          标签: {{ range .Labels.SortedPairs }}{{ .Name }}={{ .Value }} {{ end }}
+        </div>
+        <div class="timestamp">开始时间: {{ .StartsAt.Format "2006-01-02 15:04:05" }}</div>
+      </div>
+      {{ end }}
+      {{ end }}
+      
+      {{ if .Alerts.Resolved }}
+      <h2>✅ 已解决告警 ({{ .Alerts.Resolved | len }})</h2>
+      {{ range .Alerts.Resolved }}
+      <div class="alert resolved">
+        <div class="summary">{{ .Annotations.summary }}</div>
+        <div class="description">{{ .Annotations.description }}</div>
+        <div class="labels">
+          标签: {{ range .Labels.SortedPairs }}{{ .Name }}={{ .Value }} {{ end }}
+        </div>
+        <div class="timestamp">
+          开始时间: {{ .StartsAt.Format "2006-01-02 15:04:05" }}<br>
+          结束时间: {{ .EndsAt.Format "2006-01-02 15:04:05" }}
+        </div>
+      </div>
+      {{ end }}
+      {{ end }}
+      
+      <hr>
+      <p style="font-size: 12px; color: #6c757d;">
+        此邮件由 Figma Frame Faithful 监控系统自动发送<br>
+        如需帮助，请联系运维团队: ops@figma-frame-faithful.com
+      </p>
+    </body>
+    </html>
+    {{ end }}
+
+---
+# 🏪 PersistentVolumeClaim - AlertManager数据存储
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: alertmanager-pvc
+  namespace: monitoring
+  labels:
+    app: alertmanager
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: fast-ssd
+
+---
+# 🚀 Deployment - AlertManager
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: monitoring
+  labels:
+    app: alertmanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9093"
+        prometheus.io/path: "/metrics"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+      containers:
+      - name: alertmanager
+        image: prom/alertmanager:v0.26.0
+        args:
+          - '--config.file=/etc/alertmanager/alertmanager.yml'
+          - '--storage.path=/alertmanager'
+          - '--data.retention=120h'
+          - '--web.listen-address=:9093'
+          - '--web.external-url=http://localhost:9093'
+          - '--log.level=info'
+          - '--log.format=logfmt'
+        ports:
+        - name: web
+          containerPort: 9093
+          protocol: TCP
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "200m"
+        volumeMounts:
+        - name: config
+          mountPath: /etc/alertmanager
+          readOnly: true
+        - name: storage
+          mountPath: /alertmanager
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: 9093
+          initialDelaySeconds: 30
+          timeoutSeconds: 10
+          periodSeconds: 30
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: 9093
+          initialDelaySeconds: 30
+          timeoutSeconds: 10
+          periodSeconds: 10
+          failureThreshold: 3
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: config
+        configMap:
+          name: alertmanager-config
+      - name: storage
+        persistentVolumeClaim:
+          claimName: alertmanager-pvc
+
+---
+# 🌐 Service - AlertManager
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: monitoring
+  labels:
+    app: alertmanager
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9093"
+spec:
+  type: ClusterIP
+  ports:
+  - name: web
+    port: 9093
+    targetPort: web
+    protocol: TCP
+  selector:
+    app: alertmanager

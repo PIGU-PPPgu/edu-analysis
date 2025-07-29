@@ -1,0 +1,80 @@
+# 🌐 Staging环境Service配置
+# 为Staging环境的Pod提供负载均衡和服务发现
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: figma-frame-faithful
+  namespace: staging
+  labels:
+    app: figma-frame-faithful
+    environment: staging
+    tier: frontend
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "false"
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "80"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  selector:
+    app: figma-frame-faithful
+    environment: staging
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+  sessionAffinity: None
+
+---
+# 🔍 Staging环境Headless Service
+# 用于直接访问Pod，主要用于调试和监控
+apiVersion: v1
+kind: Service
+metadata:
+  name: figma-frame-faithful-headless
+  namespace: staging
+  labels:
+    app: figma-frame-faithful
+    environment: staging
+    tier: frontend
+    service-type: headless
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app: figma-frame-faithful
+    environment: staging
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+
+---
+# 🚪 NodePort Service（可选，用于外部直接访问）
+apiVersion: v1
+kind: Service
+metadata:
+  name: figma-frame-faithful-nodeport
+  namespace: staging
+  labels:
+    app: figma-frame-faithful
+    environment: staging
+    tier: frontend
+    service-type: nodeport
+  annotations:
+    description: "NodePort service for external access during testing"
+spec:
+  type: NodePort
+  selector:
+    app: figma-frame-faithful
+    environment: staging
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+    nodePort: 30080  # 可以访问 http://node-ip:30080
+  externalTrafficPolicy: Local

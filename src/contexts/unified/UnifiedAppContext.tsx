@@ -126,15 +126,128 @@ const StateAggregator: React.FC<{
       buildTime,
     }),
     [
-      authModule,
-      gradeModule,
-      filterModule,
-      uiModule,
+      // 只依赖具体的状态值，而不是整个模块对象
+      authModule.user,
+      authModule.session,
+      authModule.userRole,
+      authModule.isAuthReady,
+      authModule.loading,
+      authModule.error,
+      gradeModule.allGradeData,
+      gradeModule.wideGradeData,
+      gradeModule.filteredGradeData,
+      gradeModule.examList,
+      gradeModule.statistics,
+      gradeModule.filter,
+      gradeModule.loading,
+      gradeModule.error,
+      gradeModule.lastUpdated,
+      gradeModule.availableSubjects,
+      gradeModule.availableClasses,
+      gradeModule.availableGrades,
+      gradeModule.availableExamTypes,
+      filterModule.mode,
+      filterModule.selectedClasses,
+      filterModule.selectedSubjects,
+      filterModule.selectedExam,
+      filterModule.searchTerm,
+      filterModule.dateRange,
+      filterModule.isFiltered,
+      uiModule.theme,
+      uiModule.sidebarCollapsed,
+      uiModule.compactMode,
+      uiModule.isMobile,
+      uiModule.viewport,
+      uiModule.notifications,
+      uiModule.globalLoading,
+      uiModule.performanceMode,
       initialized,
       version,
       buildTime,
     ]
   );
+
+  // ==================== 稳定化工具函数 ====================
+
+  // 稳定化重置函数
+  const resetApp = useCallback(() => {
+    setInitialized(false);
+    // 这里可以添加重置各模块状态的逻辑
+    console.log("🔄 重置应用状态");
+  }, []);
+
+  // 稳定化模块状态获取函数
+  const getModuleState = useCallback(
+    (module: keyof UnifiedAppState) => {
+      return state[module];
+    },
+    [state]
+  );
+
+  // 使用useCallback稳定化初始化函数，避免循环依赖
+  const initializeApp = useCallback(async () => {
+    if (initialized) return; // 防止重复初始化
+
+    try {
+      uiModule.setGlobalLoading({
+        isLoading: true,
+        operation: "initialize",
+        message: "初始化应用...",
+        progress: 0,
+      });
+
+      // 等待认证就绪
+      if (!authModule.isAuthReady) {
+        uiModule.setGlobalLoading({
+          progress: 30,
+          message: "等待认证就绪...",
+        });
+        // 这里可以添加等待逻辑
+      }
+
+      uiModule.setGlobalLoading({ progress: 60, message: "加载数据..." });
+
+      // 如果用户已登录，预加载成绩数据
+      if (authModule.user) {
+        await gradeModule.loadAllData();
+      }
+
+      uiModule.setGlobalLoading({ progress: 100, message: "初始化完成" });
+      setInitialized(true);
+
+      if (config.enableDevTools) {
+        console.log("🚀 UnifiedAppContext 初始化成功", {
+          version,
+          buildTime,
+          enabledModules: Object.entries(config.modules)
+            .filter(([, cfg]) => cfg.enabled)
+            .map(([name]) => name),
+        });
+      }
+    } catch (error) {
+      console.error("❌ UnifiedAppContext 初始化失败:", error);
+      uiModule.addNotification({
+        type: "error",
+        title: "初始化失败",
+        message: "应用初始化时发生错误，请刷新页面重试",
+        persistent: true,
+      });
+    } finally {
+      uiModule.clearGlobalLoading();
+    }
+  }, [
+    initialized,
+    authModule.isAuthReady,
+    authModule.user,
+    gradeModule.loadAllData,
+    uiModule.setGlobalLoading,
+    uiModule.addNotification,
+    uiModule.clearGlobalLoading,
+    config.enableDevTools,
+    config.modules,
+    version,
+    buildTime,
+  ]);
 
   // ==================== 统一操作 ====================
 
@@ -179,72 +292,47 @@ const StateAggregator: React.FC<{
         clearGlobalLoading: uiModule.clearGlobalLoading,
         setPerformanceMode: uiModule.setPerformanceMode,
       },
-      // 全局操作
-      initialize: async () => {
-        try {
-          uiModule.setGlobalLoading({
-            isLoading: true,
-            operation: "initialize",
-            message: "初始化应用...",
-            progress: 0,
-          });
-
-          // 等待认证就绪
-          if (!authModule.isAuthReady) {
-            uiModule.setGlobalLoading({
-              progress: 30,
-              message: "等待认证就绪...",
-            });
-            // 这里可以添加等待逻辑
-          }
-
-          uiModule.setGlobalLoading({ progress: 60, message: "加载数据..." });
-
-          // 如果用户已登录，预加载成绩数据
-          if (authModule.user) {
-            await gradeModule.loadAllData();
-          }
-
-          uiModule.setGlobalLoading({ progress: 100, message: "初始化完成" });
-          setInitialized(true);
-
-          if (config.enableDevTools) {
-            console.log("🚀 UnifiedAppContext 初始化成功", {
-              version,
-              buildTime,
-              enabledModules: Object.entries(config.modules)
-                .filter(([, cfg]) => cfg.enabled)
-                .map(([name]) => name),
-            });
-          }
-        } catch (error) {
-          console.error("❌ UnifiedAppContext 初始化失败:", error);
-          uiModule.addNotification({
-            type: "error",
-            title: "初始化失败",
-            message: "应用初始化时发生错误，请刷新页面重试",
-            persistent: true,
-          });
-        } finally {
-          uiModule.clearGlobalLoading();
-        }
-      },
-      reset: () => {
-        setInitialized(false);
-        // 这里可以添加重置各模块状态的逻辑
-        console.log("🔄 重置应用状态");
-      },
-      getModuleState: (module) => state[module],
+      // 全局操作 - 使用已稳定化的函数
+      initialize: initializeApp,
+      reset: resetApp,
+      getModuleState,
     }),
     [
-      authModule,
-      gradeModule,
-      filterModule,
-      uiModule,
-      state,
-      config,
-      version,
-      buildTime,
+      // 只依赖模块的方法，而不是整个模块对象
+      authModule.signIn,
+      authModule.signUp,
+      authModule.signOut,
+      authModule.refreshAuth,
+      authModule.clearError,
+      gradeModule.loadAllData,
+      gradeModule.loadExamData,
+      gradeModule.refreshData,
+      gradeModule.setFilter,
+      gradeModule.updateFilter,
+      gradeModule.clearFilter,
+      gradeModule.getStudentGrades,
+      gradeModule.getSubjectGrades,
+      gradeModule.getClassGrades,
+      gradeModule.clearError,
+      gradeModule.retry,
+      filterModule.updateFilter,
+      filterModule.resetFilter,
+      filterModule.setMode,
+      filterModule.addClassFilter,
+      filterModule.removeClassFilter,
+      filterModule.toggleSubjectFilter,
+      uiModule.setTheme,
+      uiModule.toggleSidebar,
+      uiModule.setCompactMode,
+      uiModule.addNotification,
+      uiModule.removeNotification,
+      uiModule.clearNotifications,
+      uiModule.setGlobalLoading,
+      uiModule.clearGlobalLoading,
+      uiModule.setPerformanceMode,
+      initializeApp,
+      resetApp,
+      getModuleState,
     ]
   );
 
@@ -341,9 +429,9 @@ const StateAggregator: React.FC<{
 
   useEffect(() => {
     if (!initialized && authModule.isAuthReady) {
-      actions.initialize();
+      initializeApp();
     }
-  }, [initialized, authModule.isAuthReady, actions]);
+  }, [initialized, authModule.isAuthReady, initializeApp]);
 
   // ==================== Context Value ====================
 

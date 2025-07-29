@@ -1,0 +1,591 @@
+# 📊 Logstash日志处理和转换引擎
+# 收集、处理和转换日志数据，然后发送到Elasticsearch
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-config
+  namespace: logging
+  labels:
+    app: logstash
+data:
+  logstash.yml: |
+    http.host: "0.0.0.0"
+    http.port: 9600
+    
+    # 配置热重载
+    config.reload.automatic: true
+    config.reload.interval: 3s
+    
+    # 监控配置
+    monitoring.enabled: true
+    monitoring.elasticsearch.hosts: ["http://elasticsearch:9200"]
+    
+    # 性能配置
+    pipeline.workers: 4
+    pipeline.batch.size: 1000
+    pipeline.batch.delay: 50
+    
+    # 内存配置
+    queue.type: memory
+    queue.max_events: 10000
+    queue.max_bytes: 1gb
+    
+    # 日志配置
+    log.level: info
+    log.format: json
+    
+    # JVM配置
+    path.data: /usr/share/logstash/data
+    path.logs: /usr/share/logstash/logs
+
+  pipelines.yml: |
+    - pipeline.id: nginx-logs
+      path.config: "/usr/share/logstash/pipeline/nginx.conf"
+      pipeline.workers: 2
+      pipeline.batch.size: 500
+      
+    - pipeline.id: application-logs
+      path.config: "/usr/share/logstash/pipeline/application.conf"
+      pipeline.workers: 2
+      pipeline.batch.size: 500
+      
+    - pipeline.id: kubernetes-logs
+      path.config: "/usr/share/logstash/pipeline/kubernetes.conf"
+      pipeline.workers: 2
+      pipeline.batch.size: 500
+
+  # JVM堆内存配置
+  jvm.options: |
+    # 基础JVM选项
+    -Xms2g
+    -Xmx2g
+    
+    # GC配置
+    -XX:+UseG1GC
+    -XX:G1HeapRegionSize=16m
+    
+    # 性能优化
+    -XX:+UnlockExperimentalVMOptions
+    -XX:+UseCGroupMemoryLimitForHeap
+    -XX:+AlwaysPreTouch
+    
+    # 调试选项
+    -XX:+PrintGCDetails
+    -XX:+PrintGCTimeStamps
+    -Xloggc:/usr/share/logstash/logs/gc.log
+    
+    # 错误处理
+    -XX:+HeapDumpOnOutOfMemoryError
+    -XX:HeapDumpPath=/usr/share/logstash/logs/
+
+---
+# 📋 ConfigMap - Logstash Pipeline配置
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-pipeline
+  namespace: logging
+  labels:
+    app: logstash
+data:
+  # Nginx日志处理管道
+  nginx.conf: |
+    input {
+      beats {
+        port => 5044
+        type => "nginx"
+      }
+      
+      # 来自Fluent Bit的日志
+      forward {
+        port => 24224
+        bind => "0.0.0.0"
+      }
+    }
+    
+    filter {
+      # 仅处理Nginx日志
+      if [type] == "nginx" or [tag] =~ /nginx/ {
+        
+        # 解析Nginx访问日志
+        if [message] =~ /^\d+\.\d+\.\d+\.\d+/ {
+          grok {
+            match => {
+              "message" => '%{COMBINEDAPACHELOG} %{QS:x_forwarded_for}'
+            }
+            tag_on_failure => ["_grokparsefailure_nginx_access"]
+          }
+          
+          # 解析用户代理
+          if [agent] {
+            useragent {
+              source => "agent"
+              target => "user_agent"
+            }
+          }
+          
+          # 解析IP地理位置
+          if [clientip] {
+            geoip {
+              source => "clientip"
+              target => "geoip"
+            }
+          }
+          
+          # 添加响应时间分类
+          if [response] {
+            mutate {
+              convert => { "response" => "integer" }
+            }
+            
+            if [response] >= 200 and [response] < 300 {
+              mutate { add_field => { "status_category" => "success" } }
+            } else if [response] >= 300 and [response] < 400 {
+              mutate { add_field => { "status_category" => "redirect" } }
+            } else if [response] >= 400 and [response] < 500 {
+              mutate { add_field => { "status_category" => "client_error" } }
+            } else if [response] >= 500 {
+              mutate { add_field => { "status_category" => "server_error" } }
+            }
+          }
+        }
+        
+        # 解析Nginx错误日志
+        else {
+          grok {
+            match => {
+              "message" => '(?<timestamp>\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}) \[(?<log_level>\w+)\] (?<message_text>.*)'
+            }
+            tag_on_failure => ["_grokparsefailure_nginx_error"]
+          }
+          
+          # 转换时间戳
+          if [timestamp] {
+            date {
+              match => [ "timestamp", "yyyy/MM/dd HH:mm:ss" ]
+              target => "@timestamp"
+            }
+          }
+        }
+        
+        # 添加环境标签
+        mutate {
+          add_field => {
+            "log_source" => "nginx"
+            "environment" => "${ENVIRONMENT:production}"
+            "service" => "figma-frame-faithful"
+          }
+        }
+      }
+    }
+    
+    output {
+      # 输出到Elasticsearch
+      elasticsearch {
+        hosts => ["elasticsearch:9200"]
+        index => "nginx-logs-%{+YYYY.MM.dd}"
+        template_name => "nginx-logs"
+        template_pattern => "nginx-logs-*"
+        template => {
+          "index_patterns" => ["nginx-logs-*"],
+          "settings" => {
+            "number_of_shards" => 1,
+            "number_of_replicas" => 1,
+            "index.refresh_interval" => "30s"
+          },
+          "mappings" => {
+            "properties" => {
+              "@timestamp" => { "type" => "date" },
+              "clientip" => { "type" => "ip" },
+              "response" => { "type" => "integer" },
+              "bytes" => { "type" => "integer" },
+              "verb" => { "type" => "keyword" },
+              "request" => { "type" => "text" },
+              "httpversion" => { "type" => "keyword" },
+              "status_category" => { "type" => "keyword" },
+              "user_agent" => { "type" => "object" },
+              "geoip" => { "type" => "object" }
+            }
+          }
+        }
+      }
+      
+      # 调试输出
+      if [type] == "nginx" {
+        stdout {
+          codec => rubydebug {
+            metadata => true
+          }
+        }
+      }
+    }
+
+  # 应用程序日志处理管道
+  application.conf: |
+    input {
+      beats {
+        port => 5045
+        type => "application"
+      }
+    }
+    
+    filter {
+      if [type] == "application" or [kubernetes][container][name] == "figma-frame-faithful" {
+        
+        # 解析JSON格式日志
+        if [message] =~ /^{.*}$/ {
+          json {
+            source => "message"
+            target => "app_log"
+            tag_on_failure => ["_jsonparsefailure"]
+          }
+          
+          # 提取日志级别
+          if [app_log][level] {
+            mutate {
+              add_field => { "log_level" => "%{[app_log][level]}" }
+            }
+          }
+          
+          # 提取错误信息
+          if [app_log][error] {
+            mutate {
+              add_field => { "error_message" => "%{[app_log][error]}" }
+              add_field => { "has_error" => "true" }
+            }
+          }
+        }
+        
+        # 解析React/Node.js错误堆栈
+        if [message] =~ /(Error:|Exception:|at\s+)/ {
+          mutate {
+            add_field => { "log_type" => "error_stack" }
+            add_field => { "has_error" => "true" }
+          }
+          
+          # 提取堆栈跟踪
+          grok {
+            match => {
+              "message" => "(?<error_type>\w+Error):\s*(?<error_message>.*?)(\n|\r\n|\r)(?<stack_trace>.*)"
+            }
+            tag_on_failure => ["_grokparsefailure_stack_trace"]
+          }
+        }
+        
+        # 性能日志分析
+        if [app_log][duration] or [message] =~ /\b\d+ms\b/ {
+          mutate {
+            add_field => { "log_type" => "performance" }
+          }
+          
+          # 提取执行时间
+          grok {
+            match => {
+              "message" => "(?<duration>\d+)ms"
+            }
+          }
+          
+          if [duration] {
+            mutate {
+              convert => { "duration" => "integer" }
+            }
+            
+            # 性能分类
+            if [duration] < 100 {
+              mutate { add_field => { "performance_category" => "fast" } }
+            } else if [duration] < 500 {
+              mutate { add_field => { "performance_category" => "normal" } }
+            } else if [duration] < 1000 {
+              mutate { add_field => { "performance_category" => "slow" } }
+            } else {
+              mutate { add_field => { "performance_category" => "very_slow" } }
+            }
+          }
+        }
+        
+        # 添加应用标签
+        mutate {
+          add_field => {
+            "log_source" => "application"
+            "environment" => "${ENVIRONMENT:production}"
+            "service" => "figma-frame-faithful"
+          }
+        }
+      }
+    }
+    
+    output {
+      elasticsearch {
+        hosts => ["elasticsearch:9200"]
+        index => "application-logs-%{+YYYY.MM.dd}"
+        template_name => "application-logs"
+        template_pattern => "application-logs-*"
+        template => {
+          "index_patterns" => ["application-logs-*"],
+          "settings" => {
+            "number_of_shards" => 1,
+            "number_of_replicas" => 1,
+            "index.refresh_interval" => "30s"
+          },
+          "mappings" => {
+            "properties" => {
+              "@timestamp" => { "type" => "date" },
+              "log_level" => { "type" => "keyword" },
+              "log_type" => { "type" => "keyword" },
+              "has_error" => { "type" => "boolean" },
+              "error_message" => { "type" => "text" },
+              "error_type" => { "type" => "keyword" },
+              "duration" => { "type" => "integer" },
+              "performance_category" => { "type" => "keyword" },
+              "app_log" => { "type" => "object" }
+            }
+          }
+        }
+      }
+    }
+
+  # Kubernetes系统日志处理管道
+  kubernetes.conf: |
+    input {
+      beats {
+        port => 5046
+        type => "kubernetes"
+      }
+    }
+    
+    filter {
+      if [kubernetes] {
+        
+        # 解析Kubernetes元数据
+        mutate {
+          add_field => {
+            "k8s_namespace" => "%{[kubernetes][namespace]}"
+            "k8s_pod" => "%{[kubernetes][pod][name]}"
+            "k8s_container" => "%{[kubernetes][container][name]}"
+            "k8s_node" => "%{[kubernetes][node][name]}"
+          }
+        }
+        
+        # Pod生命周期事件
+        if [message] =~ /(Created|Started|Stopped|Killing|Failed)/ {
+          mutate {
+            add_field => { "event_type" => "pod_lifecycle" }
+          }
+          
+          grok {
+            match => {
+              "message" => "(?<event_action>Created|Started|Stopped|Killing|Failed)"
+            }
+          }
+        }
+        
+        # 资源警告
+        if [message] =~ /(CPU|Memory|Disk).*?(high|limit|exceeded)/ {
+          mutate {
+            add_field => { 
+              "event_type" => "resource_warning"
+              "has_warning" => "true"
+            }
+          }
+        }
+        
+        # 网络事件
+        if [message] =~ /(network|connection|timeout|refused)/ {
+          mutate {
+            add_field => { "event_type" => "network" }
+          }
+        }
+        
+        # 添加Kubernetes标签
+        mutate {
+          add_field => {
+            "log_source" => "kubernetes"
+            "environment" => "${ENVIRONMENT:production}"
+          }
+        }
+      }
+    }
+    
+    output {
+      elasticsearch {
+        hosts => ["elasticsearch:9200"]
+        index => "kubernetes-logs-%{+YYYY.MM.dd}"
+        template_name => "kubernetes-logs"
+        template_pattern => "kubernetes-logs-*"
+        template => {
+          "index_patterns" => ["kubernetes-logs-*"],
+          "settings" => {
+            "number_of_shards" => 1,
+            "number_of_replicas" => 1,
+            "index.refresh_interval" => "30s"
+          },
+          "mappings" => {
+            "properties" => {
+              "@timestamp" => { "type" => "date" },
+              "event_type" => { "type" => "keyword" },
+              "event_action" => { "type" => "keyword" },
+              "has_warning" => { "type" => "boolean" },
+              "k8s_namespace" => { "type" => "keyword" },
+              "k8s_pod" => { "type" => "keyword" },
+              "k8s_container" => { "type" => "keyword" },
+              "k8s_node" => { "type" => "keyword" },
+              "kubernetes" => { "type" => "object" }
+            }
+          }
+        }
+      }
+    }
+
+---
+# 🚀 Deployment - Logstash
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logstash
+  namespace: logging
+  labels:
+    app: logstash
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: logstash
+  template:
+    metadata:
+      labels:
+        app: logstash
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9600"
+        prometheus.io/path: "/metrics"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: logstash
+        image: docker.elastic.co/logstash/logstash:8.8.0
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        ports:
+        - name: beats-nginx
+          containerPort: 5044
+          protocol: TCP
+        - name: beats-app
+          containerPort: 5045
+          protocol: TCP
+        - name: beats-k8s
+          containerPort: 5046
+          protocol: TCP
+        - name: forward
+          containerPort: 24224
+          protocol: TCP
+        - name: http
+          containerPort: 9600
+          protocol: TCP
+        env:
+        - name: LS_JAVA_OPTS
+          value: "-Xms2g -Xmx2g"
+        - name: ENVIRONMENT
+          value: "production"
+        - name: XPACK_MONITORING_ENABLED
+          value: "true"
+        - name: XPACK_MONITORING_ELASTICSEARCH_HOSTS
+          value: "http://elasticsearch:9200"
+        volumeMounts:
+        - name: config
+          mountPath: /usr/share/logstash/config/logstash.yml
+          subPath: logstash.yml
+          readOnly: true
+        - name: config
+          mountPath: /usr/share/logstash/config/pipelines.yml
+          subPath: pipelines.yml
+          readOnly: true
+        - name: config
+          mountPath: /usr/share/logstash/config/jvm.options
+          subPath: jvm.options
+          readOnly: true
+        - name: pipeline
+          mountPath: /usr/share/logstash/pipeline
+          readOnly: true
+        - name: data
+          mountPath: /usr/share/logstash/data
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 9600
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 9600
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 10
+          failureThreshold: 3
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: config
+        configMap:
+          name: logstash-config
+      - name: pipeline
+        configMap:
+          name: logstash-pipeline
+      - name: data
+        emptyDir: {}
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 60
+
+---
+# 🌐 Service - Logstash
+apiVersion: v1
+kind: Service
+metadata:
+  name: logstash
+  namespace: logging
+  labels:
+    app: logstash
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9600"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  ports:
+  - name: beats-nginx
+    port: 5044
+    targetPort: beats-nginx
+    protocol: TCP
+  - name: beats-app
+    port: 5045
+    targetPort: beats-app
+    protocol: TCP
+  - name: beats-k8s
+    port: 5046
+    targetPort: beats-k8s
+    protocol: TCP
+  - name: forward
+    port: 24224
+    targetPort: forward
+    protocol: TCP
+  - name: http
+    port: 9600
+    targetPort: http
+    protocol: TCP
+  selector:
+    app: logstash

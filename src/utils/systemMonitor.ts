@@ -391,7 +391,9 @@ class SystemMonitor {
       this.logError("Unhandled Promise Rejection", event.reason);
     });
 
-    // 网络请求错误
+    // 临时禁用网络请求拦截以避免无限循环
+    // TODO: 重新实现安全的fetch拦截器
+    /*
     const originalFetch = window.fetch;
     window.fetch = async (...args) => {
       const requestId = this.generateLogId();
@@ -432,6 +434,7 @@ class SystemMonitor {
         throw error;
       }
     };
+    */
   }
 
   private setupUserTracking(): void {

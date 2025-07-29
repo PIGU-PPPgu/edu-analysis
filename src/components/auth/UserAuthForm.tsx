@@ -22,7 +22,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAuthContext } from "@/contexts/AuthContext";
+import { useAuthActions } from "@/contexts/unified/modules/AuthModule";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Mail, Lock } from "lucide-react";
@@ -45,7 +45,7 @@ interface UserAuthFormProps {
 }
 
 const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
-  const { signIn } = useAuthContext();
+  const { signIn, signUp } = useAuthActions();
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("login");
@@ -98,30 +98,17 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
     setError(null);
 
     try {
-      // 注册新用户
-      const { data, error } = await supabase.auth.signUp({
-        email: values.email,
-        password: values.password,
-      });
+      // 使用统一的注册方法
+      const result = await signUp(values.email, values.password);
 
-      if (error) {
-        setError(error.message);
+      if (result.error) {
+        setError(result.error.message);
         return;
       }
 
-      // 检查是否需要验证电子邮箱
-      if (data?.user && data?.session) {
-        // 用户已直接登录
-        toast.success("注册成功");
-
-        if (onSuccess) {
-          onSuccess();
-        }
-      } else {
-        // 邮箱需要验证
-        toast.success("注册成功，请查收验证邮件");
-        // 切换到登录选项卡
-        setActiveTab("login");
+      // 注册成功
+      if (onSuccess) {
+        onSuccess();
       }
     } catch (err: any) {
       console.error("注册失败:", err);

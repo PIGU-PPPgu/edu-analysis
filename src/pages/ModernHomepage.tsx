@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { useAuthContext } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/unified/modules/AuthModule";
 import { Navbar } from "@/components/shared";
 import {
   Card,
@@ -56,7 +56,7 @@ import Footer from "@/components/landing/Footer";
 
 const ModernHomepage = () => {
   const navigate = useNavigate();
-  const { user } = useAuthContext();
+  const { user } = useAuth();
 
   // 演示数据 - 不需要从数据库获取，用于展示产品功能
   const demoStats = {

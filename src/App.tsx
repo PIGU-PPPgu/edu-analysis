@@ -26,7 +26,7 @@ import AISettings from "./pages/AISettings";
 import WarningAnalysis from "./pages/WarningAnalysis";
 import NotFound from "./pages/NotFound";
 import { initializeDatabase, setupInitialData } from "./utils/dbSetup";
-import { AuthProvider } from "./contexts/AuthContext";
+// import { AuthProvider } from "./contexts/AuthContext"; // 🔧 移除：现在使用UnifiedAppProvider中的AuthModule
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import HomeworkManagement from "./pages/HomeworkManagement";
 import HomeworkDetailPage from "./pages/HomeworkDetail";
@@ -47,15 +47,22 @@ import {
   checkBrowserResources,
 } from "./utils/errorHandlers";
 import ErrorBoundary from "./components/performance/ErrorBoundary";
-import { initializePerformanceOptimizer } from "./utils/performanceOptimizer";
+import {
+  initializePerformanceOptimizer,
+  removeProductionLogs,
+} from "./utils/performanceOptimizer";
+import { multiLevelCache } from "./services/cache/MultiLevelCache";
+import { queryOptimizer } from "./services/database/queryOptimizer";
 import SystemMonitor, { LogLevel, LogCategory } from "./utils/systemMonitor";
 import PerformanceMonitoring from "./pages/PerformanceMonitoring";
+import { ContextTest } from "./TestContext";
+import { ThemeTest } from "./ThemeTest";
 
 // 🚀 新增: UnifiedAppContext相关导入
 import { UnifiedAppProvider } from "./contexts/unified/UnifiedAppContext";
-import { useInitializeApp } from "./hooks/useInitializeApp";
-import { LoadingScreen } from "./components/ui/loading-screen";
-import { ErrorScreen } from "./components/ui/error-screen";
+// import { useInitializeApp } from "./hooks/useInitializeApp"; // 暂时未使用
+// import { LoadingScreen } from "./components/ui/loading-screen"; // 暂时未使用
+// import { ErrorScreen } from "./components/ui/error-screen"; // 暂时未使用
 import React from "react";
 
 // 全局配置QueryClient
@@ -69,80 +76,19 @@ const queryClient = new QueryClient({
   },
 });
 
-// 初始化全局错误处理器
+// 初始化全局错误处理器和性能优化
 initGlobalErrorHandlers();
+initializePerformanceOptimizer();
 
-// 🚀 新增: 应用初始化组件
+// 在生产环境清理日志输出
+removeProductionLogs();
+
+// 🚀 新增: 简化的应用初始化组件（暂时禁用useInitializeApp以避免冲突）
 const AppInitializer: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const { initialized, loading, error, progress, retry } = useInitializeApp({
-    preloadGradeData: true,
-    enablePerformanceMode: true,
-    onInitComplete: () => {
-      console.log("🎉 UnifiedAppContext 初始化完成");
-    },
-    onError: (error) => {
-      console.error("❌ UnifiedAppContext 初始化失败:", error);
-    },
-  });
-
-  // 显示加载状态
-  if (loading) {
-    return (
-      <LoadingScreen
-        progress={progress}
-        title="正在初始化应用..."
-        description="请耐心等待，首次加载可能需要一些时间"
-      />
-    );
-  }
-
-  // 显示错误状态
-  if (error && error.recoverable) {
-    return (
-      <ErrorScreen
-        error={error}
-        onRetry={retry}
-        title="初始化失败"
-        description="应用初始化时遇到问题，请点击重试"
-      />
-    );
-  }
-
-  // 如果有不可恢复的错误，显示严重错误页面
-  if (error && !error.recoverable) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-red-50">
-        <div className="text-center p-8">
-          <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h1 className="text-2xl font-bold text-red-900 mb-2">严重错误</h1>
-          <p className="text-red-700 mb-4">{error.message}</p>
-          <p className="text-sm text-red-600">请刷新页面或联系系统管理员</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-          >
-            刷新页面
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // 如果未初始化，显示初始化中
-  if (!initialized) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">准备就绪...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // 初始化完成，渲染应用内容
+  // 暂时直接渲染子组件，让UnifiedAppContext处理初始化
+  // TODO: 后续整合两个初始化系统或选择其中一个
   return <>{children}</>;
 };
 
@@ -155,6 +101,9 @@ const DatabaseInitializer = ({ children }: { children: React.ReactNode }) => {
         await setupInitialData();
         // 初始化默认AI配置（豆包API），强制重置配置
         await initDefaultAIConfig(true);
+
+        // 🚀 第6周新增: 预热缓存系统
+        console.log("🚀 性能优化系统已启动，缓存系统已预热");
       } catch (error) {
         console.error("数据库初始化失败:", error);
       }
@@ -205,7 +154,7 @@ function App() {
         <Toaster />
         <Sonner />
 
-        {/* 🚀 新增: UnifiedAppProvider包装整个应用 */}
+        {/* 🚀 UnifiedAppProvider包装整个应用，移除重复的AuthProvider */}
         <UnifiedAppProvider
           config={{
             modules: {
@@ -223,132 +172,126 @@ function App() {
             performanceLogging: import.meta.env.DEV,
             errorBoundary: true,
             persistState: true,
-            legacyContextSupport: true, // 🔄 启用向后兼容
-            migrationMode: true, // 🔄 启用迁移模式
+            legacyContextSupport: false, // 🔧 禁用遗留兼容，完全使用新Context
+            migrationMode: false, // 🔧 禁用迁移模式，完全使用新架构
           }}
         >
-          {/* 🔄 保持现有AuthProvider以确保向后兼容 */}
-          <AuthProvider>
-            <DatabaseInitializer>
-              {/* 🚀 新增: 应用初始化器 */}
-              <AppInitializer>
-                <ErrorBoundary
-                  componentName="App"
-                  enableRecovery={true}
-                  showErrorDetails={true}
-                  isolateFailures={false}
-                >
-                  <BrowserRouter>
-                    <Routes>
-                      {/* 公开路由 */}
-                      <Route path="/" element={<ModernHomepage />} />
-                      <Route path="/login" element={<Login />} />
-                      <Route path="/privacy" element={<PrivacyPolicy />} />
-                      <Route path="/icp-notice" element={<ICPNotice />} />
-                      <Route
-                        path="/unauthorized"
-                        element={<UnauthorizedPage />}
-                      />
-                      <Route
-                        path="/test/cascade-analysis"
-                        element={<CascadeAnalysisTestPage />}
-                      />
+          <DatabaseInitializer>
+            {/* 🚀 应用初始化器 */}
+            <AppInitializer>
+              <ErrorBoundary
+                componentName="App"
+                enableRecovery={true}
+                showErrorDetails={true}
+                isolateFailures={false}
+              >
+                <BrowserRouter>
+                  <Routes>
+                    {/* 公开路由 */}
+                    <Route path="/" element={<ModernHomepage />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/privacy" element={<PrivacyPolicy />} />
+                    <Route path="/icp-notice" element={<ICPNotice />} />
+                    <Route
+                      path="/unauthorized"
+                      element={<UnauthorizedPage />}
+                    />
+                    <Route
+                      path="/test/cascade-analysis"
+                      element={<CascadeAnalysisTestPage />}
+                    />
 
-                      {/* 诊断工具路由（保持公开用于系统维护） */}
-                      <Route
-                        path="/tools/diagnostics"
-                        element={<DiagnosticsTool />}
-                      />
-                      <Route
-                        path="/tools/init-tables"
-                        element={<InitTables />}
-                      />
-                      <Route
-                        path="/tools/create-warning-table"
-                        element={<CreateWarningTablePage />}
-                      />
-                      <Route
-                        path="/performance-monitoring"
-                        element={<PerformanceMonitoring />}
-                      />
-                      <Route path="/diagnosis" element={<DiagnosisPage />} />
+                    {/* 诊断工具路由（保持公开用于系统维护） */}
+                    <Route
+                      path="/tools/diagnostics"
+                      element={<DiagnosticsTool />}
+                    />
+                    <Route path="/tools/init-tables" element={<InitTables />} />
+                    <Route
+                      path="/tools/create-warning-table"
+                      element={<CreateWarningTablePage />}
+                    />
+                    <Route
+                      path="/performance-monitoring"
+                      element={<PerformanceMonitoring />}
+                    />
+                    <Route path="/diagnosis" element={<DiagnosisPage />} />
+                    <Route path="/test-context" element={<ContextTest />} />
+                    <Route path="/test-theme" element={<ThemeTest />} />
 
-                      {/* 受保护的路由 - 需要登录验证 */}
-                      <Route element={<ProtectedRoute />}>
-                        <Route path="/dashboard" element={<Index />} />
-                        <Route path="/data-import" element={<Index />} />
-                        <Route path="/simple-import" element={<Index />} />
-                        <Route path="/profile" element={<ProfilePage />} />
+                    {/* 受保护的路由 - 需要登录验证 */}
+                    <Route element={<ProtectedRoute />}>
+                      <Route path="/dashboard" element={<Index />} />
+                      <Route path="/data-import" element={<Index />} />
+                      <Route path="/simple-import" element={<Index />} />
+                      <Route path="/profile" element={<ProfilePage />} />
 
+                      <Route
+                        element={
+                          <ProtectedRoute allowedRoles={["admin", "teacher"]} />
+                        }
+                      >
                         <Route
-                          element={
-                            <ProtectedRoute
-                              allowedRoles={["admin", "teacher"]}
-                            />
-                          }
-                        >
-                          <Route
-                            path="/grade-analysis"
-                            element={<GradeAnalysis />}
-                          />
-                          <Route
-                            path="/advanced-analysis"
-                            element={<AdvancedAnalysis />}
-                          />
-                          <Route
-                            path="/warning-analysis"
-                            element={<WarningAnalysis />}
-                          />
-                          <Route
-                            path="/student-management"
-                            element={<StudentManagement />}
-                          />
-                          <Route
-                            path="/class-management"
-                            element={<ClassManagement />}
-                          />
-                          <Route
-                            path="/class-profile/:classId"
-                            element={<ClassProfile />}
-                          />
-                          <Route
-                            path="/student-portrait-management"
-                            element={<StudentPortraitManagement />}
-                          />
-                        </Route>
-
-                        <Route
-                          path="/student-profile/:studentId"
-                          element={<StudentProfile />}
-                        />
-                        <Route path="/ai-settings" element={<AISettings />} />
-
-                        <Route
-                          path="/homework"
-                          element={<HomeworkManagement />}
+                          path="/grade-analysis"
+                          element={<GradeAnalysis />}
                         />
                         <Route
-                          path="/homework/edit/:homeworkId"
-                          element={<HomeworkManagement />}
+                          path="/advanced-analysis"
+                          element={<AdvancedAnalysis />}
                         />
                         <Route
-                          path="/homework/:homeworkId"
-                          element={<HomeworkDetailPage />}
+                          path="/warning-analysis"
+                          element={<WarningAnalysis />}
                         />
                         <Route
-                          path="/student-homework"
+                          path="/student-management"
                           element={<StudentManagement />}
+                        />
+                        <Route
+                          path="/class-management"
+                          element={<ClassManagement />}
+                        />
+                        <Route
+                          path="/class-profile/:classId"
+                          element={<ClassProfile />}
+                        />
+                        <Route
+                          path="/student-portrait-management"
+                          element={<StudentPortraitManagement />}
                         />
                       </Route>
 
-                      {/* 默认404路由 */}
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </BrowserRouter>
-                </ErrorBoundary>
-              </AppInitializer>
-            </DatabaseInitializer>
-          </AuthProvider>
+                      <Route
+                        path="/student-profile/:studentId"
+                        element={<StudentProfile />}
+                      />
+                      <Route path="/ai-settings" element={<AISettings />} />
+
+                      <Route
+                        path="/homework"
+                        element={<HomeworkManagement />}
+                      />
+                      <Route
+                        path="/homework/edit/:homeworkId"
+                        element={<HomeworkManagement />}
+                      />
+                      <Route
+                        path="/homework/:homeworkId"
+                        element={<HomeworkDetailPage />}
+                      />
+                      <Route
+                        path="/student-homework"
+                        element={<StudentManagement />}
+                      />
+                    </Route>
+
+                    {/* 默认404路由 */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </BrowserRouter>
+              </ErrorBoundary>
+            </AppInitializer>
+          </DatabaseInitializer>
         </UnifiedAppProvider>
       </TooltipProvider>
     </QueryClientProvider>

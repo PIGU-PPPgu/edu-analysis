@@ -1,0 +1,374 @@
+# 📊 Kibana日志可视化和分析平台
+# 为Elasticsearch提供强大的可视化和分析界面
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kibana-config
+  namespace: logging
+  labels:
+    app: kibana
+data:
+  kibana.yml: |
+    # 服务器配置
+    server.name: "kibana"
+    server.host: "0.0.0.0"
+    server.port: 5601
+    server.basePath: ""
+    server.publicBaseUrl: "https://kibana.figma-frame-faithful.com"
+    
+    # Elasticsearch配置
+    elasticsearch.hosts: ["http://elasticsearch:9200"]
+    elasticsearch.username: "elastic"
+    elasticsearch.password: "${ELASTICSEARCH_PASSWORD}"
+    elasticsearch.requestTimeout: 30000
+    elasticsearch.shardTimeout: 30000
+    
+    # 监控配置
+    monitoring.ui.container.elasticsearch.enabled: true
+    monitoring.ui.container.logstash.enabled: true
+    
+    # 安全配置
+    xpack.security.enabled: false
+    xpack.encryptedSavedObjects.encryptionKey: "a-32-character-long-encryption-key"
+    xpack.reporting.encryptionKey: "a-32-character-long-encryption-key"
+    
+    # 性能配置
+    kibana.index: ".kibana"
+    kibana.autocompleteTimeout: 1000
+    kibana.autocompleteTerminateAfter: 100000
+    
+    # 日志配置
+    logging.level: info
+    logging.quiet: false
+    logging.json: true
+    logging.dest: stdout
+    
+    # 界面配置
+    kibana.defaultAppId: "discover"
+    map.includeElasticMapsService: true
+    
+    # 数据视图配置
+    data.autocomplete.valueSuggestions.enabled: true
+    data.autocomplete.valueSuggestions.terminateAfter: 100000
+    data.autocomplete.valueSuggestions.timeout: 1000
+    
+    # 保存对象配置
+    savedObjects.maxImportPayloadBytes: 26214400
+    
+    # 国际化配置
+    i18n.locale: "zh-CN"
+
+---
+# 🚀 Deployment - Kibana
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kibana
+  namespace: logging
+  labels:
+    app: kibana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kibana
+  template:
+    metadata:
+      labels:
+        app: kibana
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "5601"
+        prometheus.io/path: "/api/status"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: kibana
+        image: docker.elastic.co/kibana/kibana:8.8.0
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        ports:
+        - name: http
+          containerPort: 5601
+          protocol: TCP
+        env:
+        - name: ELASTICSEARCH_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: elasticsearch-credentials
+              key: password
+        - name: NODE_OPTIONS
+          value: "--max-old-space-size=1800"
+        volumeMounts:
+        - name: config
+          mountPath: /usr/share/kibana/config/kibana.yml
+          subPath: kibana.yml
+          readOnly: true
+        - name: data
+          mountPath: /usr/share/kibana/data
+        livenessProbe:
+          httpGet:
+            path: /api/status
+            port: 5601
+          initialDelaySeconds: 120
+          periodSeconds: 10
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/status
+            port: 5601
+          initialDelaySeconds: 120
+          periodSeconds: 10
+          timeoutSeconds: 10
+          failureThreshold: 3
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: config
+        configMap:
+          name: kibana-config
+      - name: data
+        emptyDir: {}
+      restartPolicy: Always
+
+---
+# 🌐 Service - Kibana
+apiVersion: v1
+kind: Service
+metadata:
+  name: kibana
+  namespace: logging
+  labels:
+    app: kibana
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "5601"
+    prometheus.io/path: "/api/status"
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 5601
+    targetPort: http
+    protocol: TCP
+  selector:
+    app: kibana
+
+---
+# 🌍 Ingress - Kibana外部访问
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kibana
+  namespace: logging
+  labels:
+    app: kibana
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-production"
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: kibana-basic-auth
+    nginx.ingress.kubernetes.io/auth-realm: "Kibana Authentication Required"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header X-Frame-Options "SAMEORIGIN" always;
+      add_header X-Content-Type-Options "nosniff" always;
+      add_header X-XSS-Protection "1; mode=block" always;
+      add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+spec:
+  tls:
+  - hosts:
+    - kibana.figma-frame-faithful.com
+    secretName: kibana-tls-secret
+  rules:
+  - host: kibana.figma-frame-faithful.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: kibana
+            port:
+              number: 5601
+
+---
+# 🔐 Secret - Kibana基础认证
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kibana-basic-auth
+  namespace: logging
+  labels:
+    app: kibana
+type: Opaque
+data:
+  auth: YWRtaW46JGFwcjEkSDZ1c2FtMDQkWXVidHNGWTZVa1VVSFNRRnRHc0JYMUQ=  # admin:kibanapassword
+
+---
+# 📋 ConfigMap - Kibana仪表板和可视化配置
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kibana-dashboards
+  namespace: logging
+  labels:
+    app: kibana
+data:
+  # 应用监控仪表板
+  application-monitoring.json: |
+    {
+      "version": "8.8.0",
+      "objects": [
+        {
+          "id": "application-logs-*",
+          "type": "index-pattern",
+          "attributes": {
+            "title": "application-logs-*",
+            "timeFieldName": "@timestamp"
+          }
+        },
+        {
+          "id": "nginx-logs-*",
+          "type": "index-pattern",
+          "attributes": {
+            "title": "nginx-logs-*",
+            "timeFieldName": "@timestamp"
+          }
+        },
+        {
+          "id": "kubernetes-logs-*",
+          "type": "index-pattern",
+          "attributes": {
+            "title": "kubernetes-logs-*",
+            "timeFieldName": "@timestamp"
+          }
+        },
+        {
+          "id": "application-monitoring-dashboard",
+          "type": "dashboard",
+          "attributes": {
+            "title": "Figma Frame Faithful - 应用监控",
+            "description": "应用程序日志监控和分析仪表板",
+            "panelsJSON": "[{\"version\":\"8.8.0\",\"type\":\"lens\",\"gridData\":{\"x\":0,\"y\":0,\"w\":24,\"h\":15},\"panelIndex\":\"1\",\"embeddableConfig\":{\"attributes\":{\"title\":\"日志级别分布\",\"type\":\"lnsPie\",\"visualizationType\":\"lnsPie\",\"state\":{\"datasourceStates\":{\"indexpattern\":{\"layers\":{\"layer1\":{\"columns\":{\"col1\":{\"label\":\"日志级别\",\"dataType\":\"string\",\"operationType\":\"terms\",\"scale\":\"ordinal\",\"sourceField\":\"log_level\",\"isBucketed\":true,\"params\":{\"size\":10,\"orderBy\":{\"type\":\"column\",\"columnId\":\"col2\"},\"orderDirection\":\"desc\"}},\"col2\":{\"label\":\"计数\",\"dataType\":\"number\",\"operationType\":\"count\",\"isBucketed\":false,\"scale\":\"ratio\",\"sourceField\":\"Records\"}},\"columnOrder\":[\"col1\",\"col2\"],\"incompleteColumns\":{}}}},\"textBased\":{\"layers\":{}}},\"visualization\":{\"shape\":\"pie\",\"layers\":[{\"layerId\":\"layer1\",\"metrics\":[\"col2\"],\"primaryGroups\":[\"col1\"]}]},\"query\":{\"query\":\"\",\"language\":\"kuery\"},\"filters\":[]}},\"enhancements\":{}}},{\"version\":\"8.8.0\",\"type\":\"lens\",\"gridData\":{\"x\":24,\"y\":0,\"w\":24,\"h\":15},\"panelIndex\":\"2\",\"embeddableConfig\":{\"attributes\":{\"title\":\"错误趋势\",\"type\":\"lnsXY\",\"visualizationType\":\"lnsXY\",\"state\":{\"datasourceStates\":{\"indexpattern\":{\"layers\":{\"layer1\":{\"columns\":{\"col1\":{\"label\":\"@timestamp\",\"dataType\":\"date\",\"operationType\":\"date_histogram\",\"sourceField\":\"@timestamp\",\"isBucketed\":true,\"scale\":\"interval\",\"params\":{\"interval\":\"auto\"}},\"col2\":{\"label\":\"错误计数\",\"dataType\":\"number\",\"operationType\":\"count\",\"isBucketed\":false,\"scale\":\"ratio\",\"sourceField\":\"Records\",\"filter\":{\"query\":\"has_error: true\",\"language\":\"kuery\"}}},\"columnOrder\":[\"col1\",\"col2\"],\"incompleteColumns\":{}}}},\"textBased\":{\"layers\":{}}},\"visualization\":{\"legend\":{\"isVisible\":true,\"position\":\"right\"},\"valueLabels\":\"hide\",\"fittingFunction\":\"None\",\"yLeftExtent\":{\"mode\":\"full\"},\"yRightExtent\":{\"mode\":\"full\"},\"axisTitlesVisibilitySettings\":{\"x\":true,\"yLeft\":true,\"yRight\":true},\"tickLabelsVisibilitySettings\":{\"x\":true,\"yLeft\":true,\"yRight\":true},\"labelsOrientation\":{\"x\":0,\"yLeft\":0,\"yRight\":0},\"gridlinesVisibilitySettings\":{\"x\":true,\"yLeft\":true,\"yRight\":true},\"preferredSeriesType\":\"line\",\"layers\":[{\"layerId\":\"layer1\",\"accessors\":[\"col2\"],\"position\":\"top\",\"seriesType\":\"line\",\"showGridlines\":false,\"xAccessor\":\"col1\"}]},\"query\":{\"query\":\"\",\"language\":\"kuery\"},\"filters\":[]}},\"enhancements\":{}}}]",
+            "timeRestore": false,
+            "kibanaSavedObjectMeta": {
+              "searchSourceJSON": "{\"query\":{\"query\":\"\",\"language\":\"kuery\"},\"filter\":[]}"
+            }
+          }
+        }
+      ]
+    }
+
+  # Nginx访问分析仪表板
+  nginx-analysis.json: |
+    {
+      "version": "8.8.0",
+      "objects": [
+        {
+          "id": "nginx-analysis-dashboard",
+          "type": "dashboard",
+          "attributes": {
+            "title": "Nginx 访问分析",
+            "description": "Nginx访问日志分析和监控仪表板",
+            "panelsJSON": "[{\"version\":\"8.8.0\",\"type\":\"lens\",\"gridData\":{\"x\":0,\"y\":0,\"w\":24,\"h\":15},\"panelIndex\":\"1\",\"embeddableConfig\":{\"attributes\":{\"title\":\"HTTP状态码分布\",\"type\":\"lnsPie\",\"visualizationType\":\"lnsPie\",\"state\":{\"datasourceStates\":{\"indexpattern\":{\"layers\":{\"layer1\":{\"columns\":{\"col1\":{\"label\":\"状态码\",\"dataType\":\"string\",\"operationType\":\"terms\",\"scale\":\"ordinal\",\"sourceField\":\"response\",\"isBucketed\":true,\"params\":{\"size\":10,\"orderBy\":{\"type\":\"column\",\"columnId\":\"col2\"},\"orderDirection\":\"desc\"}},\"col2\":{\"label\":\"请求数\",\"dataType\":\"number\",\"operationType\":\"count\",\"isBucketed\":false,\"scale\":\"ratio\",\"sourceField\":\"Records\"}},\"columnOrder\":[\"col1\",\"col2\"],\"incompleteColumns\":{}}}},\"textBased\":{\"layers\":{}}},\"visualization\":{\"shape\":\"pie\",\"layers\":[{\"layerId\":\"layer1\",\"metrics\":[\"col2\"],\"primaryGroups\":[\"col1\"]}]},\"query\":{\"query\":\"\",\"language\":\"kuery\"},\"filters\":[]}},\"enhancements\":{}}},{\"version\":\"8.8.0\",\"type\":\"lens\",\"gridData\":{\"x\":24,\"y\":0,\"w\":24,\"h\":15},\"panelIndex\":\"2\",\"embeddableConfig\":{\"attributes\":{\"title\":\"访问量趋势\",\"type\":\"lnsXY\",\"visualizationType\":\"lnsXY\",\"state\":{\"datasourceStates\":{\"indexpattern\":{\"layers\":{\"layer1\":{\"columns\":{\"col1\":{\"label\":\"@timestamp\",\"dataType\":\"date\",\"operationType\":\"date_histogram\",\"sourceField\":\"@timestamp\",\"isBucketed\":true,\"scale\":\"interval\",\"params\":{\"interval\":\"auto\"}},\"col2\":{\"label\":\"请求数\",\"dataType\":\"number\",\"operationType\":\"count\",\"isBucketed\":false,\"scale\":\"ratio\",\"sourceField\":\"Records\"}},\"columnOrder\":[\"col1\",\"col2\"],\"incompleteColumns\":{}}}},\"textBased\":{\"layers\":{}}},\"visualization\":{\"legend\":{\"isVisible\":true,\"position\":\"right\"},\"valueLabels\":\"hide\",\"fittingFunction\":\"None\",\"yLeftExtent\":{\"mode\":\"full\"},\"yRightExtent\":{\"mode\":\"full\"},\"axisTitlesVisibilitySettings\":{\"x\":true,\"yLeft\":true,\"yRight\":true},\"tickLabelsVisibilitySettings\":{\"x\":true,\"yLeft\":true,\"yRight\":true},\"labelsOrientation\":{\"x\":0,\"yLeft\":0,\"yRight\":0},\"gridlinesVisibilitySettings\":{\"x\":true,\"yLeft\":true,\"yRight\":true},\"preferredSeriesType\":\"line\",\"layers\":[{\"layerId\":\"layer1\",\"accessors\":[\"col2\"],\"position\":\"top\",\"seriesType\":\"line\",\"showGridlines\":false,\"xAccessor\":\"col1\"}]},\"query\":{\"query\":\"\",\"language\":\"kuery\"},\"filters\":[]}},\"enhancements\":{}}}]",
+            "timeRestore": false,
+            "kibanaSavedObjectMeta": {
+              "searchSourceJSON": "{\"query\":{\"query\":\"\",\"language\":\"kuery\"},\"filter\":[]}"
+            }
+          }
+        }
+      ]
+    }
+
+---
+# 🔧 Job - Kibana仪表板导入
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kibana-setup
+  namespace: logging
+  labels:
+    app: kibana
+    component: setup
+spec:
+  template:
+    metadata:
+      labels:
+        app: kibana
+        component: setup
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: kibana-setup
+        image: curlimages/curl:8.1.0
+        command:
+        - /bin/sh
+        - -c
+        - |
+          # 等待Kibana启动
+          echo "等待Kibana启动..."
+          until curl -s http://kibana:5601/api/status | grep -q "available"; do
+            echo "Kibana尚未就绪，等待30秒..."
+            sleep 30
+          done
+          echo "Kibana已就绪，开始配置..."
+          
+          # 创建索引模式
+          echo "创建索引模式..."
+          curl -X POST "http://kibana:5601/api/saved_objects/index-pattern/application-logs-*" \
+            -H "Content-Type: application/json" \
+            -H "kbn-xsrf: true" \
+            -d '{
+              "attributes": {
+                "title": "application-logs-*",
+                "timeFieldName": "@timestamp"
+              }
+            }'
+          
+          curl -X POST "http://kibana:5601/api/saved_objects/index-pattern/nginx-logs-*" \
+            -H "Content-Type: application/json" \
+            -H "kbn-xsrf: true" \
+            -d '{
+              "attributes": {
+                "title": "nginx-logs-*",
+                "timeFieldName": "@timestamp"
+              }
+            }'
+          
+          curl -X POST "http://kibana:5601/api/saved_objects/index-pattern/kubernetes-logs-*" \
+            -H "Content-Type: application/json" \
+            -H "kbn-xsrf: true" \
+            -d '{
+              "attributes": {
+                "title": "kubernetes-logs-*",
+                "timeFieldName": "@timestamp"
+              }
+            }'
+          
+          echo "Kibana配置完成！"
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL

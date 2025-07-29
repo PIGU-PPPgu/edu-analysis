@@ -1,0 +1,225 @@
+# 🎭 Staging环境Kubernetes部署配置
+# 用于预生产环境测试和验证
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: figma-frame-faithful
+  namespace: staging
+  labels:
+    app: figma-frame-faithful
+    environment: staging
+    tier: frontend
+    version: "${IMAGE_TAG}"
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+    description: "教育管理系统Staging环境部署"
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: figma-frame-faithful
+      environment: staging
+  template:
+    metadata:
+      labels:
+        app: figma-frame-faithful
+        environment: staging
+        tier: frontend
+        version: "${IMAGE_TAG}"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "80"
+        prometheus.io/path: "/metrics"
+        deployment.timestamp: "${DEPLOYMENT_TIMESTAMP}"
+    spec:
+      serviceAccountName: figma-frame-faithful-staging
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
+      containers:
+      - name: figma-frame-faithful
+        image: "${IMAGE_TAG}"
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        env:
+        - name: NODE_ENV
+          value: "staging"
+        - name: APP_VERSION
+          value: "${IMAGE_TAG}"
+        - name: DEPLOYMENT_TIMESTAMP
+          value: "${DEPLOYMENT_TIMESTAMP}"
+        - name: KUBERNETES_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 80
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 80
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+          successThreshold: 1
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 80
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 10
+          successThreshold: 1
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 15"]
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d/custom.conf
+          subPath: custom.conf
+          readOnly: true
+        - name: tmp-volume
+          mountPath: /tmp
+        - name: cache-volume
+          mountPath: /var/cache/nginx
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+            add:
+            - NET_BIND_SERVICE
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: nginx-staging-config
+          defaultMode: 0644
+      - name: tmp-volume
+        emptyDir:
+          sizeLimit: 100Mi
+      - name: cache-volume
+        emptyDir:
+          sizeLimit: 100Mi
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      tolerations:
+      - key: "staging"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - figma-frame-faithful
+              topologyKey: kubernetes.io/hostname
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: node-type
+                operator: In
+                values:
+                - staging
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-staging-config
+  namespace: staging
+  labels:
+    app: figma-frame-faithful
+    environment: staging
+data:
+  custom.conf: |
+    # Staging环境特殊配置
+    
+    # 开发工具支持
+    location /dev-tools {
+        alias /usr/share/nginx/html/dev-tools;
+        try_files $uri $uri/ =404;
+    }
+    
+    # 测试端点
+    location /test {
+        add_header Content-Type application/json;
+        return 200 '{"environment":"staging","status":"ok","timestamp":"$time_iso8601"}';
+    }
+    
+    # 详细健康检查
+    location /health/detailed {
+        add_header Content-Type application/json;
+        return 200 '{
+          "status": "healthy",
+          "environment": "staging",
+          "timestamp": "$time_iso8601",
+          "version": "$http_x_app_version",
+          "pod": "$http_x_pod_name",
+          "namespace": "staging"
+        }';
+    }
+    
+    # 允许CORS（仅staging环境）
+    add_header Access-Control-Allow-Origin "*" always;
+    add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS" always;
+    add_header Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With" always;
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: figma-frame-faithful-staging
+  namespace: staging
+  labels:
+    app: figma-frame-faithful
+    environment: staging
+automountServiceAccountToken: false

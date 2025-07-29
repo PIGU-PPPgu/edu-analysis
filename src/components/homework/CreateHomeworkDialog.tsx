@@ -20,7 +20,7 @@ import { toast } from "sonner";
 import { getGradingScales } from "@/services/gradingService";
 import { getAllClasses } from "@/services/classService";
 import { createHomework } from "@/services/homeworkService";
-import { useAuthContext } from "@/contexts/AuthContext";
+import { useAuth, useAuthActions } from "@/contexts/unified/modules/AuthModule";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 
@@ -35,7 +35,8 @@ const CreateHomeworkDialog: React.FC<CreateHomeworkDialogProps> = ({
   onOpenChange,
   onHomeworkCreated,
 }) => {
-  const { user, refreshSession } = useAuthContext();
+  const { user } = useAuth();
+  const { refreshAuth } = useAuthActions();
   const [classes, setClasses] = React.useState<any[]>([]);
   const [gradingScales, setGradingScales] = React.useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = React.useState(false);

@@ -17,6 +17,7 @@ import {
   NotificationState,
   LoadingState,
 } from "../types";
+import { themeConfig } from "../../../themeConfig";
 
 // ==================== 状态和Action类型 ====================
 
@@ -40,14 +41,10 @@ type UIAction =
 // ==================== 初始状态 ====================
 
 const getInitialTheme = (): UIModuleState["theme"] => {
-  if (typeof window === "undefined") return "system";
+  if (typeof window === "undefined") return "light";
 
-  const stored = localStorage.getItem("app-theme");
-  if (stored && ["light", "dark", "system"].includes(stored)) {
-    return stored as UIModuleState["theme"];
-  }
-
-  return "system";
+  // 🎨 使用主题配置管理器获取初始主题
+  return themeConfig.getInitialTheme();
 };
 
 const getInitialViewport = () => {
@@ -188,32 +185,76 @@ export const UIModuleProvider: React.FC<{ children: React.ReactNode }> = ({
     dispatch({ type: "SET_THEME", payload: theme });
 
     if (typeof window !== "undefined") {
-      localStorage.setItem("app-theme", theme);
+      // 只有在允许用户更改主题时才保存到localStorage
+      if (themeConfig.getConfig().allowUserThemeChange) {
+        localStorage.setItem("app-theme", theme);
+      }
+
+      // 🎨 使用主题配置管理器确定实际应用的主题
+      const effectiveTheme = themeConfig.getEffectiveTheme(theme);
 
       // 应用主题到DOM
       const root = document.documentElement;
       root.classList.remove("light", "dark");
+      root.classList.add(effectiveTheme);
 
-      if (theme === "system") {
-        const prefersDark = window.matchMedia(
-          "(prefers-color-scheme: dark)"
-        ).matches;
-        root.classList.add(prefersDark ? "dark" : "light");
-      } else {
-        root.classList.add(theme);
+      if (themeConfig.getConfig().enableThemeLogging) {
+        console.log("🎨 [UIModule] 主题已应用", {
+          requestedTheme: theme,
+          effectiveTheme,
+          domClass: effectiveTheme,
+        });
       }
     }
   }, []);
 
-  // 监听系统主题变化
+  // 初始主题应用 - 确保页面加载时立即应用正确的主题
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const root = document.documentElement;
+    root.classList.remove("light", "dark");
+
+    // 🎨 使用主题配置管理器确定实际应用的主题
+    const effectiveTheme = themeConfig.getEffectiveTheme(state.theme);
+    root.classList.add(effectiveTheme);
+
+    if (themeConfig.getConfig().enableThemeLogging) {
+      console.log("🎨 [UIModule] 初始主题应用", {
+        requestedTheme: state.theme,
+        effectiveTheme,
+        domClass: effectiveTheme,
+      });
+    }
+  }, []); // 只在组件挂载时执行一次
+
+  // 监听系统主题变化（仅当主题配置允许时）
   useEffect(() => {
     if (typeof window === "undefined" || state.theme !== "system") return;
+
+    // 🔒 检查主题配置是否允许监听系统主题变化
+    if (!themeConfig.shouldListenToSystemTheme()) {
+      if (themeConfig.getConfig().enableThemeLogging) {
+        console.log("🎨 [UIModule] 系统主题监听已禁用，跳过事件监听器设置");
+      }
+      return;
+    }
 
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const handleChange = () => {
       const root = document.documentElement;
       root.classList.remove("light", "dark");
-      root.classList.add(mediaQuery.matches ? "dark" : "light");
+
+      // 🎨 使用主题配置管理器确定实际应用的主题
+      const effectiveTheme = themeConfig.getEffectiveTheme("system");
+      root.classList.add(effectiveTheme);
+
+      if (themeConfig.getConfig().enableThemeLogging) {
+        console.log("🎨 [UIModule] 系统主题变化响应", {
+          systemDarkMode: mediaQuery.matches,
+          effectiveTheme,
+        });
+      }
     };
 
     handleChange(); // 初始应用
@@ -294,13 +335,8 @@ export const UIModuleProvider: React.FC<{ children: React.ReactNode }> = ({
   // ==================== 计算属性 ====================
 
   const actualTheme = useMemo(() => {
-    if (state.theme === "system") {
-      if (typeof window === "undefined") return "light";
-      return window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light";
-    }
-    return state.theme;
+    // 🎨 使用主题配置管理器确定实际主题
+    return themeConfig.getEffectiveTheme(state.theme);
   }, [state.theme]);
 
   // ==================== 初始化 ====================
@@ -369,13 +405,8 @@ export const useTheme = () => {
   const { theme, setTheme } = useUIModule();
 
   const actualTheme = useMemo(() => {
-    if (theme === "system") {
-      if (typeof window === "undefined") return "light";
-      return window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light";
-    }
-    return theme;
+    // 🎨 使用主题配置管理器确定实际主题
+    return themeConfig.getEffectiveTheme(theme);
   }, [theme]);
 
   return {

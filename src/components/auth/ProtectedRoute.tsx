@@ -1,6 +1,6 @@
 import React from "react";
 import { Navigate, Outlet } from "react-router-dom";
-import { useAuthContext } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/unified/modules/AuthModule";
 import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
@@ -17,7 +17,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   allowedRoles = [],
   redirectPath = "/login",
 }) => {
-  const { user, userRole, isAuthReady } = useAuthContext();
+  const { user, userRole, isAuthReady } = useAuth();
 
   // 认证尚未就绪，显示加载指示器
   if (!isAuthReady) {

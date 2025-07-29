@@ -24,31 +24,12 @@ const supabaseConfig = {
     autoRefreshToken: true,
     detectSessionInUrl: true,
   },
-  // 添加重试和错误处理
-  global: {
-    fetch: (...args) => {
-      // 添加超时处理
-      const timeout = 10000; // 10秒超时
-      const controller = new AbortController();
-      const { signal } = controller;
-
-      const timeoutId = setTimeout(() => {
-        controller.abort();
-        console.warn("Supabase 请求超时");
-      }, timeout);
-
-      return fetch(...args, { signal })
-        .then((response) => {
-          clearTimeout(timeoutId);
-          return response;
-        })
-        .catch((error) => {
-          clearTimeout(timeoutId);
-          console.error("Supabase 请求失败:", error);
-          return Promise.reject(error);
-        });
-    },
-  },
+  // 移除自定义fetch以避免与systemMonitor冲突
+  // global: {
+  //   fetch: (...args) => {
+  //     // 自定义fetch可能与systemMonitor的fetch拦截器冲突
+  //   }
+  // },
 };
 
 // 创建唯一的Supabase客户端实例

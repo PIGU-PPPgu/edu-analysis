@@ -1,72 +1,148 @@
-# Docker忽略文件配置
+# 🐳 Docker构建忽略文件
+# 减少构建上下文大小，提高构建速度
 
-# Git相关
-.git
-.gitignore
-README.md
-CLAUDE.md
-
-# Node.js
-node_modules
+# 依赖目录
+node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
 # 构建产物
-dist
-build
-.next
-out
+dist/
+build/
+.next/
+out/
 
-# 开发工具
-.vscode
-.idea
-*.swp
-*.swo
-*~
-
-# 环境文件
+# 开发环境文件
 .env.local
+.env.development
+.env.test
 .env.*.local
 
 # 日志文件
-logs
+logs/
 *.log
+lerna-debug.log*
 
-# 临时文件
-.tmp
-tmp
-*.tmp
+# 运行时数据
+pids/
+*.pid
+*.seed
+*.pid.lock
 
-# 系统文件
+# 测试覆盖率
+coverage/
+nyc_output/
+.nyc_output/
+
+# 缓存目录
+.cache/
+.parcel-cache/
+.vscode/
+.idea/
+
+# 操作系统文件
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 
-# Python相关
-__pycache__
-*.pyc
-*.pyo
-*.pyd
-.Python
-env
-pip-log.txt
-pip-delete-this-directory.txt
-*.egg-info
-.pytest_cache
-
-# 测试相关
-coverage
-.nyc_output
-.coverage
-
-# Docker相关文件
-docker-compose.override.yml
-Dockerfile.prod
-
-# 部署相关
-deployment
-scripts/deploy*
+# Git相关
+.git/
+.gitignore
+.gitattributes
 
 # 文档
-docs
 *.md
+docs/
+README*
+CHANGELOG*
+LICENSE*
+
+# 配置文件
+.eslintrc*
+.prettierrc*
+tsconfig.json
+vite.config.*
+vitest.config.*
+jest.config.*
+playwright.config.*
+
+# 测试文件
+**/*.test.*
+**/*.spec.*
+__tests__/
+tests/
+test/
+
+# 开发脚本
+scripts/
+tools/
+
+# 源文件（仅在多阶段构建中排除）
+# src/
+
+# Docker相关
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Kubernetes配置
+k8s/
+*.yaml
+*.yml
+
+# CI/CD配置
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+
+# Python相关
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# 临时文件
+tmp/
+temp/
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# 备份文件
+*.bak
+*.backup
+*.old
+
+# 数据文件
+data/
+*.db
+*.sqlite
+*.sql
+
+# 证书和密钥
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+
+# 压缩文件
+*.tar
+*.tar.gz
+*.zip
+*.rar
+
+# 其他不需要的文件
+.npm/
+.yarn/

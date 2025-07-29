@@ -1,0 +1,261 @@
+# 📊 Node Exporter系统指标收集器
+# 在每个Kubernetes节点上收集硬件和操作系统指标
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: node-exporter-config
+  namespace: monitoring
+  labels:
+    app: node-exporter
+data:
+  # Node Exporter启动脚本
+  start.sh: |
+    #!/bin/sh
+    exec /bin/node_exporter \
+      --path.procfs=/host/proc \
+      --path.sysfs=/host/sys \
+      --path.rootfs=/host/root \
+      --collector.filesystem.ignored-mount-points='^/(dev|proc|sys|var/lib/docker/.+)($|/)' \
+      --collector.filesystem.ignored-fs-types='^(autofs|binfmt_misc|cgroup|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|mqueue|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|sysfs|tracefs)$' \
+      --collector.cpu \
+      --collector.diskstats \
+      --collector.filesystem \
+      --collector.loadavg \
+      --collector.meminfo \
+      --collector.netdev \
+      --collector.netstat \
+      --collector.stat \
+      --collector.time \
+      --collector.uname \
+      --collector.vmstat \
+      --collector.systemd \
+      --collector.processes \
+      --web.listen-address=:9100 \
+      --web.telemetry-path=/metrics \
+      --log.level=info
+
+---
+# 🚀 DaemonSet - Node Exporter
+# 在每个节点上运行Node Exporter实例
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: node-exporter
+  namespace: monitoring
+  labels:
+    app: node-exporter
+    component: exporter
+spec:
+  selector:
+    matchLabels:
+      app: node-exporter
+      component: exporter
+  template:
+    metadata:
+      labels:
+        app: node-exporter
+        component: exporter
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9100"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: node-exporter
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+      hostPID: true
+      hostIPC: true
+      hostNetwork: true
+      tolerations:
+      # 容忍所有污点，确保在所有节点上运行
+      - operator: Exists
+        effect: NoSchedule
+      - operator: Exists
+        effect: NoExecute
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: node-exporter
+        image: prom/node-exporter:v1.6.0
+        args:
+        - --path.procfs=/host/proc
+        - --path.sysfs=/host/sys
+        - --path.rootfs=/host/root
+        - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+)($|/)
+        - --collector.filesystem.fs-types-exclude=^(autofs|binfmt_misc|cgroup|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|mqueue|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|sysfs|tracefs)$
+        - --collector.cpu
+        - --collector.diskstats
+        - --collector.filesystem
+        - --collector.loadavg
+        - --collector.meminfo
+        - --collector.netdev
+        - --collector.netstat
+        - --collector.stat
+        - --collector.time
+        - --collector.uname
+        - --collector.vmstat
+        - --collector.systemd
+        - --collector.processes
+        - --web.listen-address=[$(HOST_IP)]:9100
+        - --web.telemetry-path=/metrics
+        - --log.level=info
+        env:
+        - name: HOST_IP
+          value: "0.0.0.0"
+        ports:
+        - name: metrics
+          containerPort: 9100
+          protocol: TCP
+          hostPort: 9100
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+        volumeMounts:
+        - name: proc
+          mountPath: /host/proc
+          readOnly: true
+        - name: sys
+          mountPath: /host/sys
+          readOnly: true
+        - name: root
+          mountPath: /host/root
+          mountPropagation: HostToContainer
+          readOnly: true
+        livenessProbe:
+          httpGet:
+            path: /metrics
+            port: 9100
+            host: 127.0.0.1
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: 9100
+            host: 127.0.0.1
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 10
+          failureThreshold: 3
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: proc
+        hostPath:
+          path: /proc
+      - name: sys
+        hostPath:
+          path: /sys
+      - name: root
+        hostPath:
+          path: /
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+
+---
+# 🔐 ServiceAccount - Node Exporter
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: node-exporter
+  namespace: monitoring
+  labels:
+    app: node-exporter
+
+---
+# 🔑 ClusterRole - Node Exporter
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: node-exporter
+  labels:
+    app: node-exporter
+rules:
+- apiGroups: ["authentication.k8s.io"]
+  resources: ["tokenreviews"]
+  verbs: ["create"]
+- apiGroups: ["authorization.k8s.io"]
+  resources: ["subjectaccessreviews"]
+  verbs: ["create"]
+
+---
+# 🔗 ClusterRoleBinding - Node Exporter
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: node-exporter
+  labels:
+    app: node-exporter
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: node-exporter
+subjects:
+- kind: ServiceAccount
+  name: node-exporter
+  namespace: monitoring
+
+---
+# 🌐 Service - Node Exporter
+apiVersion: v1
+kind: Service
+metadata:
+  name: node-exporter
+  namespace: monitoring
+  labels:
+    app: node-exporter
+    component: exporter
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9100"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+  - name: metrics
+    port: 9100
+    targetPort: metrics
+    protocol: TCP
+  selector:
+    app: node-exporter
+    component: exporter
+
+---
+# 📊 ServiceMonitor - Prometheus监控Node Exporter
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: node-exporter
+  namespace: monitoring
+  labels:
+    app: node-exporter
+spec:
+  selector:
+    matchLabels:
+      app: node-exporter
+      component: exporter
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+    relabelings:
+    - sourceLabels: [__meta_kubernetes_pod_node_name]
+      targetLabel: instance

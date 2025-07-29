@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useAuthContext } from "@/contexts/AuthContext";
+import { useAuth, useAuthActions } from "@/contexts/unified/modules/AuthModule";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -38,7 +38,8 @@ interface NavbarProps {
 const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, userRole, signOut, isAuthReady } = useAuthContext();
+  const { user, userRole, isAuthReady } = useAuth();
+  const { signOut } = useAuthActions();
   const [localUserRole, setLocalUserRole] = useState<string | null>(null);
   const { isMobile } = useViewport();
 
