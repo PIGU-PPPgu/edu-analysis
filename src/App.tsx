@@ -12,35 +12,44 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { useEffect } from "react";
-import ModernHomepage from "./pages/ModernHomepage";
-import Index from "./pages/Index";
-import Login from "./pages/Login";
-import GradeAnalysis from "./pages/GradeAnalysis";
-import AdvancedAnalysis from "./pages/AdvancedAnalysis";
-import StudentProfile from "./pages/StudentProfile";
-import StudentManagement from "./pages/StudentManagement";
-import ClassManagement from "./pages/ClassManagement";
-import ClassProfile from "./pages/ClassProfile";
-import AISettings from "./pages/AISettings";
-import WarningAnalysis from "./pages/WarningAnalysis";
-import NotFound from "./pages/NotFound";
+import { useEffect, Suspense, lazy } from "react";
 import { initializeDatabase, setupInitialData } from "./utils/dbSetup";
 // import { AuthProvider } from "./contexts/AuthContext"; // 🔧 移除：现在使用UnifiedAppProvider中的AuthModule
 import ProtectedRoute from "./components/auth/ProtectedRoute";
-import HomeworkManagement from "./pages/HomeworkManagement";
-import HomeworkDetailPage from "./pages/HomeworkDetail";
-import ProfilePage from "./pages/ProfilePage";
-import UnauthorizedPage from "./pages/UnauthorizedPage";
-import CascadeAnalysisTestPage from "./pages/test/cascade-analysis";
 import { initDefaultAIConfig } from "./utils/userAuth";
-import StudentPortraitManagement from "./pages/StudentPortraitManagement";
-import { DiagnosticsTool } from "./tools/diagnostics-ui";
-import InitTables from "./pages/InitTables";
-import CreateWarningTablePage from "./pages/tools/CreateWarningTable";
+import { PageLoadingFallback } from "./components/ui/loading-fallback";
+
+// 🚀 Master-Frontend: 组件懒加载优化
+// 公开页面 - 立即加载
+import ModernHomepage from "./pages/ModernHomepage";
+import Login from "./pages/Login";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ICPNotice from "./pages/ICPNotice";
-import DiagnosisPage from "./pages/DiagnosisPage";
+import UnauthorizedPage from "./pages/UnauthorizedPage";
+import NotFound from "./pages/NotFound";
+
+// 主要业务页面 - 懒加载
+const Index = lazy(() => import("./pages/Index"));
+const GradeAnalysis = lazy(() => import("./pages/GradeAnalysis"));
+const AdvancedAnalysis = lazy(() => import("./pages/AdvancedAnalysis"));
+const StudentProfile = lazy(() => import("./pages/StudentProfile"));
+const StudentManagement = lazy(() => import("./pages/StudentManagement"));
+const ClassManagement = lazy(() => import("./pages/ClassManagement"));
+const ClassProfile = lazy(() => import("./pages/ClassProfile"));
+const AISettings = lazy(() => import("./pages/AISettings"));
+const WarningAnalysis = lazy(() => import("./pages/WarningAnalysis"));
+const ExamWarningAnalysis = lazy(() => import("./components/warning/ExamWarningAnalysis"));
+const HomeworkManagement = lazy(() => import("./pages/HomeworkManagement"));
+const HomeworkDetailPage = lazy(() => import("./pages/HomeworkDetail"));
+const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const StudentPortraitManagement = lazy(() => import("./pages/StudentPortraitManagement"));
+
+// 工具和测试页面 - 懒加载
+const CascadeAnalysisTestPage = lazy(() => import("./pages/test/cascade-analysis"));
+const DiagnosticsTool = lazy(() => import("./tools/diagnostics-ui").then(module => ({ default: module.DiagnosticsTool })));
+const InitTables = lazy(() => import("./pages/InitTables"));
+const CreateWarningTablePage = lazy(() => import("./pages/tools/CreateWarningTable"));
+const DiagnosisPage = lazy(() => import("./pages/DiagnosisPage"));
 import {
   initGlobalErrorHandlers,
   reduceBrowserWorkload,
@@ -51,8 +60,8 @@ import {
   initializePerformanceOptimizer,
   removeProductionLogs,
 } from "./utils/performanceOptimizer";
-import { multiLevelCache } from "./services/cache/MultiLevelCache";
-import { queryOptimizer } from "./services/database/queryOptimizer";
+// import { multiLevelCache } from "./services/cache/MultiLevelCache";
+// import { queryOptimizer } from "./services/database/queryOptimizer";
 import SystemMonitor, { LogLevel, LogCategory } from "./utils/systemMonitor";
 import PerformanceMonitoring from "./pages/PerformanceMonitoring";
 import { ContextTest } from "./TestContext";
@@ -186,7 +195,8 @@ function App() {
                 isolateFailures={false}
               >
                 <BrowserRouter>
-                  <Routes>
+                  <Suspense fallback={<PageLoadingFallback />}>
+                    <Routes>
                     {/* 公开路由 */}
                     <Route path="/" element={<ModernHomepage />} />
                     <Route path="/login" element={<Login />} />
@@ -244,6 +254,10 @@ function App() {
                           element={<WarningAnalysis />}
                         />
                         <Route
+                          path="/exam-center"
+                          element={<ExamWarningAnalysis />}
+                        />
+                        <Route
                           path="/student-management"
                           element={<StudentManagement />}
                         />
@@ -287,7 +301,8 @@ function App() {
 
                     {/* 默认404路由 */}
                     <Route path="*" element={<NotFound />} />
-                  </Routes>
+                    </Routes>
+                  </Suspense>
                 </BrowserRouter>
               </ErrorBoundary>
             </AppInitializer>

@@ -29,6 +29,7 @@ import {
   NavigationItem,
 } from "@/components/mobile/MobileNavigation";
 import { cn } from "@/lib/utils";
+import { useRoutePreloader } from "@/utils/routePreloader";
 
 interface NavbarProps {
   showMainNav?: boolean;
@@ -42,6 +43,7 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
   const { signOut } = useAuthActions();
   const [localUserRole, setLocalUserRole] = useState<string | null>(null);
   const { isMobile } = useViewport();
+  const { setUserRole, setCurrentRoute } = useRoutePreloader();
 
   // 在组件加载时检查localStorage中是否有用户角色
   useEffect(() => {
@@ -52,6 +54,16 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
       }
     }
   }, [user]);
+
+  // 🚀 Master-Frontend: 路由预加载集成
+  useEffect(() => {
+    const effectiveRole = getEffectiveRole() || "student";
+    setUserRole(effectiveRole);
+  }, [userRole, localUserRole]);
+
+  useEffect(() => {
+    setCurrentRoute(location.pathname);
+  }, [location.pathname]);
 
   const isActive = (path: string) => {
     return (
@@ -126,6 +138,12 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
           onClick: () => navigate("/advanced-analysis"),
         },
         {
+          id: "exam-center",
+          label: "考试中心",
+          icon: <BookOpen className="w-5 h-5" />,
+          onClick: () => navigate("/exam-center"),
+        },
+        {
           id: "ai-chat",
           label: "AI助手",
           icon: <UserCircle className="w-5 h-5" />,
@@ -161,6 +179,7 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
       return "grade-analysis";
     if (location.pathname.startsWith("/advanced-analysis"))
       return "advanced-analysis";
+    if (location.pathname.startsWith("/exam-center")) return "exam-center";
     if (location.pathname.startsWith("/ai-chat")) return "ai-chat";
     return undefined;
   };
@@ -224,6 +243,7 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
     if (location.pathname.startsWith("/homework")) return "作业管理";
     if (location.pathname.startsWith("/grade-analysis")) return "基础分析";
     if (location.pathname.startsWith("/advanced-analysis")) return "高级分析";
+    if (location.pathname.startsWith("/exam-center")) return "考试中心";
     if (location.pathname.startsWith("/ai-chat")) return "AI助手";
     return "学习管理系统";
   }
@@ -285,6 +305,16 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
                   }`}
                 >
                   高级分析
+                </Link>
+                <Link
+                  to="/exam-center"
+                  className={`text-sm font-medium transition-colors hover:text-primary ${
+                    isActive("/exam-center")
+                      ? "text-primary"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  考试中心
                 </Link>
 
                 {/* 更多功能下拉菜单 */}
