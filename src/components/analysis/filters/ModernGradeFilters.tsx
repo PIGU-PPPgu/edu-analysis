@@ -44,6 +44,7 @@ import {
 export interface GradeFilterConfig {
   // 基础筛选
   examIds?: string[];
+  examTitles?: string[]; // 新增：按考试标题筛选
   subjects?: string[];
   classNames?: string[];
   gradeLevels?: string[];

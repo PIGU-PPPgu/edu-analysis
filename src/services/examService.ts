@@ -12,6 +12,18 @@ export interface Exam {
   created_at: string;
   updated_at: string;
   created_by?: string;
+  description?: string;
+  start_time?: string;
+  end_time?: string;
+  duration?: number;
+  total_score?: number;
+  passing_score?: number;
+  classes?: string[];
+  status?: "draft" | "scheduled" | "ongoing" | "completed" | "cancelled";
+  participant_count?: number;
+  completion_rate?: number;
+  average_score?: number;
+  tags?: string[];
 }
 
 export interface ExamType {
@@ -49,6 +61,38 @@ export interface ScoreDistribution {
   count: number;
   percentage: number;
   gradeLevel?: string;
+}
+
+// 创建考试的输入接口
+export interface CreateExamInput {
+  title: string;
+  type: string;
+  date: string;
+  subject?: string;
+  description?: string;
+  start_time?: string;
+  end_time?: string;
+  total_score?: number;
+  passing_score?: number;
+  classes?: string[];
+  status?: "draft" | "scheduled";
+  tags?: string[];
+}
+
+// 更新考试的输入接口
+export interface UpdateExamInput {
+  title?: string;
+  type?: string;
+  date?: string;
+  subject?: string;
+  description?: string;
+  start_time?: string;
+  end_time?: string;
+  total_score?: number;
+  passing_score?: number;
+  classes?: string[];
+  status?: "draft" | "scheduled" | "ongoing" | "completed" | "cancelled";
+  tags?: string[];
 }
 
 /**
@@ -151,53 +195,49 @@ export const getExamTypes = async (): Promise<ExamType[]> => {
  * 获取考试列表，支持筛选
  */
 export const getExams = async (filter?: ExamFilter): Promise<Exam[]> => {
-  return warningAnalysisCache.getExamData(
-    async () => {
-      console.log("[ExamService] 获取考试列表...");
+  // 暂时禁用缓存以确保删除后能立即看到变化
+  console.log("[ExamService] 获取考试列表...");
 
-      let query = supabase
-        .from("exams")
-        .select(
-          `
-          id,
-          title,
-          date,
-          type,
-          subject,
-          created_at
-        `
-        )
-        .order("date", { ascending: false });
+  let query = supabase
+    .from("exams")
+    .select(
+      `
+      id,
+      title,
+      date,
+      type,
+      subject,
+      created_at
+    `
+    )
+    .order("date", { ascending: false });
 
-      // 应用过滤器
-      if (filter?.dateFrom) {
-        query = query.gte("date", filter.dateFrom);
-      }
-      if (filter?.dateTo) {
-        query = query.lte("date", filter.dateTo);
-      }
-      if (filter?.type) {
-        query = query.eq("type", filter.type);
-      }
-      if (filter?.subject) {
-        query = query.eq("subject", filter.subject);
-      }
-      if (filter?.searchTerm) {
-        query = query.ilike("title", `%${filter.searchTerm}%`);
-      }
+  // 应用过滤器
+  if (filter?.dateFrom) {
+    query = query.gte("date", filter.dateFrom);
+  }
+  if (filter?.dateTo) {
+    query = query.lte("date", filter.dateTo);
+  }
+  if (filter?.type) {
+    query = query.eq("type", filter.type);
+  }
+  if (filter?.subject) {
+    query = query.eq("subject", filter.subject);
+  }
+  if (filter?.searchTerm) {
+    query = query.ilike("title", `%${filter.searchTerm}%`);
+  }
 
-      const { data, error } = await query;
+  const { data, error } = await query;
 
-      if (error) {
-        console.error("[ExamService] 获取考试列表失败:", error);
-        throw error;
-      }
+  if (error) {
+    console.error("[ExamService] 获取考试列表失败:", error);
+    throw error;
+  }
 
-      return data || [];
-    },
-    undefined,
-    filter
-  );
+  console.log("[ExamService] 获取到考试数据:", data?.length, "条");
+  return data || [];
 };
 
 /**
@@ -465,5 +505,212 @@ export const getExamWarningStatistics = async (examId: string) => {
       riskByClass: [],
       commonRiskFactors: [],
     };
+  }
+};
+
+/**
+ * 创建新考试
+ */
+export const createExam = async (
+  examData: CreateExamInput
+): Promise<Exam | null> => {
+  try {
+    const { data, error } = await supabase
+      .from("exams")
+      .insert([
+        {
+          title: examData.title,
+          type: examData.type,
+          date: examData.date,
+          subject: examData.subject,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    toast.success("考试创建成功");
+    return data;
+  } catch (error) {
+    console.error("创建考试失败:", error);
+    toast.error("创建考试失败");
+    return null;
+  }
+};
+
+/**
+ * 更新考试信息
+ */
+export const updateExam = async (
+  examId: string,
+  examData: UpdateExamInput
+): Promise<Exam | null> => {
+  try {
+    const { data, error } = await supabase
+      .from("exams")
+      .update({
+        title: examData.title,
+        type: examData.type,
+        date: examData.date,
+        subject: examData.subject,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", examId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    toast.success("考试更新成功");
+    return data;
+  } catch (error) {
+    console.error("更新考试失败:", error);
+    toast.error("更新考试失败");
+    return null;
+  }
+};
+
+/**
+ * 删除考试
+ */
+export const deleteExam = async (examId: string): Promise<boolean> => {
+  try {
+    console.log("🗑️ 开始删除考试:", examId);
+
+    const { error, data } = await supabase
+      .from("exams")
+      .delete()
+      .eq("id", examId)
+      .select(); // 添加select以获取删除的数据确认
+
+    console.log("🗑️ 删除结果:", { error, data });
+
+    if (error) {
+      console.error("🗑️ 删除失败，错误详情:", error);
+      throw error;
+    }
+
+    console.log("✅ 考试删除成功，删除的数据:", data);
+    toast.success("考试删除成功");
+    return true;
+  } catch (error) {
+    console.error("删除考试失败:", error);
+    toast.error(
+      `删除考试失败: ${error instanceof Error ? error.message : "未知错误"}`
+    );
+    return false;
+  }
+};
+
+/**
+ * 批量删除考试
+ */
+export const deleteExams = async (examIds: string[]): Promise<boolean> => {
+  try {
+    const { error } = await supabase.from("exams").delete().in("id", examIds);
+
+    if (error) throw error;
+
+    toast.success(`成功删除${examIds.length}个考试`);
+    return true;
+  } catch (error) {
+    console.error("批量删除考试失败:", error);
+    toast.error("批量删除考试失败");
+    return false;
+  }
+};
+
+/**
+ * 复制考试
+ */
+export const duplicateExam = async (examId: string): Promise<Exam | null> => {
+  try {
+    const originalExam = await getExamById(examId);
+    if (!originalExam) {
+      throw new Error("原考试不存在");
+    }
+
+    const { data, error } = await supabase
+      .from("exams")
+      .insert([
+        {
+          title: `${originalExam.title} (副本)`,
+          type: originalExam.type,
+          date: originalExam.date,
+          subject: originalExam.subject,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    toast.success("考试复制成功");
+    return data;
+  } catch (error) {
+    console.error("复制考试失败:", error);
+    toast.error("复制考试失败");
+    return null;
+  }
+};
+
+/**
+ * 获取考试统计概览
+ */
+export const getExamOverviewStatistics = async (): Promise<{
+  total: number;
+  upcoming: number;
+  ongoing: number;
+  completed: number;
+  cancelled: number;
+  averageParticipation: number;
+  averageScore: number;
+  improvementRate: number;
+  riskExams: number;
+} | null> => {
+  try {
+    // 获取所有考试
+    const { data: exams, error } = await supabase.from("exams").select("*");
+
+    if (error) throw error;
+
+    if (!exams || exams.length === 0) {
+      return {
+        total: 0,
+        upcoming: 0,
+        ongoing: 0,
+        completed: 0,
+        cancelled: 0,
+        averageParticipation: 0,
+        averageScore: 0,
+        improvementRate: 0,
+        riskExams: 0,
+      };
+    }
+
+    const now = new Date();
+    const today = now.toISOString().split("T")[0];
+
+    // 简单的状态判断逻辑（真实场景需要更复杂的状态管理）
+    const upcoming = exams.filter((exam) => exam.date > today).length;
+    const ongoing = 0; // 需要基于具体的考试时间判断
+    const completed = exams.filter((exam) => exam.date < today).length;
+
+    return {
+      total: exams.length,
+      upcoming,
+      ongoing,
+      completed,
+      cancelled: 0,
+      averageParticipation: 95.0, // 模拟数据，需要从实际成绩数据计算
+      averageScore: 78.5, // 模拟数据，需要从实际成绩数据计算
+      improvementRate: 12.5, // 模拟数据，需要历史对比计算
+      riskExams: Math.floor(exams.length * 0.1), // 模拟数据，需要基于成绩分析
+    };
+  } catch (error) {
+    console.error("获取考试概览统计失败:", error);
+    toast.error("获取考试概览统计失败");
+    return null;
   }
 };

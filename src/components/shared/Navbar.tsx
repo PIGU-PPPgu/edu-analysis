@@ -121,10 +121,10 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
           onClick: () => navigate("/dashboard"),
         },
         {
-          id: "homework",
-          label: "作业管理",
-          icon: <Settings className="w-5 h-5" />,
-          onClick: () => navigate("/homework"),
+          id: "exam-management",
+          label: "考试管理",
+          icon: <BookOpen className="w-5 h-5" />,
+          onClick: () => navigate("/exam-management"),
         },
         {
           id: "grade-analysis",
@@ -139,10 +139,10 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
           onClick: () => navigate("/advanced-analysis"),
         },
         {
-          id: "exam-center",
-          label: "考试管理",
-          icon: <BookOpen className="w-5 h-5" />,
-          onClick: () => navigate("/exam-center"),
+          id: "homework",
+          label: "作业管理",
+          icon: <Settings className="w-5 h-5" />,
+          onClick: () => navigate("/homework"),
         },
         {
           id: "ai-chat",
@@ -180,7 +180,8 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
       return "grade-analysis";
     if (location.pathname.startsWith("/advanced-analysis"))
       return "advanced-analysis";
-    if (location.pathname.startsWith("/exam-center")) return "exam-center";
+    if (location.pathname.startsWith("/exam-management"))
+      return "exam-management";
     if (location.pathname.startsWith("/ai-chat")) return "ai-chat";
     return undefined;
   };
@@ -244,7 +245,7 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
     if (location.pathname.startsWith("/homework")) return "作业管理";
     if (location.pathname.startsWith("/grade-analysis")) return "基础分析";
     if (location.pathname.startsWith("/advanced-analysis")) return "高级分析";
-    if (location.pathname.startsWith("/exam-center")) return "考试管理";
+    if (location.pathname.startsWith("/exam-management")) return "考试管理";
     if (location.pathname.startsWith("/ai-chat")) return "AI助手";
     return "学习管理系统";
   }
@@ -288,6 +289,16 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
                   数据导入
                 </Link>
                 <Link
+                  to="/exam-management"
+                  className={`text-sm font-medium transition-colors hover:text-primary ${
+                    isActive("/exam-management")
+                      ? "text-primary"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  考试管理
+                </Link>
+                <Link
                   to="/grade-analysis"
                   className={`text-sm font-medium transition-colors hover:text-primary ${
                     isActive("/grade-analysis")
@@ -306,16 +317,6 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
                   }`}
                 >
                   高级分析
-                </Link>
-                <Link
-                  to="/exam-center"
-                  className={`text-sm font-medium transition-colors hover:text-primary ${
-                    isActive("/exam-center")
-                      ? "text-primary"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  考试管理
                 </Link>
 
                 {/* 更多功能下拉菜单 */}

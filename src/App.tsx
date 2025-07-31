@@ -38,15 +38,13 @@ const ClassManagement = lazy(() => import("./pages/ClassManagement"));
 const ClassProfile = lazy(() => import("./pages/ClassProfile"));
 const AISettings = lazy(() => import("./pages/AISettings"));
 const WarningAnalysis = lazy(() => import("./pages/WarningAnalysis"));
-const ExamWarningAnalysis = lazy(
-  () => import("./components/warning/ExamWarningAnalysis")
-);
 const HomeworkManagement = lazy(() => import("./pages/HomeworkManagement"));
 const HomeworkDetailPage = lazy(() => import("./pages/HomeworkDetail"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const StudentPortraitManagement = lazy(
   () => import("./pages/StudentPortraitManagement")
 );
+const ExamManagement = lazy(() => import("./pages/ExamManagement"));
 
 // 工具和测试页面 - 懒加载
 const CascadeAnalysisTestPage = lazy(
@@ -287,8 +285,8 @@ function App() {
                             element={<WarningAnalysis />}
                           />
                           <Route
-                            path="/exam-center"
-                            element={<ExamWarningAnalysis />}
+                            path="/exam-management"
+                            element={<ExamManagement />}
                           />
                           <Route
                             path="/student-management"

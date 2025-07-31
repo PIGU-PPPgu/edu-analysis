@@ -336,16 +336,26 @@ export const useModernGradeAnalysis = () => {
 
 interface ModernGradeAnalysisProviderProps {
   children: React.ReactNode;
+  initialFilter?: GradeFilterConfig;
 }
 
 export const ModernGradeAnalysisProvider: React.FC<
   ModernGradeAnalysisProviderProps
-> = ({ children }) => {
+> = ({ children, initialFilter }) => {
   // 状态管理
   const [allGradeData, setAllGradeData] = useState<GradeRecord[]>([]);
   const [wideGradeData, setWideGradeData] = useState<any[]>([]);
   const [examList, setExamList] = useState<ExamInfo[]>([]);
-  const [filter, setFilter] = useState<GradeFilterConfig>({});
+  const [filter, setFilter] = useState<GradeFilterConfig>(() => {
+    console.log("🔧 初始化ModernGradeAnalysisContext筛选器:", initialFilter);
+    const result = initialFilter || {};
+    console.log("🔧 最终筛选器状态:", result);
+    console.log("🔧 筛选器键值对:");
+    Object.keys(result).forEach((key) => {
+      console.log(`  ${key}:`, result[key as keyof GradeFilterConfig]);
+    });
+    return result;
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -514,10 +524,63 @@ export const ModernGradeAnalysisProvider: React.FC<
     console.log("🔍 当前过滤器:", filter);
     let filtered = [...allGradeData];
 
-    // 考试筛选
-    if (filter.examIds?.length) {
-      filtered = filtered.filter((record) =>
-        filter.examIds!.includes(record.exam_id)
+    // 考试筛选 - 支持按ID或标题筛选
+    if (filter.examIds?.length || filter.examTitles?.length) {
+      console.log(
+        "🔍 应用考试筛选 - examIds:",
+        filter.examIds,
+        "examTitles:",
+        filter.examTitles
+      );
+      const beforeFilter = filtered.length;
+
+      // 收集所有需要匹配的考试标题
+      let examTitles: string[] = [];
+
+      // 从examIds获取对应的考试标题
+      if (filter.examIds?.length) {
+        const titlesFromIds = examList
+          .filter((exam) => filter.examIds!.includes(exam.id))
+          .map((exam) => exam.title);
+        examTitles.push(...titlesFromIds);
+      }
+
+      // 直接指定的考试标题
+      if (filter.examTitles?.length) {
+        examTitles.push(...filter.examTitles);
+      }
+
+      // 去重
+      examTitles = [...new Set(examTitles)];
+
+      console.log("🔍 所有筛选标题:", examTitles);
+
+      filtered = filtered.filter((record) => {
+        // 按exam_id匹配
+        const matchById =
+          filter.examIds?.length && filter.examIds.includes(record.exam_id);
+
+        // 按考试标题匹配
+        const matchByTitle =
+          examTitles.length > 0 &&
+          record.exam_title &&
+          examTitles.includes(record.exam_title);
+
+        const match = matchById || matchByTitle;
+
+        if (!match && beforeFilter <= 10) {
+          console.log(
+            `❌ 记录不匹配: exam_id=${record.exam_id}, exam_title="${record.exam_title}"`
+          );
+          console.log(
+            `   期望的IDs: [${filter.examIds || []}], 期望的标题: [${examTitles}]`
+          );
+        }
+
+        return match;
+      });
+      console.log(
+        `📊 考试筛选结果: ${beforeFilter} → ${filtered.length} 条记录`
       );
     }
 
@@ -956,6 +1019,35 @@ export const ModernGradeAnalysisProvider: React.FC<
   useEffect(() => {
     loadAllData();
   }, [loadAllData]);
+
+  // 调试：监控数据和筛选器的变化
+  useEffect(() => {
+    console.log("🔍 数据加载状态变化:");
+    console.log("  - allGradeData数量:", allGradeData.length);
+    console.log("  - examList数量:", examList.length);
+    console.log("  - 当前筛选器:", filter);
+
+    if (allGradeData.length > 0 && examList.length > 0) {
+      console.log("📊 数据已加载完成，检查筛选效果...");
+
+      // 显示前几条数据作为样本
+      if (allGradeData.length > 0) {
+        console.log("📋 前3条成绩数据样本:");
+        allGradeData.slice(0, 3).forEach((record, index) => {
+          console.log(
+            `  ${index + 1}. exam_id: ${record.exam_id}, exam_title: "${record.exam_title}", student: ${record.name}`
+          );
+        });
+      }
+
+      if (examList.length > 0) {
+        console.log("📋 前3条考试数据样本:");
+        examList.slice(0, 3).forEach((exam, index) => {
+          console.log(`  ${index + 1}. id: ${exam.id}, title: "${exam.title}"`);
+        });
+      }
+    }
+  }, [allGradeData, examList, filter]);
 
   return (
     <ModernGradeAnalysisContext.Provider
