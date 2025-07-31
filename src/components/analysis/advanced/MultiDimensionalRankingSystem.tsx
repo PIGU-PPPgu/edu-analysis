@@ -161,8 +161,12 @@ const calculateStatistics = (scores: number[]) => {
 
 // 计算班级综合排名数据
 const calculateClassRankings = (
-  gradeData: WideGradeRecord[]
+  gradeData: WideGradeRecord[] | undefined
 ): ClassRankingData[] => {
+  if (!gradeData || !Array.isArray(gradeData)) {
+    return [];
+  }
+
   const classByName = gradeData.reduce(
     (acc, record) => {
       const className = record.class_name || "未知班级";

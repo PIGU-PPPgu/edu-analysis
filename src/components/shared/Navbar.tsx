@@ -20,6 +20,7 @@ import {
   Users,
   Bell,
   Brain,
+  BookOpen,
 } from "lucide-react";
 import { useViewport } from "@/hooks/use-viewport";
 import {
@@ -139,7 +140,7 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
         },
         {
           id: "exam-center",
-          label: "考试中心",
+          label: "考试管理",
           icon: <BookOpen className="w-5 h-5" />,
           onClick: () => navigate("/exam-center"),
         },
@@ -243,7 +244,7 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
     if (location.pathname.startsWith("/homework")) return "作业管理";
     if (location.pathname.startsWith("/grade-analysis")) return "基础分析";
     if (location.pathname.startsWith("/advanced-analysis")) return "高级分析";
-    if (location.pathname.startsWith("/exam-center")) return "考试中心";
+    if (location.pathname.startsWith("/exam-center")) return "考试管理";
     if (location.pathname.startsWith("/ai-chat")) return "AI助手";
     return "学习管理系统";
   }
@@ -314,7 +315,7 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
                       : "text-muted-foreground"
                   }`}
                 >
-                  考试中心
+                  考试管理
                 </Link>
 
                 {/* 更多功能下拉菜单 */}

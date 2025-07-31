@@ -145,7 +145,7 @@ async function parseExcelFile(
   });
 
   // 获取数据范围
-  const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1");
+  const range = XLSX.utils.decode_range(worksheet?.["!ref"] || "A1");
   const _totalRows = range.e.r + 1;
   const totalColumns = range.e.c + 1;
 

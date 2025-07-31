@@ -52,27 +52,33 @@ const BundlePerformanceMonitor: React.FC = () => {
 
   const collectPerformanceMetrics = () => {
     try {
-      const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
-      const resources = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
-      
+      const navigation = performance.getEntriesByType(
+        "navigation"
+      )[0] as PerformanceNavigationTiming;
+      const resources = performance.getEntriesByType(
+        "resource"
+      ) as PerformanceResourceTiming[];
+
       const preloaderStats = getStats();
-      
+
       // 分析Bundle chunks
       const bundleChunks: BundleChunk[] = resources
-        .filter(resource => {
+        .filter((resource) => {
           const url = new URL(resource.name);
-          return url.pathname.includes('/js/') || url.pathname.includes('/css/');
+          return (
+            url.pathname.includes("/js/") || url.pathname.includes("/css/")
+          );
         })
-        .map(resource => {
+        .map((resource) => {
           const url = new URL(resource.name);
-          const fileName = url.pathname.split('/').pop() || '';
-          const isJS = fileName.endsWith('.js');
-          const isCSS = fileName.endsWith('.css');
-          
+          const fileName = url.pathname.split("/").pop() || "";
+          const isJS = fileName.endsWith(".js");
+          const isCSS = fileName.endsWith(".css");
+
           return {
-            name: fileName.replace(/\-[a-f0-9]{8,}\./, '.'), // 移除hash
+            name: fileName.replace(/\-[a-f0-9]{8,}\./, "."), // 移除hash
             size: resource.transferSize || 0,
-            type: isJS ? 'js' : isCSS ? 'css' : 'asset',
+            type: isJS ? "js" : isCSS ? "css" : "asset",
             loadTime: resource.responseEnd - resource.startTime,
             cached: resource.transferSize === 0 && resource.decodedBodySize > 0,
           } as BundleChunk;
@@ -81,38 +87,48 @@ const BundlePerformanceMonitor: React.FC = () => {
       setChunks(bundleChunks);
 
       const newMetrics: PerformanceMetrics = {
-        bundleSize: bundleChunks.reduce((total, chunk) => total + chunk.size, 0),
+        bundleSize: bundleChunks.reduce(
+          (total, chunk) => total + chunk.size,
+          0
+        ),
         loadTime: navigation.loadEventEnd - navigation.fetchStart,
         preloadedRoutes: preloaderStats.preloadedCount,
-        cacheHits: bundleChunks.filter(chunk => chunk.cached).length,
-        navigationTime: navigation.domContentLoadedEventEnd - navigation.fetchStart,
+        cacheHits: bundleChunks.filter((chunk) => chunk.cached).length,
+        navigationTime:
+          navigation.domContentLoadedEventEnd - navigation.fetchStart,
         resourceTimings: resources,
       };
 
       setMetrics(newMetrics);
     } catch (error) {
-      console.warn('Failed to collect performance metrics:', error);
+      console.warn("Failed to collect performance metrics:", error);
     }
   };
 
   const formatSize = (bytes: number): string => {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) return "0 B";
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const sizes = ["B", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   const formatTime = (ms: number): string => {
     return ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(2)}s`;
   };
 
-  const getPerformanceGrade = (loadTime: number): { grade: string; color: string } => {
-    if (loadTime < 1000) return { grade: 'A+', color: 'bg-[#B9FF66] text-black' };
-    if (loadTime < 2000) return { grade: 'A', color: 'bg-[#B9FF66] text-black' };
-    if (loadTime < 3000) return { grade: 'B', color: 'bg-[#F7931E] text-white' };
-    if (loadTime < 5000) return { grade: 'C', color: 'bg-[#6B7280] text-white' };
-    return { grade: 'D', color: 'bg-[#EF4444] text-white' };
+  const getPerformanceGrade = (
+    loadTime: number
+  ): { grade: string; color: string } => {
+    if (loadTime < 1000)
+      return { grade: "A+", color: "bg-[#B9FF66] text-black" };
+    if (loadTime < 2000)
+      return { grade: "A", color: "bg-[#B9FF66] text-black" };
+    if (loadTime < 3000)
+      return { grade: "B", color: "bg-[#F7931E] text-white" };
+    if (loadTime < 5000)
+      return { grade: "C", color: "bg-[#6B7280] text-white" };
+    return { grade: "D", color: "bg-[#EF4444] text-white" };
   };
 
   if (!metrics) {
@@ -120,7 +136,9 @@ const BundlePerformanceMonitor: React.FC = () => {
       <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]">
         <CardContent className="flex items-center justify-center p-8">
           <div className="animate-spin h-8 w-8 border-4 border-[#B9FF66] border-t-transparent rounded-full" />
-          <span className="ml-3 font-bold text-[#191A23]">收集性能数据中...</span>
+          <span className="ml-3 font-bold text-[#191A23]">
+            收集性能数据中...
+          </span>
         </CardContent>
       </Card>
     );
@@ -136,7 +154,9 @@ const BundlePerformanceMonitor: React.FC = () => {
           <CardTitle className="flex items-center gap-2 text-[#191A23] font-black">
             <Zap className="w-5 h-5" />
             Bundle性能监控
-            <Badge className={`ml-auto ${performanceGrade.color} border-2 border-black font-bold`}>
+            <Badge
+              className={`ml-auto ${performanceGrade.color} border-2 border-black font-bold`}
+            >
               {performanceGrade.grade}
             </Badge>
           </CardTitle>
@@ -198,17 +218,21 @@ const BundlePerformanceMonitor: React.FC = () => {
         <CardContent className="p-6">
           <div className="space-y-4">
             {chunks
-              .filter(chunk => chunk.type === 'js')
+              .filter((chunk) => chunk.type === "js")
               .sort((a, b) => b.size - a.size)
               .slice(0, 10)
               .map((chunk, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-[#F8F8F8] border-2 border-black rounded-lg">
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-3 bg-[#F8F8F8] border-2 border-black rounded-lg"
+                >
                   <div className="flex items-center gap-3">
                     <FileText className="w-5 h-5 text-[#191A23]" />
                     <div>
                       <h4 className="font-bold text-[#191A23]">{chunk.name}</h4>
                       <p className="text-sm text-[#6B7280]">
-                        {formatTime(chunk.loadTime)} • {chunk.type.toUpperCase()}
+                        {formatTime(chunk.loadTime)} •{" "}
+                        {chunk.type.toUpperCase()}
                       </p>
                     </div>
                   </div>
@@ -245,7 +269,7 @@ const BundlePerformanceMonitor: React.FC = () => {
                 </p>
               </div>
             )}
-            
+
             {metrics.loadTime > 3000 && (
               <div className="p-3 bg-[#FEE2E2] border-2 border-[#EF4444] rounded-lg">
                 <p className="text-sm font-medium text-[#991B1B]">
@@ -253,7 +277,7 @@ const BundlePerformanceMonitor: React.FC = () => {
                 </p>
               </div>
             )}
-            
+
             {metrics.preloadedRoutes < 2 && (
               <div className="p-3 bg-[#E0F2FE] border-2 border-[#0284C7] rounded-lg">
                 <p className="text-sm font-medium text-[#0C4A6E]">
@@ -261,7 +285,7 @@ const BundlePerformanceMonitor: React.FC = () => {
                 </p>
               </div>
             )}
-            
+
             {metrics.cacheHits < chunks.length * 0.3 && (
               <div className="p-3 bg-[#F3E8FF] border-2 border-[#9333EA] rounded-lg">
                 <p className="text-sm font-medium text-[#581C87]">

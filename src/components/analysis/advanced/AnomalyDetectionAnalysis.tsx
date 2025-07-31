@@ -87,7 +87,9 @@ const calculateStandardDeviation = (values: number[], mean: number): number => {
 };
 
 // 增强异常检测算法 - 多维度异常检测，提升精度和减少误报
-const detectAnomalies = (gradeData: GradeRecord[]): AnomalyData[] => {
+const detectAnomalies = (
+  gradeData: GradeRecord[] | undefined
+): AnomalyData[] => {
   const anomalies: AnomalyData[] = [];
 
   // 增强数据预处理
@@ -136,7 +138,11 @@ const detectAnomalies = (gradeData: GradeRecord[]): AnomalyData[] => {
 };
 
 // 数据预处理增强
-const preprocessAnomalyData = (gradeData: GradeRecord[]) => {
+const preprocessAnomalyData = (gradeData: GradeRecord[] | undefined) => {
+  if (!gradeData || !Array.isArray(gradeData)) {
+    return [];
+  }
+
   return gradeData
     .filter(
       (record) => record.subject && record.score && !isNaN(Number(record.score))
@@ -622,6 +628,9 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
   const anomalies = useMemo(() => detectAnomalies(gradeData), [gradeData]);
 
   const subjects = useMemo(() => {
+    if (!gradeData || !Array.isArray(gradeData)) {
+      return [];
+    }
     return Array.from(
       new Set(gradeData.map((record) => record.subject).filter(Boolean))
     );
@@ -629,6 +638,13 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
 
   // 统计数据
   const stats = useMemo(() => {
+    if (!gradeData || !Array.isArray(gradeData)) {
+      return {
+        totalStudents: 0,
+        totalRecords: 0,
+        anomalyRate: 0,
+      };
+    }
     const totalStudents = new Set(gradeData.map((r) => r.student_id)).size;
     const affectedStudents = new Set(anomalies.map((a) => a.student_id)).size;
     const highRiskCount = anomalies.filter((a) => a.severity === "high").length;

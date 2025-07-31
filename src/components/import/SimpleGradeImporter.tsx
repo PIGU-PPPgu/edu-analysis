@@ -382,10 +382,10 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
           if (
             gradeRecord.student_id &&
             gradeRecord.name &&
-            (gradeRecord.total_score !== null ||
-              gradeRecord.chinese_score !== null ||
-              gradeRecord.math_score !== null ||
-              gradeRecord.english_score !== null)
+            (gradeRecord.total_score != null ||
+              gradeRecord.chinese_score != null ||
+              gradeRecord.math_score != null ||
+              gradeRecord.english_score != null)
           ) {
             allGradeRecords.push(gradeRecord);
             successCount++;

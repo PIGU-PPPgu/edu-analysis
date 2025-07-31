@@ -800,7 +800,7 @@ export class ClassService {
 
       // 计算年级平均分和排名（简化实现）
       let gradeAverage = 0;
-      let rank_in_grade = 1;
+      const rank_in_grade = 1;
 
       // 这里应该计算年级所有班级的平均分，简化为使用当前班级平均分
       gradeAverage = classAverage;

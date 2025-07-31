@@ -77,7 +77,7 @@ interface LearningPattern {
   };
 }
 
-export const LearningBehaviorAnalysis: React.FC = () => {
+const LearningBehaviorAnalysis: React.FC = () => {
   const [patterns, setPatterns] = useState<LearningPattern[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<string>("");
@@ -711,3 +711,6 @@ export const LearningBehaviorAnalysis: React.FC = () => {
     </div>
   );
 };
+
+export { LearningBehaviorAnalysis };
+export default LearningBehaviorAnalysis;

@@ -300,7 +300,7 @@ export class WorkerManager {
         worker,
         resolve: config.onComplete!,
         reject: (error: Error) => config.onError?.(error.message),
-        onProgress: config.onProgress,
+        onProgress: config.onProgress || (() => {}),
         timeout: setTimeout(() => {
           this.handleJobTimeout(jobId);
         }, this.options.workerTimeout),
@@ -309,8 +309,8 @@ export class WorkerManager {
       this.activeJobs.set(jobId, job);
 
       // 设置消息处理
-      const messageHandler = (e: MessageEvent<WorkerMessage>) => {
-        this.handleWorkerMessage(jobId, e.data);
+      const messageHandler = (e: MessageEvent) => {
+        this.handleWorkerMessage(jobId, e.data as WorkerMessage);
       };
 
       worker.addEventListener("message", messageHandler);
@@ -322,7 +322,7 @@ export class WorkerManager {
             file: buffer,
             fileName: config.file.name,
             fileType: this.detectFileType(config.file),
-            options: config.options,
+            options: config.options || {},
           };
 
           worker.postMessage({
@@ -521,7 +521,7 @@ export async function processFileWithWorker(
   return manager.processFile({
     file,
     options,
-    onProgress: options.onProgress,
+    onProgress: options.onProgress || (() => {}),
   });
 }
 

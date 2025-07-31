@@ -48,6 +48,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
+// 🧠 Master-AI-Data: 智能推荐系统
+import RecommendationPanel from "@/components/ai/RecommendationPanel";
+// import { useUserBehaviorTracker } from "@/services/ai/userBehaviorTracker"; // 暂时禁用
 import { Separator } from "@/components/ui/separator";
 // import Footer from "@/components/shared/Footer"; // 暂时移除
 
@@ -59,6 +62,9 @@ const Index = () => {
   const [tablesExist, setTablesExist] = useState<boolean>(true);
   const navigate = useNavigate();
   const { user, isAuthReady } = useAuth();
+
+  // 🧠 Master-AI-Data: 用户行为追踪（暂时禁用）
+  // const { trackPageView, trackEvent, setUserId } = useUserBehaviorTracker();
 
   // 整合GradeDataImport的状态
   const [gradesActiveTab, setGradesActiveTab] = useState("import");
@@ -141,9 +147,24 @@ const Index = () => {
     }
   }, [isAuthReady]);
 
+  // 🧠 Master-AI-Data: 初始化用户行为追踪
+  useEffect(() => {
+    if (user?.id) {
+      // setUserId(user.id);
+      // trackPageView("/dashboard");
+    }
+  }, [user?.id]); // , setUserId, trackPageView - 暂时禁用
+
   // 处理成绩分析跳转
   const handleGoToAnalysis = () => {
     setIsAnalysisLoading(true);
+
+    // 🧠 Master-AI-Data: 追踪用户导航行为（暂时禁用）
+    // trackEvent("page_navigation", {
+    //   source_page: "/dashboard",
+    //   target_page: "/grade-analysis",
+    //   action_type: "quick_access_button",
+    // });
 
     // 模拟加载过程
     setTimeout(() => {
@@ -229,312 +250,339 @@ const Index = () => {
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Navbar />
       <div className="container mx-auto py-8 px-4">
-        <h1 className="text-3xl font-bold mb-2">数据导入中心</h1>
-        <p className="text-gray-500 mb-4">导入和管理学生信息与成绩数据</p>
+        <div className="flex gap-8">
+          {/* 主要内容区域 */}
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold mb-2">数据导入中心</h1>
+            <p className="text-gray-500 mb-4">导入和管理学生信息与成绩数据</p>
 
-        {/* 新功能提示 */}
-        <div className="mb-8 p-4 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg">
-          <div className="flex items-center gap-2 mb-2">
-            <CheckCircle className="h-5 w-5 text-green-600" />
-            <span className="font-semibold text-green-800">
-              🎉 新版导入功能上线！
-            </span>
-          </div>
-          <p className="text-sm text-green-700">
-            体验全新的智能导入流程：
-            <strong>一键上传 → AI智能识别 → 快速完成</strong>
-            ，让数据导入变得更简单！
-          </p>
-        </div>
-
-        {!tablesExist && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>数据库表不存在</AlertTitle>
-            <AlertDescription>
-              成绩分析系统需要的数据库表尚未创建。请先
-              <Link
-                to="/tools/init-tables"
-                className="ml-1 font-medium underline"
-              >
-                初始化数据库表
-              </Link>
-              ，然后再继续操作。
-            </AlertDescription>
-          </Alert>
-        )}
-
-        <Tabs key="main-tabs" defaultValue="students" className="w-full">
-          <TabsList className="mb-6 bg-white border shadow-sm">
-            <TabsTrigger
-              value="students"
-              className="gap-2 data-[state=active]:bg-[#F2FCE2]"
-            >
-              <Users className="h-4 w-4" />
-              学生信息导入
-            </TabsTrigger>
-            <TabsTrigger
-              value="grades"
-              className="gap-2 data-[state=active]:bg-[#E5DEFF]"
-            >
-              <FileText className="h-4 w-4" />
-              成绩数据导入
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="students">
-            <div className="grid gap-6">
-              <Card className="border-t-4 border-t-green-400">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    学生信息导入
-                  </CardTitle>
-                  <CardDescription>
-                    导入学生基本信息，包括学号、姓名、班级等必填信息及其他选填信息
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <StudentDataImporter
-                    onDataImported={handleStudentDataImported}
-                  />
-                  <div className="mt-4 pt-4 border-t flex justify-end">
-                    <Button
-                      variant="outline"
-                      className="flex items-center gap-2"
-                      onClick={() => navigate("/student-management")}
-                    >
-                      <List className="h-4 w-4" />
-                      查看学生列表
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+            {/* 新功能提示 */}
+            <div className="mb-8 p-4 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                <span className="font-semibold text-green-800">
+                  🎉 新版导入功能上线！
+                </span>
+              </div>
+              <p className="text-sm text-green-700">
+                体验全新的智能导入流程：
+                <strong>一键上传 → AI智能识别 → 快速完成</strong>
+                ，让数据导入变得更简单！
+              </p>
             </div>
-          </TabsContent>
 
-          <TabsContent value="grades">
-            <div className="grid gap-6">
-              <Card className="border-t-4 border-t-purple-400">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    成绩数据导入
-                  </CardTitle>
-                  <CardDescription>
-                    通过学号或姓名关联学生，导入各科目成绩数据
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {/* 导入方式选择 */}
-                  <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
-                    <h3 className="text-sm font-medium mb-3">选择导入方式</h3>
-                    <div className="flex gap-3">
-                      <Button
-                        variant={
-                          importMode === "simple" ? "default" : "outline"
-                        }
-                        size="sm"
-                        onClick={() => setImportMode("simple")}
-                        className="flex items-center gap-2"
-                      >
-                        <CheckCircle className="h-4 w-4" />
-                        新版导入 (推荐)
-                      </Button>
-                      <Button
-                        variant={
-                          importMode === "standard" ? "default" : "outline"
-                        }
-                        size="sm"
-                        onClick={() => setImportMode("standard")}
-                        className="flex items-center gap-2"
-                      >
-                        <Settings className="h-4 w-4" />
-                        标准导入
-                      </Button>
-                    </div>
-                    <p className="text-xs text-gray-600 mt-2">
-                      {importMode === "simple"
-                        ? "🌟 新版导入：一键智能识别，三步完成导入，适合大多数用户"
-                        : "⚙️ 标准导入：提供完整的字段映射和高级配置选项，适合专业用户"}
-                    </p>
-                  </div>
-
-                  {/* 简化的成绩导入 */}
-                  <Tabs
-                    key="grades-tabs"
-                    defaultValue="import"
-                    className="w-full"
-                    onValueChange={setGradesActiveTab}
-                    value={gradesActiveTab}
+            {!tablesExist && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>数据库表不存在</AlertTitle>
+                <AlertDescription>
+                  成绩分析系统需要的数据库表尚未创建。请先
+                  <Link
+                    to="/tools/init-tables"
+                    className="ml-1 font-medium underline"
                   >
-                    <TabsList className="mb-6 w-full justify-start">
-                      <TabsTrigger
-                        value="import"
-                        className="flex items-center gap-1"
-                      >
-                        <FileInput className="h-4 w-4" />
-                        <span>数据导入</span>
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="preview"
-                        className="flex items-center gap-1"
-                      >
-                        <ListFilter className="h-4 w-4" />
-                        <span>数据预览</span>
-                      </TabsTrigger>
-                    </TabsList>
+                    初始化数据库表
+                  </Link>
+                  ，然后再继续操作。
+                </AlertDescription>
+              </Alert>
+            )}
 
-                    <TabsContent value="import" className="space-y-6">
-                      {importMode === "simple" ? (
-                        <SimpleGradeImporter
-                          onComplete={handleSimpleImportComplete}
-                          onCancel={() => console.log("用户取消导入")}
-                        />
-                      ) : (
-                        <GradeImporter onDataImported={handleDataImported} />
-                      )}
-                    </TabsContent>
+            <Tabs key="main-tabs" defaultValue="students" className="w-full">
+              <TabsList className="mb-6 bg-white border shadow-sm">
+                <TabsTrigger
+                  value="students"
+                  className="gap-2 data-[state=active]:bg-[#F2FCE2]"
+                >
+                  <Users className="h-4 w-4" />
+                  学生信息导入
+                </TabsTrigger>
+                <TabsTrigger
+                  value="grades"
+                  className="gap-2 data-[state=active]:bg-[#E5DEFF]"
+                >
+                  <FileText className="h-4 w-4" />
+                  成绩数据导入
+                </TabsTrigger>
+              </TabsList>
 
-                    <TabsContent value="preview">
-                      {importedData.length > 0 ? (
-                        <div className="space-y-6">
-                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <Card>
-                              <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-500">
-                                  导入数据总量
-                                </CardTitle>
-                              </CardHeader>
-                              <CardContent>
-                                <div className="text-2xl font-bold">
-                                  {importedData.length}
-                                </div>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  条成绩记录
-                                </p>
-                              </CardContent>
-                            </Card>
+              <TabsContent value="students">
+                <div className="grid gap-6">
+                  <Card className="border-t-4 border-t-green-400">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Users className="h-5 w-5" />
+                        学生信息导入
+                      </CardTitle>
+                      <CardDescription>
+                        导入学生基本信息，包括学号、姓名、班级等必填信息及其他选填信息
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <StudentDataImporter
+                        onDataImported={handleStudentDataImported}
+                      />
+                      <div className="mt-4 pt-4 border-t flex justify-end">
+                        <Button
+                          variant="outline"
+                          className="flex items-center gap-2"
+                          onClick={() => navigate("/student-management")}
+                        >
+                          <List className="h-4 w-4" />
+                          查看学生列表
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
 
-                            <Card>
-                              <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-500">
-                                  数据完整率
-                                </CardTitle>
-                              </CardHeader>
-                              <CardContent>
-                                <div className="text-2xl font-bold">100%</div>
-                                <Progress value={100} className="h-1 mt-1" />
-                              </CardContent>
-                            </Card>
-
-                            <Card>
-                              <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-500">
-                                  班级覆盖
-                                </CardTitle>
-                              </CardHeader>
-                              <CardContent>
-                                <div className="text-2xl font-bold">
-                                  {
-                                    new Set(
-                                      importedData.map(
-                                        (item) => item.class_name
-                                      )
-                                    ).size
-                                  }
-                                </div>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  个班级
-                                </p>
-                              </CardContent>
-                            </Card>
-
-                            <Card>
-                              <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-500">
-                                  科目类型
-                                </CardTitle>
-                              </CardHeader>
-                              <CardContent>
-                                <div className="text-2xl font-bold">
-                                  {
-                                    new Set(
-                                      importedData.map((item) => item.subject)
-                                    ).size
-                                  }
-                                </div>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  个科目
-                                </p>
-                              </CardContent>
-                            </Card>
-                          </div>
-
-                          <div className="flex items-center justify-between">
-                            <h2 className="text-xl font-semibold">
-                              导入数据预览
-                            </h2>
-                            <Button
-                              variant="outline"
-                              className="flex items-center gap-1"
-                            >
-                              <Download className="h-4 w-4" />
-                              <span>导出数据</span>
-                            </Button>
-                          </div>
-
-                          <div className="flex justify-end gap-4">
-                            <Button
-                              variant="outline"
-                              onClick={() => setGradesActiveTab("import")}
-                            >
-                              返回导入
-                            </Button>
-                            <Button
-                              onClick={handleGoToAnalysis}
-                              className="bg-[#c0ff3f] text-black hover:bg-[#a8e85c]"
-                              disabled={isAnalysisLoading}
-                            >
-                              {isAnalysisLoading ? (
-                                <>
-                                  <BarChart3 className="mr-2 h-4 w-4 animate-pulse" />
-                                  正在准备分析...
-                                </>
-                              ) : (
-                                <>
-                                  <BarChart3 className="mr-2 h-4 w-4" />
-                                  前往成绩分析
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center py-24 bg-slate-50 rounded-lg border border-dashed border-slate-200">
-                          <FileSpreadsheet className="h-16 w-16 text-slate-300 mb-4" />
-                          <h3 className="text-xl font-medium mb-2">
-                            暂无导入数据
-                          </h3>
-                          <p className="text-slate-500 mb-6 text-center max-w-md">
-                            请先使用数据导入功能导入成绩数据，导入后的数据将在此处预览
-                          </p>
+              <TabsContent value="grades">
+                <div className="grid gap-6">
+                  <Card className="border-t-4 border-t-purple-400">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <FileText className="h-5 w-5" />
+                        成绩数据导入
+                      </CardTitle>
+                      <CardDescription>
+                        通过学号或姓名关联学生，导入各科目成绩数据
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {/* 导入方式选择 */}
+                      <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
+                        <h3 className="text-sm font-medium mb-3">
+                          选择导入方式
+                        </h3>
+                        <div className="flex gap-3">
                           <Button
-                            onClick={() => setGradesActiveTab("import")}
-                            className="bg-[#c0ff3f] text-black hover:bg-[#a8e85c]"
+                            variant={
+                              importMode === "simple" ? "default" : "outline"
+                            }
+                            size="sm"
+                            onClick={() => setImportMode("simple")}
+                            className="flex items-center gap-2"
                           >
-                            <FileInput className="mr-2 h-4 w-4" />
-                            去导入数据
+                            <CheckCircle className="h-4 w-4" />
+                            新版导入 (推荐)
+                          </Button>
+                          <Button
+                            variant={
+                              importMode === "standard" ? "default" : "outline"
+                            }
+                            size="sm"
+                            onClick={() => setImportMode("standard")}
+                            className="flex items-center gap-2"
+                          >
+                            <Settings className="h-4 w-4" />
+                            标准导入
                           </Button>
                         </div>
-                      )}
-                    </TabsContent>
-                  </Tabs>
-                </CardContent>
-              </Card>
+                        <p className="text-xs text-gray-600 mt-2">
+                          {importMode === "simple"
+                            ? "🌟 新版导入：一键智能识别，三步完成导入，适合大多数用户"
+                            : "⚙️ 标准导入：提供完整的字段映射和高级配置选项，适合专业用户"}
+                        </p>
+                      </div>
+
+                      {/* 简化的成绩导入 */}
+                      <Tabs
+                        key="grades-tabs"
+                        defaultValue="import"
+                        className="w-full"
+                        onValueChange={setGradesActiveTab}
+                        value={gradesActiveTab}
+                      >
+                        <TabsList className="mb-6 w-full justify-start">
+                          <TabsTrigger
+                            value="import"
+                            className="flex items-center gap-1"
+                          >
+                            <FileInput className="h-4 w-4" />
+                            <span>数据导入</span>
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="preview"
+                            className="flex items-center gap-1"
+                          >
+                            <ListFilter className="h-4 w-4" />
+                            <span>数据预览</span>
+                          </TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="import" className="space-y-6">
+                          {importMode === "simple" ? (
+                            <SimpleGradeImporter
+                              onComplete={handleSimpleImportComplete}
+                              onCancel={() => console.log("用户取消导入")}
+                            />
+                          ) : (
+                            <GradeImporter
+                              onDataImported={handleDataImported}
+                            />
+                          )}
+                        </TabsContent>
+
+                        <TabsContent value="preview">
+                          {importedData.length > 0 ? (
+                            <div className="space-y-6">
+                              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <Card>
+                                  <CardHeader className="pb-2">
+                                    <CardTitle className="text-sm font-medium text-gray-500">
+                                      导入数据总量
+                                    </CardTitle>
+                                  </CardHeader>
+                                  <CardContent>
+                                    <div className="text-2xl font-bold">
+                                      {importedData.length}
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      条成绩记录
+                                    </p>
+                                  </CardContent>
+                                </Card>
+
+                                <Card>
+                                  <CardHeader className="pb-2">
+                                    <CardTitle className="text-sm font-medium text-gray-500">
+                                      数据完整率
+                                    </CardTitle>
+                                  </CardHeader>
+                                  <CardContent>
+                                    <div className="text-2xl font-bold">
+                                      100%
+                                    </div>
+                                    <Progress
+                                      value={100}
+                                      className="h-1 mt-1"
+                                    />
+                                  </CardContent>
+                                </Card>
+
+                                <Card>
+                                  <CardHeader className="pb-2">
+                                    <CardTitle className="text-sm font-medium text-gray-500">
+                                      班级覆盖
+                                    </CardTitle>
+                                  </CardHeader>
+                                  <CardContent>
+                                    <div className="text-2xl font-bold">
+                                      {
+                                        new Set(
+                                          importedData.map(
+                                            (item) => item.class_name
+                                          )
+                                        ).size
+                                      }
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      个班级
+                                    </p>
+                                  </CardContent>
+                                </Card>
+
+                                <Card>
+                                  <CardHeader className="pb-2">
+                                    <CardTitle className="text-sm font-medium text-gray-500">
+                                      科目类型
+                                    </CardTitle>
+                                  </CardHeader>
+                                  <CardContent>
+                                    <div className="text-2xl font-bold">
+                                      {
+                                        new Set(
+                                          importedData.map(
+                                            (item) => item.subject
+                                          )
+                                        ).size
+                                      }
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      个科目
+                                    </p>
+                                  </CardContent>
+                                </Card>
+                              </div>
+
+                              <div className="flex items-center justify-between">
+                                <h2 className="text-xl font-semibold">
+                                  导入数据预览
+                                </h2>
+                                <Button
+                                  variant="outline"
+                                  className="flex items-center gap-1"
+                                >
+                                  <Download className="h-4 w-4" />
+                                  <span>导出数据</span>
+                                </Button>
+                              </div>
+
+                              <div className="flex justify-end gap-4">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => setGradesActiveTab("import")}
+                                >
+                                  返回导入
+                                </Button>
+                                <Button
+                                  onClick={handleGoToAnalysis}
+                                  className="bg-[#c0ff3f] text-black hover:bg-[#a8e85c]"
+                                  disabled={isAnalysisLoading}
+                                >
+                                  {isAnalysisLoading ? (
+                                    <>
+                                      <BarChart3 className="mr-2 h-4 w-4 animate-pulse" />
+                                      正在准备分析...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <BarChart3 className="mr-2 h-4 w-4" />
+                                      前往成绩分析
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center justify-center py-24 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                              <FileSpreadsheet className="h-16 w-16 text-slate-300 mb-4" />
+                              <h3 className="text-xl font-medium mb-2">
+                                暂无导入数据
+                              </h3>
+                              <p className="text-slate-500 mb-6 text-center max-w-md">
+                                请先使用数据导入功能导入成绩数据，导入后的数据将在此处预览
+                              </p>
+                              <Button
+                                onClick={() => setGradesActiveTab("import")}
+                                className="bg-[#c0ff3f] text-black hover:bg-[#a8e85c]"
+                              >
+                                <FileInput className="mr-2 h-4 w-4" />
+                                去导入数据
+                              </Button>
+                            </div>
+                          )}
+                        </TabsContent>
+                      </Tabs>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+
+          {/* 🧠 Master-AI-Data: 智能推荐侧边栏 */}
+          <div className="w-80 flex-shrink-0">
+            <div className="sticky top-4">
+              <RecommendationPanel
+                maxItems={6}
+                variant="compact"
+                className="mb-6"
+              />
             </div>
-          </TabsContent>
-        </Tabs>
+          </div>
+        </div>
       </div>
       {/* <Footer /> */}
     </div>

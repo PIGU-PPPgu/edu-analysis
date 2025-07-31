@@ -722,7 +722,7 @@ export class WarningService {
     ids?: string[];
   }): Promise<Array<{ student_id: string; name: string; class_name: string }>> {
     try {
-      let filters: any = {};
+      const filters: any = {};
 
       switch (targetScope.type) {
         case "student":

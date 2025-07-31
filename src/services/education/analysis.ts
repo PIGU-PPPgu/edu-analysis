@@ -533,7 +533,7 @@ export class AnalysisService {
   ): Promise<TrendAnalysis["data_points"]> {
     try {
       let query: any;
-      let scoreField = "total_score";
+      const scoreField = "total_score";
 
       switch (analysisType) {
         case "individual":

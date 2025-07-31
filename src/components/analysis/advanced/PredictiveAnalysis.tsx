@@ -47,7 +47,7 @@ interface PredictiveAnalysisProps {
   timeframe?: "week" | "month" | "semester";
 }
 
-export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
+const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
   selectedStudents = [],
   timeframe = "month",
 }) => {
@@ -870,3 +870,6 @@ export const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
     </div>
   );
 };
+
+export { PredictiveAnalysis };
+export default PredictiveAnalysis;

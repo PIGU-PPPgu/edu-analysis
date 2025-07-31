@@ -9,6 +9,12 @@ interface PreloadStrategy {
   onHover: string[]; // 鼠标悬停时预加载
   onIdle: string[]; // 浏览器空闲时预加载
   conditional: { [key: string]: string[] }; // 条件预加载
+  complexityBased?: {
+    // 基于复杂度的预加载
+    simple: string[];
+    standard: string[];
+    advanced: string[];
+  };
 }
 
 // 基于用户角色的预加载策略
@@ -21,6 +27,11 @@ const PRELOAD_STRATEGIES: { [role: string]: PreloadStrategy } = {
       "/dashboard": ["/grade-analysis", "/student-management"],
       "/grade-analysis": ["/advanced-analysis", "/warning-analysis"],
     },
+    complexityBased: {
+      simple: ["/dashboard", "/grade-analysis"],
+      standard: ["/advanced-analysis", "/ai-insights"],
+      advanced: ["/behavior-analysis", "/performance-monitor"],
+    },
   },
   teacher: {
     immediate: ["/dashboard", "/grade-analysis"],
@@ -30,6 +41,11 @@ const PRELOAD_STRATEGIES: { [role: string]: PreloadStrategy } = {
       "/dashboard": ["/grade-analysis", "/homework"],
       "/grade-analysis": ["/advanced-analysis"],
     },
+    complexityBased: {
+      simple: ["/dashboard", "/grade-analysis"],
+      standard: ["/advanced-analysis", "/ai-insights"],
+      advanced: ["/behavior-analysis", "/correlation-analysis"],
+    },
   },
   student: {
     immediate: ["/dashboard", "/profile"],
@@ -37,6 +53,11 @@ const PRELOAD_STRATEGIES: { [role: string]: PreloadStrategy } = {
     onIdle: ["/ai-settings"],
     conditional: {
       "/dashboard": ["/homework", "/profile"],
+    },
+    complexityBased: {
+      simple: ["/dashboard", "/profile"],
+      standard: ["/homework", "/grade-analysis"],
+      advanced: ["/learning-insights"],
     },
   },
 };
@@ -46,6 +67,7 @@ class RoutePreloader {
   private preloadPromises = new Map<string, Promise<any>>();
   private userRole: string = "student";
   private currentRoute: string = "/";
+  private complexityLevel: "simple" | "standard" | "advanced" = "standard";
 
   constructor() {
     this.initializeEventListeners();
@@ -65,6 +87,14 @@ class RoutePreloader {
   setCurrentRoute(route: string) {
     this.currentRoute = route;
     this.executeConditionalPreload();
+  }
+
+  /**
+   * 设置复杂度级别，触发对应的预加载
+   */
+  setComplexityLevel(level: "simple" | "standard" | "advanced") {
+    this.complexityLevel = level;
+    this.executeComplexityBasedPreload();
   }
 
   /**
@@ -108,8 +138,15 @@ class RoutePreloader {
       "/warning-analysis": () => import("../pages/WarningAnalysis"),
       "/exam-center": () => import("../components/warning/ExamWarningAnalysis"),
       "/ai-settings": () => import("../pages/AISettings"),
+      "/ai-insights": () => import("../components/ai/FloatingChatAssistant"),
+      "/behavior-analysis": () =>
+        import("../components/analysis/advanced/LearningBehaviorAnalysis"),
+      "/performance-monitor": () => import("../pages/PerformanceMonitoring"),
+      "/correlation-analysis": () =>
+        import("../components/analysis/advanced/SubjectCorrelationAnalysis"),
       "/profile": () => import("../pages/ProfilePage"),
-      "/student-portrait-management": () => import("../pages/StudentPortraitManagement"),
+      "/student-portrait-management": () =>
+        import("../pages/StudentPortraitManagement"),
     };
 
     const loader = routeModuleMap[route];
@@ -145,13 +182,28 @@ class RoutePreloader {
   }
 
   /**
+   * 执行基于复杂度的预加载
+   */
+  private executeComplexityBasedPreload() {
+    const strategy = PRELOAD_STRATEGIES[this.userRole];
+    if (!strategy?.complexityBased) return;
+
+    const routesToPreload = strategy.complexityBased[this.complexityLevel];
+    if (!routesToPreload) return;
+
+    routesToPreload.forEach((route) => {
+      this.preloadRoute(route);
+    });
+  }
+
+  /**
    * 在浏览器空闲时执行预加载
    */
   private executeIdlePreload() {
     const strategy = PRELOAD_STRATEGIES[this.userRole];
     if (!strategy) return;
 
-    if ('requestIdleCallback' in window) {
+    if ("requestIdleCallback" in window) {
       (window as any).requestIdleCallback(() => {
         strategy.onIdle.forEach((route) => {
           this.preloadRoute(route);
@@ -172,13 +224,13 @@ class RoutePreloader {
    */
   private initializeEventListeners() {
     // 监听链接悬停事件
-    document.addEventListener('mouseover', this.handleLinkHover.bind(this));
-    
+    document.addEventListener("mouseover", this.handleLinkHover.bind(this));
+
     // 监听页面加载完成
-    if (document.readyState === 'complete') {
+    if (document.readyState === "complete") {
       this.executeIdlePreload();
     } else {
-      window.addEventListener('load', this.executeIdlePreload.bind(this));
+      window.addEventListener("load", this.executeIdlePreload.bind(this));
     }
   }
 
@@ -187,12 +239,12 @@ class RoutePreloader {
    */
   private handleLinkHover(event: MouseEvent) {
     const target = event.target as HTMLElement;
-    const link = target.closest('a[href]') as HTMLAnchorElement;
-    
+    const link = target.closest("a[href]") as HTMLAnchorElement;
+
     if (!link) return;
 
-    const href = link.getAttribute('href');
-    if (!href || href.startsWith('http') || href.startsWith('#')) return;
+    const href = link.getAttribute("href");
+    if (!href || href.startsWith("http") || href.startsWith("#")) return;
 
     const strategy = PRELOAD_STRATEGIES[this.userRole];
     if (!strategy?.onHover.includes(href)) return;
@@ -234,6 +286,7 @@ export const useRoutePreloader = () => {
   return {
     setUserRole: routePreloader.setUserRole.bind(routePreloader),
     setCurrentRoute: routePreloader.setCurrentRoute.bind(routePreloader),
+    setComplexityLevel: routePreloader.setComplexityLevel.bind(routePreloader),
     preloadRoute: routePreloader.preloadRoute.bind(routePreloader),
     clearCache: routePreloader.clearCache.bind(routePreloader),
     getStats: routePreloader.getStats.bind(routePreloader),

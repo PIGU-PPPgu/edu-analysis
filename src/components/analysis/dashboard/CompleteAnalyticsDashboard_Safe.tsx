@@ -62,6 +62,7 @@ import SimpleGradeDataTable from "@/components/analysis/SimpleGradeDataTable";
 import OptimizedDataTable from "@/components/performance/OptimizedDataTable";
 import ErrorBoundary from "@/components/performance/ErrorBoundary";
 import { toast } from "sonner";
+import { IntelligentLoadingState } from "@/components/ui/SkeletonCard";
 
 // 导入确认存在的高级分析组件 - 包含我们已改造的Positivus风格组件
 import SubjectCorrelationAnalysis from "@/components/analysis/advanced/SubjectCorrelationAnalysis";
@@ -414,10 +415,51 @@ const CompleteAnalyticsDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center space-y-4">
-          <div className="w-12 h-12 border-4 border-[#B9FF66] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-[#191A23] font-bold">正在加载高级分析数据...</p>
+      <div className="flex bg-white min-h-screen">
+        {/* 侧边栏骨架屏 */}
+        <div className="w-96 bg-[#F8F8F8] border-r-2 border-black p-6">
+          <IntelligentLoadingState
+            type="stats"
+            title="加载筛选选项"
+            subtitle="正在加载考试和班级数据..."
+          />
+        </div>
+
+        {/* 主内容区域骨架屏 */}
+        <div className="flex-1 space-y-10 p-8">
+          {/* 页面标题 */}
+          <div className="space-y-3">
+            <h1 className="text-5xl font-black text-[#191A23] leading-tight">
+              基础分析
+              <span className="inline-block ml-3 px-4 py-2 bg-[#B9FF66] text-[#191A23] text-xl font-black border-2 border-black rounded-lg shadow-[4px_4px_0px_0px_#191A23]">
+                BASIC
+              </span>
+            </h1>
+            <p className="text-lg text-[#6B7280] font-medium">
+              正在智能分析成绩数据，请稍候...
+            </p>
+          </div>
+
+          {/* 统计卡片骨架屏 */}
+          <IntelligentLoadingState
+            type="stats"
+            title="正在计算核心指标"
+            subtitle="平均分、及格率、学困生预警等统计数据"
+          />
+
+          {/* 图表骨架屏 */}
+          <IntelligentLoadingState
+            type="chart"
+            title="正在生成可视化图表"
+            subtitle="成绩分布、趋势分析、相关性热力图等"
+          />
+
+          {/* 分析骨架屏 */}
+          <IntelligentLoadingState
+            type="analysis"
+            title="正在进行AI智能分析"
+            subtitle="教学洞察、改进建议、学困生识别等"
+          />
         </div>
       </div>
     );

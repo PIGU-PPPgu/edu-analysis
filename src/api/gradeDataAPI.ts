@@ -16,28 +16,32 @@ import { getStudentName, getClassName } from "@/utils/gradeFieldUtils";
 import { calculateGradeLevelDistribution } from "@/utils/gradeUtils";
 
 /**
- * 获取指定考试的成绩数据
+ * 获取指定考试的成绩数据 - 性能优化版本
  * @param examId 考试ID
  * @param filter 筛选条件
+ * @param pagination 分页参数
  * @returns 成绩数据响应
  */
 export async function fetchGradeData(
   examId?: string,
-  filter?: GradeFilter
+  filter?: GradeFilter,
+  pagination: { page?: number; pageSize?: number } = {}
 ): Promise<GradeDataResponse> {
   try {
+    const { page = 1, pageSize = 50 } = pagination;
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
     let query = supabase
       .from("grade_data_new")
-      .select("*")
-      .order("total_score", { ascending: false });
+      .select("*, count(*) OVER() as total_count", { count: "exact" })
+      .order("total_score", { ascending: false })
+      .range(from, to);
 
-    // 应用筛选条件
+    // 应用筛选条件 - 优化索引使用
     if (examId) {
       query = query.eq("exam_id", examId);
     }
-
-    // Wide table中没有单独的subject字段，这里暂时跳过科目筛选
-    // TODO: 需要重新设计科目筛选逻辑
 
     if (filter?.class) {
       query = query.eq("class_name", filter.class);
@@ -49,14 +53,14 @@ export async function fetchGradeData(
 
     if (filter?.scoreRange) {
       if (filter.scoreRange.min !== undefined) {
-        query = query.gte("score", filter.scoreRange.min);
+        query = query.gte("total_score", filter.scoreRange.min);
       }
       if (filter.scoreRange.max !== undefined) {
-        query = query.lte("score", filter.scoreRange.max);
+        query = query.lte("total_score", filter.scoreRange.max);
       }
     }
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
 
     if (error) {
       throw error;
@@ -69,7 +73,7 @@ export async function fetchGradeData(
       student_name: getStudentName(record),
       class_name: getClassName(record),
       subject: record.subject || Subject.TOTAL,
-      score: record.score || 0,
+      score: record.total_score || 0,
       grade_level: record.grade_level,
       exam_id: record.exam_id,
       exam_name: record.exam_name,
@@ -82,7 +86,6 @@ export async function fetchGradeData(
     return {
       data: standardizedData,
       total: standardizedData.length,
-      error: undefined,
     };
   } catch (error) {
     console.error("获取成绩数据失败:", error);
@@ -250,8 +253,9 @@ export async function calculateGradeStatistics(
   const sortedScores = [...scores].sort((a, b) => a - b);
   const median =
     total % 2 === 0
-      ? (sortedScores[total / 2 - 1] + sortedScores[total / 2]) / 2
-      : sortedScores[Math.floor(total / 2)];
+      ? ((sortedScores[total / 2 - 1] || 0) + (sortedScores[total / 2] || 0)) /
+        2
+      : sortedScores[Math.floor(total / 2)] || 0;
 
   // 标准差
   const variance =
@@ -291,7 +295,7 @@ export async function calculateGradeStatistics(
     average: parseFloat(average.toFixed(2)),
     max,
     min,
-    median: parseFloat(median.toFixed(2)),
+    median: parseFloat((median || 0).toFixed(2)),
     standardDeviation: parseFloat(standardDeviation.toFixed(2)),
     passRate: parseFloat(passRate.toFixed(2)),
     excellentRate: parseFloat(excellentRate.toFixed(2)),

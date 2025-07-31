@@ -13,11 +13,19 @@ import {
   Sparkles,
   Bot,
   AlertTriangle,
+  Brain,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { useModernGradeAnalysis } from "@/contexts/ModernGradeAnalysisContext";
 import {
   calculateBasicStatistics,
@@ -30,6 +38,10 @@ import {
   UnifiedDataService,
   type GradeRecord,
 } from "@/components/analysis/services/unifiedDataService";
+import {
+  AIInsightsPanel,
+  AIInsightsMini,
+} from "@/components/analysis/ai/AIInsightsPanel";
 
 // ============================================================================
 // 类型定义
@@ -187,6 +199,10 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
 }) => {
   const { filteredGradeData, statistics, isLoading, error } =
     useModernGradeAnalysis();
+
+  // AI洞察相关状态
+  const [showAIInsights, setShowAIInsights] = React.useState(false);
+  const [aiInsightsData, setAiInsightsData] = React.useState<any[]>([]);
 
   // 使用filteredGradeData作为数据源，无需额外过滤
 
@@ -359,6 +375,23 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
     [overallStatistics.statistics.average]
   );
 
+  // 准备AI洞察数据
+  React.useEffect(() => {
+    if (filteredGradeData && filteredGradeData.length > 0) {
+      // 转换数据格式以供AI分析
+      const totalScoreData = filteredGradeData
+        .filter((record) => record.subject === "总分")
+        .map((record) => ({
+          student_id: record.student_id,
+          student_name: record.student_name,
+          class_name: record.class_name,
+          total_score: record.score,
+          exam_id: examId,
+        }));
+      setAiInsightsData(totalScoreData);
+    }
+  }, [filteredGradeData, examId]);
+
   // 加载状态
   if (isLoading) {
     return <StatisticsOverviewSkeleton />;
@@ -422,6 +455,16 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
                 整体表现概览
               </CardTitle>
             </div>
+            {/* AI洞察按钮 */}
+            {showAIAnalysis && aiInsightsData.length > 0 && (
+              <Button
+                onClick={() => setShowAIInsights(true)}
+                className="bg-purple-600 hover:bg-purple-700 text-white border-2 border-black shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all"
+              >
+                <Brain className="h-4 w-4 mr-2" />
+                AI 智能分析
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="p-6 space-y-6">
@@ -619,6 +662,42 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* AI洞察对话框 */}
+      <Dialog open={showAIInsights} onOpenChange={setShowAIInsights}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold">
+              <Brain className="h-6 w-6 text-purple-600" />
+              AI 智能分析结果
+            </DialogTitle>
+            <DialogDescription>基于当前数据的深度分析和洞察</DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4">
+            <AIInsightsPanel
+              data={aiInsightsData}
+              context={{
+                examId: examId,
+                className: classFilter?.[0],
+              }}
+              autoAnalyze={true}
+              maxInsights={10}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 嵌入式AI洞察提示 */}
+      {showAIAnalysis && aiInsightsData.length > 0 && (
+        <div className="mt-4">
+          <AIInsightsMini
+            data={aiInsightsData}
+            context={{ examId }}
+            onInsightClick={() => setShowAIInsights(true)}
+          />
+        </div>
       )}
     </div>
   );

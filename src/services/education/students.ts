@@ -352,7 +352,7 @@ export class StudentService {
         const existingResponse = await apiClient.query("students", {
           filters: {
             student_id: updateData.student_id,
-            id: { neq: studentId },
+            id: { neq: studentId } as any,
           },
           limit: 1,
         });
@@ -839,7 +839,7 @@ export class StudentService {
 
       // 批量获取最新成绩
       const gradesResponse = await apiClient.query("grade_data", {
-        filters: { student_id: { in: studentIds } },
+        filters: { student_id: { in: studentIds } as any },
         select: ["student_id", "total_score", "total_rank_in_class"],
         orderBy: [{ column: "exam_date", ascending: false }],
       });

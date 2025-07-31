@@ -4,8 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { ModernGradeAnalysisProvider } from "@/contexts/ModernGradeAnalysisContext";
-import AdvancedAnalyticsDashboard from "@/components/analysis/dashboard/AdvancedAnalyticsDashboard";
+import AdvancedAnalyticsDashboard from "@/components/analysis/dashboard/AdvancedAnalyticsDashboard_Fixed";
 import Navbar from "@/components/shared/Navbar";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -69,9 +68,7 @@ const AdvancedAnalysis: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <ModernGradeAnalysisProvider>
-          <AdvancedAnalyticsDashboard />
-        </ModernGradeAnalysisProvider>
+        <AdvancedAnalyticsDashboard />
       </div>
     );
   } catch (err) {
