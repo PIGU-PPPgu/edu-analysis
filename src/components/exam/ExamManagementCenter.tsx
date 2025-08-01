@@ -65,6 +65,10 @@ import {
   Layers,
   Settings,
   Settings2,
+  PieChart,
+  Brain,
+  AlertTriangle,
+  Lightbulb,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatNumber } from "@/utils/formatUtils";
@@ -438,8 +442,8 @@ const ExamManagementCenter: React.FC = () => {
         if (updatedDbExam) {
           // 更新本地列表中的考试
           const updatedExam = mapExam(updatedDbExam);
-          setExams((prev) => 
-            prev.map(exam => exam.id === editingExamId ? updatedExam : exam)
+          setExams((prev) =>
+            prev.map((exam) => (exam.id === editingExamId ? updatedExam : exam))
           );
 
           toast.success(`考试"${examForm.title}"更新成功`);
@@ -495,7 +499,9 @@ const ExamManagementCenter: React.FC = () => {
       });
     } catch (error) {
       console.error(editingExamId ? "更新考试失败:" : "创建考试失败:", error);
-      toast.error(editingExamId ? "更新考试失败，请重试" : "创建考试失败，请重试");
+      toast.error(
+        editingExamId ? "更新考试失败，请重试" : "创建考试失败，请重试"
+      );
     }
   };
 
@@ -597,10 +603,11 @@ const ExamManagementCenter: React.FC = () => {
       case "export":
         try {
           // 如果没有选中考试，导出所有考试
-          const examsToExport = selectedExams.length > 0 
-            ? exams.filter(e => selectedExams.includes(e.id))
-            : exams;
-          
+          const examsToExport =
+            selectedExams.length > 0
+              ? exams.filter((e) => selectedExams.includes(e.id))
+              : exams;
+
           if (examsToExport.length === 0) {
             toast.error("没有可导出的考试数据");
             return;
@@ -608,11 +615,17 @@ const ExamManagementCenter: React.FC = () => {
 
           // 生成CSV格式的数据
           const csvHeaders = [
-            "考试ID", "考试标题", "考试类型", "考试日期", 
-            "状态", "科目", "创建者", "创建时间"
+            "考试ID",
+            "考试标题",
+            "考试类型",
+            "考试日期",
+            "状态",
+            "科目",
+            "创建者",
+            "创建时间",
           ];
 
-          const csvData = examsToExport.map(exam => [
+          const csvData = examsToExport.map((exam) => [
             exam.id,
             exam.title,
             exam.type,
@@ -620,22 +633,27 @@ const ExamManagementCenter: React.FC = () => {
             exam.status,
             exam.subjects.join(", "),
             exam.createdBy || "系统",
-            new Date(exam.createdAt).toLocaleDateString()
+            new Date(exam.createdAt).toLocaleDateString(),
           ]);
 
           // 创建CSV内容
           const csvContent = [
             csvHeaders.join(","),
-            ...csvData.map(row => row.map(cell => `"${cell}"`).join(","))
+            ...csvData.map((row) => row.map((cell) => `"${cell}"`).join(",")),
           ].join("\n");
 
           // 创建并下载文件
-          const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+          const blob = new Blob([csvContent], {
+            type: "text/csv;charset=utf-8;",
+          });
           const link = document.createElement("a");
           if (link.download !== undefined) {
             const url = URL.createObjectURL(blob);
             link.setAttribute("href", url);
-            link.setAttribute("download", `考试数据_${new Date().toISOString().split('T')[0]}.csv`);
+            link.setAttribute(
+              "download",
+              `考试数据_${new Date().toISOString().split("T")[0]}.csv`
+            );
             link.style.visibility = "hidden";
             document.body.appendChild(link);
             link.click();
@@ -643,7 +661,7 @@ const ExamManagementCenter: React.FC = () => {
           }
 
           toast.success(`成功导出${examsToExport.length}个考试的数据`, {
-            description: "文件已保存到下载文件夹"
+            description: "文件已保存到下载文件夹",
           });
         } catch (error) {
           console.error("导出数据失败:", error);
@@ -674,7 +692,7 @@ const ExamManagementCenter: React.FC = () => {
         });
         setIsCreateDialogOpen(true);
         toast.success(`准备编辑考试: ${exam.title}`, {
-          description: "表单已填充现有数据，可直接修改"
+          description: "表单已填充现有数据，可直接修改",
         });
         break;
       case "duplicate":
@@ -734,12 +752,12 @@ const ExamManagementCenter: React.FC = () => {
           exam.totalScore ? `总分: ${exam.totalScore}分` : "",
           exam.passingScore ? `及格分: ${exam.passingScore}分` : "",
           `创建时间: ${new Date(exam.createdAt).toLocaleString()}`,
-          exam.createdBy ? `创建者: ${exam.createdBy}` : ""
+          exam.createdBy ? `创建者: ${exam.createdBy}` : "",
         ].filter(Boolean);
 
         toast.success("考试详情", {
           description: examDetails.slice(0, 3).join(" | "),
-          duration: 5000
+          duration: 5000,
         });
 
         console.log("📋 考试详细信息:", {
@@ -748,7 +766,7 @@ const ExamManagementCenter: React.FC = () => {
             标题: exam.title,
             类型: exam.type,
             日期: exam.date,
-            状态: exam.status
+            状态: exam.status,
           },
           详细设置: {
             科目: exam.subjects,
@@ -756,13 +774,13 @@ const ExamManagementCenter: React.FC = () => {
             结束时间: exam.endTime,
             总分: exam.totalScore,
             及格分: exam.passingScore,
-            班级: exam.classes
+            班级: exam.classes,
           },
           管理信息: {
             创建者: exam.createdBy,
             创建时间: exam.createdAt,
-            更新时间: exam.updatedAt
-          }
+            更新时间: exam.updatedAt,
+          },
         });
         break;
       case "basic-analysis":
@@ -1389,7 +1407,9 @@ const ExamManagementCenter: React.FC = () => {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-gray-600">考试数量分布</p>
+                        <p className="text-sm font-medium text-gray-600">
+                          考试数量分布
+                        </p>
                         <p className="text-2xl font-bold">{statistics.total}</p>
                         <p className="text-xs text-blue-600 flex items-center mt-1">
                           <Activity className="h-3 w-3 mr-1" />
@@ -1405,8 +1425,12 @@ const ExamManagementCenter: React.FC = () => {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-gray-600">平均参与率</p>
-                        <p className="text-2xl font-bold">{statistics.averageParticipation.toFixed(1)}%</p>
+                        <p className="text-sm font-medium text-gray-600">
+                          平均参与率
+                        </p>
+                        <p className="text-2xl font-bold">
+                          {statistics.averageParticipation.toFixed(1)}%
+                        </p>
                         <p className="text-xs text-green-600 flex items-center mt-1">
                           <Users className="h-3 w-3 mr-1" />
                           学生参与度高
@@ -1421,8 +1445,12 @@ const ExamManagementCenter: React.FC = () => {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-gray-600">平均成绩</p>
-                        <p className="text-2xl font-bold">{statistics.averageScore.toFixed(1)}</p>
+                        <p className="text-sm font-medium text-gray-600">
+                          平均成绩
+                        </p>
+                        <p className="text-2xl font-bold">
+                          {statistics.averageScore.toFixed(1)}
+                        </p>
                         <p className="text-xs text-purple-600 flex items-center mt-1">
                           <TrendingUp className="h-3 w-3 mr-1" />
                           整体表现良好
@@ -1437,8 +1465,12 @@ const ExamManagementCenter: React.FC = () => {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-gray-600">改进率</p>
-                        <p className="text-2xl font-bold">+{statistics.improvementRate.toFixed(1)}%</p>
+                        <p className="text-sm font-medium text-gray-600">
+                          改进率
+                        </p>
+                        <p className="text-2xl font-bold">
+                          +{statistics.improvementRate.toFixed(1)}%
+                        </p>
                         <p className="text-xs text-green-600 flex items-center mt-1">
                           <TrendingUp className="h-3 w-3 mr-1" />
                           持续提升
@@ -1462,12 +1494,18 @@ const ExamManagementCenter: React.FC = () => {
                   <CardContent>
                     <div className="space-y-3">
                       {examTypes.map((type, index) => (
-                        <div key={type.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div
+                          key={type.id}
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                        >
                           <div className="flex items-center gap-3">
                             <span className="text-lg">{type.emoji}</span>
                             <span className="font-medium">{type.name}</span>
                           </div>
-                          <Badge variant="outline">{exams.filter(e => e.type === type.name).length} 个</Badge>
+                          <Badge variant="outline">
+                            {exams.filter((e) => e.type === type.name).length}{" "}
+                            个
+                          </Badge>
                         </div>
                       ))}
                     </div>
@@ -1488,21 +1526,27 @@ const ExamManagementCenter: React.FC = () => {
                           <Clock className="h-5 w-5 text-blue-600" />
                           <span className="font-medium">即将开始</span>
                         </div>
-                        <Badge className="bg-blue-100 text-blue-800">{statistics.upcoming} 个</Badge>
+                        <Badge className="bg-blue-100 text-blue-800">
+                          {statistics.upcoming} 个
+                        </Badge>
                       </div>
                       <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
                         <div className="flex items-center gap-3">
                           <Activity className="h-5 w-5 text-orange-600" />
                           <span className="font-medium">进行中</span>
                         </div>
-                        <Badge className="bg-orange-100 text-orange-800">{statistics.ongoing} 个</Badge>
+                        <Badge className="bg-orange-100 text-orange-800">
+                          {statistics.ongoing} 个
+                        </Badge>
                       </div>
                       <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
                         <div className="flex items-center gap-3">
                           <CheckCircle className="h-5 w-5 text-green-600" />
                           <span className="font-medium">已完成</span>
                         </div>
-                        <Badge className="bg-green-100 text-green-800">{statistics.completed} 个</Badge>
+                        <Badge className="bg-green-100 text-green-800">
+                          {statistics.completed} 个
+                        </Badge>
                       </div>
                     </div>
                   </CardContent>
@@ -1569,8 +1613,8 @@ const ExamManagementCenter: React.FC = () => {
                       <Settings className="h-5 w-5 text-[#B9FF66]" />
                       考试类型管理
                     </div>
-                    <Button 
-                      size="sm" 
+                    <Button
+                      size="sm"
                       className="bg-[#B9FF66] text-black hover:bg-[#A3E85A]"
                       onClick={() => toast.success("添加考试类型功能开发中")}
                     >
@@ -1582,38 +1626,50 @@ const ExamManagementCenter: React.FC = () => {
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {examTypes.map((type) => (
-                      <div key={type.id} className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-all">
+                      <div
+                        key={type.id}
+                        className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-all"
+                      >
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
                             <span className="text-xl">{type.emoji}</span>
                             <span className="font-medium">{type.name}</span>
                           </div>
                           <div className="flex gap-1">
-                            <Button 
-                              size="sm" 
+                            <Button
+                              size="sm"
                               variant="outline"
-                              onClick={() => toast.success(`编辑${type.name}功能开发中`)}
+                              onClick={() =>
+                                toast.success(`编辑${type.name}功能开发中`)
+                              }
                             >
                               <Edit className="h-3 w-3" />
                             </Button>
                             {!type.isDefault && (
-                              <Button 
-                                size="sm" 
+                              <Button
+                                size="sm"
                                 variant="outline"
-                                onClick={() => toast.success(`删除${type.name}功能开发中`)}
+                                onClick={() =>
+                                  toast.success(`删除${type.name}功能开发中`)
+                                }
                               >
                                 <Trash2 className="h-3 w-3" />
                               </Button>
                             )}
                           </div>
                         </div>
-                        <p className="text-sm text-gray-600">{type.description}</p>
+                        <p className="text-sm text-gray-600">
+                          {type.description}
+                        </p>
                         <div className="flex items-center justify-between mt-2">
-                          <Badge variant={type.isDefault ? "default" : "secondary"}>
+                          <Badge
+                            variant={type.isDefault ? "default" : "secondary"}
+                          >
                             {type.isDefault ? "系统默认" : "自定义"}
                           </Badge>
                           <span className="text-xs text-gray-500">
-                            {exams.filter(e => e.type === type.name).length} 个考试
+                            {exams.filter((e) => e.type === type.name).length}{" "}
+                            个考试
                           </span>
                         </div>
                       </div>
@@ -1659,7 +1715,7 @@ const ExamManagementCenter: React.FC = () => {
                         className="border-gray-200 focus:border-[#B9FF66] focus:ring-[#B9FF66]"
                       />
                     </div>
-                    <Button 
+                    <Button
                       className="w-full bg-blue-500 hover:bg-blue-600"
                       onClick={() => toast.success("评分标准保存功能开发中")}
                     >
@@ -1677,7 +1733,9 @@ const ExamManagementCenter: React.FC = () => {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="defaultDuration">默认考试时长（分钟）</Label>
+                      <Label htmlFor="defaultDuration">
+                        默认考试时长（分钟）
+                      </Label>
                       <Input
                         id="defaultDuration"
                         type="number"
@@ -1695,7 +1753,9 @@ const ExamManagementCenter: React.FC = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="advanceNotice">提前通知时间（小时）</Label>
+                      <Label htmlFor="advanceNotice">
+                        提前通知时间（小时）
+                      </Label>
                       <Input
                         id="advanceNotice"
                         type="number"
@@ -1703,7 +1763,7 @@ const ExamManagementCenter: React.FC = () => {
                         className="border-gray-200 focus:border-[#B9FF66] focus:ring-[#B9FF66]"
                       />
                     </div>
-                    <Button 
+                    <Button
                       className="w-full bg-orange-500 hover:bg-orange-600"
                       onClick={() => toast.success("时间设置保存功能开发中")}
                     >
@@ -1729,22 +1789,26 @@ const ExamManagementCenter: React.FC = () => {
                         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                           <div>
                             <p className="font-medium">考试前提醒</p>
-                            <p className="text-sm text-gray-600">在考试开始前发送提醒</p>
+                            <p className="text-sm text-gray-600">
+                              在考试开始前发送提醒
+                            </p>
                           </div>
-                          <input 
-                            type="checkbox" 
-                            defaultChecked 
+                          <input
+                            type="checkbox"
+                            defaultChecked
                             className="w-4 h-4 text-[#B9FF66] bg-gray-100 border-gray-300 rounded focus:ring-[#B9FF66] focus:ring-2"
                           />
                         </div>
                         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                           <div>
                             <p className="font-medium">成绩发布通知</p>
-                            <p className="text-sm text-gray-600">成绩公布时自动通知</p>
+                            <p className="text-sm text-gray-600">
+                              成绩公布时自动通知
+                            </p>
                           </div>
-                          <input 
-                            type="checkbox" 
-                            defaultChecked 
+                          <input
+                            type="checkbox"
+                            defaultChecked
                             className="w-4 h-4 text-[#B9FF66] bg-gray-100 border-gray-300 rounded focus:ring-[#B9FF66] focus:ring-2"
                           />
                         </div>
@@ -1757,22 +1821,26 @@ const ExamManagementCenter: React.FC = () => {
                         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                           <div>
                             <p className="font-medium">考试创建通知</p>
-                            <p className="text-sm text-gray-600">新考试创建时通知相关人员</p>
+                            <p className="text-sm text-gray-600">
+                              新考试创建时通知相关人员
+                            </p>
                           </div>
-                          <input 
-                            type="checkbox" 
-                            defaultChecked 
+                          <input
+                            type="checkbox"
+                            defaultChecked
                             className="w-4 h-4 text-[#B9FF66] bg-gray-100 border-gray-300 rounded focus:ring-[#B9FF66] focus:ring-2"
                           />
                         </div>
                         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                           <div>
                             <p className="font-medium">异常情况预警</p>
-                            <p className="text-sm text-gray-600">检测到异常时发送预警</p>
+                            <p className="text-sm text-gray-600">
+                              检测到异常时发送预警
+                            </p>
                           </div>
-                          <input 
-                            type="checkbox" 
-                            defaultChecked 
+                          <input
+                            type="checkbox"
+                            defaultChecked
                             className="w-4 h-4 text-[#B9FF66] bg-gray-100 border-gray-300 rounded focus:ring-[#B9FF66] focus:ring-2"
                           />
                         </div>
@@ -1780,7 +1848,7 @@ const ExamManagementCenter: React.FC = () => {
                     </div>
                   </div>
                   <div className="mt-6">
-                    <Button 
+                    <Button
                       className="bg-purple-500 hover:bg-purple-600"
                       onClick={() => toast.success("通知设置保存功能开发中")}
                     >
@@ -1801,24 +1869,24 @@ const ExamManagementCenter: React.FC = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       className="flex flex-col items-center gap-2 h-auto py-4"
                       onClick={() => toast.success("数据导出功能开发中")}
                     >
                       <Download className="h-5 w-5" />
                       <span>导出考试数据</span>
                     </Button>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       className="flex flex-col items-center gap-2 h-auto py-4"
                       onClick={() => toast.success("数据备份功能开发中")}
                     >
                       <RefreshCw className="h-5 w-5" />
                       <span>备份数据</span>
                     </Button>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       className="flex flex-col items-center gap-2 h-auto py-4"
                       onClick={() => toast.success("数据清理功能开发中")}
                     >
@@ -1840,10 +1908,9 @@ const ExamManagementCenter: React.FC = () => {
                 {editingExamId ? "编辑考试" : "创建新考试"}
               </DialogTitle>
               <DialogDescription className="text-gray-500">
-                {editingExamId 
-                  ? "修改考试信息，更新后将立即生效" 
-                  : "填写考试的基本信息，创建后可以继续完善详细设置"
-                }
+                {editingExamId
+                  ? "修改考试信息，更新后将立即生效"
+                  : "填写考试的基本信息，创建后可以继续完善详细设置"}
               </DialogDescription>
             </DialogHeader>
 
