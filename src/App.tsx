@@ -83,7 +83,7 @@ import { ThemeTest } from "./ThemeTest";
 // 🚀 新增: UnifiedAppContext相关导入
 import { UnifiedAppProvider } from "./contexts/unified/UnifiedAppContext";
 // 🧠 Master-AI-Data: 用户行为追踪系统
-import { userBehaviorTracker } from "./services/ai/userBehaviorTracker";
+// import { userBehaviorTracker } from "./services/ai/userBehaviorTracker"; // Disabled for development
 // import { useInitializeApp } from "./hooks/useInitializeApp"; // 暂时未使用
 // import { LoadingScreen } from "./components/ui/loading-screen"; // 暂时未使用
 // import { ErrorScreen } from "./components/ui/error-screen"; // 暂时未使用

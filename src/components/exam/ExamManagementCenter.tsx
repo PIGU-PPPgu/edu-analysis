@@ -157,6 +157,7 @@ const ExamManagementCenter: React.FC = () => {
 
   // 对话框状态
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [editingExamId, setEditingExamId] = useState<string | null>(null);
   const [examForm, setExamForm] = useState<Partial<Exam>>({
     title: "",
     description: "",
@@ -409,7 +410,7 @@ const ExamManagementCenter: React.FC = () => {
     </motion.div>
   );
 
-  // 创建考试
+  // 创建或编辑考试
   const handleCreateExam = async () => {
     if (!examForm.title || !examForm.type || !examForm.date) {
       toast.error("请填写必填字段");
@@ -417,51 +418,84 @@ const ExamManagementCenter: React.FC = () => {
     }
 
     try {
-      const createData: CreateExamInput = {
-        title: examForm.title,
-        type: examForm.type,
-        date: examForm.date,
-        subject: examForm.subjects?.[0], // 取第一个科目作为主科目
-        description: examForm.description,
-        start_time: examForm.startTime,
-        end_time: examForm.endTime,
-        total_score: examForm.totalScore,
-        passing_score: examForm.passingScore,
-        status: (examForm.status as "draft" | "scheduled") || "draft",
-      };
+      if (editingExamId) {
+        // 编辑模式
+        const updateData = {
+          title: examForm.title,
+          type: examForm.type,
+          date: examForm.date,
+          subject: examForm.subjects?.[0], // 取第一个科目作为主科目
+          description: examForm.description,
+          start_time: examForm.startTime,
+          end_time: examForm.endTime,
+          total_score: examForm.totalScore,
+          passing_score: examForm.passingScore,
+          status: (examForm.status as "draft" | "scheduled") || "draft",
+        };
 
-      const newDbExam = await createExam(createData);
+        const updatedDbExam = await updateExam(editingExamId, updateData);
 
-      if (newDbExam) {
-        // 转换为UI格式并添加到列表
-        const newExam = mapExam(newDbExam);
-        setExams((prev) => [newExam, ...prev]);
+        if (updatedDbExam) {
+          // 更新本地列表中的考试
+          const updatedExam = mapExam(updatedDbExam);
+          setExams((prev) => 
+            prev.map(exam => exam.id === editingExamId ? updatedExam : exam)
+          );
 
-        // 更新统计信息
-        setStatistics((prev) => ({
-          ...prev,
-          total: prev.total + 1,
-          upcoming: prev.upcoming + 1,
-        }));
+          toast.success(`考试"${examForm.title}"更新成功`);
+        }
+      } else {
+        // 创建模式
+        const createData: CreateExamInput = {
+          title: examForm.title,
+          type: examForm.type,
+          date: examForm.date,
+          subject: examForm.subjects?.[0], // 取第一个科目作为主科目
+          description: examForm.description,
+          start_time: examForm.startTime,
+          end_time: examForm.endTime,
+          total_score: examForm.totalScore,
+          passing_score: examForm.passingScore,
+          status: (examForm.status as "draft" | "scheduled") || "draft",
+        };
 
-        setIsCreateDialogOpen(false);
-        setExamForm({
-          title: "",
-          description: "",
-          type: "",
-          subjects: [],
-          date: "",
-          startTime: "",
-          endTime: "",
-          totalScore: 100,
-          passingScore: 60,
-          classes: [],
-          status: "draft",
-        });
+        const newDbExam = await createExam(createData);
+
+        if (newDbExam) {
+          // 转换为UI格式并添加到列表
+          const newExam = mapExam(newDbExam);
+          setExams((prev) => [newExam, ...prev]);
+
+          // 更新统计信息
+          setStatistics((prev) => ({
+            ...prev,
+            total: prev.total + 1,
+            upcoming: prev.upcoming + 1,
+          }));
+
+          toast.success(`考试"${examForm.title}"创建成功`);
+        }
       }
+
+      // 重置表单和关闭对话框
+      setIsCreateDialogOpen(false);
+      setEditingExamId(null);
+      setExamForm({
+        title: "",
+        description: "",
+        type: "",
+        subjects: [],
+        date: "",
+        startTime: "",
+        endTime: "",
+        totalScore: 100,
+        passingScore: 60,
+        classes: [],
+        status: "draft",
+      });
     } catch (error) {
-      console.error("创建考试失败:", error);
-      toast.error("创建考试失败，请重试");
+      console.error(editingExamId ? "更新考试失败:" : "创建考试失败:", error);
+      toast.error(editingExamId ? "更新考试失败，请重试" : "创建考试失败，请重试");
     }
   };
 
@@ -561,8 +595,60 @@ const ExamManagementCenter: React.FC = () => {
         }
         break;
       case "export":
-        toast.success(`正在导出${selectedExams.length}个考试的数据...`);
-        // TODO: 实现导出功能
+        try {
+          // 如果没有选中考试，导出所有考试
+          const examsToExport = selectedExams.length > 0 
+            ? exams.filter(e => selectedExams.includes(e.id))
+            : exams;
+          
+          if (examsToExport.length === 0) {
+            toast.error("没有可导出的考试数据");
+            return;
+          }
+
+          // 生成CSV格式的数据
+          const csvHeaders = [
+            "考试ID", "考试标题", "考试类型", "考试日期", 
+            "状态", "科目", "创建者", "创建时间"
+          ];
+
+          const csvData = examsToExport.map(exam => [
+            exam.id,
+            exam.title,
+            exam.type,
+            exam.date,
+            exam.status,
+            exam.subjects.join(", "),
+            exam.createdBy || "系统",
+            new Date(exam.createdAt).toLocaleDateString()
+          ]);
+
+          // 创建CSV内容
+          const csvContent = [
+            csvHeaders.join(","),
+            ...csvData.map(row => row.map(cell => `"${cell}"`).join(","))
+          ].join("\n");
+
+          // 创建并下载文件
+          const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+          const link = document.createElement("a");
+          if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `考试数据_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = "hidden";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }
+
+          toast.success(`成功导出${examsToExport.length}个考试的数据`, {
+            description: "文件已保存到下载文件夹"
+          });
+        } catch (error) {
+          console.error("导出数据失败:", error);
+          toast.error("导出数据失败，请重试");
+        }
         break;
     }
   };
@@ -571,8 +657,25 @@ const ExamManagementCenter: React.FC = () => {
   const handleQuickAction = async (exam: Exam, action: string) => {
     switch (action) {
       case "edit":
-        toast.success(`正在编辑: ${exam.title}`);
-        // TODO: 实现编辑功能
+        // 填充表单数据用于编辑
+        setEditingExamId(exam.id);
+        setExamForm({
+          title: exam.title,
+          description: exam.description,
+          type: exam.type,
+          subjects: exam.subjects,
+          date: exam.date,
+          startTime: exam.startTime,
+          endTime: exam.endTime,
+          totalScore: exam.totalScore,
+          passingScore: exam.passingScore,
+          classes: exam.classes,
+          status: exam.status,
+        });
+        setIsCreateDialogOpen(true);
+        toast.success(`准备编辑考试: ${exam.title}`, {
+          description: "表单已填充现有数据，可直接修改"
+        });
         break;
       case "duplicate":
         try {
@@ -620,8 +723,47 @@ const ExamManagementCenter: React.FC = () => {
         }
         break;
       case "view":
-        toast.success(`查看考试详情: ${exam.title}`);
-        // TODO: 实现查看详情功能
+        // 显示考试详情的详细信息
+        const examDetails = [
+          `考试标题: ${exam.title}`,
+          `考试类型: ${exam.type}`,
+          `考试日期: ${exam.date}`,
+          `状态: ${exam.status}`,
+          `科目: ${exam.subjects.join(", ")}`,
+          exam.startTime ? `时间: ${exam.startTime} - ${exam.endTime}` : "",
+          exam.totalScore ? `总分: ${exam.totalScore}分` : "",
+          exam.passingScore ? `及格分: ${exam.passingScore}分` : "",
+          `创建时间: ${new Date(exam.createdAt).toLocaleString()}`,
+          exam.createdBy ? `创建者: ${exam.createdBy}` : ""
+        ].filter(Boolean);
+
+        toast.success("考试详情", {
+          description: examDetails.slice(0, 3).join(" | "),
+          duration: 5000
+        });
+
+        console.log("📋 考试详细信息:", {
+          基本信息: {
+            ID: exam.id,
+            标题: exam.title,
+            类型: exam.type,
+            日期: exam.date,
+            状态: exam.status
+          },
+          详细设置: {
+            科目: exam.subjects,
+            开始时间: exam.startTime,
+            结束时间: exam.endTime,
+            总分: exam.totalScore,
+            及格分: exam.passingScore,
+            班级: exam.classes
+          },
+          管理信息: {
+            创建者: exam.createdBy,
+            创建时间: exam.createdAt,
+            更新时间: exam.updatedAt
+          }
+        });
         break;
       case "basic-analysis":
         handleAnalysisNavigation(exam, "basic");
@@ -699,6 +841,7 @@ const ExamManagementCenter: React.FC = () => {
             <Button
               variant="outline"
               className="gap-2 hover:shadow-md transition-all duration-200"
+              onClick={() => handleBatchAction("export")}
             >
               <Download className="h-4 w-4" />
               导出数据
@@ -801,95 +944,50 @@ const ExamManagementCenter: React.FC = () => {
 
             {/* 仪表盘标签页 */}
             <TabsContent value="dashboard" className="space-y-6 mt-6">
-              {/* 快速洞察 */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="border border-gray-200 bg-white hover:shadow-lg transition-all duration-300 rounded-xl">
-                  <CardHeader className="pb-4">
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <Sparkles className="h-5 w-5 text-[#B9FF66]" />
-                      快速洞察
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <CheckCircle className="h-5 w-5 text-green-600" />
-                        <h4 className="font-medium text-green-800">积极表现</h4>
-                      </div>
-                      <p className="text-sm text-green-700">
-                        本月考试参与率达到{" "}
-                        {statistics.averageParticipation.toFixed(1)}%，
-                        创历史新高！
-                      </p>
-                    </div>
-
-                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Target className="h-5 w-5 text-blue-600" />
-                        <h4 className="font-medium text-blue-800">改进机会</h4>
-                      </div>
-                      <p className="text-sm text-blue-700">
-                        有 {statistics.riskExams} 场考试平均分偏低，
-                        建议加强针对性辅导
-                      </p>
-                    </div>
-
-                    {statistics.upcoming > 0 && (
-                      <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Clock className="h-5 w-5 text-orange-600" />
-                          <h4 className="font-medium text-orange-800">
-                            即将到来
-                          </h4>
-                        </div>
-                        <p className="text-sm text-orange-700">
-                          未来一周有 {statistics.upcoming} 场考试待进行，
-                          请提前做好准备工作
-                        </p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card className="border border-gray-200 bg-white hover:shadow-lg transition-all duration-300 rounded-xl">
-                  <CardHeader className="pb-4">
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <Zap className="h-5 w-5 text-yellow-500" />
-                      快速操作
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
+              {/* 快速操作面板 */}
+              <Card className="border border-gray-200 bg-white hover:shadow-lg transition-all duration-300 rounded-xl">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Zap className="h-5 w-5 text-[#B9FF66]" />
+                    快速操作
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     <Button
-                      className="w-full justify-start gap-3 bg-[#B9FF66] text-black hover:bg-[#A3E85A] transition-all duration-200"
+                      className="flex flex-col items-center gap-2 h-auto py-4 bg-[#B9FF66] text-black hover:bg-[#A3E85A] transition-all duration-200"
                       onClick={() => setIsCreateDialogOpen(true)}
                     >
-                      <Plus className="h-4 w-4" />
-                      创建新考试
+                      <Plus className="h-5 w-5" />
+                      <span className="text-sm font-medium">创建考试</span>
                     </Button>
                     <Button
                       variant="outline"
-                      className="w-full justify-start gap-3 hover:shadow-md transition-all duration-200"
+                      className="flex flex-col items-center gap-2 h-auto py-4 hover:shadow-md transition-all duration-200"
+                      onClick={() => handleBatchAction("export")}
                     >
-                      <PenTool className="h-4 w-4" />
-                      批量编辑考试
+                      <Download className="h-5 w-5" />
+                      <span className="text-sm font-medium">导出数据</span>
                     </Button>
                     <Button
                       variant="outline"
-                      className="w-full justify-start gap-3 hover:shadow-md transition-all duration-200"
+                      className="flex flex-col items-center gap-2 h-auto py-4 hover:shadow-md transition-all duration-200"
+                      onClick={() => setActiveTab("analytics")}
                     >
-                      <Download className="h-4 w-4" />
-                      导出考试报告
+                      <BarChart3 className="h-5 w-5" />
+                      <span className="text-sm font-medium">数据分析</span>
                     </Button>
                     <Button
                       variant="outline"
-                      className="w-full justify-start gap-3 hover:shadow-md transition-all duration-200"
+                      className="flex flex-col items-center gap-2 h-auto py-4 hover:shadow-md transition-all duration-200"
+                      onClick={() => setActiveTab("settings")}
                     >
-                      <BarChart3 className="h-4 w-4" />
-                      查看详细分析
+                      <Settings className="h-5 w-5" />
+                      <span className="text-sm font-medium">考试设置</span>
                     </Button>
-                  </CardContent>
-                </Card>
-              </div>
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* 最近考试 */}
               <Card className="border border-gray-200 bg-white hover:shadow-lg transition-all duration-300 rounded-xl">
@@ -1284,39 +1382,450 @@ const ExamManagementCenter: React.FC = () => {
             </TabsContent>
 
             {/* 数据分析标签页 */}
-            <TabsContent value="analytics" className="mt-6">
-              <Card className="border border-gray-200 bg-white hover:shadow-lg transition-all duration-300 rounded-xl">
-                <CardContent className="p-12 text-center">
-                  <BarChart3 className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                  <h3 className="text-2xl font-semibold text-gray-600 mb-2">
-                    数据分析功能
-                  </h3>
-                  <p className="text-gray-500 mb-6">
-                    深度分析考试数据，提供详细的统计报告和趋势分析
-                  </p>
-                  <Button className="bg-[#B9FF66] text-black hover:bg-[#A3E85A]">
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    即将上线
-                  </Button>
+            <TabsContent value="analytics" className="space-y-6 mt-6">
+              {/* 考试统计概览 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">考试数量分布</p>
+                        <p className="text-2xl font-bold">{statistics.total}</p>
+                        <p className="text-xs text-blue-600 flex items-center mt-1">
+                          <Activity className="h-3 w-3 mr-1" />
+                          活跃考试管理
+                        </p>
+                      </div>
+                      <Calendar className="h-8 w-8 text-[#B9FF66]" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">平均参与率</p>
+                        <p className="text-2xl font-bold">{statistics.averageParticipation.toFixed(1)}%</p>
+                        <p className="text-xs text-green-600 flex items-center mt-1">
+                          <Users className="h-3 w-3 mr-1" />
+                          学生参与度高
+                        </p>
+                      </div>
+                      <Users className="h-8 w-8 text-blue-500" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">平均成绩</p>
+                        <p className="text-2xl font-bold">{statistics.averageScore.toFixed(1)}</p>
+                        <p className="text-xs text-purple-600 flex items-center mt-1">
+                          <TrendingUp className="h-3 w-3 mr-1" />
+                          整体表现良好
+                        </p>
+                      </div>
+                      <BarChart3 className="h-8 w-8 text-purple-500" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">改进率</p>
+                        <p className="text-2xl font-bold">+{statistics.improvementRate.toFixed(1)}%</p>
+                        <p className="text-xs text-green-600 flex items-center mt-1">
+                          <TrendingUp className="h-3 w-3 mr-1" />
+                          持续提升
+                        </p>
+                      </div>
+                      <TrendingUp className="h-8 w-8 text-green-500" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* 考试类型分析 */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <PieChart className="h-5 w-5 text-[#B9FF66]" />
+                      考试类型分布
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {examTypes.map((type, index) => (
+                        <div key={type.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <span className="text-lg">{type.emoji}</span>
+                            <span className="font-medium">{type.name}</span>
+                          </div>
+                          <Badge variant="outline">{exams.filter(e => e.type === type.name).length} 个</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Activity className="h-5 w-5 text-blue-500" />
+                      考试状态分析
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <Clock className="h-5 w-5 text-blue-600" />
+                          <span className="font-medium">即将开始</span>
+                        </div>
+                        <Badge className="bg-blue-100 text-blue-800">{statistics.upcoming} 个</Badge>
+                      </div>
+                      <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <Activity className="h-5 w-5 text-orange-600" />
+                          <span className="font-medium">进行中</span>
+                        </div>
+                        <Badge className="bg-orange-100 text-orange-800">{statistics.ongoing} 个</Badge>
+                      </div>
+                      <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                          <span className="font-medium">已完成</span>
+                        </div>
+                        <Badge className="bg-green-100 text-green-800">{statistics.completed} 个</Badge>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* 数据洞察 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Brain className="h-5 w-5 text-purple-500" />
+                    数据洞察与建议
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                        <h4 className="font-medium text-green-800">优势表现</h4>
+                      </div>
+                      <ul className="text-sm text-green-700 space-y-1">
+                        <li>• 考试参与率保持在高水平</li>
+                        <li>• 学生整体成绩呈上升趋势</li>
+                        <li>• 考试安排合理，时间分布均匀</li>
+                      </ul>
+                    </div>
+
+                    <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertTriangle className="h-5 w-5 text-orange-600" />
+                        <h4 className="font-medium text-orange-800">关注点</h4>
+                      </div>
+                      <ul className="text-sm text-orange-700 space-y-1">
+                        <li>• 部分考试类型分布不均</li>
+                        <li>• 需要增加形成性评估</li>
+                        <li>• 考试难度需要进一步调整</li>
+                      </ul>
+                    </div>
+
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Lightbulb className="h-5 w-5 text-blue-600" />
+                        <h4 className="font-medium text-blue-800">改进建议</h4>
+                      </div>
+                      <ul className="text-sm text-blue-700 space-y-1">
+                        <li>• 增加小测频次，及时反馈</li>
+                        <li>• 优化考试时间安排</li>
+                        <li>• 建立考试数据档案系统</li>
+                      </ul>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
 
             {/* 设置管理标签页 */}
-            <TabsContent value="settings" className="mt-6">
-              <Card className="border border-gray-200 bg-white hover:shadow-lg transition-all duration-300 rounded-xl">
-                <CardContent className="p-12 text-center">
-                  <Settings className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                  <h3 className="text-2xl font-semibold text-gray-600 mb-2">
-                    系统设置
-                  </h3>
-                  <p className="text-gray-500 mb-6">
-                    配置考试类型、评分标准、通知设置等系统参数
-                  </p>
-                  <Button className="bg-[#B9FF66] text-black hover:bg-[#A3E85A]">
-                    <Layers className="h-4 w-4 mr-2" />
-                    即将上线
-                  </Button>
+            <TabsContent value="settings" className="space-y-6 mt-6">
+              {/* 考试类型管理 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Settings className="h-5 w-5 text-[#B9FF66]" />
+                      考试类型管理
+                    </div>
+                    <Button 
+                      size="sm" 
+                      className="bg-[#B9FF66] text-black hover:bg-[#A3E85A]"
+                      onClick={() => toast.success("添加考试类型功能开发中")}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      添加类型
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {examTypes.map((type) => (
+                      <div key={type.id} className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-all">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl">{type.emoji}</span>
+                            <span className="font-medium">{type.name}</span>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => toast.success(`编辑${type.name}功能开发中`)}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            {!type.isDefault && (
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => toast.success(`删除${type.name}功能开发中`)}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-600">{type.description}</p>
+                        <div className="flex items-center justify-between mt-2">
+                          <Badge variant={type.isDefault ? "default" : "secondary"}>
+                            {type.isDefault ? "系统默认" : "自定义"}
+                          </Badge>
+                          <span className="text-xs text-gray-500">
+                            {exams.filter(e => e.type === type.name).length} 个考试
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 评分设置 */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Target className="h-5 w-5 text-blue-500" />
+                      评分标准设置
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="defaultTotalScore">默认总分</Label>
+                      <Input
+                        id="defaultTotalScore"
+                        type="number"
+                        defaultValue="100"
+                        className="border-gray-200 focus:border-[#B9FF66] focus:ring-[#B9FF66]"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="passingScore">及格分数</Label>
+                      <Input
+                        id="passingScore"
+                        type="number"
+                        defaultValue="60"
+                        className="border-gray-200 focus:border-[#B9FF66] focus:ring-[#B9FF66]"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="excellentScore">优秀分数</Label>
+                      <Input
+                        id="excellentScore"
+                        type="number"
+                        defaultValue="90"
+                        className="border-gray-200 focus:border-[#B9FF66] focus:ring-[#B9FF66]"
+                      />
+                    </div>
+                    <Button 
+                      className="w-full bg-blue-500 hover:bg-blue-600"
+                      onClick={() => toast.success("评分标准保存功能开发中")}
+                    >
+                      保存设置
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-orange-500" />
+                      考试时间设置
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="defaultDuration">默认考试时长（分钟）</Label>
+                      <Input
+                        id="defaultDuration"
+                        type="number"
+                        defaultValue="120"
+                        className="border-gray-200 focus:border-[#B9FF66] focus:ring-[#B9FF66]"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="bufferTime">考试间隔时间（分钟）</Label>
+                      <Input
+                        id="bufferTime"
+                        type="number"
+                        defaultValue="30"
+                        className="border-gray-200 focus:border-[#B9FF66] focus:ring-[#B9FF66]"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="advanceNotice">提前通知时间（小时）</Label>
+                      <Input
+                        id="advanceNotice"
+                        type="number"
+                        defaultValue="24"
+                        className="border-gray-200 focus:border-[#B9FF66] focus:ring-[#B9FF66]"
+                      />
+                    </div>
+                    <Button 
+                      className="w-full bg-orange-500 hover:bg-orange-600"
+                      onClick={() => toast.success("时间设置保存功能开发中")}
+                    >
+                      保存设置
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* 通知设置 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5 text-purple-500" />
+                    通知设置
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-gray-800">考试提醒</h4>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div>
+                            <p className="font-medium">考试前提醒</p>
+                            <p className="text-sm text-gray-600">在考试开始前发送提醒</p>
+                          </div>
+                          <input 
+                            type="checkbox" 
+                            defaultChecked 
+                            className="w-4 h-4 text-[#B9FF66] bg-gray-100 border-gray-300 rounded focus:ring-[#B9FF66] focus:ring-2"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div>
+                            <p className="font-medium">成绩发布通知</p>
+                            <p className="text-sm text-gray-600">成绩公布时自动通知</p>
+                          </div>
+                          <input 
+                            type="checkbox" 
+                            defaultChecked 
+                            className="w-4 h-4 text-[#B9FF66] bg-gray-100 border-gray-300 rounded focus:ring-[#B9FF66] focus:ring-2"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-gray-800">系统通知</h4>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div>
+                            <p className="font-medium">考试创建通知</p>
+                            <p className="text-sm text-gray-600">新考试创建时通知相关人员</p>
+                          </div>
+                          <input 
+                            type="checkbox" 
+                            defaultChecked 
+                            className="w-4 h-4 text-[#B9FF66] bg-gray-100 border-gray-300 rounded focus:ring-[#B9FF66] focus:ring-2"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div>
+                            <p className="font-medium">异常情况预警</p>
+                            <p className="text-sm text-gray-600">检测到异常时发送预警</p>
+                          </div>
+                          <input 
+                            type="checkbox" 
+                            defaultChecked 
+                            className="w-4 h-4 text-[#B9FF66] bg-gray-100 border-gray-300 rounded focus:ring-[#B9FF66] focus:ring-2"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-6">
+                    <Button 
+                      className="bg-purple-500 hover:bg-purple-600"
+                      onClick={() => toast.success("通知设置保存功能开发中")}
+                    >
+                      <Settings className="h-4 w-4 mr-2" />
+                      保存通知设置
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 数据管理 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Download className="h-5 w-5 text-green-500" />
+                    数据管理
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Button 
+                      variant="outline" 
+                      className="flex flex-col items-center gap-2 h-auto py-4"
+                      onClick={() => toast.success("数据导出功能开发中")}
+                    >
+                      <Download className="h-5 w-5" />
+                      <span>导出考试数据</span>
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="flex flex-col items-center gap-2 h-auto py-4"
+                      onClick={() => toast.success("数据备份功能开发中")}
+                    >
+                      <RefreshCw className="h-5 w-5" />
+                      <span>备份数据</span>
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="flex flex-col items-center gap-2 h-auto py-4"
+                      onClick={() => toast.success("数据清理功能开发中")}
+                    >
+                      <Trash2 className="h-5 w-5" />
+                      <span>数据清理</span>
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -1328,10 +1837,13 @@ const ExamManagementCenter: React.FC = () => {
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl">
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold text-gray-900">
-                创建新考试
+                {editingExamId ? "编辑考试" : "创建新考试"}
               </DialogTitle>
               <DialogDescription className="text-gray-500">
-                填写考试的基本信息，创建后可以继续完善详细设置
+                {editingExamId 
+                  ? "修改考试信息，更新后将立即生效" 
+                  : "填写考试的基本信息，创建后可以继续完善详细设置"
+                }
               </DialogDescription>
             </DialogHeader>
 
@@ -1522,7 +2034,23 @@ const ExamManagementCenter: React.FC = () => {
             <DialogFooter className="pt-6 border-t border-gray-200">
               <Button
                 variant="outline"
-                onClick={() => setIsCreateDialogOpen(false)}
+                onClick={() => {
+                  setIsCreateDialogOpen(false);
+                  setEditingExamId(null);
+                  setExamForm({
+                    title: "",
+                    description: "",
+                    type: "",
+                    subjects: [],
+                    date: "",
+                    startTime: "",
+                    endTime: "",
+                    totalScore: 100,
+                    passingScore: 60,
+                    classes: [],
+                    status: "draft",
+                  });
+                }}
                 className="hover:shadow-md transition-all duration-200"
               >
                 取消
@@ -1532,8 +2060,17 @@ const ExamManagementCenter: React.FC = () => {
                 disabled={!examForm.title || !examForm.type || !examForm.date}
                 className="bg-[#B9FF66] text-black hover:bg-[#A3E85A] hover:shadow-lg transition-all duration-200 disabled:opacity-50"
               >
-                <Plus className="h-4 w-4 mr-2" />
-                创建考试
+                {editingExamId ? (
+                  <>
+                    <Edit className="h-4 w-4 mr-2" />
+                    更新考试
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    创建考试
+                  </>
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
