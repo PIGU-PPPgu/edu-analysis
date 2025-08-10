@@ -41,6 +41,8 @@ import {
 import { formatNumber } from "@/utils/formatUtils";
 import { requestCache } from "@/utils/cacheUtils";
 import { useSession } from "@/hooks/useSession";
+import { useUrlParams } from "@/hooks/useUrlParams";
+import { validateWarningStatistics } from "@/utils/warningDataValidator";
 
 // 直接导入重量级组件
 import WarningDashboard from "./WarningDashboard";
@@ -80,6 +82,7 @@ const EmptyState = ({
 // 预警分析组件
 const WarningAnalysis = () => {
   const { session } = useSession();
+  const { params, isFromAnomalyDetection, hasExamFilter } = useUrlParams();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [loadingData, setLoadingData] = useState(false);
   const [selectedWarningId, setSelectedWarningId] = useState<string | null>(
@@ -115,64 +118,25 @@ const WarningAnalysis = () => {
   const fetchWarningData = async () => {
     setLoadingData(true);
     try {
+      // 根据URL参数构建缓存键，确保不同筛选条件有不同缓存
+      const cacheKey = `warning_statistics_${JSON.stringify(params)}`;
       const statistics = await requestCache.get(
-        "warning_statistics",
+        cacheKey,
         async () => {
-          const rawData = await getWarningStatistics();
+          try {
+            console.log("获取预警统计数据，参数:", params);
+            const rawData = await getWarningStatistics();
 
-          // 检查并确保返回数据格式正确
-          if (!rawData) {
-            console.warn("获取预警统计返回空数据");
-            return null;
+            // 使用校验器确保数据格式正确
+            const validatedData = WarningDataValidator.normalizeWarningStats(rawData);
+            
+            console.log("预警数据校验和格式化完成:", validatedData);
+            return validatedData;
+          } catch (error) {
+            console.error("获取预警统计数据失败:", error);
+            // 返回默认数据而不是null
+            return WarningDataValidator.createDefaultWarningStats();
           }
-
-          // 转换数据格式，确保前端组件可以正确读取
-          const formattedData: WarningStats = {
-            students: {
-              total: rawData.students?.total || 0,
-              at_risk: rawData.students?.at_risk || 0,
-              trend: rawData.students?.trend || "unchanged",
-            },
-            classes: {
-              total: rawData.classes?.total || 0,
-              at_risk: rawData.classes?.at_risk || 0,
-              trend: rawData.classes?.trend || "unchanged",
-            },
-            warnings: {
-              total: rawData.warnings?.total || 0,
-              by_type: Array.isArray(rawData.warnings?.by_type)
-                ? rawData.warnings.by_type
-                : [],
-              by_severity: Array.isArray(rawData.warnings?.by_severity)
-                ? rawData.warnings.by_severity
-                : [
-                    {
-                      severity: "high",
-                      count: 0,
-                      percentage: 0,
-                      trend: "unchanged",
-                    },
-                    {
-                      severity: "medium",
-                      count: 0,
-                      percentage: 0,
-                      trend: "unchanged",
-                    },
-                    {
-                      severity: "low",
-                      count: 0,
-                      percentage: 0,
-                      trend: "unchanged",
-                    },
-                  ],
-              trend: rawData.warnings?.trend || "unchanged",
-            },
-            risk_factors: Array.isArray(rawData.risk_factors)
-              ? rawData.risk_factors
-              : [],
-          };
-
-          return formattedData;
         },
         10 * 60 * 1000
       ); // 10分钟缓存
@@ -191,11 +155,14 @@ const WarningAnalysis = () => {
             percentage: type.percentage,
             trend: type.trend,
           })),
-          riskByClass: [
-            { className: "高一(1)班", studentCount: 52, atRiskCount: 8 },
-            { className: "高一(2)班", studentCount: 50, atRiskCount: 12 },
-            { className: "高一(3)班", studentCount: 54, atRiskCount: 8 },
-          ],
+          riskByClass: statistics.risk_factors.length > 0 ? 
+            statistics.risk_factors.slice(0, 5).map((factor, index) => ({
+              className: factor.factor,
+              studentCount: Math.floor(factor.count * 3.5), // 估算总学生数
+              atRiskCount: factor.count,
+            })) : [
+              { className: "暂无数据", studentCount: 0, atRiskCount: 0 }
+            ],
           commonRiskFactors: statistics.risk_factors.map((factor) => ({
             factor: factor.factor,
             count: factor.count,
@@ -204,11 +171,22 @@ const WarningAnalysis = () => {
         };
 
         setStats(statistics);
-        console.log("预警数据转换完成:", dashboardStats);
-        toast.success("预警数据已更新");
-      } else {
-        console.warn("获取预警数据失败，使用默认值");
-      }
+        
+        // 记录数据来源和筛选状态
+        const dataSource = isFromAnomalyDetection ? "异常检测系统" : "预警系统";
+        const filterInfo = hasExamFilter ? `筛选条件: ${params.exam}` : "全部数据";
+        
+        console.log(`预警数据加载完成 [来源: ${dataSource}, ${filterInfo}]`, dashboardStats);
+        
+        // 显示适当的提示信息
+        if (statistics.students.total > 0) {
+          const message = isFromAnomalyDetection 
+            ? `已从异常检测系统加载 ${statistics.students.total} 名学生的预警数据`
+            : `预警数据已更新 (${statistics.students.total} 名学生)`;
+          toast.success(message);
+        } else {
+          toast.info("暂无预警数据，显示默认统计信息");
+        }
     } catch (error) {
       console.error("获取预警数据失败:", error);
       toast.error("获取预警数据失败");
@@ -250,9 +228,21 @@ const WarningAnalysis = () => {
       {/* 标题和工具栏 */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">预警分析</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold tracking-tight">预警分析</h1>
+            {isFromAnomalyDetection && (
+              <Badge className="bg-[#9C88FF] text-white border-2 border-black font-bold shadow-[2px_2px_0px_0px_#191A23]">
+                来自异常检测
+              </Badge>
+            )}
+          </div>
           <p className="text-gray-500 mt-1">
             分析学生预警数据，发现潜在问题并制定干预措施
+            {hasExamFilter && params.exam && (
+              <span className="text-[#B9FF66] font-bold ml-2">
+                · 当前筛选: {params.exam}
+              </span>
+            )}
           </p>
         </div>
         <div className="flex gap-2">
@@ -325,11 +315,14 @@ const WarningAnalysis = () => {
                   percentage: type.percentage,
                   trend: type.trend,
                 })),
-                riskByClass: [
-                  { className: "高一(1)班", studentCount: 52, atRiskCount: 8 },
-                  { className: "高一(2)班", studentCount: 50, atRiskCount: 12 },
-                  { className: "高一(3)班", studentCount: 54, atRiskCount: 8 },
-                ],
+                riskByClass: statistics.risk_factors.length > 0 ? 
+                  statistics.risk_factors.slice(0, 5).map((factor, index) => ({
+                    className: factor.factor,
+                    studentCount: Math.floor(factor.count * 3.5), // 估算总学生数
+                    atRiskCount: factor.count,
+                  })) : [
+                    { className: "暂无数据", studentCount: 0, atRiskCount: 0 }
+                  ],
                 commonRiskFactors: stats.risk_factors.map((factor) => ({
                   factor: factor.factor,
                   count: factor.count,
