@@ -46,15 +46,18 @@ export const validateWarningStatistics = (data: any): ValidationResult => {
         severity: "error",
       });
     }
-    
-    if (typeof data.students.at_risk !== "number" || data.students.at_risk < 0) {
+
+    if (
+      typeof data.students.at_risk !== "number" ||
+      data.students.at_risk < 0
+    ) {
       errors.push({
         field: "students.at_risk",
         message: "风险学生数必须为非负数",
         severity: "error",
       });
     }
-    
+
     // 逻辑校验
     if (data.students.at_risk > data.students.total) {
       warnings.push({
@@ -90,8 +93,10 @@ export const validateWarningStatistics = (data: any): ValidationResult => {
       });
     } else {
       const requiredSeverities = ["high", "medium", "low"];
-      const foundSeverities = data.warnings.by_severity.map((s: any) => s.severity);
-      
+      const foundSeverities = data.warnings.by_severity.map(
+        (s: any) => s.severity
+      );
+
       requiredSeverities.forEach((severity) => {
         if (!foundSeverities.includes(severity)) {
           warnings.push({
@@ -107,7 +112,7 @@ export const validateWarningStatistics = (data: any): ValidationResult => {
         (sum: number, item: any) => sum + (item.count || 0),
         0
       );
-      
+
       if (Math.abs(totalBySeverity - data.warnings.total) > 0.01) {
         warnings.push({
           field: "warnings",
@@ -134,7 +139,7 @@ export const validateWarningStatistics = (data: any): ValidationResult => {
           severity: "warning",
         });
       }
-      
+
       if (typeof factor.count !== "number" || factor.count < 0) {
         warnings.push({
           field: `risk_factors[${index}].count`,
@@ -280,11 +285,11 @@ export const validateWarningRule = (rule: any): ValidationResult => {
   // 类别校验
   const validCategories = [
     "grade",
-    "attendance", 
+    "attendance",
     "behavior",
     "progress",
     "homework",
-    "composite"
+    "composite",
   ];
   if (!rule.category || !validCategories.includes(rule.category)) {
     errors.push({
@@ -295,7 +300,11 @@ export const validateWarningRule = (rule: any): ValidationResult => {
   }
 
   // 优先级校验
-  if (typeof rule.priority !== "number" || rule.priority < 1 || rule.priority > 10) {
+  if (
+    typeof rule.priority !== "number" ||
+    rule.priority < 1 ||
+    rule.priority > 10
+  ) {
     warnings.push({
       field: "priority",
       message: "规则优先级应为1-10的数字",
@@ -319,10 +328,10 @@ export const batchValidate = (
 ): ValidationResult => {
   const allErrors: ValidationError[] = [];
   const allWarnings: ValidationError[] = [];
-  
+
   data.forEach((item, index) => {
     const result = validator(item);
-    
+
     // 为每个错误添加索引信息
     result.errors.forEach((error) => {
       allErrors.push({
@@ -330,7 +339,7 @@ export const batchValidate = (
         field: `[${index}].${error.field}`,
       });
     });
-    
+
     result.warnings.forEach((warning) => {
       allWarnings.push({
         ...warning,
@@ -338,7 +347,7 @@ export const batchValidate = (
       });
     });
   });
-  
+
   return {
     isValid: allErrors.length === 0,
     errors: allErrors,

@@ -30,6 +30,15 @@ import {
   Users,
   ClipboardList,
   ExternalLink,
+  Filter,
+  Calendar,
+  BookOpen,
+  Target,
+  ToggleLeft,
+  ToggleRight,
+  Info,
+  ArrowLeft,
+  Settings,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -43,6 +52,15 @@ import { requestCache } from "@/utils/cacheUtils";
 import { useSession } from "@/hooks/useSession";
 import { useUrlParams } from "@/hooks/useUrlParams";
 import { validateWarningStatistics } from "@/utils/warningDataValidator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 // 直接导入重量级组件
 import WarningDashboard from "./WarningDashboard";
@@ -79,10 +97,29 @@ const EmptyState = ({
   </Card>
 );
 
+// 分析模式类型
+type AnalysisMode = "overall" | "exam-level";
+
+// 筛选配置接口
+interface FilterConfig {
+  timeRange: "month" | "quarter" | "semester" | "year" | "custom";
+  examTypes: string[];
+  mixedAnalysis: boolean;
+  analysisMode: "student" | "exam" | "subject";
+  startDate?: string;
+  endDate?: string;
+}
+
 // 预警分析组件
 const WarningAnalysis = () => {
   const { session } = useSession();
   const { params, isFromAnomalyDetection, hasExamFilter } = useUrlParams();
+
+  // 分析模式状态 - 根据URL参数决定初始模式
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>(
+    isFromAnomalyDetection && hasExamFilter ? "exam-level" : "overall"
+  );
+
   const [activeTab, setActiveTab] = useState("dashboard");
   const [loadingData, setLoadingData] = useState(false);
   const [selectedWarningId, setSelectedWarningId] = useState<string | null>(
@@ -95,6 +132,16 @@ const WarningAnalysis = () => {
     intervention: false,
     clusters: false,
     ai: false,
+  });
+
+  // 筛选配置状态
+  const [filterConfig, setFilterConfig] = useState<FilterConfig>({
+    timeRange: "semester",
+    examTypes: ["月考", "期中考试", "期末考试", "模拟考试"],
+    mixedAnalysis: true,
+    analysisMode: "student",
+    startDate: undefined,
+    endDate: undefined,
   });
 
   // 初始化预警统计数据状态
@@ -118,24 +165,81 @@ const WarningAnalysis = () => {
   const fetchWarningData = async () => {
     setLoadingData(true);
     try {
-      // 根据URL参数构建缓存键，确保不同筛选条件有不同缓存
-      const cacheKey = `warning_statistics_${JSON.stringify(params)}`;
+      // 根据分析模式和筛选条件构建缓存键
+      const cacheKey =
+        analysisMode === "exam-level"
+          ? `exam_warning_${JSON.stringify(params)}`
+          : `overall_warning_${JSON.stringify({ ...params, ...filterConfig })}`;
+
       const statistics = await requestCache.get(
         cacheKey,
         async () => {
           try {
-            console.log("获取预警统计数据，参数:", params);
-            const rawData = await getWarningStatistics();
+            if (analysisMode === "exam-level") {
+              console.log("获取考试级预警数据，参数:", params);
+              // TODO: 调用考试级预警分析API
+              const rawData = await getWarningStatistics(); // 临时使用现有API
 
-            // 使用校验器确保数据格式正确
-            const validatedData = WarningDataValidator.normalizeWarningStats(rawData);
-            
-            console.log("预警数据校验和格式化完成:", validatedData);
-            return validatedData;
+              // 为考试级分析添加额外的上下文信息
+              const examLevelData = {
+                ...rawData,
+                exam_context: {
+                  exam_title: params.exam || "未知考试",
+                  exam_date: params.date,
+                  is_from_anomaly: isFromAnomalyDetection,
+                  filter_applied: hasExamFilter,
+                },
+              };
+
+              return examLevelData;
+            } else {
+              console.log("获取整体预警数据，筛选条件:", filterConfig);
+              // TODO: 调用整体预警分析API，传入筛选条件
+              const rawData = await getWarningStatistics(); // 临时使用现有API
+
+              return {
+                ...rawData,
+                filter_context: {
+                  time_range: filterConfig.timeRange,
+                  exam_types: filterConfig.examTypes,
+                  mixed_analysis: filterConfig.mixedAnalysis,
+                  analysis_mode: filterConfig.analysisMode,
+                },
+              };
+            }
           } catch (error) {
             console.error("获取预警统计数据失败:", error);
             // 返回默认数据而不是null
-            return WarningDataValidator.createDefaultWarningStats();
+            return {
+              students: { total: 0, at_risk: 0, trend: "unchanged" },
+              classes: { total: 0, at_risk: 0, trend: "unchanged" },
+              warnings: {
+                total: 0,
+                by_type: [],
+                by_severity: [
+                  {
+                    severity: "high",
+                    count: 0,
+                    percentage: 0,
+                    trend: "unchanged",
+                  },
+                  {
+                    severity: "medium",
+                    count: 0,
+                    percentage: 0,
+                    trend: "unchanged",
+                  },
+                  {
+                    severity: "low",
+                    count: 0,
+                    percentage: 0,
+                    trend: "unchanged",
+                  },
+                ],
+                trend: "unchanged",
+              },
+              risk_factors: [],
+            };
           }
         },
         10 * 60 * 1000
@@ -155,14 +259,14 @@ const WarningAnalysis = () => {
             percentage: type.percentage,
             trend: type.trend,
           })),
-          riskByClass: statistics.risk_factors.length > 0 ? 
-            statistics.risk_factors.slice(0, 5).map((factor, index) => ({
-              className: factor.factor,
-              studentCount: Math.floor(factor.count * 3.5), // 估算总学生数
-              atRiskCount: factor.count,
-            })) : [
-              { className: "暂无数据", studentCount: 0, atRiskCount: 0 }
-            ],
+          riskByClass:
+            statistics.risk_factors.length > 0
+              ? statistics.risk_factors.slice(0, 5).map((factor, index) => ({
+                  className: factor.factor,
+                  studentCount: Math.floor(factor.count * 3.5), // 估算总学生数
+                  atRiskCount: factor.count,
+                }))
+              : [{ className: "暂无数据", studentCount: 0, atRiskCount: 0 }],
           commonRiskFactors: statistics.risk_factors.map((factor) => ({
             factor: factor.factor,
             count: factor.count,
@@ -171,22 +275,36 @@ const WarningAnalysis = () => {
         };
 
         setStats(statistics);
-        
+
         // 记录数据来源和筛选状态
+        const modeText =
+          analysisMode === "exam-level" ? "考试级分析" : "整体分析";
         const dataSource = isFromAnomalyDetection ? "异常检测系统" : "预警系统";
-        const filterInfo = hasExamFilter ? `筛选条件: ${params.exam}` : "全部数据";
-        
-        console.log(`预警数据加载完成 [来源: ${dataSource}, ${filterInfo}]`, dashboardStats);
-        
+        const filterInfo =
+          analysisMode === "exam-level"
+            ? `考试: ${params.exam || "未指定"}`
+            : `类型: ${filterConfig.examTypes.join(", ")}`;
+
+        console.log(
+          `预警数据加载完成 [模式: ${modeText}, 来源: ${dataSource}, ${filterInfo}]`,
+          dashboardStats
+        );
+
         // 显示适当的提示信息
         if (statistics.students.total > 0) {
-          const message = isFromAnomalyDetection 
-            ? `已从异常检测系统加载 ${statistics.students.total} 名学生的预警数据`
-            : `预警数据已更新 (${statistics.students.total} 名学生)`;
+          const message =
+            analysisMode === "exam-level"
+              ? `考试级预警分析已加载 (${params.exam}, ${statistics.students.total} 名学生)`
+              : `整体预警分析已更新 (${statistics.students.total} 名学生, ${filterConfig.examTypes.length} 种考试类型)`;
           toast.success(message);
         } else {
-          toast.info("暂无预警数据，显示默认统计信息");
+          const emptyMessage =
+            analysisMode === "exam-level"
+              ? "该考试暂无预警数据"
+              : "当前筛选条件下暂无预警数据";
+          toast.info(emptyMessage);
         }
+      }
     } catch (error) {
       console.error("获取预警数据失败:", error);
       toast.error("获取预警数据失败");
@@ -195,15 +313,13 @@ const WarningAnalysis = () => {
     }
   };
 
-  // 仅在组件首次挂载和当前选项卡切换时加载数据
+  // 监听分析模式和筛选条件变化，重新加载数据
   useEffect(() => {
-    // 只有当前标签页才加载数据
     if (activeTab === "dashboard" && !tabsLoaded.dashboard) {
       fetchWarningData();
       setTabsLoaded((prev) => ({ ...prev, dashboard: true }));
     }
 
-    // 如果切换到 AI 分析标签，确保已加载数据
     if (activeTab === "ai" && !tabsLoaded.ai) {
       if (!tabsLoaded.dashboard) {
         fetchWarningData();
@@ -211,6 +327,46 @@ const WarningAnalysis = () => {
       setTabsLoaded((prev) => ({ ...prev, ai: true }));
     }
   }, [activeTab, tabsLoaded.dashboard, tabsLoaded.ai]);
+
+  // 当分析模式或筛选条件改变时，重新加载数据
+  useEffect(() => {
+    if (tabsLoaded.dashboard) {
+      fetchWarningData();
+    }
+  }, [analysisMode, filterConfig]);
+
+  // 模式切换处理
+  const handleModeSwitch = (newMode: AnalysisMode) => {
+    setAnalysisMode(newMode);
+
+    // 重置部分状态
+    setTabsLoaded((prev) => ({ ...prev, dashboard: false }));
+
+    const modeText =
+      newMode === "exam-level" ? "考试级预警分析" : "整体预警分析";
+    toast.info(`已切换到${modeText}模式`);
+  };
+
+  // 筛选配置更新处理
+  const handleFilterChange = <K extends keyof FilterConfig>(
+    key: K,
+    value: FilterConfig[K]
+  ) => {
+    setFilterConfig((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  // 考试类型切换处理
+  const toggleExamType = (examType: string) => {
+    setFilterConfig((prev) => ({
+      ...prev,
+      examTypes: prev.examTypes.includes(examType)
+        ? prev.examTypes.filter((type) => type !== examType)
+        : [...prev.examTypes, examType],
+    }));
+  };
 
   // 处理预警记录选择
   const handleWarningSelect = (warningId: string) => {
@@ -225,31 +381,263 @@ const WarningAnalysis = () => {
 
   return (
     <div className="container mx-auto py-6 space-y-8">
-      {/* 标题和工具栏 */}
-      <div className="flex justify-between items-center">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold tracking-tight">预警分析</h1>
-            {isFromAnomalyDetection && (
-              <Badge className="bg-[#9C88FF] text-white border-2 border-black font-bold shadow-[2px_2px_0px_0px_#191A23]">
-                来自异常检测
-              </Badge>
-            )}
+      {/* 标题和模式切换 */}
+      <div className="flex justify-between items-start">
+        <div className="flex-1">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold tracking-tight">
+                {analysisMode === "exam-level"
+                  ? "考试级预警分析"
+                  : "预警分析中心"}
+              </h1>
+              {isFromAnomalyDetection && (
+                <Badge className="bg-[#9C88FF] text-white border-2 border-black font-bold shadow-[2px_2px_0px_0px_#191A23]">
+                  来自异常检测
+                </Badge>
+              )}
+              {analysisMode === "exam-level" && (
+                <Badge className="bg-[#B9FF66] text-[#191A23] border-2 border-black font-bold shadow-[2px_2px_0px_0px_#191A23]">
+                  考试级分析
+                </Badge>
+              )}
+            </div>
+
+            {/* 模式切换按钮 */}
+            <div className="flex items-center gap-2 ml-auto">
+              <Label className="text-sm font-medium">分析模式：</Label>
+              <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg border border-gray-200">
+                <Button
+                  size="sm"
+                  variant={analysisMode === "overall" ? "default" : "ghost"}
+                  onClick={() => handleModeSwitch("overall")}
+                  className={`h-8 px-3 text-sm font-medium ${
+                    analysisMode === "overall"
+                      ? "bg-white border border-gray-300 shadow-sm"
+                      : "hover:bg-gray-50"
+                  }`}
+                >
+                  <LayoutDashboard className="h-4 w-4 mr-1" />
+                  整体分析
+                </Button>
+                <Button
+                  size="sm"
+                  variant={analysisMode === "exam-level" ? "default" : "ghost"}
+                  onClick={() => handleModeSwitch("exam-level")}
+                  className={`h-8 px-3 text-sm font-medium ${
+                    analysisMode === "exam-level"
+                      ? "bg-white border border-gray-300 shadow-sm"
+                      : "hover:bg-gray-50"
+                  }`}
+                >
+                  <Target className="h-4 w-4 mr-1" />
+                  考试级分析
+                </Button>
+              </div>
+            </div>
           </div>
+
           <p className="text-gray-500 mt-1">
-            分析学生预警数据，发现潜在问题并制定干预措施
+            {analysisMode === "exam-level"
+              ? `分析特定考试的预警数据，识别异常表现并制定针对性干预措施`
+              : `分析学生整体预警数据，发现长期问题并制定系统性干预措施`}
             {hasExamFilter && params.exam && (
               <span className="text-[#B9FF66] font-bold ml-2">
-                · 当前筛选: {params.exam}
+                · 当前考试: {params.exam}
               </span>
             )}
           </p>
         </div>
-        <div className="flex gap-2">
+      </div>
+
+      {/* 筛选器面板 - 仅在整体分析模式下显示 */}
+      {analysisMode === "overall" && (
+        <Card className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66]">
+          <CardHeader className="bg-[#B9FF66]/20 border-b-2 border-black">
+            <CardTitle className="flex items-center gap-2 text-[#191A23] font-black">
+              <Filter className="h-5 w-5" />
+              分析筛选器
+              <Badge className="bg-white text-[#191A23] border-2 border-black text-xs">
+                {filterConfig.examTypes.length} 种考试类型
+              </Badge>
+            </CardTitle>
+            <CardDescription className="text-[#191A23]/70">
+              配置分析范围和维度，获取更精准的预警洞察
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* 时间范围选择 */}
+              <div className="space-y-3">
+                <Label className="text-sm font-bold text-[#191A23] flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  时间范围
+                </Label>
+                <Select
+                  value={filterConfig.timeRange}
+                  onValueChange={(value: any) =>
+                    handleFilterChange("timeRange", value)
+                  }
+                >
+                  <SelectTrigger className="border-2 border-black">
+                    <SelectValue placeholder="选择时间范围" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="month">最近一个月</SelectItem>
+                    <SelectItem value="quarter">最近三个月</SelectItem>
+                    <SelectItem value="semester">本学期</SelectItem>
+                    <SelectItem value="year">本学年</SelectItem>
+                    <SelectItem value="custom">自定义范围</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* 分析维度选择 */}
+              <div className="space-y-3">
+                <Label className="text-sm font-bold text-[#191A23] flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  分析维度
+                </Label>
+                <Select
+                  value={filterConfig.analysisMode}
+                  onValueChange={(value: any) =>
+                    handleFilterChange("analysisMode", value)
+                  }
+                >
+                  <SelectTrigger className="border-2 border-black">
+                    <SelectValue placeholder="选择分析维度" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="student">按学生分析</SelectItem>
+                    <SelectItem value="exam">按考试分析</SelectItem>
+                    <SelectItem value="subject">按科目分析</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* 混合分析选项 */}
+              <div className="space-y-3">
+                <Label className="text-sm font-bold text-[#191A23] flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  分析选项
+                </Label>
+                <div className="flex items-center space-x-3 p-3 border-2 border-black rounded-lg bg-gray-50">
+                  <Switch
+                    checked={filterConfig.mixedAnalysis}
+                    onCheckedChange={(checked) =>
+                      handleFilterChange("mixedAnalysis", checked)
+                    }
+                  />
+                  <div className="flex-1">
+                    <Label className="text-sm font-medium text-[#191A23]">
+                      混合分析
+                    </Label>
+                    <p className="text-xs text-[#191A23]/70">
+                      将不同类型考试的数据混合分析
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 考试类型选择 */}
+            <div className="mt-6 space-y-3">
+              <Label className="text-sm font-bold text-[#191A23] flex items-center gap-2">
+                <BookOpen className="h-4 w-4" />
+                考试类型筛选
+                <Badge className="bg-[#B9FF66] text-[#191A23] border border-black text-xs">
+                  已选择 {filterConfig.examTypes.length} 种
+                </Badge>
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  "月考",
+                  "期中考试",
+                  "期末考试",
+                  "模拟考试",
+                  "单元测试",
+                  "诊断考试",
+                ].map((examType) => (
+                  <Button
+                    key={examType}
+                    size="sm"
+                    variant={
+                      filterConfig.examTypes.includes(examType)
+                        ? "default"
+                        : "outline"
+                    }
+                    onClick={() => toggleExamType(examType)}
+                    className={`border-2 border-black font-bold shadow-[2px_2px_0px_0px_#191A23] ${
+                      filterConfig.examTypes.includes(examType)
+                        ? "bg-[#B9FF66] text-[#191A23] hover:bg-[#A8E055]"
+                        : "bg-white text-[#191A23] hover:bg-gray-50"
+                    }`}
+                  >
+                    {examType}
+                    {filterConfig.examTypes.includes(examType) && (
+                      <div className="ml-1 w-2 h-2 bg-[#191A23] rounded-full" />
+                    )}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 考试级分析的上下文信息 */}
+      {analysisMode === "exam-level" && (
+        <Card className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_#9C88FF]">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-[#9C88FF] rounded-full border-2 border-black">
+                  <Target className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-[#191A23]">
+                    {params.exam || "当前考试"}
+                  </h3>
+                  <p className="text-sm text-[#191A23]/70">
+                    {params.date && `考试日期: ${params.date}`}
+                    {isFromAnomalyDetection && " · 来源: 异常检测系统"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => handleModeSwitch("overall")}
+                  className="border-2 border-black bg-white hover:bg-gray-50 text-[#191A23] font-bold shadow-[2px_2px_0px_0px_#191A23]"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  切换到整体分析
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={fetchWarningData}
+                  disabled={loadingData}
+                  className="border-2 border-black bg-white hover:bg-gray-50 text-[#191A23] font-bold shadow-[2px_2px_0px_0px_#191A23]"
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 mr-2 ${loadingData ? "animate-spin" : ""}`}
+                  />
+                  {loadingData ? "加载中" : "刷新数据"}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 整体分析模式的工具栏 */}
+      {analysisMode === "overall" && (
+        <div className="flex justify-end">
           <Button
             variant="outline"
             onClick={fetchWarningData}
             disabled={loadingData}
+            className="border-2 border-black bg-white hover:bg-gray-50 text-[#191A23] font-bold shadow-[2px_2px_0px_0px_#191A23]"
           >
             <RefreshCw
               className={`h-4 w-4 mr-2 ${loadingData ? "animate-spin" : ""}`}
@@ -257,7 +645,7 @@ const WarningAnalysis = () => {
             {loadingData ? "加载中" : "刷新数据"}
           </Button>
         </div>
-      </div>
+      )}
 
       {/* 主要内容 */}
       <Tabs value={activeTab} onValueChange={handleTabChange}>
@@ -315,14 +703,20 @@ const WarningAnalysis = () => {
                   percentage: type.percentage,
                   trend: type.trend,
                 })),
-                riskByClass: statistics.risk_factors.length > 0 ? 
-                  statistics.risk_factors.slice(0, 5).map((factor, index) => ({
-                    className: factor.factor,
-                    studentCount: Math.floor(factor.count * 3.5), // 估算总学生数
-                    atRiskCount: factor.count,
-                  })) : [
-                    { className: "暂无数据", studentCount: 0, atRiskCount: 0 }
-                  ],
+                riskByClass:
+                  stats.risk_factors.length > 0
+                    ? stats.risk_factors.slice(0, 5).map((factor, index) => ({
+                        className: factor.factor,
+                        studentCount: Math.floor(factor.count * 3.5), // 估算总学生数
+                        atRiskCount: factor.count,
+                      }))
+                    : [
+                        {
+                          className: "暂无数据",
+                          studentCount: 0,
+                          atRiskCount: 0,
+                        },
+                      ],
                 commonRiskFactors: stats.risk_factors.map((factor) => ({
                   factor: factor.factor,
                   count: factor.count,

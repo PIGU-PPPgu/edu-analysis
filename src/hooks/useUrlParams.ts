@@ -99,7 +99,9 @@ export const useUrlParams = () => {
   };
 
   const hasParam = (key: keyof UrlParams) => {
-    return params[key] !== undefined && params[key] !== null && params[key] !== "";
+    return (
+      params[key] !== undefined && params[key] !== null && params[key] !== ""
+    );
   };
 
   return {
