@@ -57,8 +57,13 @@ interface ChartGalleryProps {
   className?: string;
 }
 
-// 热力图数据处理
-const generateHeatmapData = (gradeData: GradeRecord[]) => {
+// 热力图数据处理 - 增加分页支持
+const generateHeatmapData = (
+  gradeData: GradeRecord[],
+  subjectPage = 0,
+  classPage = 0,
+  pageSize = 4
+) => {
   const allSubjects = [
     ...new Set(gradeData.map((r) => r.subject).filter(Boolean)),
   ];
@@ -66,9 +71,11 @@ const generateHeatmapData = (gradeData: GradeRecord[]) => {
     ...new Set(gradeData.map((r) => r.class_name).filter(Boolean)),
   ];
 
-  // 限制显示数量以避免布局过大
-  const subjects = allSubjects.slice(0, 5); // 限制为5个科目
-  const classes = allClasses.slice(0, 4); // 限制为4个班级
+  // 🆕 分页处理 - 避免一次性显示过多数据
+  const subjectStart = subjectPage * pageSize;
+  const classStart = classPage * pageSize;
+  const subjects = allSubjects.slice(subjectStart, subjectStart + pageSize);
+  const classes = allClasses.slice(classStart, classStart + pageSize);
 
   const heatmapData = [];
 
@@ -99,6 +106,10 @@ const generateHeatmapData = (gradeData: GradeRecord[]) => {
     classes,
     totalSubjects: allSubjects.length,
     totalClasses: allClasses.length,
+    subjectPages: Math.ceil(allSubjects.length / pageSize),
+    classPages: Math.ceil(allClasses.length / pageSize),
+    currentSubjectPage: subjectPage,
+    currentClassPage: classPage,
   };
 };
 
@@ -205,9 +216,25 @@ const ChartGallery: React.FC<ChartGalleryProps> = ({
   className = "",
 }) => {
   const [activeChart, setActiveChart] = useState("heatmap");
+  // 🆕 分页状态管理
+  const [subjectPage, setSubjectPage] = useState(0);
+  const [classPage, setClassPage] = useState(0);
+  const [pageSize] = useState(4); // 固定每页大小
 
-  const { heatmapData, subjects, classes, totalSubjects, totalClasses } =
-    useMemo(() => generateHeatmapData(gradeData), [gradeData]);
+  const {
+    heatmapData,
+    subjects,
+    classes,
+    totalSubjects,
+    totalClasses,
+    subjectPages,
+    classPages,
+    currentSubjectPage,
+    currentClassPage,
+  } = useMemo(
+    () => generateHeatmapData(gradeData, subjectPage, classPage, pageSize),
+    [gradeData, subjectPage, classPage, pageSize]
+  );
   const classComparisonData = useMemo(
     () => generateClassComparisonData(gradeData),
     [gradeData]
@@ -226,15 +253,87 @@ const ChartGallery: React.FC<ChartGalleryProps> = ({
       </CardHeader>
       <CardContent className="p-6 bg-white">
         <div className="space-y-4">
-          {/* 数据限制通知 */}
-          {(totalSubjects > 5 || totalClasses > 4) && (
-            <div className="p-3 bg-[#B9FF66]/20 border border-[#B9FF66] rounded-lg">
-              <p className="text-sm font-medium text-[#191A23]">
-                📊 显示前{Math.min(totalSubjects, 5)}个科目和前
-                {Math.min(totalClasses, 4)}个班级
-                {totalSubjects > 5 && ` (共${totalSubjects}个科目)`}
-                {totalClasses > 4 && ` (共${totalClasses}个班级)`}
-              </p>
+          {/* 🆕 分页信息和控制 */}
+          {(subjectPages > 1 || classPages > 1) && (
+            <div className="p-4 bg-[#B9FF66]/20 border-2 border-[#B9FF66] rounded-lg">
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                <div>
+                  <p className="text-sm font-bold text-[#191A23] mb-2">
+                    📊 数据分页显示 - 总计: {totalSubjects}个科目,{" "}
+                    {totalClasses}个班级
+                  </p>
+                  <p className="text-xs text-[#191A23]/70">
+                    当前显示: 科目第{currentSubjectPage + 1}页/{subjectPages}页,
+                    班级第{currentClassPage + 1}页/{classPages}页
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  {/* 科目分页控制 */}
+                  {subjectPages > 1 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-[#191A23]">
+                        科目:
+                      </span>
+                      <Button
+                        onClick={() =>
+                          setSubjectPage(Math.max(0, currentSubjectPage - 1))
+                        }
+                        disabled={currentSubjectPage === 0}
+                        className="px-2 py-1 h-8 bg-white border-2 border-black text-[#191A23] font-bold shadow-[2px_2px_0px_0px_#191A23] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_0px_#191A23] disabled:opacity-50 disabled:transform-none disabled:shadow-[2px_2px_0px_0px_#191A23]"
+                      >
+                        ←
+                      </Button>
+                      <span className="text-xs font-bold text-[#191A23] min-w-[3rem] text-center">
+                        {currentSubjectPage + 1}/{subjectPages}
+                      </span>
+                      <Button
+                        onClick={() =>
+                          setSubjectPage(
+                            Math.min(subjectPages - 1, currentSubjectPage + 1)
+                          )
+                        }
+                        disabled={currentSubjectPage >= subjectPages - 1}
+                        className="px-2 py-1 h-8 bg-white border-2 border-black text-[#191A23] font-bold shadow-[2px_2px_0px_0px_#191A23] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_0px_#191A23] disabled:opacity-50 disabled:transform-none disabled:shadow-[2px_2px_0px_0px_#191A23]"
+                      >
+                        →
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* 班级分页控制 */}
+                  {classPages > 1 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-[#191A23]">
+                        班级:
+                      </span>
+                      <Button
+                        onClick={() =>
+                          setClassPage(Math.max(0, currentClassPage - 1))
+                        }
+                        disabled={currentClassPage === 0}
+                        className="px-2 py-1 h-8 bg-white border-2 border-black text-[#191A23] font-bold shadow-[2px_2px_0px_0px_#191A23] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_0px_#191A23] disabled:opacity-50 disabled:transform-none disabled:shadow-[2px_2px_0px_0px_#191A23]"
+                      >
+                        ←
+                      </Button>
+                      <span className="text-xs font-bold text-[#191A23] min-w-[3rem] text-center">
+                        {currentClassPage + 1}/{classPages}
+                      </span>
+                      <Button
+                        onClick={() =>
+                          setClassPage(
+                            Math.min(classPages - 1, currentClassPage + 1)
+                          )
+                        }
+                        disabled={currentClassPage >= classPages - 1}
+                        className="px-2 py-1 h-8 bg-white border-2 border-black text-[#191A23] font-bold shadow-[2px_2px_0px_0px_#191A23] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_0px_#191A23] disabled:opacity-50 disabled:transform-none disabled:shadow-[2px_2px_0px_0px_#191A23]"
+                      >
+                        →
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 

@@ -1,4 +1,4 @@
-import React, { useMemo, memo, useState } from "react";
+import React, { useMemo, memo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -235,6 +235,9 @@ const StudentTrendAnalysis: React.FC<StudentTrendAnalysisProps> = ({
 }) => {
   const [selectedStudent, setSelectedStudent] = useState<string>("");
   const [viewMode, setViewMode] = useState<"line" | "area" | "radar">("line");
+  // 🆕 趋势分析详情分页状态
+  const [analysisPage, setAnalysisPage] = useState(0);
+  const [analysisPageSize] = useState(6); // 每页显示6个科目分析
 
   // 获取所有学生列表
   const studentOptions = useMemo(() => {
@@ -255,6 +258,18 @@ const StudentTrendAnalysis: React.FC<StudentTrendAnalysisProps> = ({
   const trendAnalysis = useMemo(() => {
     return analyzeAllSubjectTrends(studentTrendData);
   }, [studentTrendData]);
+
+  // 🆕 分页的趋势分析数据
+  const totalAnalysisPages = Math.ceil(trendAnalysis.length / analysisPageSize);
+  const paginatedAnalysis = useMemo(() => {
+    const startIndex = analysisPage * analysisPageSize;
+    return trendAnalysis.slice(startIndex, startIndex + analysisPageSize);
+  }, [trendAnalysis, analysisPage, analysisPageSize]);
+
+  // 🆕 当学生变化时重置分页
+  useEffect(() => {
+    setAnalysisPage(0);
+  }, [selectedStudent]);
 
   // 准备图表数据
   const chartData = useMemo(() => {
@@ -588,8 +603,49 @@ const StudentTrendAnalysis: React.FC<StudentTrendAnalysisProps> = ({
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
+              {/* 🆕 分页控制区域 */}
+              {totalAnalysisPages > 1 && (
+                <div className="flex justify-between items-center p-4 bg-[#B9FF66]/20 border-2 border-[#B9FF66] rounded-lg mb-4">
+                  <div>
+                    <p className="text-sm font-bold text-[#191A23]">
+                      显示 {analysisPage * analysisPageSize + 1} -{" "}
+                      {Math.min(
+                        (analysisPage + 1) * analysisPageSize,
+                        trendAnalysis.length
+                      )}{" "}
+                      / {trendAnalysis.length} 个科目分析
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={() =>
+                        setAnalysisPage(Math.max(0, analysisPage - 1))
+                      }
+                      disabled={analysisPage === 0}
+                      className="px-3 py-1 h-8 bg-white border-2 border-black text-[#191A23] font-bold shadow-[2px_2px_0px_0px_#191A23] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_0px_#191A23] disabled:opacity-50 disabled:transform-none disabled:shadow-[2px_2px_0px_0px_#191A23]"
+                    >
+                      上一页
+                    </Button>
+                    <span className="text-sm font-bold text-[#191A23] min-w-[4rem] text-center">
+                      {analysisPage + 1} / {totalAnalysisPages}
+                    </span>
+                    <Button
+                      onClick={() =>
+                        setAnalysisPage(
+                          Math.min(totalAnalysisPages - 1, analysisPage + 1)
+                        )
+                      }
+                      disabled={analysisPage >= totalAnalysisPages - 1}
+                      className="px-3 py-1 h-8 bg-white border-2 border-black text-[#191A23] font-bold shadow-[2px_2px_0px_0px_#191A23] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_0px_#191A23] disabled:opacity-50 disabled:transform-none disabled:shadow-[2px_2px_0px_0px_#191A23]"
+                    >
+                      下一页
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-4">
-                {trendAnalysis.map((analysis, index) => (
+                {paginatedAnalysis.map((analysis, index) => (
                   <Card
                     key={index}
                     className="border-2 border-black shadow-[2px_2px_0px_0px_#191A23] transition-all hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_0px_#191A23]"

@@ -428,7 +428,7 @@ class PortraitAPI {
       // 从grade_data表获取成绩数据，使用student_id字段匹配
       const studentIdList = students.map((s) => s.student_id); // 使用学号匹配
       const { data: grades, error: gradesError } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("student_id, name, subject, score, exam_type, exam_date")
         .in("student_id", studentIdList);
 

@@ -6,10 +6,9 @@
 import { env } from "../env";
 
 // 服务器代理端点配置
-const API_PROXY_BASE_URL =
-  process.env.NODE_ENV === "production"
-    ? "https://your-api-server.com"
-    : "http://localhost:3001";
+const API_PROXY_BASE_URL = import.meta.env.PROD
+  ? "https://your-api-server.com"
+  : "http://localhost:3001";
 
 /**
  * API请求安全配置
@@ -200,7 +199,7 @@ export class ApiSecurity {
       const url = new URL(endpoint);
 
       // 只允许HTTPS协议（开发环境除外）
-      if (process.env.NODE_ENV === "production" && url.protocol !== "https:") {
+      if (import.meta.env.PROD && url.protocol !== "https:") {
         return false;
       }
 

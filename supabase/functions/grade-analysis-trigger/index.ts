@@ -39,7 +39,7 @@ serve(async (req) => {
     // 检查是否有新的成绩数据
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     const { data: recentGrades, error: gradeError } = await supabase
-      .from('grade_data')
+      .from('grade_data_new')
       .select('student_id, name, class_name, exam_title, total_score, total_rank_in_class, created_at')
       .gte('created_at', fiveMinutesAgo)
       .order('created_at', { ascending: false })

@@ -130,7 +130,7 @@ class AnalysisDataAggregator {
 
     // 使用考试标题获取成绩数据
     const gradeData = await supabase
-      .from("grade_data")
+      .from("grade_data_new")
       .select(
         `
         total_score,
@@ -174,7 +174,7 @@ class AnalysisDataAggregator {
         .limit(50),
 
       supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select(
           `
           total_score,
@@ -322,9 +322,11 @@ class AIAnalysisProcessor {
         scores.length > 0
           ? scores.reduce((a, b) => a + b, 0) / scores.length
           : 0;
+      // 使用动态及格线，默认60分
+      const passingThreshold = (await this.getPassingThreshold(examId)) || 60;
       const passRate =
         scores.length > 0
-          ? scores.filter((s) => s >= 60).length / scores.length
+          ? scores.filter((s) => s >= passingThreshold).length / scores.length
           : 0;
 
       // 风险评估
@@ -558,6 +560,8 @@ class AIAnalysisProcessor {
       .filter((s) => s !== null && s !== undefined);
     const avgScore =
       scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+    // 注意：这里无法获取考试ID，使用默认60分阈值
+    // 在有考试上下文的地方应该使用 examScoreCalculationService
     const passRate =
       scores.length > 0
         ? scores.filter((s) => s >= 60).length / scores.length
@@ -582,6 +586,35 @@ class AIAnalysisProcessor {
     }
 
     return { immediate, strategic };
+  }
+
+  // 获取及格阈值
+  private async getPassingThreshold(examId: string): Promise<number | null> {
+    try {
+      // 尝试从 examScoreCalculationService 获取配置的阈值
+      const { examScoreCalculationService } = await import(
+        "./examScoreCalculationService"
+      );
+      const config =
+        await examScoreCalculationService.getSubjectScoreConfig(examId);
+
+      if (config && config.length > 0) {
+        // 使用主科目的平均及格分数
+        const passingScores = config
+          .map((c) => c.passing_score)
+          .filter((s) => s != null);
+        if (passingScores.length > 0) {
+          return (
+            passingScores.reduce((a, b) => a + b, 0) / passingScores.length
+          );
+        }
+      }
+
+      return null; // 返回null表示使用默认值
+    } catch (error) {
+      console.warn("获取及格阈值失败，使用默认值:", error);
+      return null;
+    }
   }
 
   // 辅助方法

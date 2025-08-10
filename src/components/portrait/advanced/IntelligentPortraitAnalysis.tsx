@@ -173,7 +173,7 @@ const IntelligentPortraitAnalysis: React.FC = () => {
     try {
       // 获取成绩数据
       const { data: gradeData } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("subject, score, exam_date, exam_type")
         .eq("student_id", studentId)
         .order("exam_date", { ascending: false });

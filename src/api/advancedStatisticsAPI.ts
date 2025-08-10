@@ -90,7 +90,7 @@ export class AdvancedStatisticsAPI {
       }
 
       // 构建查询
-      let query = supabase.from("grade_data").select("*");
+      let query = supabase.from("grade_data_new").select("*");
 
       // 应用过滤条件
       if (request.examIds?.length) {
@@ -193,7 +193,7 @@ export class AdvancedStatisticsAPI {
 
     try {
       // 获取数据
-      let query = supabase.from("grade_data").select("*");
+      let query = supabase.from("grade_data_new").select("*");
 
       if (request.timeRange) {
         query = query
@@ -305,7 +305,7 @@ export class AdvancedStatisticsAPI {
 
     try {
       // 获取训练数据
-      let query = supabase.from("grade_data").select("*");
+      let query = supabase.from("grade_data_new").select("*");
 
       if (request.trainingData?.examIds?.length) {
         query = query.in("exam_id", request.trainingData.examIds);
@@ -390,7 +390,7 @@ export class AdvancedStatisticsAPI {
 
     try {
       // 获取数据
-      let query = supabase.from("grade_data").select("*");
+      let query = supabase.from("grade_data_new").select("*");
 
       if (request.scope.examIds?.length) {
         query = query.in("exam_id", request.scope.examIds);
@@ -469,7 +469,7 @@ export class AdvancedStatisticsAPI {
 
     try {
       // 获取数据
-      let query = supabase.from("grade_data").select("*");
+      let query = supabase.from("grade_data_new").select("*");
 
       // 应用过滤器
       if (request.filters) {
@@ -568,7 +568,7 @@ export class AdvancedStatisticsAPI {
     try {
       // 获取数据
       const { data, error } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("*")
         .gte("exam_date", request.timeRange.start)
         .lte("exam_date", request.timeRange.end)

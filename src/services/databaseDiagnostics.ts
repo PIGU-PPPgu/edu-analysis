@@ -129,7 +129,7 @@ export class DatabaseDiagnostics {
     try {
       // 检查孤立的成绩记录（没有对应学生的成绩）
       const { data: orphanedGrades, error: orphanError } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("student_id")
         .not(
           "student_id",
@@ -152,7 +152,7 @@ export class DatabaseDiagnostics {
 
       // 检查缺失的外键引用
       const { data: missingExams, error: missingError } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("exam_id")
         .not("exam_id", "in", supabase.from("exams").select("id"));
 
@@ -475,7 +475,7 @@ export class DatabaseDiagnostics {
 
       // 检查成绩数据
       const { data: gradeData, error: gradeError } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("*")
         .eq("exam_id", examId);
 

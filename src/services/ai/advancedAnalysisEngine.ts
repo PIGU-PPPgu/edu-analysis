@@ -683,6 +683,52 @@ export class AdvancedAnalysisEngine {
   // 工具方法
   // ============================================================================
 
+  /**
+   * 获取动态阈值配置
+   * 尝试从考试配置中获取，如果没有则使用默认值
+   */
+  private async getThresholds(examId?: string): Promise<{
+    passing: number;
+    excellent: number;
+  }> {
+    try {
+      if (examId) {
+        const { examScoreCalculationService } = await import(
+          "../examScoreCalculationService"
+        );
+        const config =
+          await examScoreCalculationService.getSubjectScoreConfig(examId);
+
+        if (config && config.length > 0) {
+          const passingScores = config
+            .map((c) => c.passing_score)
+            .filter((s) => s != null);
+          const excellentScores = config
+            .map((c) => c.excellent_score)
+            .filter((s) => s != null);
+
+          if (passingScores.length > 0 && excellentScores.length > 0) {
+            return {
+              passing:
+                passingScores.reduce((a, b) => a + b, 0) / passingScores.length,
+              excellent:
+                excellentScores.reduce((a, b) => a + b, 0) /
+                excellentScores.length,
+            };
+          }
+        }
+      }
+    } catch (error) {
+      console.warn("获取动态阈值失败，使用默认值:", error);
+    }
+
+    // 返回默认值
+    return {
+      passing: 60,
+      excellent: 90,
+    };
+  }
+
   private groupByClass(data: any[]): Record<string, any[]> {
     return data.reduce(
       (acc, item) => {
@@ -697,35 +743,59 @@ export class AdvancedAnalysisEngine {
     );
   }
 
-  private getAverageMeaning(average: number): string {
-    if (average >= 90) return "整体表现优秀";
-    if (average >= 80) return "整体表现良好";
-    if (average >= 70) return "整体表现中等";
-    if (average >= 60) return "整体表现及格";
+  private getAverageMeaning(
+    average: number,
+    thresholds?: { passing: number; excellent: number }
+  ): string {
+    const excellent = thresholds?.excellent ?? 90;
+    const passing = thresholds?.passing ?? 60;
+    const good = excellent * 0.89; // ~80分 when excellent is 90
+    const medium = (excellent + passing) / 2; // ~75分 when passing=60, excellent=90
+
+    if (average >= excellent) return "整体表现优秀";
+    if (average >= good) return "整体表现良好";
+    if (average >= medium) return "整体表现中等";
+    if (average >= passing) return "整体表现及格";
     return "整体表现需要提升";
   }
 
-  private getAverageDetail(average: number): string {
-    if (average >= 90) {
+  private getAverageDetail(
+    average: number,
+    thresholds?: { passing: number; excellent: number }
+  ): string {
+    const excellent = thresholds?.excellent ?? 90;
+    const passing = thresholds?.passing ?? 60;
+    const good = excellent * 0.89;
+    const medium = (excellent + passing) / 2;
+
+    if (average >= excellent) {
       return "学生们展现了出色的学习能力和知识掌握程度，继续保持这种优秀的学习状态。";
     }
-    if (average >= 80) {
+    if (average >= good) {
       return "大部分学生掌握了核心知识点，但仍有提升空间，建议针对薄弱环节加强训练。";
     }
-    if (average >= 70) {
+    if (average >= medium) {
       return "学生整体处于中等水平，需要加强基础知识的巩固和提高解题能力。";
     }
-    if (average >= 60) {
+    if (average >= passing) {
       return "刚达到及格线，说明基础知识掌握不够扎实，需要系统性地查漏补缺。";
     }
     return "低于及格线，需要重点关注并采取补救措施，建议进行个性化辅导。";
   }
 
-  private getAverageSignificance(average: number): any {
-    if (average >= 90) return "very_good";
-    if (average >= 80) return "good";
-    if (average >= 70) return "average";
-    if (average >= 60) return "concerning";
+  private getAverageSignificance(
+    average: number,
+    thresholds?: { passing: number; excellent: number }
+  ): any {
+    const excellent = thresholds?.excellent ?? 90;
+    const passing = thresholds?.passing ?? 60;
+    const good = excellent * 0.89;
+    const medium = (excellent + passing) / 2;
+
+    if (average >= excellent) return "very_good";
+    if (average >= good) return "good";
+    if (average >= medium) return "average";
+    if (average >= passing) return "concerning";
     return "critical";
   }
 
@@ -794,9 +864,12 @@ export class AdvancedAnalysisEngine {
     return null;
   }
 
-  private findTopPerformers(data: any[]): any[] {
+  private findTopPerformers(
+    data: any[],
+    excellentThreshold: number = 90
+  ): any[] {
     return data
-      .filter((d) => d.total_score >= 90)
+      .filter((d) => d.total_score >= excellentThreshold)
       .sort((a, b) => b.total_score - a.total_score);
   }
 

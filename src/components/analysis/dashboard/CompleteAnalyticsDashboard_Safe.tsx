@@ -812,7 +812,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
               <TabsContent value="data-analysis" className="space-y-6">
                 {/* 增强版科目相关性矩阵 */}
                 <EnhancedSubjectCorrelationMatrix
-                  gradeData={wideGradeData || []}
+                  gradeData={(wideGradeData || []).slice(0, 2000)}
                   title="科目相关性分析"
                   className="w-full"
                   showHeatMap={true}
@@ -821,13 +821,13 @@ const CompleteAnalyticsDashboard: React.FC = () => {
 
                 {/* 个人趋势分析 */}
                 <StudentTrendAnalysis
-                  gradeData={wideGradeData || []}
+                  gradeData={(wideGradeData || []).slice(0, 3000)}
                   className="w-full"
                 />
 
                 {/* 多维度班级排名系统 */}
                 <MultiDimensionalRankingSystem
-                  gradeData={wideGradeData || []}
+                  gradeData={(wideGradeData || []).slice(0, 1000)}
                   className="w-full"
                 />
 
@@ -869,7 +869,30 @@ const CompleteAnalyticsDashboard: React.FC = () => {
 
               {/* 图表展示模块 */}
               <TabsContent value="chart-gallery" className="space-y-6">
-                <ChartGallery gradeData={filteredGradeData} className="" />
+                {filteredGradeData.length > 5000 && (
+                  <Card className="border-l-4 border-l-orange-500 bg-orange-50/50">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-5 w-5 text-orange-600" />
+                        <div>
+                          <p className="font-semibold text-orange-800">
+                            数据量较大 (
+                            {filteredGradeData.length.toLocaleString()} 条记录)
+                          </p>
+                          <p className="text-sm text-orange-600">
+                            为保证性能，图表将只显示前 5,000
+                            条数据。建议使用筛选功能缩小数据范围以获得更准确的分析。
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+                <ChartGallery
+                  gradeData={filteredGradeData.slice(0, 5000)}
+                  totalDataCount={filteredGradeData.length}
+                  className=""
+                />
               </TabsContent>
             </Tabs>
           </TabsContent>
@@ -981,18 +1004,23 @@ const CompleteAnalyticsDashboard: React.FC = () => {
                   },
                 ]}
                 config={{
-                  virtual: filteredGradeData.length > 1000, // 大数据时启用虚拟滚动
+                  // 🚀 性能优化：更激进的虚拟化策略
+                  virtual: filteredGradeData.length > 500, // 500条以上启用虚拟滚动
                   itemHeight: 60,
-                  pageSize: 50,
+                  pageSize: filteredGradeData.length > 2000 ? 25 : 50, // 大数据量时减小页面大小
                   showPagination: true,
                   showSearch: true,
                   showFilter: true,
                   showColumnSettings: true,
                   searchKeys: ["name", "class_name", "subject", "exam_title"],
                   stickyHeader: true,
-                  bordered: true,
-                  striped: true,
-                  compact: false,
+                  bordered: filteredGradeData.length < 1000, // 大数据量时取消边框提升性能
+                  striped: filteredGradeData.length < 1000, // 大数据量时取消条纹提升性能
+                  compact: filteredGradeData.length > 1000, // 大数据量时启用紧凑模式
+                  // 🆕 大数据量性能优化
+                  debounceSearch: 300, // 搜索防抖
+                  lazyRender: filteredGradeData.length > 1000, // 延迟渲染
+                  bufferSize: 10, // 虚拟滚动缓冲区大小
                 }}
                 title="成绩数据详情"
                 showExport={true}

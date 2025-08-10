@@ -134,7 +134,7 @@ const LearningBehaviorAnalysis: React.FC = () => {
 
       // 获取学生的成绩数据
       const { data: grades } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("*")
         .eq("student_id", studentId)
         .order("exam_date", { ascending: true });

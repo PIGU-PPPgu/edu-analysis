@@ -640,7 +640,7 @@ export const GradeModuleProvider: React.FC<{ children: React.ReactNode }> = ({
 
       try {
         const { data, error } = await supabase
-          .from("grade_data")
+          .from("grade_data_new")
           .select("*")
           .eq("exam_id", examId)
           .order("student_id");

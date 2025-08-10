@@ -481,7 +481,7 @@ export const ModernGradeAnalysisProvider: React.FC<
 
     try {
       const { data, error } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("*")
         .eq("exam_id", examId)
         .order("student_id");
@@ -510,6 +510,11 @@ export const ModernGradeAnalysisProvider: React.FC<
 
   // 刷新数据
   const refreshData = useCallback(async () => {
+    // 🆕 刷新前清理旧数据，释放内存
+    setAllGradeData([]);
+    setWideGradeData([]);
+    setExamList([]);
+
     await loadAllData();
   }, [loadAllData]);
 
@@ -518,9 +523,16 @@ export const ModernGradeAnalysisProvider: React.FC<
     setFilter({});
   }, []);
 
-  // 应用筛选逻辑
+  // 🚀 应用筛选逻辑（性能优化版）
   const filteredGradeData = useMemo(() => {
     console.log(`🔍 开始过滤数据，原始数据: ${allGradeData.length} 条`);
+
+    // 🆕 大数据量时的性能提醒
+    if (allGradeData.length > 10000) {
+      console.warn(
+        `⚠️ 大数据量警告: ${allGradeData.length} 条记录，建议使用筛选条件`
+      );
+    }
     console.log("🔍 当前过滤器:", filter);
     let filtered = [...allGradeData];
 

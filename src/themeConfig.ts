@@ -21,7 +21,7 @@ export const defaultThemeConfig: ThemeConfig = {
   ignoreSystemTheme: true,
   forcedTheme: "light",
   allowUserThemeChange: true,
-  enableThemeLogging: process.env.NODE_ENV === "development",
+  enableThemeLogging: import.meta.env.DEV,
 };
 
 // 应用主题配置管理器

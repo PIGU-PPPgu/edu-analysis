@@ -145,19 +145,15 @@ const GradeAnalysisLayout: React.FC = () => {
 
                   <div className="flex items-center gap-2">
                     <Button
-                      variant="outline"
-                      size="sm"
                       onClick={handleBackToExamManagement}
-                      className="gap-1 hover:shadow-md transition-all duration-200"
+                      className="gap-1 border-2 border-black bg-white hover:bg-gray-50 text-black font-bold shadow-[2px_2px_0px_0px_#000] hover:shadow-[4px_4px_0px_0px_#000] transition-all duration-200"
                     >
                       <ArrowLeft className="h-4 w-4" />
                       返回考试管理
                     </Button>
                     <Button
-                      variant="outline"
-                      size="sm"
                       onClick={handleClearExamSelection}
-                      className="gap-1 hover:shadow-md transition-all duration-200"
+                      className="gap-1 border-2 border-black bg-white hover:bg-gray-50 text-black font-bold shadow-[2px_2px_0px_0px_#000] hover:shadow-[4px_4px_0px_0px_#000] transition-all duration-200"
                     >
                       清除筛选
                     </Button>

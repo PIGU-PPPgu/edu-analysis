@@ -473,6 +473,16 @@ export const DEFAULT_NAVIGATION_ITEMS: NavigationItem[] = [
     href: "/",
   },
   {
+    id: "grade-data-center",
+    label: "数据中心",
+    icon: <BarChart3 className="h-4 w-4" />,
+    href: "/grade-data-center",
+    badge: {
+      text: "新",
+      variant: "success",
+    },
+  },
+  {
     id: "analytics",
     label: "数据分析",
     icon: DEFAULT_ICONS.analytics,

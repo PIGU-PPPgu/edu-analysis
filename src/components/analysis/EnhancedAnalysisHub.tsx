@@ -140,7 +140,7 @@ const EnhancedAnalysisHub: React.FC = () => {
         async () => {
           // 获取学生成绩数据
           const { data: grades } = await supabase
-            .from("grade_data")
+            .from("grade_data_new")
             .select(
               `
             student_id,

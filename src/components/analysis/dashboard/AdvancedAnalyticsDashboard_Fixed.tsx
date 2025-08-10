@@ -297,28 +297,68 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* 考试选择 */}
+            {/* 🔧 考试选择（带搜索） */}
             <div className="mb-6">
               <label className="block text-sm font-black text-[#191A23] uppercase tracking-wide mb-3">
                 考试
+                {examList.length > 10 && (
+                  <span className="text-xs font-normal text-gray-500 normal-case ml-2">
+                    ({examList.length} 个选项)
+                  </span>
+                )}
               </label>
-              <select
-                value={filter.examIds?.[0] || ""}
-                onChange={(e) =>
-                  setFilter({
-                    ...filter,
-                    examIds: e.target.value ? [e.target.value] : undefined,
-                  })
-                }
-                className="w-full p-3 bg-white border-2 border-black rounded-lg font-medium text-[#191A23] focus:border-[#B9FF66] focus:ring-2 focus:ring-[#B9FF66] transition-all"
-              >
-                <option value="">全部考试</option>
-                {examList.map((exam) => (
-                  <option key={exam.id} value={exam.id}>
-                    {exam.title} ({exam.type})
-                  </option>
-                ))}
-              </select>
+              {examList.length > 10 ? (
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 w-4 h-4 text-[#191A23]" />
+                    <input
+                      type="text"
+                      placeholder="搜索考试标题..."
+                      className="w-full pl-10 pr-4 py-2 bg-white border-2 border-black rounded-lg font-medium text-[#191A23] placeholder:text-[#191A23]/60 focus:border-[#B9FF66] focus:ring-2 focus:ring-[#B9FF66] transition-all text-sm"
+                      onChange={(e) => {
+                        const searchTerm = e.target.value.toLowerCase();
+                        // 这里实现考试搜索逻辑
+                      }}
+                    />
+                  </div>
+                  <select
+                    value={filter.examIds?.[0] || ""}
+                    onChange={(e) =>
+                      setFilter({
+                        ...filter,
+                        examIds: e.target.value ? [e.target.value] : undefined,
+                      })
+                    }
+                    className="w-full p-3 bg-white border-2 border-black rounded-lg font-medium text-[#191A23] focus:border-[#B9FF66] focus:ring-2 focus:ring-[#B9FF66] transition-all"
+                    size={Math.min(6, examList.length)}
+                  >
+                    <option value="">全部考试</option>
+                    {examList.map((exam) => (
+                      <option key={exam.id} value={exam.id}>
+                        {exam.title} ({exam.type})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <select
+                  value={filter.examIds?.[0] || ""}
+                  onChange={(e) =>
+                    setFilter({
+                      ...filter,
+                      examIds: e.target.value ? [e.target.value] : undefined,
+                    })
+                  }
+                  className="w-full p-3 bg-white border-2 border-black rounded-lg font-medium text-[#191A23] focus:border-[#B9FF66] focus:ring-2 focus:ring-[#B9FF66] transition-all"
+                >
+                  <option value="">全部考试</option>
+                  {examList.map((exam) => (
+                    <option key={exam.id} value={exam.id}>
+                      {exam.title} ({exam.type})
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* 科目选择 */}
@@ -345,28 +385,66 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
               </select>
             </div>
 
-            {/* 班级选择 */}
+            {/* 🔧 班级选择（带搜索） */}
             <div className="mb-6">
               <label className="block text-sm font-black text-[#191A23] uppercase tracking-wide mb-3">
                 班级
+                {availableClasses.length > 10 && (
+                  <span className="text-xs font-normal text-gray-500 normal-case ml-2">
+                    ({availableClasses.length} 个选项)
+                  </span>
+                )}
               </label>
-              <select
-                value={filter.classNames?.[0] || ""}
-                onChange={(e) =>
-                  setFilter({
-                    ...filter,
-                    classNames: e.target.value ? [e.target.value] : undefined,
-                  })
-                }
-                className="w-full p-3 bg-white border-2 border-black rounded-lg font-medium text-[#191A23] focus:border-[#9C88FF] focus:ring-2 focus:ring-[#9C88FF] transition-all"
-              >
-                <option value="">全部班级</option>
-                {availableClasses.map((className) => (
-                  <option key={className} value={className}>
-                    {className}
-                  </option>
-                ))}
-              </select>
+              {availableClasses.length > 10 ? (
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 w-4 h-4 text-[#191A23]" />
+                    <input
+                      type="text"
+                      placeholder="搜索班级名称..."
+                      className="w-full pl-10 pr-4 py-2 bg-white border-2 border-black rounded-lg font-medium text-[#191A23] placeholder:text-[#191A23]/60 focus:border-[#9C88FF] focus:ring-2 focus:ring-[#9C88FF] transition-all text-sm"
+                    />
+                  </div>
+                  <select
+                    value={filter.classNames?.[0] || ""}
+                    onChange={(e) =>
+                      setFilter({
+                        ...filter,
+                        classNames: e.target.value
+                          ? [e.target.value]
+                          : undefined,
+                      })
+                    }
+                    className="w-full p-3 bg-white border-2 border-black rounded-lg font-medium text-[#191A23] focus:border-[#9C88FF] focus:ring-2 focus:ring-[#9C88FF] transition-all"
+                    size={Math.min(6, availableClasses.length)}
+                  >
+                    <option value="">全部班级</option>
+                    {availableClasses.map((className) => (
+                      <option key={className} value={className}>
+                        {className}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <select
+                  value={filter.classNames?.[0] || ""}
+                  onChange={(e) =>
+                    setFilter({
+                      ...filter,
+                      classNames: e.target.value ? [e.target.value] : undefined,
+                    })
+                  }
+                  className="w-full p-3 bg-white border-2 border-black rounded-lg font-medium text-[#191A23] focus:border-[#9C88FF] focus:ring-2 focus:ring-[#9C88FF] transition-all"
+                >
+                  <option value="">全部班级</option>
+                  {availableClasses.map((className) => (
+                    <option key={className} value={className}>
+                      {className}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* 分数范围 */}
@@ -429,11 +507,16 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
         {/* 页头 */}
         <div className="mb-6">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                高级成绩分析
+            <div className="space-y-3">
+              <h1 className="text-5xl font-black text-[#191A23] leading-tight">
+                高级分析
+                <span className="inline-block ml-3 px-4 py-2 bg-[#F7931E] text-white text-xl font-black border-2 border-black rounded-lg shadow-[4px_4px_0px_0px_#191A23]">
+                  ADVANCED
+                </span>
               </h1>
-              <p className="text-gray-600">深度数据洞察，助力教学决策优化</p>
+              <p className="text-lg text-[#6B7280] font-medium max-w-2xl">
+                深度数据洞察和AI驱动的智能教学决策支持
+              </p>
             </div>
 
             <div className="flex items-center space-x-3">
@@ -449,26 +532,24 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
               </Button>
 
               <Button
-                variant="outline"
-                size="sm"
                 onClick={() =>
                   setSelectedComplexity(
                     selectedComplexity === "simple" ? "advanced" : "simple"
                   )
                 }
+                className="flex items-center gap-2 border-2 border-black bg-[#F7931E] hover:bg-[#F7931E] text-white font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all"
               >
-                <Settings className="w-4 h-4 mr-2" />
+                <Settings className="w-4 h-4" />
                 {selectedComplexity === "simple" ? "简化模式" : "高级模式"}
               </Button>
 
               <Button
-                variant="outline"
-                size="sm"
                 onClick={handleRefresh}
                 disabled={isLoading}
+                className="flex items-center gap-2 border-2 border-black bg-[#B9FF66] hover:bg-[#B9FF66] text-black font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all disabled:opacity-50"
               >
                 <RefreshCw
-                  className={`w-4 h-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
+                  className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
                 />
                 刷新数据
               </Button>

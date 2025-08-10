@@ -1,4 +1,4 @@
-import React, { useMemo, memo } from "react";
+import React, { useMemo, memo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -14,6 +14,8 @@ import {
   Filter,
   BarChart3,
   Users,
+  ExternalLink,
+  ArrowRight,
 } from "lucide-react";
 import {
   ScatterChart,
@@ -625,7 +627,23 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
   title = "成绩异常检测",
   className = "",
 }) => {
+  // 🆕 分页状态管理
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize] = useState(5); // 每页显示5个异常
+
   const anomalies = useMemo(() => detectAnomalies(gradeData), [gradeData]);
+
+  // 🆕 分页的异常数据
+  const totalPages = Math.ceil(anomalies.length / pageSize);
+  const paginatedAnomalies = useMemo(() => {
+    const startIndex = currentPage * pageSize;
+    return anomalies.slice(startIndex, startIndex + pageSize);
+  }, [anomalies, currentPage, pageSize]);
+
+  // 🆕 重置页面当异常数据变化时
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [anomalies.length]);
 
   const subjects = useMemo(() => {
     if (!gradeData || !Array.isArray(gradeData)) {
@@ -686,6 +704,22 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
 
     return subjectStats.sort((a, b) => b.rate - a.rate);
   }, [anomalies, subjects, gradeData]);
+
+  // 🆕 跳转到预警分析界面
+  const handleJumpToWarningAnalysis = () => {
+    // 获取当前考试信息用于筛选
+    const currentExam = gradeData?.[0]?.exam_title || "";
+    const examDate = gradeData?.[0]?.exam_date || "";
+
+    // 构造查询参数，自动筛选当前考试
+    const queryParams = new URLSearchParams();
+    if (currentExam) queryParams.set("exam", currentExam);
+    if (examDate) queryParams.set("date", examDate);
+    queryParams.set("from", "anomaly-detection"); // 标记来源
+
+    // 跳转到预警分析页面
+    window.location.href = `/warning-analysis?${queryParams.toString()}`;
+  };
 
   // 导出异常数据
   const handleExportData = () => {
@@ -791,6 +825,16 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
                 <AlertTriangle className="h-4 w-4 mr-2" />
                 {stats.totalAnomalies} 个异常
               </Badge>
+              {/* 🆕 跳转到预警分析按钮 */}
+              {stats.totalAnomalies > 0 && (
+                <Button
+                  onClick={handleJumpToWarningAnalysis}
+                  className="border-2 border-black bg-[#9C88FF] hover:bg-[#8B77E8] text-white font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all uppercase tracking-wide"
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  转到预警分析
+                </Button>
+              )}
               <Button
                 onClick={handleExportData}
                 className="border-2 border-black bg-[#B9FF66] hover:bg-[#A8E055] text-[#191A23] font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all uppercase tracking-wide"
@@ -970,6 +1014,45 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
+          {/* 🆕 分页控制区域 */}
+          {totalPages > 1 && (
+            <div className="flex justify-between items-center p-4 bg-[#9C88FF]/20 border-2 border-[#9C88FF] rounded-lg mb-4">
+              <div>
+                <p className="text-sm font-bold text-[#191A23]">
+                  显示 {currentPage * pageSize + 1} -{" "}
+                  {Math.min((currentPage + 1) * pageSize, anomalies.length)} /{" "}
+                  {anomalies.length} 个异常
+                </p>
+                {stats.totalAnomalies > pageSize && (
+                  <p className="text-xs text-[#191A23]/70 mt-1">
+                    💡 检测到较多异常，建议跳转到预警分析进行深度处理
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+                  disabled={currentPage === 0}
+                  className="px-3 py-1 h-8 bg-white border-2 border-black text-[#191A23] font-bold shadow-[2px_2px_0px_0px_#191A23] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_0px_#191A23] disabled:opacity-50 disabled:transform-none disabled:shadow-[2px_2px_0px_0px_#191A23]"
+                >
+                  上一页
+                </Button>
+                <span className="text-sm font-bold text-[#191A23] min-w-[4rem] text-center">
+                  {currentPage + 1} / {totalPages}
+                </span>
+                <Button
+                  onClick={() =>
+                    setCurrentPage(Math.min(totalPages - 1, currentPage + 1))
+                  }
+                  disabled={currentPage >= totalPages - 1}
+                  className="px-3 py-1 h-8 bg-white border-2 border-black text-[#191A23] font-bold shadow-[2px_2px_0px_0px_#191A23] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_0px_#191A23] disabled:opacity-50 disabled:transform-none disabled:shadow-[2px_2px_0px_0px_#191A23]"
+                >
+                  下一页
+                </Button>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-4">
             {anomalies.length === 0 ? (
               <div className="text-center py-12">
@@ -984,7 +1067,7 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
                 </p>
               </div>
             ) : (
-              anomalies.map((anomaly, index) => {
+              paginatedAnomalies.map((anomaly, index) => {
                 const style = getAnomalyStyle(
                   anomaly.anomaly_type,
                   anomaly.severity
@@ -1063,74 +1146,63 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
         </CardContent>
       </Card>
 
-      {/* Positivus风格建议和行动指南 */}
+      {/* 🆕 简化的快速行动指南 */}
       {stats.totalAnomalies > 0 && (
         <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]">
           <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
-            <CardTitle className="text-[#191A23] font-black uppercase tracking-wide flex items-center gap-2">
-              <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
-                <Users className="h-5 w-5 text-white" />
-              </div>
-              建议和行动指南
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-[#191A23] font-black uppercase tracking-wide flex items-center gap-2">
+                <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
+                  <Users className="h-5 w-5 text-white" />
+                </div>
+                快速处理建议
+              </CardTitle>
+              {/* 🆕 右侧跳转提示 */}
+              <Button
+                onClick={handleJumpToWarningAnalysis}
+                size="sm"
+                className="border-2 border-black bg-[#9C88FF] hover:bg-[#8B77E8] text-white font-bold shadow-[2px_2px_0px_0px_#191A23] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_0px_#191A23] transition-all"
+              >
+                详细处理
+                <ArrowRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="p-6">
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {stats.highRiskCount > 0 && (
-                <Card className="border-2 border-[#B9FF66] shadow-[4px_4px_0px_0px_#B9FF66]">
-                  <CardContent className="p-4 bg-[#B9FF66]/20">
-                    <p className="font-black text-[#191A23] text-lg mb-2">
-                      高风险异常 ({stats.highRiskCount} 个)
-                    </p>
-                    <p className="font-medium text-[#191A23] leading-relaxed">
-                      建议立即与相关学生和家长沟通，了解具体情况，制定针对性的帮扶措施。
-                    </p>
-                  </CardContent>
-                </Card>
+                <div className="p-4 bg-[#B9FF66]/20 border-2 border-[#B9FF66] rounded-lg">
+                  <p className="font-black text-[#191A23] mb-2">
+                    🚨 高风险: {stats.highRiskCount} 个
+                  </p>
+                  <p className="text-sm text-[#191A23]/80">
+                    需要立即关注和干预处理
+                  </p>
+                </div>
               )}
 
               {stats.mediumRiskCount > 0 && (
-                <Card className="border-2 border-[#B9FF66] shadow-[4px_4px_0px_0px_#B9FF66]">
-                  <CardContent className="p-4 bg-[#B9FF66]/20">
-                    <p className="font-black text-[#191A23] text-lg mb-2">
-                      中风险异常 ({stats.mediumRiskCount} 个)
-                    </p>
-                    <p className="font-medium text-[#191A23] leading-relaxed">
-                      建议持续关注这些学生的学习状态，适时提供额外的学习支持和指导。
-                    </p>
-                  </CardContent>
-                </Card>
+                <div className="p-4 bg-[#9C88FF]/20 border-2 border-[#9C88FF] rounded-lg">
+                  <p className="font-black text-[#191A23] mb-2">
+                    ⚠️ 中风险: {stats.mediumRiskCount} 个
+                  </p>
+                  <p className="text-sm text-[#191A23]/80">
+                    建议持续关注和跟进
+                  </p>
+                </div>
               )}
 
-              <Card className="border-2 border-[#9C88FF] shadow-[4px_4px_0px_0px_#9C88FF]">
-                <CardContent className="p-4 bg-[#9C88FF]/20">
-                  <p className="font-black text-[#191A23] text-lg mb-3">
-                    总体建议
-                  </p>
-                  <div className="space-y-2">
-                    <div className="p-2 bg-white border border-[#9C88FF] rounded-lg">
-                      <p className="text-sm font-medium text-[#191A23]">
-                        • 结合学生平时表现和学习态度综合分析
-                      </p>
-                    </div>
-                    <div className="p-2 bg-white border border-[#9C88FF] rounded-lg">
-                      <p className="text-sm font-medium text-[#191A23]">
-                        • 关注是否存在考试作弊或数据录入错误
-                      </p>
-                    </div>
-                    <div className="p-2 bg-white border border-[#9C88FF] rounded-lg">
-                      <p className="text-sm font-medium text-[#191A23]">
-                        • 对于成绩突然提升的学生，了解学习方法的改进
-                      </p>
-                    </div>
-                    <div className="p-2 bg-white border border-[#9C88FF] rounded-lg">
-                      <p className="text-sm font-medium text-[#191A23]">
-                        • 对于成绩下降的学生，及时提供学习帮助
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="p-4 bg-[#B9FF66]/10 border-2 border-[#B9FF66] rounded-lg md:col-span-2">
+                <p className="font-black text-[#191A23] mb-2 flex items-center gap-2">
+                  💡 建议操作
+                  <Badge className="bg-[#9C88FF] text-white border-2 border-black text-xs font-bold">
+                    点击上方"详细处理"进行深度分析
+                  </Badge>
+                </p>
+                <p className="text-sm text-[#191A23]/80">
+                  结合学生具体情况分析，建议跳转到预警分析界面进行完整的学生预警管理和干预措施制定
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>

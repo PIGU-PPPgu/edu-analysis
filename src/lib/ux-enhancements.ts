@@ -63,9 +63,9 @@ export const defaultUXConfig: UXConfig = {
 
   errorHandling: {
     showErrorBoundary: true,
-    enableErrorReporting: process.env.NODE_ENV === "production",
+    enableErrorReporting: import.meta.env.PROD,
     retryAttempts: 3,
-    showDetailedErrors: process.env.NODE_ENV === "development",
+    showDetailedErrors: import.meta.env.DEV,
   },
 
   responsive: {
@@ -211,7 +211,7 @@ export const performanceMonitor = {
     const result = renderFn();
     const end = performance.now();
 
-    if (process.env.NODE_ENV === "development") {
+    if (import.meta.env.DEV) {
       console.log(`${componentName} 渲染耗时: ${(end - start).toFixed(2)}ms`);
     }
 

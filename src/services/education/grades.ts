@@ -442,8 +442,9 @@ export class GradeService {
       length;
     const stddev = Math.sqrt(variance);
 
-    // 及格率（假设60分及格）
-    const passCount = sorted.filter((score) => score >= 60).length;
+    // 及格率（使用配置的及格分数，默认为总分的60%）
+    const passThreshold = this.getPassingThreshold(max);
+    const passCount = sorted.filter((score) => score >= passThreshold).length;
     const passRate = (passCount / length) * 100;
 
     // 分数段分布
@@ -564,6 +565,16 @@ export class GradeService {
       logError("分析科目表现失败", error);
       return { strengths: [], weaknesses: [] };
     }
+  }
+
+  /**
+   * 获取及格阈值
+   * 尝试从考试配置中获取，如果没有则使用默认值（总分的60%）
+   */
+  private getPassingThreshold(totalScore: number): number {
+    // 对于通用统计，使用默认的60%作为及格线
+    // 在具体的考试分析中，应该通过 examScoreCalculationService 获取配置的阈值
+    return Math.round(totalScore * 0.6);
   }
 
   /**

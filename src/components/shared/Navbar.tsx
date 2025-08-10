@@ -121,6 +121,16 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
           onClick: () => navigate("/dashboard"),
         },
         {
+          id: "grade-data-center",
+          label: "数据中心",
+          icon: <BarChart3 className="w-5 h-5" />,
+          onClick: () => navigate("/grade-data-center"),
+          badge: {
+            text: "新",
+            variant: "success",
+          },
+        },
+        {
           id: "exam-management",
           label: "考试管理",
           icon: <BookOpen className="w-5 h-5" />,
@@ -175,6 +185,8 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
       location.pathname.startsWith("/data-import")
     )
       return "dashboard";
+    if (location.pathname.startsWith("/grade-data-center"))
+      return "grade-data-center";
     if (location.pathname.startsWith("/homework")) return "homework";
     if (location.pathname.startsWith("/grade-analysis"))
       return "grade-analysis";
@@ -242,6 +254,7 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
       location.pathname.startsWith("/data-import")
     )
       return "数据导入";
+    if (location.pathname.startsWith("/grade-data-center")) return "数据中心";
     if (location.pathname.startsWith("/homework")) return "作业管理";
     if (location.pathname.startsWith("/grade-analysis")) return "基础分析";
     if (location.pathname.startsWith("/advanced-analysis")) return "高级分析";
@@ -287,6 +300,19 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
                   }`}
                 >
                   数据导入
+                </Link>
+                <Link
+                  to="/grade-data-center"
+                  className={`text-sm font-medium transition-colors hover:text-primary flex items-center gap-2 ${
+                    isActive("/grade-data-center")
+                      ? "text-primary"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  数据中心
+                  <span className="text-xs bg-green-500 text-white px-1.5 py-0.5 rounded-full">
+                    新
+                  </span>
                 </Link>
                 <Link
                   to="/exam-management"

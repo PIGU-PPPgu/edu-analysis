@@ -8,7 +8,7 @@ const SUPABASE_URL = env.SUPABASE_URL.trim(); // 移除可能的空白字符
 const SUPABASE_ANON_KEY = env.SUPABASE_ANON_KEY.replace(/%$/, ""); // 移除末尾可能的百分号
 
 // 安全的连接信息记录（仅开发环境）
-if (process.env.NODE_ENV === "development") {
+if (import.meta.env.DEV) {
   console.log("Supabase 连接配置:");
   console.log(`URL: ${SUPABASE_URL}`);
   console.log(`KEY 长度: ${SUPABASE_ANON_KEY.length} 字符`);

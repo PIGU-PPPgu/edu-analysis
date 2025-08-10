@@ -45,6 +45,8 @@ const StudentPortraitManagement = lazy(
   () => import("./pages/StudentPortraitManagement")
 );
 const ExamManagement = lazy(() => import("./pages/ExamManagement"));
+const GradeDataCenter = lazy(() => import("./pages/GradeDataCenterSimple"));
+const GradeDataCenterFull = lazy(() => import("./pages/GradeDataCenter"));
 
 // 工具和测试页面 - 懒加载
 const CascadeAnalysisTestPage = lazy(
@@ -287,6 +289,14 @@ function App() {
                           <Route
                             path="/exam-management"
                             element={<ExamManagement />}
+                          />
+                          <Route
+                            path="/grade-data-center"
+                            element={<GradeDataCenter />}
+                          />
+                          <Route
+                            path="/grade-data-center-full"
+                            element={<GradeDataCenterFull />}
                           />
                           <Route
                             path="/student-management"

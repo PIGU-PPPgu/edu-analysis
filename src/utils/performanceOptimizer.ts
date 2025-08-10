@@ -521,7 +521,7 @@ export function trackErrorBoundary(
  * 彻底移除生产环境的console输出，提升性能
  */
 export function removeProductionLogs() {
-  if (process.env.NODE_ENV === "production") {
+  if (import.meta.env.PROD) {
     // 保存原始方法的引用
     const originalError = console.error;
 

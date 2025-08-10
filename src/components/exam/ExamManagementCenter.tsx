@@ -82,10 +82,20 @@ import {
   deleteExam,
   duplicateExam,
   getExamOverviewStatistics,
+  getAcademicTerms,
+  getCurrentAcademicTerm,
+  getExamSubjectScores,
+  saveExamSubjectScores,
+  getExamsByTerm,
+  getExamParticipantCount,
   type Exam as DBExam,
   type ExamType as DBExamType,
   type CreateExamInput,
+  type AcademicTerm,
+  type ExamSubjectScore,
 } from "@/services/examService";
+import ExamSubjectScoreDialog from "./ExamSubjectScoreDialog";
+import SemesterFilter from "./SemesterFilter";
 
 // 本地类型定义（用于UI展示）
 interface Exam extends Omit<DBExam, "subject" | "status"> {
@@ -137,6 +147,8 @@ const ExamManagementCenter: React.FC = () => {
   // 状态管理
   const [exams, setExams] = useState<Exam[]>([]);
   const [examTypes, setExamTypes] = useState<ExamType[]>([]);
+  const [academicTerms, setAcademicTerms] = useState<AcademicTerm[]>([]);
+  const [currentTerm, setCurrentTerm] = useState<AcademicTerm | null>(null);
   const [statistics, setStatistics] = useState<ExamStatistics>({
     total: 0,
     upcoming: 0,
@@ -157,11 +169,24 @@ const ExamManagementCenter: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [selectedTermId, setSelectedTermId] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
+
+  // 🆕 分页和性能优化
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
+  const [searchDebounce, setSearchDebounce] = useState("");
 
   // 对话框状态
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingExamId, setEditingExamId] = useState<string | null>(null);
+  const [isSubjectScoreDialogOpen, setIsSubjectScoreDialogOpen] =
+    useState(false);
+  const [selectedExamForScoreConfig, setSelectedExamForScoreConfig] =
+    useState<Exam | null>(null);
+  const [currentExamSubjectScores, setCurrentExamSubjectScores] = useState<
+    ExamSubjectScore[]
+  >([]);
   const [examForm, setExamForm] = useState<Partial<Exam>>({
     title: "",
     description: "",
@@ -202,6 +227,8 @@ const ExamManagementCenter: React.FC = () => {
     };
   };
 
+  // 使用 examService 中的 getExamParticipantCount 函数（已导入）
+
   // 数据库考试转换为UI考试
   const mapExam = (dbExam: DBExam): Exam => {
     return {
@@ -213,6 +240,7 @@ const ExamManagementCenter: React.FC = () => {
       updatedAt: dbExam.updated_at,
       classes: [], // 需要从其他表获取
       tags: [], // 需要从其他表获取
+      participantCount: 0, // 将在加载后异步更新
       typeInfo: examTypes.find((t) => t.name === dbExam.type),
     };
   };
@@ -255,12 +283,15 @@ const ExamManagementCenter: React.FC = () => {
       setIsLoading(true);
 
       try {
-        // 并行加载考试类型和考试数据
-        const [dbExamTypes, dbExams, overviewStats] = await Promise.all([
-          getExamTypes(),
-          getExams(),
-          getExamOverviewStatistics(),
-        ]);
+        // 并行加载考试类型、考试数据、学期数据
+        const [dbExamTypes, dbExams, overviewStats, terms, currentTermData] =
+          await Promise.all([
+            getExamTypes(),
+            getExams(),
+            getExamOverviewStatistics(),
+            getAcademicTerms(),
+            getCurrentAcademicTerm(),
+          ]);
 
         // 转换考试类型
         const mappedExamTypes = dbExamTypes.map(mapExamType);
@@ -268,7 +299,25 @@ const ExamManagementCenter: React.FC = () => {
 
         // 转换考试数据
         const mappedExams = dbExams.map(mapExam);
-        setExams(mappedExams);
+
+        // 异步加载参与人数
+        const examsWithParticipants = await Promise.all(
+          mappedExams.map(async (exam) => {
+            const participantCount = await getExamParticipantCount(exam.id);
+            return { ...exam, participantCount };
+          })
+        );
+
+        setExams(examsWithParticipants);
+
+        // 设置学期数据
+        setAcademicTerms(terms);
+        setCurrentTerm(currentTermData);
+
+        // 如果有当前学期，默认选择当前学期
+        if (currentTermData && selectedTermId === "all") {
+          setSelectedTermId(currentTermData.id);
+        }
 
         // 设置统计信息
         if (overviewStats) {
@@ -281,6 +330,8 @@ const ExamManagementCenter: React.FC = () => {
         // 设置默认值以避免崩溃
         setExamTypes([]);
         setExams([]);
+        setAcademicTerms([]);
+        setCurrentTerm(null);
         setStatistics({
           total: 0,
           upcoming: 0,
@@ -300,14 +351,31 @@ const ExamManagementCenter: React.FC = () => {
     loadData();
   }, []);
 
-  // 筛选后的考试列表
+  // 🆕 搜索防抖处理
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchDebounce(searchTerm);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // 🆕 搜索条件变化时重置页码
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchDebounce, statusFilter, typeFilter, selectedTermId]);
+
+  // 🔧 筛选后的考试列表（使用防抖搜索）
   const filteredExams = useMemo(() => {
-    return exams.filter((exam) => {
+    const filtered = exams.filter((exam) => {
       const matchesSearch =
-        exam.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        exam.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        !searchDebounce ||
+        exam.title.toLowerCase().includes(searchDebounce.toLowerCase()) ||
+        exam.description
+          ?.toLowerCase()
+          .includes(searchDebounce.toLowerCase()) ||
         exam.subjects.some((s) =>
-          s.toLowerCase().includes(searchTerm.toLowerCase())
+          s.toLowerCase().includes(searchDebounce.toLowerCase())
         );
 
       const matchesStatus =
@@ -316,7 +384,103 @@ const ExamManagementCenter: React.FC = () => {
 
       return matchesSearch && matchesStatus && matchesType;
     });
-  }, [exams, searchTerm, statusFilter, typeFilter]);
+
+    return filtered;
+  }, [exams, searchDebounce, statusFilter, typeFilter]);
+
+  // 🆕 分页计算
+  const totalExams = filteredExams.length;
+  const totalPages = Math.ceil(totalExams / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedExams = filteredExams.slice(startIndex, endIndex);
+
+  // 🆕 分页信息
+  const paginationInfo = {
+    current: currentPage,
+    total: totalPages,
+    pageSize: pageSize,
+    showingStart: startIndex + 1,
+    showingEnd: Math.min(endIndex, totalExams),
+    totalItems: totalExams,
+  };
+
+  // 处理学期筛选变化
+  const handleTermChange = async (termId: string) => {
+    setSelectedTermId(termId);
+    setIsLoading(true);
+
+    try {
+      const filteredExams = await getExamsByTerm(termId, {
+        searchTerm: searchTerm || undefined,
+        type: typeFilter !== "all" ? typeFilter : undefined,
+      });
+
+      const mappedExams = filteredExams.map(mapExam);
+      setExams(mappedExams);
+
+      toast.success(
+        `已切换到${termId === "all" ? "全部学期" : academicTerms.find((t) => t.id === termId)?.academic_year + " " + academicTerms.find((t) => t.id === termId)?.semester}`
+      );
+    } catch (error) {
+      console.error("筛选学期考试失败:", error);
+      toast.error("筛选考试失败");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 处理科目总分配置
+  const handleSubjectScoreConfig = async (exam: Exam) => {
+    setSelectedExamForScoreConfig(exam);
+    setIsLoading(true);
+
+    try {
+      // 加载现有的科目总分配置
+      const existingScores = await getExamSubjectScores(exam.id);
+      setCurrentExamSubjectScores(existingScores);
+      setIsSubjectScoreDialogOpen(true);
+    } catch (error) {
+      console.error("加载科目总分配置失败:", error);
+      toast.error("加载科目总分配置失败");
+      // 即使加载失败，也打开对话框使用默认配置
+      setCurrentExamSubjectScores([]);
+      setIsSubjectScoreDialogOpen(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 保存科目总分配置
+  const handleSaveSubjectScores = async (
+    scores: ExamSubjectScore[]
+  ): Promise<boolean> => {
+    if (!selectedExamForScoreConfig) return false;
+
+    const scoresWithoutId = scores.map((score) => ({
+      exam_id: score.exam_id,
+      subject_code: score.subject_code,
+      subject_name: score.subject_name,
+      total_score: score.total_score,
+      passing_score: score.passing_score,
+      excellent_score: score.excellent_score,
+      is_required: score.is_required,
+      weight: score.weight,
+    }));
+
+    const success = await saveExamSubjectScores(
+      selectedExamForScoreConfig.id,
+      scoresWithoutId
+    );
+
+    if (success) {
+      // 保存成功后更新当前状态
+      setCurrentExamSubjectScores(scores);
+      toast.success("科目总分配置已更新，相关分析将使用新的配置");
+    }
+
+    return success;
+  };
 
   // 状态样式映射
   const getStatusBadge = (status: string) => {
@@ -366,30 +530,30 @@ const ExamManagementCenter: React.FC = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <Card className="overflow-hidden border border-gray-200 bg-white hover:shadow-lg transition-all duration-300 rounded-xl group">
+      <Card className="overflow-hidden border-2 border-black bg-white shadow-[4px_4px_0px_0px_#000] hover:shadow-[6px_6px_0px_0px_#000] transition-all duration-300 rounded-lg group">
         <CardContent className="p-6">
           <div className="flex justify-between items-start">
             <div className="flex-1">
-              <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
+              <p className="text-sm font-bold text-black mb-1">{title}</p>
               <div className="flex items-baseline gap-2 mb-2">
-                <p className="text-3xl font-bold text-gray-800">
+                <p className="text-3xl font-bold text-black">
                   {typeof value === "number" ? formatNumber(value) : value}
                 </p>
                 {change !== undefined && (
                   <div className="flex items-center">
                     {trend === "up" && (
-                      <ArrowUpRight className="h-4 w-4 text-green-500" />
+                      <ArrowUpRight className="h-4 w-4 text-black" />
                     )}
                     {trend === "down" && (
-                      <ArrowDownRight className="h-4 w-4 text-red-500" />
+                      <ArrowDownRight className="h-4 w-4 text-black" />
                     )}
                     <span
-                      className={`text-xs font-medium ml-1 ${
+                      className={`text-xs font-bold ml-1 ${
                         trend === "up"
                           ? "text-green-600"
                           : trend === "down"
                             ? "text-red-600"
-                            : "text-gray-500"
+                            : "text-black"
                       }`}
                     >
                       {change > 0 ? "+" : ""}
@@ -398,15 +562,15 @@ const ExamManagementCenter: React.FC = () => {
                   </div>
                 )}
               </div>
-              <div className="text-xs text-gray-500">
+              <div className="text-xs font-medium text-black">
                 较上期{" "}
                 {trend === "up" ? "提升" : trend === "down" ? "下降" : "持平"}
               </div>
             </div>
             <div
-              className={`p-3 rounded-full bg-gray-50 group-hover:bg-gray-100 transition-colors duration-300`}
+              className={`p-3 rounded-lg bg-[#B9FF66] border-2 border-black transition-colors duration-300`}
             >
-              <Icon className={`h-6 w-6 ${color}`} />
+              <Icon className={`h-6 w-6 text-black`} />
             </div>
           </div>
         </CardContent>
@@ -789,6 +953,9 @@ const ExamManagementCenter: React.FC = () => {
       case "advanced-analysis":
         handleAnalysisNavigation(exam, "advanced");
         break;
+      case "subject-score-config":
+        handleSubjectScoreConfig(exam);
+        break;
     }
   };
 
@@ -963,59 +1130,63 @@ const ExamManagementCenter: React.FC = () => {
             {/* 仪表盘标签页 */}
             <TabsContent value="dashboard" className="space-y-6 mt-6">
               {/* 快速操作面板 */}
-              <Card className="border border-gray-200 bg-white hover:shadow-lg transition-all duration-300 rounded-xl">
+              <Card className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_#000] hover:shadow-[6px_6px_0px_0px_#000] transition-all duration-300 rounded-lg">
                 <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Zap className="h-5 w-5 text-[#B9FF66]" />
+                  <CardTitle className="flex items-center gap-2 text-lg font-bold text-black">
+                    <Zap className="h-5 w-5 text-black" />
                     快速操作
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     <Button
-                      className="flex flex-col items-center gap-2 h-auto py-4 bg-[#B9FF66] text-black hover:bg-[#A3E85A] transition-all duration-200"
+                      className="flex flex-col items-center gap-2 h-auto py-4 bg-[#B9FF66] text-black border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:bg-[#A3E85A] hover:shadow-[3px_3px_0px_0px_#000] transition-all duration-200 font-bold"
                       onClick={() => setIsCreateDialogOpen(true)}
                     >
                       <Plus className="h-5 w-5" />
-                      <span className="text-sm font-medium">创建考试</span>
+                      <span className="text-sm font-bold">创建考试</span>
                     </Button>
                     <Button
                       variant="outline"
-                      className="flex flex-col items-center gap-2 h-auto py-4 hover:shadow-md transition-all duration-200"
+                      className="flex flex-col items-center gap-2 h-auto py-4 border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#000] transition-all duration-200 font-bold"
                       onClick={() => handleBatchAction("export")}
                     >
                       <Download className="h-5 w-5" />
-                      <span className="text-sm font-medium">导出数据</span>
+                      <span className="text-sm font-bold">导出数据</span>
                     </Button>
                     <Button
                       variant="outline"
-                      className="flex flex-col items-center gap-2 h-auto py-4 hover:shadow-md transition-all duration-200"
+                      className="flex flex-col items-center gap-2 h-auto py-4 border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#000] transition-all duration-200 font-bold"
                       onClick={() => setActiveTab("analytics")}
                     >
                       <BarChart3 className="h-5 w-5" />
-                      <span className="text-sm font-medium">数据分析</span>
+                      <span className="text-sm font-bold">数据分析</span>
                     </Button>
                     <Button
                       variant="outline"
-                      className="flex flex-col items-center gap-2 h-auto py-4 hover:shadow-md transition-all duration-200"
+                      className="flex flex-col items-center gap-2 h-auto py-4 border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#000] transition-all duration-200 font-bold"
                       onClick={() => setActiveTab("settings")}
                     >
                       <Settings className="h-5 w-5" />
-                      <span className="text-sm font-medium">考试设置</span>
+                      <span className="text-sm font-bold">考试设置</span>
                     </Button>
                   </div>
                 </CardContent>
               </Card>
 
               {/* 最近考试 */}
-              <Card className="border border-gray-200 bg-white hover:shadow-lg transition-all duration-300 rounded-xl">
+              <Card className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_#000] hover:shadow-[6px_6px_0px_0px_#000] transition-all duration-300 rounded-lg">
                 <CardHeader className="pb-4">
                   <CardTitle className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <BookOpen className="h-5 w-5 text-[#B9FF66]" />
-                      最近考试
+                      <BookOpen className="h-5 w-5 text-black" />
+                      <span className="font-bold text-black">最近考试</span>
                     </div>
-                    <Button variant="outline" size="sm" className="gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1 border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#000] font-bold"
+                    >
                       <Eye className="h-4 w-4" />
                       查看全部
                     </Button>
@@ -1059,29 +1230,37 @@ const ExamManagementCenter: React.FC = () => {
             {/* 考试列表标签页 */}
             <TabsContent value="list" className="space-y-6 mt-6">
               {/* 搜索和筛选 */}
-              <Card className="border border-gray-200 bg-white rounded-xl">
+              <Card className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_#000] rounded-lg">
                 <CardContent className="p-6">
                   <div className="flex flex-col lg:flex-row gap-4">
                     <div className="flex-1">
                       <div className="relative">
-                        <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                        <Search className="absolute left-3 top-3 h-4 w-4 text-black" />
                         <Input
                           placeholder="搜索考试标题、描述或科目..."
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
-                          className="pl-10 border-gray-200 focus:border-[#B9FF66] focus:ring-[#B9FF66]"
+                          className="pl-10 border-2 border-black focus:border-black focus:ring-0 shadow-[2px_2px_0px_0px_#000] font-medium"
                         />
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
+                      {/* 学期筛选 */}
+                      <SemesterFilter
+                        academicTerms={academicTerms}
+                        selectedTermId={selectedTermId}
+                        onTermChange={handleTermChange}
+                        className="min-w-fit"
+                      />
+
                       <Select
                         value={statusFilter}
                         onValueChange={setStatusFilter}
                       >
-                        <SelectTrigger className="w-32 border-gray-200">
+                        <SelectTrigger className="w-32 border-2 border-black shadow-[2px_2px_0px_0px_#000] font-bold">
                           <SelectValue placeholder="状态" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="border-2 border-black">
                           <SelectItem value="all">全部状态</SelectItem>
                           <SelectItem value="draft">草稿</SelectItem>
                           <SelectItem value="scheduled">已安排</SelectItem>
@@ -1091,10 +1270,10 @@ const ExamManagementCenter: React.FC = () => {
                       </Select>
 
                       <Select value={typeFilter} onValueChange={setTypeFilter}>
-                        <SelectTrigger className="w-32 border-gray-200">
+                        <SelectTrigger className="w-32 border-2 border-black shadow-[2px_2px_0px_0px_#000] font-bold">
                           <SelectValue placeholder="类型" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="border-2 border-black">
                           <SelectItem value="all">全部类型</SelectItem>
                           {examTypes.map((type) => (
                             <SelectItem key={type.id} value={type.name}>
@@ -1107,7 +1286,7 @@ const ExamManagementCenter: React.FC = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="gap-1 hover:shadow-md transition-all duration-200"
+                        className="gap-1 border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#000] transition-all duration-200 font-bold"
                       >
                         <RefreshCw className="h-4 w-4" />
                         刷新
@@ -1153,7 +1332,7 @@ const ExamManagementCenter: React.FC = () => {
                       </CardContent>
                     </Card>
                   ) : (
-                    filteredExams.map((exam, index) => (
+                    paginatedExams.map((exam, index) => (
                       <motion.div
                         key={exam.id}
                         initial={{ opacity: 0, y: 20 }}
@@ -1162,10 +1341,10 @@ const ExamManagementCenter: React.FC = () => {
                         transition={{ duration: 0.3, delay: index * 0.05 }}
                       >
                         <Card
-                          className={`border-2 transition-all duration-300 rounded-xl group ${
+                          className={`border-2 border-black transition-all duration-300 rounded-lg group ${
                             selectedExams.includes(exam.id)
-                              ? "border-[#B9FF66] bg-[#B9FF66]/5 shadow-lg"
-                              : "border-gray-200 bg-white hover:shadow-lg hover:border-gray-300"
+                              ? "bg-[#B9FF66] shadow-[6px_6px_0px_0px_#000]"
+                              : "bg-white shadow-[4px_4px_0px_0px_#000] hover:shadow-[6px_6px_0px_0px_#000]"
                           }`}
                         >
                           <CardContent className="p-6">
@@ -1294,7 +1473,7 @@ const ExamManagementCenter: React.FC = () => {
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="gap-1 hover:shadow-md transition-all duration-200 hover:border-[#B9FF66] hover:text-[#B9FF66]"
+                                    className="gap-1 border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#000] hover:bg-[#B9FF66] transition-all duration-200 font-bold"
                                     onClick={() =>
                                       handleQuickAction(exam, "basic-analysis")
                                     }
@@ -1305,7 +1484,7 @@ const ExamManagementCenter: React.FC = () => {
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="gap-1 hover:shadow-md transition-all duration-200 hover:border-[#B9FF66] hover:text-[#B9FF66]"
+                                    className="gap-1 border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#000] hover:bg-[#B9FF66] transition-all duration-200 font-bold"
                                     onClick={() =>
                                       handleQuickAction(
                                         exam,
@@ -1370,6 +1549,17 @@ const ExamManagementCenter: React.FC = () => {
                                       <Copy className="h-4 w-4 mr-2" />
                                       复制考试
                                     </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        handleQuickAction(
+                                          exam,
+                                          "subject-score-config"
+                                        )
+                                      }
+                                    >
+                                      <Settings className="h-4 w-4 mr-2" />
+                                      科目总分设置
+                                    </DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem
                                       onClick={() => {
@@ -1397,6 +1587,120 @@ const ExamManagementCenter: React.FC = () => {
                   )}
                 </AnimatePresence>
               </div>
+
+              {/* 🆕 分页控件 */}
+              {filteredExams.length > 0 && (
+                <Card className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_#000] rounded-lg">
+                  <CardContent className="p-4">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                      {/* 显示信息 */}
+                      <div className="flex items-center gap-4 text-sm text-gray-600">
+                        <span className="font-medium">
+                          显示 {paginationInfo.showingStart} -{" "}
+                          {paginationInfo.showingEnd} 项， 共{" "}
+                          {paginationInfo.totalItems} 项
+                        </span>
+                        <Select
+                          value={pageSize.toString()}
+                          onValueChange={(value) => {
+                            setPageSize(Number(value));
+                            setCurrentPage(1);
+                          }}
+                        >
+                          <SelectTrigger className="w-20 h-8 border border-gray-300 rounded text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="6">6</SelectItem>
+                            <SelectItem value="12">12</SelectItem>
+                            <SelectItem value="24">24</SelectItem>
+                            <SelectItem value="48">48</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <span className="text-xs text-gray-500">条/页</span>
+                      </div>
+
+                      {/* 分页按钮 */}
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={currentPage === 1}
+                          onClick={() => setCurrentPage(1)}
+                          className="h-8 px-3 border-2 border-black font-bold hover:shadow-[2px_2px_0px_0px_#000] disabled:opacity-50"
+                        >
+                          首页
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={currentPage === 1}
+                          onClick={() => setCurrentPage(currentPage - 1)}
+                          className="h-8 px-3 border-2 border-black font-bold hover:shadow-[2px_2px_0px_0px_#000] disabled:opacity-50"
+                        >
+                          上一页
+                        </Button>
+
+                        {/* 页码显示 */}
+                        <div className="flex items-center gap-1">
+                          {Array.from(
+                            { length: Math.min(5, totalPages) },
+                            (_, i) => {
+                              let page;
+                              if (totalPages <= 5) {
+                                page = i + 1;
+                              } else if (currentPage <= 3) {
+                                page = i + 1;
+                              } else if (currentPage >= totalPages - 2) {
+                                page = totalPages - 4 + i;
+                              } else {
+                                page = currentPage - 2 + i;
+                              }
+
+                              return (
+                                <Button
+                                  key={page}
+                                  variant={
+                                    currentPage === page ? "default" : "outline"
+                                  }
+                                  size="sm"
+                                  onClick={() => setCurrentPage(page)}
+                                  className={`h-8 w-8 p-0 text-xs font-bold ${
+                                    currentPage === page
+                                      ? "bg-[#B9FF66] text-black border-2 border-black shadow-[2px_2px_0px_0px_#000]"
+                                      : "border border-gray-300 hover:shadow-[2px_2px_0px_0px_#000]"
+                                  }`}
+                                >
+                                  {page}
+                                </Button>
+                              );
+                            }
+                          )}
+                        </div>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={currentPage === totalPages}
+                          onClick={() => setCurrentPage(currentPage + 1)}
+                          className="h-8 px-3 border-2 border-black font-bold hover:shadow-[2px_2px_0px_0px_#000] disabled:opacity-50"
+                        >
+                          下一页
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={currentPage === totalPages}
+                          onClick={() => setCurrentPage(totalPages)}
+                          className="h-8 px-3 border-2 border-black font-bold hover:shadow-[2px_2px_0px_0px_#000] disabled:opacity-50"
+                        >
+                          末页
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
 
             {/* 数据分析标签页 */}
@@ -2142,6 +2446,18 @@ const ExamManagementCenter: React.FC = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* 科目总分设置对话框 */}
+        {selectedExamForScoreConfig && (
+          <ExamSubjectScoreDialog
+            open={isSubjectScoreDialogOpen}
+            onOpenChange={setIsSubjectScoreDialogOpen}
+            examId={selectedExamForScoreConfig.id}
+            examTitle={selectedExamForScoreConfig.title}
+            onSave={handleSaveSubjectScores}
+            initialScores={currentExamSubjectScores}
+          />
+        )}
       </div>
     </div>
   );

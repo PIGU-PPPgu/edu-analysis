@@ -1,4 +1,4 @@
-import React, { useMemo, memo } from "react";
+import React, { useMemo, memo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -358,6 +358,10 @@ const EnhancedSubjectCorrelationMatrix: React.FC<
   showHeatMap = true,
   filterSignificance = "all",
 }) => {
+  // 🆕 分页状态管理
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize] = useState(6); // 每页显示6个相关性分析结果
+
   const correlations = useMemo(
     () => calculateWideTableCorrelationMatrix(gradeData),
     [gradeData]
@@ -373,6 +377,18 @@ const EnhancedSubjectCorrelationMatrix: React.FC<
         return correlations;
     }
   }, [correlations, filterSignificance]);
+
+  // 🆕 分页数据计算
+  const totalPages = Math.ceil(filteredCorrelations.length / pageSize);
+  const paginatedCorrelations = useMemo(() => {
+    const startIndex = currentPage * pageSize;
+    return filteredCorrelations.slice(startIndex, startIndex + pageSize);
+  }, [filteredCorrelations, currentPage, pageSize]);
+
+  // 🆕 重置页面当筛选条件变化时
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [filterSignificance]);
 
   const availableSubjects = useMemo(() => {
     const subjectSet = new Set<string>();
@@ -486,6 +502,7 @@ const EnhancedSubjectCorrelationMatrix: React.FC<
                   分析 {availableSubjects.length} 个科目 |{" "}
                   {filteredCorrelations.length} 个科目对 | 平均相关性{" "}
                   {averageCorrelation.toFixed(3)}
+                  {totalPages > 1 && ` | 第${currentPage + 1}/${totalPages}页`}
                 </p>
               </div>
             </div>
@@ -575,7 +592,44 @@ const EnhancedSubjectCorrelationMatrix: React.FC<
         </CardHeader>
         <CardContent className="p-6">
           <div className="space-y-4">
-            {filteredCorrelations.length === 0 ? (
+            {/* 🆕 分页控制区域 */}
+            {totalPages > 1 && (
+              <div className="flex justify-between items-center p-4 bg-[#B9FF66]/20 border-2 border-[#B9FF66] rounded-lg">
+                <div>
+                  <p className="text-sm font-bold text-[#191A23]">
+                    显示 {currentPage * pageSize + 1} -{" "}
+                    {Math.min(
+                      (currentPage + 1) * pageSize,
+                      filteredCorrelations.length
+                    )}{" "}
+                    / {filteredCorrelations.length} 个科目对
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+                    disabled={currentPage === 0}
+                    className="px-3 py-1 h-8 bg-white border-2 border-black text-[#191A23] font-bold shadow-[2px_2px_0px_0px_#191A23] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_0px_#191A23] disabled:opacity-50 disabled:transform-none disabled:shadow-[2px_2px_0px_0px_#191A23]"
+                  >
+                    上一页
+                  </Button>
+                  <span className="text-sm font-bold text-[#191A23] min-w-[4rem] text-center">
+                    {currentPage + 1} / {totalPages}
+                  </span>
+                  <Button
+                    onClick={() =>
+                      setCurrentPage(Math.min(totalPages - 1, currentPage + 1))
+                    }
+                    disabled={currentPage >= totalPages - 1}
+                    className="px-3 py-1 h-8 bg-white border-2 border-black text-[#191A23] font-bold shadow-[2px_2px_0px_0px_#191A23] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_0px_#191A23] disabled:opacity-50 disabled:transform-none disabled:shadow-[2px_2px_0px_0px_#191A23]"
+                  >
+                    下一页
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {paginatedCorrelations.length === 0 ? (
               <div className="text-center py-12">
                 <div className="p-4 bg-[#6B7280] rounded-full border-2 border-black mx-auto mb-6 w-fit">
                   <Filter className="h-12 w-12 text-white" />
@@ -588,7 +642,7 @@ const EnhancedSubjectCorrelationMatrix: React.FC<
                 </p>
               </div>
             ) : (
-              filteredCorrelations.map((corr, index) => {
+              paginatedCorrelations.map((corr, index) => {
                 const style = getCorrelationStyle(
                   corr.correlation,
                   corr.significance
