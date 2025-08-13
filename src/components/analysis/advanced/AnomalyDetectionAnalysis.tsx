@@ -717,7 +717,7 @@ const AnomalyDetectionAnalysis: React.FC<AnomalyDetectionAnalysisProps> = ({
     if (examDate) queryParams.set("date", examDate);
     queryParams.set("from", "anomaly-detection"); // 标记来源
 
-    // 跳转到预警分析页面
+    // 跳转到预警分析页面，筛选器将自动配置为专注当前考试
     window.location.href = `/warning-analysis?${queryParams.toString()}`;
   };
 

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>预警分析测试页面</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-card {
+            background: white;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 8px;
+            border-left: 4px solid #B9FF66;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .test-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #191A23;
+            margin-bottom: 10px;
+        }
+        .test-desc {
+            color: #666;
+            margin-bottom: 15px;
+        }
+        .test-button {
+            background: #B9FF66;
+            color: #191A23;
+            border: 2px solid #191A23;
+            padding: 10px 20px;
+            text-decoration: none;
+            font-weight: bold;
+            border-radius: 6px;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 4px 4px 0px 0px #191A23;
+        }
+        .success { border-left-color: #4CAF50; }
+        .warning { border-left-color: #FF9800; }
+        .info { border-left-color: #2196F3; }
+    </style>
+</head>
+<body>
+    <h1>🔍 预警分析系统测试页面</h1>
+    <p>测试双模式预警分析系统的功能和集成效果</p>
+
+    <div class="test-card success">
+        <div class="test-title">✅ 1. 整体预警分析模式</div>
+        <div class="test-desc">测试默认的整体预警分析界面，包含完整筛选面板和数据分析功能</div>
+        <a href="http://localhost:3003/warning-analysis" class="test-button" target="_blank">
+            打开整体分析
+        </a>
+    </div>
+
+    <div class="test-card warning">
+        <div class="test-title">⚠️ 2. 考试级预警分析模式</div>
+        <div class="test-desc">测试从异常检测跳转的考试级预警分析，带有考试筛选参数</div>
+        <a href="http://localhost:3003/warning-analysis?exam=期中考试&date=2024-01-15&from=anomaly-detection" class="test-button" target="_blank">
+            模拟异常检测跳转
+        </a>
+    </div>
+
+    <div class="test-card info">
+        <div class="test-title">🔄 3. 模式切换测试</div>
+        <div class="test-desc">测试双模式之间的切换，验证状态同步和用户体验</div>
+        <a href="http://localhost:3003/warning-analysis?from=anomaly-detection" class="test-button" target="_blank">
+            测试模式切换
+        </a>
+    </div>
+
+    <div class="test-card info">
+        <div class="test-title">🎯 4. 数据加载测试</div>
+        <div class="test-desc">测试WarningStatistics接口数据加载和显示效果</div>
+        <a href="http://localhost:3003/warning-analysis" class="test-button" target="_blank">
+            测试数据加载
+        </a>
+    </div>
+
+    <hr style="margin: 30px 0;">
+
+    <h2>📋 测试检查清单</h2>
+    <div class="test-card">
+        <div class="test-title">预期功能验证</div>
+        <ul style="line-height: 1.8;">
+            <li>✅ 页面加载正常，无JavaScript错误</li>
+            <li>✅ 双模式切换按钮工作正常</li>
+            <li>✅ Tab切换与模式切换保持同步</li>
+            <li>✅ 从异常检测跳转时自动切换到考试级分析</li>
+            <li>✅ 整体分析模式显示筛选面板</li>
+            <li>✅ 考试级分析模式显示上下文信息</li>
+            <li>✅ WarningStatistics数据正确加载和显示</li>
+            <li>✅ 各个组件(WarningDashboard, WarningList, WarningRules, ExamWarningAnalysis)正常工作</li>
+        </ul>
+    </div>
+
+    <script>
+        // 简单的页面状态检测
+        console.log('预警分析测试页面已加载');
+        console.log('当前时间:', new Date().toLocaleString());
+        console.log('开发服务器地址: http://localhost:3003');
+        
+        // 检查开发服务器连接
+        fetch('http://localhost:3003')
+            .then(response => {
+                console.log('✅ 开发服务器连接正常');
+            })
+            .catch(error => {
+                console.error('❌ 开发服务器连接失败:', error);
+            });
+    </script>
+</body>
+</html>

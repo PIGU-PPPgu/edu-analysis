@@ -1,44 +1,24 @@
-import React, { useEffect, useRef } from "react";
-import { Metadata } from "next";
-import WarningAnalysis from "@/components/warning/WarningAnalysis";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-} from "@/components/ui/breadcrumb";
-import { HomeIcon } from "lucide-react";
+/**
+ * 预警分析页面 - 重定向到新的预警分析系统
+ * 这个文件现在重定向到新的预警分析页面
+ */
 
-export const metadata: Metadata = {
-  title: "学生预警分析系统",
-  description: "全面的学生预警分析工具，集成多种预警算法和AI辅助分析",
-};
+import { useEffect } from "react";
 
 export default function WarningAnalysisPage() {
-  // 添加组件挂载状态ref
-  const isMountedRef = useRef(true);
-
-  // 组件卸载时清理
   useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-    };
+    // 重定向到预警分析页面
+    window.location.replace("/warning-analysis");
   }, []);
 
   return (
-    <div className="container mx-auto py-8 px-4 space-y-6">
-      <Breadcrumb>
-        <BreadcrumbItem>
-          <BreadcrumbLink href="/">
-            <HomeIcon className="h-4 w-4 mr-1" />
-            首页
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbItem>
-          <BreadcrumbLink href="#">预警分析</BreadcrumbLink>
-        </BreadcrumbItem>
-      </Breadcrumb>
-
-      <WarningAnalysis />
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#B9FF66] mx-auto mb-4"></div>
+        <p className="text-lg font-medium text-[#191A23]">
+          正在跳转到预警分析系统...
+        </p>
+      </div>
     </div>
   );
 }

@@ -48,6 +48,7 @@ import {
   Filter,
   Search,
   Wand2,
+  Brain,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -61,6 +62,10 @@ import {
   RuleFilter,
   RuleTemplate,
 } from "@/services/warningService";
+import RuleBuilder from "./RuleBuilder/RuleBuilder";
+import { ExportedRule } from "./RuleBuilder/types";
+import SimpleRuleBuilder from "./SimpleRuleBuilder/SimpleRuleBuilder";
+import { SimpleExportedRule } from "./SimpleRuleBuilder/types";
 
 interface WarningRulesProps {
   simplified?: boolean;
@@ -81,6 +86,10 @@ const WarningRules: React.FC<WarningRulesProps> = ({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedRule, setSelectedRule] = useState<WarningRule | null>(null);
+
+  // 智能规则构建器状态
+  const [showRuleBuilder, setShowRuleBuilder] = useState(false);
+  const [showSimpleBuilder, setShowSimpleBuilder] = useState(false);
 
   // 筛选状态
   const [filter, setFilter] = useState<RuleFilter>({});
@@ -268,6 +277,40 @@ const WarningRules: React.FC<WarningRulesProps> = ({
     resetForm();
     setIsEditMode(false);
     setIsDialogOpen(true);
+  };
+
+  // 处理智能构建器保存
+  const handleRuleBuilderSave = async (rule: ExportedRule) => {
+    try {
+      // 规则已经在RuleBuilder内部保存，这里只需要刷新列表和关闭构建器
+      await fetchRules();
+      setShowRuleBuilder(false);
+      toast.success("智能规则创建成功");
+    } catch (error) {
+      console.error("刷新规则列表失败:", error);
+    }
+  };
+
+  // 处理简化构建器保存
+  const handleSimpleBuilderSave = async (rule: SimpleExportedRule) => {
+    try {
+      // 规则已经在SimpleRuleBuilder内部保存，这里只需要刷新列表和关闭构建器
+      await fetchRules();
+      setShowSimpleBuilder(false);
+      toast.success("预警规则创建成功");
+    } catch (error) {
+      console.error("刷新规则列表失败:", error);
+    }
+  };
+
+  // 打开智能构建器
+  const handleOpenRuleBuilder = () => {
+    setShowRuleBuilder(true);
+  };
+
+  // 打开简化构建器
+  const handleOpenSimpleBuilder = () => {
+    setShowSimpleBuilder(true);
   };
 
   // 从模板创建规则
@@ -557,9 +600,25 @@ const WarningRules: React.FC<WarningRulesProps> = ({
               <Wand2 className="h-4 w-4 mr-1" />
               模板
             </Button>
-            <Button onClick={handleCreateRule}>
+            <Button
+              onClick={handleOpenSimpleBuilder}
+              className="bg-[#B9FF66] text-black border-2 border-black font-bold shadow-[2px_2px_0px_0px_#000] hover:shadow-[4px_4px_0px_0px_#000]"
+            >
               <Plus className="h-4 w-4 mr-1" />
-              新增规则
+              创建规则
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleOpenRuleBuilder}
+              className="border-2 border-gray-300 bg-white text-gray-600 font-bold"
+            >
+              <Brain className="h-4 w-4 mr-1" />
+              高级构建
+            </Button>
+            <Button variant="outline" onClick={handleCreateRule}>
+              <Plus className="h-4 w-4 mr-1" />
+              手动创建
             </Button>
           </div>
         </div>
@@ -964,6 +1023,39 @@ const WarningRules: React.FC<WarningRulesProps> = ({
               取消
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 简化版规则构建器对话框 */}
+      <Dialog open={showSimpleBuilder} onOpenChange={setShowSimpleBuilder}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-gray-50">
+          <div className="overflow-y-auto max-h-[95vh]">
+            <SimpleRuleBuilder
+              onSave={handleSimpleBuilderSave}
+              onCancel={() => setShowSimpleBuilder(false)}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 高级规则构建器对话框 */}
+      <Dialog open={showRuleBuilder} onOpenChange={setShowRuleBuilder}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-gray-50">
+          <DialogHeader className="p-6 border-b bg-white">
+            <DialogTitle className="text-xl font-bold text-[#191A23] flex items-center gap-2">
+              <Brain className="h-6 w-6 text-[#9C88FF]" />
+              高级预警规则构建器
+            </DialogTitle>
+            <DialogDescription>
+              通过可视化拖拽方式构建复杂的预警规则，支持多条件组合和实时预览
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-6 overflow-y-auto max-h-[calc(95vh-120px)]">
+            <RuleBuilder
+              onSave={handleRuleBuilderSave}
+              onCancel={() => setShowRuleBuilder(false)}
+            />
+          </div>
         </DialogContent>
       </Dialog>
     </Card>

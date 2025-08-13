@@ -64,6 +64,7 @@ import {
   PenTool,
   Layers,
   Settings,
+  Shield,
   Settings2,
   PieChart,
   Brain,
@@ -875,6 +876,17 @@ const ExamManagementCenter: React.FC = () => {
           console.error("复制考试失败:", error);
         }
         break;
+
+      case "warning-analysis":
+        // 跳转到预警分析，带上考试筛选条件
+        const queryParams = new URLSearchParams();
+        queryParams.set("exam", exam.title);
+        if (exam.date) queryParams.set("date", exam.date);
+        queryParams.set("from", "exam-management");
+
+        window.location.href = `/warning-analysis?${queryParams.toString()}`;
+        toast.info(`正在跳转到预警分析，筛选条件: ${exam.title}`);
+        break;
       case "delete":
         try {
           const success = await deleteExam(exam.id);
@@ -1559,6 +1571,18 @@ const ExamManagementCenter: React.FC = () => {
                                     >
                                       <Settings className="h-4 w-4 mr-2" />
                                       科目总分设置
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        handleQuickAction(
+                                          exam,
+                                          "warning-analysis"
+                                        )
+                                      }
+                                      className="text-[#9C88FF] focus:text-[#9C88FF] focus:bg-[#9C88FF]/10"
+                                    >
+                                      <Shield className="h-4 w-4 mr-2" />
+                                      前往预警分析
                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem
