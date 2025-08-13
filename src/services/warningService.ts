@@ -318,144 +318,235 @@ export async function getWarningStatistics(
   filter?: WarningFilter
 ): Promise<WarningStatistics> {
   return warningAnalysisCache.getWarningStats(async () => {
-    console.log("[WarningService] 获取预警统计数据...");
-
     try {
-      const [
-        studentsWithWarnings,
-        pendingIssues,
-        activeRules,
-        recentIssuesData,
-      ] = await Promise.all([
-        getStudentsWithWarnings(filter),
-        getPendingIssues(filter),
-        getActiveRules(),
-        getRecentIssues(),
-      ]);
+      // 获取带有完整关联数据的预警记录
+      const [studentsWithWarnings, activeRules, recentIssuesData] =
+        await Promise.all([
+          getStudentsWithWarnings(filter),
+          getActiveRules(),
+          getRecentIssues(),
+        ]);
+
+      // 获取详细的预警问题数据（包含规则和学生信息）
+      let statusFilter = ["active", "resolved", "dismissed"];
+      if (filter?.warningStatus && filter.warningStatus.length > 0) {
+        statusFilter = filter.warningStatus;
+      }
+
+      let query = supabase
+        .from("warning_records")
+        .select(
+          `
+          *,
+          warning_rules(name, severity, category, scope),
+          students(class_name)
+        `
+        )
+        .in("status", statusFilter)
+        .order("created_at", { ascending: false });
+
+      // 应用时间范围筛选
+      if (filter?.timeRange && filter.timeRange !== "semester") {
+        const now = new Date();
+        let startDate: Date;
+
+        switch (filter.timeRange) {
+          case "month":
+            startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            break;
+          case "quarter":
+            startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+            break;
+          case "year":
+            startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+            break;
+          case "custom":
+            if (filter.startDate) {
+              startDate = new Date(filter.startDate);
+              query = query.gte("created_at", startDate.toISOString());
+            }
+            if (filter.endDate) {
+              const endDate = new Date(filter.endDate);
+              query = query.lte("created_at", endDate.toISOString());
+            }
+            break;
+          default:
+            startDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+        }
+
+        if (filter.timeRange !== "custom" && startDate) {
+          query = query.gte("created_at", startDate.toISOString());
+        }
+      }
+
+      const { data: pendingIssues, error } = await query;
+
+      if (error) {
+        console.error("获取预警记录失败:", error);
+        throw error;
+      }
 
       const totalStudents = await getTotalStudents();
       const studentAtRisk = studentsWithWarnings.length;
       const atRiskRate =
         totalStudents > 0 ? (studentAtRisk / totalStudents) * 100 : 0;
 
-      // 生成类型分布数据
+      // 计算真实的类型分布数据
+      const categoryStats = (pendingIssues || []).reduce((acc, issue) => {
+        // 从规则中获取分类信息
+        let category = "other";
+        if (issue.warning_rules?.category) {
+          category = issue.warning_rules.category;
+        }
+
+        acc[category] = (acc[category] || 0) + 1;
+        return acc;
+      }, {});
+
+      const totalIssues = (pendingIssues || []).length || 1;
       const warningsByType = [
         {
           type: "学业预警",
-          count: Math.floor(pendingIssues.length * 0.4),
-          percentage: 40,
-          trend: "up",
+          count: categoryStats.grade || 0,
+          percentage: Math.round(
+            ((categoryStats.grade || 0) / totalIssues) * 100
+          ),
+          trend: "up", // 可以后续实现趋势计算
         },
         {
           type: "行为预警",
-          count: Math.floor(pendingIssues.length * 0.25),
-          percentage: 25,
+          count: categoryStats.behavior || 0,
+          percentage: Math.round(
+            ((categoryStats.behavior || 0) / totalIssues) * 100
+          ),
           trend: "down",
         },
         {
           type: "出勤预警",
-          count: Math.floor(pendingIssues.length * 0.2),
-          percentage: 20,
+          count: categoryStats.attendance || 0,
+          percentage: Math.round(
+            ((categoryStats.attendance || 0) / totalIssues) * 100
+          ),
           trend: "unchanged",
         },
         {
           type: "作业预警",
-          count: Math.floor(pendingIssues.length * 0.15),
-          percentage: 15,
+          count: categoryStats.homework || 0,
+          percentage: Math.round(
+            ((categoryStats.homework || 0) / totalIssues) * 100
+          ),
           trend: "up",
         },
       ];
 
-      // 生成班级风险分布（模拟数据）
-      const riskByClass = [
-        {
-          class: "高三1班",
-          count: Math.floor(studentAtRisk * 0.2),
-          percentage: 20,
-        },
-        {
-          class: "高三2班",
-          count: Math.floor(studentAtRisk * 0.18),
-          percentage: 18,
-        },
-        {
-          class: "高三3班",
-          count: Math.floor(studentAtRisk * 0.15),
-          percentage: 15,
-        },
-        {
-          class: "高三4班",
-          count: Math.floor(studentAtRisk * 0.12),
-          percentage: 12,
-        },
-        {
-          class: "其他班级",
-          count: Math.floor(studentAtRisk * 0.35),
-          percentage: 35,
-        },
-      ];
+      // 从已获取的预警记录中计算班级分布
+      const classStats = (pendingIssues || []).reduce((acc, issue) => {
+        const className = issue.students?.class_name || "未知班级";
+        acc[className] = (acc[className] || 0) + 1;
+        return acc;
+      }, {});
 
-      // 生成常见风险因素
-      const commonRiskFactors = [
-        {
-          factor: "缺勤率高",
-          count: Math.floor(studentAtRisk * 0.6),
-          percentage: 60,
-          trend: "up",
-        },
-        {
-          factor: "作业完成率低",
-          count: Math.floor(studentAtRisk * 0.5),
-          percentage: 50,
-          trend: "unchanged",
-        },
-        {
-          factor: "考试成绩下滑",
-          count: Math.floor(studentAtRisk * 0.45),
-          percentage: 45,
-          trend: "down",
-        },
-        {
-          factor: "课堂参与度低",
-          count: Math.floor(studentAtRisk * 0.35),
-          percentage: 35,
-          trend: "down",
-        },
-        {
-          factor: "纪律问题",
-          count: Math.floor(studentAtRisk * 0.2),
-          percentage: 20,
-          trend: "unchanged",
-        },
-      ];
+      // 转换为数组格式并计算百分比
+      const riskByClass = Object.entries(classStats)
+        .map(([className, count]) => ({
+          class: className,
+          count: Number(count),
+          percentage:
+            studentAtRisk > 0
+              ? Math.round((Number(count) / studentAtRisk) * 100)
+              : 0,
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5); // 只显示前5个班级
+
+      // 基于预警规则分析真实风险因素
+      const ruleStats = (pendingIssues || []).reduce((acc, issue) => {
+        const ruleName = issue.warning_rules?.name || "未知规则";
+        acc[ruleName] = (acc[ruleName] || 0) + 1;
+        return acc;
+      }, {});
+
+      // 转换为标准化的风险因素名称
+      const commonRiskFactors = Object.entries(ruleStats)
+        .map(([ruleName, count]) => {
+          // 将规则名称映射为用户友好的风险因素名称
+          let factorName = ruleName;
+          if (ruleName.includes("不及格") || ruleName.includes("成绩")) {
+            factorName = "成绩问题";
+          } else if (ruleName.includes("作业")) {
+            factorName = "作业完成率低";
+          } else if (ruleName.includes("出勤") || ruleName.includes("缺勤")) {
+            factorName = "出勤问题";
+          } else if (ruleName.includes("行为") || ruleName.includes("纪律")) {
+            factorName = "行为问题";
+          } else if (ruleName.includes("下降") || ruleName.includes("退步")) {
+            factorName = "成绩下滑";
+          }
+
+          return {
+            factor: factorName,
+            count: Number(count),
+            percentage:
+              studentAtRisk > 0
+                ? Math.round((Number(count) / studentAtRisk) * 100)
+                : 0,
+            trend: "unchanged", // 趋势分析需要历史数据，暂时设为不变
+          };
+        })
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5); // 只显示前5个风险因素
 
       return {
         totalStudents,
         warningStudents: studentAtRisk,
         atRiskStudents: studentAtRisk, // 别名字段
         warningRatio: parseFloat(atRiskRate.toFixed(1)),
-        highRiskStudents: Math.floor(studentAtRisk * 0.3), // 假设30%为高风险
-        totalWarnings: studentAtRisk + pendingIssues.length,
-        activeWarnings: pendingIssues.length,
+        // 计算高风险学生数量（基于severity为high的预警记录）
+        highRiskStudents: (pendingIssues || []).filter(
+          (issue) => issue.warning_rules?.severity === "high"
+        ).length,
+        totalWarnings: (pendingIssues || []).length,
+        activeWarnings: (pendingIssues || []).filter(
+          (issue) => issue.status === "active"
+        ).length,
+
+        // 基于真实数据计算严重程度分布
         riskDistribution: {
-          low: Math.floor(pendingIssues.length * 0.5),
-          medium: Math.floor(pendingIssues.length * 0.3),
-          high: Math.floor(pendingIssues.length * 0.2),
+          low: (pendingIssues || []).filter(
+            (issue) => issue.warning_rules?.severity === "low"
+          ).length,
+          medium: (pendingIssues || []).filter(
+            (issue) => issue.warning_rules?.severity === "medium"
+          ).length,
+          high: (pendingIssues || []).filter(
+            (issue) => issue.warning_rules?.severity === "high"
+          ).length,
         },
+
+        // 基于真实数据计算类别分布
         categoryDistribution: {
-          grade: Math.floor(pendingIssues.length * 0.4),
-          attendance: Math.floor(pendingIssues.length * 0.2),
-          behavior: Math.floor(pendingIssues.length * 0.15),
-          progress: Math.floor(pendingIssues.length * 0.15),
-          homework: Math.floor(pendingIssues.length * 0.1),
-          composite: 0,
+          grade: categoryStats.grade || 0,
+          attendance: categoryStats.attendance || 0,
+          behavior: categoryStats.behavior || 0,
+          progress: categoryStats.progress || 0,
+          homework: categoryStats.homework || 0,
+          composite: categoryStats.composite || 0,
         },
-        scopeDistribution: {
-          global: Math.floor(pendingIssues.length * 0.6),
-          exam: Math.floor(pendingIssues.length * 0.2),
-          class: Math.floor(pendingIssues.length * 0.15),
-          student: Math.floor(pendingIssues.length * 0.05),
-        },
+
+        // 基于真实数据计算范围分布
+        scopeDistribution: (pendingIssues || []).reduce(
+          (acc, issue) => {
+            const scope = issue.warning_rules?.scope || "student";
+            acc[scope] = (acc[scope] || 0) + 1;
+            return acc;
+          },
+          {
+            global: 0,
+            exam: 0,
+            class: 0,
+            student: 0,
+          }
+        ),
         // 新增的字段
         warningsByType,
         riskByClass,
