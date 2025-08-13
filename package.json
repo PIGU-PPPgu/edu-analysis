@@ -4,7 +4,7 @@
   "version": "2.0.0",
   "type": "module",
   "description": "教育管理系统 - 现代化React应用",
-  "author": "Education Management System Team", 
+  "author": "Education Management System Team",
   "license": "MIT",
   "homepage": "https://figma-frame-faithful.com",
   "scripts": {
@@ -27,7 +27,7 @@
     "test": "node src/utils/testing/runner.ts",
     "test:unit": "npm run test -- --filter=unit",
     "test:component": "npm run test -- --filter=component",
-    "test:integration": "npm run test -- --filter=integration", 
+    "test:integration": "npm run test -- --filter=integration",
     "test:performance": "npm run test -- --filter=performance",
     "test:e2e": "playwright test",
     "test:e2e:staging": "playwright test --config=playwright.staging.config.ts",
@@ -172,7 +172,9 @@
     "zod": "^3.24.3"
   },
   "devDependencies": {
+    "@browser-echo/vite": "^0.0.6",
     "@eslint/js": "^9.9.0",
+    "@playwright/test": "^1.40.1",
     "@supabase/supabase-js": "^2.49.4",
     "@tailwindcss/typography": "^0.5.15",
     "@testing-library/jest-dom": "^6.6.3",
@@ -188,6 +190,8 @@
     "@vitejs/plugin-react-swc": "^3.5.0",
     "@vitest/ui": "^3.2.4",
     "autoprefixer": "^10.4.21",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
     "eslint": "^9.9.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",
@@ -202,11 +206,8 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.0.1",
     "vite": "^7.0.2",
-    "vitest": "^3.2.4",
-    "@playwright/test": "^1.40.1",
-    "electron": "^28.0.0", 
-    "electron-builder": "^24.9.1",
-    "vite-bundle-analyzer": "^0.7.0"
+    "vite-bundle-analyzer": "^0.7.0",
+    "vitest": "^3.2.4"
   },
   "engines": {
     "node": ">=18.0.0",
@@ -220,7 +221,7 @@
     ],
     "development": [
       "last 1 chrome version",
-      "last 1 firefox version", 
+      "last 1 firefox version",
       "last 1 safari version"
     ]
   },
@@ -228,7 +229,7 @@
     "react",
     "typescript",
     "vite",
-    "education", 
+    "education",
     "management",
     "system",
     "supabase",

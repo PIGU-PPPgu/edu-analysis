@@ -214,7 +214,7 @@ const WarningAnalysis = () => {
                   分析学生预警数据 发现问题并制定干预措施
                   {isFromAnomalyDetection && params.exam && (
                     <span className="text-[#9C88FF] font-bold">
-  专注于 {params.exam} 异常分析
+                      专注于 {params.exam} 异常分析
                     </span>
                   )}
                 </p>
@@ -303,7 +303,7 @@ const WarningAnalysis = () => {
                         <p className="text-sm text-[#191A23]/70">
                           {params.date && `考试日期: ${params.date}`}
                           <span className="text-[#9C88FF] font-medium">
-  来源: 异常检测系统
+                            来源: 异常检测系统
                           </span>
                         </p>
                       </div>
@@ -319,9 +319,10 @@ const WarningAnalysis = () => {
                 <div>
                   <h4 className="font-medium">预警系统说明</h4>
                   <p className="text-sm mt-1">
-                    本系统通过分析多种维度的学生数据 识别潜在风险因素并生成预警 
-                    使用筛选器可以针对特定时间范围 考试类型或风险等级进行精准分析 
-                    系统将自动评估并向您提供学生风险分析和干预建议 
+                    本系统通过分析多种维度的学生数据 识别潜在风险因素并生成预警
+                    使用筛选器可以针对特定时间范围
+                    考试类型或风险等级进行精准分析
+                    系统将自动评估并向您提供学生风险分析和干预建议
                   </p>
                 </div>
               </div>
