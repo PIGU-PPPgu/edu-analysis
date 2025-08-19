@@ -155,7 +155,7 @@ const CustomTooltip = ({ active, payload, label, showTrend = false }: any) => {
               </Badge>
             </div>
           )}
-          {showTrend && data.trend && (
+          {showTrend && data.trend && Array.isArray(data.trend) && data.trend.length > 0 && (
             <div className="mt-2 pt-2 border-t border-gray-200">
               <span className="text-xs text-gray-500">最近6周趋势</span>
               <div className="flex items-center gap-1 mt-1">
