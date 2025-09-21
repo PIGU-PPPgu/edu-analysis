@@ -89,6 +89,7 @@ class WarningEngine {
 
       // 4. 完成执行记录
       await this.completeExecution(executionId, {
+<<<<<<< HEAD
         total_rules: rules.length,
         executed_rules: rules.length,
         matched_students: totalMatchedStudents,
@@ -102,6 +103,13 @@ class WarningEngine {
           totalExecutionTime,
           message: '预警引擎执行完成'
         }
+=======
+        rulesCount: rules.length,
+        matchedStudentsCount: totalMatchedStudents,
+        newWarningsCount: totalGeneratedWarnings,
+        executionDurationMs: totalExecutionTime,
+        status: 'completed',
+>>>>>>> ecd68e3d23216be708283264c1a2afdb95dca229
       });
 
       console.log(`[WarningEngine] 执行完成，共 ${totalGeneratedWarnings} 个新预警`);
@@ -119,6 +127,7 @@ class WarningEngine {
     } catch (error) {
       // 标记执行失败
       await this.completeExecution(executionId, {
+<<<<<<< HEAD
         execution_status: 'failed',
         error_message: error instanceof Error ? error.message : String(error),
         execution_duration_ms: Date.now() - startTime,
@@ -126,6 +135,11 @@ class WarningEngine {
         executed_rules: 0,
         matched_students: 0,
         generated_warnings: 0
+=======
+        status: 'failed',
+        errorMessage: error instanceof Error ? error.message : String(error),
+        executionDurationMs: Date.now() - startTime,
+>>>>>>> ecd68e3d23216be708283264c1a2afdb95dca229
       });
       throw error;
     }
@@ -171,6 +185,7 @@ class WarningEngine {
           generatedWarnings = homeworkResult.warnings;
           break;
 
+<<<<<<< HEAD
         // ML增强预警规则
         case 'ml_risk_prediction':
           const mlRiskResult = await this.mlRiskPrediction(rule);
@@ -190,6 +205,8 @@ class WarningEngine {
           generatedWarnings = mlTrendResult.warnings;
           break;
 
+=======
+>>>>>>> ecd68e3d23216be708283264c1a2afdb95dca229
         default:
           console.warn(`[WarningEngine] 未知规则类型: ${rule.conditions.type}`);
       }
@@ -199,10 +216,17 @@ class WarningEngine {
       // 完成规则执行记录
       if (ruleExecutionId) {
         await this.completeRuleExecution(ruleExecutionId, {
+<<<<<<< HEAD
           affected_students_count: matchedStudents.length,
           new_warnings_count: generatedWarnings,
           execution_time_ms: executionTime,
           execution_status: 'completed',
+=======
+          affectedStudentsCount: matchedStudents.length,
+          newWarningsCount: generatedWarnings,
+          executionTimeMs: executionTime,
+          status: 'completed',
+>>>>>>> ecd68e3d23216be708283264c1a2afdb95dca229
         });
       }
 
@@ -218,9 +242,15 @@ class WarningEngine {
       // 标记规则执行失败
       if (ruleExecutionId) {
         await this.completeRuleExecution(ruleExecutionId, {
+<<<<<<< HEAD
           execution_status: 'failed',
           error_message: error instanceof Error ? error.message : String(error),
           execution_time_ms: Date.now() - startTime,
+=======
+          status: 'failed',
+          errorMessage: error instanceof Error ? error.message : String(error),
+          executionTimeMs: Date.now() - startTime,
+>>>>>>> ecd68e3d23216be708283264c1a2afdb95dca229
         });
       }
       throw error;
@@ -231,6 +261,7 @@ class WarningEngine {
    * 检查连续不及格预警
    */
   private async checkConsecutiveFails(rule: WarningRule): Promise<{ students: string[]; warnings: number }> {
+<<<<<<< HEAD
     const { times, score_threshold, subject } = rule.conditions;
     
     // 查询连续不及格的学生
@@ -238,6 +269,15 @@ class WarningEngine {
       p_fail_count: times,
       p_score_threshold: score_threshold || 60,
       p_subject_filter: subject === 'all' ? null : subject,
+=======
+    const { count, threshold, subject } = rule.conditions;
+    
+    // 查询连续不及格的学生
+    const { data: students, error } = await this.supabase.rpc('check_consecutive_fails', {
+      fail_count: count,
+      score_threshold: threshold,
+      subject_filter: subject === 'all' ? null : subject,
+>>>>>>> ecd68e3d23216be708283264c1a2afdb95dca229
     });
 
     if (error) {
@@ -273,8 +313,13 @@ class WarningEngine {
     const { decline_threshold, consecutive_count } = rule.conditions;
     
     const { data: students, error } = await this.supabase.rpc('check_grade_decline', {
+<<<<<<< HEAD
       p_decline_threshold: decline_threshold,
       p_consecutive_count: consecutive_count,
+=======
+      decline_threshold,
+      consecutive_count,
+>>>>>>> ecd68e3d23216be708283264c1a2afdb95dca229
     });
 
     if (error) {
@@ -309,8 +354,13 @@ class WarningEngine {
     const { threshold, subject } = rule.conditions;
     
     const { data: students, error } = await this.supabase.rpc('check_exam_fail', {
+<<<<<<< HEAD
       p_score_threshold: threshold,
       p_subject_filter: subject === 'all' ? null : subject,
+=======
+      score_threshold: threshold,
+      subject_filter: subject === 'all' ? null : subject,
+>>>>>>> ecd68e3d23216be708283264c1a2afdb95dca229
     });
 
     if (error) {
@@ -346,8 +396,13 @@ class WarningEngine {
     const { count, include_late } = rule.conditions;
     
     const { data: students, error } = await this.supabase.rpc('check_homework_default', {
+<<<<<<< HEAD
       p_default_count: count,
       p_include_late_submissions: include_late,
+=======
+      default_count: count,
+      include_late_submissions: include_late,
+>>>>>>> ecd68e3d23216be708283264c1a2afdb95dca229
     });
 
     if (error) {
@@ -375,6 +430,7 @@ class WarningEngine {
     };
   }
 
+<<<<<<< HEAD
   /**
    * ML算法1：风险预测
    */
@@ -659,6 +715,8 @@ class WarningEngine {
     return factors;
   }
 
+=======
+>>>>>>> ecd68e3d23216be708283264c1a2afdb95dca229
   // 辅助方法
   private async getActiveRules(): Promise<WarningRule[]> {
     const { data, error } = await this.supabase
@@ -675,6 +733,7 @@ class WarningEngine {
   }
 
   private async startExecution(trigger?: string): Promise<string | null> {
+<<<<<<< HEAD
     console.log('开始创建执行记录...');
     const { data, error } = await this.supabase
       .from('warning_executions')
@@ -682,13 +741,25 @@ class WarningEngine {
         trigger_type: 'manual',
         trigger_source: trigger || 'edge_function',
         execution_status: 'running'
+=======
+    const { data, error } = await this.supabase
+      .from('warning_executions')
+      .insert({
+        execution_type: trigger ? 'triggered' : 'manual',
+        trigger_event: trigger,
+        status: 'running',
+        metadata: { started_at: new Date().toISOString() },
+>>>>>>> ecd68e3d23216be708283264c1a2afdb95dca229
       })
       .select('id')
       .single();
 
     if (error) {
       console.error('创建执行记录失败:', error);
+<<<<<<< HEAD
       console.error('错误详情:', JSON.stringify(error, null, 2));
+=======
+>>>>>>> ecd68e3d23216be708283264c1a2afdb95dca229
       return null;
     }
 
@@ -700,8 +771,12 @@ class WarningEngine {
       .from('warning_executions')
       .update({
         ...results,
+<<<<<<< HEAD
         end_time: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+=======
+        completed_at: new Date().toISOString(),
+>>>>>>> ecd68e3d23216be708283264c1a2afdb95dca229
       })
       .eq('id', executionId);
 
@@ -734,11 +809,15 @@ class WarningEngine {
     const { error } = await this.supabase
       .from('warning_rule_executions')
       .update({
+<<<<<<< HEAD
         affected_students_count: results.affected_students_count,
         new_warnings_count: results.new_warnings_count,
         execution_time_ms: results.execution_time_ms,
         status: results.execution_status || results.status,
         error_message: results.error_message,
+=======
+        ...results,
+>>>>>>> ecd68e3d23216be708283264c1a2afdb95dca229
         completed_at: new Date().toISOString(),
       })
       .eq('id', ruleExecutionId);
@@ -799,6 +878,7 @@ Deno.serve(async (req) => {
 
     const engine = new WarningEngine(supabaseUrl, supabaseServiceKey);
 
+<<<<<<< HEAD
     let result;
     
     // 处理GET请求 - 直接执行预警规则
@@ -816,6 +896,18 @@ Deno.serve(async (req) => {
         default:
           throw new Error(`未知操作: ${action}`);
       }
+=======
+    // 解析请求
+    const { action, trigger } = await req.json();
+
+    let result;
+    switch (action) {
+      case 'execute_all':
+        result = await engine.executeAllRules(trigger);
+        break;
+      default:
+        throw new Error(`未知操作: ${action}`);
+>>>>>>> ecd68e3d23216be708283264c1a2afdb95dca229
     }
 
     return new Response(

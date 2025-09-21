@@ -72,6 +72,7 @@ class OptimizedCache {
 const optimizedCache = new OptimizedCache();
 
 /**
+<<<<<<< HEAD
  * 快速获取基础预警统计 - 用于仪表板快速加载
  */
 export async function getBasicWarningStatistics(): Promise<{
@@ -149,6 +150,8 @@ export async function getBasicWarningStatistics(): Promise<{
 }
 
 /**
+=======
+>>>>>>> ecd68e3d23216be708283264c1a2afdb95dca229
  * 优化的预警统计获取
  * 使用数据库函数进行服务端计算
  */
@@ -237,6 +240,7 @@ export async function getOptimizedWarningStatistics(
       commonRiskFactors: [],
     };
 
+<<<<<<< HEAD
     // 异步后台加载详细数据，不阻塞主要统计数据返回
     setTimeout(async () => {
       try {
@@ -263,6 +267,21 @@ export async function getOptimizedWarningStatistics(
         console.warn('后台加载详细统计数据失败:', error);
       }
     }, 100); // 100ms 后开始后台加载
+=======
+    // 并行获取详细数据
+    Promise.all([
+      getWarningsByType(filter),
+      getRiskByClass(filter),
+      getCommonRiskFactors(filter),
+    ]).then(([warningsByType, riskByClass, commonRiskFactors]) => {
+      statistics.warningsByType = warningsByType;
+      statistics.riskByClass = riskByClass;
+      statistics.commonRiskFactors = commonRiskFactors;
+      
+      // 更新缓存
+      optimizedCache.set(cacheKey, statistics, 180); // 3分钟缓存
+    });
+>>>>>>> ecd68e3d23216be708283264c1a2afdb95dca229
 
     // 缓存基础统计数据
     optimizedCache.set(cacheKey, statistics, 120); // 2分钟缓存
@@ -537,6 +556,7 @@ function getTimeRangeDays(timeRange?: string): number {
 
 async function getWarningsByType(filter?: WarningFilter) {
   try {
+<<<<<<< HEAD
     // 使用真实数据服务替代缺失的数据库函数
     const { getWarningsByType } = await import('./realDataService');
     const result = await getWarningsByType();
@@ -547,12 +567,36 @@ async function getWarningsByType(filter?: WarningFilter) {
   } catch (error) {
     console.error('获取预警类型分布失败:', error);
     // 只在真正失败时返回空数组，避免模拟数据
+=======
+    // 尝试使用数据库函数
+    const { data, error } = await supabase.rpc('get_warnings_by_type', {
+      time_range_days: getTimeRangeDays(filter?.timeRange),
+    });
+    
+    if (error) {
+      if (error.code === 'PGRST202') {
+        console.warn('[OptimizedWarningService] get_warnings_by_type函数不存在，返回模拟数据');
+        return [
+          { type: 'grade_decline', count: 5 },
+          { type: 'consecutive_fail', count: 3 },
+          { type: 'attendance', count: 2 },
+        ];
+      }
+      console.error('获取预警类型分布失败:', error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('获取预警类型分布失败:', error);
+>>>>>>> ecd68e3d23216be708283264c1a2afdb95dca229
     return [];
   }
 }
 
 async function getRiskByClass(filter?: WarningFilter) {
   try {
+<<<<<<< HEAD
     // 使用真实数据服务替代缺失的数据库函数
     const { getRiskByClass } = await import('./realDataService');
     const result = await getRiskByClass();
@@ -570,6 +614,26 @@ async function getRiskByClass(filter?: WarningFilter) {
     console.log('[OptimizedWarningService] 使用真实数据获取班级风险分布');
     return formattedResult;
 
+=======
+    // 尝试使用数据库函数
+    const { data, error } = await supabase.rpc('get_risk_by_class', {
+      time_range_days: getTimeRangeDays(filter?.timeRange),
+    });
+    
+    if (error) {
+      if (error.code === 'PGRST202') {
+        console.warn('[OptimizedWarningService] get_risk_by_class函数不存在，返回模拟数据');
+        return [
+          { class_name: '高一(1)班', risk_score: 75, student_count: 45 },
+          { class_name: '高一(2)班', risk_score: 60, student_count: 43 },
+        ];
+      }
+      console.error('获取班级风险分布失败:', error);
+      return [];
+    }
+    
+    return data || [];
+>>>>>>> ecd68e3d23216be708283264c1a2afdb95dca229
   } catch (error) {
     console.error('获取班级风险分布失败:', error);
     return [];
@@ -578,6 +642,7 @@ async function getRiskByClass(filter?: WarningFilter) {
 
 async function getCommonRiskFactors(filter?: WarningFilter) {
   try {
+<<<<<<< HEAD
     // 使用真实数据服务替代缺失的数据库函数
     const { getCommonRiskFactors } = await import('./realDataService');
     const result = await getCommonRiskFactors();
@@ -596,6 +661,51 @@ async function getCommonRiskFactors(filter?: WarningFilter) {
     console.log('[OptimizedWarningService] 使用真实数据获取风险因素');
     return formattedResult;
 
+=======
+    // 尝试使用数据库函数
+    const { data, error } = await supabase.rpc('get_common_risk_factors', {
+      time_range_days: getTimeRangeDays(filter?.timeRange),
+    });
+    
+    if (error) {
+      if (error.code === 'PGRST202') {
+        console.warn('[OptimizedWarningService] get_common_risk_factors函数不存在，返回模拟数据');
+        return [
+          { 
+            factor: '数学成绩下降', 
+            count: 8, 
+            percentage: 35, 
+            frequency: 8,
+            trend: [6, 7, 8, 9, 8, 8],
+            category: '学业表现',
+            severity: 'high'
+          },
+          { 
+            factor: '作业完成率低', 
+            count: 6, 
+            percentage: 26, 
+            frequency: 6,
+            trend: [5, 6, 6, 7, 6, 6],
+            category: '学习习惯',
+            severity: 'medium'
+          },
+          { 
+            factor: '课堂参与度不足', 
+            count: 4, 
+            percentage: 17, 
+            frequency: 4,
+            trend: [3, 4, 4, 4, 4, 4],
+            category: '课堂表现',
+            severity: 'medium'
+          },
+        ];
+      }
+      console.error('获取常见风险因素失败:', error);
+      return [];
+    }
+    
+    return data || [];
+>>>>>>> ecd68e3d23216be708283264c1a2afdb95dca229
   } catch (error) {
     console.error('获取常见风险因素失败:', error);
     return [];
