@@ -35,6 +35,8 @@ import {
 export interface WarningFilterConfig {
   timeRange: "month" | "quarter" | "semester" | "year" | "custom";
   examTypes: string[];
+  classNames: string[]; // 新增：班级筛选
+  examTitles: string[]; // 新增：具体考试筛选
   mixedAnalysis: boolean;
   analysisMode: "student" | "exam" | "subject";
   startDate?: string;
@@ -47,6 +49,8 @@ export interface WarningFiltersProps {
   filter: WarningFilterConfig;
   onFilterChange: (filter: WarningFilterConfig) => void;
   availableExamTypes?: string[];
+  availableClassNames?: string[]; // 新增：可用班级列表
+  availableExamTitles?: string[]; // 新增：可用考试列表
   className?: string;
   compact?: boolean;
   onClose?: () => void;
@@ -61,12 +65,14 @@ const WarningFilters: React.FC<WarningFiltersProps> = ({
   onFilterChange,
   availableExamTypes = [
     "月考",
-    "期中考试",
+    "期中考试", 
     "期末考试",
     "模拟考试",
     "单元测试",
     "诊断考试",
   ],
+  availableClassNames = [], // 新增：班级列表默认值
+  availableExamTitles = [], // 新增：考试列表默认值
   className,
   compact = false,
   onClose,
@@ -80,6 +86,8 @@ const WarningFilters: React.FC<WarningFiltersProps> = ({
   >({
     timeFilter: true,
     examFilter: true,
+    classFilter: true, // 新增：班级筛选
+    examTitleFilter: false, // 新增：具体考试筛选
     statusFilter: false,
     advanced: false,
   });
@@ -139,11 +147,29 @@ const WarningFilters: React.FC<WarningFiltersProps> = ({
     updateFilter("warningStatus", newStatuses);
   };
 
+  // 切换班级
+  const toggleClassName = (className: string) => {
+    const newClasses = filter.classNames.includes(className)
+      ? filter.classNames.filter((c) => c !== className)
+      : [...filter.classNames, className];
+    updateFilter("classNames", newClasses);
+  };
+
+  // 切换具体考试
+  const toggleExamTitle = (examTitle: string) => {
+    const newExamTitles = filter.examTitles.includes(examTitle)
+      ? filter.examTitles.filter((title) => title !== examTitle)
+      : [...filter.examTitles, examTitle];
+    updateFilter("examTitles", newExamTitles);
+  };
+
   // 重置筛选器
   const resetFilters = () => {
     onFilterChange({
       timeRange: "semester",
       examTypes: [...availableExamTypes],
+      classNames: [...availableClassNames], // 新增：默认选中所有班级
+      examTitles: [], // 新增：默认不筛选具体考试
       mixedAnalysis: true,
       analysisMode: "student",
       severityLevels: ["high", "medium", "low"],
@@ -166,6 +192,8 @@ const WarningFilters: React.FC<WarningFiltersProps> = ({
     onFilterChange({
       timeRange: initialDateFilter ? "custom" : "semester",
       examTypes: [examType],
+      classNames: [...availableClassNames], // 保持所有班级
+      examTitles: initialExamFilter ? [initialExamFilter] : [], // 设置具体考试
       mixedAnalysis: false, // 专注单一考试
       analysisMode: "student",
       startDate: initialDateFilter,
@@ -360,6 +388,140 @@ const WarningFilters: React.FC<WarningFiltersProps> = ({
                     将不同类型考试的数据混合分析
                   </p>
                 </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 班级筛选 */}
+        <div className="border-b border-gray-200">
+          <ExpandButton section="classFilter" title="班级筛选" />
+          {expandedSections.classFilter && (
+            <div className="p-4 bg-gray-50/50 space-y-4">
+              <Label className="text-sm font-bold text-[#191A23] flex items-center gap-2">
+                <Target className="h-4 w-4" />
+                班级选择
+                <Badge className="bg-[#B9FF66] text-[#191A23] border border-black text-xs">
+                  已选择 {filter.classNames.length} 个
+                </Badge>
+              </Label>
+
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {availableClassNames.length > 0 ? (
+                  availableClassNames.map((className) => (
+                    <Button
+                      key={className}
+                      size="sm"
+                      variant={
+                        filter.classNames.includes(className)
+                          ? "default"
+                          : "outline"
+                      }
+                      onClick={() => toggleClassName(className)}
+                      className={cn(
+                        "w-full justify-start border-2 border-black font-bold shadow-[2px_2px_0px_0px_#191A23]",
+                        filter.classNames.includes(className)
+                          ? "bg-[#B9FF66] text-[#191A23] hover:bg-[#A8E055]"
+                          : "bg-white text-[#191A23] hover:bg-gray-50"
+                      )}
+                    >
+                      {className}
+                      {filter.classNames.includes(className) && (
+                        <div className="ml-auto w-2 h-2 bg-[#191A23] rounded-full" />
+                      )}
+                    </Button>
+                  ))
+                ) : (
+                  <div className="text-center py-4 text-gray-500 text-sm">
+                    暂无班级数据，请先加载学生信息
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => updateFilter("classNames", [])}
+                  className="text-xs border-gray-300"
+                >
+                  清空选择
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => updateFilter("classNames", [...availableClassNames])}
+                  className="text-xs border-gray-300"
+                >
+                  全选班级
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 具体考试筛选 */}
+        <div className="border-b border-gray-200">
+          <ExpandButton section="examTitleFilter" title="具体考试" />
+          {expandedSections.examTitleFilter && (
+            <div className="p-4 bg-gray-50/50 space-y-4">
+              <Label className="text-sm font-bold text-[#191A23] flex items-center gap-2">
+                <BookOpen className="h-4 w-4" />
+                考试名称
+                <Badge className="bg-[#B9FF66] text-[#191A23] border border-black text-xs">
+                  已选择 {filter.examTitles.length} 个
+                </Badge>
+              </Label>
+
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {availableExamTitles.length > 0 ? (
+                  availableExamTitles.map((examTitle) => (
+                    <Button
+                      key={examTitle}
+                      size="sm"
+                      variant={
+                        filter.examTitles.includes(examTitle)
+                          ? "default"
+                          : "outline"
+                      }
+                      onClick={() => toggleExamTitle(examTitle)}
+                      className={cn(
+                        "w-full justify-start border-2 border-black font-bold shadow-[2px_2px_0px_0px_#191A23]",
+                        filter.examTitles.includes(examTitle)
+                          ? "bg-[#B9FF66] text-[#191A23] hover:bg-[#A8E055]"
+                          : "bg-white text-[#191A23] hover:bg-gray-50"
+                      )}
+                    >
+                      {examTitle}
+                      {filter.examTitles.includes(examTitle) && (
+                        <div className="ml-auto w-2 h-2 bg-[#191A23] rounded-full" />
+                      )}
+                    </Button>
+                  ))
+                ) : (
+                  <div className="text-center py-4 text-gray-500 text-sm">
+                    暂无考试数据，请先加载成绩信息
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => updateFilter("examTitles", [])}
+                  className="text-xs border-gray-300"
+                >
+                  清空选择
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => updateFilter("examTitles", [...availableExamTitles])}
+                  className="text-xs border-gray-300"
+                >
+                  全选考试
+                </Button>
               </div>
             </div>
           )}

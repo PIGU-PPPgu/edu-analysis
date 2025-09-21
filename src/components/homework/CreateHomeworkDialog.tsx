@@ -83,7 +83,7 @@ const CreateHomeworkDialog: React.FC<CreateHomeworkDialogProps> = ({
 
     try {
       // 首先刷新会话，确保认证有效
-      await refreshSession();
+      await refreshAuth();
 
       // 检查用户是否已登录
       if (!user || !user.id) {

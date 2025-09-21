@@ -66,49 +66,15 @@ interface RiskFactorChartProps {
 // 图表类型枚举
 type ChartType = "bar" | "line" | "pie";
 
-// 默认模拟数据（增强版）
-const defaultRiskFactorData = [
-  {
-    factor: "期中考试成绩下降",
-    count: 27,
-    percentage: 35,
-    trend: [20, 25, 32, 35, 38, 35],
-    category: "学业表现",
-    severity: "high",
-  },
-  {
-    factor: "作业完成率低",
-    count: 24,
-    percentage: 31,
-    trend: [28, 30, 29, 31, 33, 31],
-    category: "学习习惯",
-    severity: "high",
-  },
-  {
-    factor: "课堂参与度不足",
-    count: 18,
-    percentage: 23,
-    trend: [25, 24, 22, 23, 24, 23],
-    category: "课堂表现",
-    severity: "medium",
-  },
-  {
-    factor: "缺交作业次数增加",
-    count: 12,
-    percentage: 15,
-    trend: [18, 16, 14, 15, 16, 15],
-    category: "学习习惯",
-    severity: "medium",
-  },
-  {
-    factor: "考试科目成绩不均衡",
-    count: 8,
-    percentage: 10,
-    trend: [12, 11, 10, 10, 9, 10],
-    category: "学业表现",
-    severity: "low",
-  },
-];
+// 空数据占位，避免使用模拟数据
+const defaultRiskFactorData: Array<{
+  factor: string;
+  count: number;
+  percentage: number;
+  trend?: number[];
+  category?: string;
+  severity?: string;
+}> = [];
 
 // 增强的自定义工具提示组件
 const CustomTooltip = ({ active, payload, label, showTrend = false }: any) => {
@@ -155,7 +121,7 @@ const CustomTooltip = ({ active, payload, label, showTrend = false }: any) => {
               </Badge>
             </div>
           )}
-          {showTrend && data.trend && (
+          {showTrend && data.trend && Array.isArray(data.trend) && data.trend.length > 0 && (
             <div className="mt-2 pt-2 border-t border-gray-200">
               <span className="text-xs text-gray-500">最近6周趋势</span>
               <div className="flex items-center gap-1 mt-1">

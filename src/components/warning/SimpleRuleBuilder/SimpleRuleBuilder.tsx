@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 import RuleScenarios from "./RuleScenarios";
 import RuleWizard from "./RuleWizard";
@@ -77,6 +78,10 @@ const SimpleRuleBuilder: React.FC<SimpleRuleBuilderProps> = ({
         }
       });
 
+      // 获取当前用户ID
+      const { data: { user } } = await supabase.auth.getUser();
+      const currentUserId = user?.id || "anonymous-user";
+
       // 构建导出规则
       const exportedRule: SimpleExportedRule = {
         name: configuration.name,
@@ -94,7 +99,7 @@ const SimpleRuleBuilder: React.FC<SimpleRuleBuilderProps> = ({
           parameters: configuration.parameters,
         },
         metadata: {
-          createdBy: "current_user",
+          createdBy: currentUserId,
           createdWith: "simple_rule_builder",
           scenario: selectedScenario.id,
           version: "1.0.0",

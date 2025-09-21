@@ -57,7 +57,6 @@ import Footer from "@/components/landing/Footer";
 const ModernHomepage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-
   // 演示数据 - 不需要从数据库获取，用于展示产品功能
   const demoStats = {
     totalStudents: 1250,
@@ -266,7 +265,7 @@ const ModernHomepage = () => {
               </h1>
 
               <p className="text-lg md:text-xl text-gray-700 leading-relaxed max-w-lg">
-                集成DeepSeek、智能大模型等顶级AI技术，为教育管理提供前所未有的智能化解决方案
+                集成DeepSeek、豆包、通义等国内智能大模型，为教师提供多维度的智能化教学分析
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4">
@@ -301,10 +300,10 @@ const ModernHomepage = () => {
               <div className="bg-gradient-to-br from-[#B9FF66] to-[#A8F055] rounded-3xl p-8 border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-2">
                 <div className="grid grid-cols-2 gap-4">
                   {[
-                    { icon: Brain, label: "AI分析", value: "2.8K+" },
-                    { icon: Users, label: "学生", value: "1.2K+" },
-                    { icon: Target, label: "预警", value: "95%" },
-                    { icon: BookOpen, label: "作业", value: "156" },
+                    { icon: Brain, label: "所有界面配置AI，帮助教师理解数据", value: "AI辅助分析" },
+                    { icon: Users, label: "从个人到小组再到班级，全面了解学生情况，动态更新", value: "班级画像" },
+                    { icon: Target, label: "机器学习算法+AI，实时预警，精准预测", value: "智能追踪与预警" },
+                    { icon: BookOpen, label: "知识点掌握、作业情况", value: "作业与考试管理" },
                   ].map((stat, index) => (
                     <div
                       key={index}

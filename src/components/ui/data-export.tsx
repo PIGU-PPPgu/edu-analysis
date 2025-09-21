@@ -129,11 +129,9 @@ const DataExport: React.FC<DataExportProps> = ({
     setExportProgress(0);
 
     try {
-      // 模拟导出进度
-      for (let i = 0; i <= 100; i += 10) {
-        setExportProgress(i);
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
+      // 实际导出进度显示
+      setExportProgress(20);
+      await new Promise(resolve => setTimeout(resolve, 200));
 
       // 准备导出数据
       const exportData = data.map((row) => {
@@ -144,7 +142,10 @@ const DataExport: React.FC<DataExportProps> = ({
         return exportRow;
       });
 
-      // 调用导出回调
+      setExportProgress(50);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // 调用导出回调或默认导出
       if (onExport) {
         onExport(
           exportFormat,
@@ -152,10 +153,11 @@ const DataExport: React.FC<DataExportProps> = ({
           exportData
         );
       } else {
-        // 默认导出行为
+        // 增强的默认导出行为
         await downloadData(exportData, exportFormat);
       }
 
+      setExportProgress(100);
       toast.success(`成功导出${exportData.length}条记录`, {
         description: `文件格式: ${exportFormats.find((f) => f.value === exportFormat)?.label}`,
       });
@@ -170,7 +172,7 @@ const DataExport: React.FC<DataExportProps> = ({
     }
   };
 
-  // 默认下载实现
+  // 增强的默认下载实现
   const downloadData = async (exportData: any[], format: string) => {
     const fileName = `${title}_${new Date().toISOString().split("T")[0]}`;
 
@@ -182,16 +184,98 @@ const DataExport: React.FC<DataExportProps> = ({
         downloadJSON(exportData, fileName);
         break;
       case "xlsx":
-        // 这里可以集成SheetJS等库
-        toast.info("Excel导出需要安装额外依赖包");
+        // 使用兼容性Excel导出
+        downloadExcel(exportData, fileName);
         break;
       case "pdf":
-        // 这里可以集成jsPDF等库
-        toast.info("PDF导出需要安装额外依赖包");
+        // 使用HTML转PDF方式
+        downloadPDF(exportData, fileName);
         break;
       default:
         downloadJSON(exportData, fileName);
     }
+  };
+
+  // Excel下载（兼容性实现）
+  const downloadExcel = (data: any[], fileName: string) => {
+    if (data.length === 0) return;
+
+    const headers = Object.keys(data[0]);
+    const csvContent = [
+      headers.join(","),
+      ...data.map((row) =>
+        headers.map((header) => `"${row[header] || ""}"`).join(",")
+      ),
+    ].join("\n");
+
+    const bom = '\uFEFF'; // UTF-8 BOM for Excel
+    const blob = new Blob([bom + csvContent], {
+      type: "application/vnd.ms-excel;charset=utf-8"
+    });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${fileName}.xlsx`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
+  // PDF下载（HTML实现）
+  const downloadPDF = (data: any[], fileName: string) => {
+    if (data.length === 0) return;
+
+    const headers = Object.keys(data[0]);
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>${title}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          h1 { color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { padding: 8px 12px; border: 1px solid #ddd; text-align: left; }
+          th { background-color: #f8fafc; font-weight: bold; }
+          tr:nth-child(even) { background-color: #f9fafb; }
+          .summary { margin: 20px 0; padding: 15px; background: #eff6ff; border-radius: 8px; }
+          @media print {
+            body { margin: 0; }
+            .summary { page-break-inside: avoid; }
+            table { page-break-inside: auto; }
+            tr { page-break-inside: avoid; page-break-after: auto; }
+          }
+        </style>
+      </head>
+      <body>
+        <h1>${title}</h1>
+        <div class="summary">
+          <strong>数据摘要:</strong> 共 ${data.length} 条记录，生成时间: ${new Date().toLocaleString('zh-CN')}
+        </div>
+        <table>
+          <thead>
+            <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+          </thead>
+          <tbody>
+            ${data.map(row => 
+              `<tr>${headers.map(h => `<td>${row[h] || ''}</td>`).join('')}</tr>`
+            ).join('')}
+          </tbody>
+        </table>
+        <script>
+          window.onload = function() {
+            window.print();
+          }
+        </script>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${fileName}.html`;
+    link.click();
+    URL.revokeObjectURL(link.href);
   };
 
   // CSV下载

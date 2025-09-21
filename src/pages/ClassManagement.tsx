@@ -43,6 +43,10 @@ import OverviewTab from "@/components/class/OverviewTab";
 import DetailTab from "@/components/class/DetailTab";
 import ComparisonTab from "@/components/class/ComparisonTab";
 import SubjectAnalysisTab from "@/components/class/SubjectAnalysisTab";
+// 智能画像功能组件
+import ClassPortraitDashboard from '@/components/class/ClassPortraitDashboard';
+import SmartGroupManager from '@/components/group/SmartGroupManager';
+import GroupPortraitAnalysis from '@/components/group/GroupPortraitAnalysis';
 // import ClassReportGenerator from "@/components/analysis/ClassReportGenerator"; // 已删除
 // import AIDataAnalysis from "@/components/analysis/AIDataAnalysis"; // 已删除
 import {
@@ -51,6 +55,9 @@ import {
   getSubjectAnalysisData,
   deleteClass,
 } from "@/services/classService";
+import { SmartPagination } from "@/components/ui/smart-pagination";
+import { supabase } from '@/integrations/supabase/client';
+import { intelligentPortraitService, type GroupAllocationResult } from '@/services/intelligentPortraitService';
 
 // 定义班级类型
 interface Class {
@@ -131,6 +138,31 @@ const ClassManagement: React.FC = () => {
   const [subjectAnalysisError, setSubjectAnalysisError] = useState<
     string | null
   >(null);
+
+  // 智能画像相关状态
+  const [studentsWithScores, setStudentsWithScores] = useState<Array<{
+    student_id: string;
+    name: string;
+    class_name: string;
+    overall_score?: number;
+  }>>([]);
+  const [existingGroups, setExistingGroups] = useState<Array<{
+    id: string;
+    name: string;
+    description?: string;
+    class_name: string;
+    student_ids: string[];
+    group_type: string;
+    allocation_strategy?: string;
+    created_at: string;
+    status: string;
+    group_metrics: any;
+    performance_prediction?: number;
+    balance_scores: any;
+  }>>([]);
+  const [selectedGroup, setSelectedGroup] = useState<any>(null);
+  const [smartPortraitLoading, setSmartPortraitLoading] = useState(false);
+  const [smartPortraitDataLoaded, setSmartPortraitDataLoaded] = useState(false);
 
   // 获取班级列表
   const fetchClasses = async () => {
@@ -236,7 +268,122 @@ const ClassManagement: React.FC = () => {
       // 切换到学科分析标签页时，确保数据加载
       fetchSubjectAnalysisData(selectedClass.id);
     }
+    // 移除自动加载智能画像数据，改为按需加载
   }, [selectedClass, selectedTab]);
+
+  // 加载智能画像相关数据
+  const loadSmartPortraitData = async () => {
+    if (!selectedClass?.name) return;
+    if (smartPortraitDataLoaded && studentsWithScores.length > 0) return; // 避免重复加载
+    
+    setSmartPortraitLoading(true);
+    try {
+      // 优化：使用JOIN一次性获取学生及其最新成绩
+      const { data: studentsWithGrades, error: studentsError } = await supabase
+        .from('students')
+        .select(`
+          student_id, 
+          name, 
+          class_name,
+          grade_data_new!inner(total_score, exam_date)
+        `)
+        .eq('class_name', selectedClass.name)
+        .order('grade_data_new(exam_date)', { ascending: false })
+        .limit(1);
+
+      if (studentsError) {
+        // 如果JOIN查询失败，回退到简单查询
+        console.warn('JOIN查询失败，使用简单查询:', studentsError);
+        const { data: simpleStudentsData, error: simpleError } = await supabase
+          .from('students')
+          .select('student_id, name, class_name')
+          .eq('class_name', selectedClass.name);
+        
+        if (simpleError) throw simpleError;
+        
+        // 简化版：不查询成绩，设置默认值
+        const studentsWithScoresData = (simpleStudentsData || []).map(student => ({
+          ...student,
+          overall_score: 0,
+        }));
+        
+        setStudentsWithScores(studentsWithScoresData);
+      } else {
+        // 处理JOIN查询结果
+        const studentsWithScoresData = (studentsWithGrades || []).map((student: any) => ({
+          student_id: student.student_id,
+          name: student.name,
+          class_name: student.class_name,
+          overall_score: student.grade_data_new?.[0]?.total_score || 0,
+        }));
+        
+        setStudentsWithScores(studentsWithScoresData);
+      }
+
+      // 加载现有分组 - 添加错误处理
+      try {
+        const { data: groupsData, error: groupsError } = await supabase
+          .from('student_groups')
+          .select('*')
+          .eq('class_name', selectedClass.name)
+          .eq('status', 'active');
+
+        if (groupsError) {
+          // 如果表不存在，设置为空数组
+          console.warn('student_groups表查询失败，可能表不存在:', groupsError);
+          setExistingGroups([]);
+        } else {
+          setExistingGroups(groupsData || []);
+        }
+      } catch (groupError) {
+        console.warn('加载分组数据失败:', groupError);
+        setExistingGroups([]);
+      }
+
+    } catch (error) {
+      console.error('加载智能画像数据失败:', error);
+      // 设置默认空状态而不是显示错误
+      setStudentsWithScores([]);
+      setExistingGroups([]);
+    } finally {
+      setSmartPortraitLoading(false);
+      setSmartPortraitDataLoaded(true);
+    }
+  };
+
+  // 处理智能分组创建
+  const handleGroupsCreated = async (groups: GroupAllocationResult[]) => {
+    try {
+      // 保存分组到数据库
+      for (const group of groups) {
+        const { error } = await supabase
+          .from('student_groups')
+          .insert({
+            name: group.group_name,
+            description: `AI智能分组 - 预测表现: ${group.predicted_performance}分`,
+            class_name: selectedClass?.name,
+            student_ids: group.members.map(m => m.student_id),
+            group_type: 'ai_generated',
+            allocation_strategy: 'balanced',
+            group_metrics: {
+              member_roles: group.members.reduce((acc, m) => ({...acc, [m.student_id]: m.role}), {}),
+              contribution_scores: group.members.reduce((acc, m) => ({...acc, [m.student_id]: m.contribution_score}), {}),
+            },
+            performance_prediction: group.predicted_performance,
+            balance_scores: group.group_balance,
+          });
+
+        if (error) throw error;
+      }
+
+      toast.success(`成功创建${groups.length}个智能分组`);
+      await loadSmartPortraitData(); // 重新加载数据
+      
+    } catch (error) {
+      console.error('保存分组失败:', error);
+      toast.error('保存分组失败');
+    }
+  };
 
   // 筛选并排序班级列表
   const displayedClasses = useMemo(() => {
@@ -288,6 +435,12 @@ const ClassManagement: React.FC = () => {
   const handleClassClick = (classItem: Class) => {
     setSelectedClass(classItem);
     setSelectedTab("overview");
+
+    // 重置智能画像数据状态
+    setSmartPortraitDataLoaded(false);
+    setStudentsWithScores([]);
+    setExistingGroups([]);
+    setSelectedGroup(null);
 
     // 预加载学科分析数据
     preloadSubjectAnalysisData(classItem.id);
@@ -449,7 +602,7 @@ const ClassManagement: React.FC = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {displayedClasses.map((classItem) => (
+                {displayedClasses.map((classItem, index) => (
                   <Card
                     key={classItem.id}
                     className={`group cursor-pointer transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-xl dark:bg-gray-800 dark:hover:bg-gray-750
@@ -639,45 +792,86 @@ const ClassManagement: React.FC = () => {
               <Card className="bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700">
                 <CardHeader>
                   <CardTitle className="text-xl font-semibold text-gray-700 dark:text-gray-200">
-                    AI智能分析与报告
+                    AI智能画像分析
                   </CardTitle>
                   <CardDescription className="text-sm text-gray-500 dark:text-gray-400">
-                    利用AI对班级数据进行智能分析,并生成综合性的班级报告。
+                    基于学生成绩和作业数据，生成智能画像并提供小组分配建议。
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   {selectedClass ? (
-                    <>
-                      <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                        <div className="text-center text-gray-500">
-                          <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
-                            🤖
-                          </div>
-                          <p className="text-lg font-medium">
-                            AI数据分析正在重构中
-                          </p>
-                          <p className="text-sm">
-                            此功能将在后续版本中重新设计
-                          </p>
-                        </div>
+                    smartPortraitLoading ? (
+                      <div className="text-center py-10">
+                        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+                        <p>正在加载智能画像数据...</p>
                       </div>
-                      <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                        <div className="text-center text-gray-500">
-                          <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
-                            📋
-                          </div>
-                          <p className="text-lg font-medium">
-                            班级报告生成器正在重构中
-                          </p>
-                          <p className="text-sm">
-                            此功能将在后续版本中重新设计
-                          </p>
-                        </div>
+                    ) : !smartPortraitDataLoaded ? (
+                      <div className="text-center py-10">
+                        <Brain className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p className="text-lg font-medium mb-4">准备加载智能画像分析</p>
+                        <Button onClick={loadSmartPortraitData}>
+                          开始分析
+                        </Button>
                       </div>
-                    </>
+                    ) : (
+                      <Tabs defaultValue="class-portrait">
+                        <TabsList className="grid w-full grid-cols-3">
+                          <TabsTrigger value="class-portrait">班级画像</TabsTrigger>
+                          <TabsTrigger value="smart-grouping">智能分组</TabsTrigger>
+                          <TabsTrigger value="group-analysis">小组分析</TabsTrigger>
+                        </TabsList>
+                        
+                        <TabsContent value="class-portrait" className="space-y-4">
+                          <ClassPortraitDashboard className={selectedClass.name} />
+                        </TabsContent>
+                        
+                        <TabsContent value="smart-grouping" className="space-y-4">
+                          <SmartGroupManager
+                            studentsWithScores={studentsWithScores}
+                            existingGroups={existingGroups}
+                            className={selectedClass.name}
+                            onGroupsCreated={handleGroupsCreated}
+                          />
+                        </TabsContent>
+                        
+                        <TabsContent value="group-analysis" className="space-y-4">
+                          {selectedGroup ? (
+                            <GroupPortraitAnalysis group={selectedGroup} />
+                          ) : existingGroups.length > 0 ? (
+                            <div className="space-y-4">
+                              <div className="text-center">
+                                <p className="text-muted-foreground mb-4">请选择一个小组查看详细分析</p>
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                  {existingGroups.map((group) => (
+                                    <Button
+                                      key={group.id}
+                                      variant="outline"
+                                      className="h-auto p-3 flex flex-col items-center gap-2"
+                                      onClick={() => setSelectedGroup(group)}
+                                    >
+                                      <Users className="h-4 w-4" />
+                                      <span className="text-sm font-medium">{group.name}</span>
+                                      <span className="text-xs text-muted-foreground">{group.student_ids.length}人</span>
+                                    </Button>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-center py-10 text-gray-500">
+                              <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                              <p className="text-lg font-medium">暂无学习小组</p>
+                              <p className="text-sm mt-2">请先在"智能分组"标签页创建学习小组</p>
+                            </div>
+                          )}
+                        </TabsContent>
+                      </Tabs>
+                    )
                   ) : (
                     <div className="text-center py-10 text-gray-500 dark:text-gray-400">
-                      请先选择一个班级以进行AI分析。
+                      <Brain className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p className="text-lg font-medium">请选择班级开始AI分析</p>
+                      <p className="text-sm">从左侧列表选择一个班级，查看智能画像和分组建议</p>
                     </div>
                   )}
                 </CardContent>

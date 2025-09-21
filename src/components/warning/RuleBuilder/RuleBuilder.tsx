@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 import MetricPalette from "./MetricPalette";
 import RuleCanvas from "./RuleCanvas";
@@ -270,7 +271,7 @@ const RuleBuilder: React.FC<RuleBuilderProps> = ({
           parameters: {},
         },
         metadata: {
-          createdBy: "current_user", // 实际需要获取当前用户
+          createdBy: (await supabase.auth.getUser()).data.user?.id || "anonymous-user",
           createdWith: "rule_builder",
           version: "1.0.0",
           tags: [builderState.category, builderState.severity],

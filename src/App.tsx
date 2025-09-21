@@ -44,17 +44,15 @@ const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const StudentPortraitManagement = lazy(
   () => import("./pages/StudentPortraitManagement")
 );
+const ClassAnalytics = lazy(() => import("./pages/ClassAnalytics"));
 const ExamManagement = lazy(() => import("./pages/ExamManagement"));
-const GradeDataCenter = lazy(() => import("./pages/GradeDataCenterSimple"));
-const GradeDataCenterFull = lazy(() => import("./pages/GradeDataCenter"));
+const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
 
 // 工具和测试页面 - 懒加载
 const CascadeAnalysisTestPage = lazy(
   () => import("./pages/test/cascade-analysis")
 );
-const AnalysisDashboardComparison = lazy(
-  () => import("./pages/test/AnalysisDashboardComparison")
-);
+// 已删除测试文件: AnalysisDashboardComparison
 const DiagnosticsTool = lazy(() =>
   import("./tools/diagnostics-ui").then((module) => ({
     default: module.DiagnosticsTool,
@@ -234,10 +232,7 @@ function App() {
                         path="/test/cascade-analysis"
                         element={<CascadeAnalysisTestPage />}
                       />
-                      <Route
-                        path="/test/analysis-dashboards"
-                        element={<AnalysisDashboardComparison />}
-                      />
+                      {/* 已移除测试路由: /test/analysis-dashboards */}
 
                       {/* 诊断工具路由（保持公开用于系统维护） */}
                       <Route
@@ -263,6 +258,7 @@ function App() {
                       {/* 受保护的路由 - 需要登录验证 */}
                       <Route element={<ProtectedRoute />}>
                         <Route path="/dashboard" element={<Index />} />
+                        <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
                         <Route path="/data-import" element={<Index />} />
                         <Route path="/simple-import" element={<Index />} />
                         <Route path="/profile" element={<ProfilePage />} />
@@ -289,14 +285,6 @@ function App() {
                           <Route
                             path="/exam-management"
                             element={<ExamManagement />}
-                          />
-                          <Route
-                            path="/grade-data-center"
-                            element={<GradeDataCenter />}
-                          />
-                          <Route
-                            path="/grade-data-center-full"
-                            element={<GradeDataCenterFull />}
                           />
                           <Route
                             path="/student-management"

@@ -2,12 +2,12 @@ import React, { useState, useEffect, lazy, Suspense } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, BarChart3, RefreshCw } from "lucide-react";
+import { AlertTriangle, BarChart3, RefreshCw, Settings, Users, List } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
-// 直接导入重量级组件
-import WarningDashboard from "./WarningDashboard";
+// 教师友好的主要组件
+import TeacherWarningDashboard from "./TeacherWarningDashboard";
 
 // 懒加载次要组件
 const WarningList = lazy(() => import("./WarningList"));
@@ -23,7 +23,7 @@ const LoadingFallback = () => (
   </Card>
 );
 
-// 基础预警分析组件（简化版本）
+// 教师友好的预警分析组件
 const WarningAnalysis: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
@@ -40,37 +40,7 @@ const WarningAnalysis: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* 标题栏 */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-[#B9FF66] rounded-full border-2 border-black">
-            <AlertTriangle className="h-6 w-6 text-black" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-black text-[#191A23] tracking-tight">
-              预警分析
-            </h1>
-            <p className="text-[#191A23]/70 font-medium mt-1">
-              学生预警数据分析与风险评估
-            </p>
-          </div>
-        </div>
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={isLoading}
-          className="border-2 border-black bg-white hover:bg-gray-50 font-bold shadow-[2px_2px_0px_0px_#000]"
-        >
-          <RefreshCw
-            className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
-          />
-          {isLoading ? "刷新中..." : "刷新数据"}
-        </Button>
-      </div>
-
-      {/* 主要内容区域 */}
+      {/* 主要内容区域 - 简化为单一的教师友好界面 */}
       <Tabs
         value={activeTab}
         onValueChange={setActiveTab}
@@ -81,25 +51,27 @@ const WarningAnalysis: React.FC = () => {
             value="overview"
             className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-black"
           >
-            <BarChart3 className="h-4 w-4" />
-            概览分析
+            <Users className="h-4 w-4" />
+            学生预警
           </TabsTrigger>
           <TabsTrigger
             value="list"
             className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-black"
           >
-            预警列表
+            <List className="h-4 w-4" />
+            详细列表
           </TabsTrigger>
           <TabsTrigger
             value="rules"
             className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-black"
           >
-            预警规则
+            <Settings className="h-4 w-4" />
+            规则设置
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          <WarningDashboard />
+          <TeacherWarningDashboard />
         </TabsContent>
 
         <TabsContent value="list" className="space-y-6">

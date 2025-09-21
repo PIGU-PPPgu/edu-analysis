@@ -30,6 +30,7 @@ import {
   Zap,
   ArrowLeftRight,
   AlertCircle,
+  Sparkles,
 } from "lucide-react";
 import { toastHelpers } from "@/components/ui/toast-helpers";
 import { toast } from "@/components/ui/use-toast";
@@ -47,6 +48,7 @@ import ClassOverview from "@/components/portrait/ClassOverview";
 import { IntelligentPortraitAnalysis } from "@/components/portrait/advanced";
 import EnhancedStudentPortrait from "@/components/portrait/advanced/EnhancedStudentPortrait";
 import StudentPortraitComparison from "@/components/portrait/advanced/StudentPortraitComparison";
+import StudentPortraitGenerator from "@/components/portrait/StudentPortraitGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { PageLoading, CardLoading } from "@/components/ui/loading";
 import EmptyState from "@/components/ui/empty-state";
@@ -66,6 +68,7 @@ const StudentPortraitManagement: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
 
   // 使用防抖优化搜索体验
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
@@ -73,37 +76,56 @@ const StudentPortraitManagement: React.FC = () => {
   // 搜索状态指示
   const isSearching = searchQuery !== debouncedSearchQuery;
 
-  // 使用React Query获取班级数据
+  // 从班级名称推断年级的辅助函数
+  const inferGradeFromClassName = (className: string): string => {
+    if (className.includes('高一') || className.includes('1班')) return '高一';
+    if (className.includes('高二') || className.includes('2班')) return '高二';
+    if (className.includes('高三') || className.includes('3班')) return '高三';
+    if (className.includes('九') || className.includes('初三')) return '九年级';
+    if (className.includes('八') || className.includes('初二')) return '八年级';
+    if (className.includes('七') || className.includes('初一')) return '七年级';
+    return '未知年级';
+  };
+
+  // 使用React Query获取班级数据 - 直接从students表统计班级
   const { data: classesData, isLoading: isLoadingClasses } = useQuery({
     queryKey: ["classes"],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase
-          .from("classes")
-          .select("id, name, grade")
-          .order("grade", { ascending: true })
-          .order("name", { ascending: true });
+        // 从students表获取所有班级信息并统计学生数量
+        const { data: studentData, error } = await supabase
+          .from("students")
+          .select("class_name, student_id, grade")
+          .not("class_name", "is", null);
 
         if (error) throw error;
 
-        // 获取每个班级的学生数量 - 使用实际数据查询替代count查询
-        const classesWithCount = await Promise.all(
-          (data || []).map(async (cls) => {
-            const { data: studentsData, error: countError } = await supabase
-              .from("students")
-              .select("id")
-              .eq("class_id", cls.id);
+        // 按班级名称分组并统计
+        const classStats = new Map();
+        (studentData || []).forEach(student => {
+          const className = student.class_name;
+          if (!classStats.has(className)) {
+            classStats.set(className, {
+              id: `class-${className}`, // 生成一个临时ID
+              name: className,
+              grade: student.grade || inferGradeFromClassName(className),
+              student_count: 0
+            });
+          }
+          classStats.get(className).student_count++;
+        });
 
-            if (countError) throw countError;
+        // 转换为数组并排序
+        const classesArray = Array.from(classStats.values()).sort((a, b) => {
+          // 按年级排序，然后按班级名称排序
+          if (a.grade !== b.grade) {
+            return a.grade.localeCompare(b.grade);
+          }
+          return a.name.localeCompare(b.name);
+        });
 
-            return {
-              ...cls,
-              student_count: studentsData?.length || 0,
-            };
-          })
-        );
-
-        return classesWithCount;
+        console.log('✅ 从students表获取到班级列表:', classesArray.length, '个班级');
+        return classesArray;
       } catch (error) {
         console.error("获取班级列表失败:", error);
         toastHelpers.loadError("班级列表");
@@ -170,6 +192,12 @@ const StudentPortraitManagement: React.FC = () => {
     },
     [navigate]
   );
+
+  // 处理学生选择，用于智能画像分析
+  const handleSelectStudent = useCallback((studentId: string) => {
+    setSelectedStudentId(studentId);
+    setActiveTab("smart-portrait");
+  }, []);
 
   const handleClassChange = useCallback((classId: string) => {
     setSelectedClassId(classId);
@@ -339,47 +367,54 @@ const StudentPortraitManagement: React.FC = () => {
 
                   <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <div className="px-6">
-                      <TabsList className="grid w-full grid-cols-6">
+                      <TabsList className="grid w-full grid-cols-7">
                         <TabsTrigger
                           value="class"
-                          className="flex items-center"
+                          className="flex items-center text-xs"
                         >
-                          <Users className="h-4 w-4 mr-2" />
+                          <Users className="h-4 w-4 mr-1" />
                           班级
                         </TabsTrigger>
                         <TabsTrigger
                           value="group"
-                          className="flex items-center"
+                          className="flex items-center text-xs"
                         >
-                          <UsersIcon className="h-4 w-4 mr-2" />
+                          <UsersIcon className="h-4 w-4 mr-1" />
                           小组
                         </TabsTrigger>
                         <TabsTrigger
                           value="student"
-                          className="flex items-center"
+                          className="flex items-center text-xs"
                         >
-                          <UserCircle className="h-4 w-4 mr-2" />
+                          <UserCircle className="h-4 w-4 mr-1" />
                           学生
                         </TabsTrigger>
                         <TabsTrigger
-                          value="ai-analysis"
-                          className="flex items-center"
+                          value="smart-portrait"
+                          className="flex items-center text-xs"
                         >
-                          <Brain className="h-4 w-4 mr-2" />
+                          <Sparkles className="h-4 w-4 mr-1" />
+                          智能画像
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="ai-analysis"
+                          className="flex items-center text-xs"
+                        >
+                          <Brain className="h-4 w-4 mr-1" />
                           AI分析
                         </TabsTrigger>
                         <TabsTrigger
                           value="enhanced-analysis"
-                          className="flex items-center"
+                          className="flex items-center text-xs"
                         >
-                          <Zap className="h-4 w-4 mr-2" />
+                          <Zap className="h-4 w-4 mr-1" />
                           增强分析
                         </TabsTrigger>
                         <TabsTrigger
                           value="comparison"
-                          className="flex items-center"
+                          className="flex items-center text-xs"
                         >
-                          <BarChart3 className="h-4 w-4 mr-2" />
+                          <BarChart3 className="h-4 w-4 mr-1" />
                           对比分析
                         </TabsTrigger>
                       </TabsList>
@@ -492,11 +527,29 @@ const StudentPortraitManagement: React.FC = () => {
                                   key={student.id}
                                   student={student}
                                   onView={handleViewStudentProfile}
+                                  onSmartAnalysis={handleSelectStudent}
                                 />
                               ))}
                             </div>
                           )}
                         </div>
+                      </TabsContent>
+
+                      <TabsContent value="smart-portrait" className="mt-0">
+                        {selectedStudentId ? (
+                          <StudentPortraitGenerator 
+                            studentId={selectedStudentId}
+                            className={selectedClass?.name}
+                          />
+                        ) : (
+                          <div className="text-center py-20">
+                            <Sparkles className="h-16 w-16 text-muted-foreground/50 mb-4 mx-auto" />
+                            <p className="text-lg font-medium mb-2">AI智能画像生成</p>
+                            <p className="text-sm text-muted-foreground text-center max-w-md mx-auto">
+                              请先从"学生"标签页选择一个学生，或点击学生卡片上的"智能画像"按钮
+                            </p>
+                          </div>
+                        )}
                       </TabsContent>
 
                       <TabsContent value="ai-analysis" className="mt-0">

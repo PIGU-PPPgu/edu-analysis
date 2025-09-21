@@ -22,7 +22,6 @@ import {
   FileSpreadsheet,
   FileInput,
   Plus,
-  Settings,
   BookOpen,
   AlertTriangle,
   User,
@@ -33,13 +32,13 @@ import {
   CheckCircle,
   RotateCcw,
   Play,
+  RefreshCw,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { gradeAnalysisService } from "@/services/gradeAnalysisService";
 import StudentDataImporter from "@/components/analysis/core/StudentDataImporter";
-// 导入重构后的成绩导入组件
-import GradeImporter from "@/components/analysis/core/grade-importer/GradeImporter";
-// 导入新的简化导入组件
+// 导入智能成绩导入组件
 import { SimpleGradeImporter } from "@/components/import/SimpleGradeImporter";
 import { FileUploader } from "@/components/analysis/core/grade-importer";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,6 +54,11 @@ import { Separator } from "@/components/ui/separator";
 // import Footer from "@/components/shared/Footer"; // 暂时移除
 
 // 使用AI增强的成绩导入组件 - 包含完整的AI解析功能
+// 校验面板组件
+import GradeValidationPanel from "@/components/grade/GradeValidationPanel";
+import { gradeDataValidator, type ValidationReport, type ValidationOptions } from "@/services/gradeDataValidator";
+import { autoSyncService } from "@/services/autoSyncService";
+import { showError } from "@/services/errorHandler";
 
 const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -62,6 +66,11 @@ const Index = () => {
   const [tablesExist, setTablesExist] = useState<boolean>(true);
   const navigate = useNavigate();
   const { user, isAuthReady } = useAuth();
+
+  // 校验相关状态
+  const [validationReport, setValidationReport] = useState<ValidationReport | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
+  const [showValidationPanel, setShowValidationPanel] = useState(false);
 
   // 🧠 Master-AI-Data: 用户行为追踪（暂时禁用）
   // const { trackPageView, trackEvent, setUserId } = useUserBehaviorTracker();
@@ -71,10 +80,8 @@ const Index = () => {
   const [importedData, setImportedData] = useState<any[]>([]);
   const [isAnalysisLoading, setIsAnalysisLoading] = useState(false);
 
-  // 导入方式选择状态 - 根据路由决定默认模式
-  const [importMode, setImportMode] = useState<"standard" | "simple">(() => {
-    return location.pathname === "/simple-import" ? "simple" : "simple"; // 默认都使用简化模式
-  });
+  // 统一使用智能导入模式
+  // 移除了旧的导入方式选择，简化用户体验
 
   // 检查必要的数据表是否存在，并在需要时创建
   useEffect(() => {
@@ -190,7 +197,7 @@ const Index = () => {
   };
 
   // 处理简化导入完成
-  const handleSimpleImportComplete = (result: any) => {
+  const handleSimpleImportComplete = async (result: any) => {
     console.log("简化导入完成:", result);
     toast.success("导入完成", {
       description: `成功导入 ${result.successRecords} 条记录`,
@@ -210,7 +217,89 @@ const Index = () => {
       );
       setImportedData(mockData);
       setGradesActiveTab("preview");
+
+      // 如果有实际导入的数据，进行数据校验
+      if (result.importedData && result.importedData.length > 0) {
+        console.log('📋 开始对导入的数据进行校验...');
+        await handleValidateData(result.importedData, {
+          enableAutoFix: true,
+          skipWarnings: false,
+          skipInfo: true,
+          enableDataCleaning: true,
+          strictMode: false,
+          maxErrors: 500
+        });
+      }
     }
+  };
+
+  // 校验相关方法
+  const handleValidateData = async (data: any[], options?: ValidationOptions) => {
+    setIsValidating(true);
+    try {
+      console.log('🔍 开始数据校验:', data.length, '条记录');
+      const report = await gradeDataValidator.validateGradeData(data, options);
+      setValidationReport(report);
+      setShowValidationPanel(true);
+      
+      if (report.success) {
+        toast.success('数据校验完成', {
+          description: `数据质量: ${report.dataQuality.score}分 (${report.dataQuality.label})`
+        });
+      } else {
+        toast.warning('发现数据问题', {
+          description: `发现 ${report.summary.critical} 个严重错误，${report.summary.errors} 个错误`
+        });
+      }
+    } catch (error) {
+      console.error('数据校验失败:', error);
+      showError(error, { operation: '数据校验', recordCount: data.length });
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  const handleRevalidate = () => {
+    if (importedData.length > 0) {
+      handleValidateData(importedData);
+    }
+  };
+
+  const handleExportValidationReport = () => {
+    if (!validationReport) return;
+    
+    const reportData = {
+      ...validationReport,
+      exportTime: new Date().toISOString(),
+      totalRecords: validationReport.totalRecords
+    };
+    
+    const blob = new Blob([JSON.stringify(reportData, null, 2)], { 
+      type: 'application/json' 
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `validation-report-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast.success('校验报告已导出');
+  };
+
+  const handleApplyFixes = async (fixIds: string[]) => {
+    if (!validationReport) return;
+    
+    toast.info('自动修复功能正在开发中', {
+      description: '将在下个版本中提供智能数据修复功能'
+    });
+    
+    // TODO: 实现自动修复逻辑
+    // const fixedData = await gradeDataValidator.applyFixes(importedData, fixIds);
+    // setImportedData(fixedData);
+    // await handleValidateData(fixedData);
   };
 
   useEffect(() => {
@@ -350,39 +439,14 @@ const Index = () => {
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      {/* 导入方式选择 */}
-                      <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
-                        <h3 className="text-sm font-medium mb-3">
-                          选择导入方式
+                      {/* 智能导入说明 */}
+                      <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg border border-blue-200">
+                        <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          智能成绩导入
                         </h3>
-                        <div className="flex gap-3">
-                          <Button
-                            variant={
-                              importMode === "simple" ? "default" : "outline"
-                            }
-                            size="sm"
-                            onClick={() => setImportMode("simple")}
-                            className="flex items-center gap-2"
-                          >
-                            <CheckCircle className="h-4 w-4" />
-                            新版导入 (推荐)
-                          </Button>
-                          <Button
-                            variant={
-                              importMode === "standard" ? "default" : "outline"
-                            }
-                            size="sm"
-                            onClick={() => setImportMode("standard")}
-                            className="flex items-center gap-2"
-                          >
-                            <Settings className="h-4 w-4" />
-                            标准导入
-                          </Button>
-                        </div>
-                        <p className="text-xs text-gray-600 mt-2">
-                          {importMode === "simple"
-                            ? "🌟 新版导入：一键智能识别，三步完成导入，适合大多数用户"
-                            : "⚙️ 标准导入：提供完整的字段映射和高级配置选项，适合专业用户"}
+                        <p className="text-xs text-gray-700">
+                          🌟 一键智能识别，三步完成导入，支持大文件和Web Worker加速处理
                         </p>
                       </div>
 
@@ -412,16 +476,10 @@ const Index = () => {
                         </TabsList>
 
                         <TabsContent value="import" className="space-y-6">
-                          {importMode === "simple" ? (
-                            <SimpleGradeImporter
-                              onComplete={handleSimpleImportComplete}
-                              onCancel={() => console.log("用户取消导入")}
-                            />
-                          ) : (
-                            <GradeImporter
-                              onDataImported={handleDataImported}
-                            />
-                          )}
+                          <SimpleGradeImporter
+                            onComplete={handleSimpleImportComplete}
+                            onCancel={() => console.log("用户取消导入")}
+                          />
                         </TabsContent>
 
                         <TabsContent value="preview">
@@ -452,10 +510,16 @@ const Index = () => {
                                   </CardHeader>
                                   <CardContent>
                                     <div className="text-2xl font-bold">
-                                      100%
+                                      {validationReport ? 
+                                        `${Math.round((validationReport.validRecords / validationReport.totalRecords) * 100)}%` : 
+                                        '100%'
+                                      }
                                     </div>
                                     <Progress
-                                      value={100}
+                                      value={validationReport ? 
+                                        (validationReport.validRecords / validationReport.totalRecords) * 100 : 
+                                        100
+                                      }
                                       className="h-1 mt-1"
                                     />
                                   </CardContent>
@@ -486,21 +550,32 @@ const Index = () => {
                                 <Card>
                                   <CardHeader className="pb-2">
                                     <CardTitle className="text-sm font-medium text-gray-500">
-                                      科目类型
+                                      {validationReport ? '数据质量' : '科目类型'}
                                     </CardTitle>
                                   </CardHeader>
                                   <CardContent>
-                                    <div className="text-2xl font-bold">
-                                      {
-                                        new Set(
-                                          importedData.map(
-                                            (item) => item.subject
-                                          )
-                                        ).size
-                                      }
-                                    </div>
+                                    {validationReport ? (
+                                      <div className="flex items-center space-x-2">
+                                        <div className="text-2xl font-bold" style={{ color: validationReport.dataQuality.color }}>
+                                          {validationReport.dataQuality.score}
+                                        </div>
+                                        <Badge variant="outline" style={{ color: validationReport.dataQuality.color }}>
+                                          {validationReport.dataQuality.label}
+                                        </Badge>
+                                      </div>
+                                    ) : (
+                                      <div className="text-2xl font-bold">
+                                        {
+                                          new Set(
+                                            importedData.map(
+                                              (item) => item.subject
+                                            )
+                                          ).size
+                                        }
+                                      </div>
+                                    )}
                                     <p className="text-xs text-gray-500 mt-1">
-                                      个科目
+                                      {validationReport ? '质量评分' : '个科目'}
                                     </p>
                                   </CardContent>
                                 </Card>
@@ -510,14 +585,53 @@ const Index = () => {
                                 <h2 className="text-xl font-semibold">
                                   导入数据预览
                                 </h2>
-                                <Button
-                                  variant="outline"
-                                  className="flex items-center gap-1"
-                                >
-                                  <Download className="h-4 w-4" />
-                                  <span>导出数据</span>
-                                </Button>
+                                <div className="flex items-center gap-2">
+                                  {importedData.length > 0 && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleValidateData(importedData)}
+                                      disabled={isValidating}
+                                    >
+                                      {isValidating ? (
+                                        <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                                      ) : (
+                                        <CheckCircle className="h-4 w-4 mr-1" />
+                                      )}
+                                      数据校验
+                                    </Button>
+                                  )}
+                                  {validationReport && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setShowValidationPanel(!showValidationPanel)}
+                                    >
+                                      <Eye className="h-4 w-4 mr-1" />
+                                      {showValidationPanel ? '隐藏校验' : '查看校验'}
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                  >
+                                    <Download className="h-4 w-4 mr-1" />
+                                    导出数据
+                                  </Button>
+                                </div>
                               </div>
+
+                              {/* 数据校验面板 */}
+                              {showValidationPanel && validationReport && (
+                                <GradeValidationPanel
+                                  report={validationReport}
+                                  isLoading={isValidating}
+                                  onRevalidate={handleRevalidate}
+                                  onExportReport={handleExportValidationReport}
+                                  onApplyFixes={handleApplyFixes}
+                                  className="mt-6"
+                                />
+                              )}
 
                               <div className="flex justify-end gap-4">
                                 <Button

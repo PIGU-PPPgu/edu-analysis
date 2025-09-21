@@ -1,36 +1,94 @@
 import { supabase } from "@/integrations/supabase/client";
+import { showError, handleError } from "@/services/errorHandler";
 import { toast } from "sonner";
+import { getCachedData, clearCacheByPattern } from "@/utils/cacheHelpers";
 
-// 视图存在状态缓存，避免重复检查视图
-const viewStatusCache = {
-  class_statistics: null as boolean | null,
-  mv_class_subject_stats: null as boolean | null,
-  mv_class_exam_trends: null as boolean | null,
-  mv_class_subject_competency: null as boolean | null,
-  mv_class_subject_correlation: null as boolean | null,
+// 班级统计数据接口
+interface ClassStatistics {
+  class_name: string;
+  student_count: number;
+  students_with_grades: number;
+  total_grade_records: number;
+  latest_exam_date: string | null;
+  data_consistency_status: string;
+}
+
+// 缓存配置
+const CACHE_CONFIGS = {
+  VIEW_EXISTENCE: 60 * 60 * 1000, // 视图存在性缓存1小时
+  CLASS_STATS: 10 * 60 * 1000, // 班级统计缓存10分钟
+  EXAM_TRENDS: 15 * 60 * 1000, // 考试趋势缓存15分钟
+  GRADE_ANALYSIS: 5 * 60 * 1000, // 成绩分析缓存5分钟
 };
 
-// 检查视图是否存在
-async function checkViewExists(viewName: string): Promise<boolean> {
-  // 如果缓存中有结果，直接返回
-  if (viewStatusCache[viewName as keyof typeof viewStatusCache] !== null) {
-    return !!viewStatusCache[viewName as keyof typeof viewStatusCache];
-  }
-
+/**
+ * 从grade_data_new表获取班级成绩统计
+ */
+async function getClassGradeStatsFromGradeDataNew(classNames: string[]) {
   try {
-    // 尝试查询视图
-    const { data, error } = await supabase.from(viewName).select("*").limit(1);
+    const { data, error } = await supabase
+      .from("grade_data_new")
+      .select("class_name, total_score")
+      .in("class_name", classNames)
+      .not("total_score", "is", null);
 
-    // 更新缓存
-    const exists = !error;
-    viewStatusCache[viewName as keyof typeof viewStatusCache] = exists;
+    if (error) {
+      console.error("获取成绩统计失败:", error);
+      return [];
+    }
 
-    return exists;
-  } catch (e) {
-    // 更新缓存
-    viewStatusCache[viewName as keyof typeof viewStatusCache] = false;
-    return false;
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    // 按班级分组计算统计
+    const statsMap = new Map();
+    data.forEach(record => {
+      const className = record.class_name;
+      if (!statsMap.has(className)) {
+        statsMap.set(className, {
+          class_name: className,
+          scores: []
+        });
+      }
+      statsMap.get(className).scores.push(record.total_score);
+    });
+
+    // 计算每个班级的统计指标
+    const result = Array.from(statsMap.values()).map(classData => {
+      const scores = classData.scores;
+      const avg_score = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+      const excellent_count = scores.filter(score => score >= 400).length; // 假设400+为优秀
+      const excellent_rate = (excellent_count / scores.length) * 100;
+
+      return {
+        class_name: classData.class_name,
+        avg_score: Math.round(avg_score * 10) / 10,
+        excellent_rate: Math.round(excellent_rate * 10) / 10,
+        grade_records: scores.length
+      };
+    });
+
+    return result;
+  } catch (error) {
+    console.error("获取班级成绩统计时出错:", error);
+    return [];
   }
+}
+
+// 检查视图是否存在 - 优化版本
+async function checkViewExists(viewName: string): Promise<boolean> {
+  const cacheKey = `view_exists_${viewName}`;
+
+  return getCachedData(cacheKey, async () => {
+    try {
+      const { error } = await supabase.from(viewName).select("*").limit(1);
+      return !error;
+    } catch (error) {
+      console.warn(`检查视图 ${viewName} 时出错:`, error);
+      return false;
+    }
+  }, CACHE_CONFIGS.VIEW_EXISTENCE);
 }
 
 export interface ClassStatistics {
@@ -44,80 +102,328 @@ export interface ClassStatistics {
 }
 
 /**
- * 获取所有班级的统计信息（包含降级方案）
+ * 获取所有班级信息，基于统一数据模型（修复版）
  */
 export async function getAllClasses(): Promise<any[]> {
   try {
-    // 检查视图是否存在
-    const viewExists = await checkViewExists("class_statistics");
+    console.log("正在获取班级列表...");
 
-    // 视图存在，直接查询
-    if (viewExists) {
-      const { data: statsData, error: statsError } = await supabase
-        .from("class_statistics")
-        .select("*");
+    // 从学生数据中获取实际存在的班级列表
+    const { data: studentClassData, error: studentError } = await supabase
+      .from("students")
+      .select("class_name, grade")
+      .not("class_name", "is", null);
 
-      if (!statsError) {
-        return statsData.map((item) => ({
-          id: item.class_id,
-          name: item.class_name,
-          grade: item.grade,
-          studentCount: item.student_count,
-          homeworkCount: item.homework_count,
-          averageScore: item.average_score,
-          excellentRate: item.excellent_rate,
-        }));
-      }
-    }
-
-    console.warn("class_statistics视图不存在，降级为基础查询");
-    toast.warning("正在使用基础班级数据，部分统计信息可能不可用");
-
-    // 视图不存在，降级为查询原始classes表
-    const { data: classesData, error: classesError } = await supabase
-      .from("classes")
-      .select("*");
-
-    if (classesError) {
-      console.error("获取班级列表失败:", classesError);
-      toast.error(`获取班级列表失败: ${classesError.message}`);
+    if (studentError) {
+      console.error("获取学生班级数据失败:", studentError);
+      showError(studentError, { operation: '获取学生班级数据', table: 'students' });
       return [];
     }
 
-    // 对每个班级单独获取统计数据，并转换为与Class接口一致的格式
-    const enrichedClasses = [];
-
-    for (const cls of classesData) {
-      // 获取学生数量
-      const { data: students, error: studentsError } = await supabase
-        .from("students")
-        .select("id")
-        .eq("class_id", cls.id);
-
-      // 获取作业数量
-      const { data: homeworks, error: homeworksError } = await supabase
-        .from("homework")
-        .select("id")
-        .eq("class_id", cls.id);
-
-      // 添加带有统计数据的班级，保持原始字段名称与Class接口一致
-      enrichedClasses.push({
-        id: cls.id,
-        name: cls.name,
-        grade: cls.grade,
-        created_at: cls.created_at,
-        studentCount: students?.length || 0,
-        homeworkCount: homeworks?.length || 0,
-        averageScore: 0, // 暂无法获取，设为默认值
-        excellentRate: 0, // 暂无法获取，设为默认值
-      });
+    if (!studentClassData || studentClassData.length === 0) {
+      console.log("未找到任何学生班级数据");
+      toast.warning("暂无班级数据");
+      return [];
     }
 
+    // 统计每个班级的学生数量和年级信息
+    const classStats = new Map();
+    studentClassData.forEach(student => {
+      const className = student.class_name;
+      if (!classStats.has(className)) {
+        classStats.set(className, {
+          name: className,
+          grade: student.grade || '未知',
+          studentCount: 0
+        });
+      }
+      classStats.get(className).studentCount++;
+    });
+
+    const classNames = Array.from(classStats.keys());
+    console.log(`发现${classNames.length}个实际班级:`, classNames.slice(0, 5));
+
+    // 批量获取班级成绩统计
+    const [gradeStats, homeworkStats] = await Promise.all([
+      getClassGradeStatsFromGradeDataNew(classNames),
+      getMultipleClassHomeworkStats(classNames)
+    ]);
+
+    // 合并数据
+    const enrichedClasses = Array.from(classStats.values()).map(classInfo => {
+      const gradeData = gradeStats.find(g => g.class_name === classInfo.name);
+      const hwData = homeworkStats.find(h => h.class_name === classInfo.name);
+
+      return {
+        id: `class-${classInfo.name.replace(/[^a-zA-Z0-9]/g, '-')}`, // 生成稳定的ID
+        name: classInfo.name,
+        grade: classInfo.grade,
+        studentCount: classInfo.studentCount,
+        homeworkCount: hwData?.homework_count || 0,
+        averageScore: gradeData?.avg_score || 0,
+        excellentRate: gradeData?.excellent_rate || 0,
+        gradeRecordCount: gradeData?.grade_records || 0,
+        created_at: new Date().toISOString(),
+      };
+    });
+    
+    console.log(`成功获取${enrichedClasses.length}个班级的完整信息`);
     return enrichedClasses;
+
   } catch (error: any) {
     console.error("获取班级列表异常:", error);
-    toast.error(`获取班级列表失败: ${error?.message || "未知错误"}`);
+    showError(error, { operation: '获取班级列表', table: 'classes' });
     return [];
+  }
+}
+
+/**
+ * 批量获取多个班级的成绩统计
+ */
+async function getMultipleClassGradeStats(classNames: string[]): Promise<Array<{
+  class_name: string;
+  avg_score: number;
+  excellent_rate: number;
+  grade_records: number;
+}>> {
+  try {
+    if (classNames.length === 0) return [];
+    
+    const { data, error } = await supabase
+      .from('grade_data_new')
+      .select('class_name, total_score')
+      .in('class_name', classNames)
+      .not('total_score', 'is', null);
+    
+    if (error) {
+      console.error('获取成绩统计失败:', error);
+      return [];
+    }
+    
+    // 按班级聚合统计
+    const statsByClass: Record<string, {
+      scores: number[];
+      excellentCount: number;
+    }> = {};
+    
+    data?.forEach(record => {
+      if (!statsByClass[record.class_name]) {
+        statsByClass[record.class_name] = {
+          scores: [],
+          excellentCount: 0
+        };
+      }
+      
+      statsByClass[record.class_name].scores.push(record.total_score);
+      if (record.total_score >= 85) {
+        statsByClass[record.class_name].excellentCount++;
+      }
+    });
+    
+    return Object.entries(statsByClass).map(([className, stats]) => ({
+      class_name: className,
+      avg_score: stats.scores.length > 0 ? Math.round(stats.scores.reduce((sum, score) => sum + score, 0) / stats.scores.length * 10) / 10 : 0,
+      excellent_rate: stats.scores.length > 0 ? Math.round(stats.excellentCount / stats.scores.length * 100 * 10) / 10 : 0,
+      grade_records: stats.scores.length
+    }));
+    
+  } catch (error) {
+    console.error('批量获取成绩统计异常:', error);
+    return [];
+  }
+}
+
+/**
+ * 批量获取多个班级的作业统计
+ */
+async function getMultipleClassHomeworkStats(classNames: string[]): Promise<Array<{
+  class_name: string;
+  homework_count: number;
+}>> {
+  try {
+    if (classNames.length === 0) return [];
+    
+    // 首先从classes表获取班级名称对应的UUID
+    const { data: classData, error: classError } = await supabase
+      .from('classes')
+      .select('id, name')
+      .in('name', classNames);
+    
+    if (classError) {
+      console.error('获取班级ID失败:', classError);
+      return classNames.map(className => ({
+        class_name: className,
+        homework_count: 0
+      }));
+    }
+    
+    // 如果没有找到班级数据，返回0统计
+    if (!classData || classData.length === 0) {
+      return classNames.map(className => ({
+        class_name: className,
+        homework_count: 0
+      }));
+    }
+    
+    // 提取班级ID
+    const classIds = classData.map(c => c.id);
+    const classNameToId = new Map(classData.map(c => [c.name, c.id]));
+    
+    // 查询homework表
+    const { data: homeworkData, error: homeworkError } = await supabase
+      .from('homework')
+      .select('class_id')
+      .in('class_id', classIds);
+    
+    if (homeworkError) {
+      console.error('获取作业统计失败:', homeworkError);
+      return classNames.map(className => ({
+        class_name: className,
+        homework_count: 0
+      }));
+    }
+    
+    // 按班级ID统计作业数量
+    const homeworkCount: Record<string, number> = {};
+    if (homeworkData) {
+      homeworkData.forEach(hw => {
+        homeworkCount[hw.class_id] = (homeworkCount[hw.class_id] || 0) + 1;
+      });
+    }
+    
+    // 将结果映射回班级名称
+    return classNames.map(className => {
+      const classId = classNameToId.get(className);
+      return {
+        class_name: className,
+        homework_count: classId ? (homeworkCount[classId] || 0) : 0
+      };
+    });
+    
+  } catch (error) {
+    console.error('批量获取作业统计异常:', error);
+    return classNames.map(className => ({
+      class_name: className,
+      homework_count: 0
+    }));
+  }
+}
+
+/**
+ * 优化的班级统计查询函数
+ */
+async function getClassStatisticsOptimized(className: string): Promise<{
+  studentCount: number;
+  homeworkCount: number;
+  averageScore: number;
+  excellentRate: number;
+}> {
+  try {
+    // 清理过期缓存
+    clearExpiredCache();
+    
+    // 检查缓存
+    const cacheKey = `class_stats_${className}`;
+    const cached = classStatsCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < cached.ttl) {
+      console.log(`使用缓存数据: ${className}`);
+      return cached.data;
+    }
+    // 并行查询多个统计数据，使用更安全和高效的查询方式
+    const [studentResult, gradeResult, homeworkResult] = await Promise.all([
+      // 学生数量 - 直接通过class_name查询，避免复杂的OR查询
+      supabase
+        .from("students")
+        .select("id", { count: "exact", head: true })
+        .eq("class_name", className),
+      
+      // 成绩统计 - 优先从grade_data_new查询，添加索引友好的条件
+      supabase
+        .from("grade_data_new")
+        .select("total_score")
+        .eq("class_name", className)
+        .not("total_score", "is", null)
+        .limit(500), // 减少限制数量提升性能
+        
+      // 作业数量 - 并行查询，通过class_info或classes表关联
+      supabase
+        .from("homework")
+        .select("id", { count: "exact", head: true })
+        .in("class_id", function (query) {
+          return query
+            .select("id")
+            .from("classes")
+            .eq("name", className);
+        })
+    ]);
+
+    const studentCount = studentResult.count || 0;
+    const homeworkCount = homeworkResult.count || 0;
+    
+    let averageScore = 0;
+    let excellentRate = 0;
+
+    // 处理成绩统计，如果grade_data_new没有数据，尝试grade_data表
+    if (gradeResult.data && gradeResult.data.length > 0) {
+      const scores = gradeResult.data
+        .map(item => item.total_score)
+        .filter(score => score !== null && score !== undefined);
+      
+      if (scores.length > 0) {
+        averageScore = Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
+        const excellentCount = scores.filter(score => score >= 85).length;
+        excellentRate = Math.round((excellentCount / scores.length) * 100);
+      }
+    } else {
+      // 回退到grade_data表查询
+      try {
+        const { data: fallbackGrades } = await supabase
+          .from("grade_data")
+          .select("total_score")
+          .eq("class_name", className)
+          .not("total_score", "is", null)
+          .limit(1000);
+          
+        if (fallbackGrades && fallbackGrades.length > 0) {
+          const scores = fallbackGrades
+            .map(item => item.total_score)
+            .filter(score => score !== null && score !== undefined);
+          
+          if (scores.length > 0) {
+            averageScore = Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
+            const excellentCount = scores.filter(score => score >= 85).length;
+            excellentRate = Math.round((excellentCount / scores.length) * 100);
+          }
+        }
+      } catch (error) {
+        console.warn(`获取班级${className}成绩统计失败:`, error);
+      }
+    }
+
+    const result = {
+      studentCount,
+      homeworkCount,
+      averageScore,
+      excellentRate,
+    };
+
+    // 将结果存入缓存，缓存5分钟
+    classStatsCache.set(cacheKey, {
+      data: result,
+      timestamp: Date.now(),
+      ttl: 5 * 60 * 1000, // 5分钟
+    });
+
+    return result;
+
+  } catch (error) {
+    console.warn(`获取班级${className}统计失败:`, error);
+    return {
+      studentCount: 0,
+      homeworkCount: 0,
+      averageScore: 0,
+      excellentRate: 0,
+    };
   }
 }
 
@@ -136,14 +442,14 @@ export async function getClassById(classId: string) {
 
     if (error) {
       console.error("获取班级详情失败:", error);
-      toast.error(`获取班级详情失败: ${error.message}`);
+      showError(error, { operation: '获取班级详情', classId });
       return null;
     }
 
     return data;
   } catch (error) {
     console.error("获取班级详情异常:", error);
-    toast.error(`获取班级详情失败: ${error.message}`);
+    showError(error, { operation: '获取班级详情', classId });
     return null;
   }
 }
@@ -162,7 +468,7 @@ export async function createClass(classData: { name: string; grade: string }) {
 
     if (error) {
       console.error("创建班级失败:", error);
-      toast.error(`创建班级失败: ${error.message}`);
+      showError(error, { operation: '创建班级', className: classData.name });
       return null;
     }
 
@@ -170,7 +476,7 @@ export async function createClass(classData: { name: string; grade: string }) {
     return data?.[0] || null;
   } catch (error) {
     console.error("创建班级异常:", error);
-    toast.error(`创建班级失败: ${error.message}`);
+    showError(error, { operation: '创建班级', className: classData.name });
     return null;
   }
 }
@@ -193,7 +499,7 @@ export async function updateClass(
 
     if (error) {
       console.error("更新班级信息失败:", error);
-      toast.error(`更新班级信息失败: ${error.message}`);
+      showError(error, { operation: '更新班级信息', classId });
       return false;
     }
 
@@ -201,7 +507,7 @@ export async function updateClass(
     return true;
   } catch (error) {
     console.error("更新班级信息异常:", error);
-    toast.error(`更新班级信息失败: ${error.message}`);
+    showError(error, { operation: '更新班级信息', classId });
     return false;
   }
 }
@@ -221,7 +527,7 @@ export async function deleteClass(classId: string) {
 
     if (studentUpdateError) {
       console.error("清除学生班级关联失败:", studentUpdateError);
-      toast.error(`删除班级失败: ${studentUpdateError.message}`);
+      showError(studentUpdateError, { operation: '删除班级-清除学生关联', classId });
       return false;
     }
 
@@ -233,7 +539,7 @@ export async function deleteClass(classId: string) {
 
     if (homeworkDeleteError) {
       console.error("删除班级作业失败:", homeworkDeleteError);
-      toast.error(`删除班级失败: ${homeworkDeleteError.message}`);
+      showError(homeworkDeleteError, { operation: '删除班级-清除作业关联', classId });
       return false;
     }
 
@@ -242,7 +548,7 @@ export async function deleteClass(classId: string) {
 
     if (error) {
       console.error("删除班级失败:", error);
-      toast.error(`删除班级失败: ${error.message}`);
+      showError(error, { operation: '删除班级', classId });
       return false;
     }
 
@@ -250,7 +556,7 @@ export async function deleteClass(classId: string) {
     return true;
   } catch (error) {
     console.error("删除班级异常:", error);
-    toast.error(`删除班级失败: ${error.message}`);
+    showError(error, { operation: '删除班级', classId });
     return false;
   }
 }
@@ -270,14 +576,14 @@ export async function getClassStudents(classId: string) {
 
     if (error) {
       console.error("获取班级学生列表失败:", error);
-      toast.error(`获取班级学生列表失败: ${error.message}`);
+      showError(error, { operation: '获取班级学生列表', classId });
       return [];
     }
 
     return data || [];
   } catch (error) {
     console.error("获取班级学生列表异常:", error);
-    toast.error(`获取班级学生列表失败: ${error.message}`);
+    showError(error, { operation: '获取班级学生列表', classId });
     return [];
   }
 }
@@ -297,14 +603,14 @@ export async function getClassHomeworks(classId: string) {
 
     if (error) {
       console.error("获取班级作业列表失败:", error);
-      toast.error(`获取班级作业列表失败: ${error.message}`);
+      showError(error, { operation: '获取班级作业列表', classId });
       return [];
     }
 
     return data || [];
   } catch (error) {
     console.error("获取班级作业列表异常:", error);
-    toast.error(`获取班级作业列表失败: ${error.message}`);
+    showError(error, { operation: '获取班级作业列表', classId });
     return [];
   }
 }
@@ -379,56 +685,33 @@ export async function getClassDetailedAnalysisData(classId: string) {
 
     console.log(`找到成绩记录数量:`, grades?.length || 0);
 
-    // 没有成绩记录时，尝试创建一些模拟数据以便界面能正常显示
+    // 没有成绩记录时，返回简化的空数据结构
     if (!grades || grades.length === 0) {
-      console.warn(`班级 ${classId} 没有成绩记录，将使用模拟数据`);
-
-      // 提供一些基本的模拟成绩数据
-      const mockSubjects = ["语文", "数学", "英语", "物理", "化学"];
-      const mockGrades = [];
-
-      // 为每个学生创建一些随机成绩
-      for (const student of students) {
-        for (const subject of mockSubjects) {
-          mockGrades.push({
-            id: `mock-${student.id}-${subject}`,
-            student_id: student.id,
-            subject,
-            score: 60 + Math.floor(Math.random() * 40), // 60-100之间的随机分数
-            exam_type: "期中考试",
-            exam_date: new Date().toISOString().split("T")[0],
-          });
-        }
-      }
-
-      console.log(`创建了 ${mockGrades.length} 条模拟成绩数据`);
-
-      // 4. 使用模拟数据计算各种分析结果
-      const boxPlotData = calculateBoxPlotData(mockGrades);
-      const trendData = await calculateTrendData(classId, mockGrades);
-      const competencyData = await calculateCompetencyData(classId, mockGrades);
-      const weaknessAnalysisData = await calculateClassWeakness(
-        classId,
-        mockGrades
-      );
-      const examComparisonData = await getExamComparisonData(
-        classId,
-        mockGrades
-      );
-      const studentsListData = await prepareStudentsListData(
-        students,
-        mockGrades
-      );
-      const scoreDistributionData = calculateScoreDistribution(mockGrades);
+      console.warn(`班级 ${classId} 没有成绩记录，返回空数据结构`);
 
       return {
-        boxPlotData,
-        trendData,
-        competencyData,
-        weaknessAnalysisData,
-        examComparisonData,
-        studentsListData,
-        scoreDistributionData,
+        boxPlotData: [],
+        trendData: [],
+        competencyData: [],
+        weaknessAnalysisData: [],
+        examComparisonData: {
+          examList: [],
+          initialSelected: [],
+          displayScores: [],
+        },
+        studentsListData: students.map(student => ({
+          studentId: student.id,
+          name: student.name,
+          averageScore: 0,
+          trend: 0,
+        })),
+        scoreDistributionData: [
+          { range: "90-100分", count: 0, color: "#82ca9d" },
+          { range: "80-89分", count: 0, color: "#8884d8" },
+          { range: "70-79分", count: 0, color: "#ffc658" },
+          { range: "60-69分", count: 0, color: "#ff8042" },
+          { range: "<60分", count: 0, color: "#f55656" },
+        ],
         classProfileData: classInfo,
       };
     }
@@ -483,40 +766,34 @@ export async function getClassDetailedAnalysisData(classId: string) {
 function calculateBoxPlotData(grades: any[]) {
   if (!grades || grades.length === 0) return [];
 
-  // 按学科分组
-  const subjectGroups: Record<string, number[]> = {};
+  // 从grade_data_new获取总分数据（简化版，只分析总分）
+  const totalScores: number[] = [];
 
   grades.forEach((grade) => {
-    if (!grade.subject || grade.score === null || grade.score === undefined)
-      return;
-
-    if (!subjectGroups[grade.subject]) {
-      subjectGroups[grade.subject] = [];
+    if (grade.total_score !== null && grade.total_score !== undefined) {
+      totalScores.push(parseFloat(grade.total_score));
     }
-
-    subjectGroups[grade.subject].push(grade.score);
   });
 
-  // 对每个学科计算BoxPlot数据
-  return Object.entries(subjectGroups).map(([subject, scores]) => {
-    // 排序分数
-    scores.sort((a, b) => a - b);
+  if (totalScores.length === 0) return [];
 
-    const min = Math.min(...scores);
-    const max = Math.max(...scores);
-    const median = calculateMedian(scores);
-    const q1 = calculateQuantile(scores, 0.25);
-    const q3 = calculateQuantile(scores, 0.75);
+  // 对总分计算BoxPlot数据
+  totalScores.sort((a, b) => a - b);
 
-    return {
-      subject,
+  const min = Math.min(...totalScores);
+  const max = Math.max(...totalScores);
+  const median = calculateMedian(totalScores);
+  const q1 = calculateQuantile(totalScores, 0.25);
+  const q3 = calculateQuantile(totalScores, 0.75);
+
+  return [{
+      subject: "总分",
       min,
       q1,
       median,
       q3,
       max,
-    };
-  });
+    }];
 }
 
 /**
@@ -566,47 +843,63 @@ async function calculateTrendData(classId: string, grades: any[]) {
     return new Date(a.date).getTime() - new Date(b.date).getTime();
   });
 
-  // 计算每次考试的班级平均分和年级平均分
-  const trendData = await Promise.all(
-    sortedExams.map(async ({ type, date }) => {
-      // 该班级的分数
-      const classScores = grades
-        .filter((g) => g.exam_type === type && g.exam_date === date)
-        .map((g) => g.score);
+  // 优化：一次性获取所有年级成绩数据，避免N+1查询
+  const examConditions = sortedExams.map(({ type, date }) => ({ exam_type: type, exam_date: date }));
 
-      // 全年级的分数
-      const { data: allGrades, error } = await supabase
-        .from("grades")
-        .select("score")
-        .eq("exam_type", type)
-        .eq("exam_date", date);
+  // 构建批量查询条件 - 使用grade_data_new表
+  const { data: allGradesData, error: allGradesError } = await supabase
+    .from("grade_data_new")
+    .select("total_score, exam_type, exam_date")
+    .or(examConditions.map(({ exam_type, exam_date }) =>
+      `and(exam_type.eq.${exam_type},exam_date.eq.${exam_date})`
+    ).join(','));
 
-      if (error) {
-        console.error("获取年级成绩失败:", error);
-        return null;
+  if (allGradesError) {
+    console.error("批量获取年级成绩失败:", allGradesError);
+    return [];
+  }
+
+  // 按考试类型和日期分组年级成绩
+  const gradesByExam = new Map<string, number[]>();
+  if (allGradesData) {
+    allGradesData.forEach((grade) => {
+      const key = `${grade.exam_type}-${grade.exam_date}`;
+      if (!gradesByExam.has(key)) {
+        gradesByExam.set(key, []);
       }
+      gradesByExam.get(key)!.push(grade.total_score);
+    });
+  }
 
-      const gradeScores = allGrades.map((g) => g.score);
+  // 计算每次考试的班级平均分和年级平均分
+  const trendData = sortedExams.map(({ type, date }) => {
+    // 该班级的分数
+    const classScores = grades
+      .filter((g) => g.exam_type === type && g.exam_date === date)
+      .map((g) => g.total_score);
 
-      const classAvg =
-        classScores.length > 0
-          ? classScores.reduce((sum, score) => sum + score, 0) /
-            classScores.length
-          : 0;
+    // 从预加载的数据中获取年级分数
+    const examKey = `${type}-${date}`;
+    const gradeScores = gradesByExam.get(examKey) || [];
 
-      const gradeAvg =
-        gradeScores.length > 0
-          ? gradeScores.reduce((sum, score) => sum + score, 0) /
-            gradeScores.length
-          : 0;
+    const classAvg =
+      classScores.length > 0
+        ? classScores.reduce((sum, score) => sum + score, 0) /
+          classScores.length
+        : 0;
 
-      return {
-        examName: type,
-        classAvg: parseFloat(classAvg.toFixed(1)),
-        gradeAvg: parseFloat(gradeAvg.toFixed(1)),
-      };
-    })
-  );
+    const gradeAvg =
+      gradeScores.length > 0
+        ? gradeScores.reduce((sum, score) => sum + score, 0) /
+          gradeScores.length
+        : 0;
+
+    return {
+      examName: type,
+      classAvg: parseFloat(classAvg.toFixed(1)),
+      gradeAvg: parseFloat(gradeAvg.toFixed(1)),
+    };
+  });
 
   return trendData.filter(Boolean);
 }
@@ -977,35 +1270,100 @@ async function prepareStudentsListData(students: any[], grades: any[]) {
  */
 export async function getAllClassesAnalysisData() {
   try {
-    // 获取所有班级
-    const { data: classes, error: classesError } = await supabase
-      .from("classes")
-      .select("*");
+    // 从getAllClasses()获取一致的班级数据
+    const classes = await getAllClasses();
 
-    if (classesError) {
-      throw new Error(`获取班级列表失败: ${classesError.message}`);
+    if (!classes || classes.length === 0) {
+      return { boxPlotData: {}, trendData: {}, competencyData: {} };
     }
 
-    // 为每个班级获取详细分析数据
+    console.log(`开始批量分析 ${classes.length} 个班级的数据`);
+
+    // 获取所有班级名称
+    const classNames = classes.map(cls => cls.name);
+
+    // 1. 批量获取所有学生数据 - 使用class_name而不是class_id
+    const { data: allStudents, error: studentsError } = await supabase
+      .from("students")
+      .select("id, name, class_name")
+      .in("class_name", classNames)
+      .not("class_name", "is", null);
+
+    if (studentsError) {
+      console.error("批量获取学生数据失败:", studentsError);
+      throw new Error(`批量获取学生数据失败: ${studentsError.message}`);
+    }
+
+    // 2. 批量获取所有成绩数据 - 使用grade_data_new表
+    const studentIds = allStudents?.map(s => s.id) || [];
+    const { data: allGrades, error: gradesError } = await supabase
+      .from("grade_data_new")
+      .select("student_id, total_score, exam_type, exam_date, class_name")
+      .in("student_id", studentIds)
+      .not("total_score", "is", null);
+
+    if (gradesError) {
+      console.error("批量获取成绩数据失败:", gradesError);
+      throw new Error(`批量获取成绩数据失败: ${gradesError.message}`);
+    }
+
+    console.log(`批量获取到 ${allStudents?.length || 0} 个学生，${allGrades?.length || 0} 条成绩记录`);
+
+    // 3. 按班级分组数据 - 使用class_name
+    const studentsByClass = new Map<string, any[]>();
+    const gradesByClass = new Map<string, any[]>();
+
+    // 分组学生
+    allStudents?.forEach(student => {
+      const className = student.class_name;
+      if (!studentsByClass.has(className)) {
+        studentsByClass.set(className, []);
+      }
+      studentsByClass.get(className)!.push(student);
+    });
+
+    // 分组成绩（可以直接使用class_name，或通过学生关联）
+    allGrades?.forEach(grade => {
+      const className = grade.class_name;
+      if (className) {
+        if (!gradesByClass.has(className)) {
+          gradesByClass.set(className, []);
+        }
+        gradesByClass.get(className)!.push(grade);
+      }
+    });
+
+    // 4. 为每个班级计算分析数据
     const analysisData: Record<string, any> = {
       boxPlotData: {},
       trendData: {},
       competencyData: {},
     };
 
-    await Promise.all(
-      classes.map(async (cls) => {
-        try {
-          const data = await getClassDetailedAnalysisData(cls.id);
+    // 现在可以同步处理每个班级，因为数据已经预加载
+    for (const cls of classes) {
+      try {
+        const className = cls.name;
+        const classStudents = studentsByClass.get(className) || [];
+        const classGrades = gradesByClass.get(className) || [];
 
-          analysisData.boxPlotData[cls.id] = data.boxPlotData;
-          analysisData.trendData[cls.id] = data.trendData;
-          analysisData.competencyData[cls.id] = data.competencyData;
-        } catch (error) {
-          console.error(`获取班级 ${cls.name} 详细数据失败:`, error);
-        }
-      })
-    );
+        // 使用预加载的数据计算分析结果
+        const boxPlotData = calculateBoxPlotData(classGrades);
+        const trendData = await calculateTrendData(className, classGrades);
+        const competencyData = await calculateCompetencyData(className, classGrades);
+
+        // 使用class.id作为key以保持API兼容性
+        analysisData.boxPlotData[cls.id] = boxPlotData;
+        analysisData.trendData[cls.id] = trendData;
+        analysisData.competencyData[cls.id] = competencyData;
+      } catch (error) {
+        console.error(`计算班级 ${cls.name} 分析数据失败:`, error);
+        // 设置空数据以避免系统崩溃
+        analysisData.boxPlotData[cls.id] = [];
+        analysisData.trendData[cls.id] = [];
+        analysisData.competencyData[cls.id] = [];
+      }
+    }
 
     return analysisData;
   } catch (error: any) {
@@ -1485,7 +1843,188 @@ export async function getSubjectAnalysisData(classId: string) {
     return result;
   } catch (error) {
     console.error("获取学科分析数据失败:", error);
-    toast.error(`获取学科分析数据失败: ${error.message || "未知错误"}`);
+    showError(error, { operation: '获取学科分析数据', classId });
     throw error; // 向上抛出错误以便调用方处理
   }
+}
+
+// ========== 新增：标准化班级统计系统 ==========
+
+/**
+ * 获取准确的班级统计数据（使用数据库函数）
+ * @param className 班级名称（可选，不传则获取所有班级）
+ * @returns 班级统计数据
+ */
+export async function getAccurateClassStatistics(className?: string): Promise<ClassStatistics[]> {
+  try {
+    console.log('🔍 获取准确班级统计数据:', className || '全部班级');
+    
+    // 调用数据库函数获取准确统计
+    const { data, error } = await supabase.rpc('get_class_statistics', {
+      target_class_name: className || null
+    });
+
+    if (error) {
+      console.error('获取班级统计失败:', error);
+      showError(error, { operation: '获取班级统计', className });
+      return [];
+    }
+
+    console.log('✅ 班级统计数据获取成功:', data?.length || 0, '个班级');
+    return data || [];
+  } catch (error) {
+    console.error('班级统计查询异常:', error);
+    showError(error, { operation: '获取班级统计', className });
+    return [];
+  }
+}
+
+/**
+ * 手动更新所有班级统计数据
+ * @returns 是否成功
+ */
+export async function updateAllClassStatistics(): Promise<boolean> {
+  try {
+    console.log('🔄 开始更新所有班级统计数据');
+    
+    const { data, error } = await supabase.rpc('update_class_statistics');
+
+    if (error) {
+      console.error('更新班级统计失败:', error);
+      showError(error, { operation: '更新班级统计' });
+      return false;
+    }
+
+    console.log('✅ 班级统计更新成功');
+    toast.success('班级统计数据更新成功');
+    
+    // 清除相关缓存
+    clearExpiredCache();
+    
+    return true;
+  } catch (error) {
+    console.error('更新班级统计异常:', error);
+    showError(error, { operation: '更新班级统计' });
+    return false;
+  }
+}
+
+/**
+ * 检查班级数据完整性
+ * @returns 数据完整性报告
+ */
+export async function checkClassDataIntegrity(): Promise<{
+  issues: Array<{
+    issue_type: string;
+    description: string;
+    affected_classes: string[];
+    severity: string;
+  }>;
+  isHealthy: boolean;
+}> {
+  try {
+    console.log('🔍 开始检查班级数据完整性');
+    
+    const { data, error } = await supabase.rpc('check_class_data_integrity');
+
+    if (error) {
+      console.error('数据完整性检查失败:', error);
+      return { issues: [], isHealthy: false };
+    }
+
+    const issues = data || [];
+    const isHealthy = issues.length === 0;
+    
+    console.log('✅ 数据完整性检查完成:', isHealthy ? '数据健康' : `发现${issues.length}个问题`);
+    
+    if (!isHealthy) {
+      console.warn('⚠️ 发现数据完整性问题:', issues);
+    }
+    
+    return { issues, isHealthy };
+  } catch (error) {
+    console.error('数据完整性检查异常:', error);
+    return { issues: [], isHealthy: false };
+  }
+}
+
+/**
+ * 获取班级统计摘要（用于仪表板）
+ * @returns 统计摘要
+ */
+export async function getClassStatisticsSummary(): Promise<{
+  totalClasses: number;
+  totalStudents: number;
+  averageClassSize: number;
+  maxClassSize: number;
+  minClassSize: number;
+  classesWithGrades: number;
+  dataHealthy: boolean;
+}> {
+  const cacheKey = 'class_statistics_summary';
+
+  return getCachedData(cacheKey, async () => {
+    try {
+      console.log('🔍 获取班级统计摘要');
+
+      // 获取所有班级统计
+      const allStats = await getAccurateClassStatistics();
+    
+    if (allStats.length === 0) {
+      return {
+        totalClasses: 0,
+        totalStudents: 0,
+        averageClassSize: 0,
+        maxClassSize: 0,
+        minClassSize: 0,
+        classesWithGrades: 0,
+        dataHealthy: false,
+      };
+    }
+    
+    // 计算统计摘要
+    const totalStudents = allStats.reduce((sum, cls) => sum + cls.student_count, 0);
+    const classesWithGrades = allStats.filter(cls => cls.students_with_grades > 0).length;
+    const studentCounts = allStats.map(cls => cls.student_count);
+    const dataHealthy = allStats.every(cls => cls.data_consistency_status.includes('✅'));
+    
+    const summary = {
+      totalClasses: allStats.length,
+      totalStudents,
+      averageClassSize: Math.round(totalStudents / allStats.length * 10) / 10,
+      maxClassSize: Math.max(...studentCounts),
+      minClassSize: Math.min(...studentCounts),
+      classesWithGrades,
+      dataHealthy,
+    };
+    
+    console.log('✅ 班级统计摘要:', summary);
+    return summary;
+  } catch (error) {
+    console.error('获取班级统计摘要失败:', error);
+    return {
+      totalClasses: 0,
+      totalStudents: 0,
+      averageClassSize: 0,
+      maxClassSize: 0,
+      minClassSize: 0,
+      classesWithGrades: 0,
+      dataHealthy: false,
+    };
+  }
+  }, CACHE_CONFIGS.CLASS_STATS);
+}
+
+/**
+ * 清除班级相关缓存
+ * @param pattern 缓存模式，不提供则清除所有班级缓存
+ */
+export function clearClassCache(pattern?: string) {
+  if (pattern) {
+    clearCacheByPattern(new RegExp(pattern));
+  } else {
+    // 清除所有班级相关缓存
+    clearCacheByPattern(/^(class_|view_exists_|exam_trends_|grade_analysis_)/);
+  }
+  console.log('🧹 班级缓存已清理');
 }

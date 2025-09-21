@@ -778,8 +778,8 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
             <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#191A23] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#191A23] rounded-xl overflow-hidden">
               <CardHeader className="bg-[#FF6B6B] border-b-2 border-black">
                 <CardTitle className="flex items-center text-white font-black uppercase tracking-wide">
-                  <Sparkles className="w-5 h-5 mr-2" />
-                  AI预测分析
+                  <Brain className="w-5 h-5 mr-2" />
+                  AI 预测分析
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
@@ -806,8 +806,8 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
             <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#191A23] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#191A23] rounded-xl overflow-hidden">
               <CardHeader className="bg-[#F7931E] border-b-2 border-black">
                 <CardTitle className="flex items-center text-white font-black uppercase tracking-wide">
-                  <BarChart className="w-5 h-5 mr-2" />
-                  图表库
+                  <PieChart className="w-5 h-5 mr-2" />
+                  图表画廊
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
@@ -816,14 +816,6 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
             </Card>
           </TabsContent>
         </Tabs>
-
-        {/* 底部信息 */}
-        <div className="mt-8 text-center">
-          <Badge className="bg-[#191A23] text-white border-2 border-black font-bold shadow-[4px_4px_0px_0px_#B9FF66] px-4 py-2 text-sm">
-            <Info className="w-4 h-4 mr-2" />
-            高级分析 - AI驱动的智能教学决策支持
-          </Badge>
-        </div>
       </div>
     </div>
   );

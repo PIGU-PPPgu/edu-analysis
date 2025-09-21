@@ -21,6 +21,7 @@ import {
   Bell,
   Brain,
   BookOpen,
+  Sparkles,
 } from "lucide-react";
 import { useViewport } from "@/hooks/use-viewport";
 import {
@@ -105,10 +106,10 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
   const buildMobileNavItems = (): NavigationItem[] => {
     const baseItems: NavigationItem[] = [
       {
-        id: "home",
-        label: "首页",
+        id: "teacher-dashboard",
+        label: "工作台",
         icon: <User className="w-5 h-5" />,
-        onClick: () => navigate("/"),
+        onClick: () => navigate("/teacher-dashboard"),
       },
     ];
 
@@ -119,16 +120,6 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
           label: "数据导入",
           icon: <Download className="w-5 h-5" />,
           onClick: () => navigate("/dashboard"),
-        },
-        {
-          id: "grade-data-center",
-          label: "数据中心",
-          icon: <BarChart3 className="w-5 h-5" />,
-          onClick: () => navigate("/grade-data-center"),
-          badge: {
-            text: "新",
-            variant: "success",
-          },
         },
         {
           id: "exam-management",
@@ -179,14 +170,12 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
 
   // 获取当前激活的导航项ID
   const getActiveNavItemId = (): string | undefined => {
-    if (location.pathname === "/") return "home";
+    if (location.pathname === "/teacher-dashboard") return "teacher-dashboard";
     if (
       location.pathname.startsWith("/dashboard") ||
       location.pathname.startsWith("/data-import")
     )
       return "dashboard";
-    if (location.pathname.startsWith("/grade-data-center"))
-      return "grade-data-center";
     if (location.pathname.startsWith("/homework")) return "homework";
     if (location.pathname.startsWith("/grade-analysis"))
       return "grade-analysis";
@@ -248,13 +237,12 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
 
   // 获取页面标题
   function getPageTitle(): string {
-    if (location.pathname === "/") return "首页";
+    if (location.pathname === "/teacher-dashboard") return "工作台";
     if (
       location.pathname.startsWith("/dashboard") ||
       location.pathname.startsWith("/data-import")
     )
       return "数据导入";
-    if (location.pathname.startsWith("/grade-data-center")) return "数据中心";
     if (location.pathname.startsWith("/homework")) return "作业管理";
     if (location.pathname.startsWith("/grade-analysis")) return "基础分析";
     if (location.pathname.startsWith("/advanced-analysis")) return "高级分析";
@@ -277,23 +265,23 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
         </div>
 
         {showMainNav && (
-          <nav className="hidden md:flex items-center gap-4">
+          <nav className="hidden lg:flex items-center gap-2 text-xs xl:gap-3 xl:text-sm">
             <Link
-              to="/"
-              className={`text-sm font-medium transition-colors hover:text-primary ${
-                isActive("/") && location.pathname === "/"
+              to="/teacher-dashboard"
+              className={`font-medium transition-colors hover:text-primary ${
+                isActive("/teacher-dashboard")
                   ? "text-primary"
                   : "text-muted-foreground"
               }`}
             >
-              首页
+              工作台
             </Link>
 
             {isAuthReady && user && (
               <>
                 <Link
                   to="/dashboard"
-                  className={`text-sm font-medium transition-colors hover:text-primary ${
+                  className={`font-medium transition-colors hover:text-primary ${
                     isActive("/dashboard") || isActive("/data-import")
                       ? "text-primary"
                       : "text-muted-foreground"
@@ -302,21 +290,8 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
                   数据导入
                 </Link>
                 <Link
-                  to="/grade-data-center"
-                  className={`text-sm font-medium transition-colors hover:text-primary flex items-center gap-2 ${
-                    isActive("/grade-data-center")
-                      ? "text-primary"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  数据中心
-                  <span className="text-xs bg-green-500 text-white px-1.5 py-0.5 rounded-full">
-                    新
-                  </span>
-                </Link>
-                <Link
                   to="/exam-management"
-                  className={`text-sm font-medium transition-colors hover:text-primary ${
+                  className={`font-medium transition-colors hover:text-primary ${
                     isActive("/exam-management")
                       ? "text-primary"
                       : "text-muted-foreground"
@@ -326,7 +301,7 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
                 </Link>
                 <Link
                   to="/grade-analysis"
-                  className={`text-sm font-medium transition-colors hover:text-primary ${
+                  className={`font-medium transition-colors hover:text-primary ${
                     isActive("/grade-analysis")
                       ? "text-primary"
                       : "text-muted-foreground"
@@ -336,7 +311,7 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
                 </Link>
                 <Link
                   to="/advanced-analysis"
-                  className={`text-sm font-medium transition-colors hover:text-primary ${
+                  className={`font-medium transition-colors hover:text-primary ${
                     isActive("/advanced-analysis")
                       ? "text-primary"
                       : "text-muted-foreground"
@@ -344,49 +319,64 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
                 >
                   高级分析
                 </Link>
+                <Link
+                  to="/homework"
+                  className={`font-medium transition-colors hover:text-primary ${
+                    isActive("/homework")
+                      ? "text-primary"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  作业管理
+                </Link>
+                <Link
+                  to="/warning-analysis"
+                  className={`font-medium transition-colors hover:text-primary ${
+                    isActive("/warning-analysis")
+                      ? "text-primary"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  预警分析
+                </Link>
+                <Link
+                  to="/student-portrait-management"
+                  className={`font-medium transition-colors hover:text-primary ${
+                    isActive("/student-portrait-management")
+                      ? "text-primary"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  学生画像
+                </Link>
+                <Link
+                  to="/class-management"
+                  className={`font-medium transition-colors hover:text-primary ${
+                    isActive("/class-management")
+                      ? "text-primary"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  班级管理
+                </Link>
 
-                {/* 更多功能下拉菜单 */}
+                {/* 设置功能下拉菜单 - 保留少量不常用功能 */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`text-sm font-medium transition-colors hover:text-primary ${
-                        isActive("/homework") ||
-                        isActive("/warning-analysis") ||
-                        isActive("/student-portrait-management") ||
-                        isActive("/class-management")
+                      className={`font-medium transition-colors hover:text-primary ${
+                        isActive("/ai-settings") ||
+                        isActive("/performance-monitoring")
                           ? "text-primary"
                           : "text-muted-foreground"
                       }`}
                     >
-                      更多功能 ▼
+                      设置 ▼
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="center" className="w-48">
-                    <DropdownMenuItem onClick={() => navigate("/homework")}>
-                      <Settings className="mr-2 h-4 w-4" />
-                      作业管理
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => navigate("/warning-analysis")}
-                    >
-                      <Bell className="mr-2 h-4 w-4" />
-                      预警分析
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => navigate("/student-portrait-management")}
-                    >
-                      <Users className="mr-2 h-4 w-4" />
-                      学生画像
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => navigate("/class-management")}
-                    >
-                      <BarChart3 className="mr-2 h-4 w-4" />
-                      班级管理
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => navigate("/ai-settings")}>
                       <UserCircle className="mr-2 h-4 w-4" />
                       AI设置

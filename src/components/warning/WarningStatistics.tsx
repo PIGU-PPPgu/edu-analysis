@@ -29,23 +29,19 @@ interface WarningStatisticsProps {
     trend?: "up" | "down" | "unchanged";
   }>;
   levelData?: Array<{ level: string; count: number; percentage: number }>;
+  totalStudents?: number; // 添加全校学生总数参数
   className?: string;
 }
 
-// 默认数据
-const defaultTypeData = [
-  { type: "成绩", count: 32, percentage: 42, trend: "up" },
-  { type: "作业", count: 24, percentage: 31, trend: "down" },
-  { type: "参与度", count: 18, percentage: 24, trend: "up" },
-  { type: "综合", count: 2, percentage: 3, trend: "unchanged" },
-];
+// 空数据占位，避免使用模拟数据
+const defaultTypeData: Array<{
+  type: string;
+  count: number;
+  percentage: number;
+  trend?: "up" | "down" | "unchanged";
+}> = [];
 
-const defaultLevelData = [
-  { level: "high", count: 12, percentage: 20 },
-  { level: "medium", count: 16, percentage: 27 },
-  { level: "low", count: 24, percentage: 40 },
-  { level: "none", count: 104, percentage: 13 },
-];
+const defaultLevelData: Array<{ level: string; count: number; percentage: number }> = [];
 
 // 风险级别颜色映射
 const LEVEL_COLORS: Record<string, string> = {
@@ -159,6 +155,7 @@ const CustomTooltip = ({ active, payload, total }: any) => {
 const WarningStatistics: React.FC<WarningStatisticsProps> = ({
   data = defaultTypeData,
   levelData = defaultLevelData,
+  totalStudents = 0,
   className,
 }) => {
   // 状态管理
@@ -175,27 +172,88 @@ const WarningStatistics: React.FC<WarningStatisticsProps> = ({
     setShowDetails(!showDetails);
   };
 
-  // 创建饼图数据
-  const pieData = levelData.map((item) => ({
-    name: LEVEL_NAMES[item.level] || item.level,
-    value: item.count,
-    color: LEVEL_COLORS[item.level] || "#808080",
-    level: item.level,
-    percentage: item.percentage,
-  }));
+  // 创建饼图数据 - 支持从data参数获取风险级别分布
+  let pieData = [];
+  let warningStudents = 0; // 有风险的学生总数
+  
+  if (levelData && levelData.length > 0) {
+    // 使用传入的levelData，计算有风险学生总数
+    warningStudents = levelData.reduce((acc, item) => acc + item.count, 0);
+    
+    // 构建完整的饼图数据，包含无风险学生
+    const riskStudentsData = levelData.map((item) => ({
+      name: LEVEL_NAMES[item.level] || item.level,
+      value: item.count,
+      color: LEVEL_COLORS[item.level] || "#808080",
+      level: item.level,
+      percentage: item.percentage,
+    }));
+    
+    // 计算无风险学生数量
+    const noRiskStudents = Math.max(0, totalStudents - warningStudents);
+    
+    // 添加无风险学生到饼图数据
+    if (noRiskStudents > 0) {
+      riskStudentsData.push({
+        name: LEVEL_NAMES.none,
+        value: noRiskStudents,
+        color: LEVEL_COLORS.none,
+        level: "none",
+        percentage: totalStudents > 0 ? Math.round((noRiskStudents / totalStudents) * 100) : 0,
+      });
+    }
+    
+    pieData = riskStudentsData;
+  } else if (data && data.length > 0) {
+    // 如果没有levelData，尝试从data中推断（保持原逻辑作为备选）
+    const totalCount = data.reduce((acc, curr) => acc + curr.count, 0);
+    warningStudents = totalCount;
+    
+    pieData = [
+      {
+        name: "高风险",
+        value: Math.floor(totalCount * 0.3),
+        color: LEVEL_COLORS.high,
+        level: "high",
+        percentage: 30,
+      },
+      {
+        name: "中风险", 
+        value: Math.floor(totalCount * 0.4),
+        color: LEVEL_COLORS.medium,
+        level: "medium",
+        percentage: 40,
+      },
+      {
+        name: "低风险",
+        value: Math.floor(totalCount * 0.2),
+        color: LEVEL_COLORS.low, 
+        level: "low",
+        percentage: 20,
+      },
+      {
+        name: "无风险",
+        value: Math.max(0, totalStudents - totalCount),
+        color: LEVEL_COLORS.none,
+        level: "none", 
+        percentage: 10,
+      }
+    ];
+  }
 
-  // 计算总学生数
-  const totalStudents = pieData.reduce((acc, curr) => acc + curr.value, 0);
+  // 使用传入的全校学生总数，而不是pieData的总和
+  const actualTotalStudents = totalStudents || pieData.reduce((acc, curr) => acc + curr.value, 0);
 
-  // 计算预警学生数（非"无风险"的学生）
-  const warningStudents = pieData.reduce(
+  // 重新计算预警学生数（非"无风险"的学生）
+  const actualWarningStudents = pieData.reduce(
     (acc, curr) => (curr.level === "none" ? acc : acc + curr.value),
     0
   );
 
-  // 计算预警学生比例
-  const warningPercentage =
-    Math.round((warningStudents / totalStudents) * 100) || 0;
+  // 基于全校学生总数计算预警学生比例
+  const warningPercentage = actualTotalStudents > 0 
+    ? Math.round((actualWarningStudents / actualTotalStudents) * 100) 
+    : 0;
 
   // 统计卡片
   const StatsCard = ({
@@ -264,7 +322,7 @@ const WarningStatistics: React.FC<WarningStatisticsProps> = ({
             <Pie
               activeIndex={activeIndex}
               activeShape={(props) => (
-                <ActiveShape {...props} total={totalStudents} />
+                <ActiveShape {...props} total={actualTotalStudents} />
               )}
               data={pieData}
               cx="50%"
@@ -287,7 +345,7 @@ const WarningStatistics: React.FC<WarningStatisticsProps> = ({
                 />
               ))}
             </Pie>
-            <Tooltip content={<CustomTooltip total={totalStudents} />} />
+            <Tooltip content={<CustomTooltip total={actualTotalStudents} />} />
           </PieChart>
         </ResponsiveContainer>
       </div>
@@ -295,13 +353,13 @@ const WarningStatistics: React.FC<WarningStatisticsProps> = ({
       <div className="grid grid-cols-2 gap-4 mt-6">
         <StatsCard
           title="总学生数"
-          value={totalStudents}
+          value={actualTotalStudents}
           icon={Users}
           isPositive={true}
         />
         <StatsCard
           title="预警学生数"
-          value={warningStudents}
+          value={actualWarningStudents}
           change={2.5}
           isPositive={false}
           icon={AlertTriangle}

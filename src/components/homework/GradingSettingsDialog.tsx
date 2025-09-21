@@ -62,7 +62,7 @@ import {
   getDefaultThresholds,
   KnowledgePointThreshold as DBKnowledgePointThreshold,
 } from "@/services/knowledgePointThresholdService";
-import { useAuthContext } from "@/contexts/AuthContext";
+import { useAppAuth } from "@/contexts/unified/UnifiedAppContext";
 
 // UI组件的评分方案类型
 export type GradingScale = {
@@ -173,7 +173,7 @@ export default function GradingSettingsDialog({
   open,
   onOpenChange,
 }: GradingSettingsDialogProps) {
-  const { user } = useAuthContext();
+  const { user } = useAppAuth();
   const [currentTab, setCurrentTab] = useState("scales");
   const [scales, setScales] = useState<GradingScale[]>([]);
   const [thresholds, setThresholds] = useState<KnowledgePointThreshold[]>(

@@ -55,6 +55,20 @@ export function logError(message: string, error?: any) {
  * @param message 警告消息
  * @param data 附加数据
  */
+export function logWarn(message: string, data?: any) {
+  console.warn(`[WARN] ${message}`);
+  if (data !== undefined) {
+    console.warn(
+      typeof data === "string" ? data : JSON.stringify(data, null, 2)
+    );
+  }
+}
+
+/**
+ * 记录警告日志
+ * @param message 警告消息
+ * @param data 附加数据
+ */
 export function logWarning(message: string, data?: any) {
   console.warn(`[WARNING] ${message}`);
 

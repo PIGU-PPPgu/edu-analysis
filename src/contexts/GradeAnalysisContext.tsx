@@ -323,51 +323,104 @@ export const GradeAnalysisProvider: React.FC<{ children: ReactNode }> = ({
 
     setLoading(true);
     try {
-      // 模拟API调用，需要替换为实际后端调用
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      console.log('🔍 开始分析考试数据:', currentExam.exam_title);
 
-      // 模拟统计数据
-      const mockAnalysisResult = {
-        scoreDistribution: [
-          { range: "90-100", count: 5 },
-          { range: "80-89", count: 10 },
-          { range: "70-79", count: 8 },
-          { range: "60-69", count: 4 },
-          { range: "0-59", count: 3 },
-        ],
-        classPerformance: [
-          {
-            className: "班级1",
-            average: 85.6,
-            max: 98,
-            min: 67,
-            passRate: 1.0,
-          },
-          {
-            className: "班级2",
-            average: 76.2,
-            max: 95,
-            min: 58,
-            passRate: 0.9,
-          },
-          {
-            className: "班级3",
-            average: 81.4,
-            max: 97,
-            min: 62,
-            passRate: 0.95,
-          },
-        ],
-        subjectAverages: {
-          [Subject.CHINESE]: 82.3,
-          [Subject.MATH]: 78.6,
-          [Subject.ENGLISH]: 84.1,
-        },
+      // 查询当前考试的成绩数据
+      const { data: examGrades, error } = await supabase
+        .from('grades')
+        .select(`
+          student_id,
+          subject,
+          score,
+          students!inner(class_name, name)
+        `)
+        .eq('exam_title', currentExam.exam_title);
+
+      if (error) {
+        console.error('查询考试成绩失败:', error);
+        throw error;
+      }
+
+      if (!examGrades || examGrades.length === 0) {
+        console.warn('未找到考试成绩数据');
+        setAnalysisResult(null);
+        return;
+      }
+
+      // 计算分数分布
+      const scoreRanges = [
+        { range: "90-100", count: 0 },
+        { range: "80-89", count: 0 },
+        { range: "70-79", count: 0 },
+        { range: "60-69", count: 0 },
+        { range: "0-59", count: 0 },
+      ];
+
+      examGrades.forEach(grade => {
+        const score = grade.score;
+        if (score >= 90) scoreRanges[0].count++;
+        else if (score >= 80) scoreRanges[1].count++;
+        else if (score >= 70) scoreRanges[2].count++;
+        else if (score >= 60) scoreRanges[3].count++;
+        else scoreRanges[4].count++;
+      });
+
+      // 按班级统计
+      const classStats = new Map();
+      examGrades.forEach(grade => {
+        const className = grade.students.class_name;
+        if (!classStats.has(className)) {
+          classStats.set(className, { scores: [], className });
+        }
+        classStats.get(className).scores.push(grade.score);
+      });
+
+      const classPerformance = Array.from(classStats.entries()).map(([className, data]) => {
+        const scores = data.scores;
+        const average = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+        const max = Math.max(...scores);
+        const min = Math.min(...scores);
+        const passRate = scores.filter(score => score >= 60).length / scores.length;
+
+        return {
+          className,
+          average: Math.round(average * 10) / 10,
+          max,
+          min,
+          passRate: Math.round(passRate * 100) / 100,
+        };
+      });
+
+      // 按科目统计平均分
+      const subjectStats = new Map();
+      examGrades.forEach(grade => {
+        const subject = grade.subject;
+        if (!subjectStats.has(subject)) {
+          subjectStats.set(subject, []);
+        }
+        subjectStats.get(subject).push(grade.score);
+      });
+
+      const subjectAverages = {};
+      subjectStats.forEach((scores, subject) => {
+        const average = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+        subjectAverages[subject] = Math.round(average * 10) / 10;
+      });
+
+      const analysisResult = {
+        scoreDistribution: scoreRanges,
+        classPerformance,
+        subjectAverages,
+        totalStudents: new Set(examGrades.map(g => g.student_id)).size,
+        totalGrades: examGrades.length
       };
 
-      setAnalysisResult(mockAnalysisResult);
+      console.log('✅ 分析结果:', analysisResult);
+      setAnalysisResult(analysisResult);
+
     } catch (error) {
       console.error("分析成绩数据失败:", error);
+      setAnalysisResult(null);
     } finally {
       setLoading(false);
     }

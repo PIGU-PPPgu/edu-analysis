@@ -968,10 +968,9 @@ export const ModernGradeAnalysisProvider: React.FC<
           )
         : { subject: "暂无", avgScore: 0 };
 
-    // 模拟与上次考试的对比（这里使用随机值，实际应该从历史数据计算）
-    const scoreComparison = Math.round((Math.random() - 0.5) * 10 * 100) / 100; // -5 到 +5 分
-    const passRateComparison =
-      Math.round((Math.random() - 0.5) * 20 * 100) / 100; // -10% 到 +10%
+    // 暂时不提供对比数据，避免误导性的随机值
+    const scoreComparison = 0; 
+    const passRateComparison = 0;
 
     console.log("🎯 统计分离完成:", {
       totalScoreStats,

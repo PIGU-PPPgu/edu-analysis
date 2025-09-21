@@ -179,27 +179,32 @@ const WarningList: React.FC<WarningListProps> = ({
 
     try {
       setIsLoading(true);
+      console.log('🎯 WarningList - 开始获取预警记录...');
+      
+      // 调用获取预警记录的服务，不传递任何筛选条件来获取所有数据
       const records = await getWarningRecords();
+      console.log('📋 WarningList - 获取到预警记录:', records?.length || 0, '条');
 
       if (isMounted.current) {
         setWarningRecords(records);
 
-        // 提取班级选项
+        // 提取班级选项 - 修复字段名问题
         const classes = Array.from(
           new Set(
             records
-              .filter((record) => record.student?.class_id)
-              .map((record) => record.student?.class_id as string)
+              .filter((record) => record.students?.class_name)
+              .map((record) => record.students?.class_name as string)
           )
-        ).map((classId) => ({
-          value: classId,
-          label: `班级 ${classId.substring(0, 5)}`, // 简化班级ID显示
+        ).map((className) => ({
+          value: className,
+          label: className,
         }));
 
         setClassOptions([{ value: "all", label: "所有班级" }, ...classes]);
+        console.log('🏫 WarningList - 提取到班级选项:', classes.length, '个');
       }
     } catch (error) {
-      console.error("获取预警记录失败:", error);
+      console.error("❌ WarningList - 获取预警记录失败:", error);
       if (isMounted.current) {
         toast.error("获取预警记录失败");
       }
@@ -278,13 +283,13 @@ const WarningList: React.FC<WarningListProps> = ({
         case "severity":
           const severityOrder = { high: 3, medium: 2, low: 1 };
           aValue =
-            severityOrder[a.rule?.severity as keyof typeof severityOrder] || 0;
+            severityOrder[a.warning_rules?.severity as keyof typeof severityOrder] || 0;
           bValue =
-            severityOrder[b.rule?.severity as keyof typeof severityOrder] || 0;
+            severityOrder[b.warning_rules?.severity as keyof typeof severityOrder] || 0;
           break;
         case "student_name":
-          aValue = a.student?.name || "";
-          bValue = b.student?.name || "";
+          aValue = a.students?.name || "";
+          bValue = b.students?.name || "";
           break;
         case "status":
           const statusOrder = { active: 3, resolved: 2, dismissed: 1 };
@@ -327,20 +332,20 @@ const WarningList: React.FC<WarningListProps> = ({
   // 过滤逻辑
   const filteredWarnings = getSortedData(
     warningRecords.filter((record) => {
-      // 搜索名字
+      // 搜索名字 - 修复字段名问题
       const matchesSearch =
-        record.student?.name?.includes(searchTerm) ||
-        record.student?.student_id?.includes(searchTerm) ||
+        record.students?.name?.includes(searchTerm) ||
+        record.students?.student_id?.includes(searchTerm) ||
         false;
 
-      // 过滤班级
+      // 过滤班级 - 修复字段名问题
       const matchesClass =
-        filterClass === "all" || record.student?.class_id === filterClass;
+        filterClass === "all" || record.students?.class_name === filterClass;
 
-      // 过滤风险等级
+      // 过滤风险等级 - 修复字段名问题
       const matchesLevel =
         filterLevel === "all" ||
-        (record.rule?.severity || "medium") === filterLevel;
+        (record.warning_rules?.severity || "medium") === filterLevel;
 
       // 新增：过滤状态
       const matchesStatus =
@@ -497,8 +502,8 @@ const WarningList: React.FC<WarningListProps> = ({
     }
 
     // 使用规则描述
-    if (record.rule?.description) {
-      return record.rule.description;
+    if (record.warning_rules?.description) {
+      return record.warning_rules.description;
     }
 
     return "无详细信息";
@@ -559,14 +564,14 @@ const WarningList: React.FC<WarningListProps> = ({
                   <div className="flex items-center space-x-3">
                     <Avatar className="h-8 w-8">
                       <AvatarFallback className="bg-gray-100 text-gray-700 text-xs">
-                        {record.student?.name
-                          ? record.student.name.substring(0, 2)
+                        {record.students?.name
+                          ? record.students.name.substring(0, 2)
                           : "学生"}
                       </AvatarFallback>
                     </Avatar>
                     <div>
                       <div className="font-medium text-sm">
-                        {record.student?.name || "未知学生"}
+                        {record.students?.name || "未知学生"}
                       </div>
                       <div className="text-xs text-gray-500 flex items-center mt-0.5">
                         {getWarningTypes(record).map((type) => (
@@ -576,7 +581,7 @@ const WarningList: React.FC<WarningListProps> = ({
                         ))}
                         <span className="mx-1">•</span>
                         <WarningBadge
-                          level={record.rule?.severity || "medium"}
+                          level={record.warning_rules?.severity || "medium"}
                         />
                       </div>
                     </div>
@@ -807,30 +812,30 @@ const WarningList: React.FC<WarningListProps> = ({
                         onCheckedChange={(checked) =>
                           handleSelectRecord(record.id, checked as boolean)
                         }
-                        aria-label={`选择 ${record.student?.name || "学生"}`}
+                        aria-label={`选择 ${record.students?.name || "学生"}`}
                       />
                     </TableCell>
                     <TableCell>
                       <div
                         className="flex items-center space-x-3 cursor-pointer"
                         onClick={() =>
-                          record.student?.student_id &&
-                          handleOpenProfileModal(record.student.student_id)
+                          record.students?.student_id &&
+                          handleOpenProfileModal(record.students.student_id)
                         }
                       >
                         <Avatar className="h-8 w-8">
                           <AvatarFallback className="bg-gray-100 text-gray-700 text-xs">
-                            {record.student?.name
-                              ? record.student.name.substring(0, 2)
+                            {record.students?.name
+                              ? record.students.name.substring(0, 2)
                               : "学生"}
                           </AvatarFallback>
                         </Avatar>
                         <div>
                           <div className="font-medium">
-                            {record.student?.name || "未知学生"}
+                            {record.students?.name || "未知学生"}
                           </div>
                           <div className="text-xs text-gray-500">
-                            {record.student?.student_id || "-"}
+                            {record.students?.student_id || "-"}
                           </div>
                         </div>
                       </div>
@@ -843,7 +848,7 @@ const WarningList: React.FC<WarningListProps> = ({
                       </div>
                     </TableCell>
                     <TableCell>
-                      <WarningBadge level={record.rule?.severity || "medium"} />
+                      <WarningBadge level={record.warning_rules?.severity || "medium"} />
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center text-sm">

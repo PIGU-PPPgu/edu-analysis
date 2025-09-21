@@ -99,7 +99,7 @@ const ExportLearningReport: React.FC<ExportLearningReportProps> = ({
   };
 
   // 生成报告
-  const handleGenerateReport = () => {
+  const handleGenerateReport = async () => {
     const selectedSections = reportSections.filter(
       (section) => section.selected
     );
@@ -111,31 +111,35 @@ const ExportLearningReport: React.FC<ExportLearningReportProps> = ({
 
     setIsGenerating(true);
 
-    // 模拟报告生成过程
-    setTimeout(() => {
-      try {
+    try {
+      // 动态导入exportService
+      const { advancedExportService } = await import("@/services/advancedExportService");
+      
+      // 调用真实的导出服务
+      const result = await advancedExportService.exportStudentReport(
+        student.studentId, 
+        {
+          format: reportFormat as 'pdf' | 'csv' | 'xlsx' | 'json',
+          fields: selectedSections.map(s => s.id),
+          fileName: `${student.name}_学习报告`
+        }
+      );
+
+      if (result.success) {
         toast.success("学习报告生成成功", {
           description: `已为${student.name}生成${reportFormat.toUpperCase()}格式报告`,
         });
-
-        // 模拟下载
-        if (reportFormat === "pdf") {
-          // 实际项目中这里应该调用生成PDF的API
-          console.log("生成PDF报告", {
-            studentId: student.studentId,
-            sections: selectedSections.map((s) => s.id),
-            studentData: studentPortrait,
-          });
-        }
-      } catch (error) {
-        console.error("生成报告失败:", error);
-        toast.error("生成报告失败", {
-          description: "请稍后重试",
-        });
-      } finally {
-        setIsGenerating(false);
+      } else {
+        throw new Error(result.error || "生成报告失败");
       }
-    }, 2000);
+    } catch (error) {
+      console.error("生成报告失败:", error);
+      toast.error("生成报告失败", {
+        description: error instanceof Error ? error.message : "请稍后重试",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (

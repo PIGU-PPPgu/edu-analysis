@@ -822,10 +822,19 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
 
     for (const record of batch) {
       try {
-        // 准备数据 - 使用已映射的字段数据
+        // 处理学生信息 - 获取匹配或创建的学生记录
+        let studentRecord = null;
+        if (importConfig.createMissingStudents) {
+          studentRecord = await ensureStudentExists(record);
+        }
+
+        // 使用智能匹配返回的学生UUID，如果没有则使用原始记录中的student_id
+        const finalStudentId = studentRecord ? studentRecord.id : record.student_id;
+
+        // 准备数据 - 使用已映射的字段数据和正确的学生UUID
         const gradeData = {
           exam_id: examId,
-          student_id: record.student_id,
+          student_id: finalStudentId,  // 使用匹配到的学生UUID
           name: record.name,
           class_name: record.class_name,
           subject: record.subject,
@@ -852,11 +861,6 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
           geography_score: record.geography_score,
           rank_in_school: record.rank_in_school,
         };
-
-        // 处理学生信息
-        if (importConfig.createMissingStudents) {
-          await ensureStudentExists(record);
-        }
 
         // 插入成绩数据
         await insertGradeData(gradeData);
@@ -877,10 +881,19 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
   const processBatchParallel = async (batch: any[], examId: string) => {
     const promises = batch.map(async (record) => {
       try {
-        // 准备数据 - 使用已映射的字段数据
+        // 处理学生信息 - 获取匹配或创建的学生记录
+        let studentRecord = null;
+        if (importConfig.createMissingStudents) {
+          studentRecord = await ensureStudentExists(record);
+        }
+
+        // 使用智能匹配返回的学生UUID，如果没有则使用原始记录中的student_id
+        const finalStudentId = studentRecord ? studentRecord.id : record.student_id;
+
+        // 准备数据 - 使用已映射的字段数据和正确的学生UUID
         const gradeData = {
           exam_id: examId,
-          student_id: record.student_id,
+          student_id: finalStudentId,  // 使用匹配到的学生UUID
           name: record.name,
           class_name: record.class_name,
           subject: record.subject,
@@ -907,11 +920,6 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
           exam_date: tempExamInfo.date,
           metadata: record.metadata || {},
         };
-
-        // 处理学生信息
-        if (importConfig.createMissingStudents) {
-          await ensureStudentExists(record);
-        }
 
         // 插入成绩数据
         await insertGradeData(gradeData);
@@ -1012,39 +1020,131 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
     }
   };
 
-  // 确保学生存在
+  // 确保学生存在 - 使用智能匹配算法
   const ensureStudentExists = async (record: any) => {
     // 检查用户认证状态
     if (!user) {
       throw new Error("用户未登录，无法创建学生记录");
     }
 
-    const { data: existingStudent } = await supabase
-      .from("students")
-      .select("id")
-      .eq("student_id", record.student_id)
-      .single();
+    try {
+      // 1. 获取所有现有学生（用于智能匹配）
+      const { data: existingStudents, error: fetchError } = await supabase
+        .from("students")
+        .select("id, student_id, name, class_name")
+        .order("created_at", { ascending: true });
 
-    if (!existingStudent) {
-      console.log("创建新学生记录:", {
-        student_id: record.student_id,
-        name: record.name,
-        class_name: record.class_name,
-      });
-
-      const { error } = await supabase.from("students").insert({
-        student_id: record.student_id,
-        name: record.name,
-        class_name: record.class_name,
-        grade: record.grade_level,
-      });
-
-      if (error) {
-        console.error("创建学生记录失败:", error);
-        throw new Error(`创建学生记录失败: ${error.message}`);
+      if (fetchError) {
+        console.error("获取现有学生失败:", fetchError);
+        throw new Error(`获取现有学生失败: ${fetchError.message}`);
       }
 
-      console.log("学生记录创建成功");
+      // 2. 使用智能匹配算法
+      const { intelligentStudentMatcher } = await import("@/services/intelligentStudentMatcher");
+      
+      const fileStudents = [{
+        name: record.name,
+        student_id: record.student_id,
+        class_name: record.class_name,
+      }];
+
+      const systemStudents = existingStudents.map(s => ({
+        id: s.id,
+        name: s.name,
+        student_id: s.student_id,
+        class_name: s.class_name,
+      }));
+
+      // 执行智能匹配
+      const matchResult = await intelligentStudentMatcher.matchStudents(
+        fileStudents,
+        systemStudents,
+        {
+          enableFuzzyMatching: true,
+          fuzzyThreshold: 0.8,
+          prioritizeExactMatches: true,
+        }
+      );
+
+      // 3. 处理匹配结果
+      if (matchResult.exactMatches.length > 0) {
+        // 找到精确匹配，使用现有学生
+        const match = matchResult.exactMatches[0];
+        console.log(`智能匹配成功: ${record.name} -> 现有学生 ${match.systemStudent.name} (${match.matchType})`);
+        return match.systemStudent;
+      } 
+      
+      if (matchResult.fuzzyMatches.length > 0) {
+        // 找到模糊匹配，使用置信度最高的
+        const match = matchResult.fuzzyMatches[0];
+        if (match.confidence >= 0.9) {  // 高置信度的模糊匹配
+          console.log(`高置信度模糊匹配: ${record.name} -> ${match.systemStudent.name} (置信度: ${match.confidence})`);
+          return match.systemStudent;
+        } else {
+          console.log(`模糊匹配置信度不足 (${match.confidence})，创建新学生: ${record.name}`);
+        }
+      }
+
+      // 4. 没有匹配到，创建新学生
+      if (matchResult.newStudents.length > 0) {
+        console.log("智能匹配未找到匹配学生，创建新学生记录:", {
+          student_id: record.student_id,
+          name: record.name,
+          class_name: record.class_name,
+        });
+
+        const { data: newStudent, error: insertError } = await supabase
+          .from("students")
+          .insert({
+            student_id: record.student_id,
+            name: record.name,
+            class_name: record.class_name,
+            grade: record.grade_level,
+          })
+          .select("id, student_id, name, class_name")
+          .single();
+
+        if (insertError) {
+          console.error("创建学生记录失败:", insertError);
+          throw new Error(`创建学生记录失败: ${insertError.message}`);
+        }
+
+        console.log("新学生记录创建成功:", newStudent);
+        return newStudent;
+      }
+
+    } catch (error) {
+      console.error("智能学生匹配失败，回退到简单匹配:", error);
+      
+      // 回退机制：使用简单的student_id检查
+      const { data: existingStudent } = await supabase
+        .from("students")
+        .select("id, student_id, name, class_name")
+        .eq("student_id", record.student_id)
+        .single();
+
+      if (existingStudent) {
+        console.log("回退匹配成功:", existingStudent.name);
+        return existingStudent;
+      }
+
+      // 最后手段：创建新学生
+      const { data: newStudent, error: insertError } = await supabase
+        .from("students")
+        .insert({
+          student_id: record.student_id,
+          name: record.name,
+          class_name: record.class_name,
+          grade: record.grade_level,
+        })
+        .select("id, student_id, name, class_name")
+        .single();
+
+      if (insertError) {
+        throw new Error(`创建学生记录失败: ${insertError.message}`);
+      }
+
+      return newStudent;
     }
   };
 

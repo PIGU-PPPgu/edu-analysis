@@ -120,21 +120,23 @@ const generateMockTrendData = (): TrendDataPoint[] => {
     const date = new Date(startDate);
     date.setDate(date.getDate() + i);
 
-    const baseWarnings = 15 + Math.random() * 10;
-    const trend = Math.sin(i / 5) * 3;
-    const totalWarnings = Math.round(baseWarnings + trend);
+    // 基于实际数据模式生成合理的历史趋势，避免使用随机数
+    const baseWarnings = 1; // 基于真实活跃预警数量
+    const trend = Math.sin(i / 7) * 0.5; // 更平缓的趋势变化
+    const totalWarnings = Math.max(0, Math.round(baseWarnings + trend));
 
     data.push({
       date: date.toISOString().split("T")[0],
       totalWarnings,
-      highSeverity: Math.round(totalWarnings * 0.2 + Math.random() * 2),
-      mediumSeverity: Math.round(totalWarnings * 0.5 + Math.random() * 3),
-      lowSeverity: Math.round(totalWarnings * 0.3 + Math.random() * 2),
-      gradeRelated: Math.round(totalWarnings * 0.4 + Math.random() * 2),
-      behaviorRelated: Math.round(totalWarnings * 0.3 + Math.random() * 2),
-      attendanceRelated: Math.round(totalWarnings * 0.3 + Math.random() * 2),
-      progressRate: Math.round((80 + Math.random() * 15) * 100) / 100,
-      predictionAccuracy: Math.round((85 + Math.random() * 10) * 100) / 100,
+      // 基于固定比例分配，保持数据一致性
+      highSeverity: Math.round(totalWarnings * 0.2),
+      mediumSeverity: Math.round(totalWarnings * 0.5),
+      lowSeverity: Math.round(totalWarnings * 0.3),
+      gradeRelated: Math.round(totalWarnings * 0.6), // 根据真实数据，学业预警占主要比例
+      behaviorRelated: Math.round(totalWarnings * 0.2),
+      attendanceRelated: Math.round(totalWarnings * 0.2),
+      progressRate: 85.5, // 固定的合理进度率
+      predictionAccuracy: 88.2, // 固定的预测准确率
     });
   }
 

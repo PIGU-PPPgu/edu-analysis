@@ -34,6 +34,7 @@ import {
   convertWideToLongFormatEnhanced,
   analyzeCSVHeaders,
 } from "@/services/intelligentFieldMapper";
+import { autoSyncService } from "@/services/autoSyncService";
 
 // 简化的用户流程：上传 → 智能确认 → 导入完成
 
@@ -463,6 +464,36 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
 
       console.log("[真实导入] 成功保存到grade_data_new表");
 
+      // 步骤5: 智能数据同步 - 自动创建班级和学生
+      setProgress(85);
+      setProgressMessage("智能同步班级和学生信息...");
+
+      try {
+        console.log("[智能同步] 开始自动创建班级和学生...");
+        const syncResult = await autoSyncService.syncImportedData(allGradeRecords);
+        
+        console.log("[智能同步] 同步结果:", syncResult);
+        
+        if (syncResult.success) {
+          toast.success(`🤖 智能同步完成！`, {
+            description: `自动创建了 ${syncResult.newClasses.length} 个班级和 ${syncResult.newStudents.length} 名学生`,
+            duration: 8000,
+          });
+        } else if (syncResult.errors.length > 0) {
+          console.warn("[智能同步] 部分同步失败:", syncResult.errors);
+          toast.warning("智能同步部分失败", {
+            description: `成功创建 ${syncResult.newClasses.length} 个班级和 ${syncResult.newStudents.length} 名学生，但有部分问题`,
+            duration: 6000,
+          });
+        }
+      } catch (syncError) {
+        console.error("[智能同步] 同步过程出错:", syncError);
+        toast.warning("智能同步遇到问题", {
+          description: "成绩数据已成功导入，但自动创建班级学生时遇到问题，请检查数据完整性",
+          duration: 8000,
+        });
+      }
+
       // 步骤6: 完成导入
       setProgress(100);
       setProgressMessage("导入完成！");
@@ -479,9 +510,9 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
       setImportResult(importResult);
       setStep("complete");
 
-      toast.success("🎉 导入成功！", {
-        description: `成功创建考试"${examInfo.title}"，导入 ${importResult.successRecords} 个学生的成绩数据`,
-        duration: 5000,
+      toast.success("🎉 一键式导入成功！", {
+        description: `成功创建考试"${examInfo.title}"，导入 ${importResult.successRecords} 个学生的成绩数据，系统已智能同步班级和学生信息`,
+        duration: 8000,
       });
 
       onComplete?.(importResult);

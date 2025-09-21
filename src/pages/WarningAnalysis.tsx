@@ -1,8 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import Navbar from "@/components/shared/Navbar";
 import WarningDashboard from "@/components/warning/WarningDashboard";
-import WarningRules from "@/components/warning/WarningRules";
 import WarningList from "@/components/warning/WarningList";
+import WarningTrendChart from "@/components/warning/WarningTrendChart";
+import HistoryComparison from "@/components/warning/HistoryComparison";
+import AIAnalysisPanel from "@/components/warning/AIAnalysisPanel";
+import WarningTrackingDashboard from "@/components/warning/WarningTrackingDashboard";
+import AutoRulesManager from "@/components/warning/AutoRulesManager";
+import DataIntegrationControl from "@/components/warning/DataIntegrationControl";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -34,13 +39,14 @@ import {
 import { toast } from "sonner";
 import {
   getWarningStatistics,
-  WarningStatistics,
+  WarningStatistics as WarningStatisticsType,
 } from "@/services/warningService";
 import { useUrlParams } from "@/hooks/useUrlParams";
 import { requestCache } from "@/utils/cacheUtils";
 import WarningFilters, {
   WarningFilterConfig,
 } from "@/components/warning/WarningFilters";
+import { supabase } from "@/integrations/supabase/client";
 
 // 使用新的筛选配置接口
 
@@ -52,7 +58,7 @@ const WarningAnalysis = () => {
   // 移除分析模式状态 统一使用筛选器驱动
 
   const [isLoading, setIsLoading] = useState(false);
-  const [warningStats, setWarningStats] = useState<WarningStatistics | null>(
+  const [warningStats, setWarningStats] = useState<WarningStatisticsType | null>(
     null
   );
   const [activeTab, setActiveTab] = useState("overview");
@@ -62,8 +68,10 @@ const WarningAnalysis = () => {
     const config: WarningFilterConfig = {
       timeRange: "semester",
       examTypes: ["月考", "期中考试", "期末考试", "模拟考试"],
+      classNames: [], // 新增：班级筛选，初始为空，后续从数据库加载
+      examTitles: [], // 新增：具体考试筛选
       mixedAnalysis: true,
-      analysisMode: "student",
+      analysisMode: "student", 
       startDate: undefined,
       endDate: undefined,
       severityLevels: ["high", "medium", "low"],
@@ -103,9 +111,24 @@ const WarningAnalysis = () => {
   // 控制筛选器显示状态
   const [showFilters, setShowFilters] = useState(false);
 
+  // 可用选项数据
+  const [availableClassNames, setAvailableClassNames] = useState<string[]>([]);
+  const [availableExamTitles, setAvailableExamTitles] = useState<string[]>([]);
+  
+  // 添加调试信息 - 监控筛选选项状态变化
+  React.useEffect(() => {
+    console.log('🎯 筛选选项状态更新:', {
+      availableClassNames: availableClassNames.length,
+      availableExamTitles: availableExamTitles.length,
+      classNames: availableClassNames.slice(0, 3),
+      examTitles: availableExamTitles.slice(0, 3)
+    });
+  }, [availableClassNames, availableExamTitles]);
+
   // 清理任何潜在的副作用
   useEffect(() => {
     fetchWarningData();
+    fetchAvailableOptions(); // 获取筛选选项数据
 
     return () => {
       isMountedRef.current = false;
@@ -130,12 +153,14 @@ const WarningAnalysis = () => {
       const stats = await requestCache.get(
         cacheKey,
         async () => {
-          console.log("获取预警数据...");
+          console.log("🚀 页面级别 - 开始获取预警数据...");
 
           // 根据筛选配置调用API
           const rawStats = await getWarningStatistics({
             timeRange: filterConfig.timeRange,
             examTypes: filterConfig.examTypes,
+            classNames: filterConfig.classNames, // 新增：传递班级筛选
+            examTitles: filterConfig.examTitles, // 新增：传递考试筛选
             mixedAnalysis: filterConfig.mixedAnalysis,
             analysisMode: filterConfig.analysisMode,
             startDate: filterConfig.startDate,
@@ -143,6 +168,8 @@ const WarningAnalysis = () => {
             severityLevels: filterConfig.severityLevels,
             warningStatus: filterConfig.warningStatus,
           });
+
+          console.log("📊 页面级别 - getWarningStatistics 返回:", rawStats ? "有数据" : "无数据", rawStats?.totalStudents, "学生");
 
           // 添加上下文信息
           const contextualStats = {
@@ -161,18 +188,16 @@ const WarningAnalysis = () => {
       );
 
       if (isMountedRef.current) {
+        console.log("✅ 页面级别 - 数据加载完成，传递给WarningDashboard:", stats?.totalStudents, "学生");
         setWarningStats(stats);
-
-        // 显示适当的提示信息
-        const dataSource = isFromAnomalyDetection ? "异常检测系统" : "预警系统";
-        console.log(`预警数据加载完成 [来源: ${dataSource}]`);
       }
     } catch (error) {
-      console.error("获取预警数据失败:", error);
+      console.error("❌ 获取预警数据失败:", error);
       if (isMountedRef.current) {
+        // 设置null状态，让组件显示无数据状态而不是模拟数据
+        setWarningStats(null);
         toast.error("获取预警数据失败", {
-          description:
-            "预警数据格式错误或未找到 这可能是因为预警统计表尚未创建 ",
+          description: `数据库连接异常: ${error instanceof Error ? error.message : '未知错误'}`,
         });
       }
     } finally {
@@ -188,6 +213,122 @@ const WarningAnalysis = () => {
   };
 
   // 移除模式切换处理 使用筛选器控制
+
+  // 获取筛选选项数据
+  const fetchAvailableOptions = async () => {
+    try {
+      console.log('🔍 开始获取筛选选项数据...');
+      
+      // 📚 获取班级列表 - 优先从classes表获取
+      console.log('📚 从classes表获取班级列表...');
+      const { data: classesData, error: classesError } = await supabase
+        .from('classes')
+        .select('name')
+        .order('name');
+      
+      console.log('📚 classes表查询结果:', { 
+        count: classesData?.length, 
+        error: classesError,
+        sample: classesData?.slice(0, 3)
+      });
+      
+      let finalClassNames = [];
+      
+      if (!classesError && classesData && classesData.length > 0) {
+        finalClassNames = [...new Set(classesData.map(item => item.name).filter(Boolean))];
+        console.log('✅ 从classes表获取班级列表:', finalClassNames);
+      }
+      
+      // 如果classes表没有数据，尝试从students表的class_name字段获取
+      if (finalClassNames.length === 0) {
+        console.log('📚 classes表无数据，尝试从students表获取班级...');
+        const { data: studentsData, error: studentsError } = await supabase
+          .from('students')
+          .select('class_name')
+          .not('class_name', 'is', null);
+        
+        console.log('📚 students查询结果:', { 
+          count: studentsData?.length, 
+          error: studentsError,
+          sample: studentsData?.slice(0, 3)
+        });
+        
+        if (!studentsError && studentsData && studentsData.length > 0) {
+          finalClassNames = [...new Set(studentsData.map(item => item.class_name).filter(Boolean))];
+          console.log('✅ 从students表获取班级列表:', finalClassNames);
+        }
+      }
+      
+      // 设置班级数据
+      if (finalClassNames.length > 0) {
+        setAvailableClassNames(finalClassNames);
+        // 初始化时设置所有班级为选中状态
+        setFilterConfig(prev => ({
+          ...prev,
+          classNames: finalClassNames
+        }));
+        console.log('✅ 最终班级列表设置成功:', finalClassNames);
+      } else {
+        console.warn('⚠️ 未找到任何班级数据');
+        // 设置一个默认的班级列表用于测试
+        const defaultClasses = ['初三7班', '初三14班', '初三4班', '初三1班', '初三10班'];
+        setAvailableClassNames(defaultClasses);
+        setFilterConfig(prev => ({
+          ...prev,
+          classNames: defaultClasses
+        }));
+        console.log('🔧 使用默认班级列表:', defaultClasses);
+      }
+
+      // 📊 获取考试列表 - 从grades表获取
+      console.log('📊 从grades表获取考试列表...');
+      const { data: examData, error: examError } = await supabase
+        .from('grades')
+        .select('exam_title')
+        .not('exam_title', 'is', null)
+        .limit(1000);
+      
+      console.log('📊 考试数据查询结果:', { 
+        count: examData?.length, 
+        error: examError,
+        sample: examData?.slice(0, 5)
+      });
+      
+      let finalExamTitles = [];
+      
+      if (!examError && examData && examData.length > 0) {
+        finalExamTitles = [...new Set(examData.map(item => item.exam_title).filter(Boolean))];
+        console.log('✅ 从grades表获取考试列表:', finalExamTitles.slice(0, 5), '等共', finalExamTitles.length, '个');
+      } else {
+        console.error('考试数据查询失败:', examError);
+        // 使用默认考试列表
+        finalExamTitles = ['907九下月考8', '908九下月考9', '909九下期中考试', '910九下期末考试'];
+        console.log('🔧 使用默认考试列表:', finalExamTitles);
+      }
+      
+      setAvailableExamTitles(finalExamTitles);
+      console.log('✅ 最终考试列表设置成功，共', finalExamTitles.length, '个考试');
+      
+      // 向用户显示加载成功信息
+      if (finalClassNames.length > 0 || finalExamTitles.length > 0) {
+        toast.success('筛选选项加载成功', {
+          description: `找到${finalClassNames.length}个班级，${finalExamTitles.length}个考试`
+        });
+      }
+
+    } catch (error) {
+      console.error('获取筛选选项失败:', error);
+      toast.error('获取筛选选项失败', {
+        description: '无法加载班级和考试数据，请检查数据库连接'
+      });
+      
+      // 即使出错也设置默认选项
+      const defaultClasses = ['初三7班', '初三14班', '初三4班', '初三1班', '初三10班'];
+      const defaultExams = ['907九下月考8', '908九下月考9', '909九下期中考试'];
+      setAvailableClassNames(defaultClasses);
+      setAvailableExamTitles(defaultExams);
+    }
+  };
 
   // 筛选配置更新处理
   const handleFilterChange = (newFilter: WarningFilterConfig) => {
@@ -281,6 +422,8 @@ const WarningAnalysis = () => {
                 initialExamFilter={params.exam}
                 initialDateFilter={params.date}
                 fromAnomalyDetection={isFromAnomalyDetection}
+                availableClassNames={availableClassNames}
+                availableExamTitles={availableExamTitles}
               />
             </div>
           )}
@@ -333,24 +476,38 @@ const WarningAnalysis = () => {
               onValueChange={setActiveTab}
               className="space-y-6"
             >
-              <TabsList className="grid w-full grid-cols-3 bg-gray-100">
+              <TabsList className="mb-6 grid grid-cols-5 w-[1000px] bg-gray-100 border border-gray-300 p-1 rounded-lg">
                 <TabsTrigger
                   value="overview"
-                  className="flex items-center gap-2 data-[state=active]:bg-[#c0ff3f] data-[state=active]:text-black"
+                  className="flex items-center gap-2 data-[state=active]:bg-[#c0ff3f] data-[state=active]:text-black data-[state=inactive]:text-gray-700 rounded-md py-1.5"
                 >
                   <BarChart3 className="h-4 w-4" />
-                  概览分析
+                  预警概览
                 </TabsTrigger>
                 <TabsTrigger
-                  value="list"
-                  className="flex items-center gap-2 data-[state=active]:bg-[#c0ff3f] data-[state=active]:text-black"
+                  value="trendAnalysis"
+                  className="flex items-center gap-2 data-[state=active]:bg-[#c0ff3f] data-[state=active]:text-black data-[state=inactive]:text-gray-700 rounded-md py-1.5"
                 >
-                  <AlertTriangle className="h-4 w-4" />
-                  预警列表
+                  <BarChart3 className="h-4 w-4" />
+                  趋势分析
                 </TabsTrigger>
                 <TabsTrigger
-                  value="rules"
-                  className="flex items-center gap-2 data-[state=active]:bg-[#c0ff3f] data-[state=active]:text-black"
+                  value="aiAnalysis"
+                  className="flex items-center gap-2 data-[state=active]:bg-[#c0ff3f] data-[state=active]:text-black data-[state=inactive]:text-gray-700 rounded-md py-1.5"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  AI分析
+                </TabsTrigger>
+                <TabsTrigger
+                  value="tracking"
+                  className="flex items-center gap-2 data-[state=active]:bg-[#c0ff3f] data-[state=active]:text-black data-[state=inactive]:text-gray-700 rounded-md py-1.5"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  学生追踪
+                </TabsTrigger>
+                <TabsTrigger
+                  value="autoWarning"
+                  className="flex items-center gap-2 data-[state=active]:bg-[#c0ff3f] data-[state=active]:text-black data-[state=inactive]:text-gray-700 rounded-md py-1.5"
                 >
                   <Settings className="h-4 w-4" />
                   预警规则
@@ -361,15 +518,50 @@ const WarningAnalysis = () => {
                 <WarningDashboard
                   warningData={warningStats}
                   factorStats={warningStats?.commonRiskFactors}
+                  isLoading={isLoading}
+                  activeTab="overview"
+                  hideTabList={true}
                 />
               </TabsContent>
 
-              <TabsContent value="list" className="space-y-6">
-                <WarningList />
+              <TabsContent value="trendAnalysis" className="space-y-6">
+                <WarningDashboard
+                  warningData={warningStats}
+                  factorStats={warningStats?.commonRiskFactors}
+                  isLoading={isLoading}
+                  activeTab="trendAnalysis"
+                  hideTabList={true}
+                />
               </TabsContent>
 
-              <TabsContent value="rules" className="space-y-6">
-                <WarningRules />
+              <TabsContent value="aiAnalysis" className="space-y-6">
+                <WarningDashboard
+                  warningData={warningStats}
+                  factorStats={warningStats?.commonRiskFactors}
+                  isLoading={isLoading}
+                  activeTab="aiAnalysis"
+                  hideTabList={true}
+                />
+              </TabsContent>
+
+              <TabsContent value="tracking" className="space-y-6">
+                <WarningDashboard
+                  warningData={warningStats}
+                  factorStats={warningStats?.commonRiskFactors}
+                  isLoading={isLoading}
+                  activeTab="tracking"
+                  hideTabList={true}
+                />
+              </TabsContent>
+
+              <TabsContent value="autoWarning" className="space-y-6">
+                <WarningDashboard
+                  warningData={warningStats}
+                  factorStats={warningStats?.commonRiskFactors}
+                  isLoading={isLoading}
+                  activeTab="autoWarning"
+                  hideTabList={true}
+                />
               </TabsContent>
             </Tabs>
           </div>
