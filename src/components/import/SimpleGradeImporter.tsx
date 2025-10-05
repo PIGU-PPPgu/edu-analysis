@@ -23,6 +23,7 @@ import {
   Settings2,
   Wifi,
   WifiOff,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { NotificationManager } from "@/services/NotificationManager";
@@ -98,7 +99,7 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
   onCancel,
 }) => {
   const [step, setStep] = useState<
-    "upload" | "confirm" | "importing" | "complete"
+    "upload" | "selectClass" | "confirm" | "importing" | "manualMatch" | "complete"
   >("upload");
   const [parsedData, setParsedData] = useState<ParsedData | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
@@ -116,9 +117,36 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
     date: new Date().toISOString().split("T")[0],
   });
 
+  // 📚 班级选择相关状态
+  const [classScope, setClassScope] = useState<"specific" | "wholeGrade" | "unknown">("specific");
+  const [selectedClass, setSelectedClass] = useState<string>("");
+  const [availableClasses, setAvailableClasses] = useState<string[]>([]);
+  const [newClassName, setNewClassName] = useState<string>("");
+  const [unmatchedStudents, setUnmatchedStudents] = useState<any[]>([]);
+
   // 🤖 AI辅助选项
   const [useAI, setUseAI] = useState(false); // 是否启用AI辅助
   const [aiMode, setAIMode] = useState<"auto" | "force" | "disabled">("auto"); // AI模式
+
+  // 加载可用班级列表
+  React.useEffect(() => {
+    const loadClasses = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("class_info")
+          .select("class_name")
+          .order("class_name");
+
+        if (!error && data) {
+          setAvailableClasses(data.map((c) => c.class_name));
+        }
+      } catch (error) {
+        console.error("加载班级列表失败:", error);
+      }
+    };
+
+    loadClasses();
+  }, []);
 
   // 从文件名智能推断考试信息
   const inferExamInfoFromFileName = useCallback((fileName: string): Partial<ExamInfo> => {
@@ -366,7 +394,7 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
       setProgress(100);
       setProgressMessage("解析完成！");
       setParsedData(parsedData);
-      setStep("confirm");
+      setStep("selectClass"); // 先选择班级再确认数据
 
       const processingMode = useWorker ? "高性能模式" : "标准模式";
       const processingTime = parsedData.metadata?.parseTime
@@ -800,6 +828,140 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
       )}
 
       {/* 步骤2: 智能确认 */}
+      {/* 步骤2: 选择班级范围 */}
+      {step === "selectClass" && parsedData && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Users className="w-5 h-5 text-blue-600" />
+              <span>选择成绩所属班级</span>
+            </CardTitle>
+            <p className="text-sm text-gray-500 mt-2">
+              选择班级有助于更准确地匹配学生信息
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* 班级范围选择 */}
+            <div className="space-y-4">
+              <div className="flex items-center space-x-4">
+                <input
+                  type="radio"
+                  id="specific-class"
+                  name="classScope"
+                  checked={classScope === "specific"}
+                  onChange={() => setClassScope("specific")}
+                  className="w-4 h-4"
+                />
+                <label htmlFor="specific-class" className="flex-1">
+                  <div className="font-medium">指定班级</div>
+                  <div className="text-sm text-gray-500">
+                    从现有班级中选择(推荐)
+                  </div>
+                </label>
+              </div>
+
+              {classScope === "specific" && (
+                <div className="ml-8 space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    选择班级
+                  </label>
+                  <select
+                    value={selectedClass}
+                    onChange={(e) => setSelectedClass(e.target.value)}
+                    className="w-full p-2 border rounded-md"
+                  >
+                    <option value="">请选择班级</option>
+                    {availableClasses.map((className) => (
+                      <option key={className} value={className}>
+                        {className}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="flex items-center space-x-4">
+                <input
+                  type="radio"
+                  id="whole-grade"
+                  name="classScope"
+                  checked={classScope === "wholeGrade"}
+                  onChange={() => setClassScope("wholeGrade")}
+                  className="w-4 h-4"
+                />
+                <label htmlFor="whole-grade" className="flex-1">
+                  <div className="font-medium">全年级</div>
+                  <div className="text-sm text-gray-500">
+                    成绩数据包含多个班级
+                  </div>
+                </label>
+              </div>
+
+              <div className="flex items-center space-x-4">
+                <input
+                  type="radio"
+                  id="unknown-class"
+                  name="classScope"
+                  checked={classScope === "unknown"}
+                  onChange={() => setClassScope("unknown")}
+                  className="w-4 h-4"
+                />
+                <label htmlFor="unknown-class" className="flex-1">
+                  <div className="font-medium">未知班级/创建新班级</div>
+                  <div className="text-sm text-gray-500">
+                    班级不在列表中,需要创建
+                  </div>
+                </label>
+              </div>
+
+              {classScope === "unknown" && (
+                <div className="ml-8 space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    输入新班级名称
+                  </label>
+                  <input
+                    type="text"
+                    value={newClassName}
+                    onChange={(e) => setNewClassName(e.target.value)}
+                    placeholder="例如: 高一(5)班"
+                    className="w-full p-2 border rounded-md"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* 操作按钮 */}
+            <div className="flex justify-between pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setParsedData(null);
+                  setStep("upload");
+                }}
+              >
+                返回上传
+              </Button>
+              <Button
+                onClick={() => {
+                  if (classScope === "specific" && !selectedClass) {
+                    toast.error("请选择一个班级");
+                    return;
+                  }
+                  if (classScope === "unknown" && !newClassName.trim()) {
+                    toast.error("请输入新班级名称");
+                    return;
+                  }
+                  setStep("confirm");
+                }}
+              >
+                下一步：确认数据
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 步骤3: 确认数据 */}
       {step === "confirm" && parsedData && (
         <Card>
           <CardHeader>
@@ -825,10 +987,7 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
                       ...prev,
                       ...inferredInfo,
                     }));
-                    toast({
-                      title: "已重新识别",
-                      description: "考试信息已从文件名重新提取",
-                    });
+                    toast.success("考试信息已从文件名重新提取");
                   }}
                   className="text-blue-600 hover:text-blue-700"
                 >
