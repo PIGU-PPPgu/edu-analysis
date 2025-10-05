@@ -388,13 +388,6 @@ const StudentPortraitManagement: React.FC = () => {
                           班级
                         </TabsTrigger>
                         <TabsTrigger
-                          value="group"
-                          className="flex items-center text-xs"
-                        >
-                          <UsersIcon className="h-4 w-4 mr-1" />
-                          小组
-                        </TabsTrigger>
-                        <TabsTrigger
                           value="student"
                           className="flex items-center text-xs"
                         >
@@ -402,37 +395,45 @@ const StudentPortraitManagement: React.FC = () => {
                           学生
                         </TabsTrigger>
                         <TabsTrigger
+                          value="group"
+                          className="flex items-center text-xs"
+                        >
+                          <UsersIcon className="h-4 w-4 mr-1" />
+                          小组
+                        </TabsTrigger>
+                        <TabsTrigger
                           value="smart-portrait"
                           className="flex items-center text-xs"
                         >
                           <Sparkles className="h-4 w-4 mr-1" />
-                          智能画像
+                          画像生成
                         </TabsTrigger>
                         <TabsTrigger
                           value="ai-analysis"
                           className="flex items-center text-xs"
                         >
                           <Brain className="h-4 w-4 mr-1" />
-                          AI分析
+                          学习分析
                         </TabsTrigger>
                         <TabsTrigger
                           value="enhanced-analysis"
                           className="flex items-center text-xs"
                         >
                           <Zap className="h-4 w-4 mr-1" />
-                          增强分析
+                          能力画像
                         </TabsTrigger>
                         <TabsTrigger
                           value="comparison"
                           className="flex items-center text-xs"
                         >
-                          <BarChart3 className="h-4 w-4 mr-1" />
+                          <ArrowLeftRight className="h-4 w-4 mr-1" />
                           对比分析
                         </TabsTrigger>
                       </TabsList>
                     </div>
 
                     <CardContent className="pt-6">
+                      {/* 班级概览标签 */}
                       <TabsContent value="class" className="mt-0">
                         <div className="space-y-6">
                           <ClassOverview
@@ -454,6 +455,61 @@ const StudentPortraitManagement: React.FC = () => {
                         </div>
                       </TabsContent>
 
+                      {/* 学生列表标签 */}
+                      <TabsContent value="student" className="mt-0">
+                        <div className="space-y-4">
+                          <div className="relative">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              placeholder="搜索学生姓名或学号..."
+                              className="pl-8"
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                            {isSearching && (
+                              <div className="absolute right-2.5 top-2.5">
+                                <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                              </div>
+                            )}
+                          </div>
+
+                          {isLoadingStudents ? (
+                            <PageLoading text="加载学生数据..." />
+                          ) : filteredStudents.length === 0 ? (
+                            <EmptyState
+                              icon={UserCircle}
+                              title="没有找到学生"
+                              description={
+                                searchQuery
+                                  ? "没有匹配的学生，请尝试其他关键词"
+                                  : "该班级暂无学生数据"
+                              }
+                              action={{
+                                label: "添加学生",
+                                onClick: () =>
+                                  toast({
+                                    description:
+                                      "学生添加功能请前往学生管理页面",
+                                  }),
+                                variant: "outline",
+                              }}
+                            />
+                          ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                              {filteredStudents.map((student) => (
+                                <StudentCard
+                                  key={student.id}
+                                  student={student}
+                                  onView={handleViewStudentProfile}
+                                  onSmartAnalysis={handleSelectStudent}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </TabsContent>
+
+                      {/* 小组管理标签 */}
                       <TabsContent value="group" className="mt-0">
                         <div className="space-y-4">
                           <div className="relative">
@@ -522,59 +578,7 @@ const StudentPortraitManagement: React.FC = () => {
                         </div>
                       </TabsContent>
 
-                      <TabsContent value="student" className="mt-0">
-                        <div className="space-y-4">
-                          <div className="relative">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                              placeholder="搜索学生姓名或学号..."
-                              className="pl-8"
-                              value={searchQuery}
-                              onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                            {isSearching && (
-                              <div className="absolute right-2.5 top-2.5">
-                                <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                              </div>
-                            )}
-                          </div>
-
-                          {isLoadingStudents ? (
-                            <PageLoading text="加载学生数据..." />
-                          ) : filteredStudents.length === 0 ? (
-                            <EmptyState
-                              icon={UserCircle}
-                              title="没有找到学生"
-                              description={
-                                searchQuery
-                                  ? "没有匹配的学生，请尝试其他关键词"
-                                  : "该班级暂无学生数据"
-                              }
-                              action={{
-                                label: "添加学生",
-                                onClick: () =>
-                                  toast({
-                                    description:
-                                      "学生添加功能请前往学生管理页面",
-                                  }),
-                                variant: "outline",
-                              }}
-                            />
-                          ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                              {filteredStudents.map((student) => (
-                                <StudentCard
-                                  key={student.id}
-                                  student={student}
-                                  onView={handleViewStudentProfile}
-                                  onSmartAnalysis={handleSelectStudent}
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </TabsContent>
-
+                      {/* 画像生成标签 */}
                       <TabsContent value="smart-portrait" className="mt-0">
                         {selectedStudentId ? (
                           <StudentPortraitGenerator
@@ -582,14 +586,61 @@ const StudentPortraitManagement: React.FC = () => {
                             className={selectedClass?.name}
                           />
                         ) : (
-                          <div className="text-center py-20">
-                            <Sparkles className="h-16 w-16 text-muted-foreground/50 mb-4 mx-auto" />
-                            <p className="text-lg font-medium mb-2">
-                              AI智能画像生成
-                            </p>
-                            <p className="text-sm text-muted-foreground text-center max-w-md mx-auto">
-                              请先从"学生"标签页选择一个学生，或点击学生卡片上的"智能画像"按钮
-                            </p>
+                          <div className="space-y-6">
+                            <div className="text-center py-12 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg border border-blue-100">
+                              <Sparkles className="h-16 w-16 text-blue-500 mb-4 mx-auto animate-pulse" />
+                              <h3 className="text-xl font-semibold mb-2 text-gray-900">
+                                AI 画像生成器
+                              </h3>
+                              <p className="text-sm text-gray-600 max-w-md mx-auto mb-6">
+                                为学生生成智能画像，基于成绩数据、学习行为等多维度分析
+                              </p>
+                              <div className="flex items-center justify-center gap-4 text-sm text-gray-500">
+                                <div className="flex items-center gap-1">
+                                  <Users className="h-4 w-4" />
+                                  <span>切换到"学生"标签</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Sparkles className="h-4 w-4" />
+                                  <span>点击"智能画像"按钮</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 快速操作提示 */}
+                            <Card>
+                              <CardHeader>
+                                <CardTitle className="text-base">
+                                  💡 使用提示
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-3 text-sm">
+                                <div className="flex items-start gap-2">
+                                  <Badge variant="outline" className="mt-0.5">
+                                    1
+                                  </Badge>
+                                  <p>
+                                    在"班级"标签中使用批量操作，可一键为所有学生生成画像
+                                  </p>
+                                </div>
+                                <div className="flex items-start gap-2">
+                                  <Badge variant="outline" className="mt-0.5">
+                                    2
+                                  </Badge>
+                                  <p>
+                                    在"学生"标签中点击学生卡片的"智能画像"按钮进行单个生成
+                                  </p>
+                                </div>
+                                <div className="flex items-start gap-2">
+                                  <Badge variant="outline" className="mt-0.5">
+                                    3
+                                  </Badge>
+                                  <p>
+                                    画像会自动分析学生的学科表现、进步趋势、优势劣势等维度
+                                  </p>
+                                </div>
+                              </CardContent>
+                            </Card>
                           </div>
                         )}
                       </TabsContent>
