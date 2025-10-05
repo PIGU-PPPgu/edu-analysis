@@ -80,6 +80,9 @@ const Index = () => {
   const [importedData, setImportedData] = useState<any[]>([]);
   const [isAnalysisLoading, setIsAnalysisLoading] = useState(false);
 
+  // 主Tab状态（学生导入 vs 成绩导入）
+  const [mainActiveTab, setMainActiveTab] = useState("students");
+
   // 统一使用智能导入模式
   // 移除了旧的导入方式选择，简化用户体验
 
@@ -291,15 +294,47 @@ const Index = () => {
 
   const handleApplyFixes = async (fixIds: string[]) => {
     if (!validationReport) return;
-    
-    toast.info('自动修复功能正在开发中', {
-      description: '将在下个版本中提供智能数据修复功能'
-    });
-    
-    // TODO: 实现自动修复逻辑
-    // const fixedData = await gradeDataValidator.applyFixes(importedData, fixIds);
-    // setImportedData(fixedData);
-    // await handleValidateData(fixedData);
+
+    try {
+      // 动态导入数据修复服务
+      const { dataFixService } = await import("@/services/dataFixService");
+
+      // 执行数据质量诊断
+      toast.info("正在诊断数据质量问题...");
+      const diagnosticReport = await dataFixService.diagnoseDataQuality();
+
+      if (diagnosticReport.totalIssues === 0) {
+        toast.success("数据质量良好，无需修复");
+        return;
+      }
+
+      // 应用修复
+      toast.info(`发现 ${diagnosticReport.totalIssues} 个问题，正在修复...`);
+      const results = await dataFixService.autoFixAll(diagnosticReport);
+
+      const successCount = results.filter(r => r.success).length;
+      const failedCount = results.length - successCount;
+
+      if (successCount > 0) {
+        toast.success(`成功修复 ${successCount} 个问题`, {
+          description: failedCount > 0 ? `${failedCount} 个问题需要人工处理` : undefined,
+        });
+      }
+
+      if (failedCount > 0) {
+        toast.warning(`${failedCount} 个问题无法自动修复`, {
+          description: "请手动检查数据完整性",
+        });
+      }
+
+      // 刷新验证报告
+      // TODO: 重新验证数据
+    } catch (error) {
+      console.error("[自动修复] 修复失败:", error);
+      toast.error("自动修复失败", {
+        description: error instanceof Error ? error.message : "请查看控制台日志",
+      });
+    }
   };
 
   useEffect(() => {
@@ -377,7 +412,7 @@ const Index = () => {
               </Alert>
             )}
 
-            <Tabs key="main-tabs" defaultValue="students" className="w-full">
+            <Tabs key="main-tabs" value={mainActiveTab} onValueChange={setMainActiveTab} className="w-full">
               <TabsList className="mb-6 bg-white border shadow-sm">
                 <TabsTrigger
                   value="students"
@@ -410,6 +445,7 @@ const Index = () => {
                     <CardContent>
                       <StudentDataImporter
                         onDataImported={handleStudentDataImported}
+                        onSuccess={() => setMainActiveTab("grades")}
                       />
                       <div className="mt-4 pt-4 border-t flex justify-end">
                         <Button

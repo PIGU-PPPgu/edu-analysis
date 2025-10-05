@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { KnowledgePoint } from "@/types/homework";
 import { OpenAI } from "openai";
 import { env } from "@/env";
+import { cacheManager, CacheTTL } from "@/services/CacheManager";
 
 // 获取API密钥，避免直接使用process.env
 const OPENAI_API_KEY = env.NEXT_PUBLIC_OPENAI_API_KEY || "";
@@ -42,8 +43,10 @@ function areStringSimilar(str1: string, str2: string): boolean {
   return false;
 }
 
-// 缓存最近计算的嵌入向量，避免重复请求
-const embeddingCache = new Map<string, number[]>();
+// ✅ 缓存键前缀
+const CACHE_PREFIX = {
+  EMBEDDING: 'kp_embedding_',
+};
 
 // 知识点服务
 export class knowledgePointService {
@@ -93,26 +96,32 @@ export class knowledgePointService {
 
   // 将文本转换为嵌入向量
   private static async getEmbedding(text: string): Promise<number[]> {
-    if (embeddingCache.has(text)) {
-      return embeddingCache.get(text)!;
-    }
+    const cacheKey = CACHE_PREFIX.EMBEDDING + text;
 
-    try {
-      const response = await openai.embeddings.create({
-        model: "text-embedding-ada-002",
-        input: text,
-      });
+    return cacheManager.getOrSet(
+      cacheKey,
+      async () => {
+        try {
+          const response = await openai.embeddings.create({
+            model: "text-embedding-ada-002",
+            input: text,
+          });
 
-      const embedding = response.data[0].embedding;
-      embeddingCache.set(text, embedding);
-      return embedding;
-    } catch (error) {
-      console.error("获取嵌入向量失败:", error);
-      // 失败时返回一个随机向量
-      return Array(1536)
-        .fill(0)
-        .map(() => Math.random());
-    }
+          const embedding = response.data[0].embedding;
+          return embedding;
+        } catch (error) {
+          console.error("获取嵌入向量失败:", error);
+          // 失败时返回一个随机向量
+          return Array(1536)
+            .fill(0)
+            .map(() => Math.random());
+        }
+      },
+      {
+        ttl: CacheTTL.ONE_WEEK, // Embedding结果缓存1周
+        persistent: true, // 持久化以减少API调用
+      }
+    );
   }
 
   // 计算余弦相似度

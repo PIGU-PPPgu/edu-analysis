@@ -904,59 +904,26 @@ export async function analyzeHomeworkImage(
       } catch (backupError) {
         console.error("备用分析方法也失败:", backupError);
 
-        // 如果备用方法也失败，返回模拟数据
-        return {
-          success: true,
-          knowledgePoints: [
-            {
-              id: `kp-mock-${Date.now()}-1`,
-              name: "图像分析",
-              description: "图像中包含的作业内容分析",
-              homework_id: params.homeworkId,
-              created_at: new Date().toISOString(),
-              isNew: true,
-            },
-            {
-              id: `kp-mock-${Date.now()}-2`,
-              name: `${params.subject || "数学"}知识点`,
-              description: "作业中包含的核心知识点",
-              homework_id: params.homeworkId,
-              created_at: new Date().toISOString(),
-              isNew: true,
-            },
-          ],
-        };
+        // 如果备用方法也失败,抛出错误让调用方处理
+        // 调用方可以选择: 1) 手动输入知识点 2) 复用之前的分析 3) 重试
+        throw new Error(
+          `AI分析服务暂时不可用: ${backupError.message}. ` +
+          `请检查API配置或稍后重试,也可以选择手动输入知识点.`
+        );
       }
     }
   } catch (error) {
     console.error("分析作业图片失败:", error);
 
-    // 如果API调用失败，尝试使用模拟数据
+    // 网络错误: 提供明确的错误信息和重试建议
     if (error instanceof TypeError && error.message.includes("fetch")) {
-      console.warn("API调用失败，使用模拟数据作为后备方案");
-      return {
-        success: true,
-        knowledgePoints: [
-          {
-            id: `kp-${Date.now()}-1`,
-            name: "图像识别与分析",
-            description: "识别并分析图片中的主要内容",
-            homework_id: params.homeworkId,
-            created_at: new Date().toISOString(),
-            isNew: true,
-          },
-          {
-            id: `kp-${Date.now()}-2`,
-            name: params.subject ? `${params.subject}基础知识` : "学科基础知识",
-            description: "与图片内容相关的学科基础知识",
-            homework_id: params.homeworkId,
-            created_at: new Date().toISOString(),
-            isNew: true,
-          },
-        ],
-      };
+      throw new Error(
+        'AI服务连接失败,请检查网络连接或API配置. ' +
+        '你可以稍后重试,或选择手动输入知识点.'
+      );
     }
 
+    // 其他错误: 直接抛出,让调用方决定如何处理
     throw error;
   }
 }

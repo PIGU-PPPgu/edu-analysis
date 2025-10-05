@@ -48,6 +48,7 @@ import ClassOverview from "@/components/portrait/ClassOverview";
 import { IntelligentPortraitAnalysis } from "@/components/portrait/advanced";
 import EnhancedStudentPortrait from "@/components/portrait/advanced/EnhancedStudentPortrait";
 import StudentPortraitComparison from "@/components/portrait/advanced/StudentPortraitComparison";
+import { SmartGroupManager } from "@/components/group/SmartGroupManager";
 import StudentPortraitGenerator from "@/components/portrait/StudentPortraitGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { PageLoading, CardLoading } from "@/components/ui/loading";
@@ -69,6 +70,8 @@ const StudentPortraitManagement: React.FC = () => {
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [showGroupCreator, setShowGroupCreator] = useState(false);
+  const [classStudents, setClassStudents] = useState<Array<{ student_id: string; name: string; overall_score?: number }>>([]);
 
   // 使用防抖优化搜索体验
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
@@ -461,10 +464,23 @@ const StudentPortraitManagement: React.FC = () => {
                               }
                               action={{
                                 label: "创建小组",
-                                onClick: () =>
-                                  toast({
-                                    description: "小组创建功能正在开发中",
-                                  }),
+                                onClick: async () => {
+                                  // 获取当前班级的学生列表
+                                  if (selectedClass) {
+                                    const { data: students, error } = await supabase
+                                      .from("students")
+                                      .select("student_id, name")
+                                      .eq("class_name", selectedClass.name);
+
+                                    if (error) {
+                                      toast({ description: "获取学生列表失败", variant: "destructive" });
+                                      return;
+                                    }
+
+                                    setClassStudents(students || []);
+                                    setShowGroupCreator(true);
+                                  }
+                                },
                                 variant: "outline",
                               }}
                             />
@@ -581,6 +597,32 @@ const StudentPortraitManagement: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* 小组创建对话框 */}
+      {showGroupCreator && selectedClass && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold">创建学习小组 - {selectedClass.name}</h2>
+                <Button variant="ghost" onClick={() => setShowGroupCreator(false)}>
+                  关闭
+                </Button>
+              </div>
+              <SmartGroupManager
+                className={selectedClass.name}
+                students={classStudents}
+                onGroupsCreated={(groups) => {
+                  toast({ description: `成功创建 ${groups.length} 个小组` });
+                  setShowGroupCreator(false);
+                  // 刷新小组列表
+                  window.location.reload();
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

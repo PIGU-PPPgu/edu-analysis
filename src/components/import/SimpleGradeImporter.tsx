@@ -4,6 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   CheckCircle,
   Upload,
@@ -18,6 +25,8 @@ import {
   WifiOff,
 } from "lucide-react";
 import { toast } from "sonner";
+import { NotificationManager } from "@/services/NotificationManager";
+import { showErrorSmart } from "@/services/errorHandler";
 import {
   processFileWithWorker,
   shouldUseWorker,
@@ -30,6 +39,7 @@ import type {
 import { GradeDataPreview } from "@/components/ui/VirtualTable";
 import { intelligentFileParser } from "@/services/intelligentFileParser";
 import { supabase } from "@/integrations/supabase/client";
+import UploadProgressIndicator from "@/components/shared/UploadProgressIndicator";
 import {
   convertWideToLongFormatEnhanced,
   analyzeCSVHeaders,
@@ -95,23 +105,78 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressMessage, setProgressMessage] = useState("");
+  const [processingStage, setProcessingStage] = useState<
+    "uploading" | "parsing" | "validating" | "saving" | "analyzing" | "completed" | "error"
+  >("uploading");
+  const [processingError, setProcessingError] = useState<string | null>(null);
   const [showFieldMapping, setShowFieldMapping] = useState(false);
   const [examInfo, setExamInfo] = useState<ExamInfo>({
     title: "",
     type: "月考",
     date: new Date().toISOString().split("T")[0],
   });
-  const [aiServiceStatus, setAiServiceStatus] = useState<
-    "checking" | "available" | "unavailable" | "unknown"
-  >("unknown");
 
-  // 检测AI服务状态 - 简化版本，直接反映当前配置
-  React.useEffect(() => {
-    // 由于当前AI服务已被禁用以解决CORS问题，直接设置为不可用
-    setAiServiceStatus("unavailable");
+  // 🤖 AI辅助选项
+  const [useAI, setUseAI] = useState(false); // 是否启用AI辅助
+  const [aiMode, setAIMode] = useState<"auto" | "force" | "disabled">("auto"); // AI模式
 
-    // 注意：如果未来AI服务修复，可以恢复完整的检测逻辑
-    console.log("[AI服务状态] 当前使用纯算法解析模式，AI服务暂时禁用");
+  // 从文件名智能推断考试信息
+  const inferExamInfoFromFileName = useCallback((fileName: string): Partial<ExamInfo> => {
+    const nameWithoutExt = fileName.replace(/\.(xlsx?|csv)$/i, "");
+
+    // 考试类型关键词匹配
+    const typeMap: Record<string, string> = {
+      "期中": "期中考试",
+      "期末": "期末考试",
+      "月考": "月考",
+      "周测": "周测",
+      "单元测": "单元测试",
+      "模拟": "模拟考试",
+      "诊断": "诊断考试",
+      "摸底": "摸底考试",
+    };
+
+    let detectedType = "月考"; // 默认
+    for (const [keyword, type] of Object.entries(typeMap)) {
+      if (nameWithoutExt.includes(keyword)) {
+        detectedType = type;
+        break;
+      }
+    }
+
+    // 提取日期 (YYYY-MM-DD, YYYY.MM.DD, YYYYMMDD格式)
+    const datePatterns = [
+      /(\d{4})-(\d{1,2})-(\d{1,2})/,
+      /(\d{4})\.(\d{1,2})\.(\d{1,2})/,
+      /(\d{4})(\d{2})(\d{2})/,
+    ];
+
+    let detectedDate = new Date().toISOString().split("T")[0];
+    for (const pattern of datePatterns) {
+      const match = nameWithoutExt.match(pattern);
+      if (match) {
+        const [_, year, month, day] = match;
+        detectedDate = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+        break;
+      }
+    }
+
+    // 生成考试标题 (使用完整文件名,去掉扩展名和日期)
+    let title = nameWithoutExt
+      .replace(/\d{4}[-.]?\d{2}[-.]?\d{2}/g, "") // 移除日期
+      .replace(/\s+/g, " ") // 合并多余空格
+      .trim();
+
+    // 如果标题为空,使用考试类型作为标题
+    if (!title || title.length < 2) {
+      title = `${detectedType}成绩`;
+    }
+
+    return {
+      title,
+      type: detectedType,
+      date: detectedDate,
+    };
   }, []);
 
   // 一键智能上传 - 支持Web Workers大文件处理
@@ -119,6 +184,8 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
     setIsProcessing(true);
     setProgress(0);
     setProgressMessage("");
+    setProcessingStage("uploading");
+    setProcessingError(null);
 
     try {
       // 检查是否应该使用Web Worker
@@ -127,10 +194,8 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
 
       if (useWorker) {
         setProgressMessage("检测到大文件，启用高性能处理模式...");
-        toast.success(`检测到大文件 (${fileSize}MB)，启用高性能处理模式`, {
-          icon: "⚡",
-          duration: 3000,
-        });
+        // 移除: 大文件提示 - 已在进度条中显示
+        console.log(`检测到大文件 (${fileSize}MB)，启用高性能处理模式`);
       } else {
         setProgressMessage("正在准备文件解析...");
       }
@@ -164,19 +229,21 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
       } else {
         // 小文件使用传统方式处理
         setProgress(10);
-        setProgressMessage("正在读取文件...");
+        setProgressMessage("正在读取成绩数据...");
         await new Promise((resolve) => setTimeout(resolve, 800));
 
         setProgress(30);
-        setProgressMessage("AI正在分析文件结构...");
+        setProgressMessage("正在分析文件结构...");
+        setProcessingStage("parsing");
         await new Promise((resolve) => setTimeout(resolve, 1000));
 
         setProgress(60);
-        setProgressMessage("智能识别字段映射...");
+        setProgressMessage("正在识别成绩科目...");
+        setProcessingStage("validating");
         await new Promise((resolve) => setTimeout(resolve, 700));
 
         setProgress(85);
-        setProgressMessage("生成数据预览...");
+        setProgressMessage("准备数据预览...");
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
 
@@ -198,11 +265,17 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
         };
       } else {
         // 使用智能文件解析器处理真实文件
-        setProgressMessage("使用智能解析引擎处理文件...");
+        const modeLabel = useAI ? (aiMode === "force" ? " (AI增强模式)" : " (AI辅助模式)") : "";
+        setProgressMessage(`使用智能解析引擎处理文件${modeLabel}...`);
 
         try {
-          const parseResult = await intelligentFileParser.parseFile(file);
+          const parseResult = await intelligentFileParser.parseFile(file, {
+            useAI,
+            aiMode: useAI ? aiMode : "disabled",
+            minConfidenceForAI: 0.8,
+          });
           console.log("[SimpleGradeImporter] 智能解析结果:", parseResult);
+          console.log(`[SimpleGradeImporter] 使用的解析方法: ${parseResult.metadata.parseMethod}`);
 
           parsedData = {
             file,
@@ -249,10 +322,13 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
               date: parseResult.metadata.examInfo?.date || prev.date,
             }));
           } else {
-            // 如果没有检测到考试信息，使用文件名作为标题
+            // 使用智能推断功能从文件名提取考试信息
+            const inferredInfo = inferExamInfoFromFileName(file.name);
             setExamInfo((prev) => ({
               ...prev,
-              title: prev.title || file.name.replace(/\.[^/.]+$/, ""),
+              title: inferredInfo.title || prev.title,
+              type: inferredInfo.type || prev.type,
+              date: inferredInfo.date || prev.date,
             }));
           }
         } catch (error) {
@@ -297,19 +373,16 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
         ? `${(parsedData.metadata.parseTime / 1000).toFixed(1)}秒`
         : "";
 
-      toast.success(`文件解析完成！(${processingMode} ${processingTime})`, {
-        description: `AI智能识别了 ${Object.keys(parsedData.mapping).length} 个字段，置信度 ${Math.round(parsedData.confidence * 100)}%`,
+      // 移除: 文件解析完成提示 - 用户已通过进度条看到
+      console.log(`文件解析完成！(${processingMode} ${processingTime})`, {
+        fields: Object.keys(parsedData.mapping).length,
+        confidence: Math.round(parsedData.confidence * 100),
       });
     } catch (error) {
       console.error("解析失败:", error);
       setProgressMessage("解析失败");
-      toast.error(
-        `解析失败: ${error instanceof Error ? error.message : "未知错误"}`,
-        {
-          description: "请检查文件格式是否正确，或尝试使用较小的文件",
-          duration: 5000,
-        }
-      );
+      // 使用智能错误处理
+      showErrorSmart(error, { context: "文件解析" });
     } finally {
       setIsProcessing(false);
       setProgress(0);
@@ -324,11 +397,12 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
     setIsProcessing(true);
     setStep("importing");
     setProgress(0);
+    setProcessingStage("validating");
 
     try {
       // 步骤1: 验证考试信息
       setProgress(10);
-      setProgressMessage("验证考试信息...");
+      setProgressMessage("正在验证考试信息...");
 
       if (!examInfo.title.trim()) {
         throw new Error("考试标题不能为空");
@@ -336,17 +410,23 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
 
       // 步骤2: 处理原始数据
       setProgress(25);
-      setProgressMessage("分析数据结构...");
+      setProgressMessage("正在读取完整成绩表...");
 
       // 重新解析文件以获取完整数据（不只是预览）
       const fullParseResult = await intelligentFileParser.parseFile(
-        parsedData.file
+        parsedData.file,
+        {
+          useAI,
+          aiMode: useAI ? aiMode : "disabled",
+          minConfidenceForAI: 0.8,
+        }
       );
       console.log("[真实导入] 完整解析结果:", fullParseResult);
+      console.log(`[真实导入] 使用的解析方法: ${fullParseResult.metadata.parseMethod}`);
 
       // 步骤3: 生成考试ID并准备考试数据
       setProgress(40);
-      setProgressMessage("创建考试记录...");
+      setProgressMessage("正在准备考试记录...");
 
       const examId = crypto.randomUUID();
       const examData = {
@@ -358,7 +438,7 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
 
       // 步骤4: 转换数据格式 - 将宽表格转换为长表格
       setProgress(55);
-      setProgressMessage("转换数据格式...");
+      setProgressMessage(`正在处理成绩数据 (共 ${fullParseResult.data.length} 名学生)...`);
 
       const headerAnalysis = analyzeCSVHeaders(fullParseResult.headers);
       console.log("[真实导入] 字段分析结果:", headerAnalysis);
@@ -416,7 +496,8 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
 
       // 步骤5: 保存到数据库
       setProgress(80);
-      setProgressMessage("保存到数据库...");
+      setProgressMessage(`正在保存 ${successCount} 名学生的成绩...`);
+      setProcessingStage("saving");
 
       // 直接保存到数据库，绕过Edge Function
       console.log("[真实导入] 直接保存到grade_data_new表:", {
@@ -466,7 +547,8 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
 
       // 步骤5: 智能数据同步 - 自动创建班级和学生
       setProgress(85);
-      setProgressMessage("智能同步班级和学生信息...");
+      setProgressMessage("正在同步学生和班级信息...");
+      setProcessingStage("analyzing");
 
       try {
         console.log("[智能同步] 开始自动创建班级和学生...");
@@ -474,29 +556,22 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
         
         console.log("[智能同步] 同步结果:", syncResult);
         
+        // 移除: 智能同步提示 - 最终结果会在总的成功提示中体现
         if (syncResult.success) {
-          toast.success(`🤖 智能同步完成！`, {
-            description: `自动创建了 ${syncResult.newClasses.length} 个班级和 ${syncResult.newStudents.length} 名学生`,
-            duration: 8000,
-          });
+          console.log(`[智能同步] 完成！自动创建了 ${syncResult.newClasses.length} 个班级和 ${syncResult.newStudents.length} 名学生`);
         } else if (syncResult.errors.length > 0) {
           console.warn("[智能同步] 部分同步失败:", syncResult.errors);
-          toast.warning("智能同步部分失败", {
-            description: `成功创建 ${syncResult.newClasses.length} 个班级和 ${syncResult.newStudents.length} 名学生，但有部分问题`,
-            duration: 6000,
-          });
+          console.log(`[智能同步] 成功创建 ${syncResult.newClasses.length} 个班级和 ${syncResult.newStudents.length} 名学生，但有部分问题`);
         }
       } catch (syncError) {
         console.error("[智能同步] 同步过程出错:", syncError);
-        toast.warning("智能同步遇到问题", {
-          description: "成绩数据已成功导入，但自动创建班级学生时遇到问题，请检查数据完整性",
-          duration: 8000,
-        });
+        console.warn("[智能同步] 成绩数据已成功导入，但自动创建班级学生时遇到问题");
       }
 
       // 步骤6: 完成导入
       setProgress(100);
       setProgressMessage("导入完成！");
+      setProcessingStage("completed");
 
       const importResult: ImportResult = {
         success: true,
@@ -520,10 +595,11 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
       console.error("[真实导入] 导入失败:", error);
       const errorMessage = error instanceof Error ? error.message : "未知错误";
 
-      toast.error("导入失败", {
-        description: errorMessage,
-        duration: 8000,
-      });
+      setProcessingStage("error");
+      setProcessingError(errorMessage);
+
+      // 使用智能错误处理
+      showErrorSmart(error, { context: "成绩导入" });
 
       // 回到确认步骤，让用户可以重试
       setStep("confirm");
@@ -609,31 +685,6 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
             <CardTitle className="flex items-center space-x-2">
               <Upload className="w-5 h-5" />
               <span>一键智能导入</span>
-              {/* AI服务状态指示器 */}
-              {aiServiceStatus === "checking" && (
-                <Badge variant="secondary" className="ml-2">
-                  <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
-                  检测中
-                </Badge>
-              )}
-              {aiServiceStatus === "available" && (
-                <Badge
-                  variant="default"
-                  className="ml-2 bg-green-100 text-green-800"
-                >
-                  <Wifi className="w-3 h-3 mr-1" />
-                  AI增强
-                </Badge>
-              )}
-              {aiServiceStatus === "unavailable" && (
-                <Badge
-                  variant="outline"
-                  className="ml-2 border-orange-200 text-orange-700"
-                >
-                  <Zap className="w-3 h-3 mr-1" />
-                  算法模式
-                </Badge>
-              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -650,9 +701,7 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
                 <div className="space-y-4">
                   <RefreshCw className="w-12 h-12 mx-auto text-blue-600 animate-spin" />
                   <p className="text-lg font-medium">
-                    {aiServiceStatus === "available"
-                      ? "AI正在智能解析文件..."
-                      : "算法正在智能解析文件..."}
+                    正在智能解析文件...
                   </p>
                   <Progress value={progress} className="w-64 mx-auto" />
                   <p className="text-sm text-gray-600">
@@ -667,23 +716,8 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
                       拖拽文件到这里，或点击选择
                     </p>
                     <p className="text-gray-600 mt-2">
-                      支持 Excel (.xlsx, .xls) 和 CSV 文件
+                      支持 Excel (.xlsx, .xls) 和 CSV 文件，自动识别成绩数据
                     </p>
-                    {aiServiceStatus === "available" && (
-                      <p className="text-sm text-green-600 mt-1">
-                        ✨ AI将自动识别字段并生成预览
-                      </p>
-                    )}
-                    {aiServiceStatus === "unavailable" && (
-                      <p className="text-sm text-orange-600 mt-1">
-                        ⚡ 高性能算法将自动识别字段并生成预览
-                      </p>
-                    )}
-                    {aiServiceStatus === "checking" && (
-                      <p className="text-sm text-gray-500 mt-1">
-                        🔍 正在检测AI服务状态...
-                      </p>
-                    )}
                   </div>
                   <Button
                     onClick={() => {
@@ -703,6 +737,64 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
                 </div>
               )}
             </div>
+
+            {/* 🤖 AI辅助选项 */}
+            <Collapsible>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="w-full flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <Settings2 className="w-4 h-4" />
+                    高级选项 (AI辅助)
+                  </span>
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-3 space-y-3">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex-1">
+                    <Label htmlFor="ai-mode" className="text-sm font-medium">启用AI辅助识别</Label>
+                    <p className="text-xs text-gray-600 mt-1">
+                      当算法置信度较低时，使用AI增强识别准确率
+                    </p>
+                  </div>
+                  <Switch
+                    id="ai-mode"
+                    checked={useAI}
+                    onCheckedChange={setUseAI}
+                  />
+                </div>
+
+                {useAI && (
+                  <div className="pl-3 space-y-2">
+                    <Label className="text-sm font-medium">AI模式</Label>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="aiMode"
+                          value="auto"
+                          checked={aiMode === "auto"}
+                          onChange={(e) => setAIMode(e.target.value as any)}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm">自动 (智能判断)</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="aiMode"
+                          value="force"
+                          checked={aiMode === "force"}
+                          onChange={(e) => setAIMode(e.target.value as any)}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm">强制 (完整AI增强)</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
           </CardContent>
         </Card>
       )}
@@ -711,23 +803,39 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
       {step === "confirm" && parsedData && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <CheckCircle className="w-5 h-5 text-green-600" />
-                <span>智能解析完成，请确认</span>
-              </div>
-              <div className="text-sm bg-green-100 text-green-800 px-3 py-1 rounded-full">
-                置信度: {Math.round(parsedData.confidence * 100)}%
-              </div>
+            <CardTitle className="flex items-center space-x-2">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+              <span>✅ 数据解析完成，请确认考试信息</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* 考试信息设置 */}
             <div className="bg-blue-50 p-4 rounded-lg">
-              <h3 className="font-semibold mb-3 flex items-center gap-2">
-                <Settings2 className="w-5 h-5" />
-                考试信息设置
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Settings2 className="w-5 h-5" />
+                  考试信息（已自动识别）
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const inferredInfo = inferExamInfoFromFileName(parsedData.file.name);
+                    setExamInfo((prev) => ({
+                      ...prev,
+                      ...inferredInfo,
+                    }));
+                    toast({
+                      title: "已重新识别",
+                      description: "考试信息已从文件名重新提取",
+                    });
+                  }}
+                  className="text-blue-600 hover:text-blue-700"
+                >
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                  重新识别
+                </Button>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -833,22 +941,36 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
               )}
             </div>
 
-            {/* 字段映射预览 - 可折叠 */}
-            <div>
-              <button
-                onClick={() => setShowFieldMapping(!showFieldMapping)}
-                className="flex items-center gap-2 font-semibold mb-3 text-blue-600 hover:text-blue-800 transition-colors"
-              >
-                {showFieldMapping ? (
-                  <ChevronDown className="w-4 h-4" />
-                ) : (
-                  <ChevronRight className="w-4 h-4" />
-                )}
-                查看AI识别的字段映射 ({Object.keys(parsedData.mapping).length}
-                个字段)
-              </button>
+            {/* 高级选项 - 可折叠 */}
+            <Collapsible>
+              <CollapsibleTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center gap-2 font-medium text-gray-600 hover:text-gray-900 p-2"
+                >
+                  {showFieldMapping ? (
+                    <ChevronDown className="w-4 h-4" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4" />
+                  )}
+                  <Settings2 className="w-4 h-4" />
+                  高级选项 (置信度、字段映射详情)
+                </Button>
+              </CollapsibleTrigger>
 
-              {showFieldMapping && (
+              <CollapsibleContent className="mt-3">
+                {/* 置信度显示 */}
+                <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                  <div className="text-sm text-gray-600">
+                    解析置信度: <span className="font-semibold text-green-600">{Math.round(parsedData.confidence * 100)}%</span>
+                  </div>
+                </div>
+
+                {/* 字段映射详情 */}
+                <h4 className="font-semibold mb-2 text-gray-700">
+                  识别的字段映射 ({Object.keys(parsedData.mapping).length}个)
+                </h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {Object.entries(parsedData.mapping).map(
                     ([systemField, fileField]) => {
@@ -906,8 +1028,8 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
                     }
                   )}
                 </div>
-              )}
-            </div>
+              </CollapsibleContent>
+            </Collapsible>
 
             {/* 高性能数据预览 */}
             <div>
@@ -1029,18 +1151,14 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
 
       {/* 步骤3: 导入进行中 */}
       {step === "importing" && (
-        <Card>
-          <CardContent className="py-12">
-            <div className="text-center space-y-4">
-              <RefreshCw className="w-16 h-16 mx-auto text-blue-600 animate-spin" />
-              <h3 className="text-xl font-semibold">正在导入数据...</h3>
-              <Progress value={progress} className="w-80 mx-auto" />
-              <p className="text-gray-600">
-                {progressMessage || "请稍候，导入完成后将自动跳转到结果页面"}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <UploadProgressIndicator
+          currentStage={processingStage}
+          progress={progress}
+          fileName={parsedData?.file.name}
+          fileSize={parsedData ? `${(parsedData.file.size / 1024 / 1024).toFixed(1)} MB` : undefined}
+          error={processingError || undefined}
+          onCancel={onCancel}
+        />
       )}
 
       {/* 步骤4: 导入完成 */}
@@ -1049,16 +1167,33 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
           <CardHeader>
             <CardTitle className="flex items-center space-x-2 text-green-600">
               <CheckCircle className="w-6 h-6" />
-              <span>导入完成！</span>
+              <span>✅ 成绩导入成功!</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* 成功消息 */}
+            {importResult.errorRecords === 0 ? (
+              <Alert className="bg-green-50 border-green-200">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-800">
+                  <strong>太棒了！</strong> 已成功导入 {importResult.successRecords} 名学生的成绩数据,数据已准备就绪,可以开始分析了!
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  成功导入 {importResult.successRecords} 条记录,{importResult.errorRecords} 条记录处理失败,请检查数据格式。
+                </AlertDescription>
+              </Alert>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-blue-50 p-4 rounded-lg text-center">
                 <div className="text-2xl font-bold text-blue-600">
                   {importResult.totalRecords}
                 </div>
-                <div className="text-sm text-gray-600">总记录数</div>
+                <div className="text-sm text-gray-600">总学生数</div>
               </div>
               <div className="bg-green-50 p-4 rounded-lg text-center">
                 <div className="text-2xl font-bold text-green-600">
@@ -1070,7 +1205,7 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
                 <div className="text-2xl font-bold text-red-600">
                   {importResult.errorRecords}
                 </div>
-                <div className="text-sm text-gray-600">失败记录</div>
+                <div className="text-sm text-gray-600">处理失败</div>
               </div>
             </div>
 

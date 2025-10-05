@@ -7,6 +7,9 @@ export { default as DataValidator } from "./DataValidator";
 export { default as ImportProcessor } from "./ImportProcessor";
 export { default as ConfigManager } from "./ConfigManager";
 
+// DataFlow集成版本 (推荐使用)
+export { default as ImportProcessorWithDataFlow } from "./ImportProcessorWithDataFlow";
+
 // 新的用户友好组件
 export { default as UserFriendlyDataMapper } from "./UserFriendlyDataMapper";
 export { default as DataPreviewCard } from "./DataPreviewCard";

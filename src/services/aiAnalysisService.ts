@@ -156,7 +156,13 @@ class AnalysisDataAggregator {
   }
 
   // 获取学生风险数据
-  async getStudentRiskData(studentId: string): Promise<any> {
+  async getStudentRiskData(studentId: string, timeRange: string = "90d"): Promise<any> {
+    // 计算时间范围
+    const endDate = new Date();
+    const startDate = new Date();
+    const days = parseInt(timeRange) || 90;
+    startDate.setDate(endDate.getDate() - days);
+
     const [warningData, gradeData, attendanceData] = await Promise.all([
       supabase
         .from("warning_records")
@@ -170,21 +176,17 @@ class AnalysisDataAggregator {
         `
         )
         .eq("student_id", studentId)
+        .gte("created_at", startDate.toISOString())
         .order("created_at", { ascending: false })
         .limit(50),
 
       supabase
-        .from("grade_data_new")
-        .select(
-          `
-          total_score,
-          exam_title,
-          created_at
-        `
-        )
+        .from("grade_data")
+        .select("*")
         .eq("student_id", studentId)
-        .order("created_at", { ascending: false })
-        .limit(20),
+        .gte("exam_date", startDate.toISOString().split("T")[0])
+        .order("exam_date", { ascending: true })
+        .limit(50),
 
       // 如果有考勤数据表的话
       Promise.resolve(null),
@@ -198,49 +200,96 @@ class AnalysisDataAggregator {
   }
 
   // 获取趋势分析数据
-  async getTrendAnalysisData(scope: string, timeRange: string): Promise<any> {
+  async getTrendData(
+    scope: string,
+    targetId?: string,
+    timeRange: string = "180d"
+  ): Promise<any> {
     const endDate = new Date();
     const startDate = new Date();
 
     // 根据时间范围计算开始日期
-    switch (timeRange) {
-      case "7d":
-        startDate.setDate(endDate.getDate() - 7);
-        break;
-      case "30d":
-        startDate.setDate(endDate.getDate() - 30);
-        break;
-      case "90d":
-        startDate.setDate(endDate.getDate() - 90);
-        break;
-      case "180d":
-        startDate.setDate(endDate.getDate() - 180);
-        break;
-      case "1y":
-        startDate.setFullYear(endDate.getFullYear() - 1);
-        break;
-      default:
-        startDate.setDate(endDate.getDate() - 30);
+    const days = parseInt(timeRange) || 180;
+    startDate.setDate(endDate.getDate() - days);
+
+    try {
+      // 根据scope获取不同的数据
+      if (scope === "student" && targetId) {
+        // 学生成绩趋势
+        const { data, error } = await supabase
+          .from("grade_data")
+          .select("total_score, exam_date, exam_title")
+          .eq("student_id", targetId)
+          .gte("exam_date", startDate.toISOString().split("T")[0])
+          .order("exam_date", { ascending: true });
+
+        if (error) throw error;
+
+        return {
+          dataPoints: (data || []).map((d: any) => ({
+            date: d.exam_date,
+            value: d.total_score || 0,
+            label: d.exam_title,
+          })),
+        };
+      } else if (scope === "class" && targetId) {
+        // 班级平均分趋势
+        const { data, error } = await supabase
+          .from("grade_data")
+          .select("total_score, exam_date, exam_title")
+          .eq("class_name", targetId)
+          .gte("exam_date", startDate.toISOString().split("T")[0])
+          .order("exam_date", { ascending: true });
+
+        if (error) throw error;
+
+        // 按考试分组计算平均分
+        const examMap = new Map();
+        (data || []).forEach((d: any) => {
+          const key = d.exam_title;
+          if (!examMap.has(key)) {
+            examMap.set(key, { date: d.exam_date, scores: [], label: d.exam_title });
+          }
+          examMap.get(key).scores.push(d.total_score || 0);
+        });
+
+        const dataPoints = Array.from(examMap.values()).map((exam: any) => ({
+          date: exam.date,
+          value: exam.scores.reduce((a: number, b: number) => a + b, 0) / exam.scores.length,
+          label: exam.label,
+        }));
+
+        return { dataPoints };
+      } else {
+        // 全局预警趋势
+        const { data, error } = await supabase
+          .from("warning_records")
+          .select("created_at, status")
+          .gte("created_at", startDate.toISOString())
+          .order("created_at", { ascending: true });
+
+        if (error) throw error;
+
+        // 按周聚合数据
+        const weeklyMap = new Map();
+        (data || []).forEach((d: any) => {
+          const date = new Date(d.created_at);
+          const weekKey = `${date.getFullYear()}-W${Math.ceil(date.getDate() / 7)}`;
+          weeklyMap.set(weekKey, (weeklyMap.get(weekKey) || 0) + 1);
+        });
+
+        const dataPoints = Array.from(weeklyMap.entries()).map(([week, count]) => ({
+          date: week,
+          value: count,
+          label: week,
+        }));
+
+        return { dataPoints };
+      }
+    } catch (error) {
+      console.error("[getTrendData] 获取趋势数据失败:", error);
+      return { dataPoints: [] };
     }
-
-    const { data, error } = await supabase
-      .from("warning_records")
-      .select(
-        `
-        id,
-        status,
-        severity,
-        created_at,
-        resolved_at,
-        warning_rules!inner(name)
-      `
-      )
-      .gte("created_at", startDate.toISOString())
-      .lte("created_at", endDate.toISOString())
-      .order("created_at", { ascending: true });
-
-    if (error) throw error;
-    return data || [];
   }
 }
 
@@ -757,6 +806,494 @@ class AIAnalysisProcessor {
     if (dataPoints >= 10) return 0.65;
     return 0.5;
   }
+
+  // 学生风险分析
+  async processStudentRiskAnalysis(
+    studentId: string,
+    timeRange: string
+  ): Promise<BasicAIAnalysis> {
+    const startTime = Date.now();
+
+    // 获取学生数据
+    const aggregator = new AnalysisDataAggregator();
+    const studentData = await aggregator.getStudentRiskData(studentId, timeRange);
+
+    if (!studentData || studentData.grades.length === 0) {
+      // 无数据返回默认低风险
+      return {
+        analysisId: `student_risk_${studentId}_${Date.now()}`,
+        dataType: "student_risk",
+        scope: "student",
+        riskSummary: {
+          overallRisk: "low",
+          riskScore: 0,
+          primaryConcerns: ["暂无足够数据进行评估"],
+          improvementAreas: ["建议尽快导入学生成绩数据"],
+        },
+        patterns: {
+          trendDirection: "stable",
+          anomalies: [],
+          correlations: [],
+        },
+        recommendations: {
+          immediate: [{
+            action: "导入学生成绩数据",
+            priority: "high",
+            expectedImpact: "建立学生学习档案",
+            timeframe: "立即",
+          }],
+          strategic: [],
+        },
+        metadata: {
+          generatedAt: new Date().toISOString(),
+          dataVersion: "1.0",
+          confidence: 0,
+          processingTime: Date.now() - startTime,
+          dataPoints: 0,
+        },
+      };
+    }
+
+    // 计算风险因子
+    const riskFactors = this.calculateStudentRiskFactors(studentData);
+    const riskScore = riskFactors.totalScore;
+    const overallRisk = this.mapRiskScoreToLevel(riskScore);
+
+    // 识别关注点
+    const primaryConcerns = this.identifyStudentConcerns(riskFactors, studentData);
+    const improvementAreas = this.identifyStudentImprovements(riskFactors, studentData);
+
+    // 分析模式
+    const patterns = {
+      trendDirection: this.analyzeStudentTrend(studentData.grades),
+      anomalies: this.identifyStudentAnomalies(studentData),
+      correlations: this.identifyStudentCorrelations(studentData),
+    };
+
+    // 生成建议
+    const recommendations = this.generateStudentRecommendations(riskFactors, patterns);
+
+    return {
+      analysisId: `student_risk_${studentId}_${Date.now()}`,
+      dataType: "student_risk",
+      scope: "student",
+      riskSummary: {
+        overallRisk,
+        riskScore: Math.round(riskScore),
+        primaryConcerns,
+        improvementAreas,
+      },
+      patterns,
+      recommendations,
+      metadata: {
+        generatedAt: new Date().toISOString(),
+        dataVersion: "1.0",
+        confidence: this.calculateConfidence(studentData.grades.length),
+        processingTime: Date.now() - startTime,
+        dataPoints: studentData.grades.length + (studentData.warnings?.length || 0),
+      },
+    };
+  }
+
+  // 趋势分析
+  async processTrendAnalysis(
+    scope: string,
+    targetId?: string,
+    timeRange: string = "180d"
+  ): Promise<BasicAIAnalysis> {
+    const startTime = Date.now();
+
+    // 获取趋势数据
+    const aggregator = new AnalysisDataAggregator();
+    const trendData = await aggregator.getTrendData(scope, targetId, timeRange);
+
+    if (!trendData || trendData.dataPoints.length < 2) {
+      // 数据不足
+      return {
+        analysisId: `trend_${scope}_${Date.now()}`,
+        dataType: "trend_analysis",
+        scope: scope as any,
+        riskSummary: {
+          overallRisk: "low",
+          riskScore: 0,
+          primaryConcerns: ["数据不足，无法进行趋势分析"],
+          improvementAreas: ["需要至少2个时间点的数据"],
+        },
+        patterns: {
+          trendDirection: "stable",
+          anomalies: [],
+          correlations: [],
+        },
+        recommendations: {
+          immediate: [],
+          strategic: [],
+        },
+        metadata: {
+          generatedAt: new Date().toISOString(),
+          dataVersion: "1.0",
+          confidence: 0,
+          processingTime: Date.now() - startTime,
+          dataPoints: trendData.dataPoints.length,
+        },
+      };
+    }
+
+    // 分析趋势
+    const trendDirection = this.analyzeTrendDirection(trendData.dataPoints);
+    const trendStrength = this.calculateTrendStrength(trendData.dataPoints);
+    const anomalies = this.identifyTrendAnomalies(trendData.dataPoints);
+    const forecast = this.generateTrendForecast(trendData.dataPoints);
+
+    // 计算风险评分
+    const riskScore = this.calculateTrendRiskScore(trendDirection, trendStrength, anomalies);
+    const overallRisk = this.mapRiskScoreToLevel(riskScore);
+
+    // 识别关注点
+    const primaryConcerns = this.identifyTrendConcerns(trendDirection, trendStrength, anomalies);
+    const improvementAreas = this.identifyTrendImprovements(trendDirection, forecast);
+
+    // 生成建议
+    const recommendations = this.generateTrendRecommendations(trendDirection, trendStrength, forecast);
+
+    return {
+      analysisId: `trend_${scope}_${Date.now()}`,
+      dataType: "trend_analysis",
+      scope: scope as any,
+      riskSummary: {
+        overallRisk,
+        riskScore: Math.round(riskScore),
+        primaryConcerns,
+        improvementAreas,
+      },
+      patterns: {
+        trendDirection,
+        anomalies,
+        correlations: [],
+      },
+      recommendations,
+      metadata: {
+        generatedAt: new Date().toISOString(),
+        dataVersion: "1.0",
+        confidence: this.calculateConfidence(trendData.dataPoints.length),
+        processingTime: Date.now() - startTime,
+        dataPoints: trendData.dataPoints.length,
+      },
+    };
+  }
+
+  // ==================== 学生风险分析辅助方法 ====================
+
+  private calculateStudentRiskFactors(studentData: any): {
+    gradeRisk: number;
+    trendRisk: number;
+    warningRisk: number;
+    totalScore: number;
+  } {
+    const grades = studentData.grades || [];
+    const warnings = studentData.warnings || [];
+
+    // 成绩风险 (40%权重)
+    let gradeRisk = 0;
+    if (grades.length > 0) {
+      const avgScore = grades.reduce((sum: number, g: any) => sum + (g.score || 0), 0) / grades.length;
+      if (avgScore < 40) gradeRisk = 40;
+      else if (avgScore < 60) gradeRisk = 25;
+      else if (avgScore < 75) gradeRisk = 10;
+    }
+
+    // 趋势风险 (30%权重)
+    let trendRisk = 0;
+    const trend = this.analyzeStudentTrend(grades);
+    if (trend === "declining") trendRisk = 30;
+    else if (trend === "stable" && grades.length > 0) {
+      const avgScore = grades.reduce((sum: number, g: any) => sum + (g.score || 0), 0) / grades.length;
+      if (avgScore < 70) trendRisk = 15;
+    }
+
+    // 预警风险 (30%权重)
+    const warningRisk = Math.min(warnings.length * 6, 30);
+
+    const totalScore = gradeRisk + trendRisk + warningRisk;
+
+    return { gradeRisk, trendRisk, warningRisk, totalScore };
+  }
+
+  private analyzeStudentTrend(grades: any[]): "improving" | "stable" | "declining" {
+    if (grades.length < 2) return "stable";
+
+    // 按日期排序
+    const sorted = [...grades].sort((a, b) =>
+      new Date(a.exam_date).getTime() - new Date(b.exam_date).getTime()
+    );
+
+    // 简单线性回归
+    const scores = sorted.map(g => g.score || 0);
+    const n = scores.length;
+    const indices = scores.map((_, i) => i);
+
+    const sumX = indices.reduce((a, b) => a + b, 0);
+    const sumY = scores.reduce((a, b) => a + b, 0);
+    const sumXY = indices.reduce((sum, x, i) => sum + x * scores[i], 0);
+    const sumX2 = indices.reduce((sum, x) => sum + x * x, 0);
+
+    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+
+    if (slope > 2) return "improving";
+    if (slope < -2) return "declining";
+    return "stable";
+  }
+
+  private identifyStudentConcerns(riskFactors: any, studentData: any): string[] {
+    const concerns = [];
+
+    if (riskFactors.gradeRisk > 20) {
+      concerns.push("整体成绩偏低，需要加强基础学习");
+    }
+
+    if (riskFactors.trendRisk > 15) {
+      concerns.push("成绩呈下降趋势，需要及时干预");
+    }
+
+    if (riskFactors.warningRisk > 15) {
+      concerns.push(`存在${studentData.warnings?.length || 0}个活跃预警，需要重点关注`);
+    }
+
+    if (concerns.length === 0) {
+      concerns.push("学习状态良好");
+    }
+
+    return concerns;
+  }
+
+  private identifyStudentImprovements(riskFactors: any, studentData: any): string[] {
+    const improvements = [];
+
+    if (riskFactors.gradeRisk > 0) {
+      improvements.push("提升学科薄弱环节");
+    }
+
+    if (riskFactors.trendRisk > 0) {
+      improvements.push("稳定成绩表现");
+    }
+
+    if (riskFactors.warningRisk > 0) {
+      improvements.push("解决现有预警问题");
+    }
+
+    if (improvements.length === 0) {
+      improvements.push("保持当前学习状态");
+    }
+
+    return improvements;
+  }
+
+  private identifyStudentAnomalies(studentData: any): BasicAIAnalysis["patterns"]["anomalies"] {
+    const anomalies: BasicAIAnalysis["patterns"]["anomalies"] = [];
+    const grades = studentData.grades || [];
+
+    if (grades.length < 3) return anomalies;
+
+    // 检测成绩突变
+    for (let i = 1; i < grades.length; i++) {
+      const current = grades[i].score || 0;
+      const previous = grades[i - 1].score || 0;
+      const diff = Math.abs(current - previous);
+
+      if (diff > 20) {
+        anomalies.push({
+          type: "grade_spike",
+          description: `成绩波动较大: ${previous} → ${current}`,
+          severity: diff > 30 ? "high" : "medium",
+          affectedCount: 1,
+        });
+      }
+    }
+
+    return anomalies;
+  }
+
+  private identifyStudentCorrelations(studentData: any): BasicAIAnalysis["patterns"]["correlations"] {
+    // 简化版本，实际可以分析科目间相关性
+    return [];
+  }
+
+  private generateStudentRecommendations(riskFactors: any, patterns: any): BasicAIAnalysis["recommendations"] {
+    const immediate = [];
+    const strategic = [];
+
+    if (riskFactors.totalScore > 50) {
+      immediate.push({
+        action: "安排一对一辅导",
+        priority: "high" as const,
+        expectedImpact: "快速提升学习效果",
+        timeframe: "本周内",
+      });
+    }
+
+    if (patterns.trendDirection === "declining") {
+      immediate.push({
+        action: "分析成绩下降原因",
+        priority: "high" as const,
+        expectedImpact: "找到问题根源",
+        timeframe: "3天内",
+      });
+    }
+
+    if (riskFactors.gradeRisk > 20) {
+      strategic.push({
+        action: "制定个性化学习计划",
+        rationale: "针对薄弱科目进行专项提升",
+        expectedOutcome: "全面提高学科成绩",
+        resources: ["学科教师", "学习资料", "课后辅导"],
+      });
+    }
+
+    return { immediate, strategic };
+  }
+
+  // ==================== 趋势分析辅助方法 ====================
+
+  private calculateTrendStrength(dataPoints: any[]): number {
+    if (dataPoints.length < 2) return 0;
+
+    const values = dataPoints.map(d => d.value || 0);
+    const n = values.length;
+    const indices = values.map((_, i) => i);
+
+    const sumX = indices.reduce((a, b) => a + b, 0);
+    const sumY = values.reduce((a, b) => a + b, 0);
+    const sumXY = indices.reduce((sum, x, i) => sum + x * values[i], 0);
+    const sumX2 = indices.reduce((sum, x) => sum + x * x, 0);
+
+    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+
+    return Math.abs(slope);
+  }
+
+  private identifyTrendAnomalies(dataPoints: any[]): BasicAIAnalysis["patterns"]["anomalies"] {
+    const anomalies: BasicAIAnalysis["patterns"]["anomalies"] = [];
+
+    if (dataPoints.length < 3) return anomalies;
+
+    const values = dataPoints.map(d => d.value || 0);
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    const stdDev = this.calculateStandardDeviation(values);
+
+    dataPoints.forEach((point, index) => {
+      const value = point.value || 0;
+      const zScore = Math.abs((value - mean) / stdDev);
+
+      if (zScore > 2) {
+        anomalies.push({
+          type: "outlier",
+          description: `${point.label || point.date} 数据异常: ${value}`,
+          severity: zScore > 3 ? "high" : "medium",
+          affectedCount: 1,
+        });
+      }
+    });
+
+    return anomalies;
+  }
+
+  private generateTrendForecast(dataPoints: any[]): { value: number; confidence: number } {
+    if (dataPoints.length < 2) return { value: 0, confidence: 0 };
+
+    const values = dataPoints.map(d => d.value || 0);
+    const n = values.length;
+    const indices = values.map((_, i) => i);
+
+    const sumX = indices.reduce((a, b) => a + b, 0);
+    const sumY = values.reduce((a, b) => a + b, 0);
+    const sumXY = indices.reduce((sum, x, i) => sum + x * values[i], 0);
+    const sumX2 = indices.reduce((sum, x) => sum + x * x, 0);
+
+    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+    const intercept = (sumY - slope * sumX) / n;
+
+    const forecastValue = slope * n + intercept;
+    const confidence = Math.min(n / 10, 1); // 数据点越多，置信度越高
+
+    return { value: forecastValue, confidence };
+  }
+
+  private calculateTrendRiskScore(direction: string, strength: number, anomalies: any[]): number {
+    let riskScore = 0;
+
+    if (direction === "declining") {
+      riskScore += 40;
+      riskScore += Math.min(strength * 5, 20);
+    }
+
+    riskScore += Math.min(anomalies.length * 10, 30);
+
+    return Math.min(riskScore, 100);
+  }
+
+  private identifyTrendConcerns(direction: string, strength: number, anomalies: any[]): string[] {
+    const concerns = [];
+
+    if (direction === "declining") {
+      concerns.push("整体趋势呈下降态势");
+    }
+
+    if (strength > 5) {
+      concerns.push(`变化幅度较大 (斜率: ${strength.toFixed(2)})`);
+    }
+
+    if (anomalies.length > 0) {
+      concerns.push(`检测到 ${anomalies.length} 个数据异常点`);
+    }
+
+    if (concerns.length === 0) {
+      concerns.push("趋势平稳，表现良好");
+    }
+
+    return concerns;
+  }
+
+  private identifyTrendImprovements(direction: string, forecast: any): string[] {
+    const improvements = [];
+
+    if (direction === "declining") {
+      improvements.push("扭转下降趋势");
+    }
+
+    if (forecast.value < 70) {
+      improvements.push("提升整体水平");
+    }
+
+    if (improvements.length === 0) {
+      improvements.push("保持当前发展趋势");
+    }
+
+    return improvements;
+  }
+
+  private generateTrendRecommendations(direction: string, strength: number, forecast: any): BasicAIAnalysis["recommendations"] {
+    const immediate = [];
+    const strategic = [];
+
+    if (direction === "declining" && strength > 3) {
+      immediate.push({
+        action: "分析下降原因并制定干预措施",
+        priority: "high" as const,
+        expectedImpact: "阻止进一步下滑",
+        timeframe: "本周内",
+      });
+    }
+
+    if (forecast.value < 60 && forecast.confidence > 0.6) {
+      strategic.push({
+        action: "制定长期提升计划",
+        rationale: "预测未来表现可能不理想",
+        expectedOutcome: "逐步改善整体水平",
+        resources: ["教学资源", "专项培训", "过程监控"],
+      });
+    }
+
+    return { immediate, strategic };
+  }
 }
 
 // 导出的主要服务类
@@ -788,12 +1325,17 @@ export class AIAnalysisService {
             if (!request.targetId) {
               throw new Error("学生风险分析需要提供学生ID");
             }
-            // TODO: 实现学生风险分析
-            throw new Error("学生风险分析功能正在开发中");
+            return this.processor.processStudentRiskAnalysis(
+              request.targetId,
+              request.timeRange || "90d"
+            );
 
           case "trend_analysis":
-            // TODO: 实现趋势分析
-            throw new Error("趋势分析功能正在开发中");
+            return this.processor.processTrendAnalysis(
+              request.scope,
+              request.targetId,
+              request.timeRange || "180d"
+            );
 
           default:
             throw new Error(`不支持的分析类型: ${request.dataType}`);

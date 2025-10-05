@@ -2644,39 +2644,47 @@ class PortraitAPI {
 
   /**
    * 生成模拟小组数据（当groups表不存在时使用）
+   *
+   * ⚠️ 警告: 此方法返回示例数据,仅用于演示UI布局
+   * 实际使用时应创建真实的小组数据表
+   *
    * @param classId 班级ID
-   * @returns 模拟小组数据
+   * @returns 模拟小组数据(带有_isMockData标记)
    */
   private generateMockGroups(classId: string): GroupPortraitData[] {
-    const groupNames = ["数学兴趣小组", "语文学习小组", "英语口语小组", "科学实验小组"];
+    console.warn(`[画像服务] 未找到班级${classId}的小组数据,使用示例数据展示. 请在设置中创建真实小组.`);
+
+    const groupNames = ["示例小组1", "示例小组2", "示例小组3", "示例小组4"];
     const mockGroups: GroupPortraitData[] = [];
 
     for (let i = 0; i < 4; i++) {
       mockGroups.push({
-        id: `mock-group-${classId}-${i}`,
-        name: groupNames[i] || `学习小组${i + 1}`,
-        description: `班级协作学习小组，专注于${groupNames[i]?.substring(0, 2) || '综合'}能力提升`,
-        studentCount: Math.floor(Math.random() * 8) + 5, // 5-12人
-        averageScore: Math.round((70 + Math.random() * 25) * 10) / 10, // 70-95分
+        id: `demo-group-${classId}-${i}`, // 使用demo前缀而非mock
+        name: groupNames[i],
+        description: `这是示例小组数据,用于展示UI布局. 请在小组管理中创建真实的学习小组.`,
+        studentCount: 8, // 固定值,避免随机
+        averageScore: 80, // 固定值,避免随机
         performanceMetrics: [
           {
             name: "小组协作",
-            value: Math.round((70 + Math.random() * 20) * 10) / 10,
+            value: 75,
             type: "collaboration"
           },
           {
             name: "学习进度",
-            value: Math.round((75 + Math.random() * 20) * 10) / 10,
+            value: 80,
             type: "progress"
           },
           {
             name: "参与度",
-            value: Math.round((80 + Math.random() * 15) * 10) / 10,
+            value: 85,
             type: "engagement"
           }
         ],
-        students: [] // 实际使用中会通过单独查询获取
-      });
+        students: [], // 实际使用中会通过单独查询获取
+        _isMockData: true, // 添加Mock标记
+        _mockDataNotice: "这是示例数据,请在设置中创建真实小组" // 添加提示
+      } as any); // 临时any,因为GroupPortraitData可能没有_isMockData字段
     }
 
     return mockGroups;

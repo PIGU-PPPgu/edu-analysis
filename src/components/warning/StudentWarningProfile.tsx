@@ -86,88 +86,9 @@ interface StudentProfileData {
   } | null;
 }
 
-// 模拟的学生画像数据
-const mockStudentProfileData: StudentProfileData = {
-  student_info: {
-    student_uuid: "mock-uuid-123",
-    student_display_id: "S001",
-    student_name: "张三",
-    student_email: "zhangsan@example.com",
-    student_date_of_birth: "2008-05-10",
-    student_gender: "男",
-    class_uuid: "class-uuid-01",
-    class_name: "初三(1)班",
-    grade_level: "九年级",
-    teacher_name: "王老师",
-  },
-  latest_grades: {
-    latest_exam_date_for_student: "2024-05-15",
-    latest_average_score: 78.5,
-    latest_failing_subjects_count: 1,
-    latest_exam_details: [
-      {
-        subject: "语文",
-        score: 85,
-        exam_title: "月考",
-        exam_type: "月度测试",
-        exam_date: "2024-05-15",
-      },
-      {
-        subject: "数学",
-        score: 92,
-        exam_title: "月考",
-        exam_type: "月度测试",
-        exam_date: "2024-05-15",
-      },
-      {
-        subject: "英语",
-        score: 55,
-        exam_title: "月考",
-        exam_type: "月度测试",
-        exam_date: "2024-05-15",
-      }, // 不及格
-      {
-        subject: "物理",
-        score: 82,
-        exam_title: "月考",
-        exam_type: "月度测试",
-        exam_date: "2024-05-15",
-      },
-    ],
-  },
-  homework_stats: {
-    total_homeworks_submitted: 25,
-    average_homework_grade: 88.2,
-    late_submissions_count: 2,
-    submission_details: [
-      {
-        homework_title: "数学第五章练习",
-        submitted_at: "2024-05-10",
-        due_date: "2024-05-09",
-        grade: 80,
-        is_late: true,
-      },
-      {
-        homework_title: "物理光的折射",
-        submitted_at: "2024-05-08",
-        due_date: "2024-05-08",
-        grade: 95,
-        is_late: false,
-      },
-    ],
-  },
-  attendance_summary: {
-    total_records_count: 60,
-    total_absences: 3,
-    total_lates: 5,
-    total_excused: 1,
-    recent_attendance_details: [
-      { date: "2024-05-16", status: "present" },
-      { date: "2024-05-15", status: "late", notes: "迟到10分钟" },
-      { date: "2024-05-14", status: "absent", notes: "事假" },
-    ],
-  },
-};
+// ⚠️ Mock数据已移除 - Week 6 Day 13-14清理
+// 组件现在完全依赖真实数据库查询
+// 如需演示数据,请在数据库中创建测试学生记录
 
 interface StudentWarningProfileProps {
   studentUuid: string | null; // 选中的学生UUID
@@ -230,18 +151,6 @@ const StudentWarningProfile: React.FC<StudentWarningProfileProps> = ({
 
       // 延迟调用以提供良好的用户体验
       setTimeout(fetchStudentProfile, 500);
-
-      // 以下代码注释掉，避免环境变量问题
-      /*
-        if (!supabaseUrl || !supabaseAnonKey) {
-          console.error("Supabase URL or Anon Key is not defined. Using mock data.");
-          if (isMountedRef.current) {
-            setProfileData(mockStudentProfileData); // 使用模拟数据作为回退
-            setIsLoading(false);
-          }
-          return;
-        }
-        */
     } else if (!isOpen) {
       // 清理数据当模态框关闭时
       setProfileData(null);

@@ -6,15 +6,20 @@
  * - 表结构检查
  * - 迁移管理
  * - 性能监控
+ *
+ * ✅ Week 6 Day 9-10: 迁移到CacheManager
  */
 
 import { supabase } from "@/integrations/supabase/client";
 import { logError, logInfo } from "@/utils/logger";
 import { toast } from "sonner";
+import { cacheManager, CacheTTL } from "@/services/CacheManager";
 
-// 表结构缓存
-const tableCache = new Map<string, boolean>();
-const viewCache = new Map<string, boolean>();
+// 缓存键前缀
+const CACHE_PREFIX = {
+  TABLE: 'db_table_',
+  VIEW: 'db_view_',
+};
 
 export interface DatabaseConfig {
   retries?: number;
@@ -41,75 +46,65 @@ export class DatabaseManager {
    * 检查表是否存在
    */
   async checkTableExists(tableName: string): Promise<boolean> {
-    // 从缓存中获取结果
-    if (this.config.enableCache && tableCache.has(tableName)) {
-      return tableCache.get(tableName)!;
-    }
+    const cacheKey = CACHE_PREFIX.TABLE + tableName;
 
-    try {
-      logInfo(`检查表是否存在: ${tableName}`);
+    // 使用CacheManager的getOrSet
+    return cacheManager.getOrSet(
+      cacheKey,
+      async () => {
+        try {
+          logInfo(`检查表是否存在: ${tableName}`);
 
-      // 尝试查询表结构
-      const { data, error } = await supabase
-        .from(tableName)
-        .select("*", { count: "exact", head: true })
-        .limit(1);
+          // 尝试查询表结构
+          const { data, error } = await supabase
+            .from(tableName)
+            .select("*", { count: "exact", head: true })
+            .limit(1);
 
-      const exists = !error;
-
-      // 缓存结果
-      if (this.config.enableCache) {
-        tableCache.set(tableName, exists);
+          const exists = !error;
+          logInfo(`表 ${tableName} ${exists ? "存在" : "不存在"}`);
+          return exists;
+        } catch (error) {
+          logError(`检查表 ${tableName} 时出错:`, error);
+          return false;
+        }
+      },
+      {
+        ttl: CacheTTL.ONE_HOUR, // 表结构检查结果缓存1小时
+        persistent: true, // 持久化以提升启动性能
       }
-
-      logInfo(`表 ${tableName} ${exists ? "存在" : "不存在"}`);
-      return exists;
-    } catch (error) {
-      logError(`检查表 ${tableName} 时出错:`, error);
-
-      // 缓存失败结果
-      if (this.config.enableCache) {
-        tableCache.set(tableName, false);
-      }
-
-      return false;
-    }
+    );
   }
 
   /**
    * 检查视图是否存在
    */
   async checkViewExists(viewName: string): Promise<boolean> {
-    // 从缓存中获取结果
-    if (this.config.enableCache && viewCache.has(viewName)) {
-      return viewCache.get(viewName)!;
-    }
+    const cacheKey = CACHE_PREFIX.VIEW + viewName;
 
-    try {
-      logInfo(`检查视图是否存在: ${viewName}`);
+    // 使用CacheManager的getOrSet
+    return cacheManager.getOrSet(
+      cacheKey,
+      async () => {
+        try {
+          logInfo(`检查视图是否存在: ${viewName}`);
 
-      // 尝试查询视图
-      const { error } = await supabase.from(viewName).select("*").limit(1);
+          // 尝试查询视图
+          const { error } = await supabase.from(viewName).select("*").limit(1);
 
-      const exists = !error;
-
-      // 缓存结果
-      if (this.config.enableCache) {
-        viewCache.set(viewName, exists);
+          const exists = !error;
+          logInfo(`视图 ${viewName} ${exists ? "存在" : "不存在"}`);
+          return exists;
+        } catch (error) {
+          logError(`检查视图 ${viewName} 时出错:`, error);
+          return false;
+        }
+      },
+      {
+        ttl: CacheTTL.ONE_HOUR, // 视图存在性检查缓存1小时
+        persistent: true,
       }
-
-      logInfo(`视图 ${viewName} ${exists ? "存在" : "不存在"}`);
-      return exists;
-    } catch (error) {
-      logError(`检查视图 ${viewName} 时出错:`, error);
-
-      // 缓存失败结果
-      if (this.config.enableCache) {
-        viewCache.set(viewName, false);
-      }
-
-      return false;
-    }
+    );
   }
 
   /**

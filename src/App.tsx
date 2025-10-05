@@ -82,6 +82,8 @@ import { ThemeTest } from "./ThemeTest";
 
 // 🚀 新增: UnifiedAppContext相关导入
 import { UnifiedAppProvider } from "./contexts/unified/UnifiedAppContext";
+import { GlobalLoadingProvider } from "./contexts/GlobalLoadingContext";
+import { DataFlowProvider } from "./contexts/DataFlowContext";
 // 🧠 Master-AI-Data: 用户行为追踪系统
 // import { userBehaviorTracker } from "./services/ai/userBehaviorTracker"; // Disabled for development
 // import { useInitializeApp } from "./hooks/useInitializeApp"; // 暂时未使用
@@ -207,7 +209,11 @@ function App() {
             migrationMode: false, // 🔧 禁用迁移模式，完全使用新架构
           }}
         >
-          <DatabaseInitializer>
+          {/* 🌟 Week 5: 全局加载状态管理 */}
+          <GlobalLoadingProvider>
+            {/* 🌟 Week 6: 全局数据流状态管理 */}
+            <DataFlowProvider>
+              <DatabaseInitializer>
             {/* 🚀 应用初始化器 */}
             <AppInitializer>
               <ErrorBoundary
@@ -335,7 +341,9 @@ function App() {
                 </BrowserRouter>
               </ErrorBoundary>
             </AppInitializer>
-          </DatabaseInitializer>
+              </DatabaseInitializer>
+            </DataFlowProvider>
+          </GlobalLoadingProvider>
         </UnifiedAppProvider>
       </TooltipProvider>
     </QueryClientProvider>

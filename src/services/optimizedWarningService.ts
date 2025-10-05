@@ -72,7 +72,6 @@ class OptimizedCache {
 const optimizedCache = new OptimizedCache();
 
 /**
-<<<<<<< HEAD
  * 快速获取基础预警统计 - 用于仪表板快速加载
  */
 export async function getBasicWarningStatistics(): Promise<{
@@ -150,8 +149,6 @@ export async function getBasicWarningStatistics(): Promise<{
 }
 
 /**
-=======
->>>>>>> ecd68e3d23216be708283264c1a2afdb95dca229
  * 优化的预警统计获取
  * 使用数据库函数进行服务端计算
  */
@@ -240,7 +237,6 @@ export async function getOptimizedWarningStatistics(
       commonRiskFactors: [],
     };
 
-<<<<<<< HEAD
     // 异步后台加载详细数据，不阻塞主要统计数据返回
     setTimeout(async () => {
       try {
@@ -267,7 +263,6 @@ export async function getOptimizedWarningStatistics(
         console.warn('后台加载详细统计数据失败:', error);
       }
     }, 100); // 100ms 后开始后台加载
-=======
     // 并行获取详细数据
     Promise.all([
       getWarningsByType(filter),
@@ -281,7 +276,6 @@ export async function getOptimizedWarningStatistics(
       // 更新缓存
       optimizedCache.set(cacheKey, statistics, 180); // 3分钟缓存
     });
->>>>>>> ecd68e3d23216be708283264c1a2afdb95dca229
 
     // 缓存基础统计数据
     optimizedCache.set(cacheKey, statistics, 120); // 2分钟缓存
@@ -556,7 +550,6 @@ function getTimeRangeDays(timeRange?: string): number {
 
 async function getWarningsByType(filter?: WarningFilter) {
   try {
-<<<<<<< HEAD
     // 使用真实数据服务替代缺失的数据库函数
     const { getWarningsByType } = await import('./realDataService');
     const result = await getWarningsByType();
@@ -566,37 +559,12 @@ async function getWarningsByType(filter?: WarningFilter) {
 
   } catch (error) {
     console.error('获取预警类型分布失败:', error);
-    // 只在真正失败时返回空数组，避免模拟数据
-=======
-    // 尝试使用数据库函数
-    const { data, error } = await supabase.rpc('get_warnings_by_type', {
-      time_range_days: getTimeRangeDays(filter?.timeRange),
-    });
-    
-    if (error) {
-      if (error.code === 'PGRST202') {
-        console.warn('[OptimizedWarningService] get_warnings_by_type函数不存在，返回模拟数据');
-        return [
-          { type: 'grade_decline', count: 5 },
-          { type: 'consecutive_fail', count: 3 },
-          { type: 'attendance', count: 2 },
-        ];
-      }
-      console.error('获取预警类型分布失败:', error);
-      return [];
-    }
-    
-    return data || [];
-  } catch (error) {
-    console.error('获取预警类型分布失败:', error);
->>>>>>> ecd68e3d23216be708283264c1a2afdb95dca229
     return [];
   }
 }
 
 async function getRiskByClass(filter?: WarningFilter) {
   try {
-<<<<<<< HEAD
     // 使用真实数据服务替代缺失的数据库函数
     const { getRiskByClass } = await import('./realDataService');
     const result = await getRiskByClass();
@@ -614,7 +582,6 @@ async function getRiskByClass(filter?: WarningFilter) {
     console.log('[OptimizedWarningService] 使用真实数据获取班级风险分布');
     return formattedResult;
 
-=======
     // 尝试使用数据库函数
     const { data, error } = await supabase.rpc('get_risk_by_class', {
       time_range_days: getTimeRangeDays(filter?.timeRange),
@@ -633,7 +600,6 @@ async function getRiskByClass(filter?: WarningFilter) {
     }
     
     return data || [];
->>>>>>> ecd68e3d23216be708283264c1a2afdb95dca229
   } catch (error) {
     console.error('获取班级风险分布失败:', error);
     return [];
@@ -642,7 +608,6 @@ async function getRiskByClass(filter?: WarningFilter) {
 
 async function getCommonRiskFactors(filter?: WarningFilter) {
   try {
-<<<<<<< HEAD
     // 使用真实数据服务替代缺失的数据库函数
     const { getCommonRiskFactors } = await import('./realDataService');
     const result = await getCommonRiskFactors();
@@ -661,7 +626,6 @@ async function getCommonRiskFactors(filter?: WarningFilter) {
     console.log('[OptimizedWarningService] 使用真实数据获取风险因素');
     return formattedResult;
 
-=======
     // 尝试使用数据库函数
     const { data, error } = await supabase.rpc('get_common_risk_factors', {
       time_range_days: getTimeRangeDays(filter?.timeRange),
@@ -705,7 +669,6 @@ async function getCommonRiskFactors(filter?: WarningFilter) {
     }
     
     return data || [];
->>>>>>> ecd68e3d23216be708283264c1a2afdb95dca229
   } catch (error) {
     console.error('获取常见风险因素失败:', error);
     return [];

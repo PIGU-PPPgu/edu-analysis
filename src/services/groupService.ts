@@ -24,10 +24,10 @@ import type {
 
 // 缓存键前缀
 const CACHE_PREFIX = {
-  GROUP: 'group_',
-  CLASS_GROUPS: 'class_groups_',
-  GROUP_MEMBERS: 'group_members_',
-  GROUP_STATS: 'group_stats_',
+  GROUP: "group_",
+  CLASS_GROUPS: "class_groups_",
+  GROUP_MEMBERS: "group_members_",
+  GROUP_STATS: "group_stats_",
 };
 
 // ========== 小组CRUD操作 ==========
@@ -35,17 +35,19 @@ const CACHE_PREFIX = {
 /**
  * 创建小组
  */
-export async function createGroup(params: CreateGroupParams): Promise<Group | null> {
+export async function createGroup(
+  params: CreateGroupParams
+): Promise<Group | null> {
   try {
     const { data, error } = await supabase
-      .from('student_groups')
+      .from("student_groups")
       .insert([params])
       .select()
       .single();
 
     if (error) {
-      console.error('创建小组失败:', error);
-      showError(error, { operation: '创建小组', groupName: params.group_name });
+      console.error("创建小组失败:", error);
+      showError(error, { operation: "创建小组", groupName: params.group_name });
       return null;
     }
 
@@ -55,8 +57,8 @@ export async function createGroup(params: CreateGroupParams): Promise<Group | nu
     toast.success(`小组"${params.group_name}"创建成功`);
     return data;
   } catch (error) {
-    console.error('创建小组异常:', error);
-    showError(error, { operation: '创建小组', groupName: params.group_name });
+    console.error("创建小组异常:", error);
+    showError(error, { operation: "创建小组", groupName: params.group_name });
     return null;
   }
 }
@@ -64,7 +66,9 @@ export async function createGroup(params: CreateGroupParams): Promise<Group | nu
 /**
  * 获取班级的所有小组
  */
-export async function getGroupsByClass(className: string): Promise<GroupWithMembers[]> {
+export async function getGroupsByClass(
+  className: string
+): Promise<GroupWithMembers[]> {
   const cacheKey = CACHE_PREFIX.CLASS_GROUPS + className;
 
   return cacheManager.getOrSet(
@@ -73,16 +77,18 @@ export async function getGroupsByClass(className: string): Promise<GroupWithMemb
       try {
         // 获取小组基本信息
         const { data: groups, error: groupsError } = await supabase
-          .from('student_groups')
-          .select(`
+          .from("student_groups")
+          .select(
+            `
             *,
             leader:students!leader_student_id(name)
-          `)
-          .eq('class_name', className)
-          .order('created_at', { ascending: false });
+          `
+          )
+          .eq("class_name", className)
+          .order("created_at", { ascending: false });
 
         if (groupsError) {
-          console.error('获取班级小组失败:', groupsError);
+          console.error("获取班级小组失败:", groupsError);
           return [];
         }
 
@@ -94,26 +100,30 @@ export async function getGroupsByClass(className: string): Promise<GroupWithMemb
         const groupsWithMembers: GroupWithMembers[] = await Promise.all(
           groups.map(async (group) => {
             const { data: members, error: membersError } = await supabase
-              .from('group_members')
-              .select(`
+              .from("group_members")
+              .select(
+                `
                 *,
                 students(name, student_id)
-              `)
-              .eq('group_id', group.id);
+              `
+              )
+              .eq("group_id", group.id);
 
             if (membersError) {
               console.error(`获取小组${group.id}成员失败:`, membersError);
             }
 
-            const formattedMembers: GroupMember[] = (members || []).map((m: any) => ({
-              id: m.id,
-              group_id: m.group_id,
-              student_id: m.student_id,
-              role: m.role,
-              joined_at: m.joined_at,
-              student_name: m.students?.name,
-              student_number: m.students?.student_id,
-            }));
+            const formattedMembers: GroupMember[] = (members || []).map(
+              (m: any) => ({
+                id: m.id,
+                group_id: m.group_id,
+                student_id: m.student_id,
+                role: m.role,
+                joined_at: m.joined_at,
+                student_name: m.students?.name,
+                student_number: m.students?.student_id,
+              })
+            );
 
             return {
               ...group,
@@ -126,8 +136,8 @@ export async function getGroupsByClass(className: string): Promise<GroupWithMemb
 
         return groupsWithMembers;
       } catch (error) {
-        console.error('获取班级小组异常:', error);
-        showError(error, { operation: '获取班级小组', className });
+        console.error("获取班级小组异常:", error);
+        showError(error, { operation: "获取班级小组", className });
         return [];
       }
     },
@@ -141,7 +151,9 @@ export async function getGroupsByClass(className: string): Promise<GroupWithMemb
 /**
  * 获取单个小组详情
  */
-export async function getGroupById(groupId: string): Promise<GroupWithMembers | null> {
+export async function getGroupById(
+  groupId: string
+): Promise<GroupWithMembers | null> {
   const cacheKey = CACHE_PREFIX.GROUP + groupId;
 
   return cacheManager.getOrSet(
@@ -150,41 +162,47 @@ export async function getGroupById(groupId: string): Promise<GroupWithMembers | 
       try {
         // 获取小组基本信息
         const { data: group, error: groupError } = await supabase
-          .from('student_groups')
-          .select(`
+          .from("student_groups")
+          .select(
+            `
             *,
             leader:students!leader_student_id(name)
-          `)
-          .eq('id', groupId)
+          `
+          )
+          .eq("id", groupId)
           .single();
 
         if (groupError || !group) {
-          console.error('获取小组详情失败:', groupError);
+          console.error("获取小组详情失败:", groupError);
           return null;
         }
 
         // 获取成员信息
         const { data: members, error: membersError } = await supabase
-          .from('group_members')
-          .select(`
+          .from("group_members")
+          .select(
+            `
             *,
             students(name, student_id)
-          `)
-          .eq('group_id', groupId);
+          `
+          )
+          .eq("group_id", groupId);
 
         if (membersError) {
-          console.error('获取小组成员失败:', membersError);
+          console.error("获取小组成员失败:", membersError);
         }
 
-        const formattedMembers: GroupMember[] = (members || []).map((m: any) => ({
-          id: m.id,
-          group_id: m.group_id,
-          student_id: m.student_id,
-          role: m.role,
-          joined_at: m.joined_at,
-          student_name: m.students?.name,
-          student_number: m.students?.student_id,
-        }));
+        const formattedMembers: GroupMember[] = (members || []).map(
+          (m: any) => ({
+            id: m.id,
+            group_id: m.group_id,
+            student_id: m.student_id,
+            role: m.role,
+            joined_at: m.joined_at,
+            student_name: m.students?.name,
+            student_number: m.students?.student_id,
+          })
+        );
 
         return {
           ...group,
@@ -193,8 +211,8 @@ export async function getGroupById(groupId: string): Promise<GroupWithMembers | 
           leader_name: group.leader?.name,
         };
       } catch (error) {
-        console.error('获取小组详情异常:', error);
-        showError(error, { operation: '获取小组详情', groupId });
+        console.error("获取小组详情异常:", error);
+        showError(error, { operation: "获取小组详情", groupId });
         return null;
       }
     },
@@ -214,16 +232,16 @@ export async function updateGroup(
 ): Promise<boolean> {
   try {
     const { error } = await supabase
-      .from('student_groups')
+      .from("student_groups")
       .update({
         ...params,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', groupId);
+      .eq("id", groupId);
 
     if (error) {
-      console.error('更新小组失败:', error);
-      showError(error, { operation: '更新小组', groupId });
+      console.error("更新小组失败:", error);
+      showError(error, { operation: "更新小组", groupId });
       return false;
     }
 
@@ -231,11 +249,11 @@ export async function updateGroup(
     cacheManager.delete(CACHE_PREFIX.GROUP + groupId);
     cacheManager.clearByPattern(new RegExp(`^${CACHE_PREFIX.CLASS_GROUPS}`));
 
-    toast.success('小组信息更新成功');
+    toast.success("小组信息更新成功");
     return true;
   } catch (error) {
-    console.error('更新小组异常:', error);
-    showError(error, { operation: '更新小组', groupId });
+    console.error("更新小组异常:", error);
+    showError(error, { operation: "更新小组", groupId });
     return false;
   }
 }
@@ -247,13 +265,13 @@ export async function deleteGroup(groupId: string): Promise<boolean> {
   try {
     // 删除小组会级联删除成员（数据库ON DELETE CASCADE）
     const { error } = await supabase
-      .from('student_groups')
+      .from("student_groups")
       .delete()
-      .eq('id', groupId);
+      .eq("id", groupId);
 
     if (error) {
-      console.error('删除小组失败:', error);
-      showError(error, { operation: '删除小组', groupId });
+      console.error("删除小组失败:", error);
+      showError(error, { operation: "删除小组", groupId });
       return false;
     }
 
@@ -262,11 +280,11 @@ export async function deleteGroup(groupId: string): Promise<boolean> {
     cacheManager.clearByPattern(new RegExp(`^${CACHE_PREFIX.CLASS_GROUPS}`));
     cacheManager.clearByPattern(new RegExp(`^${CACHE_PREFIX.GROUP_MEMBERS}`));
 
-    toast.success('小组删除成功');
+    toast.success("小组删除成功");
     return true;
   } catch (error) {
-    console.error('删除小组异常:', error);
-    showError(error, { operation: '删除小组', groupId });
+    console.error("删除小组异常:", error);
+    showError(error, { operation: "删除小组", groupId });
     return false;
   }
 }
@@ -279,20 +297,20 @@ export async function deleteGroup(groupId: string): Promise<boolean> {
 export async function addMemberToGroup(
   groupId: string,
   studentId: string,
-  role: 'leader' | 'member' = 'member'
+  role: "leader" | "member" = "member"
 ): Promise<boolean> {
   try {
-    const { error } = await supabase
-      .from('group_members')
-      .insert([{
+    const { error } = await supabase.from("group_members").insert([
+      {
         group_id: groupId,
         student_id: studentId,
         role,
-      }]);
+      },
+    ]);
 
     if (error) {
-      console.error('添加小组成员失败:', error);
-      showError(error, { operation: '添加小组成员', groupId, studentId });
+      console.error("添加小组成员失败:", error);
+      showError(error, { operation: "添加小组成员", groupId, studentId });
       return false;
     }
 
@@ -301,11 +319,11 @@ export async function addMemberToGroup(
     cacheManager.delete(CACHE_PREFIX.GROUP_MEMBERS + groupId);
     cacheManager.clearByPattern(new RegExp(`^${CACHE_PREFIX.CLASS_GROUPS}`));
 
-    toast.success('成员添加成功');
+    toast.success("成员添加成功");
     return true;
   } catch (error) {
-    console.error('添加小组成员异常:', error);
-    showError(error, { operation: '添加小组成员', groupId, studentId });
+    console.error("添加小组成员异常:", error);
+    showError(error, { operation: "添加小组成员", groupId, studentId });
     return false;
   }
 }
@@ -319,14 +337,14 @@ export async function removeMemberFromGroup(
 ): Promise<boolean> {
   try {
     const { error } = await supabase
-      .from('group_members')
+      .from("group_members")
       .delete()
-      .eq('group_id', groupId)
-      .eq('student_id', studentId);
+      .eq("group_id", groupId)
+      .eq("student_id", studentId);
 
     if (error) {
-      console.error('移除小组成员失败:', error);
-      showError(error, { operation: '移除小组成员', groupId, studentId });
+      console.error("移除小组成员失败:", error);
+      showError(error, { operation: "移除小组成员", groupId, studentId });
       return false;
     }
 
@@ -335,11 +353,11 @@ export async function removeMemberFromGroup(
     cacheManager.delete(CACHE_PREFIX.GROUP_MEMBERS + groupId);
     cacheManager.clearByPattern(new RegExp(`^${CACHE_PREFIX.CLASS_GROUPS}`));
 
-    toast.success('成员移除成功');
+    toast.success("成员移除成功");
     return true;
   } catch (error) {
-    console.error('移除小组成员异常:', error);
-    showError(error, { operation: '移除小组成员', groupId, studentId });
+    console.error("移除小组成员异常:", error);
+    showError(error, { operation: "移除小组成员", groupId, studentId });
     return false;
   }
 }
@@ -350,18 +368,18 @@ export async function removeMemberFromGroup(
 export async function updateMemberRole(
   groupId: string,
   studentId: string,
-  role: 'leader' | 'member'
+  role: "leader" | "member"
 ): Promise<boolean> {
   try {
     const { error } = await supabase
-      .from('group_members')
+      .from("group_members")
       .update({ role })
-      .eq('group_id', groupId)
-      .eq('student_id', studentId);
+      .eq("group_id", groupId)
+      .eq("student_id", studentId);
 
     if (error) {
-      console.error('更新成员角色失败:', error);
-      showError(error, { operation: '更新成员角色', groupId, studentId });
+      console.error("更新成员角色失败:", error);
+      showError(error, { operation: "更新成员角色", groupId, studentId });
       return false;
     }
 
@@ -369,11 +387,11 @@ export async function updateMemberRole(
     cacheManager.delete(CACHE_PREFIX.GROUP + groupId);
     cacheManager.delete(CACHE_PREFIX.GROUP_MEMBERS + groupId);
 
-    toast.success('成员角色更新成功');
+    toast.success("成员角色更新成功");
     return true;
   } catch (error) {
-    console.error('更新成员角色异常:', error);
-    showError(error, { operation: '更新成员角色', groupId, studentId });
+    console.error("更新成员角色异常:", error);
+    showError(error, { operation: "更新成员角色", groupId, studentId });
     return false;
   }
 }
@@ -389,15 +407,17 @@ export async function getGroupMembers(groupId: string): Promise<GroupMember[]> {
     async () => {
       try {
         const { data: members, error } = await supabase
-          .from('group_members')
-          .select(`
+          .from("group_members")
+          .select(
+            `
             *,
             students(name, student_id)
-          `)
-          .eq('group_id', groupId);
+          `
+          )
+          .eq("group_id", groupId);
 
         if (error) {
-          console.error('获取小组成员失败:', error);
+          console.error("获取小组成员失败:", error);
           return [];
         }
 
@@ -411,8 +431,8 @@ export async function getGroupMembers(groupId: string): Promise<GroupMember[]> {
           student_number: m.students?.student_id,
         }));
       } catch (error) {
-        console.error('获取小组成员异常:', error);
-        showError(error, { operation: '获取小组成员', groupId });
+        console.error("获取小组成员异常:", error);
+        showError(error, { operation: "获取小组成员", groupId });
         return [];
       }
     },
@@ -428,7 +448,9 @@ export async function getGroupMembers(groupId: string): Promise<GroupMember[]> {
 /**
  * 获取小组统计信息
  */
-export async function getGroupStats(groupId: string): Promise<GroupStats | null> {
+export async function getGroupStats(
+  groupId: string
+): Promise<GroupStats | null> {
   const cacheKey = CACHE_PREFIX.GROUP_STATS + groupId;
 
   return cacheManager.getOrSet(
@@ -440,7 +462,7 @@ export async function getGroupStats(groupId: string): Promise<GroupStats | null>
         if (!group) return null;
 
         // 获取小组成员的成绩
-        const memberIds = group.members.map(m => m.student_id);
+        const memberIds = group.members.map((m) => m.student_id);
 
         if (memberIds.length === 0) {
           return {
@@ -456,13 +478,13 @@ export async function getGroupStats(groupId: string): Promise<GroupStats | null>
 
         // 从grade_data_new查询成绩
         const { data: grades, error } = await supabase
-          .from('grade_data_new')
-          .select('student_id, total_score, total_grade')
-          .in('student_id', memberIds)
-          .not('total_score', 'is', null);
+          .from("grade_data_new")
+          .select("student_id, total_score, total_grade")
+          .in("student_id", memberIds)
+          .not("total_score", "is", null);
 
         if (error) {
-          console.error('获取小组成绩失败:', error);
+          console.error("获取小组成绩失败:", error);
           return null;
         }
 
@@ -479,7 +501,7 @@ export async function getGroupStats(groupId: string): Promise<GroupStats | null>
         }
 
         // 计算统计数据
-        const scores = grades.map(g => g.total_score);
+        const scores = grades.map((g) => g.total_score);
         const average_score = Math.round(
           scores.reduce((sum, score) => sum + score, 0) / scores.length
         );
@@ -488,15 +510,17 @@ export async function getGroupStats(groupId: string): Promise<GroupStats | null>
 
         // 统计等级分布
         const gradeCount: Record<string, number> = {};
-        grades.forEach(g => {
-          const grade = g.total_grade || 'Unknown';
+        grades.forEach((g) => {
+          const grade = g.total_grade || "Unknown";
           gradeCount[grade] = (gradeCount[grade] || 0) + 1;
         });
 
-        const grade_distribution = Object.entries(gradeCount).map(([grade, count]) => ({
-          grade,
-          count,
-        }));
+        const grade_distribution = Object.entries(gradeCount).map(
+          ([grade, count]) => ({
+            grade,
+            count,
+          })
+        );
 
         return {
           group_id: groupId,
@@ -508,8 +532,8 @@ export async function getGroupStats(groupId: string): Promise<GroupStats | null>
           grade_distribution,
         };
       } catch (error) {
-        console.error('获取小组统计信息异常:', error);
-        showError(error, { operation: '获取小组统计', groupId });
+        console.error("获取小组统计信息异常:", error);
+        showError(error, { operation: "获取小组统计", groupId });
         return null;
       }
     },
@@ -523,7 +547,9 @@ export async function getGroupStats(groupId: string): Promise<GroupStats | null>
 /**
  * 获取小组成绩表现
  */
-export async function getGroupPerformance(groupId: string): Promise<GroupPerformance | null> {
+export async function getGroupPerformance(
+  groupId: string
+): Promise<GroupPerformance | null> {
   try {
     const group = await getGroupById(groupId);
     if (!group) return null;
@@ -545,8 +571,8 @@ export async function getGroupPerformance(groupId: string): Promise<GroupPerform
       struggling_students: [], // TODO: 实现待提升学生分析
     };
   } catch (error) {
-    console.error('获取小组表现异常:', error);
-    showError(error, { operation: '获取小组表现', groupId });
+    console.error("获取小组表现异常:", error);
+    showError(error, { operation: "获取小组表现", groupId });
     return null;
   }
 }

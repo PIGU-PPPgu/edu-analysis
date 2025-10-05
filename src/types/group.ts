@@ -22,7 +22,7 @@ export interface GroupMember {
   id: string;
   group_id: string;
   student_id: string;
-  role: 'leader' | 'member';
+  role: "leader" | "member";
   joined_at: string;
 
   // 关联学生信息（从students表join）

@@ -4,6 +4,7 @@
  */
 
 import { toast } from 'sonner';
+import { NotificationManager, NotificationPriority } from './NotificationManager';
 
 // 错误类型枚举
 export enum ErrorType {
@@ -406,7 +407,7 @@ class ErrorHandler {
   showUserError(error: StandardError): void {
     const suggestions = error.context?.suggestions as string[] | undefined;
     const details = error.context?.details;
-    
+
     const options: any = {
       description: details || undefined,
       duration: error.severity === ErrorSeverity.CRITICAL ? 0 : this.getToastDuration(error.severity),
@@ -426,6 +427,59 @@ class ErrorHandler {
       case ErrorSeverity.LOW:
         toast.info(error.userMessage, options);
         break;
+    }
+  }
+
+  /**
+   * 使用 NotificationManager 显示错误提示 (推荐方法)
+   * 自动去重和优先级管理
+   */
+  showUserErrorWithManager(error: StandardError, options?: { silent?: boolean }): void {
+    const suggestions = error.context?.suggestions as string[] | undefined;
+    const details = error.context?.details;
+
+    const priority = this.mapSeverityToPriority(error.severity);
+
+    const notificationOptions = {
+      priority,
+      duration: this.getToastDuration(error.severity),
+      description: details || undefined,
+      action: this.createToastAction(error, suggestions),
+      silent: options?.silent,
+      deduplicate: true,
+    };
+
+    switch (error.severity) {
+      case ErrorSeverity.CRITICAL:
+        NotificationManager.critical(error.userMessage, notificationOptions);
+        break;
+      case ErrorSeverity.HIGH:
+        NotificationManager.error(error.userMessage, notificationOptions);
+        break;
+      case ErrorSeverity.MEDIUM:
+        NotificationManager.warning(error.userMessage, notificationOptions);
+        break;
+      case ErrorSeverity.LOW:
+        NotificationManager.info(error.userMessage, notificationOptions);
+        break;
+    }
+  }
+
+  /**
+   * 映射错误严重程度到通知优先级
+   */
+  private mapSeverityToPriority(severity: ErrorSeverity): NotificationPriority {
+    switch (severity) {
+      case ErrorSeverity.CRITICAL:
+        return NotificationPriority.CRITICAL;
+      case ErrorSeverity.HIGH:
+        return NotificationPriority.ERROR;
+      case ErrorSeverity.MEDIUM:
+        return NotificationPriority.WARNING;
+      case ErrorSeverity.LOW:
+        return NotificationPriority.INFO;
+      default:
+        return NotificationPriority.INFO;
     }
   }
 
@@ -540,6 +594,12 @@ export const handleError = (error: any, context?: Record<string, any>): Standard
 export const showError = (error: any, context?: Record<string, any>): void => {
   const standardError = errorHandler.handle(error, context);
   errorHandler.showUserError(standardError);
+};
+
+// 使用 NotificationManager 显示错误 (推荐)
+export const showErrorSmart = (error: any, context?: Record<string, any>, options?: { silent?: boolean }): void => {
+  const standardError = errorHandler.handle(error, context);
+  errorHandler.showUserErrorWithManager(standardError, options);
 };
 
 export const createSuccessResponse = <T>(data: T, message?: string, meta?: Record<string, any>): ApiResponse<T> => {

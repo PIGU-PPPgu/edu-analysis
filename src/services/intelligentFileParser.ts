@@ -2,6 +2,14 @@ import * as XLSX from "xlsx";
 import { parseCSV } from "@/utils/fileParsingUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { analyzeCSVHeaders } from "@/services/intelligentFieldMapper";
+import { aiEnhancedFileParser } from "@/services/aiEnhancedFileParser";
+
+// 解析选项接口
+export interface ParseOptions {
+  useAI?: boolean; // 是否启用AI辅助识别
+  aiMode?: "auto" | "force" | "disabled"; // AI模式: auto=自动判断, force=强制使用, disabled=禁用
+  minConfidenceForAI?: number; // 算法置信度低于此值时启用AI (默认0.8)
+}
 
 // 文件解析结果接口
 export interface ParsedFileResult {
@@ -15,6 +23,7 @@ export interface ParsedFileResult {
     suggestedMappings: Record<string, string>;
     detectedSubjects: string[];
     autoProcessed: boolean;
+    parseMethod?: "algorithm" | "ai-enhanced" | "hybrid"; // 记录使用的解析方法
     examInfo?: {
       title?: string;
       type?: string;
@@ -125,12 +134,26 @@ const SUBJECT_PATTERNS = [
 
 export class IntelligentFileParser {
   /**
-   * 解析文件的主入口方法
+   * 🚀 解析文件的主入口方法 - 支持AI辅助增强
+   * @param file 要解析的文件
+   * @param options 解析选项 (可选AI辅助)
    */
-  async parseFile(file: File): Promise<ParsedFileResult> {
+  async parseFile(file: File, options?: ParseOptions): Promise<ParsedFileResult> {
     console.log(
       `[IntelligentFileParser] 开始解析文件: ${file.name} (${file.type})`
     );
+
+    // 默认选项
+    const opts: ParseOptions = {
+      useAI: options?.useAI ?? false,
+      aiMode: options?.aiMode ?? "auto",
+      minConfidenceForAI: options?.minConfidenceForAI ?? 0.8,
+    };
+
+    console.log(`[IntelligentFileParser] 解析模式:`, {
+      useAI: opts.useAI,
+      aiMode: opts.aiMode,
+    });
 
     const fileType = this.detectFileType(file);
     let rawData: any[] = [];
@@ -172,8 +195,9 @@ export class IntelligentFileParser {
     console.log("[IntelligentFileParser] 开始智能字段映射分析...");
     const intelligentAnalysis = analyzeCSVHeaders(headers);
 
-    // 算法为主，AI为辅的分析策略
+    // 🚀 智能分析策略: 算法+AI混合模式
     let finalAnalysis = intelligentAnalysis;
+    let parseMethod: "algorithm" | "ai-enhanced" | "hybrid" = "algorithm";
 
     console.log("[IntelligentFileParser] 算法分析结果:", {
       confidence: intelligentAnalysis.confidence,
@@ -181,50 +205,74 @@ export class IntelligentFileParser {
       subjects: intelligentAnalysis.subjects,
     });
 
-    // 只有当算法分析置信度较低时，才尝试AI辅助
-    if (intelligentAnalysis.confidence < 0.7) {
-      console.log("[IntelligentFileParser] 算法置信度较低，尝试AI辅助分析...");
+    // 决定是否使用AI辅助
+    const shouldUseAI = this.shouldUseAI(opts, intelligentAnalysis.confidence);
+
+    if (shouldUseAI) {
+      console.log(`[IntelligentFileParser] 🤖 启用AI辅助解析 (模式: ${opts.aiMode})`);
 
       try {
-        const aiAnalysis = await this.performAIAnalysis(
-          headers,
-          cleanedData.slice(0, 3)
-        );
-        if (aiAnalysis && aiAnalysis.confidence > 0.8) {
-          // AI只辅助算法无法确定的字段
-          const enhancedMappings = this.mergeAlgorithmAndAI(
-            intelligentAnalysis,
-            aiAnalysis
-          );
+        // 模式1: 强制使用完整的AI增强解析
+        if (opts.aiMode === "force") {
+          console.log("[IntelligentFileParser] 🧠 使用完整AI增强解析引擎...");
+          const aiResult = await aiEnhancedFileParser.oneClickParse(file);
+
+          // 使用AI结果,但保留我们的数据清洗和结构分析
           finalAnalysis = {
-            mappings: enhancedMappings,
-            subjects: [
-              ...new Set([
-                ...intelligentAnalysis.subjects,
-                ...aiAnalysis.subjects,
-              ]),
-            ],
-            confidence: Math.max(
-              intelligentAnalysis.confidence,
-              aiAnalysis.confidence * 0.9
-            ), // AI辅助结果置信度略降
+            mappings: this.convertAIMappingsToIntelligent(aiResult.metadata.suggestedMappings),
+            subjects: aiResult.metadata.detectedSubjects,
+            confidence: aiResult.metadata.confidence,
             studentFields: intelligentAnalysis.studentFields,
           };
-          console.log("[IntelligentFileParser] AI辅助增强了算法分析结果");
-        } else {
-          console.log(
-            "[IntelligentFileParser] AI辅助效果不佳，保持算法分析结果"
+          parseMethod = "ai-enhanced";
+          console.log("[IntelligentFileParser] ✅ AI增强解析完成, 置信度:", aiResult.metadata.confidence);
+        }
+        // 模式2: 自动模式 - AI辅助算法无法识别的字段
+        else {
+          console.log("[IntelligentFileParser] 🤝 使用混合协同模式...");
+          const aiAnalysis = await this.performAIAnalysis(
+            headers,
+            cleanedData.slice(0, 3)
           );
+
+          if (aiAnalysis && aiAnalysis.confidence > 0.8) {
+            // AI只辅助算法无法确定的字段
+            const enhancedMappings = this.mergeAlgorithmAndAI(
+              intelligentAnalysis,
+              aiAnalysis
+            );
+            finalAnalysis = {
+              mappings: enhancedMappings,
+              subjects: [
+                ...new Set([
+                  ...intelligentAnalysis.subjects,
+                  ...aiAnalysis.subjects,
+                ]),
+              ],
+              confidence: Math.max(
+                intelligentAnalysis.confidence,
+                aiAnalysis.confidence * 0.9
+              ), // AI辅助结果置信度略降
+              studentFields: intelligentAnalysis.studentFields,
+            };
+            parseMethod = "hybrid";
+            console.log("[IntelligentFileParser] ✅ AI辅助增强了算法分析结果");
+          } else {
+            console.log(
+              "[IntelligentFileParser] ⚠️ AI辅助效果不佳，保持算法分析结果"
+            );
+          }
         }
       } catch (error) {
         console.warn(
-          "[IntelligentFileParser] AI辅助服务不可用，使用纯算法分析:",
+          "[IntelligentFileParser] ❌ AI辅助服务不可用，自动降级到纯算法:",
           error instanceof Error ? error.message : "未知AI服务错误"
         );
         // 优雅降级，不影响整体解析流程
+        parseMethod = "algorithm";
       }
     } else {
-      console.log("[IntelligentFileParser] 算法分析置信度足够高，无需AI辅助");
+      console.log("[IntelligentFileParser] ⚡ 算法分析置信度足够高或AI已禁用");
     }
 
     console.log("[IntelligentFileParser] 最终分析结果:", {
@@ -276,10 +324,42 @@ export class IntelligentFileParser {
         suggestedMappings,
         detectedSubjects,
         autoProcessed,
+        parseMethod, // 记录使用的解析方法
         examInfo,
         unknownFields,
       },
     };
+  }
+
+  /**
+   * 🤔 判断是否应该使用AI辅助
+   */
+  private shouldUseAI(opts: ParseOptions, algorithmConfidence: number): boolean {
+    // 模式1: 明确禁用AI
+    if (opts.aiMode === "disabled" || opts.useAI === false) {
+      return false;
+    }
+
+    // 模式2: 强制使用AI
+    if (opts.aiMode === "force") {
+      return true;
+    }
+
+    // 模式3: 自动模式 - 根据算法置信度决定
+    const threshold = opts.minConfidenceForAI ?? 0.8;
+    return algorithmConfidence < threshold;
+  }
+
+  /**
+   * 🔄 转换AI映射格式到intelligentFieldMapper格式
+   */
+  private convertAIMappingsToIntelligent(aiMappings: Record<string, string>): any[] {
+    return Object.entries(aiMappings).map(([originalField, mappedField]) => ({
+      originalField,
+      mappedField,
+      dataType: "string", // AI结果默认类型
+      confidence: 0.9, // AI结果默认置信度
+    }));
   }
 
   /**
@@ -452,7 +532,103 @@ export class IntelligentFileParser {
   }
 
   /**
-   * 解析Excel文件 (支持.xlsx和.xls)
+   * 检测并处理多级表头
+   * 示例: 第1行: 语文 | 数学
+   *      第2行: 分数 | 等级 | 分数 | 等级
+   * 合并为: 语文分数 | 语文等级 | 数学分数 | 数学等级
+   */
+  private detectAndMergeMultiLevelHeaders(
+    jsonData: any[][],
+    worksheet: XLSX.WorkSheet
+  ): { headers: string[]; dataStartRow: number } {
+    if (jsonData.length < 2) {
+      // 只有一行,直接返回
+      const headers = jsonData[0]
+        ?.map((h: any) => String(h || "").trim())
+        .filter((h) => h !== "") || [];
+      return { headers, dataStartRow: 1 };
+    }
+
+    // 检查是否存在合并单元格信息
+    const merges = worksheet["!merges"] || [];
+    console.log(`[多级表头检测] 发现 ${merges.length} 个合并单元格`);
+
+    // 检测前两行是否为多级表头
+    const row1 = jsonData[0] || [];
+    const row2 = jsonData[1] || [];
+
+    // 判断标准: 第2行包含"分数、等级、排名"等子字段关键词
+    const row2Keywords = ["分数", "成绩", "得分", "等级", "评级", "排名", "班排", "级排", "校排"];
+    const hasRow2Keywords = row2.some((cell: any) =>
+      row2Keywords.some(keyword => String(cell || "").includes(keyword))
+    );
+
+    const row1HasBlanks = row1.some((cell: any, index: number) =>
+      !cell && row2[index] // 第1行为空但第2行有值
+    );
+
+    const isMultiLevel = merges.length > 0 || hasRow2Keywords || row1HasBlanks;
+
+    if (!isMultiLevel) {
+      // 单级表头,直接使用第一行
+      const headers = row1
+        .map((h: any) => String(h || "").trim())
+        .filter((h) => h !== "");
+      console.log(`[多级表头检测] 单级表头,使用第1行 (${headers.length}个字段)`);
+      return { headers, dataStartRow: 1 };
+    }
+
+    // 多级表头处理
+    console.log(`[多级表头检测] 检测到多级表头,开始合并...`);
+
+    // 构建合并表头
+    const mergedHeaders: string[] = [];
+    let currentParent = "";
+
+    for (let colIndex = 0; colIndex < Math.max(row1.length, row2.length); colIndex++) {
+      const parentCell = String(row1[colIndex] || "").trim();
+      const childCell = String(row2[colIndex] || "").trim();
+
+      // 如果第1行有值,更新当前父字段
+      if (parentCell) {
+        currentParent = parentCell;
+      }
+
+      // 合并父子字段
+      if (childCell) {
+        if (currentParent && !this.isBasicField(childCell)) {
+          // 子字段不是基础字段(姓名、学号等),需要加上父字段前缀
+          mergedHeaders.push(`${currentParent}${childCell}`);
+        } else {
+          // 子字段是基础字段,直接使用
+          mergedHeaders.push(childCell);
+        }
+      } else if (parentCell) {
+        // 只有父字段,没有子字段
+        mergedHeaders.push(parentCell);
+      }
+    }
+
+    const filteredHeaders = mergedHeaders.filter(h => h !== "");
+    console.log(`[多级表头检测] 合并后表头 (${filteredHeaders.length}个):`, filteredHeaders);
+
+    return { headers: filteredHeaders, dataStartRow: 2 };
+  }
+
+  /**
+   * 判断是否为基础字段(姓名、学号、班级等)
+   */
+  private isBasicField(fieldName: string): boolean {
+    const basicPatterns = [
+      /^(姓名|学生姓名|name)$/i,
+      /^(学号|学生号|student_?id|id)$/i,
+      /^(班级|class)$/i,
+    ];
+    return basicPatterns.some(pattern => pattern.test(fieldName));
+  }
+
+  /**
+   * 解析Excel文件 (支持.xlsx和.xls) - 增强支持多级表头
    */
   private async parseExcelFile(
     file: File
@@ -489,18 +665,21 @@ export class IntelligentFileParser {
         throw new Error("Excel文件中没有数据");
       }
 
-      // 第一行作为表头
-      const headers = jsonData[0]
-        .map((header: any) => String(header || "").trim())
-        .filter((header) => header !== "");
+      // 🆕 检测并处理多级表头
+      const { headers, dataStartRow } = this.detectAndMergeMultiLevelHeaders(
+        jsonData,
+        worksheet
+      );
 
       if (headers.length === 0) {
         throw new Error("Excel文件中没有有效的表头");
       }
 
+      console.log(`[IntelligentFileParser] 表头解析完成: ${headers.length}个字段, 数据从第${dataStartRow + 1}行开始`);
+
       // 剩余行作为数据，转换为对象格式
       const data = jsonData
-        .slice(1)
+        .slice(dataStartRow)
         .filter(
           (row) =>
             row &&

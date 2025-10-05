@@ -4,18 +4,36 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Upload, FileSpreadsheet, Users } from "lucide-react";
+import { Upload, FileSpreadsheet, Users, CheckCircle2, XCircle, AlertCircle, ArrowRight } from "lucide-react";
 import { studentService } from "@/services/education/students";
 import * as XLSX from "xlsx";
+import UploadProgressIndicator, { ProcessingStage } from "@/components/shared/UploadProgressIndicator";
+import { NotificationManager } from "@/services/NotificationManager";
+import { showErrorSmart } from "@/services/errorHandler";
 
 interface StudentDataImporterProps {
   onDataImported: (data: any[]) => void;
+  onSuccess?: () => void; // 导入成功后的回调，用于引导用户继续导入成绩
+}
+
+interface ImportStats {
+  imported: number;
+  updated: number;
+  skipped: number;
+  errors: any[];
 }
 
 export default function StudentDataImporter({
   onDataImported,
+  onSuccess,
 }: StudentDataImporterProps) {
   const [isUploading, setIsUploading] = useState(false);
+  const [importStats, setImportStats] = useState<ImportStats | null>(null);
+  const [showSuccessCard, setShowSuccessCard] = useState(false);
+  const [processingStage, setProcessingStage] = useState<ProcessingStage>("uploading");
+  const [processingProgress, setProcessingProgress] = useState(0);
+  const [processingError, setProcessingError] = useState<string | null>(null);
+  const [uploadingFile, setUploadingFile] = useState<File | null>(null);
 
   const parseFileData = async (file: File): Promise<any[]> => {
     return new Promise((resolve, reject) => {
@@ -114,9 +132,15 @@ export default function StudentDataImporter({
     if (!file) return;
 
     setIsUploading(true);
+    setUploadingFile(file);
+    setProcessingStage("uploading");
+    setProcessingProgress(0);
+    setProcessingError(null);
+    setShowSuccessCard(false);
 
     try {
       // 验证文件类型
+      setProcessingProgress(10);
       const allowedTypes = [".xlsx", ".xls", ".csv"];
       const isValidType = allowedTypes.some((type) =>
         file.name.toLowerCase().endsWith(type)
@@ -127,6 +151,8 @@ export default function StudentDataImporter({
       }
 
       // 解析文件数据
+      setProcessingStage("parsing");
+      setProcessingProgress(30);
       const rawData = await parseFileData(file);
 
       if (!rawData || rawData.length === 0) {
@@ -134,9 +160,13 @@ export default function StudentDataImporter({
       }
 
       // 验证和转换数据
+      setProcessingStage("validating");
+      setProcessingProgress(50);
       const validatedData = validateAndTransformData(rawData);
 
       // 调用学生服务进行批量导入
+      setProcessingStage("saving");
+      setProcessingProgress(70);
       const importResult = await studentService.importStudents(validatedData, {
         skipDuplicates: true,
         updateExisting: false,
@@ -145,20 +175,24 @@ export default function StudentDataImporter({
       if (importResult.success && importResult.data) {
         const { imported, updated, skipped, errors } = importResult.data;
 
-        // 显示导入结果
-        let description = `成功导入 ${imported} 名学生`;
-        if (updated > 0) description += `，更新 ${updated} 名学生`;
-        if (skipped > 0) description += `，跳过 ${skipped} 名重复学生`;
+        // 完成
+        setProcessingStage("completed");
+        setProcessingProgress(100);
 
-        toast.success("学生数据导入完成", {
-          description,
+        // 保存导入统计数据
+        setImportStats({ imported, updated, skipped, errors });
+        setShowSuccessCard(true);
+
+        // 保留: 最终成功通知
+        NotificationManager.success("学生数据导入完成", {
+          description: errors.length > 0
+            ? `成功导入 ${imported + updated} 名学生，${errors.length} 个错误`
+            : `成功导入 ${imported + updated} 名学生`,
+          deduplicate: true,
         });
 
-        // 如果有错误，显示警告
+        // 详细错误记录在控制台
         if (errors.length > 0) {
-          toast.warning("导入过程中出现部分错误", {
-            description: `${errors.length} 个错误，请检查数据格式`,
-          });
           console.warn("导入错误详情:", errors);
         }
 
@@ -169,10 +203,13 @@ export default function StudentDataImporter({
       }
     } catch (error) {
       console.error("导入学生数据失败:", error);
-      toast.error("导入失败", {
-        description:
-          error instanceof Error ? error.message : "请检查文件格式是否正确",
-      });
+      const errorMessage = error instanceof Error ? error.message : "请检查文件格式是否正确";
+
+      setProcessingStage("error");
+      setProcessingError(errorMessage);
+
+      // 使用智能错误处理
+      showErrorSmart(error, { context: "学生数据导入" });
     } finally {
       setIsUploading(false);
       // 清空文件输入
@@ -182,6 +219,67 @@ export default function StudentDataImporter({
 
   return (
     <div className="space-y-6">
+      {/* 导入成功统计卡片 */}
+      {showSuccessCard && importStats && (
+        <Card className="border-green-200 bg-green-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-green-800">
+              <CheckCircle2 className="h-6 w-6" />
+              导入成功！
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <div className="text-center p-3 bg-white rounded-lg">
+                <div className="text-2xl font-bold text-green-600">
+                  {importStats.imported}
+                </div>
+                <div className="text-sm text-gray-600 mt-1">新增学生</div>
+              </div>
+              {importStats.updated > 0 && (
+                <div className="text-center p-3 bg-white rounded-lg">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {importStats.updated}
+                  </div>
+                  <div className="text-sm text-gray-600 mt-1">更新记录</div>
+                </div>
+              )}
+              {importStats.skipped > 0 && (
+                <div className="text-center p-3 bg-white rounded-lg">
+                  <div className="text-2xl font-bold text-yellow-600">
+                    {importStats.skipped}
+                  </div>
+                  <div className="text-sm text-gray-600 mt-1">跳过重复</div>
+                </div>
+              )}
+              {importStats.errors.length > 0 && (
+                <div className="text-center p-3 bg-white rounded-lg">
+                  <div className="text-2xl font-bold text-red-600">
+                    {importStats.errors.length}
+                  </div>
+                  <div className="text-sm text-gray-600 mt-1">错误记录</div>
+                </div>
+              )}
+            </div>
+
+            {onSuccess && (
+              <div className="flex justify-center pt-2">
+                <Button
+                  onClick={() => {
+                    setShowSuccessCard(false);
+                    onSuccess();
+                  }}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  继续导入成绩数据
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* 文件上传区域 */}
       <Card className="border-dashed border-2">
         <CardContent className="pt-6">
@@ -229,6 +327,18 @@ export default function StudentDataImporter({
           </div>
         </CardContent>
       </Card>
+
+      {/* 导入进度指示器 */}
+      {isUploading && uploadingFile && (
+        <UploadProgressIndicator
+          currentStage={processingStage}
+          progress={processingProgress}
+          fileName={uploadingFile.name}
+          fileSize={`${(uploadingFile.size / 1024 / 1024).toFixed(1)} MB`}
+          error={processingError || undefined}
+          compact={true}
+        />
+      )}
 
       {/* 导入说明 */}
       <Card>

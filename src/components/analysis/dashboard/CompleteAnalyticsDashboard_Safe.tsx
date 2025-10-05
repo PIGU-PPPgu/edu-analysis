@@ -3,7 +3,7 @@
  * 集成所有确认可用的高级分析组件，应用4色设计系统
  */
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -275,8 +275,8 @@ const TrendAnalysis: React.FC<{ data: any[] }> = ({ data }) => {
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4">
-        <ResponsiveContainer width="100%" height={300}>
-          <RechartsLineChart data={trendData}>
+        <ResponsiveContainer width="100%" height={300} key="trend-chart">
+          <RechartsLineChart data={trendData} key={`trend-${trendData.length}`}>
             <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
             <XAxis
               dataKey="month"
@@ -335,8 +335,8 @@ const ScatterAnalysis: React.FC<{ data: any[] }> = ({ data }) => {
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4">
-        <ResponsiveContainer width="100%" height={300}>
-          <ScatterChart data={scatterData}>
+        <ResponsiveContainer width="100%" height={300} key="scatter-chart">
+          <ScatterChart data={scatterData} key={`scatter-${scatterData.length}`}>
             <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
             <XAxis
               dataKey="math"
@@ -387,8 +387,21 @@ const CompleteAnalyticsDashboard: React.FC = () => {
   const [showSidebar, setShowSidebar] = useState(true);
   const [showSubjectSettings, setShowSubjectSettings] = useState(false);
 
-  // 科目设置功能
+  // 添加组件挂载状态追踪,防止卸载后的DOM操作
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // 科目设置功能 - 添加防护
   const handleSubjectSettingsSave = () => {
+    if (!isMountedRef.current) return;
+
     // 刷新数据以使用新的及格率配置
     refreshData();
 
@@ -489,18 +502,20 @@ const CompleteAnalyticsDashboard: React.FC = () => {
 
   return (
     <div className="flex bg-white min-h-screen">
-      {/* 侧边筛选栏 - 增加宽度以避免选项挤压 */}
-      {showSidebar && (
-        <>
-          {/* 移动端背景遮罩 */}
-          <div
-            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-            onClick={() => setShowSidebar(false)}
-          />
+      {/* 侧边筛选栏 - 使用CSS隐藏而非条件渲染,避免DOM操作冲突 */}
+      <div className={cn("transition-all duration-300", showSidebar ? "block" : "hidden")}>
+        {/* 移动端背景遮罩 */}
+        <div
+          className={cn(
+            "fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity",
+            showSidebar ? "opacity-100" : "opacity-0 pointer-events-none"
+          )}
+          onClick={() => setShowSidebar(false)}
+        />
 
-          {/* 筛选栏 - 移动端为覆盖层，桌面端为侧边栏 */}
-          <div className="fixed lg:static inset-y-0 left-0 z-50 w-80 lg:w-96 bg-[#F8F8F8] border-r-2 border-black p-6 overflow-y-auto transform lg:transform-none transition-transform lg:transition-none">
-            <ModernGradeFilters
+        {/* 筛选栏 - 移动端为覆盖层，桌面端为侧边栏 */}
+        <div className="fixed lg:static inset-y-0 left-0 z-50 w-80 lg:w-96 bg-[#F8F8F8] border-r-2 border-black p-6 overflow-y-auto transform lg:transform-none transition-transform lg:transition-none">
+          <ModernGradeFilters
               filter={filter}
               onFilterChange={setFilter}
               availableExams={examList}
@@ -517,8 +532,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
               compact={false}
             />
           </div>
-        </>
-      )}
+      </div>
 
       {/* 主内容区域 */}
       <div className="flex-1 space-y-10 p-8">
