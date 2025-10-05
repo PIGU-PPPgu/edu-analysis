@@ -35,6 +35,8 @@ import {
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts';
 import { intelligentPortraitService, type GroupPortraitAnalysis } from '@/services/intelligentPortraitService';
 import { toast } from 'sonner';
+import * as groupService from '@/services/groupService';
+import type { GroupStats } from '@/types/group';
 
 interface GroupPortraitAnalysisProps {
   groupId: string;
@@ -51,27 +53,39 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
 export function GroupPortraitAnalysis({ groupId, groupName, members }: GroupPortraitAnalysisProps) {
   const [portrait, setPortrait] = useState<GroupPortraitAnalysis | null>(null);
+  const [groupStats, setGroupStats] = useState<GroupStats | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
 
   useEffect(() => {
-    loadGroupPortrait();
+    loadGroupData();
   }, [groupId]);
 
-  const loadGroupPortrait = async () => {
+  const loadGroupData = async () => {
     if (!groupId) return;
-    
+
     setIsLoading(true);
     try {
-      const result = await intelligentPortraitService.generateGroupPortrait(groupId);
-      if (result) {
-        setPortrait(result);
-      } else {
+      // 并行加载画像和统计数据
+      const [portraitResult, statsResult] = await Promise.all([
+        intelligentPortraitService.generateGroupPortrait(groupId),
+        groupService.getGroupStats(groupId),
+      ]);
+
+      if (portraitResult) {
+        setPortrait(portraitResult);
+      }
+
+      if (statsResult) {
+        setGroupStats(statsResult);
+      }
+
+      if (!portraitResult) {
         toast.error('无法生成小组画像，请检查数据');
       }
     } catch (error) {
-      console.error('加载小组画像失败:', error);
-      toast.error('加载小组画像失败');
+      console.error('加载小组数据失败:', error);
+      toast.error('加载小组数据失败');
     } finally {
       setIsLoading(false);
     }
@@ -101,8 +115,8 @@ export function GroupPortraitAnalysis({ groupId, groupName, members }: GroupPort
           <div className="text-center text-muted-foreground">
             <AlertCircle className="h-12 w-12 mx-auto mb-4" />
             <p>暂无小组画像数据</p>
-            <Button onClick={loadGroupPortrait} className="mt-2">
-              重新生成
+            <Button onClick={loadGroupData} className="mt-2">
+              重新加载
             </Button>
           </div>
         </CardContent>
@@ -184,33 +198,54 @@ export function GroupPortraitAnalysis({ groupId, groupName, members }: GroupPort
           </div>
         </CardHeader>
         <CardContent>
-          {/* 关键指标 */}
+          {/* 关键指标 - 优先显示数据库真实数据 */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">
-                {Math.round(portrait.academic_composition.average_performance || 0)}
+                {groupStats?.average_score || Math.round(portrait.academic_composition.average_performance || 0)}
               </div>
-              <div className="text-sm text-muted-foreground">平均学术表现</div>
+              <div className="text-sm text-muted-foreground">平均成绩</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">
-                {Math.round(portrait.group_dynamics.cohesion_score || 0)}%
+                {groupStats?.member_count || portrait.member_count}
               </div>
-              <div className="text-sm text-muted-foreground">团队凝聚力</div>
+              <div className="text-sm text-muted-foreground">成员数量</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-orange-600">
-                {Math.round(portrait.group_dynamics.productivity_prediction || 0)}
+                {groupStats?.highest_score || Math.round(portrait.group_dynamics.productivity_prediction || 0)}
               </div>
-              <div className="text-sm text-muted-foreground">生产力预测</div>
+              <div className="text-sm text-muted-foreground">
+                {groupStats ? '最高分' : '生产力预测'}
+              </div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-600">
-                {Math.round(portrait.collaboration_profile.innovation_potential || 0)}%
+                {groupStats?.lowest_score || Math.round(portrait.collaboration_profile.innovation_potential || 0)}
               </div>
-              <div className="text-sm text-muted-foreground">创新潜力</div>
+              <div className="text-sm text-muted-foreground">
+                {groupStats ? '最低分' : '创新潜力'}
+              </div>
             </div>
           </div>
+
+          {/* 等级分布 - 如果有数据库统计数据 */}
+          {groupStats && groupStats.grade_distribution.length > 0 && (
+            <div className="mb-6 p-4 bg-muted rounded-lg">
+              <h4 className="font-medium mb-3 flex items-center gap-2">
+                <BarChart3 className="h-4 w-4" />
+                成绩等级分布
+              </h4>
+              <div className="flex gap-2 flex-wrap">
+                {groupStats.grade_distribution.map((item) => (
+                  <Badge key={item.grade} variant="secondary">
+                    {item.grade}: {item.count}人
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* 能力雷达图 */}
           <div className="h-80">

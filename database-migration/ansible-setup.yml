@@ -1,0 +1,136 @@
+---
+# Ansible自动化部署脚本
+# 使用方法: ansible-playbook -i inventory ansible-setup.yml
+
+- name: 配置教育系统服务器环境
+  hosts: edu_server
+  become: yes
+  vars:
+    db_name: edu_system
+    db_user: eduadmin
+    db_password: "{{ vault_db_password }}"
+    redis_password: "{{ vault_redis_password }}"
+    
+  tasks:
+    - name: 更新系统包
+      apt:
+        update_cache: yes
+        upgrade: dist
+        
+    - name: 安装基础工具
+      apt:
+        name:
+          - curl
+          - wget
+          - git
+          - vim
+          - htop
+          - python3-pip
+        state: present
+        
+    - name: 添加PostgreSQL官方仓库
+      shell: |
+        sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+        wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+        
+    - name: 安装PostgreSQL 15
+      apt:
+        name:
+          - postgresql-15
+          - postgresql-client-15
+          - postgresql-contrib-15
+        state: present
+        update_cache: yes
+        
+    - name: 配置PostgreSQL
+      lineinfile:
+        path: /etc/postgresql/15/main/postgresql.conf
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      with_items:
+        - { regexp: "^#listen_addresses", line: "listen_addresses = '*'" }
+        - { regexp: "^shared_buffers", line: "shared_buffers = 256MB" }
+        - { regexp: "^max_connections", line: "max_connections = 200" }
+      notify: restart postgresql
+      
+    - name: 配置PostgreSQL认证
+      lineinfile:
+        path: /etc/postgresql/15/main/pg_hba.conf
+        line: "host    all             all             0.0.0.0/0               md5"
+      notify: restart postgresql
+      
+    - name: 创建数据库用户和数据库
+      become_user: postgres
+      postgresql_db:
+        name: "{{ db_name }}"
+        
+    - name: 创建数据库用户
+      become_user: postgres
+      postgresql_user:
+        name: "{{ db_user }}"
+        password: "{{ db_password }}"
+        priv: "ALL"
+        db: "{{ db_name }}"
+        
+    - name: 安装Redis
+      apt:
+        name: redis-server
+        state: present
+        
+    - name: 配置Redis密码
+      lineinfile:
+        path: /etc/redis/redis.conf
+        regexp: "^# requirepass"
+        line: "requirepass {{ redis_password }}"
+      notify: restart redis
+      
+    - name: 安装Node.js 20
+      shell: |
+        curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+        apt-get install -y nodejs
+        
+    - name: 安装PM2
+      npm:
+        name: pm2
+        global: yes
+        
+    - name: 创建应用目录
+      file:
+        path: /home/ubuntu/edu-system/{{ item }}
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+      with_items:
+        - api
+        - frontend
+        - logs
+        - backups
+        - scripts
+        
+    - name: 配置防火墙规则
+      ufw:
+        rule: allow
+        port: "{{ item }}"
+      with_items:
+        - 22
+        - 80
+        - 443
+        - 5432
+        - 6379
+        - 3000
+        - 3001
+        
+    - name: 启用防火墙
+      ufw:
+        state: enabled
+        
+  handlers:
+    - name: restart postgresql
+      systemctl:
+        name: postgresql
+        state: restarted
+        
+    - name: restart redis
+      systemctl:
+        name: redis-server
+        state: restarted

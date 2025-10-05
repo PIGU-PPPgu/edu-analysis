@@ -40,6 +40,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { intelligentPortraitService, type GroupAllocationResult } from '@/services/intelligentPortraitService';
+import * as groupService from '@/services/groupService';
+import type { GroupWithMembers } from '@/types/group';
 
 interface SmartGroupManagerProps {
   className: string;
@@ -75,11 +77,30 @@ export function SmartGroupManager({ className, students, onGroupsCreated }: Smar
   });
 
   const [generatedGroups, setGeneratedGroups] = useState<GroupAllocationResult[]>([]);
+  const [existingGroups, setExistingGroups] = useState<GroupWithMembers[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [customGroupName, setCustomGroupName] = useState('');
   const [customGroupDescription, setCustomGroupDescription] = useState('');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+
+  // 加载已有分组
+  useEffect(() => {
+    loadExistingGroups();
+  }, [className]);
+
+  const loadExistingGroups = async () => {
+    setIsLoading(true);
+    try {
+      const groups = await groupService.getGroupsByClass(className);
+      setExistingGroups(groups);
+    } catch (error) {
+      console.error('加载小组失败:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // 计算推荐的分组参数
   const recommendedGroups = Math.ceil(students.length / 4);
@@ -180,16 +201,58 @@ export function SmartGroupManager({ className, students, onGroupsCreated }: Smar
   };
 
   /**
-   * 确认并保存分组
+   * 确认并保存分组到数据库
    */
-  const handleSaveGroups = () => {
+  const handleSaveGroups = async () => {
     if (generatedGroups.length === 0) {
       toast.error('请先生成分组方案');
       return;
     }
 
-    onGroupsCreated(generatedGroups);
-    toast.success(`已保存${generatedGroups.length}个小组的分组方案`);
+    setIsLoading(true);
+    try {
+      // 保存每个小组到数据库
+      for (const group of generatedGroups) {
+        // 创建小组
+        const createdGroup = await groupService.createGroup({
+          class_name: className,
+          group_name: group.group_name,
+          description: `自动生成的${config.strategy}分组`,
+        });
+
+        if (createdGroup) {
+          // 添加成员
+          for (const member of group.members) {
+            await groupService.addMemberToGroup(
+              createdGroup.id,
+              member.student_id,
+              member.role === 'leader' ? 'leader' : 'member'
+            );
+          }
+        }
+      }
+
+      // 重新加载分组
+      await loadExistingGroups();
+      setGeneratedGroups([]);
+      onGroupsCreated(generatedGroups);
+      toast.success(`成功保存${generatedGroups.length}个小组`);
+    } catch (error) {
+      console.error('保存分组失败:', error);
+      toast.error('保存分组失败，请重试');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * 删除已有分组
+   */
+  const handleDeleteGroup = async (groupId: string) => {
+    const success = await groupService.deleteGroup(groupId);
+    if (success) {
+      await loadExistingGroups();
+    }
   };
 
   /**
@@ -428,6 +491,62 @@ export function SmartGroupManager({ className, students, onGroupsCreated }: Smar
           </div>
         </CardContent>
       </Card>
+
+      {/* 已有分组 */}
+      {existingGroups.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              已有分组 ({existingGroups.length}个小组)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {existingGroups.map((group) => (
+                <Card key={group.id} className="relative">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg">{group.group_name}</CardTitle>
+                      <Badge variant="outline">{group.member_count}人</Badge>
+                    </div>
+                    {group.leader_name && (
+                      <div className="text-sm text-muted-foreground">
+                        组长: {group.leader_name}
+                      </div>
+                    )}
+                  </CardHeader>
+                  <CardContent>
+                    {/* 组员列表 */}
+                    <div className="space-y-2 mb-4">
+                      {group.members.map((member) => (
+                        <div key={member.id} className="flex items-center justify-between text-sm">
+                          <span className="flex items-center gap-2">
+                            {member.student_name}
+                            {member.role === 'leader' && <Badge variant="default" className="text-xs">组长</Badge>}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* 操作按钮 */}
+                    <div className="pt-2 border-t">
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDeleteGroup(group.id)}
+                        className="w-full"
+                      >
+                        删除小组
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* 分组结果 */}
       {generatedGroups.length > 0 && (
