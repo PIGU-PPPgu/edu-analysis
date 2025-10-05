@@ -1055,34 +1055,26 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
         class_name: s.class_name,
       }));
 
-      // 执行智能匹配
+      // 执行智能匹配（严格三选二）
       const matchResult = await intelligentStudentMatcher.matchStudents(
         fileStudents,
         systemStudents,
         {
-          enableFuzzyMatching: true,
-          fuzzyThreshold: 0.8,
-          prioritizeExactMatches: true,
+          useCache: true,
         }
       );
 
       // 3. 处理匹配结果
       if (matchResult.exactMatches.length > 0) {
-        // 找到精确匹配，使用现有学生
+        // 找到三选二精确匹配，使用现有学生
         const match = matchResult.exactMatches[0];
-        console.log(`智能匹配成功: ${record.name} -> 现有学生 ${match.systemStudent.name} (${match.matchType})`);
+        console.log(`三选二匹配成功: ${record.name} -> 现有学生 ${match.systemStudent!.name} (${match.matchType})`);
         return match.systemStudent;
-      } 
-      
-      if (matchResult.fuzzyMatches.length > 0) {
-        // 找到模糊匹配，使用置信度最高的
-        const match = matchResult.fuzzyMatches[0];
-        if (match.confidence >= 0.9) {  // 高置信度的模糊匹配
-          console.log(`高置信度模糊匹配: ${record.name} -> ${match.systemStudent.name} (置信度: ${match.confidence})`);
-          return match.systemStudent;
-        } else {
-          console.log(`模糊匹配置信度不足 (${match.confidence})，创建新学生: ${record.name}`);
-        }
+      }
+
+      // 无法通过三选二匹配，需要手动处理或创建新学生
+      if (matchResult.manualReviewNeeded.length > 0) {
+        console.log(`无法通过三选二匹配: ${record.name}，创建新学生`);
       }
 
       // 4. 没有匹配到，创建新学生

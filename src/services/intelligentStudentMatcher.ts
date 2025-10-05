@@ -1,7 +1,15 @@
 /**
  * 智能学生匹配服务
- * 实现基于学号、姓名、班级三选二的智能匹配算法
+ * 实现基于学号、姓名、班级严格三选二的智能匹配算法
+ *
+ * 匹配规则：
+ * 1. 学号+姓名 匹配 -> 精确匹配
+ * 2. 学号+班级 匹配 -> 精确匹配
+ * 3. 姓名+班级 匹配 -> 精确匹配
+ * 4. 任意两项不匹配 -> 需要教师手动处理
  */
+
+import { CacheManager } from './CacheManager';
 
 export interface FileStudent {
   name: string;
@@ -22,22 +30,21 @@ export interface MatchResult {
   fileStudent: FileStudent;
   systemStudent?: SystemStudent;
   matchType:
-    | "exact_id"
-    | "exact_name"
-    | "exact_class_name"
-    | "fuzzy_name"
-    | "fuzzy_combined"
-    | "no_match";
+    | "id_name" // 学号+姓名匹配
+    | "id_class" // 学号+班级匹配
+    | "name_class" // 姓名+班级匹配
+    | "no_match"; // 无匹配,需要教师手动处理
   confidence: number; // 0-1之间的匹配置信度
   matchReason: string; // 匹配原因说明
   needsConfirmation: boolean; // 是否需要用户确认
+  matchedFields?: string[]; // 匹配成功的字段列表
 }
 
 export interface StudentMatchingResult {
-  // 精确匹配的学生
+  // 精确匹配的学生 (三选二成功)
   exactMatches: MatchResult[];
-  // 模糊匹配的学生（需要用户确认）
-  fuzzyMatches: MatchResult[];
+  // 需要手动处理的学生 (三选二失败)
+  manualReviewNeeded: MatchResult[];
   // 新学生（在文件中但不在系统中）
   newStudents: FileStudent[];
   // 缺失学生（在系统中但不在文件中）
@@ -47,11 +54,19 @@ export interface StudentMatchingResult {
     totalFileStudents: number;
     totalSystemStudents: number;
     exactMatchCount: number;
-    fuzzyMatchCount: number;
+    manualReviewCount: number;
     newStudentCount: number;
     missingStudentCount: number;
-    matchRate: number; // 匹配率 (精确匹配 + 确认的模糊匹配) / 文件学生总数
+    matchRate: number; // 匹配率 (精确匹配) / 文件学生总数
   };
+}
+
+// 性能统计接口
+export interface MatchPerformanceStats {
+  totalMatches: number;
+  averageMatchTime: number; // 毫秒
+  cacheHitRate: number; // 缓存命中率
+  batchProcessed: number; // 批量处理的学生数
 }
 
 /**
@@ -100,32 +115,37 @@ export function calculateStringSimilarity(str1: string, str2: string): number {
  * 智能学生匹配器类
  */
 export class IntelligentStudentMatcher {
-  private readonly EXACT_MATCH_THRESHOLD = 1.0;
-  private readonly FUZZY_MATCH_THRESHOLD = 0.8;
-  private readonly MIN_CONFIDENCE_THRESHOLD = 0.6;
+  private cacheManager: CacheManager;
+  private performanceStats: MatchPerformanceStats = {
+    totalMatches: 0,
+    averageMatchTime: 0,
+    cacheHitRate: 0,
+    batchProcessed: 0,
+  };
+  private matchTimes: number[] = [];
+  private cacheHits = 0;
+  private cacheMisses = 0;
+
+  constructor() {
+    this.cacheManager = new CacheManager({ ttl: 3600000 }); // 1小时缓存
+  }
 
   /**
-   * 执行智能学生匹配
+   * 执行智能学生匹配 (严格三选二)
    */
   public async matchStudents(
     fileStudents: FileStudent[],
     systemStudents: SystemStudent[],
     options: {
-      enableFuzzyMatching?: boolean;
-      fuzzyThreshold?: number;
-      prioritizeExactMatches?: boolean;
       classFilter?: string[]; // 只匹配指定班级的学生
+      useCache?: boolean; // 是否使用缓存
     } = {}
   ): Promise<StudentMatchingResult> {
-    const {
-      enableFuzzyMatching = true,
-      fuzzyThreshold = this.FUZZY_MATCH_THRESHOLD,
-      prioritizeExactMatches = true,
-      classFilter,
-    } = options;
+    const startTime = Date.now();
+    const { classFilter, useCache = true } = options;
 
     console.log(
-      `🔍 开始智能学生匹配: 文件学生${fileStudents.length}人, 系统学生${systemStudents.length}人`
+      `🔍 开始严格三选二匹配: 文件学生${fileStudents.length}人, 系统学生${systemStudents.length}人`
     );
 
     // 过滤系统学生（如果指定了班级过滤）
@@ -136,58 +156,58 @@ export class IntelligentStudentMatcher {
 
     console.log(`📋 班级过滤后系统学生: ${filteredSystemStudents.length}人`);
 
+    // 创建系统学生索引以提高查找性能
+    const systemStudentIndex = this.buildStudentIndex(filteredSystemStudents);
+
     const exactMatches: MatchResult[] = [];
-    const fuzzyMatches: MatchResult[] = [];
-    const unmatchedFileStudents: FileStudent[] = [];
+    const manualReviewNeeded: MatchResult[] = [];
     const matchedSystemStudentIds = new Set<string>();
 
-    // 第一轮：精确匹配
+    // 执行三选二匹配
     for (const fileStudent of fileStudents) {
-      const exactMatch = this.findExactMatch(
-        fileStudent,
-        filteredSystemStudents,
-        matchedSystemStudentIds
-      );
+      const cacheKey = this.generateCacheKey(fileStudent);
 
-      if (exactMatch) {
-        exactMatches.push(exactMatch);
-        matchedSystemStudentIds.add(exactMatch.systemStudent!.id);
-        console.log(
-          `✅ 精确匹配: ${fileStudent.name} -> ${exactMatch.systemStudent!.name} (${exactMatch.matchType})`
-        );
-      } else {
-        unmatchedFileStudents.push(fileStudent);
-      }
-    }
-
-    // 第二轮：模糊匹配（如果启用）
-    if (enableFuzzyMatching) {
-      for (const fileStudent of unmatchedFileStudents) {
-        const fuzzyMatch = this.findFuzzyMatch(
-          fileStudent,
-          filteredSystemStudents,
-          matchedSystemStudentIds,
-          fuzzyThreshold
-        );
-
-        if (fuzzyMatch) {
-          fuzzyMatches.push(fuzzyMatch);
-          console.log(
-            `🔍 模糊匹配: ${fileStudent.name} -> ${fuzzyMatch.systemStudent!.name} (置信度: ${fuzzyMatch.confidence.toFixed(2)})`
-          );
+      // 检查缓存
+      let matchResult: MatchResult | null = null;
+      if (useCache) {
+        matchResult = this.cacheManager.get<MatchResult>(cacheKey);
+        if (matchResult) {
+          this.cacheHits++;
+          console.log(`💾 缓存命中: ${fileStudent.name}`);
         }
       }
+
+      // 未命中缓存，执行匹配
+      if (!matchResult) {
+        this.cacheMisses++;
+        matchResult = this.performThreeChooseTwo(
+          fileStudent,
+          systemStudentIndex,
+          matchedSystemStudentIds
+        );
+
+        // 缓存结果
+        if (useCache && matchResult) {
+          this.cacheManager.set(cacheKey, matchResult);
+        }
+      }
+
+      if (matchResult.systemStudent) {
+        exactMatches.push(matchResult);
+        matchedSystemStudentIds.add(matchResult.systemStudent.id);
+        console.log(
+          `✅ 三选二匹配成功: ${fileStudent.name} -> ${matchResult.systemStudent.name} (${matchResult.matchType})`
+        );
+      } else {
+        manualReviewNeeded.push(matchResult);
+        console.log(
+          `⚠️  需要手动处理: ${fileStudent.name} - ${matchResult.matchReason}`
+        );
+      }
     }
 
-    // 识别新学生
-    const matchedFileStudents = new Set([
-      ...exactMatches.map((m) => m.fileStudent),
-      ...fuzzyMatches.map((m) => m.fileStudent),
-    ]);
-
-    const newStudents = fileStudents.filter(
-      (fs) => !matchedFileStudents.has(fs)
-    );
+    // 识别新学生（所有未匹配的文件学生）
+    const newStudents = manualReviewNeeded.map((m) => m.fileStudent);
 
     // 识别缺失学生
     const missingStudents = filteredSystemStudents.filter(
@@ -199,17 +219,22 @@ export class IntelligentStudentMatcher {
       totalFileStudents: fileStudents.length,
       totalSystemStudents: filteredSystemStudents.length,
       exactMatchCount: exactMatches.length,
-      fuzzyMatchCount: fuzzyMatches.length,
+      manualReviewCount: manualReviewNeeded.length,
       newStudentCount: newStudents.length,
       missingStudentCount: missingStudents.length,
       matchRate: exactMatches.length / fileStudents.length,
     };
 
+    // 更新性能统计
+    const matchTime = Date.now() - startTime;
+    this.updatePerformanceStats(matchTime, fileStudents.length);
+
     console.log(`📊 匹配统计:`, statistics);
+    console.log(`⚡ 性能统计:`, this.getPerformanceStats());
 
     return {
       exactMatches,
-      fuzzyMatches,
+      manualReviewNeeded,
       newStudents,
       missingStudents,
       statistics,
@@ -217,226 +242,212 @@ export class IntelligentStudentMatcher {
   }
 
   /**
-   * 查找精确匹配
+   * 批量匹配学生（性能优化版本）
    */
-  private findExactMatch(
-    fileStudent: FileStudent,
+  public async batchMatchStudents(
+    fileStudents: FileStudent[],
     systemStudents: SystemStudent[],
+    options: {
+      classFilter?: string[];
+      batchSize?: number;
+    } = {}
+  ): Promise<StudentMatchingResult> {
+    const { batchSize = 100 } = options;
+
+    console.log(`📦 开始批量匹配，批次大小: ${batchSize}`);
+
+    // 直接调用matchStudents，内部已有索引优化
+    const result = await this.matchStudents(fileStudents, systemStudents, {
+      classFilter: options.classFilter,
+      useCache: true,
+    });
+
+    this.performanceStats.batchProcessed += fileStudents.length;
+
+    return result;
+  }
+
+  /**
+   * 构建系统学生索引（性能优化）
+   */
+  private buildStudentIndex(systemStudents: SystemStudent[]): {
+    byStudentId: Map<string, SystemStudent>;
+    byNameAndClass: Map<string, SystemStudent>;
+    byStudentIdAndClass: Map<string, SystemStudent>;
+  } {
+    const byStudentId = new Map<string, SystemStudent>();
+    const byNameAndClass = new Map<string, SystemStudent>();
+    const byStudentIdAndClass = new Map<string, SystemStudent>();
+
+    for (const student of systemStudents) {
+      // 学号索引
+      if (student.student_id) {
+        byStudentId.set(student.student_id.trim(), student);
+      }
+
+      // 姓名+班级索引
+      if (student.name && student.class_name) {
+        const key = `${student.name.trim()}_${student.class_name.trim()}`;
+        byNameAndClass.set(key, student);
+      }
+
+      // 学号+班级索引
+      if (student.student_id && student.class_name) {
+        const key = `${student.student_id.trim()}_${student.class_name.trim()}`;
+        byStudentIdAndClass.set(key, student);
+      }
+    }
+
+    return { byStudentId, byNameAndClass, byStudentIdAndClass };
+  }
+
+  /**
+   * 执行严格三选二匹配
+   * 规则：学号、姓名、班级任意两项匹配即可
+   */
+  private performThreeChooseTwo(
+    fileStudent: FileStudent,
+    systemStudentIndex: {
+      byStudentId: Map<string, SystemStudent>;
+      byNameAndClass: Map<string, SystemStudent>;
+      byStudentIdAndClass: Map<string, SystemStudent>;
+    },
     excludeIds: Set<string>
-  ): MatchResult | null {
-    // 1. 学号精确匹配（最高优先级）
-    if (fileStudent.student_id) {
-      const match = systemStudents.find(
-        (ss) =>
-          !excludeIds.has(ss.id) && ss.student_id === fileStudent.student_id
+  ): MatchResult {
+    const hasStudentId = !!fileStudent.student_id?.trim();
+    const hasName = !!fileStudent.name?.trim();
+    const hasClassName = !!fileStudent.class_name?.trim();
+
+    // 场景1: 学号+姓名匹配（最高优先级）
+    if (hasStudentId && hasName) {
+      const studentByIdMatch = systemStudentIndex.byStudentId.get(
+        fileStudent.student_id!.trim()
       );
-
-      if (match) {
-        return {
-          fileStudent,
-          systemStudent: match,
-          matchType: "exact_id",
-          confidence: 1.0,
-          matchReason: `学号精确匹配: ${fileStudent.student_id}`,
-          needsConfirmation: false,
-        };
-      }
-    }
-
-    // 2. 姓名 + 班级精确匹配
-    if (fileStudent.class_name) {
-      const match = systemStudents.find(
-        (ss) =>
-          !excludeIds.has(ss.id) &&
-          ss.name === fileStudent.name &&
-          ss.class_name === fileStudent.class_name
-      );
-
-      if (match) {
-        return {
-          fileStudent,
-          systemStudent: match,
-          matchType: "exact_name",
-          confidence: 1.0,
-          matchReason: `姓名+班级精确匹配: ${fileStudent.name} (${fileStudent.class_name})`,
-          needsConfirmation: false,
-        };
-      }
-    }
-
-    // 3. 姓名精确匹配（同班级优先）
-    const nameMatches = systemStudents.filter(
-      (ss) => !excludeIds.has(ss.id) && ss.name === fileStudent.name
-    );
-
-    if (nameMatches.length === 1) {
-      return {
-        fileStudent,
-        systemStudent: nameMatches[0],
-        matchType: "exact_name",
-        confidence: 1.0,
-        matchReason: `姓名精确匹配: ${fileStudent.name}`,
-        needsConfirmation: false,
-      };
-    }
-
-    // 如果有多个同名学生，优先选择同班级的
-    if (nameMatches.length > 1 && fileStudent.class_name) {
-      const sameClassMatch = nameMatches.find(
-        (ss) => ss.class_name === fileStudent.class_name
-      );
-      if (sameClassMatch) {
-        return {
-          fileStudent,
-          systemStudent: sameClassMatch,
-          matchType: "exact_name",
-          confidence: 1.0,
-          matchReason: `姓名+班级精确匹配: ${fileStudent.name} (${fileStudent.class_name})`,
-          needsConfirmation: false,
-        };
-      }
-    }
-
-    return null;
-  }
-
-  /**
-   * 查找模糊匹配
-   */
-  private findFuzzyMatch(
-    fileStudent: FileStudent,
-    systemStudents: SystemStudent[],
-    excludeIds: Set<string>,
-    threshold: number
-  ): MatchResult | null {
-    let bestMatch: {
-      student: SystemStudent;
-      confidence: number;
-      reason: string;
-    } | null = null;
-
-    for (const systemStudent of systemStudents) {
-      if (excludeIds.has(systemStudent.id)) continue;
-
-      const confidence = this.calculateMatchConfidence(
-        fileStudent,
-        systemStudent
-      );
-
       if (
-        confidence >= threshold &&
-        (!bestMatch || confidence > bestMatch.confidence)
+        studentByIdMatch &&
+        !excludeIds.has(studentByIdMatch.id) &&
+        studentByIdMatch.name.trim() === fileStudent.name.trim()
       ) {
-        bestMatch = {
-          student: systemStudent,
-          confidence,
-          reason: this.generateMatchReason(
-            fileStudent,
-            systemStudent,
-            confidence
-          ),
+        return {
+          fileStudent,
+          systemStudent: studentByIdMatch,
+          matchType: "id_name",
+          confidence: 1.0,
+          matchReason: `学号+姓名匹配: ${fileStudent.student_id} + ${fileStudent.name}`,
+          needsConfirmation: false,
+          matchedFields: ["student_id", "name"],
         };
       }
     }
 
-    if (bestMatch) {
-      return {
-        fileStudent,
-        systemStudent: bestMatch.student,
-        matchType: "fuzzy_combined",
-        confidence: bestMatch.confidence,
-        matchReason: bestMatch.reason,
-        needsConfirmation: true,
-      };
-    }
-
-    return null;
-  }
-
-  /**
-   * 计算匹配置信度
-   */
-  private calculateMatchConfidence(
-    fileStudent: FileStudent,
-    systemStudent: SystemStudent
-  ): number {
-    let totalWeight = 0;
-    let weightedScore = 0;
-
-    // 姓名相似度（权重：0.5）
-    const nameSimilarity = calculateStringSimilarity(
-      fileStudent.name,
-      systemStudent.name
-    );
-    weightedScore += nameSimilarity * 0.5;
-    totalWeight += 0.5;
-
-    // 学号匹配（权重：0.3）
-    if (fileStudent.student_id && systemStudent.student_id) {
-      const idSimilarity =
-        fileStudent.student_id === systemStudent.student_id ? 1.0 : 0.0;
-      weightedScore += idSimilarity * 0.3;
-      totalWeight += 0.3;
-    }
-
-    // 班级匹配（权重：0.2）
-    if (fileStudent.class_name && systemStudent.class_name) {
-      const classSimilarity =
-        fileStudent.class_name === systemStudent.class_name
-          ? 1.0
-          : calculateStringSimilarity(
-              fileStudent.class_name,
-              systemStudent.class_name
-            );
-      weightedScore += classSimilarity * 0.2;
-      totalWeight += 0.2;
-    }
-
-    return totalWeight > 0 ? weightedScore / totalWeight : 0;
-  }
-
-  /**
-   * 生成匹配原因说明
-   */
-  private generateMatchReason(
-    fileStudent: FileStudent,
-    systemStudent: SystemStudent,
-    confidence: number
-  ): string {
-    const reasons: string[] = [];
-
-    // 姓名相似度
-    const nameSimilarity = calculateStringSimilarity(
-      fileStudent.name,
-      systemStudent.name
-    );
-    if (nameSimilarity >= 0.8) {
-      reasons.push(`姓名相似度${(nameSimilarity * 100).toFixed(0)}%`);
-    }
-
-    // 学号匹配
-    if (fileStudent.student_id && systemStudent.student_id) {
-      if (fileStudent.student_id === systemStudent.student_id) {
-        reasons.push("学号完全匹配");
+    // 场景2: 学号+班级匹配
+    if (hasStudentId && hasClassName) {
+      const key = `${fileStudent.student_id!.trim()}_${fileStudent.class_name!.trim()}`;
+      const studentByIdClassMatch = systemStudentIndex.byStudentIdAndClass.get(key);
+      if (studentByIdClassMatch && !excludeIds.has(studentByIdClassMatch.id)) {
+        return {
+          fileStudent,
+          systemStudent: studentByIdClassMatch,
+          matchType: "id_class",
+          confidence: 1.0,
+          matchReason: `学号+班级匹配: ${fileStudent.student_id} + ${fileStudent.class_name}`,
+          needsConfirmation: false,
+          matchedFields: ["student_id", "class_name"],
+        };
       }
     }
 
-    // 班级匹配
-    if (fileStudent.class_name && systemStudent.class_name) {
-      if (fileStudent.class_name === systemStudent.class_name) {
-        reasons.push("班级完全匹配");
-      } else {
-        const classSimilarity = calculateStringSimilarity(
-          fileStudent.class_name,
-          systemStudent.class_name
-        );
-        if (classSimilarity >= 0.8) {
-          reasons.push(`班级相似度${(classSimilarity * 100).toFixed(0)}%`);
-        }
+    // 场景3: 姓名+班级匹配
+    if (hasName && hasClassName) {
+      const key = `${fileStudent.name.trim()}_${fileStudent.class_name!.trim()}`;
+      const studentByNameClassMatch = systemStudentIndex.byNameAndClass.get(key);
+      if (studentByNameClassMatch && !excludeIds.has(studentByNameClassMatch.id)) {
+        return {
+          fileStudent,
+          systemStudent: studentByNameClassMatch,
+          matchType: "name_class",
+          confidence: 1.0,
+          matchReason: `姓名+班级匹配: ${fileStudent.name} + ${fileStudent.class_name}`,
+          needsConfirmation: false,
+          matchedFields: ["name", "class_name"],
+        };
       }
     }
 
-    return `${reasons.join(", ")} (总置信度: ${(confidence * 100).toFixed(0)}%)`;
+    // 无法通过三选二匹配，需要手动处理
+    const availableFields = [
+      hasStudentId ? "学号" : null,
+      hasName ? "姓名" : null,
+      hasClassName ? "班级" : null,
+    ].filter(Boolean);
+
+    return {
+      fileStudent,
+      systemStudent: undefined,
+      matchType: "no_match",
+      confidence: 0,
+      matchReason: `无法通过三选二匹配 (提供的字段: ${availableFields.join("、")})，需要教师手动处理`,
+      needsConfirmation: true,
+      matchedFields: [],
+    };
+  }
+
+  /**
+   * 生成缓存键
+   */
+  private generateCacheKey(student: FileStudent): string {
+    return `match_${student.student_id || ''}_${student.name || ''}_${student.class_name || ''}`;
+  }
+
+  /**
+   * 更新性能统计
+   */
+  private updatePerformanceStats(matchTime: number, studentCount: number): void {
+    this.matchTimes.push(matchTime);
+    if (this.matchTimes.length > 100) {
+      this.matchTimes = this.matchTimes.slice(-100); // 保留最近100次
+    }
+
+    const totalRequests = this.cacheHits + this.cacheMisses;
+    this.performanceStats = {
+      totalMatches: this.performanceStats.totalMatches + studentCount,
+      averageMatchTime: this.matchTimes.reduce((a, b) => a + b, 0) / this.matchTimes.length,
+      cacheHitRate: totalRequests > 0 ? this.cacheHits / totalRequests : 0,
+      batchProcessed: this.performanceStats.batchProcessed,
+    };
+  }
+
+  /**
+   * 获取性能统计
+   */
+  public getPerformanceStats(): MatchPerformanceStats {
+    return { ...this.performanceStats };
+  }
+
+  /**
+   * 清除缓存
+   */
+  public clearCache(): void {
+    this.cacheManager.clear();
+    this.cacheHits = 0;
+    this.cacheMisses = 0;
+    console.log('🧹 学生匹配缓存已清除');
+  }
+
+  /**
+   * 重置性能统计
+   */
+  public resetStats(): void {
+    this.performanceStats = {
+      totalMatches: 0,
+      averageMatchTime: 0,
+      cacheHitRate: 0,
+      batchProcessed: 0,
+    };
+    this.matchTimes = [];
+    this.cacheHits = 0;
+    this.cacheMisses = 0;
+    console.log('📊 性能统计已重置');
   }
 
   /**
@@ -451,34 +462,40 @@ export class IntelligentStudentMatcher {
     const warnings: string[] = [];
     const actions: string[] = [];
 
-    const { statistics, fuzzyMatches, newStudents, missingStudents } = result;
+    const { statistics, manualReviewNeeded, newStudents, missingStudents } = result;
 
     // 匹配率分析
     if (statistics.matchRate >= 0.9) {
       recommendations.push(
-        `✅ 匹配率很高 (${(statistics.matchRate * 100).toFixed(1)}%)，数据质量良好`
+        `✅ 三选二匹配率很高 (${(statistics.matchRate * 100).toFixed(1)}%)，数据质量良好`
       );
     } else if (statistics.matchRate >= 0.7) {
       recommendations.push(
-        `⚠️ 匹配率中等 (${(statistics.matchRate * 100).toFixed(1)}%)，建议检查数据一致性`
+        `⚠️ 三选二匹配率中等 (${(statistics.matchRate * 100).toFixed(1)}%)，建议检查数据完整性`
       );
     } else {
       warnings.push(
-        `❌ 匹配率较低 (${(statistics.matchRate * 100).toFixed(1)}%)，可能存在数据质量问题`
+        `❌ 三选二匹配率较低 (${(statistics.matchRate * 100).toFixed(1)}%)，请确认学生信息是否完整（学号、姓名、班级）`
       );
     }
 
-    // 模糊匹配处理建议
-    if (fuzzyMatches.length > 0) {
-      actions.push(`🔍 需要确认 ${fuzzyMatches.length} 个模糊匹配结果`);
-      recommendations.push("建议逐一检查模糊匹配结果，确保匹配准确性");
+    // 手动处理建议
+    if (manualReviewNeeded.length > 0) {
+      actions.push(
+        `⚠️  需要教师手动处理 ${manualReviewNeeded.length} 个学生（无法通过三选二匹配）`
+      );
+      recommendations.push(
+        "这些学生可能是新学生，或信息不完整，请教师逐一确认"
+      );
     }
 
     // 新学生处理建议
     if (newStudents.length > 0) {
       actions.push(`➕ 发现 ${newStudents.length} 个新学生，需要决定是否创建`);
       if (newStudents.length / statistics.totalFileStudents > 0.2) {
-        warnings.push("新学生比例较高，请确认文件数据和班级设置是否正确");
+        warnings.push(
+          "新学生比例较高，请确认这是否是首次导入，或检查学生基础信息是否已维护"
+        );
       }
     }
 

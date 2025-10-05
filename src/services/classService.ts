@@ -3,16 +3,6 @@ import { showError, handleError } from "@/services/errorHandler";
 import { toast } from "sonner";
 import { getCachedData, clearCacheByPattern } from "@/utils/cacheHelpers";
 
-// 班级统计数据接口
-interface ClassStatistics {
-  class_name: string;
-  student_count: number;
-  students_with_grades: number;
-  total_grade_records: number;
-  latest_exam_date: string | null;
-  data_consistency_status: string;
-}
-
 // 缓存配置
 const CACHE_CONFIGS = {
   VIEW_EXISTENCE: 60 * 60 * 1000, // 视图存在性缓存1小时
@@ -155,7 +145,7 @@ export async function getAllClasses(): Promise<any[]> {
       const hwData = homeworkStats.find(h => h.class_name === classInfo.name);
 
       return {
-        id: `class-${classInfo.name.replace(/[^a-zA-Z0-9]/g, '-')}`, // 生成稳定的ID
+        id: classInfo.name, // ✅ 直接使用class_name作为ID
         name: classInfo.name,
         grade: classInfo.grade,
         studentCount: classInfo.studentCount,
@@ -242,39 +232,13 @@ async function getMultipleClassHomeworkStats(classNames: string[]): Promise<Arra
 }>> {
   try {
     if (classNames.length === 0) return [];
-    
-    // 首先从classes表获取班级名称对应的UUID
-    const { data: classData, error: classError } = await supabase
-      .from('classes')
-      .select('id, name')
-      .in('name', classNames);
-    
-    if (classError) {
-      console.error('获取班级ID失败:', classError);
-      return classNames.map(className => ({
-        class_name: className,
-        homework_count: 0
-      }));
-    }
-    
-    // 如果没有找到班级数据，返回0统计
-    if (!classData || classData.length === 0) {
-      return classNames.map(className => ({
-        class_name: className,
-        homework_count: 0
-      }));
-    }
-    
-    // 提取班级ID
-    const classIds = classData.map(c => c.id);
-    const classNameToId = new Map(classData.map(c => [c.name, c.id]));
-    
-    // 查询homework表
+
+    // ✅ 直接查询homework表的class_name
     const { data: homeworkData, error: homeworkError } = await supabase
       .from('homework')
-      .select('class_id')
-      .in('class_id', classIds);
-    
+      .select('class_name')
+      .in('class_name', classNames);
+
     if (homeworkError) {
       console.error('获取作业统计失败:', homeworkError);
       return classNames.map(className => ({
@@ -282,24 +246,23 @@ async function getMultipleClassHomeworkStats(classNames: string[]): Promise<Arra
         homework_count: 0
       }));
     }
-    
-    // 按班级ID统计作业数量
+
+    // 统计每个班级的作业数量
     const homeworkCount: Record<string, number> = {};
     if (homeworkData) {
       homeworkData.forEach(hw => {
-        homeworkCount[hw.class_id] = (homeworkCount[hw.class_id] || 0) + 1;
+        if (hw.class_name) {
+          homeworkCount[hw.class_name] = (homeworkCount[hw.class_name] || 0) + 1;
+        }
       });
     }
-    
-    // 将结果映射回班级名称
-    return classNames.map(className => {
-      const classId = classNameToId.get(className);
-      return {
-        class_name: className,
-        homework_count: classId ? (homeworkCount[classId] || 0) : 0
-      };
-    });
-    
+
+    // 返回结果
+    return classNames.map(className => ({
+      class_name: className,
+      homework_count: homeworkCount[className] || 0
+    }));
+
   } catch (error) {
     console.error('批量获取作业统计异常:', error);
     return classNames.map(className => ({
@@ -319,102 +282,85 @@ async function getClassStatisticsOptimized(className: string): Promise<{
   excellentRate: number;
 }> {
   try {
-    // 清理过期缓存
-    clearExpiredCache();
-    
-    // 检查缓存
+    // ✅ 使用getCachedData替代本地缓存
     const cacheKey = `class_stats_${className}`;
-    const cached = classStatsCache.get(cacheKey);
-    if (cached && (Date.now() - cached.timestamp) < cached.ttl) {
-      console.log(`使用缓存数据: ${className}`);
-      return cached.data;
-    }
-    // 并行查询多个统计数据，使用更安全和高效的查询方式
-    const [studentResult, gradeResult, homeworkResult] = await Promise.all([
-      // 学生数量 - 直接通过class_name查询，避免复杂的OR查询
-      supabase
-        .from("students")
-        .select("id", { count: "exact", head: true })
-        .eq("class_name", className),
-      
-      // 成绩统计 - 优先从grade_data_new查询，添加索引友好的条件
-      supabase
-        .from("grade_data_new")
-        .select("total_score")
-        .eq("class_name", className)
-        .not("total_score", "is", null)
-        .limit(500), // 减少限制数量提升性能
-        
-      // 作业数量 - 并行查询，通过class_info或classes表关联
-      supabase
-        .from("homework")
-        .select("id", { count: "exact", head: true })
-        .in("class_id", function (query) {
-          return query
-            .select("id")
-            .from("classes")
-            .eq("name", className);
-        })
-    ]);
 
-    const studentCount = studentResult.count || 0;
-    const homeworkCount = homeworkResult.count || 0;
-    
-    let averageScore = 0;
-    let excellentRate = 0;
+    return await getCachedData(cacheKey, async () => {
+      // 并行查询多个统计数据，使用更安全和高效的查询方式
+      const [studentResult, gradeResult, homeworkResult] = await Promise.all([
+        // 学生数量 - 直接通过class_name查询，避免复杂的OR查询
+        supabase
+          .from("students")
+          .select("id", { count: "exact", head: true })
+          .eq("class_name", className),
 
-    // 处理成绩统计，如果grade_data_new没有数据，尝试grade_data表
-    if (gradeResult.data && gradeResult.data.length > 0) {
-      const scores = gradeResult.data
-        .map(item => item.total_score)
-        .filter(score => score !== null && score !== undefined);
-      
-      if (scores.length > 0) {
-        averageScore = Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
-        const excellentCount = scores.filter(score => score >= 85).length;
-        excellentRate = Math.round((excellentCount / scores.length) * 100);
-      }
-    } else {
-      // 回退到grade_data表查询
-      try {
-        const { data: fallbackGrades } = await supabase
-          .from("grade_data")
+        // 成绩统计 - 优先从grade_data_new查询，添加索引友好的条件
+        supabase
+          .from("grade_data_new")
           .select("total_score")
           .eq("class_name", className)
           .not("total_score", "is", null)
-          .limit(1000);
-          
-        if (fallbackGrades && fallbackGrades.length > 0) {
-          const scores = fallbackGrades
-            .map(item => item.total_score)
-            .filter(score => score !== null && score !== undefined);
-          
-          if (scores.length > 0) {
-            averageScore = Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
-            const excellentCount = scores.filter(score => score >= 85).length;
-            excellentRate = Math.round((excellentCount / scores.length) * 100);
-          }
+          .limit(500), // 减少限制数量提升性能
+
+        // 作业数量 - 直接通过class_name查询
+        supabase
+          .from("homework")
+          .select("id", { count: "exact", head: true })
+          .eq("class_name", className)
+      ]);
+
+      const studentCount = studentResult.count || 0;
+      const homeworkCount = homeworkResult.count || 0;
+
+      let averageScore = 0;
+      let excellentRate = 0;
+
+      // 处理成绩统计，如果grade_data_new没有数据，尝试grade_data表
+      if (gradeResult.data && gradeResult.data.length > 0) {
+        const scores = gradeResult.data
+          .map(item => item.total_score)
+          .filter(score => score !== null && score !== undefined);
+
+        if (scores.length > 0) {
+          averageScore = Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
+          const excellentCount = scores.filter(score => score >= 85).length;
+          excellentRate = Math.round((excellentCount / scores.length) * 100);
         }
-      } catch (error) {
-        console.warn(`获取班级${className}成绩统计失败:`, error);
+      } else {
+        // 回退到grade_data表查询
+        try {
+          const { data: fallbackGrades } = await supabase
+            .from("grade_data")
+            .select("total_score")
+            .eq("class_name", className)
+            .not("total_score", "is", null)
+            .limit(1000);
+
+          if (fallbackGrades && fallbackGrades.length > 0) {
+            const scores = fallbackGrades
+              .map(item => item.total_score)
+              .filter(score => score !== null && score !== undefined);
+
+            if (scores.length > 0) {
+              averageScore = Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
+              const excellentCount = scores.filter(score => score >= 85).length;
+              excellentRate = Math.round((excellentCount / scores.length) * 100);
+            }
+          }
+        } catch (error) {
+          console.warn(`获取班级${className}成绩统计失败:`, error);
+        }
       }
-    }
 
-    const result = {
-      studentCount,
-      homeworkCount,
-      averageScore,
-      excellentRate,
-    };
+      const result = {
+        studentCount,
+        homeworkCount,
+        averageScore,
+        excellentRate,
+      };
 
-    // 将结果存入缓存，缓存5分钟
-    classStatsCache.set(cacheKey, {
-      data: result,
-      timestamp: Date.now(),
-      ttl: 5 * 60 * 1000, // 5分钟
-    });
-
-    return result;
+      return result;
+    }, CACHE_CONFIGS.CLASS_STATS); // 使用10分钟缓存
 
   } catch (error) {
     console.warn(`获取班级${className}统计失败:`, error);
@@ -434,11 +380,31 @@ async function getClassStatisticsOptimized(className: string): Promise<{
  */
 export async function getClassById(classId: string) {
   try {
-    const { data, error } = await supabase
-      .from("classes")
+    // ✅ 改为查询class_info表,优先精确匹配class_name
+    let data = null;
+    let error = null;
+
+    // 先尝试精确匹配class_name
+    const result = await supabase
+      .from("class_info")
       .select("*")
-      .eq("id", classId)
-      .single();
+      .eq("class_name", classId)
+      .maybeSingle();
+
+    data = result.data;
+    error = result.error;
+
+    // 如果没找到,再尝试匹配id或uuid_id(兼容旧UUID查询)
+    if (!data && !error) {
+      const fallbackResult = await supabase
+        .from("class_info")
+        .select("*")
+        .or(`id.eq.${classId},uuid_id.eq.${classId}`)
+        .maybeSingle();
+
+      data = fallbackResult.data;
+      error = fallbackResult.error;
+    }
 
     if (error) {
       console.error("获取班级详情失败:", error);
@@ -446,7 +412,17 @@ export async function getClassById(classId: string) {
       return null;
     }
 
-    return data;
+    // 返回时统一格式,确保有id和name字段(兼容旧代码)
+    if (data) {
+      return {
+        ...data,
+        id: data.class_name, // id统一为class_name
+        name: data.class_name,
+        grade: data.grade_level
+      };
+    }
+
+    return null;
   } catch (error) {
     console.error("获取班级详情异常:", error);
     showError(error, { operation: '获取班级详情', classId });
@@ -461,9 +437,16 @@ export async function getClassById(classId: string) {
  */
 export async function createClass(classData: { name: string; grade: string }) {
   try {
+    // ✅ 改为插入class_info表
     const { data, error } = await supabase
-      .from("classes")
-      .insert([classData])
+      .from("class_info")
+      .insert([{
+        class_name: classData.name,
+        grade_level: classData.grade,
+        academic_year: new Date().getFullYear().toString(),
+        name: classData.name, // 冗余字段兼容
+        grade: classData.grade // 冗余字段兼容
+      }])
       .select();
 
     if (error) {
@@ -473,7 +456,14 @@ export async function createClass(classData: { name: string; grade: string }) {
     }
 
     toast.success("班级创建成功");
-    return data?.[0] || null;
+    // 返回格式兼容旧代码
+    const result = data?.[0];
+    return result ? {
+      ...result,
+      id: result.class_name,
+      name: result.class_name,
+      grade: result.grade_level
+    } : null;
   } catch (error) {
     console.error("创建班级异常:", error);
     showError(error, { operation: '创建班级', className: classData.name });
@@ -492,10 +482,34 @@ export async function updateClass(
   classData: { name?: string; grade?: string }
 ) {
   try {
-    const { error } = await supabase
-      .from("classes")
-      .update(classData)
-      .eq("id", classId);
+    // ✅ 改为更新class_info表,映射字段
+    const updateData: any = {};
+    if (classData.name !== undefined) {
+      updateData.class_name = classData.name;
+      updateData.name = classData.name; // 冗余字段
+    }
+    if (classData.grade !== undefined) {
+      updateData.grade_level = classData.grade;
+      updateData.grade = classData.grade; // 冗余字段
+    }
+
+    // 先尝试精确匹配class_name更新
+    let result = await supabase
+      .from("class_info")
+      .update(updateData)
+      .eq("class_name", classId);
+
+    let error = result.error;
+
+    // 如果没有更新任何记录,尝试UUID匹配(兼容旧代码)
+    if (!error && result.count === 0) {
+      const fallbackResult = await supabase
+        .from("class_info")
+        .update(updateData)
+        .or(`id.eq.${classId},uuid_id.eq.${classId}`);
+
+      error = fallbackResult.error;
+    }
 
     if (error) {
       console.error("更新班级信息失败:", error);
@@ -519,11 +533,12 @@ export async function updateClass(
  */
 export async function deleteClass(classId: string) {
   try {
-    // 1. 先将该班级学生的class_id设为null
+    // ✅ 改为使用class_name操作
+    // 1. 先将该班级学生的class_name设为null
     const { error: studentUpdateError } = await supabase
       .from("students")
-      .update({ class_id: null })
-      .eq("class_id", classId);
+      .update({ class_name: null, class_id: null })
+      .eq("class_name", classId);
 
     if (studentUpdateError) {
       console.error("清除学生班级关联失败:", studentUpdateError);
@@ -535,7 +550,7 @@ export async function deleteClass(classId: string) {
     const { error: homeworkDeleteError } = await supabase
       .from("homework")
       .delete()
-      .eq("class_id", classId);
+      .eq("class_name", classId);
 
     if (homeworkDeleteError) {
       console.error("删除班级作业失败:", homeworkDeleteError);
@@ -543,8 +558,23 @@ export async function deleteClass(classId: string) {
       return false;
     }
 
-    // 3. 最后删除班级本身
-    const { error } = await supabase.from("classes").delete().eq("id", classId);
+    // 3. 最后删除班级本身 - 先尝试精确匹配class_name
+    let result = await supabase
+      .from("class_info")
+      .delete()
+      .eq("class_name", classId);
+
+    let error = result.error;
+
+    // 如果没有删除任何记录,尝试UUID匹配(兼容旧代码)
+    if (!error && result.count === 0) {
+      const fallbackResult = await supabase
+        .from("class_info")
+        .delete()
+        .or(`id.eq.${classId},uuid_id.eq.${classId}`);
+
+      error = fallbackResult.error;
+    }
 
     if (error) {
       console.error("删除班级失败:", error);
@@ -595,10 +625,11 @@ export async function getClassStudents(classId: string) {
  */
 export async function getClassHomeworks(classId: string) {
   try {
+    // ✅ 改为使用class_name查询
     const { data, error } = await supabase
       .from("homework")
       .select("*")
-      .eq("class_id", classId)
+      .eq("class_name", classId)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -622,12 +653,31 @@ export async function getClassDetailedAnalysisData(classId: string) {
   try {
     console.log(`开始获取班级 ${classId} 的详细分析数据`);
 
-    // 1. 首先检查班级是否存在
-    const { data: classInfo, error: classError } = await supabase
-      .from("classes")
+    // 1. 首先检查班级是否存在 - ✅ 改为查询class_info,优先精确匹配
+    let classInfo = null;
+    let classError = null;
+
+    // 先尝试精确匹配class_name
+    const result = await supabase
+      .from("class_info")
       .select("*")
-      .eq("id", classId)
+      .eq("class_name", classId)
       .maybeSingle();
+
+    classInfo = result.data;
+    classError = result.error;
+
+    // 如果没找到,再尝试匹配id或uuid_id
+    if (!classInfo && !classError) {
+      const fallbackResult = await supabase
+        .from("class_info")
+        .select("*")
+        .or(`id.eq.${classId},uuid_id.eq.${classId}`)
+        .maybeSingle();
+
+      classInfo = fallbackResult.data;
+      classError = fallbackResult.error;
+    }
 
     if (classError || !classInfo) {
       console.error(`获取班级信息失败:`, classError);
@@ -638,11 +688,12 @@ export async function getClassDetailedAnalysisData(classId: string) {
 
     console.log(`找到班级:`, classInfo);
 
-    // 2. 获取该班级的所有学生 - 修改查询，不再假设average_score列存在
+    // 2. 获取该班级的所有学生 - ✅ 改为使用class_name查询
+    const className = classInfo.class_name;
     const { data: students, error: studentsError } = await supabase
       .from("students")
       .select("id, name") // 只选择必要的字段
-      .eq("class_id", classId);
+      .eq("class_name", className);
 
     if (studentsError) {
       console.error(`获取班级学生失败:`, studentsError);
@@ -1295,16 +1346,27 @@ export async function getAllClassesAnalysisData() {
     }
 
     // 2. 批量获取所有成绩数据 - 使用grade_data_new表
+    // 使用分批查询避免URL长度限制
     const studentIds = allStudents?.map(s => s.id) || [];
-    const { data: allGrades, error: gradesError } = await supabase
-      .from("grade_data_new")
-      .select("student_id, total_score, exam_type, exam_date, class_name")
-      .in("student_id", studentIds)
-      .not("total_score", "is", null);
+    const BATCH_SIZE = 50; // 每批查询50个学生ID
+    const allGrades: any[] = [];
 
-    if (gradesError) {
-      console.error("批量获取成绩数据失败:", gradesError);
-      throw new Error(`批量获取成绩数据失败: ${gradesError.message}`);
+    for (let i = 0; i < studentIds.length; i += BATCH_SIZE) {
+      const batchIds = studentIds.slice(i, i + BATCH_SIZE);
+      const { data: batchGrades, error: gradesError } = await supabase
+        .from("grade_data_new")
+        .select("student_id, total_score, exam_type, exam_date, class_name")
+        .in("student_id", batchIds)
+        .not("total_score", "is", null);
+
+      if (gradesError) {
+        console.error(`批量获取成绩数据失败(批次 ${i / BATCH_SIZE + 1}):`, gradesError);
+        throw new Error(`批量获取成绩数据失败: ${gradesError.message}`);
+      }
+
+      if (batchGrades) {
+        allGrades.push(...batchGrades);
+      }
     }
 
     console.log(`批量获取到 ${allStudents?.length || 0} 个学生，${allGrades?.length || 0} 条成绩记录`);
@@ -1897,10 +1959,10 @@ export async function updateAllClassStatistics(): Promise<boolean> {
 
     console.log('✅ 班级统计更新成功');
     toast.success('班级统计数据更新成功');
-    
-    // 清除相关缓存
-    clearExpiredCache();
-    
+
+    // 清除相关缓存 - ✅ 使用clearCacheByPattern
+    clearCacheByPattern(/^class_/);
+
     return true;
   } catch (error) {
     console.error('更新班级统计异常:', error);
