@@ -46,6 +46,12 @@ import {
   analyzeCSVHeaders,
 } from "@/services/intelligentFieldMapper";
 import { autoSyncService } from "@/services/autoSyncService";
+import { intelligentStudentMatcher } from "@/services/intelligentStudentMatcher";
+import type { MatchResult } from "@/services/intelligentStudentMatcher";
+import {
+  ManualMatchReview,
+  type StudentDecision,
+} from "@/components/import/ManualMatchReview";
 
 // 简化的用户流程：上传 → 智能确认 → 导入完成
 
@@ -480,9 +486,20 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
       // 处理每一行数据 - 宽表格模式，每行一条记录
       for (const rowData of fullParseResult.data) {
         try {
+          // 注入班级信息到原始数据（根据用户选择的班级范围）
+          const enrichedRowData = {
+            ...rowData,
+            class_name:
+              classScope === "specific"
+                ? selectedClass
+                : classScope === "unknown"
+                  ? newClassName
+                  : rowData.class_name, // 全年级模式保留原数据中的班级
+          };
+
           // 将CSV行转换为单条完整记录（宽表格模式）
           const gradeRecord = convertWideToLongFormatEnhanced(
-            rowData,
+            enrichedRowData,
             headerAnalysis,
             examData
           );
@@ -573,27 +590,59 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
 
       console.log("[真实导入] 成功保存到grade_data_new表");
 
-      // 步骤5: 智能数据同步 - 自动创建班级和学生
+      // 步骤5: 智能学生匹配 - 使用严格3选2匹配
       setProgress(85);
-      setProgressMessage("正在同步学生和班级信息...");
+      setProgressMessage("正在匹配学生信息...");
       setProcessingStage("analyzing");
 
       try {
-        console.log("[智能同步] 开始自动创建班级和学生...");
+        console.log("[智能匹配] 开始匹配学生...");
+
+        // 准备文件学生数据
+        const fileStudents = allGradeRecords.map(record => ({
+          student_id: record.student_id,
+          name: record.name,
+          class_name: record.class_name,
+        }));
+
+        // 调用智能匹配器
+        const matchingResult = await intelligentStudentMatcher.matchStudents(fileStudents);
+
+        console.log("[智能匹配] 匹配结果:", matchingResult);
+        console.log(`[智能匹配] 统计: 精确匹配=${matchingResult.exactMatches.length}, 需手动确认=${matchingResult.manualReviewNeeded.length}`);
+
+        // 如果有需要手动确认的学生,进入手动确认流程
+        if (matchingResult.manualReviewNeeded.length > 0) {
+          console.log("[智能匹配] 发现未匹配学生,进入手动确认流程");
+          setUnmatchedStudents(matchingResult.manualReviewNeeded);
+          setProgress(90);
+          setStep("manualMatch");
+          setIsProcessing(false);
+          return; // 中断流程,等待手动确认
+        }
+
+        // 所有学生都已匹配,继续自动同步流程
+        console.log("[智能匹配] 所有学生已成功匹配,开始自动同步...");
         const syncResult = await autoSyncService.syncImportedData(allGradeRecords);
-        
+
         console.log("[智能同步] 同步结果:", syncResult);
-        
-        // 移除: 智能同步提示 - 最终结果会在总的成功提示中体现
+
         if (syncResult.success) {
           console.log(`[智能同步] 完成！自动创建了 ${syncResult.newClasses.length} 个班级和 ${syncResult.newStudents.length} 名学生`);
         } else if (syncResult.errors.length > 0) {
           console.warn("[智能同步] 部分同步失败:", syncResult.errors);
-          console.log(`[智能同步] 成功创建 ${syncResult.newClasses.length} 个班级和 ${syncResult.newStudents.length} 名学生，但有部分问题`);
         }
-      } catch (syncError) {
-        console.error("[智能同步] 同步过程出错:", syncError);
-        console.warn("[智能同步] 成绩数据已成功导入，但自动创建班级学生时遇到问题");
+      } catch (matchError) {
+        console.error("[智能匹配] 匹配过程出错:", matchError);
+        console.warn("[智能匹配] 成绩数据已成功导入，但学生匹配时遇到问题，回退到自动创建模式");
+
+        // 匹配失败时回退到自动同步
+        try {
+          const syncResult = await autoSyncService.syncImportedData(allGradeRecords);
+          console.log("[智能同步] 回退同步完成:", syncResult);
+        } catch (syncError) {
+          console.error("[智能同步] 同步过程出错:", syncError);
+        }
       }
 
       // 步骤6: 完成导入
@@ -635,6 +684,86 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
       setIsProcessing(false);
     }
   }, [parsedData, examInfo, onComplete]);
+
+  // 处理手动匹配决策
+  const handleManualMatchDecisions = useCallback(
+    async (decisions: StudentDecision[]) => {
+      setIsProcessing(true);
+      setStep("importing");
+      setProgress(90);
+      setProgressMessage("正在处理手动匹配决策...");
+
+      try {
+        // 1. 处理创建新学生的决策
+        const studentsToCreate = decisions.filter((d) => d.action === "create");
+        if (studentsToCreate.length > 0) {
+          console.log(`[手动匹配] 创建 ${studentsToCreate.length} 名新学生`);
+
+          for (const decision of studentsToCreate) {
+            try {
+              const { data: newStudent, error } = await supabase
+                .from("students")
+                .insert({
+                  student_id: decision.fileStudent.student_id || `AUTO_${Date.now()}`,
+                  name: decision.fileStudent.name,
+                  class_name: decision.fileStudent.class_name,
+                })
+                .select()
+                .single();
+
+              if (error) {
+                console.error("创建学生失败:", error);
+              } else {
+                console.log("成功创建学生:", newStudent);
+              }
+            } catch (error) {
+              console.error("创建学生异常:", error);
+            }
+          }
+        }
+
+        // 2. 处理手动匹配的决策
+        const studentsToMatch = decisions.filter((d) => d.action === "match");
+        if (studentsToMatch.length > 0) {
+          console.log(`[手动匹配] 匹配 ${studentsToMatch.length} 名学生`);
+          // 匹配操作已经在决策中记录,这里只是日志
+          studentsToMatch.forEach((d) => {
+            console.log(
+              `学生 ${d.fileStudent.name} 匹配到系统学生 ${d.matchedStudentId}`
+            );
+          });
+        }
+
+        // 3. 跳过的学生只记录日志
+        const skippedStudents = decisions.filter((d) => d.action === "skip");
+        if (skippedStudents.length > 0) {
+          console.log(
+            `[手动匹配] 跳过 ${skippedStudents.length} 名学生:`,
+            skippedStudents.map((d) => d.fileStudent.name)
+          );
+        }
+
+        // 完成处理
+        setProgress(100);
+        setProgressMessage("手动匹配完成！");
+
+        toast.success(
+          `手动匹配完成: 创建${studentsToCreate.length}名新学生, 匹配${studentsToMatch.length}名学生, 跳过${skippedStudents.length}名学生`
+        );
+
+        // 等待一下再跳转到完成步骤
+        setTimeout(() => {
+          setStep("complete");
+          setIsProcessing(false);
+        }, 500);
+      } catch (error) {
+        console.error("[手动匹配] 处理决策失败:", error);
+        toast.error("处理手动匹配决策时出错");
+        setIsProcessing(false);
+      }
+    },
+    []
+  );
 
   // 重新开始
   const handleRestart = useCallback(() => {
@@ -1317,6 +1446,18 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
           fileSize={parsedData ? `${(parsedData.file.size / 1024 / 1024).toFixed(1)} MB` : undefined}
           error={processingError || undefined}
           onCancel={onCancel}
+        />
+      )}
+
+      {/* 步骤3.5: 手动匹配确认 */}
+      {step === "manualMatch" && unmatchedStudents.length > 0 && (
+        <ManualMatchReview
+          unmatchedStudents={unmatchedStudents}
+          onConfirm={handleManualMatchDecisions}
+          onCancel={() => {
+            setStep("confirm");
+            setUnmatchedStudents([]);
+          }}
         />
       )}
 

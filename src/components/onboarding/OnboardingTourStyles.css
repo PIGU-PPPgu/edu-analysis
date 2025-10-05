@@ -1,0 +1,38 @@
+/**
+ * 新手引导样式
+ */
+
+/* 高亮元素样式 */
+.onboarding-highlight {
+  position: relative;
+  z-index: 10000 !important;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.5),
+              0 0 0 8px rgba(59, 130, 246, 0.3),
+              0 0 20px 12px rgba(59, 130, 246, 0.2) !important;
+  border-radius: 4px;
+  animation: onboarding-pulse 2s ease-in-out infinite;
+}
+
+/* 脉冲动画 */
+@keyframes onboarding-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.5),
+                0 0 0 8px rgba(59, 130, 246, 0.3),
+                0 0 20px 12px rgba(59, 130, 246, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.7),
+                0 0 0 8px rgba(59, 130, 246, 0.5),
+                0 0 30px 16px rgba(59, 130, 246, 0.3);
+  }
+}
+
+/* 确保高亮元素在遮罩上方 */
+.onboarding-highlight::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  background: transparent;
+  pointer-events: none;
+}
