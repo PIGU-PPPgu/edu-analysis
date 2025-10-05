@@ -50,6 +50,7 @@ import EnhancedStudentPortrait from "@/components/portrait/advanced/EnhancedStud
 import StudentPortraitComparison from "@/components/portrait/advanced/StudentPortraitComparison";
 import { SmartGroupManager } from "@/components/group/SmartGroupManager";
 import StudentPortraitGenerator from "@/components/portrait/StudentPortraitGenerator";
+import { BatchPortraitActions } from "@/components/portrait/BatchPortraitActions";
 import { supabase } from "@/integrations/supabase/client";
 import { PageLoading, CardLoading } from "@/components/ui/loading";
 import EmptyState from "@/components/ui/empty-state";
@@ -69,9 +70,13 @@ const StudentPortraitManagement: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
-  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(
+    null
+  );
   const [showGroupCreator, setShowGroupCreator] = useState(false);
-  const [classStudents, setClassStudents] = useState<Array<{ student_id: string; name: string; overall_score?: number }>>([]);
+  const [classStudents, setClassStudents] = useState<
+    Array<{ student_id: string; name: string; overall_score?: number }>
+  >([]);
 
   // 使用防抖优化搜索体验
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
@@ -81,13 +86,13 @@ const StudentPortraitManagement: React.FC = () => {
 
   // 从班级名称推断年级的辅助函数
   const inferGradeFromClassName = (className: string): string => {
-    if (className.includes('高一') || className.includes('1班')) return '高一';
-    if (className.includes('高二') || className.includes('2班')) return '高二';
-    if (className.includes('高三') || className.includes('3班')) return '高三';
-    if (className.includes('九') || className.includes('初三')) return '九年级';
-    if (className.includes('八') || className.includes('初二')) return '八年级';
-    if (className.includes('七') || className.includes('初一')) return '七年级';
-    return '未知年级';
+    if (className.includes("高一") || className.includes("1班")) return "高一";
+    if (className.includes("高二") || className.includes("2班")) return "高二";
+    if (className.includes("高三") || className.includes("3班")) return "高三";
+    if (className.includes("九") || className.includes("初三")) return "九年级";
+    if (className.includes("八") || className.includes("初二")) return "八年级";
+    if (className.includes("七") || className.includes("初一")) return "七年级";
+    return "未知年级";
   };
 
   // 使用React Query获取班级数据 - 直接从students表统计班级
@@ -105,14 +110,14 @@ const StudentPortraitManagement: React.FC = () => {
 
         // 按班级名称分组并统计
         const classStats = new Map();
-        (studentData || []).forEach(student => {
+        (studentData || []).forEach((student) => {
           const className = student.class_name;
           if (!classStats.has(className)) {
             classStats.set(className, {
               id: `class-${className}`, // 生成一个临时ID
               name: className,
               grade: student.grade || inferGradeFromClassName(className),
-              student_count: 0
+              student_count: 0,
             });
           }
           classStats.get(className).student_count++;
@@ -127,7 +132,11 @@ const StudentPortraitManagement: React.FC = () => {
           return a.name.localeCompare(b.name);
         });
 
-        console.log('✅ 从students表获取到班级列表:', classesArray.length, '个班级');
+        console.log(
+          "✅ 从students表获取到班级列表:",
+          classesArray.length,
+          "个班级"
+        );
         return classesArray;
       } catch (error) {
         console.error("获取班级列表失败:", error);
@@ -425,13 +434,24 @@ const StudentPortraitManagement: React.FC = () => {
 
                     <CardContent className="pt-6">
                       <TabsContent value="class" className="mt-0">
-                        <ClassOverview
-                          classId={selectedClass.id}
-                          className={selectedClass.name}
-                          stats={classStats}
-                          onViewClassPortrait={handleViewClassPortrait}
-                          isLoading={isLoadingClassStats}
-                        />
+                        <div className="space-y-6">
+                          <ClassOverview
+                            classId={selectedClass.id}
+                            className={selectedClass.name}
+                            stats={classStats}
+                            onViewClassPortrait={handleViewClassPortrait}
+                            isLoading={isLoadingClassStats}
+                          />
+
+                          {/* 批量画像操作 */}
+                          <BatchPortraitActions
+                            className={selectedClass.name}
+                            onComplete={() => {
+                              // 刷新班级统计数据
+                              window.location.reload();
+                            }}
+                          />
+                        </div>
                       </TabsContent>
 
                       <TabsContent value="group" className="mt-0">
@@ -467,13 +487,17 @@ const StudentPortraitManagement: React.FC = () => {
                                 onClick: async () => {
                                   // 获取当前班级的学生列表
                                   if (selectedClass) {
-                                    const { data: students, error } = await supabase
-                                      .from("students")
-                                      .select("student_id, name")
-                                      .eq("class_name", selectedClass.name);
+                                    const { data: students, error } =
+                                      await supabase
+                                        .from("students")
+                                        .select("student_id, name")
+                                        .eq("class_name", selectedClass.name);
 
                                     if (error) {
-                                      toast({ description: "获取学生列表失败", variant: "destructive" });
+                                      toast({
+                                        description: "获取学生列表失败",
+                                        variant: "destructive",
+                                      });
                                       return;
                                     }
 
@@ -553,14 +577,16 @@ const StudentPortraitManagement: React.FC = () => {
 
                       <TabsContent value="smart-portrait" className="mt-0">
                         {selectedStudentId ? (
-                          <StudentPortraitGenerator 
+                          <StudentPortraitGenerator
                             studentId={selectedStudentId}
                             className={selectedClass?.name}
                           />
                         ) : (
                           <div className="text-center py-20">
                             <Sparkles className="h-16 w-16 text-muted-foreground/50 mb-4 mx-auto" />
-                            <p className="text-lg font-medium mb-2">AI智能画像生成</p>
+                            <p className="text-lg font-medium mb-2">
+                              AI智能画像生成
+                            </p>
                             <p className="text-sm text-muted-foreground text-center max-w-md mx-auto">
                               请先从"学生"标签页选择一个学生，或点击学生卡片上的"智能画像"按钮
                             </p>
@@ -604,8 +630,13 @@ const StudentPortraitManagement: React.FC = () => {
           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold">创建学习小组 - {selectedClass.name}</h2>
-                <Button variant="ghost" onClick={() => setShowGroupCreator(false)}>
+                <h2 className="text-2xl font-bold">
+                  创建学习小组 - {selectedClass.name}
+                </h2>
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowGroupCreator(false)}
+                >
                   关闭
                 </Button>
               </div>
