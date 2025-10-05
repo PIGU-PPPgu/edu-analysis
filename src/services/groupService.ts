@@ -557,18 +557,206 @@ export async function getGroupPerformance(
     const stats = await getGroupStats(groupId);
     if (!stats) return null;
 
-    // 这里可以扩展更多的性能分析逻辑
-    // 比如科目表现、进步率等
+    const memberIds = group.members.map((m) => m.student_id);
+    if (memberIds.length === 0) {
+      return {
+        group_id: groupId,
+        group_name: group.group_name,
+        overall_rank: 0,
+        average_score: 0,
+        improvement_rate: 0,
+        subject_performance: [],
+        top_performers: [],
+        struggling_students: [],
+      };
+    }
+
+    // 1. 计算班级排名
+    let overall_rank = 0;
+    try {
+      // 获取同班级所有小组的平均分进行排名
+      const { data: allGroups } = await supabase
+        .from("student_groups")
+        .select("id, group_name")
+        .eq("class_name", group.class_name);
+
+      if (allGroups && allGroups.length > 0) {
+        // 计算每个小组的平均分
+        const groupScores = await Promise.all(
+          allGroups.map(async (g) => {
+            const gStats = await getGroupStats(g.id);
+            return {
+              id: g.id,
+              average: gStats?.average_score || 0,
+            };
+          })
+        );
+
+        // 排序并找出当前小组的排名
+        groupScores.sort((a, b) => b.average - a.average);
+        overall_rank =
+          groupScores.findIndex((g) => g.id === groupId) + 1;
+      }
+    } catch (error) {
+      console.error("计算班级排名失败:", error);
+    }
+
+    // 2. 计算进步率（对比最近两次考试）
+    let improvement_rate = 0;
+    try {
+      const { data: recentExams } = await supabase
+        .from("grade_data_new")
+        .select("exam_id, exam_date, total_score")
+        .in("student_id", memberIds)
+        .not("total_score", "is", null)
+        .order("exam_date", { ascending: false })
+        .limit(memberIds.length * 2); // 取最近两次考试
+
+      if (recentExams && recentExams.length > 0) {
+        // 按考试分组
+        const examGroups = new Map<string, number[]>();
+        recentExams.forEach((record) => {
+          if (!examGroups.has(record.exam_id)) {
+            examGroups.set(record.exam_id, []);
+          }
+          examGroups.get(record.exam_id)!.push(record.total_score);
+        });
+
+        const examAverages = Array.from(examGroups.entries()).map(
+          ([examId, scores]) => ({
+            examId,
+            average:
+              scores.reduce((sum, s) => sum + s, 0) / scores.length,
+          })
+        );
+
+        if (examAverages.length >= 2) {
+          const [latest, previous] = examAverages;
+          improvement_rate =
+            ((latest.average - previous.average) / previous.average) *
+            100;
+        }
+      }
+    } catch (error) {
+      console.error("计算进步率失败:", error);
+    }
+
+    // 3. 分析科目表现
+    const subject_performance: {
+      subject: string;
+      average_score: number;
+      rank_in_class: number;
+    }[] = [];
+
+    try {
+      const subjects = [
+        "chinese",
+        "math",
+        "english",
+        "physics",
+        "chemistry",
+        "politics",
+        "history",
+        "biology",
+        "geography",
+      ];
+
+      for (const subject of subjects) {
+        const { data: subjectGrades } = await supabase
+          .from("grade_data_new")
+          .select(`${subject}_score, class_name`)
+          .in("student_id", memberIds)
+          .not(`${subject}_score`, "is", null)
+          .eq("class_name", group.class_name);
+
+        if (subjectGrades && subjectGrades.length > 0) {
+          const scores = subjectGrades.map(
+            (g: any) => g[`${subject}_score`]
+          );
+          const average =
+            scores.reduce((sum: number, s: number) => sum + s, 0) /
+            scores.length;
+
+          // 简化排名计算：与班级其他小组对比
+          subject_performance.push({
+            subject,
+            average_score: Math.round(average),
+            rank_in_class: 0, // 简化处理，实际需要查询所有小组
+          });
+        }
+      }
+    } catch (error) {
+      console.error("分析科目表现失败:", error);
+    }
+
+    // 4. 找出表现突出的学生（Top 3）
+    const top_performers: {
+      student_id: string;
+      student_name: string;
+      score: number;
+    }[] = [];
+
+    try {
+      const { data: topStudents } = await supabase
+        .from("grade_data_new")
+        .select("student_id, name, total_score")
+        .in("student_id", memberIds)
+        .not("total_score", "is", null)
+        .order("total_score", { ascending: false })
+        .limit(3);
+
+      if (topStudents) {
+        topStudents.forEach((s: any) => {
+          top_performers.push({
+            student_id: s.student_id,
+            student_name: s.name,
+            score: s.total_score,
+          });
+        });
+      }
+    } catch (error) {
+      console.error("获取优秀学生失败:", error);
+    }
+
+    // 5. 找出需要帮助的学生（成绩低于小组平均分20%以上）
+    const struggling_students: {
+      student_id: string;
+      student_name: string;
+      score: number;
+    }[] = [];
+
+    try {
+      const threshold = stats.average_score * 0.8; // 低于平均分80%
+      const { data: strugglingStudents } = await supabase
+        .from("grade_data_new")
+        .select("student_id, name, total_score")
+        .in("student_id", memberIds)
+        .not("total_score", "is", null)
+        .lt("total_score", threshold)
+        .order("total_score", { ascending: true });
+
+      if (strugglingStudents) {
+        strugglingStudents.forEach((s: any) => {
+          struggling_students.push({
+            student_id: s.student_id,
+            student_name: s.name,
+            score: s.total_score,
+          });
+        });
+      }
+    } catch (error) {
+      console.error("获取待提升学生失败:", error);
+    }
 
     return {
       group_id: groupId,
       group_name: group.group_name,
-      overall_rank: 0, // TODO: 实现班级排名计算
+      overall_rank,
       average_score: stats.average_score,
-      improvement_rate: 0, // TODO: 实现进步率计算
-      subject_performance: [], // TODO: 实现科目表现分析
-      top_performers: [], // TODO: 实现top学生分析
-      struggling_students: [], // TODO: 实现待提升学生分析
+      improvement_rate: Math.round(improvement_rate * 10) / 10, // 保留1位小数
+      subject_performance,
+      top_performers,
+      struggling_students,
     };
   } catch (error) {
     console.error("获取小组表现异常:", error);

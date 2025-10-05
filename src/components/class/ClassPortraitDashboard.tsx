@@ -34,6 +34,8 @@ import {
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, LineChart, Line, Area, AreaChart } from 'recharts';
 import { intelligentPortraitService, type ClassPortraitAnalysis, type GroupPortraitAnalysis } from '@/services/intelligentPortraitService';
 import { toast } from 'sonner';
+import { ClassComparison } from './ClassComparison';
+import { ClassTrendAnalysis } from './ClassTrendAnalysis';
 
 interface ClassPortraitDashboardProps {
   className: string;
@@ -219,6 +221,12 @@ export function ClassPortraitDashboard({ className }: ClassPortraitDashboardProp
           </div>
         </CardContent>
       </Card>
+
+      {/* 跨班级对比 */}
+      <ClassComparison className={className} />
+
+      {/* 历史趋势分析 */}
+      <ClassTrendAnalysis className={className} />
 
       {/* 详细分析标签页 */}
       <Card>
