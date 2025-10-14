@@ -56,9 +56,9 @@ interface DataFlowContextType {
   addWarning: (taskId: string, warning: string) => void;
 
   // 队列管理
-  queuedTasks: string[];                    // 队列中的任务ID
-  activeTasks: string[];                    // 正在执行的任务ID
-  completedTasks: string[];                 // 已完成的任务ID
+  queuedTasks: string[]; // 队列中的任务ID
+  activeTasks: string[]; // 正在执行的任务ID
+  completedTasks: string[]; // 已完成的任务ID
 
   // 事件订阅
   subscribe: (callback: (event: TaskUpdateEvent) => void) => () => void;
@@ -271,9 +271,7 @@ export const DataFlowProvider: React.FC<{ children: React.ReactNode }> = ({
 
         // 验证状态转换
         if (!canTransitionTo(task.state, newState)) {
-          console.error(
-            `[DataFlow] 非法状态转换: ${task.state} → ${newState}`
-          );
+          console.error(`[DataFlow] 非法状态转换: ${task.state} → ${newState}`);
           toast.error("状态转换失败", {
             description: `无法从 ${task.state} 转换到 ${newState}`,
           });
@@ -403,9 +401,9 @@ export const DataFlowProvider: React.FC<{ children: React.ReactNode }> = ({
         updated.set(taskId, updatedTask);
 
         // 持久化检查点
-        dataFlowPersistence.saveCheckpoint(checkpoint).catch((err) =>
-          console.error("[DataFlow] 检查点持久化失败:", err)
-        );
+        dataFlowPersistence
+          .saveCheckpoint(checkpoint)
+          .catch((err) => console.error("[DataFlow] 检查点持久化失败:", err));
 
         // 持久化任务更新
         persistTask(taskId);
@@ -417,7 +415,9 @@ export const DataFlowProvider: React.FC<{ children: React.ReactNode }> = ({
           timestamp: Date.now(),
         });
 
-        console.log(`[DataFlow] 检查点已保存: 任务${taskId}, 批次${checkpoint.batchIndex}`);
+        console.log(
+          `[DataFlow] 检查点已保存: 任务${taskId}, 批次${checkpoint.batchIndex}`
+        );
 
         return updated;
       });
@@ -663,46 +663,51 @@ export const DataFlowProvider: React.FC<{ children: React.ReactNode }> = ({
    * 清理旧任务 (保留最近7天)
    */
   useEffect(() => {
-    const cleanupInterval = setInterval(async () => {
-      const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const cleanupInterval = setInterval(
+      async () => {
+        const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
 
-      setTasks((prev) => {
-        const updated = new Map(prev);
-        let cleanedCount = 0;
+        setTasks((prev) => {
+          const updated = new Map(prev);
+          let cleanedCount = 0;
 
-        for (const [taskId, task] of updated.entries()) {
-          // 只清理已完成且超过7天的任务
-          if (
-            (task.state === DataFlowState.COMPLETED ||
-              task.state === DataFlowState.FAILED ||
-              task.state === DataFlowState.CANCELLED) &&
-            task.completedAt &&
-            task.completedAt < sevenDaysAgo
-          ) {
-            updated.delete(taskId);
-            cleanedCount++;
+          for (const [taskId, task] of updated.entries()) {
+            // 只清理已完成且超过7天的任务
+            if (
+              (task.state === DataFlowState.COMPLETED ||
+                task.state === DataFlowState.FAILED ||
+                task.state === DataFlowState.CANCELLED) &&
+              task.completedAt &&
+              task.completedAt < sevenDaysAgo
+            ) {
+              updated.delete(taskId);
+              cleanedCount++;
+            }
           }
-        }
 
-        if (cleanedCount > 0) {
-          console.log(`[DataFlow] 清理了 ${cleanedCount} 个旧任务`);
-        }
+          if (cleanedCount > 0) {
+            console.log(`[DataFlow] 清理了 ${cleanedCount} 个旧任务`);
+          }
 
-        return updated;
-      });
+          return updated;
+        });
 
-      // 同时清理IndexedDB中的过期数据
-      try {
-        const deletedCount = await dataFlowPersistence.cleanup(
-          new Date(sevenDaysAgo)
-        );
-        if (deletedCount > 0) {
-          console.log(`[DataFlow] IndexedDB清理了 ${deletedCount} 条过期记录`);
+        // 同时清理IndexedDB中的过期数据
+        try {
+          const deletedCount = await dataFlowPersistence.cleanup(
+            new Date(sevenDaysAgo)
+          );
+          if (deletedCount > 0) {
+            console.log(
+              `[DataFlow] IndexedDB清理了 ${deletedCount} 条过期记录`
+            );
+          }
+        } catch (error) {
+          console.error("[DataFlow] IndexedDB清理失败:", error);
         }
-      } catch (error) {
-        console.error("[DataFlow] IndexedDB清理失败:", error);
-      }
-    }, 60 * 60 * 1000); // 每小时检查一次
+      },
+      60 * 60 * 1000
+    ); // 每小时检查一次
 
     return () => clearInterval(cleanupInterval);
   }, []);

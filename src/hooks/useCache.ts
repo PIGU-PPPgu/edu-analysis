@@ -6,8 +6,8 @@
  * Week 6 Day 9-10
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { cacheManager, CacheKeys, CacheTTL } from '@/services/CacheManager';
+import { useState, useEffect, useCallback } from "react";
+import { cacheManager, CacheKeys, CacheTTL } from "@/services/CacheManager";
 
 /**
  * useCache Hook配置
@@ -58,25 +58,28 @@ export function useCache<T = any>(options: UseCacheOptions): UseCacheReturn<T> {
   /**
    * 加载数据
    */
-  const loadData = useCallback(async (forceRefresh = false) => {
-    setLoading(true);
-    setError(null);
+  const loadData = useCallback(
+    async (forceRefresh = false) => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      const result = await cacheManager.getOrSet<T>(
-        key,
-        fetcher,
-        { ttl, persistent, forceRefresh }
-      );
-      setData(result);
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error(String(err));
-      setError(error);
-      console.error(`[useCache] 加载失败: ${key}`, error);
-    } finally {
-      setLoading(false);
-    }
-  }, [key, fetcher, ttl, persistent]);
+      try {
+        const result = await cacheManager.getOrSet<T>(key, fetcher, {
+          ttl,
+          persistent,
+          forceRefresh,
+        });
+        setData(result);
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        setError(error);
+        console.error(`[useCache] 加载失败: ${key}`, error);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [key, fetcher, ttl, persistent]
+  );
 
   /**
    * 刷新数据
@@ -118,13 +121,13 @@ export function useStudentsCache() {
   return useCache({
     key: CacheKeys.STUDENTS_LIST,
     fetcher: async () => {
-      const { createClient } = await import('@/lib/supabase/client');
+      const { createClient } = await import("@/lib/supabase/client");
       const supabase = createClient();
 
       const { data, error } = await supabase
-        .from('students')
-        .select('id, student_id, name, class_name')
-        .order('created_at', { ascending: true });
+        .from("students")
+        .select("id, student_id, name, class_name")
+        .order("created_at", { ascending: true });
 
       if (error) throw error;
       return data || [];
@@ -141,13 +144,13 @@ export function useClassesCache() {
   return useCache({
     key: CacheKeys.CLASSES_LIST,
     fetcher: async () => {
-      const { createClient } = await import('@/lib/supabase/client');
+      const { createClient } = await import("@/lib/supabase/client");
       const supabase = createClient();
 
       const { data, error } = await supabase
-        .from('class_info')
-        .select('class_name, grade_level, academic_year')
-        .order('created_at', { ascending: false });
+        .from("class_info")
+        .select("class_name, grade_level, academic_year")
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       return data || [];
@@ -164,13 +167,13 @@ export function useSubjectsCache() {
   return useCache({
     key: CacheKeys.SUBJECTS_LIST,
     fetcher: async () => {
-      const { createClient } = await import('@/lib/supabase/client');
+      const { createClient } = await import("@/lib/supabase/client");
       const supabase = createClient();
 
       const { data, error } = await supabase
-        .from('subjects')
-        .select('subject_code, subject_name, credit, is_required')
-        .order('subject_code');
+        .from("subjects")
+        .select("subject_code, subject_name, credit, is_required")
+        .order("subject_code");
 
       if (error) throw error;
       return data || [];
@@ -187,15 +190,15 @@ export function useExamQueryCache(title: string, type: string, date: string) {
   return useCache({
     key: CacheKeys.examQuery(title, type, date),
     fetcher: async () => {
-      const { createClient } = await import('@/lib/supabase/client');
+      const { createClient } = await import("@/lib/supabase/client");
       const supabase = createClient();
 
       const { data, error } = await supabase
-        .from('exams')
-        .select('id, title, type, date, created_at, updated_at')
-        .eq('title', title)
-        .eq('type', type)
-        .eq('date', date)
+        .from("exams")
+        .select("id, title, type, date, created_at, updated_at")
+        .eq("title", title)
+        .eq("type", type)
+        .eq("date", date)
         .maybeSingle();
 
       if (error) throw error;

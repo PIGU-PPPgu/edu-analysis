@@ -138,7 +138,10 @@ export class IntelligentFileParser {
    * @param file 要解析的文件
    * @param options 解析选项 (可选AI辅助)
    */
-  async parseFile(file: File, options?: ParseOptions): Promise<ParsedFileResult> {
+  async parseFile(
+    file: File,
+    options?: ParseOptions
+  ): Promise<ParsedFileResult> {
     console.log(
       `[IntelligentFileParser] 开始解析文件: ${file.name} (${file.type})`
     );
@@ -209,7 +212,9 @@ export class IntelligentFileParser {
     const shouldUseAI = this.shouldUseAI(opts, intelligentAnalysis.confidence);
 
     if (shouldUseAI) {
-      console.log(`[IntelligentFileParser] 🤖 启用AI辅助解析 (模式: ${opts.aiMode})`);
+      console.log(
+        `[IntelligentFileParser] 🤖 启用AI辅助解析 (模式: ${opts.aiMode})`
+      );
 
       try {
         // 模式1: 强制使用完整的AI增强解析
@@ -219,13 +224,18 @@ export class IntelligentFileParser {
 
           // 使用AI结果,但保留我们的数据清洗和结构分析
           finalAnalysis = {
-            mappings: this.convertAIMappingsToIntelligent(aiResult.metadata.suggestedMappings),
+            mappings: this.convertAIMappingsToIntelligent(
+              aiResult.metadata.suggestedMappings
+            ),
             subjects: aiResult.metadata.detectedSubjects,
             confidence: aiResult.metadata.confidence,
             studentFields: intelligentAnalysis.studentFields,
           };
           parseMethod = "ai-enhanced";
-          console.log("[IntelligentFileParser] ✅ AI增强解析完成, 置信度:", aiResult.metadata.confidence);
+          console.log(
+            "[IntelligentFileParser] ✅ AI增强解析完成, 置信度:",
+            aiResult.metadata.confidence
+          );
         }
         // 模式2: 自动模式 - AI辅助算法无法识别的字段
         else {
@@ -334,7 +344,10 @@ export class IntelligentFileParser {
   /**
    * 🤔 判断是否应该使用AI辅助
    */
-  private shouldUseAI(opts: ParseOptions, algorithmConfidence: number): boolean {
+  private shouldUseAI(
+    opts: ParseOptions,
+    algorithmConfidence: number
+  ): boolean {
     // 模式1: 明确禁用AI
     if (opts.aiMode === "disabled" || opts.useAI === false) {
       return false;
@@ -353,7 +366,9 @@ export class IntelligentFileParser {
   /**
    * 🔄 转换AI映射格式到intelligentFieldMapper格式
    */
-  private convertAIMappingsToIntelligent(aiMappings: Record<string, string>): any[] {
+  private convertAIMappingsToIntelligent(
+    aiMappings: Record<string, string>
+  ): any[] {
     return Object.entries(aiMappings).map(([originalField, mappedField]) => ({
       originalField,
       mappedField,
@@ -543,9 +558,10 @@ export class IntelligentFileParser {
   ): { headers: string[]; dataStartRow: number } {
     if (jsonData.length < 2) {
       // 只有一行,直接返回
-      const headers = jsonData[0]
-        ?.map((h: any) => String(h || "").trim())
-        .filter((h) => h !== "") || [];
+      const headers =
+        jsonData[0]
+          ?.map((h: any) => String(h || "").trim())
+          .filter((h) => h !== "") || [];
       return { headers, dataStartRow: 1 };
     }
 
@@ -558,13 +574,23 @@ export class IntelligentFileParser {
     const row2 = jsonData[1] || [];
 
     // 判断标准: 第2行包含"分数、等级、排名"等子字段关键词
-    const row2Keywords = ["分数", "成绩", "得分", "等级", "评级", "排名", "班排", "级排", "校排"];
+    const row2Keywords = [
+      "分数",
+      "成绩",
+      "得分",
+      "等级",
+      "评级",
+      "排名",
+      "班排",
+      "级排",
+      "校排",
+    ];
     const hasRow2Keywords = row2.some((cell: any) =>
-      row2Keywords.some(keyword => String(cell || "").includes(keyword))
+      row2Keywords.some((keyword) => String(cell || "").includes(keyword))
     );
 
-    const row1HasBlanks = row1.some((cell: any, index: number) =>
-      !cell && row2[index] // 第1行为空但第2行有值
+    const row1HasBlanks = row1.some(
+      (cell: any, index: number) => !cell && row2[index] // 第1行为空但第2行有值
     );
 
     const isMultiLevel = merges.length > 0 || hasRow2Keywords || row1HasBlanks;
@@ -574,7 +600,9 @@ export class IntelligentFileParser {
       const headers = row1
         .map((h: any) => String(h || "").trim())
         .filter((h) => h !== "");
-      console.log(`[多级表头检测] 单级表头,使用第1行 (${headers.length}个字段)`);
+      console.log(
+        `[多级表头检测] 单级表头,使用第1行 (${headers.length}个字段)`
+      );
       return { headers, dataStartRow: 1 };
     }
 
@@ -585,7 +613,11 @@ export class IntelligentFileParser {
     const mergedHeaders: string[] = [];
     let currentParent = "";
 
-    for (let colIndex = 0; colIndex < Math.max(row1.length, row2.length); colIndex++) {
+    for (
+      let colIndex = 0;
+      colIndex < Math.max(row1.length, row2.length);
+      colIndex++
+    ) {
       const parentCell = String(row1[colIndex] || "").trim();
       const childCell = String(row2[colIndex] || "").trim();
 
@@ -609,8 +641,11 @@ export class IntelligentFileParser {
       }
     }
 
-    const filteredHeaders = mergedHeaders.filter(h => h !== "");
-    console.log(`[多级表头检测] 合并后表头 (${filteredHeaders.length}个):`, filteredHeaders);
+    const filteredHeaders = mergedHeaders.filter((h) => h !== "");
+    console.log(
+      `[多级表头检测] 合并后表头 (${filteredHeaders.length}个):`,
+      filteredHeaders
+    );
 
     return { headers: filteredHeaders, dataStartRow: 2 };
   }
@@ -624,7 +659,7 @@ export class IntelligentFileParser {
       /^(学号|学生号|student_?id|id)$/i,
       /^(班级|class)$/i,
     ];
-    return basicPatterns.some(pattern => pattern.test(fieldName));
+    return basicPatterns.some((pattern) => pattern.test(fieldName));
   }
 
   /**
@@ -675,7 +710,9 @@ export class IntelligentFileParser {
         throw new Error("Excel文件中没有有效的表头");
       }
 
-      console.log(`[IntelligentFileParser] 表头解析完成: ${headers.length}个字段, 数据从第${dataStartRow + 1}行开始`);
+      console.log(
+        `[IntelligentFileParser] 表头解析完成: ${headers.length}个字段, 数据从第${dataStartRow + 1}行开始`
+      );
 
       // 剩余行作为数据，转换为对象格式
       const data = jsonData

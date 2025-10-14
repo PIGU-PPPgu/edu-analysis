@@ -16,11 +16,11 @@ import { toast } from "sonner";
 
 // 通知优先级
 export enum NotificationPriority {
-  INFO = 1,      // 信息提示 - 可被任意覆盖
-  SUCCESS = 2,   // 成功提示 - 正常优先级
-  WARNING = 3,   // 警告提示 - 较高优先级
-  ERROR = 4,     // 错误提示 - 最高优先级
-  CRITICAL = 5   // 严重错误 - 不可被覆盖
+  INFO = 1, // 信息提示 - 可被任意覆盖
+  SUCCESS = 2, // 成功提示 - 正常优先级
+  WARNING = 3, // 警告提示 - 较高优先级
+  ERROR = 4, // 错误提示 - 最高优先级
+  CRITICAL = 5, // 严重错误 - 不可被覆盖
 }
 
 // 通知类型
@@ -126,9 +126,7 @@ class NotificationManagerClass {
     message: string,
     options: NotificationOptions = {}
   ): void {
-    const {
-      priority = this.getDefaultPriority(type),
-    } = options;
+    const { priority = this.getDefaultPriority(type) } = options;
 
     const record: NotificationRecord = {
       id: this.generateId(),
@@ -179,7 +177,10 @@ class NotificationManagerClass {
     // 显示归纳通知
     if (groups.error.length > 0) {
       this.notify("error", `${groups.error.length} 个操作失败`, {
-        description: groups.error.slice(0, 3).map(n => n.message).join("; "),
+        description: groups.error
+          .slice(0, 3)
+          .map((n) => n.message)
+          .join("; "),
         priority: NotificationPriority.ERROR,
         deduplicate: false,
       });
@@ -187,7 +188,10 @@ class NotificationManagerClass {
 
     if (groups.warning.length > 0) {
       this.notify("warning", `${groups.warning.length} 个警告`, {
-        description: groups.warning.slice(0, 3).map(n => n.message).join("; "),
+        description: groups.warning
+          .slice(0, 3)
+          .map((n) => n.message)
+          .join("; "),
         priority: NotificationPriority.WARNING,
         deduplicate: false,
       });
@@ -205,35 +209,50 @@ class NotificationManagerClass {
    * 便捷方法: 信息通知
    */
   info(message: string, options?: NotificationOptions): void {
-    this.notify("info", message, { ...options, priority: NotificationPriority.INFO });
+    this.notify("info", message, {
+      ...options,
+      priority: NotificationPriority.INFO,
+    });
   }
 
   /**
    * 便捷方法: 成功通知
    */
   success(message: string, options?: NotificationOptions): void {
-    this.notify("success", message, { ...options, priority: NotificationPriority.SUCCESS });
+    this.notify("success", message, {
+      ...options,
+      priority: NotificationPriority.SUCCESS,
+    });
   }
 
   /**
    * 便捷方法: 警告通知
    */
   warning(message: string, options?: NotificationOptions): void {
-    this.notify("warning", message, { ...options, priority: NotificationPriority.WARNING });
+    this.notify("warning", message, {
+      ...options,
+      priority: NotificationPriority.WARNING,
+    });
   }
 
   /**
    * 便捷方法: 错误通知
    */
   error(message: string, options?: NotificationOptions): void {
-    this.notify("error", message, { ...options, priority: NotificationPriority.ERROR });
+    this.notify("error", message, {
+      ...options,
+      priority: NotificationPriority.ERROR,
+    });
   }
 
   /**
    * 便捷方法: 严重错误通知
    */
   critical(message: string, options?: NotificationOptions): void {
-    this.notify("error", message, { ...options, priority: NotificationPriority.CRITICAL });
+    this.notify("error", message, {
+      ...options,
+      priority: NotificationPriority.CRITICAL,
+    });
   }
 
   /**
@@ -264,7 +283,7 @@ class NotificationManagerClass {
    */
   flushAllBatches(): void {
     const categories = Array.from(this.batchedNotifications.keys());
-    categories.forEach(category => this.flushBatch(category));
+    categories.forEach((category) => this.flushBatch(category));
   }
 
   // ==================== 私有方法 ====================
@@ -272,17 +291,20 @@ class NotificationManagerClass {
   /**
    * 检查是否重复
    */
-  private isDuplicate(message: string, priority: NotificationPriority): boolean {
+  private isDuplicate(
+    message: string,
+    priority: NotificationPriority
+  ): boolean {
     const now = Date.now();
 
     // 清理过期记录
     this.recentNotifications = this.recentNotifications.filter(
-      record => now - record.timestamp < this.DEDUP_WINDOW
+      (record) => now - record.timestamp < this.DEDUP_WINDOW
     );
 
     // 检查是否有相同消息
     return this.recentNotifications.some(
-      record =>
+      (record) =>
         record.message === message &&
         record.priority === priority &&
         now - record.timestamp < this.DEDUP_WINDOW

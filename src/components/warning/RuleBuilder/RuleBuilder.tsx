@@ -271,7 +271,8 @@ const RuleBuilder: React.FC<RuleBuilderProps> = ({
           parameters: {},
         },
         metadata: {
-          createdBy: (await supabase.auth.getUser()).data.user?.id || "anonymous-user",
+          createdBy:
+            (await supabase.auth.getUser()).data.user?.id || "anonymous-user",
           createdWith: "rule_builder",
           version: "1.0.0",
           tags: [builderState.category, builderState.severity],

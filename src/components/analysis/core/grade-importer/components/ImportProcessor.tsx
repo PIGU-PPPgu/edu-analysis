@@ -829,12 +829,14 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
         }
 
         // 使用智能匹配返回的学生UUID，如果没有则使用原始记录中的student_id
-        const finalStudentId = studentRecord ? studentRecord.id : record.student_id;
+        const finalStudentId = studentRecord
+          ? studentRecord.id
+          : record.student_id;
 
         // 准备数据 - 使用已映射的字段数据和正确的学生UUID
         const gradeData = {
           exam_id: examId,
-          student_id: finalStudentId,  // 使用匹配到的学生UUID
+          student_id: finalStudentId, // 使用匹配到的学生UUID
           name: record.name,
           class_name: record.class_name,
           subject: record.subject,
@@ -888,12 +890,14 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
         }
 
         // 使用智能匹配返回的学生UUID，如果没有则使用原始记录中的student_id
-        const finalStudentId = studentRecord ? studentRecord.id : record.student_id;
+        const finalStudentId = studentRecord
+          ? studentRecord.id
+          : record.student_id;
 
         // 准备数据 - 使用已映射的字段数据和正确的学生UUID
         const gradeData = {
           exam_id: examId,
-          student_id: finalStudentId,  // 使用匹配到的学生UUID
+          student_id: finalStudentId, // 使用匹配到的学生UUID
           name: record.name,
           class_name: record.class_name,
           subject: record.subject,
@@ -1040,15 +1044,19 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
       }
 
       // 2. 使用智能匹配算法
-      const { intelligentStudentMatcher } = await import("@/services/intelligentStudentMatcher");
-      
-      const fileStudents = [{
-        name: record.name,
-        student_id: record.student_id,
-        class_name: record.class_name,
-      }];
+      const { intelligentStudentMatcher } = await import(
+        "@/services/intelligentStudentMatcher"
+      );
 
-      const systemStudents = existingStudents.map(s => ({
+      const fileStudents = [
+        {
+          name: record.name,
+          student_id: record.student_id,
+          class_name: record.class_name,
+        },
+      ];
+
+      const systemStudents = existingStudents.map((s) => ({
         id: s.id,
         name: s.name,
         student_id: s.student_id,
@@ -1068,7 +1076,9 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
       if (matchResult.exactMatches.length > 0) {
         // 找到三选二精确匹配，使用现有学生
         const match = matchResult.exactMatches[0];
-        console.log(`三选二匹配成功: ${record.name} -> 现有学生 ${match.systemStudent!.name} (${match.matchType})`);
+        console.log(
+          `三选二匹配成功: ${record.name} -> 现有学生 ${match.systemStudent!.name} (${match.matchType})`
+        );
         return match.systemStudent;
       }
 
@@ -1104,10 +1114,9 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
         console.log("新学生记录创建成功:", newStudent);
         return newStudent;
       }
-
     } catch (error) {
       console.error("智能学生匹配失败，回退到简单匹配:", error);
-      
+
       // 回退机制：使用简单的student_id检查
       const { data: existingStudent } = await supabase
         .from("students")

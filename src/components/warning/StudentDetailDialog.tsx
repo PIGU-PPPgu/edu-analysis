@@ -3,7 +3,7 @@
  * 支持查看学生详细信息和编辑重点跟进设置
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -41,23 +41,21 @@ import {
   TrendingUp,
   Loader2,
   Edit,
-} from 'lucide-react';
-import { toast } from 'sonner';
+} from "lucide-react";
+import { toast } from "sonner";
 import {
   getStudentPriorityProfile,
   updatePriorityStudent,
   EnhancedPriorityStudent,
-} from '@/services/priorityStudentService';
-import {
-  getStudentWarningProfile,
-} from '@/services/studentWarningTrackingService';
+} from "@/services/priorityStudentService";
+import { getStudentWarningProfile } from "@/services/studentWarningTrackingService";
 
 interface StudentDetailDialogProps {
   student: EnhancedPriorityStudent | null;
   isOpen: boolean;
   onClose: () => void;
   onUpdate?: () => void;
-  mode?: 'view' | 'edit';
+  mode?: "view" | "edit";
 }
 
 const StudentDetailDialog: React.FC<StudentDetailDialogProps> = ({
@@ -65,37 +63,39 @@ const StudentDetailDialog: React.FC<StudentDetailDialogProps> = ({
   isOpen,
   onClose,
   onUpdate,
-  mode: initialMode = 'view'
+  mode: initialMode = "view",
 }) => {
-  const [mode, setMode] = useState<'view' | 'edit'>(initialMode);
+  const [mode, setMode] = useState<"view" | "edit">(initialMode);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // 详细数据状态
   const [warningProfile, setWarningProfile] = useState<any>(null);
   const [priorityProfile, setPriorityProfile] = useState<any>(null);
-  
+
   // 编辑表单状态
-  const [priorityLevel, setPriorityLevel] = useState<'high' | 'medium' | 'low'>('medium');
-  const [category, setCategory] = useState('');
-  const [notes, setNotes] = useState('');
+  const [priorityLevel, setPriorityLevel] = useState<"high" | "medium" | "low">(
+    "medium"
+  );
+  const [category, setCategory] = useState("");
+  const [notes, setNotes] = useState("");
   const [customTags, setCustomTags] = useState<string[]>([]);
-  const [followUpEndDate, setFollowUpEndDate] = useState('');
+  const [followUpEndDate, setFollowUpEndDate] = useState("");
   const [interventionGoals, setInterventionGoals] = useState<string[]>([]);
-  
+
   // 输入状态
-  const [tagInput, setTagInput] = useState('');
-  const [goalInput, setGoalInput] = useState('');
+  const [tagInput, setTagInput] = useState("");
+  const [goalInput, setGoalInput] = useState("");
 
   // 常用分类选项
   const categoryOptions = [
-    '学业困难',
-    '行为问题', 
-    '心理健康',
-    '家庭问题',
-    '社交问题',
-    '出勤问题',
-    '其他'
+    "学业困难",
+    "行为问题",
+    "心理健康",
+    "家庭问题",
+    "社交问题",
+    "出勤问题",
+    "其他",
   ];
 
   // 加载学生详细数据
@@ -108,19 +108,21 @@ const StudentDetailDialog: React.FC<StudentDetailDialogProps> = ({
 
   const loadStudentDetails = async () => {
     if (!student) return;
-    
+
     setIsLoading(true);
     try {
       const [warningData, priorityData] = await Promise.all([
         getStudentWarningProfile(student.studentId),
-        student.priorityManagementId ? getStudentPriorityProfile(student.studentId) : null
+        student.priorityManagementId
+          ? getStudentPriorityProfile(student.studentId)
+          : null,
       ]);
-      
+
       setWarningProfile(warningData);
       setPriorityProfile(priorityData);
     } catch (error) {
-      console.error('加载学生详情失败:', error);
-      toast.error('加载详情失败');
+      console.error("加载学生详情失败:", error);
+      toast.error("加载详情失败");
     } finally {
       setIsLoading(false);
     }
@@ -128,74 +130,77 @@ const StudentDetailDialog: React.FC<StudentDetailDialogProps> = ({
 
   const initializeFormData = () => {
     if (!student) return;
-    
-    console.log('🔄 [StudentDetailDialog] 初始化表单数据:');
-    console.log('  student.priorityLevel:', student.priorityLevel);
-    console.log('  student.category:', student.category);
-    console.log('  student.notes:', student.notes);
-    console.log('  student.customTags:', student.customTags);
-    console.log('  student.followUpEndDate:', student.followUpEndDate);
-    console.log('  student.interventionGoals:', student.interventionGoals);
-    
+
+    console.log("🔄 [StudentDetailDialog] 初始化表单数据:");
+    console.log("  student.priorityLevel:", student.priorityLevel);
+    console.log("  student.category:", student.category);
+    console.log("  student.notes:", student.notes);
+    console.log("  student.customTags:", student.customTags);
+    console.log("  student.followUpEndDate:", student.followUpEndDate);
+    console.log("  student.interventionGoals:", student.interventionGoals);
+
     setPriorityLevel(student.priorityLevel);
-    setCategory(student.category || '');
-    setNotes(student.notes || '');
+    setCategory(student.category || "");
+    setNotes(student.notes || "");
     setCustomTags(student.customTags || []);
-    setFollowUpEndDate(student.followUpEndDate || '');
+    setFollowUpEndDate(student.followUpEndDate || "");
     // 从学生数据中获取干预目标（如果存在的话）
     setInterventionGoals(student.interventionGoals || []);
-    
-    console.log('✅ [StudentDetailDialog] 表单数据初始化完成');
+
+    console.log("✅ [StudentDetailDialog] 表单数据初始化完成");
   };
 
   // 添加标签
   const handleAddTag = () => {
     if (tagInput.trim() && !customTags.includes(tagInput.trim())) {
       setCustomTags([...customTags, tagInput.trim()]);
-      setTagInput('');
+      setTagInput("");
     }
   };
 
   // 移除标签
   const handleRemoveTag = (tagToRemove: string) => {
-    setCustomTags(customTags.filter(tag => tag !== tagToRemove));
+    setCustomTags(customTags.filter((tag) => tag !== tagToRemove));
   };
 
   // 添加目标
   const handleAddGoal = () => {
     if (goalInput.trim() && !interventionGoals.includes(goalInput.trim())) {
       const newGoals = [...interventionGoals, goalInput.trim()];
-      console.log('➕ [StudentDetailDialog] 添加干预目标:', goalInput.trim());
-      console.log('   更新后的目标列表:', newGoals);
+      console.log("➕ [StudentDetailDialog] 添加干预目标:", goalInput.trim());
+      console.log("   更新后的目标列表:", newGoals);
       setInterventionGoals(newGoals);
-      setGoalInput('');
+      setGoalInput("");
     }
   };
 
   // 移除目标
   const handleRemoveGoal = (goalToRemove: string) => {
-    const newGoals = interventionGoals.filter(goal => goal !== goalToRemove);
-    console.log('➖ [StudentDetailDialog] 移除干预目标:', goalToRemove);
-    console.log('   更新后的目标列表:', newGoals);
+    const newGoals = interventionGoals.filter((goal) => goal !== goalToRemove);
+    console.log("➖ [StudentDetailDialog] 移除干预目标:", goalToRemove);
+    console.log("   更新后的目标列表:", newGoals);
     setInterventionGoals(newGoals);
   };
 
   // 保存编辑
   const handleSave = async () => {
     if (!student?.priorityManagementId) {
-      toast.error('无法编辑，学生不在重点跟进中');
+      toast.error("无法编辑，学生不在重点跟进中");
       return;
     }
 
     // 调试日志：检查表单状态
-    console.log('🔧 [StudentDetailDialog] 开始保存，当前表单状态:');
-    console.log('  priorityLevel:', priorityLevel);
-    console.log('  customTags:', customTags);
-    console.log('  category:', category);
-    console.log('  followUpEndDate:', followUpEndDate);
-    console.log('  interventionGoals:', interventionGoals);
-    console.log('  notes:', notes);
-    console.log('  student.priorityManagementId:', student.priorityManagementId);
+    console.log("🔧 [StudentDetailDialog] 开始保存，当前表单状态:");
+    console.log("  priorityLevel:", priorityLevel);
+    console.log("  customTags:", customTags);
+    console.log("  category:", category);
+    console.log("  followUpEndDate:", followUpEndDate);
+    console.log("  interventionGoals:", interventionGoals);
+    console.log("  notes:", notes);
+    console.log(
+      "  student.priorityManagementId:",
+      student.priorityManagementId
+    );
 
     const updateParams = {
       priorityLevel,
@@ -206,20 +211,23 @@ const StudentDetailDialog: React.FC<StudentDetailDialogProps> = ({
       notes: notes.trim() || undefined,
     };
 
-    console.log('📝 [StudentDetailDialog] 准备传递的更新参数:', updateParams);
+    console.log("📝 [StudentDetailDialog] 准备传递的更新参数:", updateParams);
 
     setIsSaving(true);
     try {
-      const success = await updatePriorityStudent(student.priorityManagementId, updateParams);
+      const success = await updatePriorityStudent(
+        student.priorityManagementId,
+        updateParams
+      );
 
       if (success) {
-        toast.success('保存成功');
-        setMode('view');
+        toast.success("保存成功");
+        setMode("view");
         onUpdate?.();
       }
     } catch (error) {
-      console.error('保存失败:', error);
-      toast.error('保存失败');
+      console.error("保存失败:", error);
+      toast.error("保存失败");
     } finally {
       setIsSaving(false);
     }
@@ -228,32 +236,40 @@ const StudentDetailDialog: React.FC<StudentDetailDialogProps> = ({
   // 获取优先级颜色和文本
   const getPriorityColor = (level: string) => {
     switch (level) {
-      case 'high': return 'bg-red-100 text-red-800 border-red-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'low': return 'bg-blue-100 text-blue-800 border-blue-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case "high":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "medium":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "low":
+        return "bg-blue-100 text-blue-800 border-blue-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
 
   const getPriorityText = (level: string) => {
     switch (level) {
-      case 'high': return '高优先级';
-      case 'medium': return '中优先级';
-      case 'low': return '低优先级';
-      default: return level;
+      case "high":
+        return "高优先级";
+      case "medium":
+        return "中优先级";
+      case "low":
+        return "低优先级";
+      default:
+        return level;
     }
   };
 
   // 获取来源标注
   const getSourceBadge = (sourceType?: string) => {
-    if (sourceType === 'algorithm') {
+    if (sourceType === "algorithm") {
       return (
         <Badge className="bg-purple-100 text-purple-800 border-purple-200">
           <Bot className="h-3 w-3 mr-1" />
           算法推荐
         </Badge>
       );
-    } else if (sourceType === 'manual') {
+    } else if (sourceType === "manual") {
       return (
         <Badge className="bg-green-100 text-green-800 border-green-200">
           <User className="h-3 w-3 mr-1" />
@@ -277,22 +293,18 @@ const StudentDetailDialog: React.FC<StudentDetailDialogProps> = ({
               {getSourceBadge(student.sourceType)}
             </div>
             <div className="flex items-center space-x-2">
-              {mode === 'view' && student.isPriorityActive && (
+              {mode === "view" && student.isPriorityActive && (
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => setMode('edit')}
+                  onClick={() => setMode("edit")}
                   className="border-[#c0ff3f] text-[#c0ff3f] hover:bg-[#c0ff3f] hover:text-black"
                 >
                   <Edit className="h-4 w-4 mr-2" />
                   编辑
                 </Button>
               )}
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={onClose}
-              >
+              <Button size="sm" variant="ghost" onClick={onClose}>
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -324,21 +336,33 @@ const StudentDetailDialog: React.FC<StudentDetailDialogProps> = ({
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
-                      <Label className="text-sm font-medium text-gray-500">姓名</Label>
-                      <p className="text-base font-medium">{student.studentName}</p>
+                      <Label className="text-sm font-medium text-gray-500">
+                        姓名
+                      </Label>
+                      <p className="text-base font-medium">
+                        {student.studentName}
+                      </p>
                     </div>
                     <div>
-                      <Label className="text-sm font-medium text-gray-500">学号</Label>
+                      <Label className="text-sm font-medium text-gray-500">
+                        学号
+                      </Label>
                       <p className="text-base">{student.studentId}</p>
                     </div>
                     <div>
-                      <Label className="text-sm font-medium text-gray-500">班级</Label>
+                      <Label className="text-sm font-medium text-gray-500">
+                        班级
+                      </Label>
                       <p className="text-base">{student.className}</p>
                     </div>
                     <div>
-                      <Label className="text-sm font-medium text-gray-500">当前状态</Label>
+                      <Label className="text-sm font-medium text-gray-500">
+                        当前状态
+                      </Label>
                       <div>
-                        <Badge className={getPriorityColor(student.finalPriority)}>
+                        <Badge
+                          className={getPriorityColor(student.finalPriority)}
+                        >
                           {getPriorityText(student.finalPriority)}
                         </Badge>
                       </div>
@@ -350,22 +374,30 @@ const StudentDetailDialog: React.FC<StudentDetailDialogProps> = ({
                     <div className="text-center p-3 bg-red-50 rounded-lg">
                       <AlertTriangle className="h-6 w-6 text-red-500 mx-auto mb-1" />
                       <p className="text-sm text-gray-600">活跃预警</p>
-                      <p className="text-xl font-bold text-red-600">{student.activeWarningsCount || 0}</p>
+                      <p className="text-xl font-bold text-red-600">
+                        {student.activeWarningsCount || 0}
+                      </p>
                     </div>
                     <div className="text-center p-3 bg-blue-50 rounded-lg">
                       <FileText className="h-6 w-6 text-blue-500 mx-auto mb-1" />
                       <p className="text-sm text-gray-600">总预警数</p>
-                      <p className="text-xl font-bold text-blue-600">{student.totalWarningsCount || 0}</p>
+                      <p className="text-xl font-bold text-blue-600">
+                        {student.totalWarningsCount || 0}
+                      </p>
                     </div>
                     <div className="text-center p-3 bg-green-50 rounded-lg">
                       <MessageSquare className="h-6 w-6 text-green-500 mx-auto mb-1" />
                       <p className="text-sm text-gray-600">干预次数</p>
-                      <p className="text-xl font-bold text-green-600">{student.interventionCount || 0}</p>
+                      <p className="text-xl font-bold text-green-600">
+                        {student.interventionCount || 0}
+                      </p>
                     </div>
                     <div className="text-center p-3 bg-purple-50 rounded-lg">
                       <TrendingUp className="h-6 w-6 text-purple-500 mx-auto mb-1" />
                       <p className="text-sm text-gray-600">风险评分</p>
-                      <p className="text-xl font-bold text-purple-600">{student.effectiveRiskScore || 0}</p>
+                      <p className="text-xl font-bold text-purple-600">
+                        {student.effectiveRiskScore || 0}
+                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -387,23 +419,32 @@ const StudentDetailDialog: React.FC<StudentDetailDialogProps> = ({
                       <div className="grid grid-cols-3 gap-4 text-center">
                         <div>
                           <p className="text-sm text-gray-500">总预警数</p>
-                          <p className="text-2xl font-bold">{warningProfile.totalWarnings || 0}</p>
+                          <p className="text-2xl font-bold">
+                            {warningProfile.totalWarnings || 0}
+                          </p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">活跃预警</p>
-                          <p className="text-2xl font-bold text-red-600">{warningProfile.activeWarnings || 0}</p>
+                          <p className="text-2xl font-bold text-red-600">
+                            {warningProfile.activeWarnings || 0}
+                          </p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">已解决</p>
-                          <p className="text-2xl font-bold text-green-600">{warningProfile.resolvedWarnings || 0}</p>
+                          <p className="text-2xl font-bold text-green-600">
+                            {warningProfile.resolvedWarnings || 0}
+                          </p>
                         </div>
                       </div>
-                      
+
                       {warningProfile.lastWarningDate && (
                         <div className="pt-4 border-t">
                           <div className="flex items-center text-sm text-gray-600">
                             <Clock className="h-4 w-4 mr-2" />
-                            最近预警时间: {new Date(warningProfile.lastWarningDate).toLocaleString('zh-CN')}
+                            最近预警时间:{" "}
+                            {new Date(
+                              warningProfile.lastWarningDate
+                            ).toLocaleString("zh-CN")}
                           </div>
                         </div>
                       )}
@@ -424,14 +465,16 @@ const StudentDetailDialog: React.FC<StudentDetailDialogProps> = ({
                       <Target className="h-5 w-5 mr-2" />
                       跟进管理设置
                     </div>
-                    {mode === 'edit' && (
+                    {mode === "edit" && (
                       <div className="flex items-center space-x-2">
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => {
-                            console.log('🚫 [StudentDetailDialog] 取消编辑，重置表单数据');
-                            setMode('view');
+                            console.log(
+                              "🚫 [StudentDetailDialog] 取消编辑，重置表单数据"
+                            );
+                            setMode("view");
                             initializeFormData();
                           }}
                           disabled={isSaving}
@@ -466,8 +509,13 @@ const StudentDetailDialog: React.FC<StudentDetailDialogProps> = ({
                       {/* 优先级设置 */}
                       <div>
                         <Label className="text-sm font-medium">优先级</Label>
-                        {mode === 'edit' ? (
-                          <Select value={priorityLevel} onValueChange={(value: any) => setPriorityLevel(value)}>
+                        {mode === "edit" ? (
+                          <Select
+                            value={priorityLevel}
+                            onValueChange={(value: any) =>
+                              setPriorityLevel(value)
+                            }
+                          >
                             <SelectTrigger className="mt-1">
                               <SelectValue />
                             </SelectTrigger>
@@ -479,7 +527,11 @@ const StudentDetailDialog: React.FC<StudentDetailDialogProps> = ({
                           </Select>
                         ) : (
                           <div className="mt-1">
-                            <Badge className={getPriorityColor(student.priorityLevel)}>
+                            <Badge
+                              className={getPriorityColor(
+                                student.priorityLevel
+                              )}
+                            >
                               {getPriorityText(student.priorityLevel)}
                             </Badge>
                           </div>
@@ -489,7 +541,7 @@ const StudentDetailDialog: React.FC<StudentDetailDialogProps> = ({
                       {/* 分类 */}
                       <div>
                         <Label className="text-sm font-medium">分类</Label>
-                        {mode === 'edit' ? (
+                        {mode === "edit" ? (
                           <Select value={category} onValueChange={setCategory}>
                             <SelectTrigger className="mt-1">
                               <SelectValue placeholder="选择分类" />
@@ -503,21 +555,25 @@ const StudentDetailDialog: React.FC<StudentDetailDialogProps> = ({
                             </SelectContent>
                           </Select>
                         ) : (
-                          <p className="mt-1">{student.category || '未设置'}</p>
+                          <p className="mt-1">{student.category || "未设置"}</p>
                         )}
                       </div>
 
                       {/* 自定义标签 */}
                       <div>
-                        <Label className="text-sm font-medium">自定义标签</Label>
-                        {mode === 'edit' ? (
+                        <Label className="text-sm font-medium">
+                          自定义标签
+                        </Label>
+                        {mode === "edit" ? (
                           <div className="mt-1 space-y-2">
                             <div className="flex items-center space-x-2">
                               <Input
                                 placeholder="输入标签"
                                 value={tagInput}
                                 onChange={(e) => setTagInput(e.target.value)}
-                                onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
+                                onKeyPress={(e) =>
+                                  e.key === "Enter" && handleAddTag()
+                                }
                               />
                               <Button
                                 type="button"
@@ -552,7 +608,8 @@ const StudentDetailDialog: React.FC<StudentDetailDialogProps> = ({
                           </div>
                         ) : (
                           <div className="mt-1">
-                            {student.customTags && student.customTags.length > 0 ? (
+                            {student.customTags &&
+                            student.customTags.length > 0 ? (
                               <div className="flex flex-wrap gap-2">
                                 {student.customTags.map((tag, index) => (
                                   <Badge key={index} variant="outline">
@@ -570,7 +627,7 @@ const StudentDetailDialog: React.FC<StudentDetailDialogProps> = ({
                       {/* 备注 */}
                       <div>
                         <Label className="text-sm font-medium">备注</Label>
-                        {mode === 'edit' ? (
+                        {mode === "edit" ? (
                           <Textarea
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
@@ -578,21 +635,25 @@ const StudentDetailDialog: React.FC<StudentDetailDialogProps> = ({
                             className="mt-1"
                           />
                         ) : (
-                          <p className="mt-1 text-gray-600">{student.notes || '无备注'}</p>
+                          <p className="mt-1 text-gray-600">
+                            {student.notes || "无备注"}
+                          </p>
                         )}
                       </div>
 
                       {/* 干预目标 */}
                       <div>
                         <Label className="text-sm font-medium">干预目标</Label>
-                        {mode === 'edit' ? (
+                        {mode === "edit" ? (
                           <div className="mt-1 space-y-2">
                             <div className="flex items-center space-x-2">
                               <Input
                                 placeholder="输入干预目标"
                                 value={goalInput}
                                 onChange={(e) => setGoalInput(e.target.value)}
-                                onKeyPress={(e) => e.key === 'Enter' && handleAddGoal()}
+                                onKeyPress={(e) =>
+                                  e.key === "Enter" && handleAddGoal()
+                                }
                               />
                               <Button
                                 type="button"
@@ -626,14 +687,20 @@ const StudentDetailDialog: React.FC<StudentDetailDialogProps> = ({
                           </div>
                         ) : (
                           <div className="mt-1">
-                            {student.interventionGoals && student.interventionGoals.length > 0 ? (
+                            {student.interventionGoals &&
+                            student.interventionGoals.length > 0 ? (
                               <div className="space-y-1">
-                                {student.interventionGoals.map((goal, index) => (
-                                  <div key={index} className="flex items-center text-sm text-gray-600">
-                                    <Target className="h-3 w-3 mr-2 text-[#c0ff3f]" />
-                                    {goal}
-                                  </div>
-                                ))}
+                                {student.interventionGoals.map(
+                                  (goal, index) => (
+                                    <div
+                                      key={index}
+                                      className="flex items-center text-sm text-gray-600"
+                                    >
+                                      <Target className="h-3 w-3 mr-2 text-[#c0ff3f]" />
+                                      {goal}
+                                    </div>
+                                  )
+                                )}
                               </div>
                             ) : (
                               <p className="text-gray-500">未设置干预目标</p>
@@ -645,17 +712,25 @@ const StudentDetailDialog: React.FC<StudentDetailDialogProps> = ({
                       {/* 添加原因 */}
                       {student.reasonDescription && (
                         <div>
-                          <Label className="text-sm font-medium">添加原因</Label>
-                          <p className="mt-1 text-gray-600">{student.reasonDescription}</p>
+                          <Label className="text-sm font-medium">
+                            添加原因
+                          </Label>
+                          <p className="mt-1 text-gray-600">
+                            {student.reasonDescription}
+                          </p>
                         </div>
                       )}
 
                       {/* 添加时间 */}
                       {student.priorityAddedAt && (
                         <div>
-                          <Label className="text-sm font-medium">添加时间</Label>
+                          <Label className="text-sm font-medium">
+                            添加时间
+                          </Label>
                           <p className="mt-1 text-gray-600">
-                            {new Date(student.priorityAddedAt).toLocaleString('zh-CN')}
+                            {new Date(student.priorityAddedAt).toLocaleString(
+                              "zh-CN"
+                            )}
                           </p>
                         </div>
                       )}

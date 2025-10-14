@@ -145,8 +145,6 @@ class RoutePreloader {
       "/correlation-analysis": () =>
         import("../components/analysis/advanced/SubjectCorrelationAnalysis"),
       "/profile": () => import("../pages/ProfilePage"),
-      "/student-portrait-management": () =>
-        import("../pages/StudentPortraitManagement"),
     };
 
     const loader = routeModuleMap[route];

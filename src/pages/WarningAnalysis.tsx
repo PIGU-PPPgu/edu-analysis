@@ -58,9 +58,8 @@ const WarningAnalysis = () => {
   // 移除分析模式状态 统一使用筛选器驱动
 
   const [isLoading, setIsLoading] = useState(false);
-  const [warningStats, setWarningStats] = useState<WarningStatisticsType | null>(
-    null
-  );
+  const [warningStats, setWarningStats] =
+    useState<WarningStatisticsType | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
 
   // 筛选配置状态 - 支持URL参数初始化
@@ -71,7 +70,7 @@ const WarningAnalysis = () => {
       classNames: [], // 新增：班级筛选，初始为空，后续从数据库加载
       examTitles: [], // 新增：具体考试筛选
       mixedAnalysis: true,
-      analysisMode: "student", 
+      analysisMode: "student",
       startDate: undefined,
       endDate: undefined,
       severityLevels: ["high", "medium", "low"],
@@ -114,14 +113,14 @@ const WarningAnalysis = () => {
   // 可用选项数据
   const [availableClassNames, setAvailableClassNames] = useState<string[]>([]);
   const [availableExamTitles, setAvailableExamTitles] = useState<string[]>([]);
-  
+
   // 添加调试信息 - 监控筛选选项状态变化
   React.useEffect(() => {
-    console.log('🎯 筛选选项状态更新:', {
+    console.log("🎯 筛选选项状态更新:", {
       availableClassNames: availableClassNames.length,
       availableExamTitles: availableExamTitles.length,
       classNames: availableClassNames.slice(0, 3),
-      examTitles: availableExamTitles.slice(0, 3)
+      examTitles: availableExamTitles.slice(0, 3),
     });
   }, [availableClassNames, availableExamTitles]);
 
@@ -169,7 +168,12 @@ const WarningAnalysis = () => {
             warningStatus: filterConfig.warningStatus,
           });
 
-          console.log("📊 页面级别 - getWarningStatistics 返回:", rawStats ? "有数据" : "无数据", rawStats?.totalStudents, "学生");
+          console.log(
+            "📊 页面级别 - getWarningStatistics 返回:",
+            rawStats ? "有数据" : "无数据",
+            rawStats?.totalStudents,
+            "学生"
+          );
 
           // 添加上下文信息
           const contextualStats = {
@@ -188,7 +192,11 @@ const WarningAnalysis = () => {
       );
 
       if (isMountedRef.current) {
-        console.log("✅ 页面级别 - 数据加载完成，传递给WarningDashboard:", stats?.totalStudents, "学生");
+        console.log(
+          "✅ 页面级别 - 数据加载完成，传递给WarningDashboard:",
+          stats?.totalStudents,
+          "学生"
+        );
         setWarningStats(stats);
       }
     } catch (error) {
@@ -197,7 +205,7 @@ const WarningAnalysis = () => {
         // 设置null状态，让组件显示无数据状态而不是模拟数据
         setWarningStats(null);
         toast.error("获取预警数据失败", {
-          description: `数据库连接异常: ${error instanceof Error ? error.message : '未知错误'}`,
+          description: `数据库连接异常: ${error instanceof Error ? error.message : "未知错误"}`,
         });
       }
     } finally {
@@ -217,114 +225,148 @@ const WarningAnalysis = () => {
   // 获取筛选选项数据
   const fetchAvailableOptions = async () => {
     try {
-      console.log('🔍 开始获取筛选选项数据...');
-      
+      console.log("🔍 开始获取筛选选项数据...");
+
       // 📚 获取班级列表 - 优先从classes表获取
-      console.log('📚 从classes表获取班级列表...');
+      console.log("📚 从classes表获取班级列表...");
       const { data: classesData, error: classesError } = await supabase
-        .from('classes')
-        .select('name')
-        .order('name');
-      
-      console.log('📚 classes表查询结果:', { 
-        count: classesData?.length, 
+        .from("classes")
+        .select("name")
+        .order("name");
+
+      console.log("📚 classes表查询结果:", {
+        count: classesData?.length,
         error: classesError,
-        sample: classesData?.slice(0, 3)
+        sample: classesData?.slice(0, 3),
       });
-      
+
       let finalClassNames = [];
-      
+
       if (!classesError && classesData && classesData.length > 0) {
-        finalClassNames = [...new Set(classesData.map(item => item.name).filter(Boolean))];
-        console.log('✅ 从classes表获取班级列表:', finalClassNames);
+        finalClassNames = [
+          ...new Set(classesData.map((item) => item.name).filter(Boolean)),
+        ];
+        console.log("✅ 从classes表获取班级列表:", finalClassNames);
       }
-      
+
       // 如果classes表没有数据，尝试从students表的class_name字段获取
       if (finalClassNames.length === 0) {
-        console.log('📚 classes表无数据，尝试从students表获取班级...');
+        console.log("📚 classes表无数据，尝试从students表获取班级...");
         const { data: studentsData, error: studentsError } = await supabase
-          .from('students')
-          .select('class_name')
-          .not('class_name', 'is', null);
-        
-        console.log('📚 students查询结果:', { 
-          count: studentsData?.length, 
+          .from("students")
+          .select("class_name")
+          .not("class_name", "is", null);
+
+        console.log("📚 students查询结果:", {
+          count: studentsData?.length,
           error: studentsError,
-          sample: studentsData?.slice(0, 3)
+          sample: studentsData?.slice(0, 3),
         });
-        
+
         if (!studentsError && studentsData && studentsData.length > 0) {
-          finalClassNames = [...new Set(studentsData.map(item => item.class_name).filter(Boolean))];
-          console.log('✅ 从students表获取班级列表:', finalClassNames);
+          finalClassNames = [
+            ...new Set(
+              studentsData.map((item) => item.class_name).filter(Boolean)
+            ),
+          ];
+          console.log("✅ 从students表获取班级列表:", finalClassNames);
         }
       }
-      
+
       // 设置班级数据
       if (finalClassNames.length > 0) {
         setAvailableClassNames(finalClassNames);
         // 初始化时设置所有班级为选中状态
-        setFilterConfig(prev => ({
+        setFilterConfig((prev) => ({
           ...prev,
-          classNames: finalClassNames
+          classNames: finalClassNames,
         }));
-        console.log('✅ 最终班级列表设置成功:', finalClassNames);
+        console.log("✅ 最终班级列表设置成功:", finalClassNames);
       } else {
-        console.warn('⚠️ 未找到任何班级数据');
+        console.warn("⚠️ 未找到任何班级数据");
         // 设置一个默认的班级列表用于测试
-        const defaultClasses = ['初三7班', '初三14班', '初三4班', '初三1班', '初三10班'];
+        const defaultClasses = [
+          "初三7班",
+          "初三14班",
+          "初三4班",
+          "初三1班",
+          "初三10班",
+        ];
         setAvailableClassNames(defaultClasses);
-        setFilterConfig(prev => ({
+        setFilterConfig((prev) => ({
           ...prev,
-          classNames: defaultClasses
+          classNames: defaultClasses,
         }));
-        console.log('🔧 使用默认班级列表:', defaultClasses);
+        console.log("🔧 使用默认班级列表:", defaultClasses);
       }
 
       // 📊 获取考试列表 - 从grades表获取
-      console.log('📊 从grades表获取考试列表...');
+      console.log("📊 从grades表获取考试列表...");
       const { data: examData, error: examError } = await supabase
-        .from('grades')
-        .select('exam_title')
-        .not('exam_title', 'is', null)
+        .from("grades")
+        .select("exam_title")
+        .not("exam_title", "is", null)
         .limit(1000);
-      
-      console.log('📊 考试数据查询结果:', { 
-        count: examData?.length, 
+
+      console.log("📊 考试数据查询结果:", {
+        count: examData?.length,
         error: examError,
-        sample: examData?.slice(0, 5)
+        sample: examData?.slice(0, 5),
       });
-      
+
       let finalExamTitles = [];
-      
+
       if (!examError && examData && examData.length > 0) {
-        finalExamTitles = [...new Set(examData.map(item => item.exam_title).filter(Boolean))];
-        console.log('✅ 从grades表获取考试列表:', finalExamTitles.slice(0, 5), '等共', finalExamTitles.length, '个');
+        finalExamTitles = [
+          ...new Set(examData.map((item) => item.exam_title).filter(Boolean)),
+        ];
+        console.log(
+          "✅ 从grades表获取考试列表:",
+          finalExamTitles.slice(0, 5),
+          "等共",
+          finalExamTitles.length,
+          "个"
+        );
       } else {
-        console.error('考试数据查询失败:', examError);
+        console.error("考试数据查询失败:", examError);
         // 使用默认考试列表
-        finalExamTitles = ['907九下月考8', '908九下月考9', '909九下期中考试', '910九下期末考试'];
-        console.log('🔧 使用默认考试列表:', finalExamTitles);
-      }
-      
-      setAvailableExamTitles(finalExamTitles);
-      console.log('✅ 最终考试列表设置成功，共', finalExamTitles.length, '个考试');
-      
-      // 向用户显示加载成功信息
-      if (finalClassNames.length > 0 || finalExamTitles.length > 0) {
-        toast.success('筛选选项加载成功', {
-          description: `找到${finalClassNames.length}个班级，${finalExamTitles.length}个考试`
-        });
+        finalExamTitles = [
+          "907九下月考8",
+          "908九下月考9",
+          "909九下期中考试",
+          "910九下期末考试",
+        ];
+        console.log("🔧 使用默认考试列表:", finalExamTitles);
       }
 
+      setAvailableExamTitles(finalExamTitles);
+      console.log(
+        "✅ 最终考试列表设置成功，共",
+        finalExamTitles.length,
+        "个考试"
+      );
+
+      // 向用户显示加载成功信息
+      if (finalClassNames.length > 0 || finalExamTitles.length > 0) {
+        toast.success("筛选选项加载成功", {
+          description: `找到${finalClassNames.length}个班级，${finalExamTitles.length}个考试`,
+        });
+      }
     } catch (error) {
-      console.error('获取筛选选项失败:', error);
-      toast.error('获取筛选选项失败', {
-        description: '无法加载班级和考试数据，请检查数据库连接'
+      console.error("获取筛选选项失败:", error);
+      toast.error("获取筛选选项失败", {
+        description: "无法加载班级和考试数据，请检查数据库连接",
       });
-      
+
       // 即使出错也设置默认选项
-      const defaultClasses = ['初三7班', '初三14班', '初三4班', '初三1班', '初三10班'];
-      const defaultExams = ['907九下月考8', '908九下月考9', '909九下期中考试'];
+      const defaultClasses = [
+        "初三7班",
+        "初三14班",
+        "初三4班",
+        "初三1班",
+        "初三10班",
+      ];
+      const defaultExams = ["907九下月考8", "908九下月考9", "909九下期中考试"];
       setAvailableClassNames(defaultClasses);
       setAvailableExamTitles(defaultExams);
     }

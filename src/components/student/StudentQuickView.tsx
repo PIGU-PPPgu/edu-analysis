@@ -1,14 +1,8 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { 
-  User, 
-  TrendingUp, 
-  TrendingDown, 
-  Minus,
-  Eye
-} from 'lucide-react';
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { User, TrendingUp, TrendingDown, Minus, Eye } from "lucide-react";
 
 interface StudentData {
   id: string;
@@ -16,7 +10,7 @@ interface StudentData {
   class_name?: string;
   averageScore?: number;
   recentScores?: number[];
-  trend?: 'up' | 'down' | 'stable';
+  trend?: "up" | "down" | "stable";
 }
 
 interface StudentQuickViewProps {
@@ -24,12 +18,15 @@ interface StudentQuickViewProps {
   onViewStudent: (studentId: string) => void;
 }
 
-const StudentQuickView: React.FC<StudentQuickViewProps> = ({ students, onViewStudent }) => {
+const StudentQuickView: React.FC<StudentQuickViewProps> = ({
+  students,
+  onViewStudent,
+}) => {
   const getTrendIcon = (trend?: string) => {
     switch (trend) {
-      case 'up':
+      case "up":
         return <TrendingUp className="h-4 w-4 text-green-500" />;
-      case 'down':
+      case "down":
         return <TrendingDown className="h-4 w-4 text-red-500" />;
       default:
         return <Minus className="h-4 w-4 text-gray-500" />;
@@ -38,12 +35,12 @@ const StudentQuickView: React.FC<StudentQuickViewProps> = ({ students, onViewStu
 
   const getTrendColor = (trend?: string) => {
     switch (trend) {
-      case 'up':
-        return 'text-green-600 bg-green-50';
-      case 'down':
-        return 'text-red-600 bg-red-50';
+      case "up":
+        return "text-green-600 bg-green-50";
+      case "down":
+        return "text-red-600 bg-red-50";
       default:
-        return 'text-gray-600 bg-gray-50';
+        return "text-gray-600 bg-gray-50";
     }
   };
 
@@ -65,9 +62,11 @@ const StudentQuickView: React.FC<StudentQuickViewProps> = ({ students, onViewStu
           <CardHeader className="pb-3">
             <div className="flex justify-between items-start">
               <div>
-                <CardTitle className="text-lg font-medium">{student.name}</CardTitle>
+                <CardTitle className="text-lg font-medium">
+                  {student.name}
+                </CardTitle>
                 <Badge variant="secondary" className="mt-1">
-                  {student.class_name || '未分班'}
+                  {student.class_name || "未分班"}
                 </Badge>
               </div>
               <div className="flex items-center gap-1">
@@ -80,17 +79,19 @@ const StudentQuickView: React.FC<StudentQuickViewProps> = ({ students, onViewStu
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">平均成绩</span>
                 <span className="font-semibold">
-                  {student.averageScore?.toFixed(1) || '0.0'}
+                  {student.averageScore?.toFixed(1) || "0.0"}
                 </span>
               </div>
-              
+
               {student.recentScores && student.recentScores.length > 0 && (
                 <div>
-                  <span className="text-sm text-gray-600 block mb-1">最近成绩</span>
+                  <span className="text-sm text-gray-600 block mb-1">
+                    最近成绩
+                  </span>
                   <div className="flex gap-1">
                     {student.recentScores.slice(-3).map((score, index) => (
-                      <div 
-                        key={index} 
+                      <div
+                        key={index}
                         className="text-xs px-2 py-1 bg-gray-100 rounded"
                       >
                         {score}
@@ -100,9 +101,9 @@ const StudentQuickView: React.FC<StudentQuickViewProps> = ({ students, onViewStu
                 </div>
               )}
 
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="w-full"
                 onClick={() => onViewStudent(student.id)}
               >

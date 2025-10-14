@@ -31,7 +31,8 @@ const ImportProcessorDataFlowDemo: React.FC = () => {
     total_score: 0, // 会自动计算
   })).map((student) => ({
     ...student,
-    total_score: student.chinese_score + student.math_score + student.english_score,
+    total_score:
+      student.chinese_score + student.math_score + student.english_score,
   }));
 
   const mockExamInfo: ExamInfo = {
@@ -97,10 +98,18 @@ const ImportProcessorDataFlowDemo: React.FC = () => {
               相比原版，新版本提供:
             </p>
             <ul>
-              <li>✓ <strong>全局状态管理</strong> - 可在任意页面查看导入进度</li>
-              <li>✓ <strong>自动持久化</strong> - 刷新页面不丢失进度</li>
-              <li>✓ <strong>断点续传</strong> - 支持中断后恢复</li>
-              <li>✓ <strong>零侵入集成</strong> - 原ImportProcessor完全不变</li>
+              <li>
+                ✓ <strong>全局状态管理</strong> - 可在任意页面查看导入进度
+              </li>
+              <li>
+                ✓ <strong>自动持久化</strong> - 刷新页面不丢失进度
+              </li>
+              <li>
+                ✓ <strong>断点续传</strong> - 支持中断后恢复
+              </li>
+              <li>
+                ✓ <strong>零侵入集成</strong> - 原ImportProcessor完全不变
+              </li>
             </ul>
 
             <h4>集成步骤</h4>
@@ -117,7 +126,7 @@ const ImportProcessorDataFlowDemo: React.FC = () => {
             <div className="bg-gray-50 p-4 rounded">
               <p className="text-xs text-gray-600 mb-2">Before:</p>
               <pre className="text-xs overflow-x-auto">
-{`import { ImportProcessor } from "@/components/...";
+                {`import { ImportProcessor } from "@/components/...";
 
 <ImportProcessor
   validData={data}
@@ -127,9 +136,11 @@ const ImportProcessorDataFlowDemo: React.FC = () => {
 />`}
               </pre>
 
-              <p className="text-xs text-gray-600 mt-4 mb-2">After (只改一个名字):</p>
+              <p className="text-xs text-gray-600 mt-4 mb-2">
+                After (只改一个名字):
+              </p>
               <pre className="text-xs overflow-x-auto">
-{`import { ImportProcessorWithDataFlow } from "@/components/...";
+                {`import { ImportProcessorWithDataFlow } from "@/components/...";
 
 <ImportProcessorWithDataFlow
   validData={data}
@@ -141,7 +152,10 @@ const ImportProcessorDataFlowDemo: React.FC = () => {
             </div>
           </div>
 
-          <Button onClick={() => setShowImporter(!showImporter)} className="w-full">
+          <Button
+            onClick={() => setShowImporter(!showImporter)}
+            className="w-full"
+          >
             {showImporter ? "隐藏导入器" : "显示导入器"}
           </Button>
         </CardContent>

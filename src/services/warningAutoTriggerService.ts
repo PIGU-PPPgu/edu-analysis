@@ -34,38 +34,41 @@ export interface QueueProcessResult {
  */
 export async function processWarningQueue(): Promise<QueueProcessResult | null> {
   try {
-    console.log('开始处理预警触发队列');
-    
-    const { data, error } = await supabase.functions.invoke('warning-queue-processor', {
-      body: { action: 'process' },
-    });
+    console.log("开始处理预警触发队列");
+
+    const { data, error } = await supabase.functions.invoke(
+      "warning-queue-processor",
+      {
+        body: { action: "process" },
+      }
+    );
 
     if (error) {
-      console.error('处理队列失败:', error);
-      toast.error('处理队列失败', {
-        description: error.message || '请稍后重试',
+      console.error("处理队列失败:", error);
+      toast.error("处理队列失败", {
+        description: error.message || "请稍后重试",
       });
       return null;
     }
 
     if (!data.success) {
-      console.error('队列处理失败:', data.error);
-      toast.error('队列处理失败', {
-        description: data.error || '未知错误',
+      console.error("队列处理失败:", data.error);
+      toast.error("队列处理失败", {
+        description: data.error || "未知错误",
       });
       return null;
     }
 
     const result = data.data as QueueProcessResult;
-    
-    toast.success('队列处理完成', {
+
+    toast.success("队列处理完成", {
       description: `处理了 ${result.processedCount} 个任务，${result.failedCount} 个失败，${result.pendingCount} 个待处理`,
     });
 
     return result;
   } catch (error) {
-    console.error('处理预警队列失败:', error);
-    toast.error('处理预警队列失败');
+    console.error("处理预警队列失败:", error);
+    toast.error("处理预警队列失败");
     return null;
   }
 }
@@ -75,23 +78,26 @@ export async function processWarningQueue(): Promise<QueueProcessResult | null> 
  */
 export async function getWarningQueueStatus(): Promise<QueueStatus | null> {
   try {
-    const { data, error } = await supabase.functions.invoke('warning-queue-processor', {
-      body: { action: 'status' },
-    });
+    const { data, error } = await supabase.functions.invoke(
+      "warning-queue-processor",
+      {
+        body: { action: "status" },
+      }
+    );
 
     if (error) {
-      console.error('获取队列状态失败:', error);
+      console.error("获取队列状态失败:", error);
       return null;
     }
 
     if (!data.success) {
-      console.error('获取队列状态失败:', data.error);
+      console.error("获取队列状态失败:", data.error);
       return null;
     }
 
     return data.data as QueueStatus;
   } catch (error) {
-    console.error('获取队列状态失败:', error);
+    console.error("获取队列状态失败:", error);
     return null;
   }
 }
@@ -101,36 +107,39 @@ export async function getWarningQueueStatus(): Promise<QueueStatus | null> {
  */
 export async function cleanupWarningQueue(): Promise<number> {
   try {
-    const { data, error } = await supabase.functions.invoke('warning-queue-processor', {
-      body: { action: 'cleanup' },
-    });
+    const { data, error } = await supabase.functions.invoke(
+      "warning-queue-processor",
+      {
+        body: { action: "cleanup" },
+      }
+    );
 
     if (error) {
-      console.error('清理队列失败:', error);
-      toast.error('清理队列失败');
+      console.error("清理队列失败:", error);
+      toast.error("清理队列失败");
       return 0;
     }
 
     if (!data.success) {
-      console.error('清理队列失败:', data.error);
-      toast.error('清理队列失败', {
+      console.error("清理队列失败:", data.error);
+      toast.error("清理队列失败", {
         description: data.error,
       });
       return 0;
     }
 
     const deletedCount = data.data as number;
-    
+
     if (deletedCount > 0) {
-      toast.success('队列清理完成', {
+      toast.success("队列清理完成", {
         description: `删除了 ${deletedCount} 条过期记录`,
       });
     }
 
     return deletedCount;
   } catch (error) {
-    console.error('清理预警队列失败:', error);
-    toast.error('清理预警队列失败');
+    console.error("清理预警队列失败:", error);
+    toast.error("清理预警队列失败");
     return 0;
   }
 }
@@ -145,35 +154,38 @@ export async function addWarningTriggerTask(
   entityId?: string
 ): Promise<boolean> {
   try {
-    const { data, error } = await supabase.functions.invoke('warning-queue-processor', {
-      body: {
-        action: 'add_task',
-        triggerEvent,
-        triggerData,
-        entityType,
-        entityId,
-      },
-    });
+    const { data, error } = await supabase.functions.invoke(
+      "warning-queue-processor",
+      {
+        body: {
+          action: "add_task",
+          triggerEvent,
+          triggerData,
+          entityType,
+          entityId,
+        },
+      }
+    );
 
     if (error) {
-      console.error('添加触发任务失败:', error);
-      toast.error('添加触发任务失败');
+      console.error("添加触发任务失败:", error);
+      toast.error("添加触发任务失败");
       return false;
     }
 
     if (!data.success) {
-      console.error('添加触发任务失败:', data.error);
-      toast.error('添加触发任务失败', {
+      console.error("添加触发任务失败:", data.error);
+      toast.error("添加触发任务失败", {
         description: data.error,
       });
       return false;
     }
 
-    toast.success('触发任务已添加到队列');
+    toast.success("触发任务已添加到队列");
     return true;
   } catch (error) {
-    console.error('添加触发任务失败:', error);
-    toast.error('添加触发任务失败');
+    console.error("添加触发任务失败:", error);
+    toast.error("添加触发任务失败");
     return false;
   }
 }
@@ -187,14 +199,14 @@ export async function triggerGradeImportWarning(
   examDate: string
 ): Promise<boolean> {
   return addWarningTriggerTask(
-    'grade_import',
+    "grade_import",
     {
       student_id: studentId,
       exam_title: examTitle,
       exam_date: examDate,
       triggered_manually: true,
     },
-    'grade_data',
+    "grade_data",
     studentId
   );
 }
@@ -207,13 +219,13 @@ export async function triggerHomeworkSubmissionWarning(
   homeworkId: string
 ): Promise<boolean> {
   return addWarningTriggerTask(
-    'homework_submission',
+    "homework_submission",
     {
       student_id: studentId,
       homework_id: homeworkId,
       triggered_manually: true,
     },
-    'homework_submission',
+    "homework_submission",
     `${studentId}-${homeworkId}`
   );
 }
@@ -226,13 +238,13 @@ export async function triggerBatchImportWarning(
   importCount: number
 ): Promise<boolean> {
   return addWarningTriggerTask(
-    'batch_grade_import',
+    "batch_grade_import",
     {
       exam_title: examTitle,
       import_count: importCount,
       triggered_manually: true,
     },
-    'batch_operation',
+    "batch_operation",
     examTitle
   );
 }
@@ -245,13 +257,13 @@ export async function triggerRuleChangeWarning(
   ruleName: string
 ): Promise<boolean> {
   return addWarningTriggerTask(
-    'rule_change',
+    "rule_change",
     {
       rule_id: ruleId,
       rule_name: ruleName,
       triggered_manually: true,
     },
-    'warning_rule',
+    "warning_rule",
     ruleId
   );
 }
@@ -263,17 +275,17 @@ export async function monitorQueueStatus(
   onStatusUpdate?: (status: QueueStatus) => void
 ): Promise<() => void> {
   let isMonitoring = true;
-  
+
   const updateStatus = async () => {
     if (!isMonitoring) return;
-    
+
     try {
       const status = await getWarningQueueStatus();
       if (status && onStatusUpdate) {
         onStatusUpdate(status);
       }
     } catch (error) {
-      console.error('监控队列状态失败:', error);
+      console.error("监控队列状态失败:", error);
     }
   };
 
@@ -295,29 +307,29 @@ export async function monitorQueueStatus(
  */
 export async function getQueueRecords(
   limit: number = 20,
-  status?: 'pending' | 'processing' | 'completed' | 'failed'
+  status?: "pending" | "processing" | "completed" | "failed"
 ) {
   try {
     let query = supabase
-      .from('warning_trigger_queue')
-      .select('*')
-      .order('created_at', { ascending: false })
+      .from("warning_trigger_queue")
+      .select("*")
+      .order("created_at", { ascending: false })
       .limit(limit);
 
     if (status) {
-      query = query.eq('status', status);
+      query = query.eq("status", status);
     }
 
     const { data, error } = await query;
 
     if (error) {
-      console.error('获取队列记录失败:', error);
+      console.error("获取队列记录失败:", error);
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error('获取队列记录失败:', error);
+    console.error("获取队列记录失败:", error);
     return [];
   }
 }
@@ -329,40 +341,40 @@ export async function retryFailedQueueTasks(): Promise<boolean> {
   try {
     // 获取失败的任务
     const { data: failedTasks, error: fetchError } = await supabase
-      .from('warning_trigger_queue')
-      .select('*')
-      .eq('status', 'failed')
-      .lt('retry_count', 3); // 只重试少于3次的任务
+      .from("warning_trigger_queue")
+      .select("*")
+      .eq("status", "failed")
+      .lt("retry_count", 3); // 只重试少于3次的任务
 
     if (fetchError) {
-      console.error('获取失败任务失败:', fetchError);
+      console.error("获取失败任务失败:", fetchError);
       return false;
     }
 
     if (!failedTasks || failedTasks.length === 0) {
-      toast.info('没有需要重试的失败任务');
+      toast.info("没有需要重试的失败任务");
       return true;
     }
 
     // 重置失败任务状态
     const { error: updateError } = await supabase
-      .from('warning_trigger_queue')
+      .from("warning_trigger_queue")
       .update({
-        status: 'pending',
+        status: "pending",
         scheduled_at: new Date().toISOString(),
         error_message: null,
       })
-      .eq('status', 'failed')
-      .lt('retry_count', 3);
+      .eq("status", "failed")
+      .lt("retry_count", 3);
 
     if (updateError) {
-      console.error('重置失败任务失败:', updateError);
-      toast.error('重试失败任务失败');
+      console.error("重置失败任务失败:", updateError);
+      toast.error("重试失败任务失败");
       return false;
     }
 
     toast.success(`已重试 ${failedTasks.length} 个失败任务`);
-    
+
     // 触发队列处理
     setTimeout(() => {
       processWarningQueue();
@@ -370,8 +382,8 @@ export async function retryFailedQueueTasks(): Promise<boolean> {
 
     return true;
   } catch (error) {
-    console.error('重试失败任务失败:', error);
-    toast.error('重试失败任务失败');
+    console.error("重试失败任务失败:", error);
+    toast.error("重试失败任务失败");
     return false;
   }
 }

@@ -2,17 +2,20 @@ import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  BarChart3, 
-  AlertCircle, 
-  TrendingUp, 
-  TrendingDown, 
+import {
+  BarChart3,
+  AlertCircle,
+  TrendingUp,
+  TrendingDown,
   AlertTriangle,
   Users,
   Award,
   Target,
   BookOpen,
-  Brain
+  Brain,
+  Layers,
+  Sparkles,
+  ArrowRight,
 } from "lucide-react";
 import StatCard from "./StatCard";
 import { ClassPortraitStats } from "@/lib/api/portrait";
@@ -85,18 +88,29 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">班级平均分</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.averageScore.toFixed(1)}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats.averageScore.toFixed(1)}
+                </p>
               </div>
               <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
                 <Target className="h-6 w-6 text-blue-600" />
               </div>
             </div>
             <div className="mt-2">
-              <Badge className={
-                stats.averageScore >= 90 ? "bg-green-100 text-green-800" :
-                stats.averageScore >= 80 ? "bg-blue-100 text-blue-800" : "bg-yellow-100 text-yellow-800"
-              }>
-                {stats.averageScore >= 90 ? "A等级" : stats.averageScore >= 80 ? "B+等级" : "B等级"}
+              <Badge
+                className={
+                  stats.averageScore >= 90
+                    ? "bg-green-100 text-green-800"
+                    : stats.averageScore >= 80
+                      ? "bg-blue-100 text-blue-800"
+                      : "bg-yellow-100 text-yellow-800"
+                }
+              >
+                {stats.averageScore >= 90
+                  ? "A等级"
+                  : stats.averageScore >= 80
+                    ? "B+等级"
+                    : "B等级"}
               </Badge>
             </div>
           </CardContent>
@@ -107,7 +121,9 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">优秀率</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.excellentRate}%</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats.excellentRate}%
+                </p>
               </div>
               <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center">
                 <Award className="h-6 w-6 text-green-600" />
@@ -115,7 +131,8 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
             </div>
             <div className="mt-2">
               <Badge variant="secondary" className="text-green-700">
-                {Math.round((stats.studentCount * stats.excellentRate) / 100)}人优秀
+                {Math.round((stats.studentCount * stats.excellentRate) / 100)}
+                人优秀
               </Badge>
             </div>
           </CardContent>
@@ -126,21 +143,33 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">学习进度</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.progressRate}%</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats.progressRate}%
+                </p>
               </div>
               <div className="h-12 w-12 bg-purple-100 rounded-full flex items-center justify-center">
-                {stats.progressRate > 75 ? 
-                  <TrendingUp className="h-6 w-6 text-green-600" /> : 
+                {stats.progressRate > 75 ? (
+                  <TrendingUp className="h-6 w-6 text-green-600" />
+                ) : (
                   <TrendingDown className="h-6 w-6 text-red-600" />
-                }
+                )}
               </div>
             </div>
             <div className="mt-2">
-              <Badge className={
-                stats.progressRate > 90 ? "bg-green-100 text-green-800" :
-                stats.progressRate > 75 ? "bg-blue-100 text-blue-800" : "bg-red-100 text-red-800"
-              }>
-                {stats.progressRate > 90 ? "领先" : stats.progressRate > 75 ? "正常" : "滞后"}
+              <Badge
+                className={
+                  stats.progressRate > 90
+                    ? "bg-green-100 text-green-800"
+                    : stats.progressRate > 75
+                      ? "bg-blue-100 text-blue-800"
+                      : "bg-red-100 text-red-800"
+                }
+              >
+                {stats.progressRate > 90
+                  ? "领先"
+                  : stats.progressRate > 75
+                    ? "正常"
+                    : "滞后"}
               </Badge>
             </div>
           </CardContent>
@@ -160,10 +189,15 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
               </div>
             </div>
             <div className="mt-2">
-              <Badge className={
-                (stats.warningStudentCount || 0) === 0 ? "bg-green-100 text-green-800" :
-                (stats.warningStudentCount || 0) < 5 ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800"
-              }>
+              <Badge
+                className={
+                  (stats.warningStudentCount || 0) === 0
+                    ? "bg-green-100 text-green-800"
+                    : (stats.warningStudentCount || 0) < 5
+                      ? "bg-yellow-100 text-yellow-800"
+                      : "bg-red-100 text-red-800"
+                }
+              >
                 {(stats.warningStudentCount || 0) === 0 ? "无预警" : "需关注"}
               </Badge>
             </div>
@@ -182,35 +216,54 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {stats.subjectStats.map((subject, index) => (
-              <div key={index} className="space-y-3 p-4 border rounded-lg bg-gray-50/50">
+              <div
+                key={index}
+                className="space-y-3 p-4 border rounded-lg bg-gray-50/50"
+              >
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full ${
-                      subject.averageScore >= 85 ? 'bg-green-500' :
-                      subject.averageScore >= 75 ? 'bg-blue-500' :
-                      subject.averageScore >= 65 ? 'bg-yellow-500' : 'bg-red-500'
-                    }`}></div>
+                    <div
+                      className={`w-3 h-3 rounded-full ${
+                        subject.averageScore >= 85
+                          ? "bg-green-500"
+                          : subject.averageScore >= 75
+                            ? "bg-blue-500"
+                            : subject.averageScore >= 65
+                              ? "bg-yellow-500"
+                              : "bg-red-500"
+                      }`}
+                    ></div>
                     <span className="font-medium">{subject.name}</span>
                   </div>
                   <div className="text-right">
-                    <div className="text-xl font-bold">{subject.averageScore.toFixed(1)}</div>
+                    <div className="text-xl font-bold">
+                      {subject.averageScore.toFixed(1)}
+                    </div>
                     <div className="text-xs text-gray-500">平均分</div>
                   </div>
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>成绩分布</span>
-                    <span>{((subject.averageScore / 100) * 100).toFixed(1)}%</span>
+                    <span>
+                      {((subject.averageScore / 100) * 100).toFixed(1)}%
+                    </span>
                   </div>
                   <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
                     <div
                       className={`h-3 rounded-full transition-all duration-300 ${
-                        subject.averageScore >= 85 ? 'bg-green-500' :
-                        subject.averageScore >= 75 ? 'bg-blue-500' :
-                        subject.averageScore >= 65 ? 'bg-yellow-500' : 'bg-red-500'
+                        subject.averageScore >= 85
+                          ? "bg-green-500"
+                          : subject.averageScore >= 75
+                            ? "bg-blue-500"
+                            : subject.averageScore >= 65
+                              ? "bg-yellow-500"
+                              : "bg-red-500"
                       }`}
-                      style={{ width: `${(subject.averageScore / 100) * 100}%` }}
+                      style={{
+                        width: `${(subject.averageScore / 100) * 100}%`,
+                      }}
                     ></div>
                   </div>
                 </div>
@@ -218,11 +271,15 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-600">优秀:</span>
-                    <span className="font-medium text-green-600">{subject.excellentCount}人</span>
+                    <span className="font-medium text-green-600">
+                      {subject.excellentCount}人
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">及格:</span>
-                    <span className="font-medium text-blue-600">{subject.passingCount}人</span>
+                    <span className="font-medium text-blue-600">
+                      {subject.passingCount}人
+                    </span>
                   </div>
                 </div>
 
@@ -235,12 +292,13 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
                         <span className="text-green-600">表现优异</span>
                       </>
                     )}
-                    {subject.averageScore >= 75 && subject.averageScore < 85 && (
-                      <>
-                        <TrendingUp className="h-3 w-3 text-blue-500" />
-                        <span className="text-blue-600">表现良好</span>
-                      </>
-                    )}
+                    {subject.averageScore >= 75 &&
+                      subject.averageScore < 85 && (
+                        <>
+                          <TrendingUp className="h-3 w-3 text-blue-500" />
+                          <span className="text-blue-600">表现良好</span>
+                        </>
+                      )}
                     {subject.averageScore < 75 && (
                       <>
                         <Target className="h-3 w-3 text-orange-500" />
@@ -275,9 +333,14 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
                   <span className="font-medium">男生</span>
                 </div>
                 <div className="text-right">
-                  <div className="text-xl font-bold text-blue-600">{stats.gender.male}</div>
+                  <div className="text-xl font-bold text-blue-600">
+                    {stats.gender.male}
+                  </div>
                   <div className="text-xs text-gray-500">
-                    {((stats.gender.male / stats.studentCount) * 100).toFixed(1)}%
+                    {((stats.gender.male / stats.studentCount) * 100).toFixed(
+                      1
+                    )}
+                    %
                   </div>
                 </div>
               </div>
@@ -288,9 +351,14 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
                   <span className="font-medium">女生</span>
                 </div>
                 <div className="text-right">
-                  <div className="text-xl font-bold text-pink-600">{stats.gender.female}</div>
+                  <div className="text-xl font-bold text-pink-600">
+                    {stats.gender.female}
+                  </div>
                   <div className="text-xs text-gray-500">
-                    {((stats.gender.female / stats.studentCount) * 100).toFixed(1)}%
+                    {((stats.gender.female / stats.studentCount) * 100).toFixed(
+                      1
+                    )}
+                    %
                   </div>
                 </div>
               </div>
@@ -302,9 +370,15 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
                     <span className="font-medium">其他</span>
                   </div>
                   <div className="text-right">
-                    <div className="text-xl font-bold text-gray-600">{stats.gender.other}</div>
+                    <div className="text-xl font-bold text-gray-600">
+                      {stats.gender.other}
+                    </div>
                     <div className="text-xs text-gray-500">
-                      {((stats.gender.other / stats.studentCount) * 100).toFixed(1)}%
+                      {(
+                        (stats.gender.other / stats.studentCount) *
+                        100
+                      ).toFixed(1)}
+                      %
                     </div>
                   </div>
                 </div>
@@ -353,12 +427,19 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-medium">学习能力分布</span>
-                  <Badge variant="outline" className="text-xs">基于成绩分析</Badge>
+                  <Badge variant="outline" className="text-xs">
+                    基于成绩分析
+                  </Badge>
                 </div>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-green-600">优秀 (90+)</span>
-                    <span className="font-medium">{Math.round((stats.studentCount * stats.excellentRate) / 100)}人</span>
+                    <span className="font-medium">
+                      {Math.round(
+                        (stats.studentCount * stats.excellentRate) / 100
+                      )}
+                      人
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-blue-600">良好 (80-89)</span>
@@ -375,7 +456,12 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
                   <div className="flex justify-between">
                     <span className="text-red-600">待提升 (&lt;60)</span>
                     <span className="font-medium">
-                      {stats.studentCount - Math.round((stats.studentCount * stats.excellentRate) / 100) - Math.round(stats.studentCount * 0.7)}人
+                      {stats.studentCount -
+                        Math.round(
+                          (stats.studentCount * stats.excellentRate) / 100
+                        ) -
+                        Math.round(stats.studentCount * 0.7)}
+                      人
                     </span>
                   </div>
                 </div>
@@ -402,6 +488,64 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
           </CardContent>
         </Card>
       </div>
+
+      {/* 智能分组建议 */}
+      {stats.studentCount > 10 && (
+        <Card className="border-2 border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50">
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between">
+              <div className="flex-1 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                    <Sparkles className="h-5 w-5 text-indigo-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                      智能分组建议
+                      <Badge className="bg-indigo-100 text-indigo-700">
+                        AI推荐
+                      </Badge>
+                    </h4>
+                    <p className="text-sm text-gray-600">
+                      基于学生画像的智能分组功能
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-2 pl-12">
+                  <div className="flex items-center gap-2 text-sm text-gray-700">
+                    <Layers className="h-4 w-4 text-indigo-600" />
+                    根据学生成绩、学习风格、能力画像自动分组
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-700">
+                    <Users className="h-4 w-4 text-indigo-600" />
+                    优化班级协作，实现分层教学和精准辅导
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-700">
+                    <Brain className="h-4 w-4 text-indigo-600" />
+                    AI分析班级结构，提供最佳分组方案
+                  </div>
+                </div>
+              </div>
+              <Button
+                size="lg"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2"
+                onClick={() => {
+                  // 导航到智能分组标签
+                  const smartGroupTab = document.querySelector(
+                    '[value="smart-group"]'
+                  ) as HTMLElement;
+                  if (smartGroupTab) {
+                    smartGroupTab.click();
+                  }
+                }}
+              >
+                开始分组
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

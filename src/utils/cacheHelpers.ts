@@ -5,7 +5,7 @@
  * ✅ Week 6 Day 9-10: 迁移到CacheManager
  * 保持向后兼容的API，内部使用CacheManager实现
  */
-import { cacheManager, CacheTTL } from '@/services/CacheManager';
+import { cacheManager, CacheTTL } from "@/services/CacheManager";
 
 /**
  * 获取缓存数据或执行获取函数
@@ -91,11 +91,11 @@ export function getCacheStats() {
  * 自动清理过期缓存 - CacheManager内部已实现，这里保留API兼容性
  */
 export function startCacheCleanup(intervalMs: number = 10 * 60 * 1000) {
-  console.log('[cacheHelpers] CacheManager已内置自动清理，无需额外启动');
+  console.log("[cacheHelpers] CacheManager已内置自动清理，无需额外启动");
 }
 
 export function stopCacheCleanup() {
-  console.log('[cacheHelpers] CacheManager的清理无法停止');
+  console.log("[cacheHelpers] CacheManager的清理无法停止");
 }
 
 /**

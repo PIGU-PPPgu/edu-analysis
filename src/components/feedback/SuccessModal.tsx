@@ -133,11 +133,7 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
         )}
 
         {/* 详细信息 */}
-        {details && (
-          <div className="border-t pt-4">
-            {details}
-          </div>
-        )}
+        {details && <div className="border-t pt-4">{details}</div>}
 
         {/* 操作按钮 */}
         <DialogFooter className="flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
@@ -168,10 +164,7 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
               )}
             </>
           ) : (
-            <Button
-              onClick={onClose}
-              className="w-full sm:w-auto"
-            >
+            <Button onClick={onClose} className="w-full sm:w-auto">
               知道了
             </Button>
           )}
@@ -195,7 +188,8 @@ export interface ImportSuccessOptions {
 }
 
 export const ImportSuccessModal: React.FC<
-  Omit<SuccessModalProps, "title" | "statistics" | "actions"> & ImportSuccessOptions
+  Omit<SuccessModalProps, "title" | "statistics" | "actions"> &
+    ImportSuccessOptions
 > = ({
   totalCount,
   successCount,

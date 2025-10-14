@@ -58,7 +58,9 @@ export const MyTaskCenter: React.FC = () => {
           task.state === DataFlowState.IDLE ||
           task.state === DataFlowState.QUEUED
       ),
-      completed: allTasks.filter((task) => task.state === DataFlowState.COMPLETED),
+      completed: allTasks.filter(
+        (task) => task.state === DataFlowState.COMPLETED
+      ),
       failed: allTasks.filter(
         (task) =>
           task.state === DataFlowState.FAILED ||
@@ -72,7 +74,11 @@ export const MyTaskCenter: React.FC = () => {
    * 清理所有已完成任务
    */
   const handleClearCompleted = async () => {
-    if (confirm(`确定要删除所有已完成的任务吗？(${categorizedTasks.completed.length}个)`)) {
+    if (
+      confirm(
+        `确定要删除所有已完成的任务吗？(${categorizedTasks.completed.length}个)`
+      )
+    ) {
       for (const task of categorizedTasks.completed) {
         await deleteTask(task.id);
       }
@@ -83,7 +89,11 @@ export const MyTaskCenter: React.FC = () => {
    * 清理所有失败任务
    */
   const handleClearFailed = async () => {
-    if (confirm(`确定要删除所有失败的任务吗？(${categorizedTasks.failed.length}个)`)) {
+    if (
+      confirm(
+        `确定要删除所有失败的任务吗？(${categorizedTasks.failed.length}个)`
+      )
+    ) {
       for (const task of categorizedTasks.failed) {
         await deleteTask(task.id);
       }
@@ -116,9 +126,7 @@ export const MyTaskCenter: React.FC = () => {
               </Badge>
             )}
             {queuedTasks.length > 0 && (
-              <Badge variant="secondary">
-                {queuedTasks.length} 个等待
-              </Badge>
+              <Badge variant="secondary">{queuedTasks.length} 个等待</Badge>
             )}
           </div>
         </div>
@@ -131,7 +139,10 @@ export const MyTaskCenter: React.FC = () => {
               <Activity className="w-3 h-3" />
               <span>进行中</span>
               {categorizedTasks.active.length > 0 && (
-                <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
+                <Badge
+                  variant="secondary"
+                  className="ml-1 h-4 px-1 text-[10px]"
+                >
                   {categorizedTasks.active.length}
                 </Badge>
               )}
@@ -141,7 +152,10 @@ export const MyTaskCenter: React.FC = () => {
               <Clock className="w-3 h-3" />
               <span>等待中</span>
               {categorizedTasks.queued.length > 0 && (
-                <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
+                <Badge
+                  variant="secondary"
+                  className="ml-1 h-4 px-1 text-[10px]"
+                >
                   {categorizedTasks.queued.length}
                 </Badge>
               )}
@@ -151,7 +165,10 @@ export const MyTaskCenter: React.FC = () => {
               <CheckCircle className="w-3 h-3" />
               <span>已完成</span>
               {categorizedTasks.completed.length > 0 && (
-                <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
+                <Badge
+                  variant="secondary"
+                  className="ml-1 h-4 px-1 text-[10px]"
+                >
                   {categorizedTasks.completed.length}
                 </Badge>
               )}
@@ -161,7 +178,10 @@ export const MyTaskCenter: React.FC = () => {
               <XCircle className="w-3 h-3" />
               <span>失败</span>
               {categorizedTasks.failed.length > 0 && (
-                <Badge variant="destructive" className="ml-1 h-4 px-1 text-[10px]">
+                <Badge
+                  variant="destructive"
+                  className="ml-1 h-4 px-1 text-[10px]"
+                >
                   {categorizedTasks.failed.length}
                 </Badge>
               )}

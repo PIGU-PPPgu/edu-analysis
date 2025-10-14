@@ -2,16 +2,23 @@
  * 优化的数据查询Hook
  * 集成缓存、防抖、批量请求等性能优化策略
  */
-import { useMemo, useCallback, useState, useEffect } from 'react';
-import { useDataCache, cacheUtils } from './useDataCache';
-import { useDebounce } from './useDebounce';
+import { useMemo, useCallback, useState, useEffect } from "react";
+import { useDataCache, cacheUtils } from "./useDataCache";
+import { useDebounce } from "./useDebounce";
 
 // 批量请求管理器
 class BatchRequestManager {
-  private batches = new Map<string, {
-    requests: Array<{ id: string; resolve: (data: any) => void; reject: (error: any) => void }>;
-    timer: NodeJS.Timeout;
-  }>();
+  private batches = new Map<
+    string,
+    {
+      requests: Array<{
+        id: string;
+        resolve: (data: any) => void;
+        reject: (error: any) => void;
+      }>;
+      timer: NodeJS.Timeout;
+    }
+  >();
 
   private batchWindow = 50; // 50ms批量窗口
 
@@ -24,7 +31,10 @@ class BatchRequestManager {
       if (!this.batches.has(batchKey)) {
         this.batches.set(batchKey, {
           requests: [],
-          timer: setTimeout(() => this.executeBatch(batchKey, batchFetcher), this.batchWindow)
+          timer: setTimeout(
+            () => this.executeBatch(batchKey, batchFetcher),
+            this.batchWindow
+          ),
         });
       }
 
@@ -44,7 +54,7 @@ class BatchRequestManager {
     this.batches.delete(batchKey);
 
     try {
-      const ids = requests.map(req => req.id);
+      const ids = requests.map((req) => req.id);
       const results = await batchFetcher(ids);
 
       requests.forEach(({ id, resolve, reject }) => {
@@ -63,41 +73,56 @@ class BatchRequestManager {
 const batchManager = new BatchRequestManager();
 
 // 成绩数据查询Hook
-export function useGradeData(examId?: string, classId?: string, studentId?: string) {
-  const cacheKey = cacheUtils.generateKey('grades', { examId, classId, studentId });
+export function useGradeData(
+  examId?: string,
+  classId?: string,
+  studentId?: string
+) {
+  const cacheKey = cacheUtils.generateKey("grades", {
+    examId,
+    classId,
+    studentId,
+  });
 
   const fetcher = useCallback(async () => {
-    const { fetchGradeData } = await import('@/api/gradeDataAPI');
-    return fetchGradeData(examId, { class: classId }, { page: 1, pageSize: 1000 });
+    const { fetchGradeData } = await import("@/api/gradeDataAPI");
+    return fetchGradeData(
+      examId,
+      { class: classId },
+      { page: 1, pageSize: 1000 }
+    );
   }, [examId, classId, studentId]);
 
   return useDataCache(cacheKey, fetcher, {
     ttl: 10 * 60 * 1000, // 成绩数据缓存10分钟
-    refreshOnWindowFocus: true
+    refreshOnWindowFocus: true,
   });
 }
 
 // 班级数据查询Hook
 export function useClassData(classId?: string) {
-  const cacheKey = cacheUtils.generateKey('class', { classId });
+  const cacheKey = cacheUtils.generateKey("class", { classId });
 
   const fetcher = useCallback(async () => {
     if (!classId) return null;
 
     // 批量获取班级数据
-    return batchManager.add('classes', classId, async (ids) => {
-      const { supabase } = await import('@/integrations/supabase/client');
+    return batchManager.add("classes", classId, async (ids) => {
+      const { supabase } = await import("@/integrations/supabase/client");
       const { data, error } = await supabase
-        .from('class_info')
-        .select('*')
-        .in('class_name', ids);
+        .from("class_info")
+        .select("*")
+        .in("class_name", ids);
 
       if (error) throw error;
 
-      return data.reduce((acc, cls) => {
-        acc[cls.class_name] = cls;
-        return acc;
-      }, {} as Record<string, any>);
+      return data.reduce(
+        (acc, cls) => {
+          acc[cls.class_name] = cls;
+          return acc;
+        },
+        {} as Record<string, any>
+      );
     });
   }, [classId]);
 
@@ -108,24 +133,27 @@ export function useClassData(classId?: string) {
 
 // 学生数据查询Hook
 export function useStudentData(studentId?: string) {
-  const cacheKey = cacheUtils.generateKey('student', { studentId });
+  const cacheKey = cacheUtils.generateKey("student", { studentId });
 
   const fetcher = useCallback(async () => {
     if (!studentId) return null;
 
-    return batchManager.add('students', studentId, async (ids) => {
-      const { supabase } = await import('@/integrations/supabase/client');
+    return batchManager.add("students", studentId, async (ids) => {
+      const { supabase } = await import("@/integrations/supabase/client");
       const { data, error } = await supabase
-        .from('students')
-        .select('*')
-        .in('student_id', ids);
+        .from("students")
+        .select("*")
+        .in("student_id", ids);
 
       if (error) throw error;
 
-      return data.reduce((acc, student) => {
-        acc[student.student_id] = student;
-        return acc;
-      }, {} as Record<string, any>);
+      return data.reduce(
+        (acc, student) => {
+          acc[student.student_id] = student;
+          return acc;
+        },
+        {} as Record<string, any>
+      );
     });
   }, [studentId]);
 
@@ -144,11 +172,7 @@ export function useOptimizedSearch<T>(
     cacheKey?: string;
   } = {}
 ) {
-  const {
-    debounceMs = 300,
-    minLength = 2,
-    cacheKey = 'search'
-  } = options;
+  const { debounceMs = 300, minLength = 2, cacheKey = "search" } = options;
 
   const debouncedTerm = useDebounce(searchTerm, debounceMs);
 
@@ -157,7 +181,9 @@ export function useOptimizedSearch<T>(
   }, [debouncedTerm, minLength]);
 
   const finalCacheKey = useMemo(() => {
-    return shouldSearch ? cacheUtils.generateKey(cacheKey, { term: debouncedTerm }) : '';
+    return shouldSearch
+      ? cacheUtils.generateKey(cacheKey, { term: debouncedTerm })
+      : "";
   }, [cacheKey, debouncedTerm, shouldSearch]);
 
   const searchFetcher = useCallback(async () => {
@@ -167,39 +193,48 @@ export function useOptimizedSearch<T>(
 
   const result = useDataCache(finalCacheKey, searchFetcher, {
     ttl: 5 * 60 * 1000, // 搜索结果缓存5分钟
-    refreshOnWindowFocus: false
+    refreshOnWindowFocus: false,
   });
 
   return {
     ...result,
     searchTerm: debouncedTerm,
     isSearching: shouldSearch && result.isLoading,
-    isEmpty: shouldSearch && !result.isLoading && (!result.data || result.data.length === 0)
+    isEmpty:
+      shouldSearch &&
+      !result.isLoading &&
+      (!result.data || result.data.length === 0),
   };
 }
 
 // 分页数据查询Hook
 export function usePaginatedData<T>(
-  fetcher: (page: number, pageSize: number) => Promise<{ data: T[]; total: number }>,
+  fetcher: (
+    page: number,
+    pageSize: number
+  ) => Promise<{ data: T[]; total: number }>,
   options: {
     pageSize?: number;
     cacheKey?: string;
     preloadPages?: number;
   } = {}
 ) {
-  const {
-    pageSize = 20,
-    cacheKey = 'paginated',
-    preloadPages = 1
-  } = options;
+  const { pageSize = 20, cacheKey = "paginated", preloadPages = 1 } = options;
 
   const [currentPage, setCurrentPage] = useState(1);
 
   // 当前页数据
-  const currentCacheKey = cacheUtils.generateKey(cacheKey, { page: currentPage, pageSize });
-  const currentData = useDataCache(currentCacheKey, () => fetcher(currentPage, pageSize), {
-    ttl: 5 * 60 * 1000
+  const currentCacheKey = cacheUtils.generateKey(cacheKey, {
+    page: currentPage,
+    pageSize,
   });
+  const currentData = useDataCache(
+    currentCacheKey,
+    () => fetcher(currentPage, pageSize),
+    {
+      ttl: 5 * 60 * 1000,
+    }
+  );
 
   // 预加载相邻页面
   useEffect(() => {
@@ -209,17 +244,23 @@ export function usePaginatedData<T>(
 
       // 预加载下一页
       if (currentPage < totalPages && preloadPages > 0) {
-        for (let i = 1; i <= preloadPages && currentPage + i <= totalPages; i++) {
+        for (
+          let i = 1;
+          i <= preloadPages && currentPage + i <= totalPages;
+          i++
+        ) {
           const nextPageKey = cacheUtils.generateKey(cacheKey, {
             page: currentPage + i,
-            pageSize
+            pageSize,
           });
 
           preloadPromises.push(
-            cacheUtils.prefetchAll([{
-              key: nextPageKey,
-              fetcher: () => fetcher(currentPage + i, pageSize)
-            }])
+            cacheUtils.prefetchAll([
+              {
+                key: nextPageKey,
+                fetcher: () => fetcher(currentPage + i, pageSize),
+              },
+            ])
           );
         }
       }
@@ -229,21 +270,31 @@ export function usePaginatedData<T>(
         for (let i = 1; i <= preloadPages && currentPage - i >= 1; i++) {
           const prevPageKey = cacheUtils.generateKey(cacheKey, {
             page: currentPage - i,
-            pageSize
+            pageSize,
           });
 
           preloadPromises.push(
-            cacheUtils.prefetchAll([{
-              key: prevPageKey,
-              fetcher: () => fetcher(currentPage - i, pageSize)
-            }])
+            cacheUtils.prefetchAll([
+              {
+                key: prevPageKey,
+                fetcher: () => fetcher(currentPage - i, pageSize),
+              },
+            ])
           );
         }
       }
 
       Promise.allSettled(preloadPromises);
     }
-  }, [currentData.data, currentData.isLoading, currentPage, pageSize, preloadPages, cacheKey, fetcher]);
+  }, [
+    currentData.data,
+    currentData.isLoading,
+    currentPage,
+    pageSize,
+    preloadPages,
+    cacheKey,
+    fetcher,
+  ]);
 
   const goToPage = useCallback((page: number) => {
     setCurrentPage(page);
@@ -264,7 +315,7 @@ export function usePaginatedData<T>(
     goToPage,
     refresh: currentData.refresh,
     hasNextPage: currentPage < totalPages,
-    hasPrevPage: currentPage > 1
+    hasPrevPage: currentPage > 1,
   };
 }
 
@@ -281,23 +332,25 @@ export function useRealtimeSync(
 
   useEffect(() => {
     const setupRealtimeSync = async () => {
-      const { supabase } = await import('@/integrations/supabase/client');
+      const { supabase } = await import("@/integrations/supabase/client");
 
-      let subscription = supabase
-        .channel(`${tableName}_changes`)
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
+      let subscription = supabase.channel(`${tableName}_changes`).on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
           table: tableName,
-          filter
-        }, (payload) => {
+          filter,
+        },
+        (payload) => {
           // 清除相关缓存
           if (cacheKeyPattern) {
             cacheUtils.clearByPattern(cacheKeyPattern);
           }
 
           onUpdate(payload);
-        });
+        }
+      );
 
       subscription.subscribe();
 
@@ -307,7 +360,7 @@ export function useRealtimeSync(
     };
 
     const cleanup = setupRealtimeSync();
-    return () => cleanup.then(fn => fn?.());
+    return () => cleanup.then((fn) => fn?.());
   }, [tableName, filter, cacheKeyPattern, onUpdate]);
 }
 
@@ -321,8 +374,8 @@ export function useCacheWarming(
 ) {
   useEffect(() => {
     const warmCache = async () => {
-      const validConfigs = preloadConfig.filter(config =>
-        !config.condition || config.condition()
+      const validConfigs = preloadConfig.filter(
+        (config) => !config.condition || config.condition()
       );
 
       await cacheUtils.prefetchAll(validConfigs);

@@ -10,7 +10,10 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import { securityMiddleware, type SecurityMiddlewareOptions } from "@/middleware/securityMiddleware";
+import {
+  securityMiddleware,
+  type SecurityMiddlewareOptions,
+} from "@/middleware/securityMiddleware";
 import { dataProtectionService } from "@/services/security/dataProtectionService";
 import { logError, logInfo, logWarn } from "@/utils/logger";
 import { SecurityUtils } from "@/utils/securityUtils";
@@ -55,15 +58,18 @@ export interface RequestContext {
 export class SecureApiClient {
   private baseUrl: string;
   private defaultHeaders: Record<string, string>;
-  private requestCache = new Map<string, { response: ApiResponse; expires: number }>();
+  private requestCache = new Map<
+    string,
+    { response: ApiResponse; expires: number }
+  >();
   private pendingRequests = new Map<string, Promise<ApiResponse>>();
 
-  constructor(baseUrl: string = '') {
+  constructor(baseUrl: string = "") {
     this.baseUrl = baseUrl;
     this.defaultHeaders = {
-      'Content-Type': 'application/json',
-      'X-Client-Version': '1.0.0',
-      'X-Request-Source': 'web-app',
+      "Content-Type": "application/json",
+      "X-Client-Version": "1.0.0",
+      "X-Request-Source": "web-app",
     };
   }
 
@@ -75,7 +81,7 @@ export class SecureApiClient {
     options: SecureApiOptions = {},
     params?: Record<string, any>
   ): Promise<ApiResponse<T>> {
-    return this.request<T>('GET', endpoint, options, { params });
+    return this.request<T>("GET", endpoint, options, { params });
   }
 
   /**
@@ -86,7 +92,7 @@ export class SecureApiClient {
     data?: any,
     options: SecureApiOptions = {}
   ): Promise<ApiResponse<T>> {
-    return this.request<T>('POST', endpoint, options, { data });
+    return this.request<T>("POST", endpoint, options, { data });
   }
 
   /**
@@ -97,7 +103,7 @@ export class SecureApiClient {
     data?: any,
     options: SecureApiOptions = {}
   ): Promise<ApiResponse<T>> {
-    return this.request<T>('PUT', endpoint, options, { data });
+    return this.request<T>("PUT", endpoint, options, { data });
   }
 
   /**
@@ -107,7 +113,7 @@ export class SecureApiClient {
     endpoint: string,
     options: SecureApiOptions = {}
   ): Promise<ApiResponse<T>> {
-    return this.request<T>('DELETE', endpoint, options);
+    return this.request<T>("DELETE", endpoint, options);
   }
 
   /**
@@ -118,7 +124,7 @@ export class SecureApiClient {
     data?: any,
     options: SecureApiOptions = {}
   ): Promise<ApiResponse<T>> {
-    return this.request<T>('PATCH', endpoint, options, { data });
+    return this.request<T>("PATCH", endpoint, options, { data });
   }
 
   /**
@@ -135,10 +141,15 @@ export class SecureApiClient {
 
     try {
       // 1. 构建请求上下文
-      const context = await this.buildRequestContext(method, endpoint, requestData, requestId);
-      
+      const context = await this.buildRequestContext(
+        method,
+        endpoint,
+        requestData,
+        requestId
+      );
+
       // 2. 检查缓存
-      if (method === 'GET') {
+      if (method === "GET") {
         const cached = this.getFromCache(context.url);
         if (cached) {
           logInfo("返回缓存响应", { endpoint, requestId });
@@ -159,9 +170,9 @@ export class SecureApiClient {
 
       try {
         const response = await requestPromise;
-        
+
         // 5. 缓存GET请求的成功响应
-        if (method === 'GET' && response.success) {
+        if (method === "GET" && response.success) {
           this.cacheResponse(context.url, response, 5 * 60 * 1000); // 5分钟缓存
         }
 
@@ -174,7 +185,6 @@ export class SecureApiClient {
       } finally {
         this.pendingRequests.delete(requestKey);
       }
-
     } catch (error) {
       logError("API请求失败", { method, endpoint, error, requestId });
       return {
@@ -195,18 +205,20 @@ export class SecureApiClient {
     requestId?: string
   ): Promise<RequestContext> {
     // 获取当前用户token
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     const token = session?.access_token;
 
     // 构建headers
     const headers = {
       ...this.defaultHeaders,
-      'X-Request-ID': requestId || SecurityUtils.generateSecureToken(16),
-      'X-Timestamp': Date.now().toString(),
+      "X-Request-ID": requestId || SecurityUtils.generateSecureToken(16),
+      "X-Timestamp": Date.now().toString(),
     };
 
     if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+      headers["Authorization"] = `Bearer ${token}`;
     }
 
     // 构建URL
@@ -254,9 +266,12 @@ export class SecureApiClient {
     let body = context.body;
     if (options.encryptRequest && body) {
       try {
-        const encryptedBody = dataProtectionService.encryptData(JSON.stringify(body), 'strong');
+        const encryptedBody = dataProtectionService.encryptData(
+          JSON.stringify(body),
+          "strong"
+        );
         body = { encrypted: encryptedBody };
-        context.headers['Content-Encoding'] = 'encrypted';
+        context.headers["Content-Encoding"] = "encrypted";
       } catch (error) {
         logError("请求加密失败", { error, requestId: context.requestId });
         return {
@@ -285,17 +300,16 @@ export class SecureApiClient {
 
       // 4. 处理响应
       return await this.processResponse<T>(response, options, context);
-
     } catch (error) {
       // 5. 重试机制
       if (options.retryOnFailure && this.shouldRetry(error)) {
         const maxRetries = options.maxRetries || 3;
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
-          logWarn("重试API请求", { 
-            attempt, 
-            maxRetries, 
+          logWarn("重试API请求", {
+            attempt,
+            maxRetries,
             error: error.message,
-            requestId: context.requestId 
+            requestId: context.requestId,
           });
 
           await this.delay(Math.pow(2, attempt) * 1000); // 指数退避
@@ -328,8 +342,8 @@ export class SecureApiClient {
     options: SecureApiOptions
   ): Promise<{ success: boolean; error?: string }> {
     // 获取token
-    const authHeader = context.headers['Authorization'];
-    const token = authHeader?.replace('Bearer ', '');
+    const authHeader = context.headers["Authorization"];
+    const token = authHeader?.replace("Bearer ", "");
 
     // 构建中间件选项
     const middlewareOptions = {
@@ -386,7 +400,10 @@ export class SecureApiClient {
     // 响应解密
     if (options.encryptResponse && data?.encrypted) {
       try {
-        const decryptedData = dataProtectionService.decryptData(data.encrypted, 'strong');
+        const decryptedData = dataProtectionService.decryptData(
+          data.encrypted,
+          "strong"
+        );
         data = JSON.parse(decryptedData);
       } catch (error) {
         logError("响应解密失败", { error, requestId: context.requestId });
@@ -402,7 +419,9 @@ export class SecureApiClient {
     return {
       success: response.ok,
       data: data,
-      error: !response.ok ? data?.message || `请求失败 (${response.status})` : undefined,
+      error: !response.ok
+        ? data?.message || `请求失败 (${response.status})`
+        : undefined,
       statusCode: response.status,
       requestId: context.requestId,
     };
@@ -433,7 +452,11 @@ export class SecureApiClient {
   /**
    * 记录API调用日志
    */
-  private logApiCall(context: RequestContext, response: ApiResponse, duration: number): void {
+  private logApiCall(
+    context: RequestContext,
+    response: ApiResponse,
+    duration: number
+  ): void {
     logInfo("API调用完成", {
       method: context.method,
       url: context.url,
@@ -449,16 +472,18 @@ export class SecureApiClient {
    */
   private shouldRetry(error: any): boolean {
     // 网络错误或服务器错误可以重试
-    return error.name === 'AbortError' || 
-           error.message?.includes('fetch') ||
-           error.message?.includes('network');
+    return (
+      error.name === "AbortError" ||
+      error.message?.includes("fetch") ||
+      error.message?.includes("network")
+    );
   }
 
   /**
    * 延迟函数
    */
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -466,7 +491,7 @@ export class SecureApiClient {
    */
   private getClientIP(): string {
     // 在实际应用中，这通常由服务器端提供
-    return 'unknown';
+    return "unknown";
   }
 
   /**
@@ -494,7 +519,7 @@ export const secureApiClient = new SecureApiClient();
 // Supabase集成的安全客户端
 export class SupabaseSecureClient extends SecureApiClient {
   constructor() {
-    super(''); // Supabase使用自己的URL
+    super(""); // Supabase使用自己的URL
   }
 
   /**
@@ -513,9 +538,7 @@ export class SupabaseSecureClient extends SecureApiClient {
   ): Promise<ApiResponse<T[]>> {
     try {
       // 构建查询
-      let supabaseQuery = supabase
-        .from(tableName)
-        .select(query.select || '*');
+      let supabaseQuery = supabase.from(tableName).select(query.select || "*");
 
       // 应用过滤器
       if (query.filters) {
@@ -538,13 +561,16 @@ export class SupabaseSecureClient extends SecureApiClient {
         supabaseQuery = supabaseQuery.limit(query.limit);
       }
       if (query.offset) {
-        supabaseQuery = supabaseQuery.range(query.offset, query.offset + (query.limit || 10) - 1);
+        supabaseQuery = supabaseQuery.range(
+          query.offset,
+          query.offset + (query.limit || 10) - 1
+        );
       }
 
       // 执行安全检查
       const requestId = SecurityUtils.generateSecureToken(16);
       const context = {
-        method: 'GET',
+        method: "GET",
         url: `supabase:${tableName}`,
         headers: {},
         timestamp: Date.now(),
@@ -576,7 +602,6 @@ export class SupabaseSecureClient extends SecureApiClient {
         data: data as T[],
         requestId,
       };
-
     } catch (error) {
       return {
         success: false,
@@ -595,20 +620,23 @@ export class SupabaseSecureClient extends SecureApiClient {
   ): Promise<ApiResponse<T[]>> {
     try {
       const requestId = SecurityUtils.generateSecureToken(16);
-      
+
       // 数据验证
       const dataArray = Array.isArray(data) ? data : [data];
       for (const item of dataArray) {
-        if (typeof item === 'object') {
+        if (typeof item === "object") {
           // 清理危险属性
-          const cleaned = SecurityUtils.safeJsonParse(JSON.stringify(item), item);
+          const cleaned = SecurityUtils.safeJsonParse(
+            JSON.stringify(item),
+            item
+          );
           Object.assign(item, cleaned);
         }
       }
 
       // 执行安全检查
       const context = {
-        method: 'POST',
+        method: "POST",
         url: `supabase:${tableName}`,
         headers: {},
         body: data,
@@ -648,7 +676,6 @@ export class SupabaseSecureClient extends SecureApiClient {
         data: result as T[],
         requestId,
       };
-
     } catch (error) {
       return {
         success: false,

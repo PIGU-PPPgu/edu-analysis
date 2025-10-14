@@ -20,6 +20,15 @@ import {
   BarChart3,
   BookOpen,
   Trash2,
+  ChevronDown,
+  ChevronRight,
+  AlertTriangle,
+  Calendar,
+  Maximize2,
+  Minimize2,
+  Clock,
+  X,
+  Star,
 } from "lucide-react";
 import {
   Card,
@@ -28,6 +37,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import {
@@ -43,10 +53,13 @@ import OverviewTab from "@/components/class/OverviewTab";
 import DetailTab from "@/components/class/DetailTab";
 import ComparisonTab from "@/components/class/ComparisonTab";
 import SubjectAnalysisTab from "@/components/class/SubjectAnalysisTab";
+import StudentsTab from "@/components/class/StudentsTab";
+import AnalysisTab from "@/components/class/AnalysisTab";
+import PortraitTab from "@/components/class/PortraitTab";
 // 智能画像功能组件
-import ClassPortraitDashboard from '@/components/class/ClassPortraitDashboard';
-import SmartGroupManager from '@/components/group/SmartGroupManager';
-import GroupPortraitAnalysis from '@/components/group/GroupPortraitAnalysis';
+import ClassPortraitDashboard from "@/components/class/ClassPortraitDashboard";
+import SmartGroupManager from "@/components/group/SmartGroupManager";
+import GroupPortraitAnalysis from "@/components/group/GroupPortraitAnalysis";
 // import ClassReportGenerator from "@/components/analysis/ClassReportGenerator"; // 已删除
 // import AIDataAnalysis from "@/components/analysis/AIDataAnalysis"; // 已删除
 import {
@@ -56,8 +69,11 @@ import {
   deleteClass,
 } from "@/services/classService";
 import { SmartPagination } from "@/components/ui/smart-pagination";
-import { supabase } from '@/integrations/supabase/client';
-import { intelligentPortraitService, type GroupAllocationResult } from '@/services/intelligentPortraitService';
+import { supabase } from "@/integrations/supabase/client";
+import {
+  intelligentPortraitService,
+  type GroupAllocationResult,
+} from "@/services/intelligentPortraitService";
 
 // 定义班级类型
 interface Class {
@@ -75,6 +91,10 @@ interface Class {
   problemSolvingAbility?: number;
   learningAttitude?: number;
   examStability?: number;
+  // 预警和考试信息
+  warningCount?: number; // 处于预警状态的学生数量
+  lastExamTitle?: string; // 最近一次考试名称
+  lastExamDate?: string; // 最近一次考试日期
 }
 
 // 分析数据类型
@@ -112,7 +132,22 @@ const ClassManagement: React.FC = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [sortOption, setSortOption] = useState("name_asc");
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+
+  // 年级折叠状态
+  const [collapsedGrades, setCollapsedGrades] = useState<Set<string>>(
+    new Set()
+  );
+
+  // 最近访问班级（只存储ID）
+  const [recentClassIds, setRecentClassIds] = useState<string[]>([]);
+
+  // 收藏班级
+  const [favoriteClassIds, setFavoriteClassIds] = useState<Set<string>>(
+    new Set()
+  );
 
   // 新增 - 分析数据状态
   const [analysisData, setAnalysisData] = useState<AnalysisData>({
@@ -140,26 +175,30 @@ const ClassManagement: React.FC = () => {
   >(null);
 
   // 智能画像相关状态
-  const [studentsWithScores, setStudentsWithScores] = useState<Array<{
-    student_id: string;
-    name: string;
-    class_name: string;
-    overall_score?: number;
-  }>>([]);
-  const [existingGroups, setExistingGroups] = useState<Array<{
-    id: string;
-    name: string;
-    description?: string;
-    class_name: string;
-    student_ids: string[];
-    group_type: string;
-    allocation_strategy?: string;
-    created_at: string;
-    status: string;
-    group_metrics: any;
-    performance_prediction?: number;
-    balance_scores: any;
-  }>>([]);
+  const [studentsWithScores, setStudentsWithScores] = useState<
+    Array<{
+      student_id: string;
+      name: string;
+      class_name: string;
+      overall_score?: number;
+    }>
+  >([]);
+  const [existingGroups, setExistingGroups] = useState<
+    Array<{
+      id: string;
+      name: string;
+      description?: string;
+      class_name: string;
+      student_ids: string[];
+      group_type: string;
+      allocation_strategy?: string;
+      created_at: string;
+      status: string;
+      group_metrics: any;
+      performance_prediction?: number;
+      balance_scores: any;
+    }>
+  >([]);
   const [selectedGroup, setSelectedGroup] = useState<any>(null);
   const [smartPortraitLoading, setSmartPortraitLoading] = useState(false);
   const [smartPortraitDataLoaded, setSmartPortraitDataLoaded] = useState(false);
@@ -171,18 +210,9 @@ const ClassManagement: React.FC = () => {
       const classesData = await getAllClasses();
       setAllFetchedClasses(classesData);
 
-      // 获取详细分析数据
-      try {
-        const detailedData = await getAllClassesAnalysisData();
-        setAnalysisData({
-          boxPlotData: detailedData.boxPlotData || {},
-          trendData: detailedData.trendData || {},
-          competencyData: detailedData.competencyData || {},
-        });
-      } catch (analysisError) {
-        console.error("获取班级分析数据失败:", analysisError);
-        toast.error("部分分析数据加载失败，可能影响图表展示");
-      }
+      // 🚀 性能优化：移除自动加载所有班级的分析数据
+      // 改为在用户选择特定班级和标签页时按需加载
+      // 这大幅减少初始加载时间
 
       // 默认选择第一个班级
       if (classesData.length > 0 && !selectedClass) {
@@ -195,6 +225,98 @@ const ClassManagement: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // 从localStorage加载最近访问班级ID和收藏
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("recentClassIds");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setRecentClassIds(parsed.slice(0, 5)); // 最多5个
+      }
+
+      const favorites = localStorage.getItem("favoriteClasses");
+      if (favorites) {
+        const parsed = JSON.parse(favorites);
+        setFavoriteClassIds(new Set(parsed));
+      }
+    } catch (error) {
+      console.error("加载最近访问班级失败:", error);
+    }
+  }, []);
+
+  // 搜索防抖：延迟300ms更新debouncedSearchTerm
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // 添加班级到最近访问列表（只存储ID）
+  const addToRecentClasses = useCallback((classItem: Class) => {
+    setRecentClassIds((prev) => {
+      // 移除重复项
+      const filtered = prev.filter((id) => id !== classItem.id);
+      // 添加到开头
+      const updated = [classItem.id, ...filtered].slice(0, 5);
+      // 保存到localStorage
+      try {
+        localStorage.setItem("recentClassIds", JSON.stringify(updated));
+      } catch (error) {
+        console.error("保存最近访问班级失败:", error);
+      }
+      return updated;
+    });
+  }, []);
+
+  // 清除最近访问历史
+  const clearRecentClasses = useCallback(() => {
+    setRecentClassIds([]);
+    try {
+      localStorage.removeItem("recentClassIds");
+    } catch (error) {
+      console.error("清除最近访问班级失败:", error);
+    }
+  }, []);
+
+  // 切换班级收藏状态
+  const toggleFavorite = useCallback(
+    (classId: string, e: React.MouseEvent) => {
+      e.stopPropagation(); // 防止触发班级点击事件
+
+      // 先获取班级名称用于toast提示
+      const className =
+        allFetchedClasses.find((c) => c.id === classId)?.name || "该班级";
+
+      setFavoriteClassIds((prev) => {
+        const newSet = new Set(prev);
+        const isAdding = !newSet.has(classId);
+
+        if (newSet.has(classId)) {
+          newSet.delete(classId);
+          toast.success(`已取消收藏 ${className}`);
+        } else {
+          newSet.add(classId);
+          toast.success(`已收藏 ${className}`);
+        }
+
+        // 保存到localStorage
+        try {
+          localStorage.setItem(
+            "favoriteClasses",
+            JSON.stringify(Array.from(newSet))
+          );
+        } catch (error) {
+          console.error("保存收藏失败:", error);
+          toast.error("保存收藏失败，请重试");
+        }
+        return newSet;
+      });
+    },
+    [allFetchedClasses]
+  );
 
   // 获取学科分析数据 - 再次优化版本
   const fetchSubjectAnalysisData = async (
@@ -275,73 +397,78 @@ const ClassManagement: React.FC = () => {
   const loadSmartPortraitData = async () => {
     if (!selectedClass?.name) return;
     if (smartPortraitDataLoaded && studentsWithScores.length > 0) return; // 避免重复加载
-    
+
     setSmartPortraitLoading(true);
     try {
       // 优化：使用JOIN一次性获取学生及其最新成绩
       const { data: studentsWithGrades, error: studentsError } = await supabase
-        .from('students')
-        .select(`
+        .from("students")
+        .select(
+          `
           student_id, 
           name, 
           class_name,
           grade_data_new!inner(total_score, exam_date)
-        `)
-        .eq('class_name', selectedClass.name)
-        .order('grade_data_new(exam_date)', { ascending: false })
+        `
+        )
+        .eq("class_name", selectedClass.name)
+        .order("grade_data_new(exam_date)", { ascending: false })
         .limit(1);
 
       if (studentsError) {
         // 如果JOIN查询失败，回退到简单查询
-        console.warn('JOIN查询失败，使用简单查询:', studentsError);
+        console.warn("JOIN查询失败，使用简单查询:", studentsError);
         const { data: simpleStudentsData, error: simpleError } = await supabase
-          .from('students')
-          .select('student_id, name, class_name')
-          .eq('class_name', selectedClass.name);
-        
+          .from("students")
+          .select("student_id, name, class_name")
+          .eq("class_name", selectedClass.name);
+
         if (simpleError) throw simpleError;
-        
+
         // 简化版：不查询成绩，设置默认值
-        const studentsWithScoresData = (simpleStudentsData || []).map(student => ({
-          ...student,
-          overall_score: 0,
-        }));
-        
+        const studentsWithScoresData = (simpleStudentsData || []).map(
+          (student) => ({
+            ...student,
+            overall_score: 0,
+          })
+        );
+
         setStudentsWithScores(studentsWithScoresData);
       } else {
         // 处理JOIN查询结果
-        const studentsWithScoresData = (studentsWithGrades || []).map((student: any) => ({
-          student_id: student.student_id,
-          name: student.name,
-          class_name: student.class_name,
-          overall_score: student.grade_data_new?.[0]?.total_score || 0,
-        }));
-        
+        const studentsWithScoresData = (studentsWithGrades || []).map(
+          (student: any) => ({
+            student_id: student.student_id,
+            name: student.name,
+            class_name: student.class_name,
+            overall_score: student.grade_data_new?.[0]?.total_score || 0,
+          })
+        );
+
         setStudentsWithScores(studentsWithScoresData);
       }
 
       // 加载现有分组 - 添加错误处理
       try {
         const { data: groupsData, error: groupsError } = await supabase
-          .from('student_groups')
-          .select('*')
-          .eq('class_name', selectedClass.name)
-          .eq('status', 'active');
+          .from("student_groups")
+          .select("*")
+          .eq("class_name", selectedClass.name)
+          .eq("status", "active");
 
         if (groupsError) {
           // 如果表不存在，设置为空数组
-          console.warn('student_groups表查询失败，可能表不存在:', groupsError);
+          console.warn("student_groups表查询失败，可能表不存在:", groupsError);
           setExistingGroups([]);
         } else {
           setExistingGroups(groupsData || []);
         }
       } catch (groupError) {
-        console.warn('加载分组数据失败:', groupError);
+        console.warn("加载分组数据失败:", groupError);
         setExistingGroups([]);
       }
-
     } catch (error) {
-      console.error('加载智能画像数据失败:', error);
+      console.error("加载智能画像数据失败:", error);
       // 设置默认空状态而不是显示错误
       setStudentsWithScores([]);
       setExistingGroups([]);
@@ -356,32 +483,35 @@ const ClassManagement: React.FC = () => {
     try {
       // 保存分组到数据库
       for (const group of groups) {
-        const { error } = await supabase
-          .from('student_groups')
-          .insert({
-            name: group.group_name,
-            description: `AI智能分组 - 预测表现: ${group.predicted_performance}分`,
-            class_name: selectedClass?.name,
-            student_ids: group.members.map(m => m.student_id),
-            group_type: 'ai_generated',
-            allocation_strategy: 'balanced',
-            group_metrics: {
-              member_roles: group.members.reduce((acc, m) => ({...acc, [m.student_id]: m.role}), {}),
-              contribution_scores: group.members.reduce((acc, m) => ({...acc, [m.student_id]: m.contribution_score}), {}),
-            },
-            performance_prediction: group.predicted_performance,
-            balance_scores: group.group_balance,
-          });
+        const { error } = await supabase.from("student_groups").insert({
+          name: group.group_name,
+          description: `AI智能分组 - 预测表现: ${group.predicted_performance}分`,
+          class_name: selectedClass?.name,
+          student_ids: group.members.map((m) => m.student_id),
+          group_type: "ai_generated",
+          allocation_strategy: "balanced",
+          group_metrics: {
+            member_roles: group.members.reduce(
+              (acc, m) => ({ ...acc, [m.student_id]: m.role }),
+              {}
+            ),
+            contribution_scores: group.members.reduce(
+              (acc, m) => ({ ...acc, [m.student_id]: m.contribution_score }),
+              {}
+            ),
+          },
+          performance_prediction: group.predicted_performance,
+          balance_scores: group.group_balance,
+        });
 
         if (error) throw error;
       }
 
       toast.success(`成功创建${groups.length}个智能分组`);
       await loadSmartPortraitData(); // 重新加载数据
-      
     } catch (error) {
-      console.error('保存分组失败:', error);
-      toast.error('保存分组失败');
+      console.error("保存分组失败:", error);
+      toast.error("保存分组失败");
     }
   };
 
@@ -391,40 +521,148 @@ const ClassManagement: React.FC = () => {
       return [];
     }
 
-    const filtered = allFetchedClasses.filter(
+    let filtered = allFetchedClasses.filter(
       (cls) =>
         cls &&
         cls.name &&
         cls.grade &&
-        (cls.name.toLowerCase().includes((searchTerm || "").toLowerCase()) ||
-          cls.grade.toLowerCase().includes((searchTerm || "").toLowerCase()))
+        (cls.name
+          .toLowerCase()
+          .includes((debouncedSearchTerm || "").toLowerCase()) ||
+          cls.grade
+            .toLowerCase()
+            .includes((debouncedSearchTerm || "").toLowerCase()))
     );
 
-    switch (sortOption) {
-      case "name_asc":
-        filtered.sort((a, b) => a.name.localeCompare(b.name));
-        break;
-      case "name_desc":
-        filtered.sort((a, b) => b.name.localeCompare(a.name));
-        break;
-      case "students_asc":
-        filtered.sort((a, b) => (a.studentCount || 0) - (b.studentCount || 0));
-        break;
-      case "students_desc":
-        filtered.sort((a, b) => (b.studentCount || 0) - (a.studentCount || 0));
-        break;
-      case "avg_score_asc":
-        filtered.sort((a, b) => (a.averageScore || 0) - (b.averageScore || 0));
-        break;
-      case "avg_score_desc":
-        filtered.sort((a, b) => (b.averageScore || 0) - (a.averageScore || 0));
-        break;
-      default:
-        break;
+    // 如果启用了"仅显示收藏",进一步过滤
+    if (showFavoritesOnly) {
+      filtered = filtered.filter((cls) => favoriteClassIds.has(cls.id));
     }
 
+    // 不在这里排序，排序将在 groupedByGrade 中按年级组进行
     return filtered;
-  }, [allFetchedClasses, searchTerm, sortOption]);
+  }, [
+    allFetchedClasses,
+    debouncedSearchTerm,
+    sortOption,
+    favoriteClassIds,
+    showFavoritesOnly,
+  ]);
+
+  // 从ID获取最近访问的班级完整数据（保证数据新鲜）
+  const recentClasses = useMemo(() => {
+    if (!allFetchedClasses || recentClassIds.length === 0) return [];
+
+    return recentClassIds
+      .map((id) => allFetchedClasses.find((cls) => cls.id === id))
+      .filter((cls): cls is Class => cls !== undefined);
+  }, [recentClassIds, allFetchedClasses]);
+
+  // 按年级分组班级
+  const groupedByGrade = useMemo(() => {
+    const groups = new Map<string, Class[]>();
+
+    displayedClasses.forEach((cls) => {
+      const grade = cls.grade || "未知年级";
+      if (!groups.has(grade)) {
+        groups.set(grade, []);
+      }
+      groups.get(grade)!.push(cls);
+    });
+
+    // 对每个年级组内的班级进行排序
+    groups.forEach((classes) => {
+      classes.sort((a, b) => {
+        // 首先按收藏状态排序
+        const aFav = favoriteClassIds.has(a.id) ? 1 : 0;
+        const bFav = favoriteClassIds.has(b.id) ? 1 : 0;
+        if (bFav !== aFav) return bFav - aFav;
+
+        // 然后按用户选择的排序选项排序
+        switch (sortOption) {
+          case "name_asc":
+            return a.name.localeCompare(b.name);
+          case "name_desc":
+            return b.name.localeCompare(a.name);
+          case "students_asc":
+            return (a.studentCount || 0) - (b.studentCount || 0);
+          case "students_desc":
+            return (b.studentCount || 0) - (a.studentCount || 0);
+          case "avg_score_asc":
+            return (a.averageScore || 0) - (b.averageScore || 0);
+          case "avg_score_desc":
+            return (b.averageScore || 0) - (a.averageScore || 0);
+          default:
+            return 0;
+        }
+      });
+    });
+
+    // 按年级排序
+    const sortedGroups = Array.from(groups.entries()).sort((a, b) => {
+      const gradeOrder = ["初一", "初二", "初三", "高一", "高二", "高三"];
+      const indexA = gradeOrder.findIndex((g) => a[0].includes(g));
+      const indexB = gradeOrder.findIndex((g) => b[0].includes(g));
+      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+      if (indexA !== -1) return -1;
+      if (indexB !== -1) return 1;
+      return a[0].localeCompare(b[0]);
+    });
+
+    return sortedGroups;
+  }, [displayedClasses, favoriteClassIds, sortOption]);
+
+  // 初始化折叠状态：默认全部折叠
+  useEffect(() => {
+    if (groupedByGrade.length > 0 && collapsedGrades.size === 0) {
+      const allGrades = new Set(groupedByGrade.map(([grade]) => grade));
+      setCollapsedGrades(allGrades);
+    }
+  }, [groupedByGrade]);
+
+  // 搜索时自动展开匹配的年级
+  useEffect(() => {
+    if (debouncedSearchTerm && debouncedSearchTerm.trim() !== "") {
+      // 找出包含匹配班级的年级
+      const gradesWithMatches = new Set<string>();
+      groupedByGrade.forEach(([grade, classes]) => {
+        if (classes.length > 0) {
+          gradesWithMatches.add(grade);
+        }
+      });
+
+      // 只展开包含匹配班级的年级，折叠其他年级
+      const allGrades = new Set(groupedByGrade.map(([grade]) => grade));
+      const gradesToCollapse = new Set(
+        Array.from(allGrades).filter((grade) => !gradesWithMatches.has(grade))
+      );
+      setCollapsedGrades(gradesToCollapse);
+    }
+  }, [debouncedSearchTerm, groupedByGrade]);
+
+  // 切换年级折叠状态
+  const toggleGradeCollapse = (grade: string) => {
+    setCollapsedGrades((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(grade)) {
+        newSet.delete(grade);
+      } else {
+        newSet.add(grade);
+      }
+      return newSet;
+    });
+  };
+
+  // 展开全部年级
+  const expandAllGrades = () => {
+    setCollapsedGrades(new Set());
+  };
+
+  // 折叠全部年级
+  const collapseAllGrades = () => {
+    const allGrades = new Set(groupedByGrade.map(([grade]) => grade));
+    setCollapsedGrades(allGrades);
+  };
 
   // 导航到班级画像页面
   const handleViewClassProfile = (classId: string) => {
@@ -435,6 +673,9 @@ const ClassManagement: React.FC = () => {
   const handleClassClick = (classItem: Class) => {
     setSelectedClass(classItem);
     setSelectedTab("overview");
+
+    // 添加到最近访问
+    addToRecentClasses(classItem);
 
     // 重置智能画像数据状态
     setSmartPortraitDataLoaded(false);
@@ -511,7 +752,38 @@ const ClassManagement: React.FC = () => {
         if (selectedClass?.id === classId) {
           setSelectedClass(null);
         }
+
+        // 从最近访问中移除
+        setRecentClassIds((prev) => {
+          const updated = prev.filter((id) => id !== classId);
+          try {
+            localStorage.setItem("recentClassIds", JSON.stringify(updated));
+          } catch (error) {
+            console.error("更新最近访问失败:", error);
+          }
+          return updated;
+        });
+
+        // 从收藏中移除
+        setFavoriteClassIds((prev) => {
+          if (prev.has(classId)) {
+            const newSet = new Set(prev);
+            newSet.delete(classId);
+            try {
+              localStorage.setItem(
+                "favoriteClasses",
+                JSON.stringify(Array.from(newSet))
+              );
+            } catch (error) {
+              console.error("更新收藏失败:", error);
+            }
+            return newSet;
+          }
+          return prev;
+        });
+
         await fetchClasses(); // 重新获取班级列表
+        toast.success(`班级"${className}"已删除`);
       }
     } catch (error) {
       console.error("删除班级失败:", error);
@@ -547,6 +819,74 @@ const ClassManagement: React.FC = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {/* 最近访问班级 */}
+            {recentClasses.length > 0 && (
+              <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      最近访问
+                    </span>
+                    <Badge variant="secondary" className="text-xs">
+                      {recentClasses.length}
+                    </Badge>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearRecentClasses}
+                    className="h-7 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    清除
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+                  {recentClasses.map((classItem) => (
+                    <Card
+                      key={classItem.id}
+                      className={`cursor-pointer transition-all hover:shadow-md ${
+                        selectedClass?.id === classItem.id
+                          ? "ring-2 ring-[#B9FF66] border-[#B9FF66]"
+                          : "border-gray-200 dark:border-gray-700 hover:border-[#B9FF66]"
+                      }`}
+                      onClick={() => handleClassClick(classItem)}
+                    >
+                      <CardContent className="p-3 space-y-1">
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate mb-1.5">
+                          {classItem.name}
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+                          <span className="flex items-center gap-1">
+                            <Users className="h-3 w-3" />
+                            {classItem.studentCount ?? "N/A"}
+                          </span>
+                          {classItem.averageScore && (
+                            <span className="font-medium text-[#5E9622] dark:text-[#B9FF66]">
+                              {classItem.averageScore.toFixed(1)}
+                            </span>
+                          )}
+                        </div>
+                        {classItem.excellentRate !== undefined && (
+                          <div className="text-xs text-gray-600 dark:text-gray-400">
+                            优秀率: {classItem.excellentRate.toFixed(0)}%
+                          </div>
+                        )}
+                        {classItem.warningCount !== undefined &&
+                          classItem.warningCount > 0 && (
+                            <div className="flex items-center text-xs text-orange-600 dark:text-orange-400">
+                              <AlertTriangle className="h-3 w-3 mr-1" />
+                              {classItem.warningCount}人
+                            </div>
+                          )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center space-x-2 mb-4">
               <div className="relative flex-grow">
                 <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -571,6 +911,45 @@ const ClassManagement: React.FC = () => {
                   <SelectItem value="avg_score_desc">平均分 (高-低)</SelectItem>
                 </SelectContent>
               </Select>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={expandAllGrades}
+                className="dark:bg-gray-700 dark:text-white dark:border-gray-600"
+              >
+                <Maximize2 className="h-4 w-4 mr-2" />
+                展开全部
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={collapseAllGrades}
+                className="dark:bg-gray-700 dark:text-white dark:border-gray-600"
+              >
+                <Minimize2 className="h-4 w-4 mr-2" />
+                折叠全部
+              </Button>
+              <Button
+                variant={showFavoritesOnly ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                className={
+                  showFavoritesOnly
+                    ? "bg-yellow-500 hover:bg-yellow-600 text-white"
+                    : "dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                }
+                disabled={favoriteClassIds.size === 0}
+              >
+                <Star
+                  className={`h-4 w-4 mr-2 ${showFavoritesOnly ? "fill-current" : ""}`}
+                />
+                {showFavoritesOnly ? "显示全部" : "仅收藏"}
+                {favoriteClassIds.size > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {favoriteClassIds.size}
+                  </Badge>
+                )}
+              </Button>
             </div>
 
             {loading ? (
@@ -592,80 +971,197 @@ const ClassManagement: React.FC = () => {
               </div>
             ) : displayedClasses.length === 0 ? (
               <div className="text-center py-10 text-gray-500 dark:text-gray-400">
-                <Users className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
-                <p className="text-lg font-semibold">未找到班级</p>
-                <p className="text-sm">
-                  {searchTerm
-                    ? "没有匹配当前筛选条件的班级。"
-                    : "您还没有创建任何班级，请点击右上角按钮创建。"}
-                </p>
+                {showFavoritesOnly ? (
+                  <>
+                    <Star className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
+                    <p className="text-lg font-semibold">没有收藏的班级</p>
+                    <p className="text-sm">
+                      点击班级卡片右上角的星标图标来收藏常用班级
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Users className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
+                    <p className="text-lg font-semibold">未找到班级</p>
+                    <p className="text-sm">
+                      {searchTerm
+                        ? "没有匹配当前筛选条件的班级。"
+                        : "您还没有创建任何班级，请点击右上角按钮创建。"}
+                    </p>
+                  </>
+                )}
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {displayedClasses.map((classItem, index) => (
-                  <Card
-                    key={classItem.id}
-                    className={`group cursor-pointer transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-xl dark:bg-gray-800 dark:hover:bg-gray-750
-                      ${selectedClass?.id === classItem.id ? "ring-2 ring-[#B9FF66] border-[#B9FF66] shadow-lg" : "border-gray-200 dark:border-gray-700"}
-                      bg-white dark:bg-gray-850 border hover:border-[#B9FF66] rounded-lg overflow-hidden shadow-md
-                    `}
-                    onClick={() => handleClassClick(classItem)}
-                  >
+              <div className="space-y-6">
+                {groupedByGrade.map(([grade, classes]) => {
+                  const isCollapsed = collapsedGrades.has(grade);
+                  const totalStudents = classes.reduce(
+                    (sum, cls) => sum + (cls.studentCount || 0),
+                    0
+                  );
+                  const avgScore =
+                    classes.reduce(
+                      (sum, cls) => sum + (cls.averageScore || 0),
+                      0
+                    ) / classes.length;
+
+                  return (
                     <div
-                      className={`h-1.5 ${selectedClass?.id === classItem.id ? "bg-[#B9FF66]" : "bg-gray-300 dark:bg-gray-600"} group-hover:bg-[#B9FF66] transition-colors duration-300`}
-                    ></div>
-                    <CardHeader className="pb-2 px-4 pt-3">
-                      <CardTitle className="text-lg font-semibold truncate text-gray-800 dark:text-white group-hover:text-[#5E9622] dark:group-hover:text-[#B9FF66] transition-colors duration-300">
-                        {classItem.name}
-                      </CardTitle>
-                      <CardDescription className="text-xs text-gray-500 dark:text-gray-400">
-                        {classItem.grade}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-3 space-y-1.5">
-                      <div className="flex items-center text-xs text-gray-600 dark:text-gray-300">
-                        <Users className="h-3.5 w-3.5 mr-1.5 text-[#B9FF66]" />{" "}
-                        学生: {classItem.studentCount ?? "N/A"}
-                      </div>
-                      <div className="flex items-center text-xs text-gray-600 dark:text-gray-300">
-                        <div className="flex items-center">
-                          平均分: {classItem.averageScore?.toFixed(1) ?? "N/A"}
+                      key={grade}
+                      className="bg-white dark:bg-gray-850 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
+                    >
+                      {/* 年级标题栏 */}
+                      <div
+                        className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-750 cursor-pointer hover:from-blue-100 hover:to-purple-100 dark:hover:from-gray-750 dark:hover:to-gray-700 transition-colors"
+                        onClick={() => toggleGradeCollapse(grade)}
+                      >
+                        <div className="flex items-center space-x-3">
+                          {isCollapsed ? (
+                            <ChevronRight className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                          ) : (
+                            <ChevronDown className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                          )}
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                            {grade}
+                          </h3>
+                          <Badge variant="outline" className="ml-2">
+                            {classes.length} 个班级
+                          </Badge>
+                        </div>
+                        <div className="flex items-center space-x-6 text-sm text-gray-600 dark:text-gray-400">
+                          <div className="flex items-center space-x-1">
+                            <Users className="h-4 w-4" />
+                            <span>{totalStudents} 名学生</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <BarChart3 className="h-4 w-4" />
+                            <span>平均分: {avgScore.toFixed(1)}</span>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center text-xs text-gray-600 dark:text-gray-300">
-                        <div className="flex items-center">
-                          优秀率:{" "}
-                          {classItem.excellentRate !== undefined
-                            ? classItem.excellentRate.toFixed(0) + "%"
-                            : "N/A"}
+
+                      {/* 班级卡片网格 */}
+                      {!isCollapsed && (
+                        <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                          {classes.map((classItem, index) => (
+                            <Card
+                              key={classItem.id}
+                              className={`group cursor-pointer transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-xl dark:bg-gray-800 dark:hover:bg-gray-750
+                                ${selectedClass?.id === classItem.id ? "ring-2 ring-[#B9FF66] border-[#B9FF66] shadow-lg" : "border-gray-200 dark:border-gray-700"}
+                                bg-white dark:bg-gray-850 border hover:border-[#B9FF66] rounded-lg overflow-hidden shadow-md
+                              `}
+                              onClick={() => handleClassClick(classItem)}
+                            >
+                              <div
+                                className={`h-1.5 ${selectedClass?.id === classItem.id ? "bg-[#B9FF66]" : "bg-gray-300 dark:bg-gray-600"} group-hover:bg-[#B9FF66] transition-colors duration-300`}
+                              ></div>
+                              <CardHeader className="pb-2 px-4 pt-3">
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <CardTitle className="text-lg font-semibold truncate text-gray-800 dark:text-white group-hover:text-[#5E9622] dark:group-hover:text-[#B9FF66] transition-colors duration-300">
+                                      {classItem.name}
+                                    </CardTitle>
+                                    <CardDescription className="text-xs text-gray-500 dark:text-gray-400">
+                                      {classItem.grade}
+                                    </CardDescription>
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 hover:bg-transparent"
+                                    onClick={(e) =>
+                                      toggleFavorite(classItem.id, e)
+                                    }
+                                  >
+                                    <Star
+                                      className={`h-5 w-5 transition-colors ${
+                                        favoriteClassIds.has(classItem.id)
+                                          ? "fill-yellow-400 text-yellow-400"
+                                          : "text-gray-300 hover:text-yellow-400"
+                                      }`}
+                                    />
+                                  </Button>
+                                </div>
+                              </CardHeader>
+                              <CardContent className="px-4 pb-3 space-y-1.5">
+                                <div className="flex items-center text-xs text-gray-600 dark:text-gray-300">
+                                  <Users className="h-3.5 w-3.5 mr-1.5 text-[#B9FF66]" />{" "}
+                                  学生: {classItem.studentCount ?? "N/A"}
+                                </div>
+                                <div className="flex items-center text-xs text-gray-600 dark:text-gray-300">
+                                  <div className="flex items-center">
+                                    平均分:{" "}
+                                    {classItem.averageScore?.toFixed(1) ??
+                                      "N/A"}
+                                  </div>
+                                </div>
+                                <div className="flex items-center text-xs text-gray-600 dark:text-gray-300">
+                                  <div className="flex items-center">
+                                    优秀率:{" "}
+                                    {classItem.excellentRate !== undefined
+                                      ? classItem.excellentRate.toFixed(0) + "%"
+                                      : "N/A"}
+                                  </div>
+                                </div>
+                                {/* 预警信息 */}
+                                {classItem.warningCount !== undefined &&
+                                  classItem.warningCount > 0 && (
+                                    <div className="flex items-center text-xs text-orange-600 dark:text-orange-400">
+                                      <AlertTriangle className="h-3.5 w-3.5 mr-1.5" />
+                                      {classItem.warningCount} 人预警
+                                    </div>
+                                  )}
+                                {/* 最近考试 */}
+                                {classItem.lastExamTitle &&
+                                  classItem.lastExamDate && (
+                                    <div className="flex items-center text-xs text-blue-600 dark:text-blue-400">
+                                      <Calendar className="h-3.5 w-3.5 mr-1.5" />
+                                      {classItem.lastExamTitle} (
+                                      {new Date(
+                                        classItem.lastExamDate
+                                      ).toLocaleDateString("zh-CN", {
+                                        month: "numeric",
+                                        day: "numeric",
+                                      })}
+                                      )
+                                    </div>
+                                  )}
+                              </CardContent>
+                              <CardContent className="px-4 py-2 bg-gray-50 dark:bg-gray-800 flex justify-between items-center">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 hover:bg-red-50 dark:hover:bg-gray-700 px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={(e) => {
+                                    handleDeleteClass(
+                                      classItem.id,
+                                      classItem.name,
+                                      e
+                                    );
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-1" /> 删除
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-[#5E9622] hover:text-[#426811] dark:text-[#B9FF66] dark:hover:text-[#A8F055] hover:bg-[#B9FF66]/10 dark:hover:bg-gray-700 px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={(e) => {
+                                    e.stopPropagation(); // 防止触发卡片点击
+                                    handleViewClassProfile(classItem.id);
+                                  }}
+                                >
+                                  <BarChart3 className="h-4 w-4 mr-1" />{" "}
+                                  班级画像
+                                </Button>
+                              </CardContent>
+                            </Card>
+                          ))}
                         </div>
-                      </div>
-                    </CardContent>
-                    <CardContent className="px-4 py-2 bg-gray-50 dark:bg-gray-800 flex justify-between items-center">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 hover:bg-red-50 dark:hover:bg-gray-700 px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => {
-                          handleDeleteClass(classItem.id, classItem.name, e);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 mr-1" /> 删除
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-[#5E9622] hover:text-[#426811] dark:text-[#B9FF66] dark:hover:text-[#A8F055] hover:bg-[#B9FF66]/10 dark:hover:bg-gray-700 px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => {
-                          e.stopPropagation(); // 防止触发卡片点击
-                          handleViewClassProfile(classItem.id);
-                        }}
-                      >
-                        <BarChart3 className="h-4 w-4 mr-1" /> 班级画像
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </CardContent>
@@ -674,208 +1170,104 @@ const ClassManagement: React.FC = () => {
         {selectedClass && (
           <Tabs
             value={selectedTab}
-            onValueChange={setSelectedTab}
+            onValueChange={(value) => {
+              setSelectedTab(value);
+              // 当切换到分组或画像标签时，加载相关数据
+              if (value === "groups" || value === "portrait") {
+                loadSmartPortraitData();
+              }
+            }}
             className="w-full mt-8"
           >
-            <TabsList className="grid w-full grid-cols-5 bg-gray-100 dark:bg-gray-900 p-1 rounded-lg shadow-inner">
+            <TabsList className="grid w-full grid-cols-6 bg-gray-100 dark:bg-gray-900 p-1 rounded-lg shadow-inner">
               <TabsTrigger
                 value="overview"
                 className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-[#5E9622] dark:data-[state=active]:text-[#B9FF66] data-[state=active]:shadow-md rounded-md px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
               >
-                <Users className="mr-2 h-5 w-5" />
-                班级总览
+                <ChartPieIcon className="mr-2 h-4 w-4" />
+                概览
+              </TabsTrigger>
+              <TabsTrigger
+                value="students"
+                className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-[#5E9622] dark:data-[state=active]:text-[#B9FF66] data-[state=active]:shadow-md rounded-md px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+              >
+                <Users className="mr-2 h-4 w-4" />
+                学生
+              </TabsTrigger>
+              <TabsTrigger
+                value="analysis"
+                className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-[#5E9622] dark:data-[state=active]:text-[#B9FF66] data-[state=active]:shadow-md rounded-md px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+              >
+                <FileBarChart className="mr-2 h-4 w-4" />
+                分析
+              </TabsTrigger>
+              <TabsTrigger
+                value="portrait"
+                className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-[#5E9622] dark:data-[state=active]:text-[#B9FF66] data-[state=active]:shadow-md rounded-md px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+              >
+                <Brain className="mr-2 h-4 w-4" />
+                画像
+              </TabsTrigger>
+              <TabsTrigger
+                value="groups"
+                className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-[#5E9622] dark:data-[state=active]:text-[#B9FF66] data-[state=active]:shadow-md rounded-md px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+              >
+                <Users className="mr-2 h-4 w-4" />
+                分组
               </TabsTrigger>
               <TabsTrigger
                 value="comparison"
                 className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-[#5E9622] dark:data-[state=active]:text-[#B9FF66] data-[state=active]:shadow-md rounded-md px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
               >
-                <ChartPieIcon className="mr-2 h-5 w-5" />
-                班级对比
-              </TabsTrigger>
-              <TabsTrigger
-                value="subject-analysis"
-                className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-[#5E9622] dark:data-[state=active]:text-[#B9FF66] data-[state=active]:shadow-md rounded-md px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
-              >
-                <BookOpen className="mr-2 h-5 w-5" />
-                学科分析
-              </TabsTrigger>
-              <TabsTrigger
-                value="details"
-                className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-[#5E9622] dark:data-[state=active]:text-[#B9FF66] data-[state=active]:shadow-md rounded-md px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
-              >
-                <FileBarChart className="mr-2 h-5 w-5" />
-                详细数据
-              </TabsTrigger>
-              <TabsTrigger
-                value="ai-analysis"
-                className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-[#5E9622] dark:data-[state=active]:text-[#B9FF66] data-[state=active]:shadow-md rounded-md px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
-              >
-                <Brain className="mr-2 h-5 w-5" />
-                AI分析
+                <ArrowUpDown className="mr-2 h-4 w-4" />
+                对比
               </TabsTrigger>
             </TabsList>
             <TabsContent value="overview" className="mt-4 p-0">
-              <Card className="bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700">
-                <CardHeader>
-                  <CardTitle className="text-xl font-semibold text-gray-700 dark:text-gray-200">
-                    班级整体情况
-                  </CardTitle>
-                  <CardDescription className="text-sm text-gray-500 dark:text-gray-400">
-                    查看当前选中班级的整体学生构成、作业完成度等信息。
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <OverviewTab selectedClass={selectedClass} />
-                </CardContent>
-              </Card>
+              <OverviewTab selectedClass={selectedClass} />
+            </TabsContent>
+            <TabsContent value="students" className="mt-4 p-0">
+              <StudentsTab
+                classId={selectedClass.id}
+                className={selectedClass.name}
+              />
+            </TabsContent>
+            <TabsContent value="analysis" className="mt-4 p-0">
+              <AnalysisTab
+                selectedClass={selectedClass}
+                analysisData={analysisData}
+                subjectAnalysisData={subjectAnalysisData}
+                loading={loading}
+              />
+            </TabsContent>
+            <TabsContent value="portrait" className="mt-4 p-0">
+              <PortraitTab selectedClass={selectedClass} />
+            </TabsContent>
+            <TabsContent value="groups" className="mt-4 p-0">
+              {smartPortraitLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-[#5E9622]" />
+                  <span className="ml-2 text-gray-600 dark:text-gray-400">
+                    加载学生数据中...
+                  </span>
+                </div>
+              ) : (
+                <SmartGroupManager
+                  students={studentsWithScores || []}
+                  className={selectedClass.name}
+                  onGroupsCreated={handleGroupsCreated}
+                />
+              )}
             </TabsContent>
             <TabsContent value="comparison" className="mt-4 p-0">
-              <Card className="bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700">
-                <CardHeader>
-                  <CardTitle className="text-xl font-semibold text-gray-700 dark:text-gray-200">
-                    班级横向对比
-                  </CardTitle>
-                  <CardDescription className="text-sm text-gray-500 dark:text-gray-400">
-                    将当前选中班级与其他班级在关键指标上进行对比分析。
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ComparisonTab
-                    selectedClass={selectedClass}
-                    allClasses={allFetchedClasses}
-                    boxPlotData={analysisData.boxPlotData}
-                    trendData={analysisData.trendData}
-                    competencyData={analysisData.competencyData}
-                    isLoading={loading}
-                  />
-                </CardContent>
-              </Card>
-            </TabsContent>
-            <TabsContent value="subject-analysis" className="mt-4 p-0">
-              <Card className="bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700">
-                <CardHeader>
-                  <CardTitle className="text-xl font-semibold text-gray-700 dark:text-gray-200">
-                    学科细分分析
-                  </CardTitle>
-                  <CardDescription className="text-sm text-gray-500 dark:text-gray-400">
-                    深入分析班级各学科表现，展示学科成绩、趋势、知识点掌握情况及学科之间的相关性。
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <SubjectAnalysisTab
-                    selectedClass={selectedClass}
-                    data={subjectAnalysisData}
-                    isLoading={subjectAnalysisLoading}
-                    error={subjectAnalysisError}
-                    onRefresh={handleRefreshSubjectData}
-                    onBack={handleBackToOverview}
-                  />
-                </CardContent>
-              </Card>
-            </TabsContent>
-            <TabsContent value="details" className="mt-4 p-0">
-              <Card className="bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700">
-                <CardHeader>
-                  <CardTitle className="text-xl font-semibold text-gray-700 dark:text-gray-200">
-                    班级详细数据洞察
-                  </CardTitle>
-                  <CardDescription className="text-sm text-gray-500 dark:text-gray-400">
-                    深入探索当前班级的学生表现、成绩分布、薄弱环节等多维度数据。
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <DetailTab selectedClass={selectedClass} />
-                </CardContent>
-              </Card>
-            </TabsContent>
-            <TabsContent value="ai-analysis" className="mt-4 p-0">
-              <Card className="bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700">
-                <CardHeader>
-                  <CardTitle className="text-xl font-semibold text-gray-700 dark:text-gray-200">
-                    AI智能画像分析
-                  </CardTitle>
-                  <CardDescription className="text-sm text-gray-500 dark:text-gray-400">
-                    基于学生成绩和作业数据，生成智能画像并提供小组分配建议。
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {selectedClass ? (
-                    smartPortraitLoading ? (
-                      <div className="text-center py-10">
-                        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-                        <p>正在加载智能画像数据...</p>
-                      </div>
-                    ) : !smartPortraitDataLoaded ? (
-                      <div className="text-center py-10">
-                        <Brain className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p className="text-lg font-medium mb-4">准备加载智能画像分析</p>
-                        <Button onClick={loadSmartPortraitData}>
-                          开始分析
-                        </Button>
-                      </div>
-                    ) : (
-                      <Tabs defaultValue="class-portrait">
-                        <TabsList className="grid w-full grid-cols-3">
-                          <TabsTrigger value="class-portrait">班级画像</TabsTrigger>
-                          <TabsTrigger value="smart-grouping">智能分组</TabsTrigger>
-                          <TabsTrigger value="group-analysis">小组分析</TabsTrigger>
-                        </TabsList>
-                        
-                        <TabsContent value="class-portrait" className="space-y-4">
-                          <ClassPortraitDashboard className={selectedClass.name} />
-                        </TabsContent>
-                        
-                        <TabsContent value="smart-grouping" className="space-y-4">
-                          <SmartGroupManager
-                            studentsWithScores={studentsWithScores}
-                            existingGroups={existingGroups}
-                            className={selectedClass.name}
-                            onGroupsCreated={handleGroupsCreated}
-                          />
-                        </TabsContent>
-                        
-                        <TabsContent value="group-analysis" className="space-y-4">
-                          {selectedGroup ? (
-                            <GroupPortraitAnalysis group={selectedGroup} />
-                          ) : existingGroups.length > 0 ? (
-                            <div className="space-y-4">
-                              <div className="text-center">
-                                <p className="text-muted-foreground mb-4">请选择一个小组查看详细分析</p>
-                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                                  {existingGroups.map((group) => (
-                                    <Button
-                                      key={group.id}
-                                      variant="outline"
-                                      className="h-auto p-3 flex flex-col items-center gap-2"
-                                      onClick={() => setSelectedGroup(group)}
-                                    >
-                                      <Users className="h-4 w-4" />
-                                      <span className="text-sm font-medium">{group.name}</span>
-                                      <span className="text-xs text-muted-foreground">{group.student_ids.length}人</span>
-                                    </Button>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-center py-10 text-gray-500">
-                              <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                              <p className="text-lg font-medium">暂无学习小组</p>
-                              <p className="text-sm mt-2">请先在"智能分组"标签页创建学习小组</p>
-                            </div>
-                          )}
-                        </TabsContent>
-                      </Tabs>
-                    )
-                  ) : (
-                    <div className="text-center py-10 text-gray-500 dark:text-gray-400">
-                      <Brain className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p className="text-lg font-medium">请选择班级开始AI分析</p>
-                      <p className="text-sm">从左侧列表选择一个班级，查看智能画像和分组建议</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <ComparisonTab
+                selectedClass={selectedClass}
+                allClasses={allFetchedClasses}
+                boxPlotData={analysisData.boxPlotData}
+                trendData={analysisData.trendData}
+                competencyData={analysisData.competencyData}
+                isLoading={loading}
+              />
             </TabsContent>
           </Tabs>
         )}

@@ -26,9 +26,7 @@ export const Example1_BasicSuccess: React.FC = () => {
         <CardTitle>示例1: 基础成功模态框</CardTitle>
       </CardHeader>
       <CardContent>
-        <Button onClick={() => setOpen(true)}>
-          显示成功消息
-        </Button>
+        <Button onClick={() => setOpen(true)}>显示成功消息</Button>
 
         <SuccessModal
           open={open}
@@ -187,9 +185,7 @@ export const Example5_WithHook: React.FC = () => {
         <CardTitle>示例5: 使用Hook</CardTitle>
       </CardHeader>
       <CardContent>
-        <Button onClick={handleComplexOperation}>
-          执行复杂操作
-        </Button>
+        <Button onClick={handleComplexOperation}>执行复杂操作</Button>
 
         <SuccessModal
           open={successModal.open}

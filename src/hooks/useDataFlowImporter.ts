@@ -12,7 +12,7 @@ import type {
   ImportOptions,
   ImportProgress,
   ExamInfo,
-  ValidationResult
+  ValidationResult,
 } from "@/components/analysis/core/grade-importer/types";
 
 /**
@@ -254,7 +254,9 @@ export const useDataFlowImporter = (): DataFlowImporterHook => {
 
   // 获取当前任务
   const currentTask = taskIdRef.current ? getTask(taskIdRef.current) : null;
-  const currentState = taskIdRef.current ? getTaskState(taskIdRef.current) : undefined;
+  const currentState = taskIdRef.current
+    ? getTaskState(taskIdRef.current)
+    : undefined;
 
   // 计算状态标志
   const isActive = useMemo(() => {
@@ -267,7 +269,10 @@ export const useDataFlowImporter = (): DataFlowImporterHook => {
   }, [currentState]);
 
   const canPause = useMemo(() => {
-    return currentState === DataFlowState.PROCESSING && currentTask?.resumable === true;
+    return (
+      currentState === DataFlowState.PROCESSING &&
+      currentTask?.resumable === true
+    );
   }, [currentState, currentTask]);
 
   const canResume = useMemo(() => {
@@ -296,7 +301,10 @@ export const useDataFlowImporter = (): DataFlowImporterHook => {
       processingRate: currentTask.progress.processingRate,
       estimatedTimeRemaining: currentTask.progress.estimatedTimeRemaining,
       currentBatch: 0, // 可从检查点获取
-      totalBatches: Math.ceil(currentTask.progress.total / (currentTask.context.config?.batchSize || 50)),
+      totalBatches: Math.ceil(
+        currentTask.progress.total /
+          (currentTask.context.config?.batchSize || 50)
+      ),
     };
   }, [currentTask]);
 
@@ -313,7 +321,8 @@ export const useDataFlowImporter = (): DataFlowImporterHook => {
 
     // 只有暂停或失败的任务且有检查点才可恢复
     return (
-      (task.state === DataFlowState.PAUSED || task.state === DataFlowState.FAILED) &&
+      (task.state === DataFlowState.PAUSED ||
+        task.state === DataFlowState.FAILED) &&
       checkpoint.batchIndex > 0 &&
       checkpoint.batchIndex < task.progress.total
     );
@@ -361,7 +370,9 @@ export const useDataFlowImporter = (): DataFlowImporterHook => {
     const startBatch = checkpoint.batchIndex; // 从检查点批次继续
     const skipCount = checkpoint.lastProcessedIndex || 0; // 跳过已处理记录
 
-    console.log(`[DataFlowImporter] 从检查点恢复: 批次=${startBatch}, 跳过=${skipCount}`);
+    console.log(
+      `[DataFlowImporter] 从检查点恢复: 批次=${startBatch}, 跳过=${skipCount}`
+    );
 
     // 更新任务进度为检查点状态
     updateProgress({

@@ -156,7 +156,10 @@ class AnalysisDataAggregator {
   }
 
   // 获取学生风险数据
-  async getStudentRiskData(studentId: string, timeRange: string = "90d"): Promise<any> {
+  async getStudentRiskData(
+    studentId: string,
+    timeRange: string = "90d"
+  ): Promise<any> {
     // 计算时间范围
     const endDate = new Date();
     const startDate = new Date();
@@ -248,14 +251,20 @@ class AnalysisDataAggregator {
         (data || []).forEach((d: any) => {
           const key = d.exam_title;
           if (!examMap.has(key)) {
-            examMap.set(key, { date: d.exam_date, scores: [], label: d.exam_title });
+            examMap.set(key, {
+              date: d.exam_date,
+              scores: [],
+              label: d.exam_title,
+            });
           }
           examMap.get(key).scores.push(d.total_score || 0);
         });
 
         const dataPoints = Array.from(examMap.values()).map((exam: any) => ({
           date: exam.date,
-          value: exam.scores.reduce((a: number, b: number) => a + b, 0) / exam.scores.length,
+          value:
+            exam.scores.reduce((a: number, b: number) => a + b, 0) /
+            exam.scores.length,
           label: exam.label,
         }));
 
@@ -278,11 +287,13 @@ class AnalysisDataAggregator {
           weeklyMap.set(weekKey, (weeklyMap.get(weekKey) || 0) + 1);
         });
 
-        const dataPoints = Array.from(weeklyMap.entries()).map(([week, count]) => ({
-          date: week,
-          value: count,
-          label: week,
-        }));
+        const dataPoints = Array.from(weeklyMap.entries()).map(
+          ([week, count]) => ({
+            date: week,
+            value: count,
+            label: week,
+          })
+        );
 
         return { dataPoints };
       }
@@ -816,7 +827,10 @@ class AIAnalysisProcessor {
 
     // 获取学生数据
     const aggregator = new AnalysisDataAggregator();
-    const studentData = await aggregator.getStudentRiskData(studentId, timeRange);
+    const studentData = await aggregator.getStudentRiskData(
+      studentId,
+      timeRange
+    );
 
     if (!studentData || studentData.grades.length === 0) {
       // 无数据返回默认低风险
@@ -836,12 +850,14 @@ class AIAnalysisProcessor {
           correlations: [],
         },
         recommendations: {
-          immediate: [{
-            action: "导入学生成绩数据",
-            priority: "high",
-            expectedImpact: "建立学生学习档案",
-            timeframe: "立即",
-          }],
+          immediate: [
+            {
+              action: "导入学生成绩数据",
+              priority: "high",
+              expectedImpact: "建立学生学习档案",
+              timeframe: "立即",
+            },
+          ],
           strategic: [],
         },
         metadata: {
@@ -860,8 +876,14 @@ class AIAnalysisProcessor {
     const overallRisk = this.mapRiskScoreToLevel(riskScore);
 
     // 识别关注点
-    const primaryConcerns = this.identifyStudentConcerns(riskFactors, studentData);
-    const improvementAreas = this.identifyStudentImprovements(riskFactors, studentData);
+    const primaryConcerns = this.identifyStudentConcerns(
+      riskFactors,
+      studentData
+    );
+    const improvementAreas = this.identifyStudentImprovements(
+      riskFactors,
+      studentData
+    );
 
     // 分析模式
     const patterns = {
@@ -871,7 +893,10 @@ class AIAnalysisProcessor {
     };
 
     // 生成建议
-    const recommendations = this.generateStudentRecommendations(riskFactors, patterns);
+    const recommendations = this.generateStudentRecommendations(
+      riskFactors,
+      patterns
+    );
 
     return {
       analysisId: `student_risk_${studentId}_${Date.now()}`,
@@ -890,7 +915,8 @@ class AIAnalysisProcessor {
         dataVersion: "1.0",
         confidence: this.calculateConfidence(studentData.grades.length),
         processingTime: Date.now() - startTime,
-        dataPoints: studentData.grades.length + (studentData.warnings?.length || 0),
+        dataPoints:
+          studentData.grades.length + (studentData.warnings?.length || 0),
       },
     };
   }
@@ -945,15 +971,30 @@ class AIAnalysisProcessor {
     const forecast = this.generateTrendForecast(trendData.dataPoints);
 
     // 计算风险评分
-    const riskScore = this.calculateTrendRiskScore(trendDirection, trendStrength, anomalies);
+    const riskScore = this.calculateTrendRiskScore(
+      trendDirection,
+      trendStrength,
+      anomalies
+    );
     const overallRisk = this.mapRiskScoreToLevel(riskScore);
 
     // 识别关注点
-    const primaryConcerns = this.identifyTrendConcerns(trendDirection, trendStrength, anomalies);
-    const improvementAreas = this.identifyTrendImprovements(trendDirection, forecast);
+    const primaryConcerns = this.identifyTrendConcerns(
+      trendDirection,
+      trendStrength,
+      anomalies
+    );
+    const improvementAreas = this.identifyTrendImprovements(
+      trendDirection,
+      forecast
+    );
 
     // 生成建议
-    const recommendations = this.generateTrendRecommendations(trendDirection, trendStrength, forecast);
+    const recommendations = this.generateTrendRecommendations(
+      trendDirection,
+      trendStrength,
+      forecast
+    );
 
     return {
       analysisId: `trend_${scope}_${Date.now()}`,
@@ -995,7 +1036,9 @@ class AIAnalysisProcessor {
     // 成绩风险 (40%权重)
     let gradeRisk = 0;
     if (grades.length > 0) {
-      const avgScore = grades.reduce((sum: number, g: any) => sum + (g.score || 0), 0) / grades.length;
+      const avgScore =
+        grades.reduce((sum: number, g: any) => sum + (g.score || 0), 0) /
+        grades.length;
       if (avgScore < 40) gradeRisk = 40;
       else if (avgScore < 60) gradeRisk = 25;
       else if (avgScore < 75) gradeRisk = 10;
@@ -1006,7 +1049,9 @@ class AIAnalysisProcessor {
     const trend = this.analyzeStudentTrend(grades);
     if (trend === "declining") trendRisk = 30;
     else if (trend === "stable" && grades.length > 0) {
-      const avgScore = grades.reduce((sum: number, g: any) => sum + (g.score || 0), 0) / grades.length;
+      const avgScore =
+        grades.reduce((sum: number, g: any) => sum + (g.score || 0), 0) /
+        grades.length;
       if (avgScore < 70) trendRisk = 15;
     }
 
@@ -1018,16 +1063,19 @@ class AIAnalysisProcessor {
     return { gradeRisk, trendRisk, warningRisk, totalScore };
   }
 
-  private analyzeStudentTrend(grades: any[]): "improving" | "stable" | "declining" {
+  private analyzeStudentTrend(
+    grades: any[]
+  ): "improving" | "stable" | "declining" {
     if (grades.length < 2) return "stable";
 
     // 按日期排序
-    const sorted = [...grades].sort((a, b) =>
-      new Date(a.exam_date).getTime() - new Date(b.exam_date).getTime()
+    const sorted = [...grades].sort(
+      (a, b) =>
+        new Date(a.exam_date).getTime() - new Date(b.exam_date).getTime()
     );
 
     // 简单线性回归
-    const scores = sorted.map(g => g.score || 0);
+    const scores = sorted.map((g) => g.score || 0);
     const n = scores.length;
     const indices = scores.map((_, i) => i);
 
@@ -1043,7 +1091,10 @@ class AIAnalysisProcessor {
     return "stable";
   }
 
-  private identifyStudentConcerns(riskFactors: any, studentData: any): string[] {
+  private identifyStudentConcerns(
+    riskFactors: any,
+    studentData: any
+  ): string[] {
     const concerns = [];
 
     if (riskFactors.gradeRisk > 20) {
@@ -1055,7 +1106,9 @@ class AIAnalysisProcessor {
     }
 
     if (riskFactors.warningRisk > 15) {
-      concerns.push(`存在${studentData.warnings?.length || 0}个活跃预警，需要重点关注`);
+      concerns.push(
+        `存在${studentData.warnings?.length || 0}个活跃预警，需要重点关注`
+      );
     }
 
     if (concerns.length === 0) {
@@ -1065,7 +1118,10 @@ class AIAnalysisProcessor {
     return concerns;
   }
 
-  private identifyStudentImprovements(riskFactors: any, studentData: any): string[] {
+  private identifyStudentImprovements(
+    riskFactors: any,
+    studentData: any
+  ): string[] {
     const improvements = [];
 
     if (riskFactors.gradeRisk > 0) {
@@ -1087,7 +1143,9 @@ class AIAnalysisProcessor {
     return improvements;
   }
 
-  private identifyStudentAnomalies(studentData: any): BasicAIAnalysis["patterns"]["anomalies"] {
+  private identifyStudentAnomalies(
+    studentData: any
+  ): BasicAIAnalysis["patterns"]["anomalies"] {
     const anomalies: BasicAIAnalysis["patterns"]["anomalies"] = [];
     const grades = studentData.grades || [];
 
@@ -1112,12 +1170,17 @@ class AIAnalysisProcessor {
     return anomalies;
   }
 
-  private identifyStudentCorrelations(studentData: any): BasicAIAnalysis["patterns"]["correlations"] {
+  private identifyStudentCorrelations(
+    studentData: any
+  ): BasicAIAnalysis["patterns"]["correlations"] {
     // 简化版本，实际可以分析科目间相关性
     return [];
   }
 
-  private generateStudentRecommendations(riskFactors: any, patterns: any): BasicAIAnalysis["recommendations"] {
+  private generateStudentRecommendations(
+    riskFactors: any,
+    patterns: any
+  ): BasicAIAnalysis["recommendations"] {
     const immediate = [];
     const strategic = [];
 
@@ -1156,7 +1219,7 @@ class AIAnalysisProcessor {
   private calculateTrendStrength(dataPoints: any[]): number {
     if (dataPoints.length < 2) return 0;
 
-    const values = dataPoints.map(d => d.value || 0);
+    const values = dataPoints.map((d) => d.value || 0);
     const n = values.length;
     const indices = values.map((_, i) => i);
 
@@ -1170,12 +1233,14 @@ class AIAnalysisProcessor {
     return Math.abs(slope);
   }
 
-  private identifyTrendAnomalies(dataPoints: any[]): BasicAIAnalysis["patterns"]["anomalies"] {
+  private identifyTrendAnomalies(
+    dataPoints: any[]
+  ): BasicAIAnalysis["patterns"]["anomalies"] {
     const anomalies: BasicAIAnalysis["patterns"]["anomalies"] = [];
 
     if (dataPoints.length < 3) return anomalies;
 
-    const values = dataPoints.map(d => d.value || 0);
+    const values = dataPoints.map((d) => d.value || 0);
     const mean = values.reduce((a, b) => a + b, 0) / values.length;
     const stdDev = this.calculateStandardDeviation(values);
 
@@ -1196,10 +1261,13 @@ class AIAnalysisProcessor {
     return anomalies;
   }
 
-  private generateTrendForecast(dataPoints: any[]): { value: number; confidence: number } {
+  private generateTrendForecast(dataPoints: any[]): {
+    value: number;
+    confidence: number;
+  } {
     if (dataPoints.length < 2) return { value: 0, confidence: 0 };
 
-    const values = dataPoints.map(d => d.value || 0);
+    const values = dataPoints.map((d) => d.value || 0);
     const n = values.length;
     const indices = values.map((_, i) => i);
 
@@ -1217,7 +1285,11 @@ class AIAnalysisProcessor {
     return { value: forecastValue, confidence };
   }
 
-  private calculateTrendRiskScore(direction: string, strength: number, anomalies: any[]): number {
+  private calculateTrendRiskScore(
+    direction: string,
+    strength: number,
+    anomalies: any[]
+  ): number {
     let riskScore = 0;
 
     if (direction === "declining") {
@@ -1230,7 +1302,11 @@ class AIAnalysisProcessor {
     return Math.min(riskScore, 100);
   }
 
-  private identifyTrendConcerns(direction: string, strength: number, anomalies: any[]): string[] {
+  private identifyTrendConcerns(
+    direction: string,
+    strength: number,
+    anomalies: any[]
+  ): string[] {
     const concerns = [];
 
     if (direction === "declining") {
@@ -1252,7 +1328,10 @@ class AIAnalysisProcessor {
     return concerns;
   }
 
-  private identifyTrendImprovements(direction: string, forecast: any): string[] {
+  private identifyTrendImprovements(
+    direction: string,
+    forecast: any
+  ): string[] {
     const improvements = [];
 
     if (direction === "declining") {
@@ -1270,7 +1349,11 @@ class AIAnalysisProcessor {
     return improvements;
   }
 
-  private generateTrendRecommendations(direction: string, strength: number, forecast: any): BasicAIAnalysis["recommendations"] {
+  private generateTrendRecommendations(
+    direction: string,
+    strength: number,
+    forecast: any
+  ): BasicAIAnalysis["recommendations"] {
     const immediate = [];
     const strategic = [];
 

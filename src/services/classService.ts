@@ -33,29 +33,30 @@ async function getClassGradeStatsFromGradeDataNew(classNames: string[]) {
 
     // 按班级分组计算统计
     const statsMap = new Map();
-    data.forEach(record => {
+    data.forEach((record) => {
       const className = record.class_name;
       if (!statsMap.has(className)) {
         statsMap.set(className, {
           class_name: className,
-          scores: []
+          scores: [],
         });
       }
       statsMap.get(className).scores.push(record.total_score);
     });
 
     // 计算每个班级的统计指标
-    const result = Array.from(statsMap.values()).map(classData => {
+    const result = Array.from(statsMap.values()).map((classData) => {
       const scores = classData.scores;
-      const avg_score = scores.reduce((sum, score) => sum + score, 0) / scores.length;
-      const excellent_count = scores.filter(score => score >= 400).length; // 假设400+为优秀
+      const avg_score =
+        scores.reduce((sum, score) => sum + score, 0) / scores.length;
+      const excellent_count = scores.filter((score) => score >= 400).length; // 假设400+为优秀
       const excellent_rate = (excellent_count / scores.length) * 100;
 
       return {
         class_name: classData.class_name,
         avg_score: Math.round(avg_score * 10) / 10,
         excellent_rate: Math.round(excellent_rate * 10) / 10,
-        grade_records: scores.length
+        grade_records: scores.length,
       };
     });
 
@@ -70,15 +71,19 @@ async function getClassGradeStatsFromGradeDataNew(classNames: string[]) {
 async function checkViewExists(viewName: string): Promise<boolean> {
   const cacheKey = `view_exists_${viewName}`;
 
-  return getCachedData(cacheKey, async () => {
-    try {
-      const { error } = await supabase.from(viewName).select("*").limit(1);
-      return !error;
-    } catch (error) {
-      console.warn(`检查视图 ${viewName} 时出错:`, error);
-      return false;
-    }
-  }, CACHE_CONFIGS.VIEW_EXISTENCE);
+  return getCachedData(
+    cacheKey,
+    async () => {
+      try {
+        const { error } = await supabase.from(viewName).select("*").limit(1);
+        return !error;
+      } catch (error) {
+        console.warn(`检查视图 ${viewName} 时出错:`, error);
+        return false;
+      }
+    },
+    CACHE_CONFIGS.VIEW_EXISTENCE
+  );
 }
 
 export interface ClassStatistics {
@@ -94,6 +99,151 @@ export interface ClassStatistics {
 /**
  * 获取所有班级信息，基于统一数据模型（修复版）
  */
+/**
+ * 从班级名称中智能提取年级
+ * 支持多种格式：
+ * - "初三11班" -> "初三"
+ * - "初三 7班" -> "初三" (带空格)
+ * - "高二3班" -> "高二"
+ * - "三年级1班" -> "三年级"
+ */
+function extractGradeFromClassName(className: string): string {
+  if (!className) return "未知";
+
+  // 移除所有空格，统一处理
+  const normalized = className.trim().replace(/\s+/g, "");
+
+  const gradePatterns = [
+    /^(初一|初二|初三)/,
+    /^(高一|高二|高三)/,
+    /^(一年级|二年级|三年级|四年级|五年级|六年级)/,
+  ];
+
+  for (const pattern of gradePatterns) {
+    const match = normalized.match(pattern);
+    if (match) {
+      return match[1];
+    }
+  }
+
+  // 如果还是识别不出来，记录日志帮助调试
+  console.warn(
+    `⚠️ 无法识别班级名称的年级: "${className}" (normalized: "${normalized}")`
+  );
+  return "未知";
+}
+
+/**
+ * 批量获取班级预警学生数量
+ */
+async function getClassWarningCounts(classNames: string[]): Promise<
+  Array<{
+    class_name: string;
+    warning_count: number;
+  }>
+> {
+  try {
+    if (classNames.length === 0) return [];
+
+    // 获取每个班级处于active状态的预警记录
+    const { data: students, error: studentsError } = await supabase
+      .from("students")
+      .select("id, student_id, class_name")
+      .in("class_name", classNames);
+
+    if (studentsError || !students) {
+      console.error("获取学生数据失败:", studentsError);
+      return [];
+    }
+
+    const studentIds = students.map((s) => s.student_id);
+
+    const { data: warnings, error: warningsError } = await supabase
+      .from("warning_records")
+      .select("student_id")
+      .in("student_id", studentIds)
+      .eq("status", "active");
+
+    if (warningsError) {
+      console.error("获取预警记录失败:", warningsError);
+      return [];
+    }
+
+    // 统计每个班级的预警数量
+    const studentClassMap = new Map(
+      students.map((s) => [s.student_id, s.class_name])
+    );
+
+    const warningCounts: Record<string, number> = {};
+    classNames.forEach((className) => {
+      warningCounts[className] = 0;
+    });
+
+    (warnings || []).forEach((warning) => {
+      const className = studentClassMap.get(warning.student_id);
+      if (className && warningCounts[className] !== undefined) {
+        warningCounts[className]++;
+      }
+    });
+
+    return Object.entries(warningCounts).map(([class_name, warning_count]) => ({
+      class_name,
+      warning_count,
+    }));
+  } catch (error) {
+    console.error("获取班级预警数量时出错:", error);
+    return [];
+  }
+}
+
+/**
+ * 批量获取班级最近考试信息
+ */
+async function getClassLastExams(classNames: string[]): Promise<
+  Array<{
+    class_name: string;
+    last_exam_title: string;
+    last_exam_date: string;
+  }>
+> {
+  try {
+    if (classNames.length === 0) return [];
+
+    const { data, error } = await supabase
+      .from("grade_data_new")
+      .select("class_name, exam_title, exam_date")
+      .in("class_name", classNames)
+      .not("exam_date", "is", null)
+      .order("exam_date", { ascending: false });
+
+    if (error || !data || data.length === 0) {
+      console.error("获取最近考试信息失败:", error);
+      return [];
+    }
+
+    // 按班级分组，取每个班级最近的考试
+    const lastExamMap = new Map<string, { title: string; date: string }>();
+
+    data.forEach((record) => {
+      if (!lastExamMap.has(record.class_name)) {
+        lastExamMap.set(record.class_name, {
+          title: record.exam_title || "未命名考试",
+          date: record.exam_date,
+        });
+      }
+    });
+
+    return Array.from(lastExamMap.entries()).map(([class_name, exam]) => ({
+      class_name,
+      last_exam_title: exam.title,
+      last_exam_date: exam.date,
+    }));
+  } catch (error) {
+    console.error("获取班级最近考试信息时出错:", error);
+    return [];
+  }
+}
+
 export async function getAllClasses(): Promise<any[]> {
   try {
     console.log("正在获取班级列表...");
@@ -101,12 +251,15 @@ export async function getAllClasses(): Promise<any[]> {
     // 从学生数据中获取实际存在的班级列表
     const { data: studentClassData, error: studentError } = await supabase
       .from("students")
-      .select("class_name, grade")
+      .select("class_name")
       .not("class_name", "is", null);
 
     if (studentError) {
       console.error("获取学生班级数据失败:", studentError);
-      showError(studentError, { operation: '获取学生班级数据', table: 'students' });
+      showError(studentError, {
+        operation: "获取学生班级数据",
+        table: "students",
+      });
       return [];
     }
 
@@ -116,15 +269,41 @@ export async function getAllClasses(): Promise<any[]> {
       return [];
     }
 
+    // 获取班级名称列表
+    const uniqueClassNames = [
+      ...new Set(studentClassData.map((s) => s.class_name)),
+    ];
+
+    // 尝试从class_info表获取年级信息
+    const { data: classInfoData } = await supabase
+      .from("class_info")
+      .select("class_name, grade_level")
+      .in("class_name", uniqueClassNames);
+
+    const classInfoMap = new Map(
+      (classInfoData || []).map((c) => [c.class_name, c.grade_level])
+    );
+
     // 统计每个班级的学生数量和年级信息
     const classStats = new Map();
-    studentClassData.forEach(student => {
+    studentClassData.forEach((student) => {
       const className = student.class_name;
       if (!classStats.has(className)) {
+        // 优先使用class_info的grade_level，其次从班级名提取，最后才是"未知"
+        const gradeFromInfo = classInfoMap.get(className);
+        // 过滤掉无效的年级值（null, undefined, 空字符串, "未指定"等）
+        const isValidGrade =
+          gradeFromInfo &&
+          gradeFromInfo.trim() !== "" &&
+          gradeFromInfo !== "未指定";
+        const grade = isValidGrade
+          ? gradeFromInfo
+          : extractGradeFromClassName(className);
+
         classStats.set(className, {
           name: className,
-          grade: student.grade || '未知',
-          studentCount: 0
+          grade,
+          studentCount: 0,
         });
       }
       classStats.get(className).studentCount++;
@@ -133,16 +312,23 @@ export async function getAllClasses(): Promise<any[]> {
     const classNames = Array.from(classStats.keys());
     console.log(`发现${classNames.length}个实际班级:`, classNames.slice(0, 5));
 
-    // 批量获取班级成绩统计
-    const [gradeStats, homeworkStats] = await Promise.all([
-      getClassGradeStatsFromGradeDataNew(classNames),
-      getMultipleClassHomeworkStats(classNames)
-    ]);
+    // 批量获取班级统计数据（包括预警和考试信息）
+    const [gradeStats, homeworkStats, warningCounts, lastExams] =
+      await Promise.all([
+        getClassGradeStatsFromGradeDataNew(classNames),
+        getMultipleClassHomeworkStats(classNames),
+        getClassWarningCounts(classNames),
+        getClassLastExams(classNames),
+      ]);
 
     // 合并数据
-    const enrichedClasses = Array.from(classStats.values()).map(classInfo => {
-      const gradeData = gradeStats.find(g => g.class_name === classInfo.name);
-      const hwData = homeworkStats.find(h => h.class_name === classInfo.name);
+    const enrichedClasses = Array.from(classStats.values()).map((classInfo) => {
+      const gradeData = gradeStats.find((g) => g.class_name === classInfo.name);
+      const hwData = homeworkStats.find((h) => h.class_name === classInfo.name);
+      const warningData = warningCounts.find(
+        (w) => w.class_name === classInfo.name
+      );
+      const examData = lastExams.find((e) => e.class_name === classInfo.name);
 
       return {
         id: classInfo.name, // ✅ 直接使用class_name作为ID
@@ -153,16 +339,18 @@ export async function getAllClasses(): Promise<any[]> {
         averageScore: gradeData?.avg_score || 0,
         excellentRate: gradeData?.excellent_rate || 0,
         gradeRecordCount: gradeData?.grade_records || 0,
+        warningCount: warningData?.warning_count || 0,
+        lastExamTitle: examData?.last_exam_title,
+        lastExamDate: examData?.last_exam_date,
         created_at: new Date().toISOString(),
       };
     });
-    
+
     console.log(`成功获取${enrichedClasses.length}个班级的完整信息`);
     return enrichedClasses;
-
   } catch (error: any) {
     console.error("获取班级列表异常:", error);
-    showError(error, { operation: '获取班级列表', table: 'classes' });
+    showError(error, { operation: "获取班级列表", table: "classes" });
     return [];
   }
 }
@@ -170,55 +358,71 @@ export async function getAllClasses(): Promise<any[]> {
 /**
  * 批量获取多个班级的成绩统计
  */
-async function getMultipleClassGradeStats(classNames: string[]): Promise<Array<{
-  class_name: string;
-  avg_score: number;
-  excellent_rate: number;
-  grade_records: number;
-}>> {
+async function getMultipleClassGradeStats(classNames: string[]): Promise<
+  Array<{
+    class_name: string;
+    avg_score: number;
+    excellent_rate: number;
+    grade_records: number;
+  }>
+> {
   try {
     if (classNames.length === 0) return [];
-    
+
     const { data, error } = await supabase
-      .from('grade_data_new')
-      .select('class_name, total_score')
-      .in('class_name', classNames)
-      .not('total_score', 'is', null);
-    
+      .from("grade_data_new")
+      .select("class_name, total_score")
+      .in("class_name", classNames)
+      .not("total_score", "is", null);
+
     if (error) {
-      console.error('获取成绩统计失败:', error);
+      console.error("获取成绩统计失败:", error);
       return [];
     }
-    
+
     // 按班级聚合统计
-    const statsByClass: Record<string, {
-      scores: number[];
-      excellentCount: number;
-    }> = {};
-    
-    data?.forEach(record => {
+    const statsByClass: Record<
+      string,
+      {
+        scores: number[];
+        excellentCount: number;
+      }
+    > = {};
+
+    data?.forEach((record) => {
       if (!statsByClass[record.class_name]) {
         statsByClass[record.class_name] = {
           scores: [],
-          excellentCount: 0
+          excellentCount: 0,
         };
       }
-      
+
       statsByClass[record.class_name].scores.push(record.total_score);
       if (record.total_score >= 85) {
         statsByClass[record.class_name].excellentCount++;
       }
     });
-    
+
     return Object.entries(statsByClass).map(([className, stats]) => ({
       class_name: className,
-      avg_score: stats.scores.length > 0 ? Math.round(stats.scores.reduce((sum, score) => sum + score, 0) / stats.scores.length * 10) / 10 : 0,
-      excellent_rate: stats.scores.length > 0 ? Math.round(stats.excellentCount / stats.scores.length * 100 * 10) / 10 : 0,
-      grade_records: stats.scores.length
+      avg_score:
+        stats.scores.length > 0
+          ? Math.round(
+              (stats.scores.reduce((sum, score) => sum + score, 0) /
+                stats.scores.length) *
+                10
+            ) / 10
+          : 0,
+      excellent_rate:
+        stats.scores.length > 0
+          ? Math.round(
+              (stats.excellentCount / stats.scores.length) * 100 * 10
+            ) / 10
+          : 0,
+      grade_records: stats.scores.length,
     }));
-    
   } catch (error) {
-    console.error('批量获取成绩统计异常:', error);
+    console.error("批量获取成绩统计异常:", error);
     return [];
   }
 }
@@ -226,48 +430,50 @@ async function getMultipleClassGradeStats(classNames: string[]): Promise<Array<{
 /**
  * 批量获取多个班级的作业统计
  */
-async function getMultipleClassHomeworkStats(classNames: string[]): Promise<Array<{
-  class_name: string;
-  homework_count: number;
-}>> {
+async function getMultipleClassHomeworkStats(classNames: string[]): Promise<
+  Array<{
+    class_name: string;
+    homework_count: number;
+  }>
+> {
   try {
     if (classNames.length === 0) return [];
 
     // ✅ 直接查询homework表的class_name
     const { data: homeworkData, error: homeworkError } = await supabase
-      .from('homework')
-      .select('class_name')
-      .in('class_name', classNames);
+      .from("homework")
+      .select("class_name")
+      .in("class_name", classNames);
 
     if (homeworkError) {
-      console.error('获取作业统计失败:', homeworkError);
-      return classNames.map(className => ({
+      console.error("获取作业统计失败:", homeworkError);
+      return classNames.map((className) => ({
         class_name: className,
-        homework_count: 0
+        homework_count: 0,
       }));
     }
 
     // 统计每个班级的作业数量
     const homeworkCount: Record<string, number> = {};
     if (homeworkData) {
-      homeworkData.forEach(hw => {
+      homeworkData.forEach((hw) => {
         if (hw.class_name) {
-          homeworkCount[hw.class_name] = (homeworkCount[hw.class_name] || 0) + 1;
+          homeworkCount[hw.class_name] =
+            (homeworkCount[hw.class_name] || 0) + 1;
         }
       });
     }
 
     // 返回结果
-    return classNames.map(className => ({
+    return classNames.map((className) => ({
       class_name: className,
-      homework_count: homeworkCount[className] || 0
+      homework_count: homeworkCount[className] || 0,
     }));
-
   } catch (error) {
-    console.error('批量获取作业统计异常:', error);
-    return classNames.map(className => ({
+    console.error("批量获取作业统计异常:", error);
+    return classNames.map((className) => ({
       class_name: className,
-      homework_count: 0
+      homework_count: 0,
     }));
   }
 }
@@ -285,83 +491,94 @@ async function getClassStatisticsOptimized(className: string): Promise<{
     // ✅ 使用getCachedData替代本地缓存
     const cacheKey = `class_stats_${className}`;
 
-    return await getCachedData(cacheKey, async () => {
-      // 并行查询多个统计数据，使用更安全和高效的查询方式
-      const [studentResult, gradeResult, homeworkResult] = await Promise.all([
-        // 学生数量 - 直接通过class_name查询，避免复杂的OR查询
-        supabase
-          .from("students")
-          .select("id", { count: "exact", head: true })
-          .eq("class_name", className),
+    return await getCachedData(
+      cacheKey,
+      async () => {
+        // 并行查询多个统计数据，使用更安全和高效的查询方式
+        const [studentResult, gradeResult, homeworkResult] = await Promise.all([
+          // 学生数量 - 直接通过class_name查询，避免复杂的OR查询
+          supabase
+            .from("students")
+            .select("id", { count: "exact", head: true })
+            .eq("class_name", className),
 
-        // 成绩统计 - 优先从grade_data_new查询，添加索引友好的条件
-        supabase
-          .from("grade_data_new")
-          .select("total_score")
-          .eq("class_name", className)
-          .not("total_score", "is", null)
-          .limit(500), // 减少限制数量提升性能
-
-        // 作业数量 - 直接通过class_name查询
-        supabase
-          .from("homework")
-          .select("id", { count: "exact", head: true })
-          .eq("class_name", className)
-      ]);
-
-      const studentCount = studentResult.count || 0;
-      const homeworkCount = homeworkResult.count || 0;
-
-      let averageScore = 0;
-      let excellentRate = 0;
-
-      // 处理成绩统计，如果grade_data_new没有数据，尝试grade_data表
-      if (gradeResult.data && gradeResult.data.length > 0) {
-        const scores = gradeResult.data
-          .map(item => item.total_score)
-          .filter(score => score !== null && score !== undefined);
-
-        if (scores.length > 0) {
-          averageScore = Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
-          const excellentCount = scores.filter(score => score >= 85).length;
-          excellentRate = Math.round((excellentCount / scores.length) * 100);
-        }
-      } else {
-        // 回退到grade_data表查询
-        try {
-          const { data: fallbackGrades } = await supabase
-            .from("grade_data")
+          // 成绩统计 - 优先从grade_data_new查询，添加索引友好的条件
+          supabase
+            .from("grade_data_new")
             .select("total_score")
             .eq("class_name", className)
             .not("total_score", "is", null)
-            .limit(1000);
+            .limit(500), // 减少限制数量提升性能
 
-          if (fallbackGrades && fallbackGrades.length > 0) {
-            const scores = fallbackGrades
-              .map(item => item.total_score)
-              .filter(score => score !== null && score !== undefined);
+          // 作业数量 - 直接通过class_name查询
+          supabase
+            .from("homework")
+            .select("id", { count: "exact", head: true })
+            .eq("class_name", className),
+        ]);
 
-            if (scores.length > 0) {
-              averageScore = Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
-              const excellentCount = scores.filter(score => score >= 85).length;
-              excellentRate = Math.round((excellentCount / scores.length) * 100);
-            }
+        const studentCount = studentResult.count || 0;
+        const homeworkCount = homeworkResult.count || 0;
+
+        let averageScore = 0;
+        let excellentRate = 0;
+
+        // 处理成绩统计，如果grade_data_new没有数据，尝试grade_data表
+        if (gradeResult.data && gradeResult.data.length > 0) {
+          const scores = gradeResult.data
+            .map((item) => item.total_score)
+            .filter((score) => score !== null && score !== undefined);
+
+          if (scores.length > 0) {
+            averageScore = Math.round(
+              scores.reduce((sum, score) => sum + score, 0) / scores.length
+            );
+            const excellentCount = scores.filter((score) => score >= 85).length;
+            excellentRate = Math.round((excellentCount / scores.length) * 100);
           }
-        } catch (error) {
-          console.warn(`获取班级${className}成绩统计失败:`, error);
+        } else {
+          // 回退到grade_data表查询
+          try {
+            const { data: fallbackGrades } = await supabase
+              .from("grade_data")
+              .select("total_score")
+              .eq("class_name", className)
+              .not("total_score", "is", null)
+              .limit(1000);
+
+            if (fallbackGrades && fallbackGrades.length > 0) {
+              const scores = fallbackGrades
+                .map((item) => item.total_score)
+                .filter((score) => score !== null && score !== undefined);
+
+              if (scores.length > 0) {
+                averageScore = Math.round(
+                  scores.reduce((sum, score) => sum + score, 0) / scores.length
+                );
+                const excellentCount = scores.filter(
+                  (score) => score >= 85
+                ).length;
+                excellentRate = Math.round(
+                  (excellentCount / scores.length) * 100
+                );
+              }
+            }
+          } catch (error) {
+            console.warn(`获取班级${className}成绩统计失败:`, error);
+          }
         }
-      }
 
-      const result = {
-        studentCount,
-        homeworkCount,
-        averageScore,
-        excellentRate,
-      };
+        const result = {
+          studentCount,
+          homeworkCount,
+          averageScore,
+          excellentRate,
+        };
 
-      return result;
-    }, CACHE_CONFIGS.CLASS_STATS); // 使用10分钟缓存
-
+        return result;
+      },
+      CACHE_CONFIGS.CLASS_STATS
+    ); // 使用10分钟缓存
   } catch (error) {
     console.warn(`获取班级${className}统计失败:`, error);
     return {
@@ -408,7 +625,7 @@ export async function getClassById(classId: string) {
 
     if (error) {
       console.error("获取班级详情失败:", error);
-      showError(error, { operation: '获取班级详情', classId });
+      showError(error, { operation: "获取班级详情", classId });
       return null;
     }
 
@@ -418,14 +635,14 @@ export async function getClassById(classId: string) {
         ...data,
         id: data.class_name, // id统一为class_name
         name: data.class_name,
-        grade: data.grade_level
+        grade: data.grade_level,
       };
     }
 
     return null;
   } catch (error) {
     console.error("获取班级详情异常:", error);
-    showError(error, { operation: '获取班级详情', classId });
+    showError(error, { operation: "获取班级详情", classId });
     return null;
   }
 }
@@ -440,33 +657,37 @@ export async function createClass(classData: { name: string; grade: string }) {
     // ✅ 改为插入class_info表
     const { data, error } = await supabase
       .from("class_info")
-      .insert([{
-        class_name: classData.name,
-        grade_level: classData.grade,
-        academic_year: new Date().getFullYear().toString(),
-        name: classData.name, // 冗余字段兼容
-        grade: classData.grade // 冗余字段兼容
-      }])
+      .insert([
+        {
+          class_name: classData.name,
+          grade_level: classData.grade,
+          academic_year: new Date().getFullYear().toString(),
+          name: classData.name, // 冗余字段兼容
+          grade: classData.grade, // 冗余字段兼容
+        },
+      ])
       .select();
 
     if (error) {
       console.error("创建班级失败:", error);
-      showError(error, { operation: '创建班级', className: classData.name });
+      showError(error, { operation: "创建班级", className: classData.name });
       return null;
     }
 
     toast.success("班级创建成功");
     // 返回格式兼容旧代码
     const result = data?.[0];
-    return result ? {
-      ...result,
-      id: result.class_name,
-      name: result.class_name,
-      grade: result.grade_level
-    } : null;
+    return result
+      ? {
+          ...result,
+          id: result.class_name,
+          name: result.class_name,
+          grade: result.grade_level,
+        }
+      : null;
   } catch (error) {
     console.error("创建班级异常:", error);
-    showError(error, { operation: '创建班级', className: classData.name });
+    showError(error, { operation: "创建班级", className: classData.name });
     return null;
   }
 }
@@ -513,7 +734,7 @@ export async function updateClass(
 
     if (error) {
       console.error("更新班级信息失败:", error);
-      showError(error, { operation: '更新班级信息', classId });
+      showError(error, { operation: "更新班级信息", classId });
       return false;
     }
 
@@ -521,7 +742,7 @@ export async function updateClass(
     return true;
   } catch (error) {
     console.error("更新班级信息异常:", error);
-    showError(error, { operation: '更新班级信息', classId });
+    showError(error, { operation: "更新班级信息", classId });
     return false;
   }
 }
@@ -542,7 +763,10 @@ export async function deleteClass(classId: string) {
 
     if (studentUpdateError) {
       console.error("清除学生班级关联失败:", studentUpdateError);
-      showError(studentUpdateError, { operation: '删除班级-清除学生关联', classId });
+      showError(studentUpdateError, {
+        operation: "删除班级-清除学生关联",
+        classId,
+      });
       return false;
     }
 
@@ -554,7 +778,10 @@ export async function deleteClass(classId: string) {
 
     if (homeworkDeleteError) {
       console.error("删除班级作业失败:", homeworkDeleteError);
-      showError(homeworkDeleteError, { operation: '删除班级-清除作业关联', classId });
+      showError(homeworkDeleteError, {
+        operation: "删除班级-清除作业关联",
+        classId,
+      });
       return false;
     }
 
@@ -578,7 +805,7 @@ export async function deleteClass(classId: string) {
 
     if (error) {
       console.error("删除班级失败:", error);
-      showError(error, { operation: '删除班级', classId });
+      showError(error, { operation: "删除班级", classId });
       return false;
     }
 
@@ -586,7 +813,7 @@ export async function deleteClass(classId: string) {
     return true;
   } catch (error) {
     console.error("删除班级异常:", error);
-    showError(error, { operation: '删除班级', classId });
+    showError(error, { operation: "删除班级", classId });
     return false;
   }
 }
@@ -606,14 +833,14 @@ export async function getClassStudents(classId: string) {
 
     if (error) {
       console.error("获取班级学生列表失败:", error);
-      showError(error, { operation: '获取班级学生列表', classId });
+      showError(error, { operation: "获取班级学生列表", classId });
       return [];
     }
 
     return data || [];
   } catch (error) {
     console.error("获取班级学生列表异常:", error);
-    showError(error, { operation: '获取班级学生列表', classId });
+    showError(error, { operation: "获取班级学生列表", classId });
     return [];
   }
 }
@@ -634,14 +861,14 @@ export async function getClassHomeworks(classId: string) {
 
     if (error) {
       console.error("获取班级作业列表失败:", error);
-      showError(error, { operation: '获取班级作业列表', classId });
+      showError(error, { operation: "获取班级作业列表", classId });
       return [];
     }
 
     return data || [];
   } catch (error) {
     console.error("获取班级作业列表异常:", error);
-    showError(error, { operation: '获取班级作业列表', classId });
+    showError(error, { operation: "获取班级作业列表", classId });
     return [];
   }
 }
@@ -750,7 +977,7 @@ export async function getClassDetailedAnalysisData(classId: string) {
           initialSelected: [],
           displayScores: [],
         },
-        studentsListData: students.map(student => ({
+        studentsListData: students.map((student) => ({
           studentId: student.id,
           name: student.name,
           averageScore: 0,
@@ -837,14 +1064,16 @@ function calculateBoxPlotData(grades: any[]) {
   const q1 = calculateQuantile(totalScores, 0.25);
   const q3 = calculateQuantile(totalScores, 0.75);
 
-  return [{
+  return [
+    {
       subject: "总分",
       min,
       q1,
       median,
       q3,
       max,
-    }];
+    },
+  ];
 }
 
 /**
@@ -895,15 +1124,23 @@ async function calculateTrendData(classId: string, grades: any[]) {
   });
 
   // 优化：一次性获取所有年级成绩数据，避免N+1查询
-  const examConditions = sortedExams.map(({ type, date }) => ({ exam_type: type, exam_date: date }));
+  const examConditions = sortedExams.map(({ type, date }) => ({
+    exam_type: type,
+    exam_date: date,
+  }));
 
   // 构建批量查询条件 - 使用grade_data_new表
   const { data: allGradesData, error: allGradesError } = await supabase
     .from("grade_data_new")
     .select("total_score, exam_type, exam_date")
-    .or(examConditions.map(({ exam_type, exam_date }) =>
-      `and(exam_type.eq.${exam_type},exam_date.eq.${exam_date})`
-    ).join(','));
+    .or(
+      examConditions
+        .map(
+          ({ exam_type, exam_date }) =>
+            `and(exam_type.eq.${exam_type},exam_date.eq.${exam_date})`
+        )
+        .join(",")
+    );
 
   if (allGradesError) {
     console.error("批量获取年级成绩失败:", allGradesError);
@@ -961,10 +1198,11 @@ async function calculateTrendData(classId: string, grades: any[]) {
 async function calculateCompetencyData(classId: string, grades: any[] = []) {
   try {
     // 首先获取该班级的所有学生
+    // 注意：classId 实际上是班级名称，使用 class_name 字段查询
     const { data: students, error: studentsError } = await supabase
       .from("students")
       .select("id")
-      .eq("class_id", classId);
+      .eq("class_name", classId);
 
     if (studentsError) {
       console.error("获取班级学生失败:", studentsError);
@@ -1331,7 +1569,7 @@ export async function getAllClassesAnalysisData() {
     console.log(`开始批量分析 ${classes.length} 个班级的数据`);
 
     // 获取所有班级名称
-    const classNames = classes.map(cls => cls.name);
+    const classNames = classes.map((cls) => cls.name);
 
     // 1. 批量获取所有学生数据 - 使用class_name而不是class_id
     const { data: allStudents, error: studentsError } = await supabase
@@ -1347,7 +1585,7 @@ export async function getAllClassesAnalysisData() {
 
     // 2. 批量获取所有成绩数据 - 使用grade_data_new表
     // 使用分批查询避免URL长度限制
-    const studentIds = allStudents?.map(s => s.id) || [];
+    const studentIds = allStudents?.map((s) => s.id) || [];
     const BATCH_SIZE = 50; // 每批查询50个学生ID
     const allGrades: any[] = [];
 
@@ -1360,7 +1598,10 @@ export async function getAllClassesAnalysisData() {
         .not("total_score", "is", null);
 
       if (gradesError) {
-        console.error(`批量获取成绩数据失败(批次 ${i / BATCH_SIZE + 1}):`, gradesError);
+        console.error(
+          `批量获取成绩数据失败(批次 ${i / BATCH_SIZE + 1}):`,
+          gradesError
+        );
         throw new Error(`批量获取成绩数据失败: ${gradesError.message}`);
       }
 
@@ -1369,14 +1610,16 @@ export async function getAllClassesAnalysisData() {
       }
     }
 
-    console.log(`批量获取到 ${allStudents?.length || 0} 个学生，${allGrades?.length || 0} 条成绩记录`);
+    console.log(
+      `批量获取到 ${allStudents?.length || 0} 个学生，${allGrades?.length || 0} 条成绩记录`
+    );
 
     // 3. 按班级分组数据 - 使用class_name
     const studentsByClass = new Map<string, any[]>();
     const gradesByClass = new Map<string, any[]>();
 
     // 分组学生
-    allStudents?.forEach(student => {
+    allStudents?.forEach((student) => {
       const className = student.class_name;
       if (!studentsByClass.has(className)) {
         studentsByClass.set(className, []);
@@ -1385,7 +1628,7 @@ export async function getAllClassesAnalysisData() {
     });
 
     // 分组成绩（可以直接使用class_name，或通过学生关联）
-    allGrades?.forEach(grade => {
+    allGrades?.forEach((grade) => {
       const className = grade.class_name;
       if (className) {
         if (!gradesByClass.has(className)) {
@@ -1412,7 +1655,10 @@ export async function getAllClassesAnalysisData() {
         // 使用预加载的数据计算分析结果
         const boxPlotData = calculateBoxPlotData(classGrades);
         const trendData = await calculateTrendData(className, classGrades);
-        const competencyData = await calculateCompetencyData(className, classGrades);
+        const competencyData = await calculateCompetencyData(
+          className,
+          classGrades
+        );
 
         // 使用class.id作为key以保持API兼容性
         analysisData.boxPlotData[cls.id] = boxPlotData;
@@ -1905,7 +2151,7 @@ export async function getSubjectAnalysisData(classId: string) {
     return result;
   } catch (error) {
     console.error("获取学科分析数据失败:", error);
-    showError(error, { operation: '获取学科分析数据', classId });
+    showError(error, { operation: "获取学科分析数据", classId });
     throw error; // 向上抛出错误以便调用方处理
   }
 }
@@ -1917,26 +2163,28 @@ export async function getSubjectAnalysisData(classId: string) {
  * @param className 班级名称（可选，不传则获取所有班级）
  * @returns 班级统计数据
  */
-export async function getAccurateClassStatistics(className?: string): Promise<ClassStatistics[]> {
+export async function getAccurateClassStatistics(
+  className?: string
+): Promise<ClassStatistics[]> {
   try {
-    console.log('🔍 获取准确班级统计数据:', className || '全部班级');
-    
+    console.log("🔍 获取准确班级统计数据:", className || "全部班级");
+
     // 调用数据库函数获取准确统计
-    const { data, error } = await supabase.rpc('get_class_statistics', {
-      target_class_name: className || null
+    const { data, error } = await supabase.rpc("get_class_statistics", {
+      target_class_name: className || null,
     });
 
     if (error) {
-      console.error('获取班级统计失败:', error);
-      showError(error, { operation: '获取班级统计', className });
+      console.error("获取班级统计失败:", error);
+      showError(error, { operation: "获取班级统计", className });
       return [];
     }
 
-    console.log('✅ 班级统计数据获取成功:', data?.length || 0, '个班级');
+    console.log("✅ 班级统计数据获取成功:", data?.length || 0, "个班级");
     return data || [];
   } catch (error) {
-    console.error('班级统计查询异常:', error);
-    showError(error, { operation: '获取班级统计', className });
+    console.error("班级统计查询异常:", error);
+    showError(error, { operation: "获取班级统计", className });
     return [];
   }
 }
@@ -1947,26 +2195,26 @@ export async function getAccurateClassStatistics(className?: string): Promise<Cl
  */
 export async function updateAllClassStatistics(): Promise<boolean> {
   try {
-    console.log('🔄 开始更新所有班级统计数据');
-    
-    const { data, error } = await supabase.rpc('update_class_statistics');
+    console.log("🔄 开始更新所有班级统计数据");
+
+    const { data, error } = await supabase.rpc("update_class_statistics");
 
     if (error) {
-      console.error('更新班级统计失败:', error);
-      showError(error, { operation: '更新班级统计' });
+      console.error("更新班级统计失败:", error);
+      showError(error, { operation: "更新班级统计" });
       return false;
     }
 
-    console.log('✅ 班级统计更新成功');
-    toast.success('班级统计数据更新成功');
+    console.log("✅ 班级统计更新成功");
+    toast.success("班级统计数据更新成功");
 
     // 清除相关缓存 - ✅ 使用clearCacheByPattern
     clearCacheByPattern(/^class_/);
 
     return true;
   } catch (error) {
-    console.error('更新班级统计异常:', error);
-    showError(error, { operation: '更新班级统计' });
+    console.error("更新班级统计异常:", error);
+    showError(error, { operation: "更新班级统计" });
     return false;
   }
 }
@@ -1985,27 +2233,30 @@ export async function checkClassDataIntegrity(): Promise<{
   isHealthy: boolean;
 }> {
   try {
-    console.log('🔍 开始检查班级数据完整性');
-    
-    const { data, error } = await supabase.rpc('check_class_data_integrity');
+    console.log("🔍 开始检查班级数据完整性");
+
+    const { data, error } = await supabase.rpc("check_class_data_integrity");
 
     if (error) {
-      console.error('数据完整性检查失败:', error);
+      console.error("数据完整性检查失败:", error);
       return { issues: [], isHealthy: false };
     }
 
     const issues = data || [];
     const isHealthy = issues.length === 0;
-    
-    console.log('✅ 数据完整性检查完成:', isHealthy ? '数据健康' : `发现${issues.length}个问题`);
-    
+
+    console.log(
+      "✅ 数据完整性检查完成:",
+      isHealthy ? "数据健康" : `发现${issues.length}个问题`
+    );
+
     if (!isHealthy) {
-      console.warn('⚠️ 发现数据完整性问题:', issues);
+      console.warn("⚠️ 发现数据完整性问题:", issues);
     }
-    
+
     return { issues, isHealthy };
   } catch (error) {
-    console.error('数据完整性检查异常:', error);
+    console.error("数据完整性检查异常:", error);
     return { issues: [], isHealthy: false };
   }
 }
@@ -2023,58 +2274,70 @@ export async function getClassStatisticsSummary(): Promise<{
   classesWithGrades: number;
   dataHealthy: boolean;
 }> {
-  const cacheKey = 'class_statistics_summary';
+  const cacheKey = "class_statistics_summary";
 
-  return getCachedData(cacheKey, async () => {
-    try {
-      console.log('🔍 获取班级统计摘要');
+  return getCachedData(
+    cacheKey,
+    async () => {
+      try {
+        console.log("🔍 获取班级统计摘要");
 
-      // 获取所有班级统计
-      const allStats = await getAccurateClassStatistics();
-    
-    if (allStats.length === 0) {
-      return {
-        totalClasses: 0,
-        totalStudents: 0,
-        averageClassSize: 0,
-        maxClassSize: 0,
-        minClassSize: 0,
-        classesWithGrades: 0,
-        dataHealthy: false,
-      };
-    }
-    
-    // 计算统计摘要
-    const totalStudents = allStats.reduce((sum, cls) => sum + cls.student_count, 0);
-    const classesWithGrades = allStats.filter(cls => cls.students_with_grades > 0).length;
-    const studentCounts = allStats.map(cls => cls.student_count);
-    const dataHealthy = allStats.every(cls => cls.data_consistency_status.includes('✅'));
-    
-    const summary = {
-      totalClasses: allStats.length,
-      totalStudents,
-      averageClassSize: Math.round(totalStudents / allStats.length * 10) / 10,
-      maxClassSize: Math.max(...studentCounts),
-      minClassSize: Math.min(...studentCounts),
-      classesWithGrades,
-      dataHealthy,
-    };
-    
-    console.log('✅ 班级统计摘要:', summary);
-    return summary;
-  } catch (error) {
-    console.error('获取班级统计摘要失败:', error);
-    return {
-      totalClasses: 0,
-      totalStudents: 0,
-      averageClassSize: 0,
-      maxClassSize: 0,
-      minClassSize: 0,
-      classesWithGrades: 0,
-      dataHealthy: false,
-    };
-  }
-  }, CACHE_CONFIGS.CLASS_STATS);
+        // 获取所有班级统计
+        const allStats = await getAccurateClassStatistics();
+
+        if (allStats.length === 0) {
+          return {
+            totalClasses: 0,
+            totalStudents: 0,
+            averageClassSize: 0,
+            maxClassSize: 0,
+            minClassSize: 0,
+            classesWithGrades: 0,
+            dataHealthy: false,
+          };
+        }
+
+        // 计算统计摘要
+        const totalStudents = allStats.reduce(
+          (sum, cls) => sum + cls.student_count,
+          0
+        );
+        const classesWithGrades = allStats.filter(
+          (cls) => cls.students_with_grades > 0
+        ).length;
+        const studentCounts = allStats.map((cls) => cls.student_count);
+        const dataHealthy = allStats.every((cls) =>
+          cls.data_consistency_status.includes("✅")
+        );
+
+        const summary = {
+          totalClasses: allStats.length,
+          totalStudents,
+          averageClassSize:
+            Math.round((totalStudents / allStats.length) * 10) / 10,
+          maxClassSize: Math.max(...studentCounts),
+          minClassSize: Math.min(...studentCounts),
+          classesWithGrades,
+          dataHealthy,
+        };
+
+        console.log("✅ 班级统计摘要:", summary);
+        return summary;
+      } catch (error) {
+        console.error("获取班级统计摘要失败:", error);
+        return {
+          totalClasses: 0,
+          totalStudents: 0,
+          averageClassSize: 0,
+          maxClassSize: 0,
+          minClassSize: 0,
+          classesWithGrades: 0,
+          dataHealthy: false,
+        };
+      }
+    },
+    CACHE_CONFIGS.CLASS_STATS
+  );
 }
 
 /**
@@ -2088,5 +2351,5 @@ export function clearClassCache(pattern?: string) {
     // 清除所有班级相关缓存
     clearCacheByPattern(/^(class_|view_exists_|exam_trends_|grade_analysis_)/);
   }
-  console.log('🧹 班级缓存已清理');
+  console.log("🧹 班级缓存已清理");
 }

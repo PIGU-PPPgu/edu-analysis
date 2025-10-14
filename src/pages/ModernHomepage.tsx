@@ -117,7 +117,7 @@ const ModernHomepage = () => {
       icon: UserCheck,
       title: "智能学生画像",
       description: "AI驱动的全方位学生特征分析",
-      path: "/student-portrait-management",
+      path: "/class-management",
       aiModel: "多模型融合",
       capabilities: [
         "学习风格智能识别",
@@ -281,9 +281,7 @@ const ModernHomepage = () => {
                   size="lg"
                   variant="outline"
                   className="px-8 py-4 bg-white text-black font-bold border-2 border-black rounded-xl hover:bg-gray-100 hover:translate-y-[-2px] transition-all duration-200 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
-                  onClick={() =>
-                    handleFeatureClick("/student-portrait-management")
-                  }
+                  onClick={() => handleFeatureClick("/class-management")}
                 >
                   查看功能
                 </Button>
@@ -300,10 +298,26 @@ const ModernHomepage = () => {
               <div className="bg-gradient-to-br from-[#B9FF66] to-[#A8F055] rounded-3xl p-8 border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-2">
                 <div className="grid grid-cols-2 gap-4">
                   {[
-                    { icon: Brain, label: "所有界面配置AI，帮助教师理解数据", value: "AI辅助分析" },
-                    { icon: Users, label: "从个人到小组再到班级，全面了解学生情况，动态更新", value: "班级画像" },
-                    { icon: Target, label: "机器学习算法+AI，实时预警，精准预测", value: "智能追踪与预警" },
-                    { icon: BookOpen, label: "知识点掌握、作业情况", value: "作业与考试管理" },
+                    {
+                      icon: Brain,
+                      label: "所有界面配置AI，帮助教师理解数据",
+                      value: "AI辅助分析",
+                    },
+                    {
+                      icon: Users,
+                      label: "从个人到小组再到班级，全面了解学生情况，动态更新",
+                      value: "班级画像",
+                    },
+                    {
+                      icon: Target,
+                      label: "机器学习算法+AI，实时预警，精准预测",
+                      value: "智能追踪与预警",
+                    },
+                    {
+                      icon: BookOpen,
+                      label: "知识点掌握、作业情况",
+                      value: "作业与考试管理",
+                    },
                   ].map((stat, index) => (
                     <div
                       key={index}

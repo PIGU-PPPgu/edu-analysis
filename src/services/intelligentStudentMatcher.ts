@@ -9,7 +9,7 @@
  * 4. 任意两项不匹配 -> 需要教师手动处理
  */
 
-import { CacheManager } from './CacheManager';
+import { CacheManager } from "./CacheManager";
 
 export interface FileStudent {
   name: string;
@@ -343,7 +343,8 @@ export class IntelligentStudentMatcher {
     // 场景2: 学号+班级匹配
     if (hasStudentId && hasClassName) {
       const key = `${fileStudent.student_id!.trim()}_${fileStudent.class_name!.trim()}`;
-      const studentByIdClassMatch = systemStudentIndex.byStudentIdAndClass.get(key);
+      const studentByIdClassMatch =
+        systemStudentIndex.byStudentIdAndClass.get(key);
       if (studentByIdClassMatch && !excludeIds.has(studentByIdClassMatch.id)) {
         return {
           fileStudent,
@@ -360,8 +361,12 @@ export class IntelligentStudentMatcher {
     // 场景3: 姓名+班级匹配
     if (hasName && hasClassName) {
       const key = `${fileStudent.name.trim()}_${fileStudent.class_name!.trim()}`;
-      const studentByNameClassMatch = systemStudentIndex.byNameAndClass.get(key);
-      if (studentByNameClassMatch && !excludeIds.has(studentByNameClassMatch.id)) {
+      const studentByNameClassMatch =
+        systemStudentIndex.byNameAndClass.get(key);
+      if (
+        studentByNameClassMatch &&
+        !excludeIds.has(studentByNameClassMatch.id)
+      ) {
         return {
           fileStudent,
           systemStudent: studentByNameClassMatch,
@@ -396,13 +401,16 @@ export class IntelligentStudentMatcher {
    * 生成缓存键
    */
   private generateCacheKey(student: FileStudent): string {
-    return `match_${student.student_id || ''}_${student.name || ''}_${student.class_name || ''}`;
+    return `match_${student.student_id || ""}_${student.name || ""}_${student.class_name || ""}`;
   }
 
   /**
    * 更新性能统计
    */
-  private updatePerformanceStats(matchTime: number, studentCount: number): void {
+  private updatePerformanceStats(
+    matchTime: number,
+    studentCount: number
+  ): void {
     this.matchTimes.push(matchTime);
     if (this.matchTimes.length > 100) {
       this.matchTimes = this.matchTimes.slice(-100); // 保留最近100次
@@ -411,7 +419,8 @@ export class IntelligentStudentMatcher {
     const totalRequests = this.cacheHits + this.cacheMisses;
     this.performanceStats = {
       totalMatches: this.performanceStats.totalMatches + studentCount,
-      averageMatchTime: this.matchTimes.reduce((a, b) => a + b, 0) / this.matchTimes.length,
+      averageMatchTime:
+        this.matchTimes.reduce((a, b) => a + b, 0) / this.matchTimes.length,
       cacheHitRate: totalRequests > 0 ? this.cacheHits / totalRequests : 0,
       batchProcessed: this.performanceStats.batchProcessed,
     };
@@ -431,7 +440,7 @@ export class IntelligentStudentMatcher {
     this.cacheManager.clear();
     this.cacheHits = 0;
     this.cacheMisses = 0;
-    console.log('🧹 学生匹配缓存已清除');
+    console.log("🧹 学生匹配缓存已清除");
   }
 
   /**
@@ -447,7 +456,7 @@ export class IntelligentStudentMatcher {
     this.matchTimes = [];
     this.cacheHits = 0;
     this.cacheMisses = 0;
-    console.log('📊 性能统计已重置');
+    console.log("📊 性能统计已重置");
   }
 
   /**
@@ -462,7 +471,8 @@ export class IntelligentStudentMatcher {
     const warnings: string[] = [];
     const actions: string[] = [];
 
-    const { statistics, manualReviewNeeded, newStudents, missingStudents } = result;
+    const { statistics, manualReviewNeeded, newStudents, missingStudents } =
+      result;
 
     // 匹配率分析
     if (statistics.matchRate >= 0.9) {

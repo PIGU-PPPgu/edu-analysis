@@ -9,9 +9,9 @@ import { toast } from "sonner";
 // 执行记录接口
 export interface WarningExecution {
   id: string;
-  trigger_type: 'manual' | 'auto' | 'scheduled' | 'import' | 'webhook';
+  trigger_type: "manual" | "auto" | "scheduled" | "import" | "webhook";
   trigger_source?: string;
-  execution_status: 'pending' | 'running' | 'completed' | 'failed' | 'partial';
+  execution_status: "pending" | "running" | "completed" | "failed" | "partial";
   start_time: string;
   end_time?: string;
   total_rules: number;
@@ -30,9 +30,14 @@ export interface WarningExecution {
 export interface ExecutionStep {
   id: string;
   execution_id: string;
-  step_type: 'rule_validation' | 'student_query' | 'condition_check' | 'warning_creation' | 'notification_send';
+  step_type:
+    | "rule_validation"
+    | "student_query"
+    | "condition_check"
+    | "warning_creation"
+    | "notification_send";
   step_name: string;
-  step_status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
+  step_status: "pending" | "running" | "completed" | "failed" | "skipped";
   start_time: string;
   end_time?: string;
   execution_time_ms?: number;
@@ -50,12 +55,18 @@ export interface ExecutionError {
   id: string;
   execution_id: string;
   step_id?: string;
-  error_type: 'validation' | 'database' | 'network' | 'timeout' | 'logic' | 'system';
+  error_type:
+    | "validation"
+    | "database"
+    | "network"
+    | "timeout"
+    | "logic"
+    | "system";
   error_code: string;
   error_message: string;
   stack_trace?: string;
   error_context: any;
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  severity: "low" | "medium" | "high" | "critical";
   is_recoverable: boolean;
   recovery_attempted: boolean;
   recovery_success?: boolean;
@@ -87,11 +98,11 @@ export async function createExecution(
 ): Promise<string | null> {
   try {
     const { data, error } = await supabase
-      .from('warning_executions')
+      .from("warning_executions")
       .insert({
         trigger_type: triggerType,
         trigger_source: triggerSource,
-        execution_status: 'pending',
+        execution_status: "pending",
         start_time: new Date().toISOString(),
         total_rules: 0,
         executed_rules: 0,
@@ -104,17 +115,17 @@ export async function createExecution(
         metadata: metadata || {},
         created_by: (await supabase.auth.getUser()).data.user?.id,
       })
-      .select('id')
+      .select("id")
       .single();
 
     if (error) {
-      console.error('创建执行记录失败:', error);
+      console.error("创建执行记录失败:", error);
       return null;
     }
 
     return data.id;
   } catch (error) {
-    console.error('创建执行记录失败:', error);
+    console.error("创建执行记录失败:", error);
     return null;
   }
 }
@@ -134,7 +145,7 @@ export async function updateExecutionStatus(
       updated_at: new Date().toISOString(),
     };
 
-    if (status === 'completed' || status === 'failed') {
+    if (status === "completed" || status === "failed") {
       updateData.end_time = new Date().toISOString();
     }
 
@@ -153,18 +164,18 @@ export async function updateExecutionStatus(
     }
 
     const { error } = await supabase
-      .from('warning_executions')
+      .from("warning_executions")
       .update(updateData)
-      .eq('id', executionId);
+      .eq("id", executionId);
 
     if (error) {
-      console.error('更新执行状态失败:', error);
+      console.error("更新执行状态失败:", error);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('更新执行状态失败:', error);
+    console.error("更新执行状态失败:", error);
     return false;
   }
 }
@@ -182,28 +193,28 @@ export async function createExecutionStep(
 ): Promise<string | null> {
   try {
     const { data, error } = await supabase
-      .from('warning_execution_steps')
+      .from("warning_execution_steps")
       .insert({
         execution_id: executionId,
         step_type: stepType,
         step_name: stepName,
-        step_status: 'pending',
+        step_status: "pending",
         start_time: new Date().toISOString(),
         rule_id: ruleId,
         student_id: studentId,
         input_data: inputData,
       })
-      .select('id')
+      .select("id")
       .single();
 
     if (error) {
-      console.error('创建执行步骤失败:', error);
+      console.error("创建执行步骤失败:", error);
       return null;
     }
 
     return data.id;
   } catch (error) {
-    console.error('创建执行步骤失败:', error);
+    console.error("创建执行步骤失败:", error);
     return null;
   }
 }
@@ -238,9 +249,9 @@ export async function updateExecutionStep(
 
     // 计算执行时间
     const { data: stepData } = await supabase
-      .from('warning_execution_steps')
-      .select('start_time')
-      .eq('id', stepId)
+      .from("warning_execution_steps")
+      .select("start_time")
+      .eq("id", stepId)
       .single();
 
     if (stepData) {
@@ -250,18 +261,18 @@ export async function updateExecutionStep(
     }
 
     const { error } = await supabase
-      .from('warning_execution_steps')
+      .from("warning_execution_steps")
       .update(updateData)
-      .eq('id', stepId);
+      .eq("id", stepId);
 
     if (error) {
-      console.error('更新执行步骤失败:', error);
+      console.error("更新执行步骤失败:", error);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('更新执行步骤失败:', error);
+    console.error("更新执行步骤失败:", error);
     return false;
   }
 }
@@ -275,34 +286,32 @@ export async function logExecutionError(
   errorCode: string,
   errorMessage: string,
   errorContext: any,
-  severity: string = 'medium',
+  severity: string = "medium",
   stepId?: string,
   stackTrace?: string
 ): Promise<boolean> {
   try {
-    const { error } = await supabase
-      .from('warning_execution_errors')
-      .insert({
-        execution_id: executionId,
-        step_id: stepId,
-        error_type: errorType,
-        error_code: errorCode,
-        error_message: errorMessage,
-        stack_trace: stackTrace,
-        error_context: errorContext,
-        severity: severity,
-        is_recoverable: severity !== 'critical',
-        recovery_attempted: false,
-      });
+    const { error } = await supabase.from("warning_execution_errors").insert({
+      execution_id: executionId,
+      step_id: stepId,
+      error_type: errorType,
+      error_code: errorCode,
+      error_message: errorMessage,
+      stack_trace: stackTrace,
+      error_context: errorContext,
+      severity: severity,
+      is_recoverable: severity !== "critical",
+      recovery_attempted: false,
+    });
 
     if (error) {
-      console.error('记录错误信息失败:', error);
+      console.error("记录错误信息失败:", error);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('记录错误信息失败:', error);
+    console.error("记录错误信息失败:", error);
     return false;
   }
 }
@@ -316,7 +325,7 @@ export async function recordPerformanceMetrics(
 ): Promise<boolean> {
   try {
     const { error } = await supabase
-      .from('warning_execution_performance')
+      .from("warning_execution_performance")
       .insert({
         execution_id: executionId,
         ...metrics,
@@ -324,13 +333,13 @@ export async function recordPerformanceMetrics(
       });
 
     if (error) {
-      console.error('记录性能指标失败:', error);
+      console.error("记录性能指标失败:", error);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('记录性能指标失败:', error);
+    console.error("记录性能指标失败:", error);
     return false;
   }
 }
@@ -346,29 +355,29 @@ export async function getExecutionHistory(
 ): Promise<WarningExecution[]> {
   try {
     let query = supabase
-      .from('warning_executions')
-      .select('*')
-      .order('start_time', { ascending: false })
+      .from("warning_executions")
+      .select("*")
+      .order("start_time", { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (status) {
-      query = query.eq('execution_status', status);
+      query = query.eq("execution_status", status);
     }
 
     if (triggerType) {
-      query = query.eq('trigger_type', triggerType);
+      query = query.eq("trigger_type", triggerType);
     }
 
     const { data, error } = await query;
 
     if (error) {
-      console.error('获取执行历史失败:', error);
+      console.error("获取执行历史失败:", error);
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error('获取执行历史失败:', error);
+    console.error("获取执行历史失败:", error);
     return [];
   }
 }
@@ -383,28 +392,29 @@ export async function getExecutionDetails(executionId: string): Promise<{
   performance: PerformanceMetrics | null;
 }> {
   try {
-    const [executionResult, stepsResult, errorsResult, performanceResult] = await Promise.all([
-      supabase
-        .from('warning_executions')
-        .select('*')
-        .eq('id', executionId)
-        .single(),
-      supabase
-        .from('warning_execution_steps')
-        .select('*')
-        .eq('execution_id', executionId)
-        .order('start_time', { ascending: true }),
-      supabase
-        .from('warning_execution_errors')
-        .select('*')
-        .eq('execution_id', executionId)
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('warning_execution_performance')
-        .select('*')
-        .eq('execution_id', executionId)
-        .single(),
-    ]);
+    const [executionResult, stepsResult, errorsResult, performanceResult] =
+      await Promise.all([
+        supabase
+          .from("warning_executions")
+          .select("*")
+          .eq("id", executionId)
+          .single(),
+        supabase
+          .from("warning_execution_steps")
+          .select("*")
+          .eq("execution_id", executionId)
+          .order("start_time", { ascending: true }),
+        supabase
+          .from("warning_execution_errors")
+          .select("*")
+          .eq("execution_id", executionId)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("warning_execution_performance")
+          .select("*")
+          .eq("execution_id", executionId)
+          .single(),
+      ]);
 
     return {
       execution: executionResult.data || null,
@@ -413,7 +423,7 @@ export async function getExecutionDetails(executionId: string): Promise<{
       performance: performanceResult.data || null,
     };
   } catch (error) {
-    console.error('获取执行详情失败:', error);
+    console.error("获取执行详情失败:", error);
     return {
       execution: null,
       steps: [],
@@ -442,13 +452,13 @@ export async function getExecutionStatistics(days: number = 30): Promise<{
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    const { data, error } = await supabase.rpc('get_execution_statistics', {
+    const { data, error } = await supabase.rpc("get_execution_statistics", {
       p_start_date: startDate.toISOString(),
       p_end_date: new Date().toISOString(),
     });
 
     if (error) {
-      console.error('获取执行统计失败:', error);
+      console.error("获取执行统计失败:", error);
       return {
         totalExecutions: 0,
         successfulExecutions: 0,
@@ -463,20 +473,22 @@ export async function getExecutionStatistics(days: number = 30): Promise<{
       };
     }
 
-    return data || {
-      totalExecutions: 0,
-      successfulExecutions: 0,
-      failedExecutions: 0,
-      averageExecutionTime: 0,
-      averageSuccessRate: 0,
-      totalWarningsGenerated: 0,
-      totalErrorCount: 0,
-      errorsByType: [],
-      executionsByTrigger: [],
-      dailyStats: [],
-    };
+    return (
+      data || {
+        totalExecutions: 0,
+        successfulExecutions: 0,
+        failedExecutions: 0,
+        averageExecutionTime: 0,
+        averageSuccessRate: 0,
+        totalWarningsGenerated: 0,
+        totalErrorCount: 0,
+        errorsByType: [],
+        executionsByTrigger: [],
+        dailyStats: [],
+      }
+    );
   } catch (error) {
-    console.error('获取执行统计失败:', error);
+    console.error("获取执行统计失败:", error);
     return {
       totalExecutions: 0,
       successfulExecutions: 0,
@@ -497,43 +509,43 @@ export async function getExecutionStatistics(days: number = 30): Promise<{
  */
 export async function attemptErrorRecovery(
   errorId: string,
-  recoveryAction: 'retry' | 'skip' | 'manual'
+  recoveryAction: "retry" | "skip" | "manual"
 ): Promise<boolean> {
   try {
     // 标记恢复尝试
     const { error: updateError } = await supabase
-      .from('warning_execution_errors')
+      .from("warning_execution_errors")
       .update({
         recovery_attempted: true,
         recovery_action: recoveryAction,
         recovery_attempted_at: new Date().toISOString(),
       })
-      .eq('id', errorId);
+      .eq("id", errorId);
 
     if (updateError) {
-      console.error('更新恢复状态失败:', updateError);
+      console.error("更新恢复状态失败:", updateError);
       return false;
     }
 
     // 根据恢复动作执行相应逻辑
     switch (recoveryAction) {
-      case 'retry':
+      case "retry":
         // 这里可以添加重试逻辑
-        toast.info('正在尝试重新执行...');
+        toast.info("正在尝试重新执行...");
         break;
-      case 'skip':
+      case "skip":
         // 跳过错误步骤
-        toast.info('已跳过错误步骤');
+        toast.info("已跳过错误步骤");
         break;
-      case 'manual':
+      case "manual":
         // 需要手动干预
-        toast.warning('需要手动处理此错误');
+        toast.warning("需要手动处理此错误");
         break;
     }
 
     return true;
   } catch (error) {
-    console.error('错误恢复失败:', error);
+    console.error("错误恢复失败:", error);
     return false;
   }
 }
@@ -546,13 +558,13 @@ export async function cleanupExecutionHistory(
   keepMinimum: number = 100
 ): Promise<boolean> {
   try {
-    const { data, error } = await supabase.rpc('cleanup_execution_history', {
+    const { data, error } = await supabase.rpc("cleanup_execution_history", {
       p_older_than_days: olderThanDays,
       p_keep_minimum: keepMinimum,
     });
 
     if (error) {
-      console.error('清理执行历史失败:', error);
+      console.error("清理执行历史失败:", error);
       return false;
     }
 
@@ -560,12 +572,12 @@ export async function cleanupExecutionHistory(
     if (deletedCount > 0) {
       toast.success(`已清理 ${deletedCount} 条历史执行记录`);
     } else {
-      toast.info('没有需要清理的历史记录');
+      toast.info("没有需要清理的历史记录");
     }
 
     return true;
   } catch (error) {
-    console.error('清理执行历史失败:', error);
+    console.error("清理执行历史失败:", error);
     return false;
   }
 }
@@ -576,29 +588,28 @@ export async function cleanupExecutionHistory(
 export async function exportExecutionReport(
   startDate: string,
   endDate: string,
-  format: 'json' | 'csv' = 'json'
+  format: "json" | "csv" = "json"
 ): Promise<any> {
   try {
     const executions = await getExecutionHistory(1000, 0);
     const filteredExecutions = executions.filter(
-      (exec) =>
-        exec.start_time >= startDate && exec.start_time <= endDate
+      (exec) => exec.start_time >= startDate && exec.start_time <= endDate
     );
 
-    if (format === 'csv') {
+    if (format === "csv") {
       // 转换为CSV格式
       const csvHeaders = [
-        'ID',
-        '触发类型',
-        '执行状态',
-        '开始时间',
-        '结束时间',
-        '执行时间(ms)',
-        '成功率(%)',
-        '处理规则数',
-        '匹配学生数',
-        '生成预警数',
-        '错误数量',
+        "ID",
+        "触发类型",
+        "执行状态",
+        "开始时间",
+        "结束时间",
+        "执行时间(ms)",
+        "成功率(%)",
+        "处理规则数",
+        "匹配学生数",
+        "生成预警数",
+        "错误数量",
       ];
 
       const csvRows = filteredExecutions.map((exec) => [
@@ -606,7 +617,7 @@ export async function exportExecutionReport(
         exec.trigger_type,
         exec.execution_status,
         exec.start_time,
-        exec.end_time || '',
+        exec.end_time || "",
         exec.execution_time_ms,
         exec.success_rate,
         exec.total_rules,
@@ -627,11 +638,11 @@ export async function exportExecutionReport(
       summary: {
         totalExecutions: filteredExecutions.length,
         successfulExecutions: filteredExecutions.filter(
-          (e) => e.execution_status === 'completed'
+          (e) => e.execution_status === "completed"
         ).length,
         averageExecutionTime:
           filteredExecutions.reduce((sum, e) => sum + e.execution_time_ms, 0) /
-          filteredExecutions.length || 0,
+            filteredExecutions.length || 0,
         totalWarningsGenerated: filteredExecutions.reduce(
           (sum, e) => sum + e.generated_warnings,
           0
@@ -640,7 +651,7 @@ export async function exportExecutionReport(
       generatedAt: new Date().toISOString(),
     };
   } catch (error) {
-    console.error('导出执行报告失败:', error);
+    console.error("导出执行报告失败:", error);
     throw error;
   }
 }

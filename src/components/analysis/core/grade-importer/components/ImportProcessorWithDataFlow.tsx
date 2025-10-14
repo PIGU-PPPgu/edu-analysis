@@ -20,11 +20,7 @@ import ImportProcessor from "./ImportProcessor";
 import { useDataFlowImporter } from "@/hooks/useDataFlowImporter";
 import { TaskType } from "@/types/dataFlow";
 import { ResumePrompt } from "@/components/dataflow";
-import type {
-  ImportResult,
-  ExamInfo,
-  ValidationResult,
-} from "../types";
+import type { ImportResult, ExamInfo, ValidationResult } from "../types";
 
 interface ImportProcessorWithDataFlowProps {
   validData: any[];
@@ -44,7 +40,9 @@ interface ImportProcessorWithDataFlowProps {
 /**
  * 带DataFlow集成的ImportProcessor包装组件
  */
-const ImportProcessorWithDataFlow: React.FC<ImportProcessorWithDataFlowProps> = (props) => {
+const ImportProcessorWithDataFlow: React.FC<
+  ImportProcessorWithDataFlowProps
+> = (props) => {
   const {
     validData,
     examInfo,
@@ -112,7 +110,14 @@ const ImportProcessorWithDataFlow: React.FC<ImportProcessorWithDataFlowProps> = 
         }
       }, 100);
     }
-  }, [validData, examInfo, fileName, fileSize, createImportTask, hasResumableCheckpoint]);
+  }, [
+    validData,
+    examInfo,
+    fileName,
+    fileSize,
+    createImportTask,
+    hasResumableCheckpoint,
+  ]);
 
   /**
    * 处理恢复导入
@@ -213,7 +218,9 @@ const ImportProcessorWithDataFlow: React.FC<ImportProcessorWithDataFlowProps> = 
               <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" />
               <span className="font-medium text-blue-900">
                 DataFlow任务已激活
-                {resumeMode && <span className="ml-2 text-green-700">(断点续传模式)</span>}
+                {resumeMode && (
+                  <span className="ml-2 text-green-700">(断点续传模式)</span>
+                )}
               </span>
             </div>
             <div className="text-blue-700">
@@ -234,10 +241,7 @@ const ImportProcessorWithDataFlow: React.FC<ImportProcessorWithDataFlowProps> = 
       )}
 
       {/* 原始ImportProcessor组件 */}
-      <ImportProcessor
-        {...props}
-        onImportComplete={handleImportComplete}
-      />
+      <ImportProcessor {...props} onImportComplete={handleImportComplete} />
     </>
   );
 };

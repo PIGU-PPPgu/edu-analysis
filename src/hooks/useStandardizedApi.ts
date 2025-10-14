@@ -3,13 +3,13 @@
  * 提供统一的加载状态、错误处理和成功响应处理
  */
 
-import { useState, useCallback, useRef } from 'react';
-import { toast } from 'sonner';
-import { 
-  type ApiResponse, 
+import { useState, useCallback, useRef } from "react";
+import { toast } from "sonner";
+import {
+  type ApiResponse,
   type StandardError,
-  errorHandler 
-} from '@/services/errorHandler';
+  errorHandler,
+} from "@/services/errorHandler";
 
 interface UseStandardizedApiOptions {
   showSuccessToast?: boolean;
@@ -47,7 +47,7 @@ export function useStandardizedApi<T = any>(
     successMessage,
     errorMessage,
     onSuccess,
-    onError
+    onError,
   } = options;
 
   const [state, setState] = useState<UseStandardizedApiState<T>>({
@@ -55,72 +55,83 @@ export function useStandardizedApi<T = any>(
     error: null,
     isLoading: false,
     isSuccess: false,
-    isError: false
+    isError: false,
   });
 
   const lastArgsRef = useRef<any[]>([]);
 
-  const execute = useCallback(async (...args: any[]): Promise<T | null> => {
-    lastArgsRef.current = args;
-    
-    setState(prev => ({
-      ...prev,
-      isLoading: true,
-      error: null,
-      isSuccess: false,
-      isError: false
-    }));
+  const execute = useCallback(
+    async (...args: any[]): Promise<T | null> => {
+      lastArgsRef.current = args;
 
-    try {
-      const response = await apiFunction(...args);
-      
-      if (response.success && response.data) {
-        setState(prev => ({
-          ...prev,
-          data: response.data,
-          isLoading: false,
-          isSuccess: true,
-          isError: false
-        }));
-
-        // 成功回调
-        if (onSuccess) {
-          onSuccess(response.data);
-        }
-
-        // 成功提示
-        if (showSuccessToast) {
-          toast.success(successMessage || '操作成功');
-        }
-
-        return response.data;
-      } else {
-        throw new Error(response.error || '未知错误');
-      }
-    } catch (error) {
-      const standardError = errorHandler.handle(error);
-      
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
-        error: standardError,
-        isLoading: false,
+        isLoading: true,
+        error: null,
         isSuccess: false,
-        isError: true
+        isError: false,
       }));
 
-      // 错误回调
-      if (onError) {
-        onError(standardError);
-      }
+      try {
+        const response = await apiFunction(...args);
 
-      // 错误提示
-      if (showErrorToast) {
-        toast.error(errorMessage || standardError.message || '操作失败');
-      }
+        if (response.success && response.data) {
+          setState((prev) => ({
+            ...prev,
+            data: response.data,
+            isLoading: false,
+            isSuccess: true,
+            isError: false,
+          }));
 
-      return null;
-    }
-  }, [apiFunction, showSuccessToast, showErrorToast, successMessage, errorMessage, onSuccess, onError]);
+          // 成功回调
+          if (onSuccess) {
+            onSuccess(response.data);
+          }
+
+          // 成功提示
+          if (showSuccessToast) {
+            toast.success(successMessage || "操作成功");
+          }
+
+          return response.data;
+        } else {
+          throw new Error(response.error || "未知错误");
+        }
+      } catch (error) {
+        const standardError = errorHandler.handle(error);
+
+        setState((prev) => ({
+          ...prev,
+          error: standardError,
+          isLoading: false,
+          isSuccess: false,
+          isError: true,
+        }));
+
+        // 错误回调
+        if (onError) {
+          onError(standardError);
+        }
+
+        // 错误提示
+        if (showErrorToast) {
+          toast.error(errorMessage || standardError.message || "操作失败");
+        }
+
+        return null;
+      }
+    },
+    [
+      apiFunction,
+      showSuccessToast,
+      showErrorToast,
+      successMessage,
+      errorMessage,
+      onSuccess,
+      onError,
+    ]
+  );
 
   const reset = useCallback(() => {
     setState({
@@ -128,7 +139,7 @@ export function useStandardizedApi<T = any>(
       error: null,
       isLoading: false,
       isSuccess: false,
-      isError: false
+      isError: false,
     });
   }, []);
 
@@ -140,7 +151,7 @@ export function useStandardizedApi<T = any>(
     ...state,
     execute,
     reset,
-    retry
+    retry,
   };
 }
 
@@ -159,10 +170,7 @@ export function useStandardizedListApi<T = any>(
   apiFunction: () => Promise<ApiResponse<T>>,
   options: UseStandardizedListApiOptions = {}
 ): UseStandardizedListApiReturn<T> {
-  const {
-    initialLoad = false,
-    ...restOptions
-  } = options;
+  const { initialLoad = false, ...restOptions } = options;
 
   const baseResult = useStandardizedApi(apiFunction, restOptions);
 
@@ -179,7 +187,7 @@ export function useStandardizedListApi<T = any>(
 
   return {
     ...baseResult,
-    refetch
+    refetch,
   };
 }
 
@@ -194,22 +202,21 @@ export function useStandardizedFormApi<T = any>(
   apiFunction: (data: any) => Promise<ApiResponse<T>>,
   options: UseStandardizedFormApiOptions = {}
 ): UseStandardizedApiReturn<T> {
-  const {
-    resetOnSuccess = false,
-    onSuccess,
-    ...restOptions
-  } = options;
+  const { resetOnSuccess = false, onSuccess, ...restOptions } = options;
 
-  const handleSuccess = useCallback((data: T) => {
-    if (onSuccess) {
-      onSuccess(data);
-    }
-  }, [onSuccess]);
+  const handleSuccess = useCallback(
+    (data: T) => {
+      if (onSuccess) {
+        onSuccess(data);
+      }
+    },
+    [onSuccess]
+  );
 
   return useStandardizedApi(apiFunction, {
     ...restOptions,
     onSuccess: handleSuccess,
-    showSuccessToast: true // 表单提交默认显示成功提示
+    showSuccessToast: true, // 表单提交默认显示成功提示
   });
 }
 
@@ -221,7 +228,8 @@ interface UseStandardizedDeleteApiOptions extends UseStandardizedApiOptions {
   skipConfirm?: boolean;
 }
 
-interface UseStandardizedDeleteApiReturn<T> extends UseStandardizedApiReturn<T> {
+interface UseStandardizedDeleteApiReturn<T>
+  extends UseStandardizedApiReturn<T> {
   executeWithConfirm: (id: string | number) => Promise<T | null>;
 }
 
@@ -230,32 +238,35 @@ export function useStandardizedDeleteApi<T = any>(
   options: UseStandardizedDeleteApiOptions = {}
 ): UseStandardizedDeleteApiReturn<T> {
   const {
-    confirmMessage = '确定要删除吗？',
+    confirmMessage = "确定要删除吗？",
     skipConfirm = false,
     ...restOptions
   } = options;
 
   const baseResult = useStandardizedApi(apiFunction, {
     ...restOptions,
-    showSuccessToast: true // 删除操作默认显示成功提示
+    showSuccessToast: true, // 删除操作默认显示成功提示
   });
 
-  const executeWithConfirm = useCallback(async (id: string | number): Promise<T | null> => {
-    if (!skipConfirm) {
-      const confirmed = window.confirm(confirmMessage);
-      if (!confirmed) {
-        return null;
+  const executeWithConfirm = useCallback(
+    async (id: string | number): Promise<T | null> => {
+      if (!skipConfirm) {
+        const confirmed = window.confirm(confirmMessage);
+        if (!confirmed) {
+          return null;
+        }
       }
-    }
-    
-    return baseResult.execute(id);
-  }, [baseResult.execute, confirmMessage, skipConfirm]);
+
+      return baseResult.execute(id);
+    },
+    [baseResult.execute, confirmMessage, skipConfirm]
+  );
 
   return {
     ...baseResult,
-    executeWithConfirm
+    executeWithConfirm,
   };
 }
 
 // 为了兼容性，导入React
-import React from 'react';
+import React from "react";

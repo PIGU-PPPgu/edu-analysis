@@ -91,8 +91,7 @@ export function ClassTrendAnalysis({
         if (error || !grades || grades.length === 0) continue;
 
         const scores = grades.map((g: any) => g.total_score);
-        const average =
-          scores.reduce((sum, s) => sum + s, 0) / scores.length;
+        const average = scores.reduce((sum, s) => sum + s, 0) / scores.length;
         const passCount = scores.filter((s) => s >= 60).length;
         const excellentCount = scores.filter((s) => s >= 85).length;
 
@@ -312,7 +311,9 @@ export function ClassTrendAnalysis({
                   <tr
                     key={index}
                     className={`border-t ${
-                      index === trends.length - 1 ? "bg-blue-50 font-medium" : ""
+                      index === trends.length - 1
+                        ? "bg-blue-50 font-medium"
+                        : ""
                     }`}
                   >
                     <td className="px-4 py-2">{trend.examTitle}</td>

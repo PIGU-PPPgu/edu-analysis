@@ -53,7 +53,9 @@ export class DataFlowPersistence {
 
         // 创建任务存储
         if (!db.objectStoreNames.contains(STORE_TASKS)) {
-          const taskStore = db.createObjectStore(STORE_TASKS, { keyPath: "id" });
+          const taskStore = db.createObjectStore(STORE_TASKS, {
+            keyPath: "id",
+          });
           taskStore.createIndex("state", "state", { unique: false });
           taskStore.createIndex("type", "type", { unique: false });
           taskStore.createIndex("createdAt", "createdAt", { unique: false });
@@ -65,7 +67,9 @@ export class DataFlowPersistence {
             keyPath: "id",
           });
           checkpointStore.createIndex("taskId", "taskId", { unique: false });
-          checkpointStore.createIndex("timestamp", "timestamp", { unique: false });
+          checkpointStore.createIndex("timestamp", "timestamp", {
+            unique: false,
+          });
         }
 
         console.log("[Persistence] 数据库结构创建成功");
@@ -222,7 +226,10 @@ export class DataFlowPersistence {
     let deletedCount = 0;
 
     return new Promise((resolve, reject) => {
-      const transaction = db.transaction([STORE_TASKS, STORE_CHECKPOINTS], "readwrite");
+      const transaction = db.transaction(
+        [STORE_TASKS, STORE_CHECKPOINTS],
+        "readwrite"
+      );
 
       // 清理任务
       const taskStore = transaction.objectStore(STORE_TASKS);
@@ -236,7 +243,9 @@ export class DataFlowPersistence {
           if (
             task.completedAt &&
             task.completedAt < timestamp &&
-            (task.state === "completed" || task.state === "failed" || task.state === "cancelled")
+            (task.state === "completed" ||
+              task.state === "failed" ||
+              task.state === "cancelled")
           ) {
             cursor.delete();
             deletedCount++;
@@ -279,7 +288,10 @@ export class DataFlowPersistence {
     const db = await this.ensureDB();
 
     return new Promise((resolve, reject) => {
-      const transaction = db.transaction([STORE_TASKS, STORE_CHECKPOINTS], "readonly");
+      const transaction = db.transaction(
+        [STORE_TASKS, STORE_CHECKPOINTS],
+        "readonly"
+      );
 
       let totalTasks = 0;
       let totalCheckpoints = 0;
@@ -308,7 +320,10 @@ export class DataFlowPersistence {
   /**
    * 导出所有数据 (用于备份)
    */
-  async exportData(): Promise<{ tasks: DataFlowTask[]; checkpoints: Checkpoint[] }> {
+  async exportData(): Promise<{
+    tasks: DataFlowTask[];
+    checkpoints: Checkpoint[];
+  }> {
     const tasks = await this.loadAllTasks();
     const db = await this.ensureDB();
 
@@ -327,7 +342,10 @@ export class DataFlowPersistence {
   /**
    * 导入数据 (用于恢复)
    */
-  async importData(data: { tasks: DataFlowTask[]; checkpoints: Checkpoint[] }): Promise<void> {
+  async importData(data: {
+    tasks: DataFlowTask[];
+    checkpoints: Checkpoint[];
+  }): Promise<void> {
     await this.saveTasks(data.tasks);
 
     const db = await this.ensureDB();

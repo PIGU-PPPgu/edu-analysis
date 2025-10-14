@@ -10,9 +10,18 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { authorizationService, type AuthorizationResult } from "@/services/auth/authorization";
-import { dataProtectionService, type DataAccessContext } from "@/services/security/dataProtectionService";
-import { securityMiddleware, type SecurityContext } from "@/middleware/securityMiddleware";
+import {
+  authorizationService,
+  type AuthorizationResult,
+} from "@/services/auth/authorization";
+import {
+  dataProtectionService,
+  type DataAccessContext,
+} from "@/services/security/dataProtectionService";
+import {
+  securityMiddleware,
+  type SecurityContext,
+} from "@/middleware/securityMiddleware";
 import { SecurityUtils, type ValidationResult } from "@/utils/securityUtils";
 import { logInfo } from "@/utils/logger";
 
@@ -71,7 +80,9 @@ export function useSecurity() {
       try {
         // 获取用户角色和权限
         const userRoles = await authorizationService.getUserRoles(user.id);
-        const userPermissions = await authorizationService.getUserPermissions(user.id);
+        const userPermissions = await authorizationService.getUserPermissions(
+          user.id
+        );
 
         // 创建安全上下文
         const securityContext: SecurityContext = {
@@ -199,7 +210,10 @@ export function useSecurity() {
         sensitiveFields: options.sensitiveFields || [],
       };
 
-      return await dataProtectionService.processDataByPermissions(data, context);
+      return await dataProtectionService.processDataByPermissions(
+        data,
+        context
+      );
     },
     [securityState.securityContext]
   );
@@ -251,7 +265,7 @@ export function useSecurity() {
     (
       file: File,
       options?: {
-        allowedTypes?: 'image' | 'document' | 'audio' | 'video' | 'all';
+        allowedTypes?: "image" | "document" | "audio" | "video" | "all";
         maxSize?: number;
         minSize?: number;
       }
@@ -294,12 +308,15 @@ export function useSecurity() {
       isAdmin: securityState.roles.includes("admin"),
       isTeacher: securityState.roles.includes("teacher"),
       isStudent: securityState.roles.includes("student"),
-      canManageUsers: securityState.permissions.includes("users:manage") || 
-                     securityState.permissions.includes("*"),
-      canViewReports: securityState.permissions.includes("reports:read") ||
-                     securityState.permissions.includes("*"),
-      canManageGrades: securityState.permissions.includes("grades:manage") ||
-                      securityState.permissions.includes("*"),
+      canManageUsers:
+        securityState.permissions.includes("users:manage") ||
+        securityState.permissions.includes("*"),
+      canViewReports:
+        securityState.permissions.includes("reports:read") ||
+        securityState.permissions.includes("*"),
+      canManageGrades:
+        securityState.permissions.includes("grades:manage") ||
+        securityState.permissions.includes("*"),
     }),
     [securityState.roles, securityState.permissions]
   );
@@ -328,10 +345,12 @@ export function useSecurity() {
 
     // 工具函数
     getPermissionReport,
-    
+
     // 便捷的权限检查Hook
     usePermissionGuard: (requiredPermissions: PermissionCheck[]) => {
-      const [permissions, setPermissions] = useState<Record<string, AuthorizationResult>>({});
+      const [permissions, setPermissions] = useState<
+        Record<string, AuthorizationResult>
+      >({});
       const [loading, setLoading] = useState(true);
 
       useEffect(() => {
@@ -362,7 +381,9 @@ export function useSecurity() {
       return useMemo(() => {
         return {
           hasRequiredRole: hasAnyRole(requiredRoles),
-          missingRoles: requiredRoles.filter(role => !securityState.roles.includes(role)),
+          missingRoles: requiredRoles.filter(
+            (role) => !securityState.roles.includes(role)
+          ),
         };
       }, [requiredRoles, securityState.roles]);
     },

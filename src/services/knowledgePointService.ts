@@ -45,7 +45,7 @@ function areStringSimilar(str1: string, str2: string): boolean {
 
 // ✅ 缓存键前缀
 const CACHE_PREFIX = {
-  EMBEDDING: 'kp_embedding_',
+  EMBEDDING: "kp_embedding_",
 };
 
 // 知识点服务

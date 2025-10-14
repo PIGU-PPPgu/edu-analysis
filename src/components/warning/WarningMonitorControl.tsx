@@ -1,35 +1,41 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  PlayIcon, 
-  PauseIcon, 
-  SettingsIcon, 
+import React, { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  PlayIcon,
+  PauseIcon,
+  SettingsIcon,
   ActivityIcon,
   ClockIcon,
   AlertTriangleIcon,
   CheckCircleIcon,
   RefreshCwIcon,
   DatabaseIcon,
-  BellIcon
-} from 'lucide-react';
-import { 
-  warningMonitor, 
-  startWarningMonitoring, 
+  BellIcon,
+} from "lucide-react";
+import {
+  warningMonitor,
+  startWarningMonitoring,
   stopWarningMonitoring,
   getMonitoringStatus,
   configureMonitoring,
   triggerManualCheck,
   type MonitorStatus,
-  type MonitorConfig
-} from '@/services/warningMonitor';
-import { toast } from 'sonner';
+  type MonitorConfig,
+} from "@/services/warningMonitor";
+import { toast } from "sonner";
 
 export function WarningMonitorControl() {
   const [status, setStatus] = useState<MonitorStatus>(getMonitoringStatus());
@@ -52,8 +58,8 @@ export function WarningMonitorControl() {
       const stats = await warningMonitor.getStatistics();
       setStatistics(stats);
     } catch (error) {
-      console.error('加载统计信息失败:', error);
-      toast.error('加载统计信息失败');
+      console.error("加载统计信息失败:", error);
+      toast.error("加载统计信息失败");
     } finally {
       setIsLoading(false);
     }
@@ -63,11 +69,11 @@ export function WarningMonitorControl() {
   const handleStartMonitoring = async () => {
     try {
       await startWarningMonitoring();
-      toast.success('预警监控已启动');
+      toast.success("预警监控已启动");
       await loadStatistics();
     } catch (error) {
-      console.error('启动监控失败:', error);
-      toast.error('启动监控失败');
+      console.error("启动监控失败:", error);
+      toast.error("启动监控失败");
     }
   };
 
@@ -75,11 +81,11 @@ export function WarningMonitorControl() {
   const handleStopMonitoring = async () => {
     try {
       await stopWarningMonitoring();
-      toast.success('预警监控已停止');
+      toast.success("预警监控已停止");
       await loadStatistics();
     } catch (error) {
-      console.error('停止监控失败:', error);
-      toast.error('停止监控失败');
+      console.error("停止监控失败:", error);
+      toast.error("停止监控失败");
     }
   };
 
@@ -88,11 +94,11 @@ export function WarningMonitorControl() {
     try {
       setIsLoading(true);
       await triggerManualCheck();
-      toast.success('手动检查完成');
+      toast.success("手动检查完成");
       await loadStatistics();
     } catch (error) {
-      console.error('手动检查失败:', error);
-      toast.error('手动检查失败');
+      console.error("手动检查失败:", error);
+      toast.error("手动检查失败");
     } finally {
       setIsLoading(false);
     }
@@ -104,10 +110,10 @@ export function WarningMonitorControl() {
       const updatedConfig = { ...config, ...newConfig };
       await configureMonitoring(updatedConfig);
       setConfig(updatedConfig);
-      toast.success('监控配置已更新');
+      toast.success("监控配置已更新");
     } catch (error) {
-      console.error('更新配置失败:', error);
-      toast.error('更新配置失败');
+      console.error("更新配置失败:", error);
+      toast.error("更新配置失败");
     }
   };
 
@@ -117,7 +123,11 @@ export function WarningMonitorControl() {
 
   const getStatusBadge = (status: MonitorStatus) => {
     if (status.isRunning) {
-      return <Badge variant="secondary" className="bg-green-100 text-green-800">运行中</Badge>;
+      return (
+        <Badge variant="secondary" className="bg-green-100 text-green-800">
+          运行中
+        </Badge>
+      );
     } else if (status.lastError) {
       return <Badge variant="destructive">错误</Badge>;
     } else {
@@ -146,7 +156,11 @@ export function WarningMonitorControl() {
             </div>
             <div className="flex items-center gap-2">
               <Button
-                onClick={status.isRunning ? handleStopMonitoring : handleStartMonitoring}
+                onClick={
+                  status.isRunning
+                    ? handleStopMonitoring
+                    : handleStartMonitoring
+                }
                 disabled={isLoading}
                 className="flex items-center gap-2"
               >
@@ -180,9 +194,14 @@ export function WarningMonitorControl() {
                 <div className="flex items-center gap-2">
                   <ClockIcon className="h-4 w-4 text-blue-500" />
                   <div>
-                    <div className="text-sm text-muted-foreground">运行时长</div>
+                    <div className="text-sm text-muted-foreground">
+                      运行时长
+                    </div>
                     <div className="font-medium">
-                      {Math.floor((Date.now() - (status.startTime || Date.now())) / 60000)} 分钟
+                      {Math.floor(
+                        (Date.now() - (status.startTime || Date.now())) / 60000
+                      )}{" "}
+                      分钟
                     </div>
                   </div>
                 </div>
@@ -191,7 +210,9 @@ export function WarningMonitorControl() {
                 <div className="flex items-center gap-2">
                   <DatabaseIcon className="h-4 w-4 text-green-500" />
                   <div>
-                    <div className="text-sm text-muted-foreground">检查次数</div>
+                    <div className="text-sm text-muted-foreground">
+                      检查次数
+                    </div>
                     <div className="font-medium">{status.checkCount || 0}</div>
                   </div>
                 </div>
@@ -200,7 +221,9 @@ export function WarningMonitorControl() {
                 <div className="flex items-center gap-2">
                   <BellIcon className="h-4 w-4 text-orange-500" />
                   <div>
-                    <div className="text-sm text-muted-foreground">发现异常</div>
+                    <div className="text-sm text-muted-foreground">
+                      发现异常
+                    </div>
                     <div className="font-medium">{status.alertCount || 0}</div>
                   </div>
                 </div>
@@ -217,7 +240,8 @@ export function WarningMonitorControl() {
                   <div className="font-medium">监控异常</div>
                   <div className="text-sm">{status.lastError}</div>
                   <div className="text-xs text-muted-foreground">
-                    {status.lastErrorTime && new Date(status.lastErrorTime).toLocaleString()}
+                    {status.lastErrorTime &&
+                      new Date(status.lastErrorTime).toLocaleString()}
                   </div>
                 </div>
               </AlertDescription>
@@ -232,7 +256,7 @@ export function WarningMonitorControl() {
               <SettingsIcon className="h-4 w-4" />
               监控配置
             </Label>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="checkInterval">检查间隔 (分钟)</Label>
@@ -240,23 +264,27 @@ export function WarningMonitorControl() {
                   id="checkInterval"
                   type="number"
                   value={config.checkInterval || 5}
-                  onChange={(e) => handleConfigChange({ 
-                    checkInterval: parseInt(e.target.value) 
-                  })}
+                  onChange={(e) =>
+                    handleConfigChange({
+                      checkInterval: parseInt(e.target.value),
+                    })
+                  }
                   min={1}
                   max={60}
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="alertThreshold">异常阈值</Label>
                 <Input
                   id="alertThreshold"
                   type="number"
                   value={config.alertThreshold || 10}
-                  onChange={(e) => handleConfigChange({ 
-                    alertThreshold: parseInt(e.target.value) 
-                  })}
+                  onChange={(e) =>
+                    handleConfigChange({
+                      alertThreshold: parseInt(e.target.value),
+                    })
+                  }
                   min={1}
                   max={100}
                 />
@@ -267,7 +295,9 @@ export function WarningMonitorControl() {
               <Switch
                 id="autoRestart"
                 checked={config.autoRestart || false}
-                onCheckedChange={(checked) => handleConfigChange({ autoRestart: checked })}
+                onCheckedChange={(checked) =>
+                  handleConfigChange({ autoRestart: checked })
+                }
               />
               <Label htmlFor="autoRestart">异常时自动重启</Label>
             </div>
@@ -276,7 +306,9 @@ export function WarningMonitorControl() {
               <Switch
                 id="emailAlerts"
                 checked={config.emailAlerts || false}
-                onCheckedChange={(checked) => handleConfigChange({ emailAlerts: checked })}
+                onCheckedChange={(checked) =>
+                  handleConfigChange({ emailAlerts: checked })
+                }
               />
               <Label htmlFor="emailAlerts">邮件通知</Label>
             </div>

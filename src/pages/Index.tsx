@@ -56,7 +56,11 @@ import { Separator } from "@/components/ui/separator";
 // 使用AI增强的成绩导入组件 - 包含完整的AI解析功能
 // 校验面板组件
 import GradeValidationPanel from "@/components/grade/GradeValidationPanel";
-import { gradeDataValidator, type ValidationReport, type ValidationOptions } from "@/services/gradeDataValidator";
+import {
+  gradeDataValidator,
+  type ValidationReport,
+  type ValidationOptions,
+} from "@/services/gradeDataValidator";
 import { autoSyncService } from "@/services/autoSyncService";
 import { showError } from "@/services/errorHandler";
 
@@ -68,7 +72,8 @@ const Index = () => {
   const { user, isAuthReady } = useAuth();
 
   // 校验相关状态
-  const [validationReport, setValidationReport] = useState<ValidationReport | null>(null);
+  const [validationReport, setValidationReport] =
+    useState<ValidationReport | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [showValidationPanel, setShowValidationPanel] = useState(false);
 
@@ -223,40 +228,43 @@ const Index = () => {
 
       // 如果有实际导入的数据，进行数据校验
       if (result.importedData && result.importedData.length > 0) {
-        console.log('📋 开始对导入的数据进行校验...');
+        console.log("📋 开始对导入的数据进行校验...");
         await handleValidateData(result.importedData, {
           enableAutoFix: true,
           skipWarnings: false,
           skipInfo: true,
           enableDataCleaning: true,
           strictMode: false,
-          maxErrors: 500
+          maxErrors: 500,
         });
       }
     }
   };
 
   // 校验相关方法
-  const handleValidateData = async (data: any[], options?: ValidationOptions) => {
+  const handleValidateData = async (
+    data: any[],
+    options?: ValidationOptions
+  ) => {
     setIsValidating(true);
     try {
-      console.log('🔍 开始数据校验:', data.length, '条记录');
+      console.log("🔍 开始数据校验:", data.length, "条记录");
       const report = await gradeDataValidator.validateGradeData(data, options);
       setValidationReport(report);
       setShowValidationPanel(true);
-      
+
       if (report.success) {
-        toast.success('数据校验完成', {
-          description: `数据质量: ${report.dataQuality.score}分 (${report.dataQuality.label})`
+        toast.success("数据校验完成", {
+          description: `数据质量: ${report.dataQuality.score}分 (${report.dataQuality.label})`,
         });
       } else {
-        toast.warning('发现数据问题', {
-          description: `发现 ${report.summary.critical} 个严重错误，${report.summary.errors} 个错误`
+        toast.warning("发现数据问题", {
+          description: `发现 ${report.summary.critical} 个严重错误，${report.summary.errors} 个错误`,
         });
       }
     } catch (error) {
-      console.error('数据校验失败:', error);
-      showError(error, { operation: '数据校验', recordCount: data.length });
+      console.error("数据校验失败:", error);
+      showError(error, { operation: "数据校验", recordCount: data.length });
     } finally {
       setIsValidating(false);
     }
@@ -270,26 +278,26 @@ const Index = () => {
 
   const handleExportValidationReport = () => {
     if (!validationReport) return;
-    
+
     const reportData = {
       ...validationReport,
       exportTime: new Date().toISOString(),
-      totalRecords: validationReport.totalRecords
+      totalRecords: validationReport.totalRecords,
     };
-    
-    const blob = new Blob([JSON.stringify(reportData, null, 2)], { 
-      type: 'application/json' 
+
+    const blob = new Blob([JSON.stringify(reportData, null, 2)], {
+      type: "application/json",
     });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = `validation-report-${Date.now()}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
-    toast.success('校验报告已导出');
+
+    toast.success("校验报告已导出");
   };
 
   const handleApplyFixes = async (fixIds: string[]) => {
@@ -312,12 +320,13 @@ const Index = () => {
       toast.info(`发现 ${diagnosticReport.totalIssues} 个问题，正在修复...`);
       const results = await dataFixService.autoFixAll(diagnosticReport);
 
-      const successCount = results.filter(r => r.success).length;
+      const successCount = results.filter((r) => r.success).length;
       const failedCount = results.length - successCount;
 
       if (successCount > 0) {
         toast.success(`成功修复 ${successCount} 个问题`, {
-          description: failedCount > 0 ? `${failedCount} 个问题需要人工处理` : undefined,
+          description:
+            failedCount > 0 ? `${failedCount} 个问题需要人工处理` : undefined,
         });
       }
 
@@ -332,7 +341,8 @@ const Index = () => {
     } catch (error) {
       console.error("[自动修复] 修复失败:", error);
       toast.error("自动修复失败", {
-        description: error instanceof Error ? error.message : "请查看控制台日志",
+        description:
+          error instanceof Error ? error.message : "请查看控制台日志",
       });
     }
   };
@@ -412,7 +422,12 @@ const Index = () => {
               </Alert>
             )}
 
-            <Tabs key="main-tabs" value={mainActiveTab} onValueChange={setMainActiveTab} className="w-full">
+            <Tabs
+              key="main-tabs"
+              value={mainActiveTab}
+              onValueChange={setMainActiveTab}
+              className="w-full"
+            >
               <TabsList className="mb-6 bg-white border shadow-sm">
                 <TabsTrigger
                   value="students"
@@ -482,7 +497,8 @@ const Index = () => {
                           智能成绩导入
                         </h3>
                         <p className="text-xs text-gray-700">
-                          🌟 一键智能识别，三步完成导入，支持大文件和Web Worker加速处理
+                          🌟 一键智能识别，三步完成导入，支持大文件和Web
+                          Worker加速处理
                         </p>
                       </div>
 
@@ -546,15 +562,17 @@ const Index = () => {
                                   </CardHeader>
                                   <CardContent>
                                     <div className="text-2xl font-bold">
-                                      {validationReport ? 
-                                        `${Math.round((validationReport.validRecords / validationReport.totalRecords) * 100)}%` : 
-                                        '100%'
-                                      }
+                                      {validationReport
+                                        ? `${Math.round((validationReport.validRecords / validationReport.totalRecords) * 100)}%`
+                                        : "100%"}
                                     </div>
                                     <Progress
-                                      value={validationReport ? 
-                                        (validationReport.validRecords / validationReport.totalRecords) * 100 : 
-                                        100
+                                      value={
+                                        validationReport
+                                          ? (validationReport.validRecords /
+                                              validationReport.totalRecords) *
+                                            100
+                                          : 100
                                       }
                                       className="h-1 mt-1"
                                     />
@@ -586,16 +604,32 @@ const Index = () => {
                                 <Card>
                                   <CardHeader className="pb-2">
                                     <CardTitle className="text-sm font-medium text-gray-500">
-                                      {validationReport ? '数据质量' : '科目类型'}
+                                      {validationReport
+                                        ? "数据质量"
+                                        : "科目类型"}
                                     </CardTitle>
                                   </CardHeader>
                                   <CardContent>
                                     {validationReport ? (
                                       <div className="flex items-center space-x-2">
-                                        <div className="text-2xl font-bold" style={{ color: validationReport.dataQuality.color }}>
+                                        <div
+                                          className="text-2xl font-bold"
+                                          style={{
+                                            color:
+                                              validationReport.dataQuality
+                                                .color,
+                                          }}
+                                        >
                                           {validationReport.dataQuality.score}
                                         </div>
-                                        <Badge variant="outline" style={{ color: validationReport.dataQuality.color }}>
+                                        <Badge
+                                          variant="outline"
+                                          style={{
+                                            color:
+                                              validationReport.dataQuality
+                                                .color,
+                                          }}
+                                        >
                                           {validationReport.dataQuality.label}
                                         </Badge>
                                       </div>
@@ -611,7 +645,7 @@ const Index = () => {
                                       </div>
                                     )}
                                     <p className="text-xs text-gray-500 mt-1">
-                                      {validationReport ? '质量评分' : '个科目'}
+                                      {validationReport ? "质量评分" : "个科目"}
                                     </p>
                                   </CardContent>
                                 </Card>
@@ -626,7 +660,9 @@ const Index = () => {
                                     <Button
                                       variant="outline"
                                       size="sm"
-                                      onClick={() => handleValidateData(importedData)}
+                                      onClick={() =>
+                                        handleValidateData(importedData)
+                                      }
                                       disabled={isValidating}
                                     >
                                       {isValidating ? (
@@ -641,16 +677,19 @@ const Index = () => {
                                     <Button
                                       variant="outline"
                                       size="sm"
-                                      onClick={() => setShowValidationPanel(!showValidationPanel)}
+                                      onClick={() =>
+                                        setShowValidationPanel(
+                                          !showValidationPanel
+                                        )
+                                      }
                                     >
                                       <Eye className="h-4 w-4 mr-1" />
-                                      {showValidationPanel ? '隐藏校验' : '查看校验'}
+                                      {showValidationPanel
+                                        ? "隐藏校验"
+                                        : "查看校验"}
                                     </Button>
                                   )}
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                  >
+                                  <Button variant="outline" size="sm">
                                     <Download className="h-4 w-4 mr-1" />
                                     导出数据
                                   </Button>

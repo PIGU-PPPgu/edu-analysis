@@ -2,7 +2,14 @@ import React, { useState, useEffect, lazy, Suspense } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, BarChart3, RefreshCw, Settings, Users, List } from "lucide-react";
+import {
+  AlertTriangle,
+  BarChart3,
+  RefreshCw,
+  Settings,
+  Users,
+  List,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 

@@ -2,12 +2,12 @@
  * 缓存调试面板
  * 用于开发环境下监控缓存性能和状态
  */
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { getCacheStats, clearAllCache } from '@/utils/cacheHelpers';
-import { Trash2, RefreshCw, BarChart3, Database } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { getCacheStats, clearAllCache } from "@/utils/cacheHelpers";
+import { Trash2, RefreshCw, BarChart3, Database } from "lucide-react";
 
 interface CacheStats {
   totalEntries: number;
@@ -21,9 +21,11 @@ export function CacheDebugPanel() {
     totalEntries: 0,
     validEntries: 0,
     expiredEntries: 0,
-    hitRatio: 0
+    hitRatio: 0,
   });
-  const [refreshInterval, setRefreshInterval] = useState<NodeJS.Timeout | null>(null);
+  const [refreshInterval, setRefreshInterval] = useState<NodeJS.Timeout | null>(
+    null
+  );
 
   const updateStats = () => {
     setStats(getCacheStats());
@@ -51,27 +53,28 @@ export function CacheDebugPanel() {
   };
 
   const getHitRatioColor = (ratio: number) => {
-    if (ratio >= 0.8) return 'bg-green-100 text-green-800';
-    if (ratio >= 0.6) return 'bg-yellow-100 text-yellow-800';
-    return 'bg-red-100 text-red-800';
+    if (ratio >= 0.8) return "bg-green-100 text-green-800";
+    if (ratio >= 0.6) return "bg-yellow-100 text-yellow-800";
+    return "bg-red-100 text-red-800";
   };
 
   const getHealthStatus = () => {
     const { validEntries, totalEntries, hitRatio } = stats;
 
-    if (totalEntries === 0) return { status: 'idle', color: 'bg-gray-100 text-gray-800' };
+    if (totalEntries === 0)
+      return { status: "idle", color: "bg-gray-100 text-gray-800" };
     if (hitRatio >= 0.8 && validEntries > totalEntries * 0.7) {
-      return { status: 'excellent', color: 'bg-green-100 text-green-800' };
+      return { status: "excellent", color: "bg-green-100 text-green-800" };
     }
     if (hitRatio >= 0.6) {
-      return { status: 'good', color: 'bg-yellow-100 text-yellow-800' };
+      return { status: "good", color: "bg-yellow-100 text-yellow-800" };
     }
-    return { status: 'needs-attention', color: 'bg-red-100 text-red-800' };
+    return { status: "needs-attention", color: "bg-red-100 text-red-800" };
   };
 
   const health = getHealthStatus();
 
-  if (process.env.NODE_ENV !== 'development') {
+  if (process.env.NODE_ENV !== "development") {
     return null;
   }
 
@@ -120,15 +123,22 @@ export function CacheDebugPanel() {
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">有效:</span>
-            <span className="font-mono text-green-600">{stats.validEntries}</span>
+            <span className="font-mono text-green-600">
+              {stats.validEntries}
+            </span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">过期:</span>
-            <span className="font-mono text-red-600">{stats.expiredEntries}</span>
+            <span className="font-mono text-red-600">
+              {stats.expiredEntries}
+            </span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">命中率:</span>
-            <Badge variant="secondary" className={getHitRatioColor(stats.hitRatio)}>
+            <Badge
+              variant="secondary"
+              className={getHitRatioColor(stats.hitRatio)}
+            >
               {(stats.hitRatio * 100).toFixed(1)}%
             </Badge>
           </div>
@@ -145,20 +155,18 @@ export function CacheDebugPanel() {
             <div className="flex justify-between">
               <span className="text-gray-600">内存效率:</span>
               <span className="font-mono">
-                {stats.validEntries > 0 ?
-                  `${((stats.validEntries / stats.totalEntries) * 100).toFixed(1)}%` :
-                  'N/A'
-                }
+                {stats.validEntries > 0
+                  ? `${((stats.validEntries / stats.totalEntries) * 100).toFixed(1)}%`
+                  : "N/A"}
               </span>
             </div>
 
             <div className="flex justify-between">
               <span className="text-gray-600">缓存收益:</span>
               <span className="font-mono">
-                {stats.hitRatio > 0 ?
-                  `${(stats.hitRatio * stats.totalEntries).toFixed(0)}次命中` :
-                  '无数据'
-                }
+                {stats.hitRatio > 0
+                  ? `${(stats.hitRatio * stats.totalEntries).toFixed(0)}次命中`
+                  : "无数据"}
               </span>
             </div>
           </div>
@@ -167,9 +175,7 @@ export function CacheDebugPanel() {
         {/* 操作建议 */}
         {stats.expiredEntries > stats.totalEntries * 0.3 && (
           <div className="border-t pt-2">
-            <div className="text-amber-600 text-xs">
-              ⚠️ 建议清理过期缓存
-            </div>
+            <div className="text-amber-600 text-xs">⚠️ 建议清理过期缓存</div>
           </div>
         )}
 

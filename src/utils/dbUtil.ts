@@ -19,13 +19,13 @@ export async function executeSql(
   try {
     // 生产环境: 必须使用真实的数据库RPC函数
     if (!isDevelopment) {
-      const { data, error } = await supabase.rpc('execute_sql', {
+      const { data, error } = await supabase.rpc("execute_sql", {
         sql_query: sql,
-        query_params: params
+        query_params: params,
       });
 
       if (error) {
-        console.error('[生产环境] SQL执行失败:', error);
+        console.error("[生产环境] SQL执行失败:", error);
         throw error;
       }
 
@@ -34,15 +34,15 @@ export async function executeSql(
 
     // 开发环境: 尝试真实数据库,失败时降级为Mock
     try {
-      const { data, error } = await supabase.rpc('execute_sql', {
+      const { data, error } = await supabase.rpc("execute_sql", {
         sql_query: sql,
-        query_params: params
+        query_params: params,
       });
 
       if (error) {
         if (ALLOW_MOCK_IN_DEV) {
-          console.warn('[开发环境] SQL执行失败,使用Mock数据:', error.message);
-          console.log('[开发环境] SQL语句:', sql);
+          console.warn("[开发环境] SQL执行失败,使用Mock数据:", error.message);
+          console.log("[开发环境] SQL语句:", sql);
           return mockDataForQuery(sql);
         }
         throw error;
@@ -51,8 +51,10 @@ export async function executeSql(
       return data as QueryResult;
     } catch (rpcError) {
       if (ALLOW_MOCK_IN_DEV) {
-        console.warn('[开发环境] RPC不存在,使用Mock数据. 请创建execute_sql存储过程');
-        console.log('[开发环境] SQL语句:', sql);
+        console.warn(
+          "[开发环境] RPC不存在,使用Mock数据. 请创建execute_sql存储过程"
+        );
+        console.log("[开发环境] SQL语句:", sql);
         return mockDataForQuery(sql);
       }
       throw rpcError;
@@ -88,8 +90,11 @@ export async function executeSqlFromFile(
 
       if (error) {
         if (ALLOW_MOCK_IN_DEV) {
-          console.warn(`[开发环境] 函数${functionName}执行失败,使用Mock数据:`, error.message);
-          console.log('[开发环境] 函数参数:', params);
+          console.warn(
+            `[开发环境] 函数${functionName}执行失败,使用Mock数据:`,
+            error.message
+          );
+          console.log("[开发环境] 函数参数:", params);
           return mockDataForFunction(functionName);
         }
         throw error;
@@ -98,8 +103,10 @@ export async function executeSqlFromFile(
       return data;
     } catch (rpcError) {
       if (ALLOW_MOCK_IN_DEV) {
-        console.warn(`[开发环境] 函数${functionName}不存在,使用Mock数据. 请创建该存储过程`);
-        console.log('[开发环境] 函数参数:', params);
+        console.warn(
+          `[开发环境] 函数${functionName}不存在,使用Mock数据. 请创建该存储过程`
+        );
+        console.log("[开发环境] 函数参数:", params);
         return mockDataForFunction(functionName);
       }
       throw rpcError;
@@ -121,7 +128,9 @@ export async function executeSqlFromFile(
  * @returns 模拟的查询结果
  */
 function mockDataForQuery(sql: string): QueryResult {
-  console.warn('[MOCK数据] 使用模拟查询结果,请尽快创建真实的execute_sql存储过程');
+  console.warn(
+    "[MOCK数据] 使用模拟查询结果,请尽快创建真实的execute_sql存储过程"
+  );
 
   if (sql.includes("pg_trigger")) {
     return [{ trigger_exists: false }];
@@ -153,7 +162,9 @@ function mockDataForQuery(sql: string): QueryResult {
  * @returns 模拟的函数执行结果
  */
 function mockDataForFunction(functionName: string): any {
-  console.warn(`[MOCK数据] 使用模拟函数结果: ${functionName},请创建真实的存储过程`);
+  console.warn(
+    `[MOCK数据] 使用模拟函数结果: ${functionName},请创建真实的存储过程`
+  );
 
   // 用户配置相关函数
   if (functionName === "create_user_profile_function") {
@@ -181,6 +192,6 @@ function mockDataForFunction(functionName: string): any {
   return {
     success: true,
     _isMockData: true,
-    _warning: `函数${functionName}不存在,返回的是模拟数据`
+    _warning: `函数${functionName}不存在,返回的是模拟数据`,
   };
 }

@@ -4,28 +4,33 @@
  */
 
 // 基础严重程度类型
-export type SeverityLevel = 'low' | 'medium' | 'high';
+export type SeverityLevel = "low" | "medium" | "high";
 
 // 预警规则范围
-export type WarningScope = 'global' | 'exam' | 'class' | 'student';
+export type WarningScope = "global" | "exam" | "class" | "student";
 
 // 预警分类
-export type WarningCategory = 
-  | 'grade' 
-  | 'attendance' 
-  | 'behavior' 
-  | 'progress' 
-  | 'homework' 
-  | 'composite';
+export type WarningCategory =
+  | "grade"
+  | "attendance"
+  | "behavior"
+  | "progress"
+  | "homework"
+  | "composite";
 
 // 预警记录状态
-export type WarningStatus = 'active' | 'resolved' | 'dismissed';
+export type WarningStatus = "active" | "resolved" | "dismissed";
 
 // 规则执行状态
-export type RuleExecutionStatus = 'pending' | 'running' | 'completed' | 'failed' | 'timeout';
+export type RuleExecutionStatus =
+  | "pending"
+  | "running"
+  | "completed"
+  | "failed"
+  | "timeout";
 
 // 执行类型
-export type ExecutionType = 'manual' | 'auto' | 'scheduled' | 'data_change';
+export type ExecutionType = "manual" | "auto" | "scheduled" | "data_change";
 
 /**
  * 预警规则接口
@@ -100,7 +105,7 @@ export interface WarningStatistics {
     type: string;
     count: number;
     percentage: number;
-    trend?: 'up' | 'down' | 'unchanged';
+    trend?: "up" | "down" | "unchanged";
   }>;
   riskByClass: Array<{
     className: string;
@@ -127,7 +132,7 @@ export interface WarningFilter {
   timeRange?: "month" | "quarter" | "semester" | "year" | "custom" | string;
   startDate?: string;
   endDate?: string;
-  
+
   // 基础筛选
   severity?: SeverityLevel[];
   severityLevels?: SeverityLevel[]; // 向后兼容
@@ -135,17 +140,17 @@ export interface WarningFilter {
   scope?: WarningScope[];
   status?: WarningStatus[];
   warningStatus?: WarningStatus[]; // 向后兼容
-  
+
   // 考试相关
   examTypes?: string[];
   mixedAnalysis?: boolean;
   analysisMode?: "student" | "exam" | "subject";
-  
+
   // 对象筛选
   classId?: string;
   studentId?: string;
   ruleId?: string;
-  
+
   // 搜索
   search?: string;
 }
@@ -228,7 +233,7 @@ export interface WarningTrendData {
  * 预警建议接口
  */
 export interface WarningRecommendation {
-  type: 'intervention' | 'monitoring' | 'escalation' | 'prevention';
+  type: "intervention" | "monitoring" | "escalation" | "prevention";
   description: string;
   priority: number;
   actions: string[];
@@ -273,7 +278,7 @@ export interface InterventionWorkflow {
   warningId: string;
   studentId: string;
   teacherId: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  status: "pending" | "in_progress" | "completed" | "cancelled";
   interventionType: string;
   plannedActions: string[];
   completedActions: string[];
@@ -304,7 +309,7 @@ export interface StudentWarningProfile {
   }>;
   improvementTrends: Array<{
     metric: string;
-    trend: 'improving' | 'declining' | 'stable';
+    trend: "improving" | "declining" | "stable";
     value: number;
     period: string;
   }>;

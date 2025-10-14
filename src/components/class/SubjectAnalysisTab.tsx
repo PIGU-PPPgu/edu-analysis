@@ -30,6 +30,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import { ClassData } from "@/types/database";
 import { toast } from "sonner";
 
@@ -319,85 +320,59 @@ const SubjectAnalysisTab: React.FC<SubjectAnalysisTabProps> = ({
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-blue-50 p-4 rounded-lg">
-                        <h4 className="font-medium text-sm mb-3">语文成绩分析</h4>
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span>班级平均分</span>
-                            <span className="font-medium">{(75 + Math.random() * 20).toFixed(1)}</span>
+                    {data?.performance[selectedSubject]?.[0] ? (
+                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-lg border border-blue-200">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <div className="text-sm text-gray-600 mb-1">
+                              班级平均分
+                            </div>
+                            <div className="text-3xl font-bold text-blue-600">
+                              {data.performance[
+                                selectedSubject
+                              ][0].averageScore?.toFixed(1) || "N/A"}
+                            </div>
                           </div>
-                          <div className="flex justify-between text-sm">
-                            <span>年级排名</span>
-                            <span className="font-medium">第 {Math.ceil(Math.random() * 5)} 名</span>
+                          <div>
+                            <div className="text-sm text-gray-600 mb-1">
+                              及格率
+                            </div>
+                            <div className="text-3xl font-bold text-green-600">
+                              {data.performance[
+                                selectedSubject
+                              ][0].passRate?.toFixed(1) || "N/A"}
+                              %
+                            </div>
                           </div>
-                          <div className="flex justify-between text-sm">
-                            <span>优秀率</span>
-                            <span className="font-medium">{(60 + Math.random() * 30).toFixed(1)}%</span>
+                          <div>
+                            <div className="text-sm text-gray-600 mb-1">
+                              优秀率
+                            </div>
+                            <div className="text-3xl font-bold text-purple-600">
+                              {data.performance[
+                                selectedSubject
+                              ][0].excellentRate?.toFixed(1) || "N/A"}
+                              %
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                      
-                      <div className="bg-green-50 p-4 rounded-lg">
-                        <h4 className="font-medium text-sm mb-3">数学成绩分析</h4>
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span>班级平均分</span>
-                            <span className="font-medium">{(80 + Math.random() * 15).toFixed(1)}</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span>年级排名</span>
-                            <span className="font-medium">第 {Math.ceil(Math.random() * 3)} 名</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span>优秀率</span>
-                            <span className="font-medium">{(65 + Math.random() * 25).toFixed(1)}%</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="bg-yellow-50 p-4 rounded-lg">
-                        <h4 className="font-medium text-sm mb-3">英语成绩分析</h4>
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span>班级平均分</span>
-                            <span className="font-medium">{(70 + Math.random() * 20).toFixed(1)}</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span>年级排名</span>
-                            <span className="font-medium">第 {Math.ceil(Math.random() * 8)} 名</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span>优秀率</span>
-                            <span className="font-medium">{(55 + Math.random() * 30).toFixed(1)}%</span>
+                          <div>
+                            <div className="text-sm text-gray-600 mb-1">
+                              标准差
+                            </div>
+                            <div className="text-3xl font-bold text-orange-600">
+                              {data.performance[
+                                selectedSubject
+                              ][0].scoreDeviation?.toFixed(2) || "N/A"}
+                            </div>
                           </div>
                         </div>
                       </div>
-                      
-                      <div className="bg-purple-50 p-4 rounded-lg">
-                        <h4 className="font-medium text-sm mb-3">物理成绩分析</h4>
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span>班级平均分</span>
-                            <span className="font-medium">{(77 + Math.random() * 18).toFixed(1)}</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span>年级排名</span>
-                            <span className="font-medium">第 {Math.ceil(Math.random() * 6)} 名</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span>优秀率</span>
-                            <span className="font-medium">{(58 + Math.random() * 25).toFixed(1)}%</span>
-                          </div>
-                        </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <AlertTriangle className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                        <p className="text-sm">暂无该科目的成绩数据</p>
                       </div>
-                    </div>
-                    
-                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                      <p className="text-xs text-gray-600">
-                        📈 总体分析: 班级 {selectedClass.name} 在各科目表现良好，其中数学表现最佳，英语相对薄弱，建议继续保持优势科目，加强薄弱环节的基础训练。
-                      </p>
-                    </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -521,56 +496,124 @@ const SubjectAnalysisTab: React.FC<SubjectAnalysisTabProps> = ({
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="grid grid-cols-4 gap-2">
-                      {[
-                        { name: "函数与导数", level: "掌握", color: "bg-green-200" },
-                        { name: "三角函数", level: "熟练", color: "bg-blue-200" },
-                        { name: "数列", level: "掌握", color: "bg-green-200" },
-                        { name: "立体几何", level: "待提高", color: "bg-yellow-200" },
-                        { name: "概率统计", level: "熟练", color: "bg-blue-200" },
-                        { name: "解析几何", level: "待提高", color: "bg-yellow-200" },
-                        { name: "不等式", level: "掌握", color: "bg-green-200" },
-                        { name: "集合逻辑", level: "掌握", color: "bg-green-200" },
-                      ].map((point, index) => (
-                        <div key={index} className={`p-3 rounded-lg ${point.color} text-center`}>
-                          <div className="text-xs font-medium">{point.name}</div>
-                          <div className="text-xs text-gray-600 mt-1">{point.level}</div>
+                    {data?.knowledgePoints[selectedSubject] &&
+                    data.knowledgePoints[selectedSubject].length > 0 ? (
+                      <>
+                        <div className="grid grid-cols-4 gap-2">
+                          {data.knowledgePoints[selectedSubject].map(
+                            (point: any, index: number) => {
+                              const masteryRate = point.masteryRate || 0;
+                              let color = "bg-red-200";
+                              let level = "待加强";
+
+                              if (masteryRate >= 85) {
+                                color = "bg-green-200";
+                                level = "掌握";
+                              } else if (masteryRate >= 70) {
+                                color = "bg-blue-200";
+                                level = "熟练";
+                              } else if (masteryRate >= 60) {
+                                color = "bg-yellow-200";
+                                level = "及格";
+                              }
+
+                              return (
+                                <div
+                                  key={index}
+                                  className={`p-3 rounded-lg ${color} text-center`}
+                                >
+                                  <div
+                                    className="text-xs font-medium truncate"
+                                    title={point.name}
+                                  >
+                                    {point.name}
+                                  </div>
+                                  <div className="text-xs text-gray-600 mt-1">
+                                    {level}
+                                  </div>
+                                  <div className="text-xs font-bold mt-1">
+                                    {masteryRate.toFixed(1)}%
+                                  </div>
+                                </div>
+                              );
+                            }
+                          )}
                         </div>
-                      ))}
-                    </div>
-                    
-                    <div className="mt-4 space-y-2">
-                      <h4 className="font-medium text-sm">知识点掌握度统计</h4>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-4 h-4 bg-green-200 rounded"></div>
-                            <span className="text-sm">掌握</span>
+
+                        <div className="mt-4 space-y-2">
+                          <h4 className="font-medium text-sm">
+                            知识点掌握度统计
+                          </h4>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2">
+                                <div className="w-4 h-4 bg-green-200 rounded"></div>
+                                <span className="text-sm">掌握 (≥85%)</span>
+                              </div>
+                              <span className="text-sm font-medium">
+                                {
+                                  data.knowledgePoints[selectedSubject].filter(
+                                    (p: any) => p.masteryRate >= 85
+                                  ).length
+                                }
+                                个
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2">
+                                <div className="w-4 h-4 bg-blue-200 rounded"></div>
+                                <span className="text-sm">熟练 (70-85%)</span>
+                              </div>
+                              <span className="text-sm font-medium">
+                                {
+                                  data.knowledgePoints[selectedSubject].filter(
+                                    (p: any) =>
+                                      p.masteryRate >= 70 && p.masteryRate < 85
+                                  ).length
+                                }
+                                个
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2">
+                                <div className="w-4 h-4 bg-yellow-200 rounded"></div>
+                                <span className="text-sm">及格 (60-70%)</span>
+                              </div>
+                              <span className="text-sm font-medium">
+                                {
+                                  data.knowledgePoints[selectedSubject].filter(
+                                    (p: any) =>
+                                      p.masteryRate >= 60 && p.masteryRate < 70
+                                  ).length
+                                }
+                                个
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2">
+                                <div className="w-4 h-4 bg-red-200 rounded"></div>
+                                <span className="text-sm">
+                                  待加强 (&lt;60%)
+                                </span>
+                              </div>
+                              <span className="text-sm font-medium">
+                                {
+                                  data.knowledgePoints[selectedSubject].filter(
+                                    (p: any) => p.masteryRate < 60
+                                  ).length
+                                }
+                                个
+                              </span>
+                            </div>
                           </div>
-                          <span className="text-sm font-medium">50%</span>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-4 h-4 bg-blue-200 rounded"></div>
-                            <span className="text-sm">熟练</span>
-                          </div>
-                          <span className="text-sm font-medium">25%</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-4 h-4 bg-yellow-200 rounded"></div>
-                            <span className="text-sm">待提高</span>
-                          </div>
-                          <span className="text-sm font-medium">25%</span>
-                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <AlertTriangle className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                        <p className="text-sm">暂无知识点数据</p>
                       </div>
-                    </div>
-                    
-                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                      <p className="text-xs text-gray-600">
-                        📊 分析建议: 班级在函数、数列、不等式等知识点掌握较好，建议重点加强立体几何和解析几何的训练，通过专题练习提升薄弱环节。
-                      </p>
-                    </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -649,40 +692,49 @@ const SubjectAnalysisTab: React.FC<SubjectAnalysisTabProps> = ({
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 gap-3">
-                    {[
-                      { name: "基础知识理解", score: 85, students: 28 },
-                      { name: "公式应用能力", score: 78, students: 30 },
-                      { name: "综合解题能力", score: 72, students: 30 },
-                      { name: "计算准确性", score: 88, students: 30 },
-                      { name: "逻辑推理", score: 75, students: 30 }
-                    ].map((item, index) => (
-                      <div key={index} className="border rounded-lg p-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium">{item.name}</span>
-                          <span className="text-xs text-gray-500">{item.students}人参与</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <div className="flex-1 bg-gray-200 rounded-full h-2">
-                            <div 
-                              className={`h-full rounded-full ${
-                                item.score >= 80 ? 'bg-green-500' : 
-                                item.score >= 70 ? 'bg-blue-500' : 'bg-yellow-500'
-                              }`}
-                              style={{ width: `${item.score}%` }}
-                            ></div>
+                  {data?.knowledgePoints[selectedSubject] &&
+                  data.knowledgePoints[selectedSubject].length > 0 ? (
+                    <div className="grid grid-cols-1 gap-3">
+                      {data.knowledgePoints[selectedSubject].map(
+                        (point: any, index: number) => (
+                          <div key={index} className="border rounded-lg p-3">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm font-medium">
+                                {point.name}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {point.studentCount || "N/A"}人参与
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <div className="flex-1 bg-gray-200 rounded-full h-2">
+                                <div
+                                  className={`h-full rounded-full ${
+                                    point.masteryRate >= 85
+                                      ? "bg-green-500"
+                                      : point.masteryRate >= 70
+                                        ? "bg-blue-500"
+                                        : point.masteryRate >= 60
+                                          ? "bg-yellow-500"
+                                          : "bg-red-500"
+                                  }`}
+                                  style={{ width: `${point.masteryRate}%` }}
+                                ></div>
+                              </div>
+                              <span className="text-sm font-medium w-12 text-right">
+                                {point.masteryRate.toFixed(1)}%
+                              </span>
+                            </div>
                           </div>
-                          <span className="text-sm font-medium w-12 text-right">{item.score}%</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                    <p className="text-xs text-gray-600">
-                      📈 知识点分析: 学生在计算准确性和基础理解方面表现较好，综合解题能力相对薄弱，建议加强应用题训练和思维方法指导。
-                    </p>
-                  </div>
+                        )
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <AlertTriangle className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                      <p className="text-sm">暂无知识点详细数据</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -697,56 +749,115 @@ const SubjectAnalysisTab: React.FC<SubjectAnalysisTabProps> = ({
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-medium text-sm mb-3">近期考试趋势</h4>
-                      <div className="space-y-3">
-                        {[
-                          { exam: "第一次月考", score: 82.5, date: "2024-09", trend: "up" },
-                          { exam: "第二次月考", score: 85.2, date: "2024-10", trend: "up" },
-                          { exam: "期中考试", score: 83.8, date: "2024-11", trend: "down" },
-                          { exam: "第三次月考", score: 86.1, date: "2024-12", trend: "up" },
-                        ].map((item, index) => (
-                          <div key={index} className="flex items-center justify-between border-b pb-2">
-                            <div>
-                              <div className="text-sm font-medium">{item.exam}</div>
-                              <div className="text-xs text-gray-500">{item.date}</div>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="text-sm font-medium">{item.score}</span>
-                              <span className={`text-xs ${item.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
-                                {item.trend === 'up' ? '↗' : '↘'}
+                  {data?.trends[selectedSubject] &&
+                  data.trends[selectedSubject].length > 0 ? (
+                    <>
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <h4 className="font-medium text-sm mb-3">
+                          近期考试趋势
+                        </h4>
+                        <div className="space-y-3">
+                          {data.trends[selectedSubject].map(
+                            (item: any, index: number) => {
+                              const prevScore =
+                                index > 0
+                                  ? data.trends[selectedSubject][index - 1]
+                                      .averageScore
+                                  : item.averageScore;
+                              const trend =
+                                item.averageScore > prevScore
+                                  ? "up"
+                                  : item.averageScore < prevScore
+                                    ? "down"
+                                    : "stable";
+
+                              return (
+                                <div
+                                  key={index}
+                                  className="flex items-center justify-between border-b pb-2"
+                                >
+                                  <div>
+                                    <div className="text-sm font-medium">
+                                      {item.examTitle || `考试 ${index + 1}`}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      {item.examDate || "N/A"}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-sm font-medium">
+                                      {item.averageScore?.toFixed(1) || "N/A"}
+                                    </span>
+                                    <span
+                                      className={`text-xs ${
+                                        trend === "up"
+                                          ? "text-green-600"
+                                          : trend === "down"
+                                            ? "text-red-600"
+                                            : "text-gray-600"
+                                      }`}
+                                    >
+                                      {trend === "up"
+                                        ? "↗"
+                                        : trend === "down"
+                                          ? "↘"
+                                          : "→"}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            }
+                          )}
+                        </div>
+                      </div>
+
+                      {data.trends[selectedSubject].length >= 2 && (
+                        <div className="bg-gray-50 p-4 rounded-lg">
+                          <h4 className="font-medium text-sm mb-3">
+                            学科发展趋势
+                          </h4>
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span>平均分变化</span>
+                              <span
+                                className={`font-medium ${
+                                  data.trends[selectedSubject][
+                                    data.trends[selectedSubject].length - 1
+                                  ].averageScore -
+                                    data.trends[selectedSubject][0]
+                                      .averageScore >=
+                                  0
+                                    ? "text-green-600"
+                                    : "text-red-600"
+                                }`}
+                              >
+                                {data.trends[selectedSubject][
+                                  data.trends[selectedSubject].length - 1
+                                ].averageScore -
+                                  data.trends[selectedSubject][0]
+                                    .averageScore >=
+                                0
+                                  ? "+"
+                                  : ""}
+                                {(
+                                  data.trends[selectedSubject][
+                                    data.trends[selectedSubject].length - 1
+                                  ].averageScore -
+                                  data.trends[selectedSubject][0].averageScore
+                                ).toFixed(1)}
+                                分
                               </span>
                             </div>
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <AlertTriangle className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                      <p className="text-sm">暂无趋势数据</p>
                     </div>
-                    
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-medium text-sm mb-3">学科发展趋势</h4>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>平均分变化</span>
-                          <span className="text-green-600 font-medium">+3.6分</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span>优秀率变化</span>
-                          <span className="text-green-600 font-medium">+8.2%</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span>班级排名变化</span>
-                          <span className="text-blue-600 font-medium">上升2位</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-4 p-3 bg-green-50 rounded-lg">
-                    <p className="text-xs text-gray-600">
-                      📊 趋势分析: 班级 {selectedClass.name} 在该科目表现呈上升趋势，整体进步明显，建议保持当前教学方法，继续巩固优势。
-                    </p>
-                  </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -761,59 +872,70 @@ const SubjectAnalysisTab: React.FC<SubjectAnalysisTabProps> = ({
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-medium text-sm mb-3">科目间相关性</h4>
-                      <div className="space-y-2">
-                        {[
-                          { subject: "与数学", correlation: 0.78, level: "强相关" },
-                          { subject: "与语文", correlation: 0.45, level: "中等相关" },
-                          { subject: "与英语", correlation: 0.52, level: "中等相关" },
-                          { subject: "与化学", correlation: 0.83, level: "强相关" }
-                        ].map((item, index) => (
-                          <div key={index} className="flex items-center justify-between">
-                            <span className="text-sm">{item.subject}</span>
-                            <div className="flex items-center space-x-2">
-                              <div className="flex-1 w-16 bg-gray-200 rounded-full h-2">
-                                <div 
-                                  className={`h-full rounded-full ${
-                                    item.correlation >= 0.7 ? 'bg-green-500' : 
-                                    item.correlation >= 0.5 ? 'bg-blue-500' : 'bg-yellow-500'
-                                  }`}
-                                  style={{ width: `${item.correlation * 100}%` }}
-                                ></div>
-                              </div>
-                              <span className="text-xs text-gray-600">{item.level}</span>
-                            </div>
-                          </div>
-                        ))}
+                  {data?.correlation &&
+                  Object.keys(data.correlation).length > 0 ? (
+                    <div className="grid grid-cols-1 gap-4">
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <h4 className="font-medium text-sm mb-3">
+                          科目间相关性
+                        </h4>
+                        <div className="space-y-2">
+                          {Object.entries(data.correlation)
+                            .filter(([subject]) => subject !== selectedSubject)
+                            .map(
+                              (
+                                [subject, correlation]: [string, any],
+                                index: number
+                              ) => {
+                                const corrValue =
+                                  typeof correlation === "number"
+                                    ? correlation
+                                    : 0;
+                                let level = "弱相关";
+                                if (corrValue >= 0.7) level = "强相关";
+                                else if (corrValue >= 0.5) level = "中等相关";
+
+                                return (
+                                  <div
+                                    key={index}
+                                    className="flex items-center justify-between"
+                                  >
+                                    <span className="text-sm">与{subject}</span>
+                                    <div className="flex items-center space-x-2">
+                                      <div className="w-24 bg-gray-200 rounded-full h-2">
+                                        <div
+                                          className={`h-full rounded-full ${
+                                            corrValue >= 0.7
+                                              ? "bg-green-500"
+                                              : corrValue >= 0.5
+                                                ? "bg-blue-500"
+                                                : "bg-yellow-500"
+                                          }`}
+                                          style={{
+                                            width: `${Math.abs(corrValue) * 100}%`,
+                                          }}
+                                        ></div>
+                                      </div>
+                                      <span className="text-xs text-gray-600 w-16">
+                                        {level}
+                                      </span>
+                                      <span className="text-xs font-medium w-12 text-right">
+                                        {corrValue.toFixed(2)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                            )}
+                        </div>
                       </div>
                     </div>
-                    
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-medium text-sm mb-3">学习建议</h4>
-                      <div className="space-y-2 text-xs">
-                        <div className="p-2 bg-green-100 rounded">
-                          <span className="font-medium text-green-800">强化联系:</span>
-                          <span className="text-green-700"> 数学和化学关联性强，可进行跨学科教学</span>
-                        </div>
-                        <div className="p-2 bg-blue-100 rounded">
-                          <span className="font-medium text-blue-800">平衡发展:</span>
-                          <span className="text-blue-700"> 语文英语需要独立加强，提升综合素养</span>
-                        </div>
-                        <div className="p-2 bg-purple-100 rounded">
-                          <span className="font-medium text-purple-800">方法整合:</span>
-                          <span className="text-purple-700"> 利用学科间联系，提高学习效率</span>
-                        </div>
-                      </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <AlertTriangle className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                      <p className="text-sm">暂无相关性数据</p>
                     </div>
-                  </div>
-                  
-                  <div className="mt-4 p-3 bg-indigo-50 rounded-lg">
-                    <p className="text-xs text-gray-600">
-                      🔗 关联分析: {selectedClass.name} 的理科科目相关性较强，建议采用关联教学法，通过一个科目的优势带动其他科目的提升。
-                    </p>
-                  </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

@@ -41,9 +41,15 @@ export interface SecurityMiddlewareOptions {
  * 安全中间件类
  */
 export class SecurityMiddleware {
-  private rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+  private rateLimitStore = new Map<
+    string,
+    { count: number; resetTime: number }
+  >();
   private blockedIPs = new Set<string>();
-  private sessionCache = new Map<string, { context: SecurityContext; expires: number }>();
+  private sessionCache = new Map<
+    string,
+    { context: SecurityContext; expires: number }
+  >();
 
   /**
    * 主要中间件函数
@@ -78,7 +84,10 @@ export class SecurityMiddleware {
 
       // 2. 速率限制检查
       if (options.rateLimit && requestInfo?.ip) {
-        const rateLimitResult = this.checkRateLimit(requestInfo.ip, options.rateLimit);
+        const rateLimitResult = this.checkRateLimit(
+          requestInfo.ip,
+          options.rateLimit
+        );
         if (!rateLimitResult.allowed) {
           logWarn("速率限制触发", {
             ip: requestInfo.ip,
@@ -128,7 +137,11 @@ export class SecurityMiddleware {
       }
 
       // 5. 令牌验证和会话检查
-      const context = await this.validateSession(token!, requestInfo, requestId);
+      const context = await this.validateSession(
+        token!,
+        requestInfo,
+        requestId
+      );
       if (!context) {
         return {
           success: false,
@@ -158,10 +171,13 @@ export class SecurityMiddleware {
 
       // 7. 权限检查
       if (options.requiredPermissions?.length) {
-        const userPermissions = await authorizationService.getUserPermissions(context.userId);
+        const userPermissions = await authorizationService.getUserPermissions(
+          context.userId
+        );
         const hasPermissions = options.requiredPermissions.every(
           (permission) =>
-            userPermissions.includes(permission) || userPermissions.includes("*")
+            userPermissions.includes(permission) ||
+            userPermissions.includes("*")
         );
         if (!hasPermissions) {
           logWarn("权限检查失败", {
@@ -224,8 +240,12 @@ export class SecurityMiddleware {
       }
 
       const session = sessionResult.session;
-      const userRoles = await authorizationService.getUserRoles(session.user.id);
-      const userPermissions = await authorizationService.getUserPermissions(session.user.id);
+      const userRoles = await authorizationService.getUserRoles(
+        session.user.id
+      );
+      const userPermissions = await authorizationService.getUserPermissions(
+        session.user.id
+      );
 
       const context: SecurityContext = {
         userId: session.user.id,
@@ -239,13 +259,21 @@ export class SecurityMiddleware {
 
       // 缓存会话（5分钟）
       this.sessionCache.set(token, {
-        context: { ...context, ipAddress: undefined, userAgent: undefined, requestId: undefined },
+        context: {
+          ...context,
+          ipAddress: undefined,
+          userAgent: undefined,
+          requestId: undefined,
+        },
         expires: Date.now() + 5 * 60 * 1000,
       });
 
       return context;
     } catch (error) {
-      logError("会话验证失败", { error, token: token.substring(0, 10) + "..." });
+      logError("会话验证失败", {
+        error,
+        token: token.substring(0, 10) + "...",
+      });
       return null;
     }
   }
@@ -317,9 +345,12 @@ export class SecurityMiddleware {
    * 启动定期清理任务
    */
   startCleanupJob(): void {
-    setInterval(() => {
-      this.cleanupCaches();
-    }, 5 * 60 * 1000); // 每5分钟清理一次
+    setInterval(
+      () => {
+        this.cleanupCaches();
+      },
+      5 * 60 * 1000
+    ); // 每5分钟清理一次
   }
 
   /**

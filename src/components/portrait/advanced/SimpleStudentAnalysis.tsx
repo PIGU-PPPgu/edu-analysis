@@ -22,13 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  BookOpen,
-  TrendingUp,
-  User,
-  Target,
-  Star,
-} from "lucide-react";
+import { BookOpen, TrendingUp, User, Target, Star } from "lucide-react";
 import {
   RadarChart,
   PolarGrid,
@@ -74,7 +68,9 @@ interface AnalysisResult {
 const SimpleStudentAnalysis: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState<string>("");
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(
+    null
+  );
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -125,7 +121,9 @@ const SimpleStudentAnalysis: React.FC = () => {
   };
 
   // 基于成绩的分析方法
-  const performGradeBasedAnalysis = async (student: Student): Promise<AnalysisResult> => {
+  const performGradeBasedAnalysis = async (
+    student: Student
+  ): Promise<AnalysisResult> => {
     // 1. 获取学生成绩数据
     const { data: gradeData, error: gradeError } = await supabase
       .from("grade_data_new")
@@ -152,7 +150,10 @@ const SimpleStudentAnalysis: React.FC = () => {
 
     // 5. 生成洞察和建议
     const insights = generateInsights(grades, subjectPerformance);
-    const recommendations = generateRecommendations(subjectPerformance, improvements);
+    const recommendations = generateRecommendations(
+      subjectPerformance,
+      improvements
+    );
 
     return {
       studentInfo: student,
@@ -169,18 +170,18 @@ const SimpleStudentAnalysis: React.FC = () => {
   // 分析各科目表现
   const analyzeSubjectPerformance = (grades: any[]): AbilityData[] => {
     const subjectScores: Record<string, number[]> = {};
-    
+
     // 收集各科目成绩
-    grades.forEach(record => {
+    grades.forEach((record) => {
       const subjects = [
-        { field: 'chinese_score', name: '语文' },
-        { field: 'math_score', name: '数学' },
-        { field: 'english_score', name: '英语' },
-        { field: 'physics_score', name: '物理' },
-        { field: 'chemistry_score', name: '化学' }
+        { field: "chinese_score", name: "语文" },
+        { field: "math_score", name: "数学" },
+        { field: "english_score", name: "英语" },
+        { field: "physics_score", name: "物理" },
+        { field: "chemistry_score", name: "化学" },
       ];
-      
-      subjects.forEach(subject => {
+
+      subjects.forEach((subject) => {
         const score = record[subject.field];
         if (score !== null && score !== undefined) {
           if (!subjectScores[subject.name]) {
@@ -194,17 +195,17 @@ const SimpleStudentAnalysis: React.FC = () => {
     // 计算各科目平均分并分级
     return Object.entries(subjectScores).map(([subject, scores]) => {
       if (scores.length === 0) {
-        return { subject, score: 0, level: 'needs_improvement' as const };
+        return { subject, score: 0, level: "needs_improvement" as const };
       }
-      
+
       const average = scores.reduce((sum, s) => sum + s, 0) / scores.length;
-      let level: AbilityData['level'];
-      
-      if (average >= 90) level = 'excellent';
-      else if (average >= 80) level = 'good';
-      else if (average >= 70) level = 'average';
-      else level = 'needs_improvement';
-      
+      let level: AbilityData["level"];
+
+      if (average >= 90) level = "excellent";
+      else if (average >= 80) level = "good";
+      else if (average >= 70) level = "average";
+      else level = "needs_improvement";
+
       return { subject, score: Math.round(average), level };
     });
   };
@@ -212,43 +213,56 @@ const SimpleStudentAnalysis: React.FC = () => {
   // 计算整体评分
   const calculateOverallRating = (grades: any[]): number => {
     if (grades.length === 0) return 0;
-    
+
     const totalScores = grades
-      .map(g => g.total_score)
-      .filter(score => score !== null && score !== undefined);
-      
+      .map((g) => g.total_score)
+      .filter((score) => score !== null && score !== undefined);
+
     if (totalScores.length === 0) return 0;
-    
-    return Math.round(totalScores.reduce((sum, s) => sum + s, 0) / totalScores.length);
+
+    return Math.round(
+      totalScores.reduce((sum, s) => sum + s, 0) / totalScores.length
+    );
   };
 
   // 识别优势科目
   const identifyStrengths = (performance: AbilityData[]): string[] => {
     return performance
-      .filter(p => p.level === 'excellent' || (p.level === 'good' && p.score >= 85))
-      .map(p => p.subject)
+      .filter(
+        (p) => p.level === "excellent" || (p.level === "good" && p.score >= 85)
+      )
+      .map((p) => p.subject)
       .slice(0, 3); // 最多3个优势科目
   };
 
   // 识别待改进科目
   const identifyImprovements = (performance: AbilityData[]): string[] => {
     return performance
-      .filter(p => p.level === 'needs_improvement' || (p.level === 'average' && p.score < 75))
-      .map(p => p.subject)
+      .filter(
+        (p) =>
+          p.level === "needs_improvement" ||
+          (p.level === "average" && p.score < 75)
+      )
+      .map((p) => p.subject)
       .slice(0, 3); // 最多3个待改进科目
   };
 
   // 生成学习洞察
-  const generateInsights = (grades: any[], performance: AbilityData[]): string[] => {
+  const generateInsights = (
+    grades: any[],
+    performance: AbilityData[]
+  ): string[] => {
     const insights = [];
-    
+
     // 成绩趋势分析
     if (grades.length >= 3) {
-      const recentScores = grades.slice(0, 3).map(g => g.total_score || 0);
-      const earlierScores = grades.slice(-3).map(g => g.total_score || 0);
-      const recentAvg = recentScores.reduce((a, b) => a + b, 0) / recentScores.length;
-      const earlierAvg = earlierScores.reduce((a, b) => a + b, 0) / earlierScores.length;
-      
+      const recentScores = grades.slice(0, 3).map((g) => g.total_score || 0);
+      const earlierScores = grades.slice(-3).map((g) => g.total_score || 0);
+      const recentAvg =
+        recentScores.reduce((a, b) => a + b, 0) / recentScores.length;
+      const earlierAvg =
+        earlierScores.reduce((a, b) => a + b, 0) / earlierScores.length;
+
       if (recentAvg > earlierAvg + 5) {
         insights.push("近期成绩呈上升趋势，学习状态良好");
       } else if (recentAvg < earlierAvg - 5) {
@@ -259,10 +273,10 @@ const SimpleStudentAnalysis: React.FC = () => {
     }
 
     // 科目平衡性分析
-    const scores = performance.map(p => p.score);
+    const scores = performance.map((p) => p.score);
     const maxScore = Math.max(...scores);
     const minScore = Math.min(...scores);
-    
+
     if (maxScore - minScore > 20) {
       insights.push("各科目发展不够均衡，建议加强薄弱科目");
     } else {
@@ -273,20 +287,29 @@ const SimpleStudentAnalysis: React.FC = () => {
   };
 
   // 生成学习建议
-  const generateRecommendations = (performance: AbilityData[], improvements: string[]): string[] => {
+  const generateRecommendations = (
+    performance: AbilityData[],
+    improvements: string[]
+  ): string[] => {
     const recommendations = [];
-    
+
     if (improvements.length > 0) {
       recommendations.push(`重点关注${improvements[0]}学科，制定专项提升计划`);
-      
+
       if (improvements.length > 1) {
-        recommendations.push(`同时加强${improvements.slice(1).join('、')}的学习`);
+        recommendations.push(
+          `同时加强${improvements.slice(1).join("、")}的学习`
+        );
       }
     }
 
-    const excellentSubjects = performance.filter(p => p.level === 'excellent');
+    const excellentSubjects = performance.filter(
+      (p) => p.level === "excellent"
+    );
     if (excellentSubjects.length > 0) {
-      recommendations.push(`发挥${excellentSubjects[0].subject}优势，可考虑拓展相关领域`);
+      recommendations.push(
+        `发挥${excellentSubjects[0].subject}优势，可考虑拓展相关领域`
+      );
     }
 
     recommendations.push("保持规律的学习习惯，定期复习巩固");
@@ -295,24 +318,34 @@ const SimpleStudentAnalysis: React.FC = () => {
   };
 
   // 获取评级颜色
-  const getLevelColor = (level: AbilityData['level']) => {
+  const getLevelColor = (level: AbilityData["level"]) => {
     switch (level) {
-      case 'excellent': return 'text-green-600';
-      case 'good': return 'text-blue-600';
-      case 'average': return 'text-yellow-600';
-      case 'needs_improvement': return 'text-red-600';
-      default: return 'text-gray-600';
+      case "excellent":
+        return "text-green-600";
+      case "good":
+        return "text-blue-600";
+      case "average":
+        return "text-yellow-600";
+      case "needs_improvement":
+        return "text-red-600";
+      default:
+        return "text-gray-600";
     }
   };
 
   // 获取评级标签
-  const getLevelLabel = (level: AbilityData['level']) => {
+  const getLevelLabel = (level: AbilityData["level"]) => {
     switch (level) {
-      case 'excellent': return '优秀';
-      case 'good': return '良好';
-      case 'average': return '一般';
-      case 'needs_improvement': return '待提升';
-      default: return '未知';
+      case "excellent":
+        return "优秀";
+      case "good":
+        return "良好";
+      case "average":
+        return "一般";
+      case "needs_improvement":
+        return "待提升";
+      default:
+        return "未知";
     }
   };
 
@@ -332,7 +365,10 @@ const SimpleStudentAnalysis: React.FC = () => {
           <div className="flex gap-4 items-end">
             <div className="flex-1">
               <label className="text-sm font-medium mb-2 block">选择学生</label>
-              <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
+              <Select
+                value={selectedStudentId}
+                onValueChange={setSelectedStudentId}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="请选择要分析的学生" />
                 </SelectTrigger>
@@ -367,15 +403,17 @@ const SimpleStudentAnalysis: React.FC = () => {
                   {analysisResult.studentInfo.name}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">整体评分:</span>
+                  <span className="text-sm text-muted-foreground">
+                    整体评分:
+                  </span>
                   <span className="text-2xl font-bold text-primary">
                     {analysisResult.overallRating}
                   </span>
                 </div>
               </CardTitle>
               <CardDescription>
-                班级: {analysisResult.studentInfo.class_name} | 
-                分析日期: {new Date(analysisResult.analysisDate).toLocaleDateString()}
+                班级: {analysisResult.studentInfo.class_name} | 分析日期:{" "}
+                {new Date(analysisResult.analysisDate).toLocaleDateString()}
               </CardDescription>
             </CardHeader>
           </Card>
@@ -409,20 +447,30 @@ const SimpleStudentAnalysis: React.FC = () => {
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {analysisResult.subjectPerformance.map((subject) => (
-                        <div key={subject.subject} className="p-3 border rounded-lg">
+                        <div
+                          key={subject.subject}
+                          className="p-3 border rounded-lg"
+                        >
                           <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium">{subject.subject}</span>
-                            <Badge variant="outline" className={getLevelColor(subject.level)}>
+                            <span className="font-medium">
+                              {subject.subject}
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className={getLevelColor(subject.level)}
+                            >
                               {getLevelLabel(subject.level)}
                             </Badge>
                           </div>
                           <div className="space-y-2">
                             <div className="flex justify-between text-sm">
                               <span>平均分</span>
-                              <span className="font-medium">{subject.score}分</span>
+                              <span className="font-medium">
+                                {subject.score}分
+                              </span>
                             </div>
                             <Progress value={subject.score} className="h-2" />
                           </div>
@@ -447,13 +495,18 @@ const SimpleStudentAnalysis: React.FC = () => {
                     <div className="space-y-3">
                       {analysisResult.strengthAreas.length > 0 ? (
                         analysisResult.strengthAreas.map((strength, index) => (
-                          <div key={index} className="flex items-center gap-2 p-2 bg-green-50 rounded-md">
+                          <div
+                            key={index}
+                            className="flex items-center gap-2 p-2 bg-green-50 rounded-md"
+                          >
                             <div className="w-2 h-2 bg-green-600 rounded-full"></div>
                             <span>{strength}</span>
                           </div>
                         ))
                       ) : (
-                        <p className="text-muted-foreground text-sm">暂无明显优势科目</p>
+                        <p className="text-muted-foreground text-sm">
+                          暂无明显优势科目
+                        </p>
                       )}
                     </div>
                   </CardContent>
@@ -470,13 +523,18 @@ const SimpleStudentAnalysis: React.FC = () => {
                     <div className="space-y-3">
                       {analysisResult.improvementAreas.length > 0 ? (
                         analysisResult.improvementAreas.map((area, index) => (
-                          <div key={index} className="flex items-center gap-2 p-2 bg-orange-50 rounded-md">
+                          <div
+                            key={index}
+                            className="flex items-center gap-2 p-2 bg-orange-50 rounded-md"
+                          >
                             <div className="w-2 h-2 bg-orange-600 rounded-full"></div>
                             <span>{area}</span>
                           </div>
                         ))
                       ) : (
-                        <p className="text-muted-foreground text-sm">各科目表现均衡</p>
+                        <p className="text-muted-foreground text-sm">
+                          各科目表现均衡
+                        </p>
                       )}
                     </div>
                   </CardContent>
@@ -495,7 +553,10 @@ const SimpleStudentAnalysis: React.FC = () => {
                 <CardContent>
                   <div className="space-y-3">
                     {analysisResult.insights.map((insight, index) => (
-                      <div key={index} className="p-3 bg-blue-50 border-l-4 border-blue-500 rounded-r-md">
+                      <div
+                        key={index}
+                        className="p-3 bg-blue-50 border-l-4 border-blue-500 rounded-r-md"
+                      >
                         <p className="text-sm">{insight}</p>
                       </div>
                     ))}
@@ -514,11 +575,16 @@ const SimpleStudentAnalysis: React.FC = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {analysisResult.recommendations.map((recommendation, index) => (
-                      <div key={index} className="p-3 bg-green-50 border-l-4 border-green-500 rounded-r-md">
-                        <p className="text-sm">{recommendation}</p>
-                      </div>
-                    ))}
+                    {analysisResult.recommendations.map(
+                      (recommendation, index) => (
+                        <div
+                          key={index}
+                          className="p-3 bg-green-50 border-l-4 border-green-500 rounded-r-md"
+                        >
+                          <p className="text-sm">{recommendation}</p>
+                        </div>
+                      )
+                    )}
                   </div>
                 </CardContent>
               </Card>

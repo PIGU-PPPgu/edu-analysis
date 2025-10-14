@@ -65,6 +65,19 @@ const DataMappingConfig: React.FC<DataMappingConfigProps> = ({
   const generateAISuggestions = (headers: string[]): FieldMapping => {
     const suggestions: FieldMapping = {};
 
+    // 科目映射表 - 支持全部9个科目
+    const subjectMappings: Record<string, string> = {
+      语文: "custom_chinese",
+      数学: "custom_math",
+      英语: "custom_english",
+      物理: "custom_physics",
+      化学: "custom_chemistry",
+      生物: "custom_biology",
+      政治: "custom_politics",
+      历史: "custom_history",
+      地理: "custom_geography",
+    };
+
     headers.forEach((header) => {
       const lowerHeader = header.toLowerCase();
 
@@ -78,15 +91,23 @@ const DataMappingConfig: React.FC<DataMappingConfigProps> = ({
         lowerHeader.includes("class")
       ) {
         suggestions[header] = "class_name";
-      } else if (lowerHeader.includes("语文")) {
-        suggestions[header] = "custom_chinese";
-      } else if (lowerHeader.includes("数学")) {
-        suggestions[header] = "custom_math";
-      } else if (lowerHeader.includes("英语")) {
-        suggestions[header] = "custom_english";
       } else {
-        // 自定义字段
-        suggestions[header] = `custom_${header.toLowerCase()}`;
+        // 检查是否匹配9个科目中的任意一个
+        let matched = false;
+        for (const [subjectName, fieldName] of Object.entries(
+          subjectMappings
+        )) {
+          if (header.includes(subjectName)) {
+            suggestions[header] = fieldName;
+            matched = true;
+            break;
+          }
+        }
+
+        // 如果没有匹配科目,则作为自定义字段
+        if (!matched) {
+          suggestions[header] = `custom_${header.toLowerCase()}`;
+        }
       }
     });
 

@@ -179,11 +179,15 @@ const WarningList: React.FC<WarningListProps> = ({
 
     try {
       setIsLoading(true);
-      console.log('🎯 WarningList - 开始获取预警记录...');
-      
+      console.log("🎯 WarningList - 开始获取预警记录...");
+
       // 调用获取预警记录的服务，不传递任何筛选条件来获取所有数据
       const records = await getWarningRecords();
-      console.log('📋 WarningList - 获取到预警记录:', records?.length || 0, '条');
+      console.log(
+        "📋 WarningList - 获取到预警记录:",
+        records?.length || 0,
+        "条"
+      );
 
       if (isMounted.current) {
         setWarningRecords(records);
@@ -201,7 +205,7 @@ const WarningList: React.FC<WarningListProps> = ({
         }));
 
         setClassOptions([{ value: "all", label: "所有班级" }, ...classes]);
-        console.log('🏫 WarningList - 提取到班级选项:', classes.length, '个');
+        console.log("🏫 WarningList - 提取到班级选项:", classes.length, "个");
       }
     } catch (error) {
       console.error("❌ WarningList - 获取预警记录失败:", error);
@@ -283,9 +287,13 @@ const WarningList: React.FC<WarningListProps> = ({
         case "severity":
           const severityOrder = { high: 3, medium: 2, low: 1 };
           aValue =
-            severityOrder[a.warning_rules?.severity as keyof typeof severityOrder] || 0;
+            severityOrder[
+              a.warning_rules?.severity as keyof typeof severityOrder
+            ] || 0;
           bValue =
-            severityOrder[b.warning_rules?.severity as keyof typeof severityOrder] || 0;
+            severityOrder[
+              b.warning_rules?.severity as keyof typeof severityOrder
+            ] || 0;
           break;
         case "student_name":
           aValue = a.students?.name || "";
@@ -848,7 +856,9 @@ const WarningList: React.FC<WarningListProps> = ({
                       </div>
                     </TableCell>
                     <TableCell>
-                      <WarningBadge level={record.warning_rules?.severity || "medium"} />
+                      <WarningBadge
+                        level={record.warning_rules?.severity || "medium"}
+                      />
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center text-sm">

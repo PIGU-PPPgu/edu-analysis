@@ -41,7 +41,10 @@ export const ResumePrompt: React.FC<ResumePromptProps> = ({
   if (!show) return null;
 
   const remainingCount = totalRecords - resumeInfo.processed;
-  const progressPercentage = ((resumeInfo.processed / totalRecords) * 100).toFixed(1);
+  const progressPercentage = (
+    (resumeInfo.processed / totalRecords) *
+    100
+  ).toFixed(1);
 
   return (
     <Alert className="mb-4 border-blue-500 bg-blue-50">
@@ -52,13 +55,16 @@ export const ResumePrompt: React.FC<ResumePromptProps> = ({
       <AlertDescription>
         <div className="mt-2 space-y-2 text-sm text-blue-800">
           <p>
-            上次导入中断时已处理 <span className="font-semibold">{resumeInfo.processed}</span> 条记录
+            上次导入中断时已处理{" "}
+            <span className="font-semibold">{resumeInfo.processed}</span> 条记录
             (共 {totalRecords} 条, 完成 {progressPercentage}%)
           </p>
 
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div className="flex items-center gap-1">
-              <span className="text-green-600">✓ 成功: {resumeInfo.successful}</span>
+              <span className="text-green-600">
+                ✓ 成功: {resumeInfo.successful}
+              </span>
             </div>
             <div className="flex items-center gap-1">
               <span className="text-red-600">✗ 失败: {resumeInfo.failed}</span>
@@ -66,8 +72,11 @@ export const ResumePrompt: React.FC<ResumePromptProps> = ({
           </div>
 
           <p className="pt-2 border-t border-blue-200">
-            还有 <span className="font-semibold text-blue-900">{remainingCount}</span> 条记录待处理,
-            是否从上次中断处继续导入?
+            还有{" "}
+            <span className="font-semibold text-blue-900">
+              {remainingCount}
+            </span>{" "}
+            条记录待处理, 是否从上次中断处继续导入?
           </p>
 
           <div className="flex gap-2 pt-3">

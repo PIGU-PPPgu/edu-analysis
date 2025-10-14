@@ -340,16 +340,6 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
                   预警分析
                 </Link>
                 <Link
-                  to="/student-portrait-management"
-                  className={`font-medium transition-colors hover:text-primary ${
-                    isActive("/student-portrait-management")
-                      ? "text-primary"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  学生画像
-                </Link>
-                <Link
                   to="/class-management"
                   className={`font-medium transition-colors hover:text-primary ${
                     isActive("/class-management")

@@ -9,13 +9,13 @@
  */
 
 import { logError, logInfo } from "@/utils/logger";
-import CryptoJS from 'crypto-js';
+import CryptoJS from "crypto-js";
 
 export interface SensitiveDataConfig {
   field: string;
-  type: 'phone' | 'email' | 'idCard' | 'name' | 'address' | 'custom';
+  type: "phone" | "email" | "idCard" | "name" | "address" | "custom";
   maskingRule?: string;
-  encryptionLevel: 'none' | 'basic' | 'strong';
+  encryptionLevel: "none" | "basic" | "strong";
 }
 
 export interface DataAccessContext {
@@ -49,57 +49,61 @@ export class DataProtectionService {
   }> = [];
 
   // 敏感数据配置
-  private readonly sensitiveFieldConfigs: Record<string, SensitiveDataConfig> = {
-    phone: {
-      field: 'phone',
-      type: 'phone',
-      maskingRule: '${first3}****${last4}',
-      encryptionLevel: 'basic',
-    },
-    contact_phone: {
-      field: 'contact_phone',
-      type: 'phone',
-      maskingRule: '${first3}****${last4}',
-      encryptionLevel: 'basic',
-    },
-    email: {
-      field: 'email',
-      type: 'email',
-      maskingRule: '${first3}****@${domain}',
-      encryptionLevel: 'basic',
-    },
-    contact_email: {
-      field: 'contact_email',
-      type: 'email',
-      maskingRule: '${first3}****@${domain}',
-      encryptionLevel: 'basic',
-    },
-    student_id: {
-      field: 'student_id',
-      type: 'idCard',
-      maskingRule: '${first4}****${last2}',
-      encryptionLevel: 'none',
-    },
-    name: {
-      field: 'name',
-      type: 'name',
-      maskingRule: '${first1}**',
-      encryptionLevel: 'none',
-    },
-    full_name: {
-      field: 'full_name',
-      type: 'name',
-      maskingRule: '${first1}**',
-      encryptionLevel: 'none',
-    },
-  };
+  private readonly sensitiveFieldConfigs: Record<string, SensitiveDataConfig> =
+    {
+      phone: {
+        field: "phone",
+        type: "phone",
+        maskingRule: "${first3}****${last4}",
+        encryptionLevel: "basic",
+      },
+      contact_phone: {
+        field: "contact_phone",
+        type: "phone",
+        maskingRule: "${first3}****${last4}",
+        encryptionLevel: "basic",
+      },
+      email: {
+        field: "email",
+        type: "email",
+        maskingRule: "${first3}****@${domain}",
+        encryptionLevel: "basic",
+      },
+      contact_email: {
+        field: "contact_email",
+        type: "email",
+        maskingRule: "${first3}****@${domain}",
+        encryptionLevel: "basic",
+      },
+      student_id: {
+        field: "student_id",
+        type: "idCard",
+        maskingRule: "${first4}****${last2}",
+        encryptionLevel: "none",
+      },
+      name: {
+        field: "name",
+        type: "name",
+        maskingRule: "${first1}**",
+        encryptionLevel: "none",
+      },
+      full_name: {
+        field: "full_name",
+        type: "name",
+        maskingRule: "${first1}**",
+        encryptionLevel: "none",
+      },
+    };
 
   constructor() {
     // 在生产环境中，这应该从环境变量或安全配置中获取
-    this.encryptionKey = process.env.DATA_ENCRYPTION_KEY || 'default-key-change-in-production';
-    
-    if (this.encryptionKey === 'default-key-change-in-production') {
-      console.warn('⚠️ 使用默认加密密钥，生产环境中请设置 DATA_ENCRYPTION_KEY 环境变量');
+    this.encryptionKey =
+      process.env.DATA_ENCRYPTION_KEY || "default-key-change-in-production";
+
+    if (this.encryptionKey === "default-key-change-in-production") {
+      console.warn(
+        "⚠️ 使用默认加密密钥，生产环境中请设置 DATA_ENCRYPTION_KEY 环境变量"
+      );
     }
   }
 
@@ -151,13 +155,18 @@ export class DataProtectionService {
     // 检查是否需要脱敏处理
     const needsMasking = await this.shouldMaskData(context);
 
-    for (const [fieldName, fieldConfig] of Object.entries(this.sensitiveFieldConfigs)) {
+    for (const [fieldName, fieldConfig] of Object.entries(
+      this.sensitiveFieldConfigs
+    )) {
       if (item.hasOwnProperty(fieldName) && item[fieldName] != null) {
         if (needsMasking && this.shouldMaskField(fieldName, context)) {
           // 需要脱敏
-          processedItem[fieldName] = this.maskField(item[fieldName], fieldConfig);
+          processedItem[fieldName] = this.maskField(
+            item[fieldName],
+            fieldConfig
+          );
           maskedFields.push(fieldName);
-        } else if (fieldConfig.encryptionLevel !== 'none') {
+        } else if (fieldConfig.encryptionLevel !== "none") {
           // 需要解密（如果数据是加密存储的）
           try {
             const decrypted = this.decryptData(item[fieldName]);
@@ -186,18 +195,22 @@ export class DataProtectionService {
     const { userRoles, resource, action } = context;
 
     // 管理员不需要脱敏
-    if (userRoles.includes('admin')) {
+    if (userRoles.includes("admin")) {
       return false;
     }
 
     // 教师查看自己班级的学生数据不需要脱敏
-    if (userRoles.includes('teacher') && resource === 'students' && action === 'read') {
+    if (
+      userRoles.includes("teacher") &&
+      resource === "students" &&
+      action === "read"
+    ) {
       // TODO: 这里应该验证教师是否有权限访问特定班级
       return false;
     }
 
     // 用户查看自己的数据不需要脱敏
-    if (action === 'read_own') {
+    if (action === "read_own") {
       return false;
     }
 
@@ -208,7 +221,10 @@ export class DataProtectionService {
   /**
    * 判断特定字段是否需要脱敏
    */
-  private shouldMaskField(fieldName: string, context: DataAccessContext): boolean {
+  private shouldMaskField(
+    fieldName: string,
+    context: DataAccessContext
+  ): boolean {
     // 如果明确指定了需要访问的敏感字段，则不脱敏
     if (context.sensitiveFields.includes(fieldName)) {
       return false;
@@ -221,18 +237,18 @@ export class DataProtectionService {
    * 对字段进行脱敏处理
    */
   private maskField(value: string, config: SensitiveDataConfig): string {
-    if (!value || typeof value !== 'string') {
+    if (!value || typeof value !== "string") {
       return value;
     }
 
     switch (config.type) {
-      case 'phone':
+      case "phone":
         return this.maskPhone(value);
-      case 'email':
+      case "email":
         return this.maskEmail(value);
-      case 'idCard':
+      case "idCard":
         return this.maskIdCard(value);
-      case 'name':
+      case "name":
         return this.maskName(value);
       default:
         return this.maskGeneric(value);
@@ -253,9 +269,9 @@ export class DataProtectionService {
    * 邮箱脱敏
    */
   private maskEmail(email: string): string {
-    const atIndex = email.indexOf('@');
+    const atIndex = email.indexOf("@");
     if (atIndex < 0 || atIndex < 3) return email;
-    
+
     const first3 = email.substring(0, 3);
     const domain = email.substring(atIndex);
     return `${first3}****${domain}`;
@@ -277,7 +293,7 @@ export class DataProtectionService {
   private maskName(name: string): string {
     if (name.length <= 1) return name;
     const first = name.substring(0, 1);
-    const masked = '*'.repeat(name.length - 1);
+    const masked = "*".repeat(name.length - 1);
     return `${first}${masked}`;
   }
 
@@ -288,21 +304,23 @@ export class DataProtectionService {
     if (value.length <= 3) return value;
     const first = value.substring(0, 1);
     const last = value.substring(value.length - 1);
-    const middle = '*'.repeat(Math.max(0, value.length - 2));
+    const middle = "*".repeat(Math.max(0, value.length - 2));
     return `${first}${middle}${last}`;
   }
 
   /**
    * 加密数据
    */
-  encryptData(plainText: string, level: 'basic' | 'strong' = 'basic'): string {
+  encryptData(plainText: string, level: "basic" | "strong" = "basic"): string {
     try {
-      if (level === 'strong') {
+      if (level === "strong") {
         // 使用更强的加密算法
         return CryptoJS.AES.encrypt(plainText, this.encryptionKey).toString();
       } else {
         // 基本加密
-        return CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(plainText));
+        return CryptoJS.enc.Base64.stringify(
+          CryptoJS.enc.Utf8.parse(plainText)
+        );
       }
     } catch (error) {
       logError("数据加密失败", { error });
@@ -313,15 +331,20 @@ export class DataProtectionService {
   /**
    * 解密数据
    */
-  decryptData(encryptedText: string, level: 'basic' | 'strong' = 'basic'): string {
+  decryptData(
+    encryptedText: string,
+    level: "basic" | "strong" = "basic"
+  ): string {
     try {
-      if (level === 'strong') {
+      if (level === "strong") {
         // 解密强加密数据
         const bytes = CryptoJS.AES.decrypt(encryptedText, this.encryptionKey);
         return bytes.toString(CryptoJS.enc.Utf8);
       } else {
         // 解密基本加密数据
-        return CryptoJS.enc.Base64.parse(encryptedText).toString(CryptoJS.enc.Utf8);
+        return CryptoJS.enc.Base64.parse(encryptedText).toString(
+          CryptoJS.enc.Utf8
+        );
       }
     } catch (error) {
       // 解密失败，可能数据未加密，返回原文
@@ -332,15 +355,23 @@ export class DataProtectionService {
   /**
    * 批量加密敏感字段
    */
-  async encryptSensitiveFields(data: Record<string, any>): Promise<Record<string, any>> {
+  async encryptSensitiveFields(
+    data: Record<string, any>
+  ): Promise<Record<string, any>> {
     const encryptedData = { ...data };
 
-    for (const [fieldName, fieldConfig] of Object.entries(this.sensitiveFieldConfigs)) {
-      if (data.hasOwnProperty(fieldName) && data[fieldName] != null && fieldConfig.encryptionLevel !== 'none') {
+    for (const [fieldName, fieldConfig] of Object.entries(
+      this.sensitiveFieldConfigs
+    )) {
+      if (
+        data.hasOwnProperty(fieldName) &&
+        data[fieldName] != null &&
+        fieldConfig.encryptionLevel !== "none"
+      ) {
         try {
           encryptedData[fieldName] = this.encryptData(
             data[fieldName].toString(),
-            fieldConfig.encryptionLevel as 'basic' | 'strong'
+            fieldConfig.encryptionLevel as "basic" | "strong"
           );
         } catch (error) {
           logError("字段加密失败", { fieldName, error });
@@ -354,15 +385,23 @@ export class DataProtectionService {
   /**
    * 批量解密敏感字段
    */
-  async decryptSensitiveFields(data: Record<string, any>): Promise<Record<string, any>> {
+  async decryptSensitiveFields(
+    data: Record<string, any>
+  ): Promise<Record<string, any>> {
     const decryptedData = { ...data };
 
-    for (const [fieldName, fieldConfig] of Object.entries(this.sensitiveFieldConfigs)) {
-      if (data.hasOwnProperty(fieldName) && data[fieldName] != null && fieldConfig.encryptionLevel !== 'none') {
+    for (const [fieldName, fieldConfig] of Object.entries(
+      this.sensitiveFieldConfigs
+    )) {
+      if (
+        data.hasOwnProperty(fieldName) &&
+        data[fieldName] != null &&
+        fieldConfig.encryptionLevel !== "none"
+      ) {
         try {
           decryptedData[fieldName] = this.decryptData(
             data[fieldName],
-            fieldConfig.encryptionLevel as 'basic' | 'strong'
+            fieldConfig.encryptionLevel as "basic" | "strong"
           );
         } catch (error) {
           logError("字段解密失败", { fieldName, error });
@@ -405,11 +444,11 @@ export class DataProtectionService {
     let filteredLog = this.auditLog;
 
     if (userId) {
-      filteredLog = filteredLog.filter(log => log.userId === userId);
+      filteredLog = filteredLog.filter((log) => log.userId === userId);
     }
 
     if (resource) {
-      filteredLog = filteredLog.filter(log => log.resource === resource);
+      filteredLog = filteredLog.filter((log) => log.resource === resource);
     }
 
     return filteredLog.slice(-1000); // 返回最近1000条记录
@@ -419,15 +458,20 @@ export class DataProtectionService {
    * 清理敏感数据（用于日志等）
    */
   sanitizeForLogging(data: any): any {
-    if (typeof data !== 'object' || data === null) {
+    if (typeof data !== "object" || data === null) {
       return data;
     }
 
     const sanitized = Array.isArray(data) ? [...data] : { ...data };
 
-    for (const [fieldName, fieldConfig] of Object.entries(this.sensitiveFieldConfigs)) {
+    for (const [fieldName, fieldConfig] of Object.entries(
+      this.sensitiveFieldConfigs
+    )) {
       if (sanitized.hasOwnProperty(fieldName)) {
-        sanitized[fieldName] = this.maskField(sanitized[fieldName], fieldConfig);
+        sanitized[fieldName] = this.maskField(
+          sanitized[fieldName],
+          fieldConfig
+        );
       }
     }
 
@@ -441,7 +485,7 @@ export class DataProtectionService {
     try {
       // 简单的完整性检查：比较非敏感字段
       const nonSensitiveFields = Object.keys(originalData).filter(
-        key => !this.sensitiveFieldConfigs.hasOwnProperty(key)
+        (key) => !this.sensitiveFieldConfigs.hasOwnProperty(key)
       );
 
       for (const field of nonSensitiveFields) {
@@ -461,7 +505,10 @@ export class DataProtectionService {
   /**
    * 添加自定义敏感字段配置
    */
-  addSensitiveFieldConfig(fieldName: string, config: SensitiveDataConfig): void {
+  addSensitiveFieldConfig(
+    fieldName: string,
+    config: SensitiveDataConfig
+  ): void {
     this.sensitiveFieldConfigs[fieldName] = {
       ...config,
       field: fieldName,

@@ -12,11 +12,11 @@ export interface WarningRecord {
   studentId: string;
   studentName: string;
   className: string;
-  status: 'active' | 'resolved' | 'dismissed';
+  status: "active" | "resolved" | "dismissed";
   details: {
     ruleName?: string;
     ruleDescription?: string;
-    severity: 'low' | 'medium' | 'high';
+    severity: "low" | "medium" | "high";
     riskLevel?: string;
     riskScore?: number;
     riskFactors?: string[];
@@ -38,7 +38,7 @@ export interface StudentWarningProfile {
   activeWarnings: number;
   resolvedWarnings: number;
   lastWarningDate: string;
-  riskLevel: 'low' | 'medium' | 'high';
+  riskLevel: "low" | "medium" | "high";
   interventions: InterventionRecord[];
   trackingNotes: TrackingNote[];
 }
@@ -47,7 +47,13 @@ export interface StudentWarningProfile {
 export interface InterventionRecord {
   id: string;
   studentId: string;
-  interventionType: 'meeting' | 'phone_call' | 'counseling' | 'tutoring' | 'family_contact' | 'other';
+  interventionType:
+    | "meeting"
+    | "phone_call"
+    | "counseling"
+    | "tutoring"
+    | "family_contact"
+    | "other";
   description: string;
   result: string;
   followUpRequired: boolean;
@@ -59,7 +65,7 @@ export interface InterventionRecord {
 export interface TrackingNote {
   id: string;
   studentId: string;
-  noteType: 'observation' | 'progress' | 'concern' | 'improvement' | 'other';
+  noteType: "observation" | "progress" | "concern" | "improvement" | "other";
   content: string;
   isPrivate: boolean;
   createdAt: string;
@@ -68,8 +74,8 @@ export interface TrackingNote {
 
 // 过滤条件接口
 export interface WarningListFilter {
-  status?: 'active' | 'resolved' | 'dismissed';
-  severity?: 'low' | 'medium' | 'high';
+  status?: "active" | "resolved" | "dismissed";
+  severity?: "low" | "medium" | "high";
   className?: string;
   examTitles?: string[]; // 新增：考试标题筛选
   dateRange?: {
@@ -86,18 +92,16 @@ export async function getWarningRecords(
   filter?: WarningListFilter,
   limit: number = 50,
   offset: number = 0
-): Promise<{ 
-  records: WarningRecord[], 
-  total: number,
-  hasMore: boolean 
+): Promise<{
+  records: WarningRecord[];
+  total: number;
+  hasMore: boolean;
 }> {
   try {
-    console.log('📋 获取预警记录列表...');
-    
+    console.log("📋 获取预警记录列表...");
+
     // 尝试从数据库查询
-    let query = supabase
-      .from('warning_records')
-      .select(`
+    let query = supabase.from("warning_records").select(`
         *,
         students:student_id (
           name,
@@ -107,7 +111,7 @@ export async function getWarningRecords(
 
     // 应用过滤条件
     if (filter?.status) {
-      query = query.eq('status', filter.status);
+      query = query.eq("status", filter.status);
     }
     if (filter?.searchTerm) {
       // 这里简化处理，实际应该在数据库层面进行全文搜索
@@ -116,51 +120,55 @@ export async function getWarningRecords(
 
     // 🆕 考试筛选：只返回参与了指定考试的学生的预警记录
     if (filter?.examTitles && filter.examTitles.length > 0) {
-      console.log('📊 应用考试筛选到预警记录:', filter.examTitles);
-      
+      console.log("📊 应用考试筛选到预警记录:", filter.examTitles);
+
       // 首先查询参与了指定考试的学生ID列表
       const { data: examStudents, error: examError } = await supabase
-        .from('grade_data_new')
-        .select('student_id')
-        .in('exam_title', filter.examTitles);
-      
+        .from("grade_data_new")
+        .select("student_id")
+        .in("exam_title", filter.examTitles);
+
       if (examError) {
-        console.error('查询考试学生失败:', examError);
+        console.error("查询考试学生失败:", examError);
       } else if (examStudents && examStudents.length > 0) {
-        const participantStudentIds = [...new Set(examStudents.map(s => s.student_id))];
-        console.log(`🎯 找到${participantStudentIds.length}名参与指定考试的学生，应用到预警记录筛选`);
-        query = query.in('student_id', participantStudentIds);
+        const participantStudentIds = [
+          ...new Set(examStudents.map((s) => s.student_id)),
+        ];
+        console.log(
+          `🎯 找到${participantStudentIds.length}名参与指定考试的学生，应用到预警记录筛选`
+        );
+        query = query.in("student_id", participantStudentIds);
       } else {
         // 如果没有学生参与指定考试，返回空结果
-        console.log('🔍 指定考试无学生参与，返回空预警记录');
+        console.log("🔍 指定考试无学生参与，返回空预警记录");
         return { records: [], total: 0, hasMore: false };
       }
     }
 
     const { data, error, count } = await query
-      .order('created_at', { ascending: false })
+      .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (error) {
-      console.error('数据库查询失败:', error);
+      console.error("数据库查询失败:", error);
       return { records: [], total: 0, hasMore: false };
     }
 
     if (!data || data.length === 0) {
-      console.log('数据库无数据');
+      console.log("数据库无数据");
       return { records: [], total: 0, hasMore: false };
     }
 
     // 转换数据格式
-    const records: WarningRecord[] = data.map(record => ({
+    const records: WarningRecord[] = data.map((record) => ({
       id: record.id,
       studentId: record.student_id,
       studentName: record.students?.name || `学生${record.student_id}`,
-      className: record.students?.class_name || '未知班级',
+      className: record.students?.class_name || "未知班级",
       status: record.status,
       details: record.details || {
-        severity: 'medium',
-        ruleName: '系统预警',
+        severity: "medium",
+        ruleName: "系统预警",
       },
       createdAt: record.created_at,
       resolvedAt: record.resolved_at,
@@ -171,50 +179,52 @@ export async function getWarningRecords(
     return {
       records,
       total: count || records.length,
-      hasMore: (count || 0) > offset + limit
+      hasMore: (count || 0) > offset + limit,
     };
-
   } catch (error) {
-    console.error('获取预警记录失败:', error);
+    console.error("获取预警记录失败:", error);
     return { records: [], total: 0, hasMore: false };
   }
 }
 
-
 /**
  * 获取学生预警档案
  */
-export async function getStudentWarningProfile(studentId: string): Promise<StudentWarningProfile | null> {
+export async function getStudentWarningProfile(
+  studentId: string
+): Promise<StudentWarningProfile | null> {
   try {
     console.log(`📊 获取学生${studentId}的预警档案...`);
 
     // 尝试从数据库获取数据
     const { data: student, error: studentError } = await supabase
-      .from('students')
-      .select('name, class_name')
-      .eq('student_id', studentId)
+      .from("students")
+      .select("name, class_name")
+      .eq("student_id", studentId)
       .single();
 
     if (studentError || !student) {
-      console.error('学生信息查询失败:', studentError);
+      console.error("学生信息查询失败:", studentError);
       return null;
     }
 
     const { data: warnings, error: warningsError } = await supabase
-      .from('warning_records')
-      .select('*')
-      .eq('student_id', studentId)
-      .order('created_at', { ascending: false });
+      .from("warning_records")
+      .select("*")
+      .eq("student_id", studentId)
+      .order("created_at", { ascending: false });
 
     if (warningsError) {
-      console.error('预警记录查询失败:', warningsError);
+      console.error("预警记录查询失败:", warningsError);
       // 即使预警记录查询失败，也返回基本的学生档案信息
     }
 
     // 计算统计数据
     const totalWarnings = warnings?.length || 0;
-    const activeWarnings = warnings?.filter(w => w.status === 'active').length || 0;
-    const resolvedWarnings = warnings?.filter(w => w.status === 'resolved').length || 0;
+    const activeWarnings =
+      warnings?.filter((w) => w.status === "active").length || 0;
+    const resolvedWarnings =
+      warnings?.filter((w) => w.status === "resolved").length || 0;
     const lastWarning = warnings?.[0];
 
     const profile: StudentWarningProfile = {
@@ -224,27 +234,26 @@ export async function getStudentWarningProfile(studentId: string): Promise<Stude
       totalWarnings,
       activeWarnings,
       resolvedWarnings,
-      lastWarningDate: lastWarning?.created_at || '',
-      riskLevel: activeWarnings >= 3 ? 'high' : activeWarnings >= 1 ? 'medium' : 'low',
+      lastWarningDate: lastWarning?.created_at || "",
+      riskLevel:
+        activeWarnings >= 3 ? "high" : activeWarnings >= 1 ? "medium" : "low",
       interventions: [], // 这里应该从intervention表查询
-      trackingNotes: [] // 这里应该从tracking_notes表查询
+      trackingNotes: [], // 这里应该从tracking_notes表查询
     };
 
     return profile;
-
   } catch (error) {
-    console.error('获取学生档案失败:', error);
+    console.error("获取学生档案失败:", error);
     return null;
   }
 }
-
 
 /**
  * 解决单个预警
  */
 export async function resolveWarning(
   warningId: string,
-  action: 'resolved' | 'dismissed',
+  action: "resolved" | "dismissed",
   notes: string,
   userId: string
 ): Promise<boolean> {
@@ -252,17 +261,17 @@ export async function resolveWarning(
     console.log(`🔧 ${action}预警记录: ${warningId}`);
 
     const { error } = await supabase
-      .from('warning_records')
+      .from("warning_records")
       .update({
         status: action,
         resolved_at: new Date().toISOString(),
-        resolution_notes: notes
+        resolution_notes: notes,
       })
-      .eq('id', warningId);
+      .eq("id", warningId);
 
     if (error) {
       console.error(`${action}预警失败:`, error);
-      toast.error(`${action === 'resolved' ? '解决' : '忽略'}预警失败`);
+      toast.error(`${action === "resolved" ? "解决" : "忽略"}预警失败`);
       return false;
     }
 
@@ -284,23 +293,23 @@ export async function undoWarningAction(
     console.log(`↩️ 撤销预警操作: ${warningId}`);
 
     const { error } = await supabase
-      .from('warning_records')
+      .from("warning_records")
       .update({
-        status: 'active',
+        status: "active",
         resolved_at: null,
-        resolution_notes: null
+        resolution_notes: null,
       })
-      .eq('id', warningId);
+      .eq("id", warningId);
 
     if (error) {
-      console.error('撤销预警失败:', error);
-      toast.error('撤销预警失败');
+      console.error("撤销预警失败:", error);
+      toast.error("撤销预警失败");
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('撤销预警异常:', error);
+    console.error("撤销预警异常:", error);
     return false;
   }
 }
@@ -311,14 +320,14 @@ export async function undoWarningAction(
 export async function batchUndoWarnings(
   warningIds: string[],
   userId: string
-): Promise<Array<{warningId: string, success: boolean}>> {
+): Promise<Array<{ warningId: string; success: boolean }>> {
   const results = [];
-  
+
   for (const warningId of warningIds) {
     const success = await undoWarningAction(warningId, userId);
     results.push({ warningId, success });
   }
-  
+
   return results;
 }
 
@@ -327,45 +336,45 @@ export async function batchUndoWarnings(
  */
 export async function batchResolveWarnings(
   warningIds: string[],
-  action: 'resolved' | 'dismissed',
+  action: "resolved" | "dismissed",
   notes: string,
   userId: string
-): Promise<Array<{warningId: string, success: boolean}>> {
+): Promise<Array<{ warningId: string; success: boolean }>> {
   const results = [];
-  
+
   for (const warningId of warningIds) {
     const success = await resolveWarning(warningId, action, notes, userId);
     results.push({ warningId, success });
   }
-  
+
   return results;
 }
 
 /**
  * 添加干预记录
  */
-export async function addIntervention(intervention: Omit<InterventionRecord, 'id' | 'createdAt'>): Promise<boolean> {
+export async function addIntervention(
+  intervention: Omit<InterventionRecord, "id" | "createdAt">
+): Promise<boolean> {
   try {
-    const { error } = await supabase
-      .from('interventions')
-      .insert({
-        student_id: intervention.studentId,
-        intervention_type: intervention.interventionType,
-        description: intervention.description,
-        result: intervention.result,
-        follow_up_required: intervention.followUpRequired,
-        created_by: intervention.createdBy,
-        created_at: new Date().toISOString()
-      });
+    const { error } = await supabase.from("interventions").insert({
+      student_id: intervention.studentId,
+      intervention_type: intervention.interventionType,
+      description: intervention.description,
+      result: intervention.result,
+      follow_up_required: intervention.followUpRequired,
+      created_by: intervention.createdBy,
+      created_at: new Date().toISOString(),
+    });
 
     if (error) {
-      console.error('添加干预记录失败:', error);
+      console.error("添加干预记录失败:", error);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('添加干预记录异常:', error);
+    console.error("添加干预记录异常:", error);
     return false;
   }
 }
@@ -373,27 +382,27 @@ export async function addIntervention(intervention: Omit<InterventionRecord, 'id
 /**
  * 添加追踪笔记
  */
-export async function addTrackingNote(note: Omit<TrackingNote, 'id' | 'createdAt'>): Promise<boolean> {
+export async function addTrackingNote(
+  note: Omit<TrackingNote, "id" | "createdAt">
+): Promise<boolean> {
   try {
-    const { error } = await supabase
-      .from('tracking_notes')
-      .insert({
-        student_id: note.studentId,
-        note_type: note.noteType,
-        content: note.content,
-        is_private: note.isPrivate,
-        created_by: note.createdBy,
-        created_at: new Date().toISOString()
-      });
+    const { error } = await supabase.from("tracking_notes").insert({
+      student_id: note.studentId,
+      note_type: note.noteType,
+      content: note.content,
+      is_private: note.isPrivate,
+      created_by: note.createdBy,
+      created_at: new Date().toISOString(),
+    });
 
     if (error) {
-      console.error('添加追踪笔记失败:', error);
+      console.error("添加追踪笔记失败:", error);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('添加追踪笔记异常:', error);
+    console.error("添加追踪笔记异常:", error);
     return false;
   }
 }
@@ -401,25 +410,27 @@ export async function addTrackingNote(note: Omit<TrackingNote, 'id' | 'createdAt
 /**
  * 获取学生跟进优先级列表
  */
-export async function getStudentFollowUpPriority(limit: number = 20): Promise<any[]> {
+export async function getStudentFollowUpPriority(
+  limit: number = 20
+): Promise<any[]> {
   try {
-    console.log('🎯 获取重点跟进学生列表...');
+    console.log("🎯 获取重点跟进学生列表...");
 
     // 基于真实数据计算学生跟进优先级
     const { data: riskTrends, error: riskError } = await supabase
-      .from('student_risk_trends')
-      .select('*')
-      .order('risk_level', { ascending: false }) // high > medium > low
-      .order('active_warnings_count', { ascending: false })
+      .from("student_risk_trends")
+      .select("*")
+      .order("risk_level", { ascending: false }) // high > medium > low
+      .order("active_warnings_count", { ascending: false })
       .limit(limit * 2); // 获取更多数据以便筛选
 
     if (riskError) {
-      console.warn('获取风险趋势数据失败，尝试使用基础查询:', riskError);
+      console.warn("获取风险趋势数据失败，尝试使用基础查询:", riskError);
       return await getFallbackPriorityStudents(limit);
     }
 
     if (!riskTrends || riskTrends.length === 0) {
-      console.log('风险趋势视图无数据，使用基础查询');
+      console.log("风险趋势视图无数据，使用基础查询");
       return await getFallbackPriorityStudents(limit);
     }
 
@@ -428,53 +439,55 @@ export async function getStudentFollowUpPriority(limit: number = 20): Promise<an
       riskTrends.map(async (student) => {
         // 获取干预记录数量
         const { data: interventions } = await supabase
-          .from('warning_tracking_records')
-          .select('id')
-          .eq('student_id', student.student_id)
-          .eq('status', 'completed');
+          .from("warning_tracking_records")
+          .select("id")
+          .eq("student_id", student.student_id)
+          .eq("status", "completed");
 
         // 获取最近预警日期
         const { data: recentWarning } = await supabase
-          .from('warning_records')
-          .select('created_at')
-          .eq('student_id', student.student_id)
-          .eq('status', 'active')
-          .order('created_at', { ascending: false })
+          .from("warning_records")
+          .select("created_at")
+          .eq("student_id", student.student_id)
+          .eq("status", "active")
+          .order("created_at", { ascending: false })
           .limit(1)
           .single();
 
         // 计算风险评分 (0-100)
         let riskScore = 50; // 基础分
-        
+
         // 风险级别评分
-        if (student.risk_level === 'critical') riskScore += 40;
-        else if (student.risk_level === 'high') riskScore += 30;
-        else if (student.risk_level === 'medium') riskScore += 20;
-        else if (student.risk_level === 'low') riskScore += 10;
+        if (student.risk_level === "critical") riskScore += 40;
+        else if (student.risk_level === "high") riskScore += 30;
+        else if (student.risk_level === "medium") riskScore += 20;
+        else if (student.risk_level === "low") riskScore += 10;
 
         // 活跃预警数量评分
         riskScore += Math.min(student.active_warnings_count * 5, 25);
 
         // 趋势评分
-        if (student.performance_trend === 'declining') riskScore += 15;
-        else if (student.performance_trend === 'stable') riskScore += 5;
+        if (student.performance_trend === "declining") riskScore += 15;
+        else if (student.performance_trend === "stable") riskScore += 5;
 
         // 趋势置信度评分
         riskScore += (student.trend_confidence || 0.5) * 10;
 
         // 确定优先级
-        let priority: 'high' | 'medium' | 'low';
-        if (riskScore >= 80) priority = 'high';
-        else if (riskScore >= 60) priority = 'medium';
-        else priority = 'low';
+        let priority: "high" | "medium" | "low";
+        if (riskScore >= 80) priority = "high";
+        else if (riskScore >= 60) priority = "medium";
+        else priority = "low";
 
         // 格式化最后预警日期
-        let lastWarningDate = '无预警';
+        let lastWarningDate = "无预警";
         if (recentWarning) {
           const warningDate = new Date(recentWarning.created_at);
-          const daysDiff = Math.floor((Date.now() - warningDate.getTime()) / (1000 * 60 * 60 * 24));
-          if (daysDiff === 0) lastWarningDate = '今天';
-          else if (daysDiff === 1) lastWarningDate = '1天前';
+          const daysDiff = Math.floor(
+            (Date.now() - warningDate.getTime()) / (1000 * 60 * 60 * 24)
+          );
+          if (daysDiff === 0) lastWarningDate = "今天";
+          else if (daysDiff === 1) lastWarningDate = "1天前";
           else if (daysDiff < 7) lastWarningDate = `${daysDiff}天前`;
           else lastWarningDate = `${Math.floor(daysDiff / 7)}周前`;
         }
@@ -490,7 +503,7 @@ export async function getStudentFollowUpPriority(limit: number = 20): Promise<an
           riskScore: Math.round(riskScore),
           performanceTrend: student.performance_trend,
           riskLevel: student.risk_level,
-          lastAssessmentDate: student.last_assessment_date
+          lastAssessmentDate: student.last_assessment_date,
         };
       })
     );
@@ -500,11 +513,13 @@ export async function getStudentFollowUpPriority(limit: number = 20): Promise<an
       .sort((a, b) => b.riskScore - a.riskScore)
       .slice(0, limit);
 
-    console.log(`✅ 成功获取${sortedStudents.length}名重点跟进学生`, sortedStudents);
+    console.log(
+      `✅ 成功获取${sortedStudents.length}名重点跟进学生`,
+      sortedStudents
+    );
     return sortedStudents;
-
   } catch (error) {
-    console.error('获取优先级学生列表失败:', error);
+    console.error("获取优先级学生列表失败:", error);
     return await getFallbackPriorityStudents(limit);
   }
 }
@@ -514,27 +529,29 @@ export async function getStudentFollowUpPriority(limit: number = 20): Promise<an
  */
 async function getFallbackPriorityStudents(limit: number): Promise<any[]> {
   try {
-    console.log('🔄 使用备用查询获取重点跟进学生...');
+    console.log("🔄 使用备用查询获取重点跟进学生...");
 
     // 查询有活跃预警的学生
     const { data: warnings, error } = await supabase
-      .from('warning_records')
-      .select(`
+      .from("warning_records")
+      .select(
+        `
         student_id,
         created_at,
         details,
         students!inner(student_id, name, class_name)
-      `)
-      .eq('status', 'active')
-      .order('created_at', { ascending: false });
+      `
+      )
+      .eq("status", "active")
+      .order("created_at", { ascending: false });
 
     if (error) {
-      console.error('备用查询失败:', error);
+      console.error("备用查询失败:", error);
       return [];
     }
 
     if (!warnings || warnings.length === 0) {
-      console.log('暂无活跃预警记录');
+      console.log("暂无活跃预警记录");
       return [];
     }
 
@@ -548,22 +565,24 @@ async function getFallbackPriorityStudents(limit: number): Promise<any[]> {
           className: warning.students.class_name,
           activeWarnings: 0,
           latestWarning: warning.created_at,
-          highSeverityCount: 0
+          highSeverityCount: 0,
         };
       }
-      
+
       acc[studentId].activeWarnings++;
-      
+
       // 统计高严重度预警
-      if (warning.details?.severity === 'high') {
+      if (warning.details?.severity === "high") {
         acc[studentId].highSeverityCount++;
       }
-      
+
       // 更新最新预警时间
-      if (new Date(warning.created_at) > new Date(acc[studentId].latestWarning)) {
+      if (
+        new Date(warning.created_at) > new Date(acc[studentId].latestWarning)
+      ) {
         acc[studentId].latestWarning = warning.created_at;
       }
-      
+
       return acc;
     }, {});
 
@@ -572,23 +591,27 @@ async function getFallbackPriorityStudents(limit: number): Promise<any[]> {
       // 计算风险评分
       let riskScore = student.activeWarnings * 15; // 每个预警15分
       riskScore += student.highSeverityCount * 20; // 高严重度预警额外20分
-      
+
       // 时间因子：最近的预警权重更高
-      const daysSinceLatest = Math.floor((Date.now() - new Date(student.latestWarning).getTime()) / (1000 * 60 * 60 * 24));
+      const daysSinceLatest = Math.floor(
+        (Date.now() - new Date(student.latestWarning).getTime()) /
+          (1000 * 60 * 60 * 24)
+      );
       if (daysSinceLatest <= 1) riskScore += 20;
       else if (daysSinceLatest <= 3) riskScore += 15;
       else if (daysSinceLatest <= 7) riskScore += 10;
 
       // 确定优先级
-      let priority: 'high' | 'medium' | 'low';
-      if (riskScore >= 70 || student.highSeverityCount >= 2) priority = 'high';
-      else if (riskScore >= 40 || student.activeWarnings >= 3) priority = 'medium';
-      else priority = 'low';
+      let priority: "high" | "medium" | "low";
+      if (riskScore >= 70 || student.highSeverityCount >= 2) priority = "high";
+      else if (riskScore >= 40 || student.activeWarnings >= 3)
+        priority = "medium";
+      else priority = "low";
 
       // 格式化最后预警日期
       let lastWarningDate: string;
-      if (daysSinceLatest === 0) lastWarningDate = '今天';
-      else if (daysSinceLatest === 1) lastWarningDate = '1天前';
+      if (daysSinceLatest === 0) lastWarningDate = "今天";
+      else if (daysSinceLatest === 1) lastWarningDate = "1天前";
       else if (daysSinceLatest < 7) lastWarningDate = `${daysSinceLatest}天前`;
       else lastWarningDate = `${Math.floor(daysSinceLatest / 7)}周前`;
 
@@ -600,7 +623,7 @@ async function getFallbackPriorityStudents(limit: number): Promise<any[]> {
         activeWarnings: student.activeWarnings,
         lastWarningDate,
         interventionCount: 0, // 备用查询暂不统计干预次数
-        riskScore: Math.round(riskScore)
+        riskScore: Math.round(riskScore),
       };
     });
 
@@ -611,9 +634,8 @@ async function getFallbackPriorityStudents(limit: number): Promise<any[]> {
 
     console.log(`✅ 备用查询成功获取${result.length}名重点跟进学生`, result);
     return result;
-
   } catch (error) {
-    console.error('备用查询失败:', error);
+    console.error("备用查询失败:", error);
     return [];
   }
 }

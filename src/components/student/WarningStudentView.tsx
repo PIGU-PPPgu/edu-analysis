@@ -1,17 +1,17 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { 
-  AlertTriangle, 
-  TrendingDown, 
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  AlertTriangle,
+  TrendingDown,
   Clock,
   Eye,
-  AlertCircle
-} from 'lucide-react';
-import { WarningStudentData } from '@/services/warningStudentService';
-import { formatDistanceToNow } from 'date-fns';
-import { zhCN } from 'date-fns/locale';
+  AlertCircle,
+} from "lucide-react";
+import { WarningStudentData } from "@/services/warningStudentService";
+import { formatDistanceToNow } from "date-fns";
+import { zhCN } from "date-fns/locale";
 
 interface WarningStudentViewProps {
   students: WarningStudentData[];
@@ -19,41 +19,41 @@ interface WarningStudentViewProps {
   onViewWarningDetails?: (studentId: string) => void;
 }
 
-const WarningStudentView: React.FC<WarningStudentViewProps> = ({ 
-  students, 
-  onViewStudent, 
-  onViewWarningDetails 
+const WarningStudentView: React.FC<WarningStudentViewProps> = ({
+  students,
+  onViewStudent,
+  onViewWarningDetails,
 }) => {
-  const getSeverityColor = (severity: 'low' | 'medium' | 'high') => {
+  const getSeverityColor = (severity: "low" | "medium" | "high") => {
     switch (severity) {
-      case 'high':
-        return 'bg-red-100 text-red-800 border-red-200';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case "high":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "medium":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
       default:
-        return 'bg-blue-100 text-blue-800 border-blue-200';
+        return "bg-blue-100 text-blue-800 border-blue-200";
     }
   };
 
-  const getSeverityIcon = (severity: 'low' | 'medium' | 'high') => {
+  const getSeverityIcon = (severity: "low" | "medium" | "high") => {
     switch (severity) {
-      case 'high':
+      case "high":
         return <AlertTriangle className="h-4 w-4 text-red-500" />;
-      case 'medium':
+      case "medium":
         return <AlertCircle className="h-4 w-4 text-yellow-500" />;
       default:
         return <AlertCircle className="h-4 w-4 text-blue-500" />;
     }
   };
 
-  const getSeverityText = (severity: 'low' | 'medium' | 'high') => {
+  const getSeverityText = (severity: "low" | "medium" | "high") => {
     switch (severity) {
-      case 'high':
-        return '高风险';
-      case 'medium':
-        return '中风险';
+      case "high":
+        return "高风险";
+      case "medium":
+        return "中风险";
       default:
-        return '低风险';
+        return "低风险";
     }
   };
 
@@ -72,7 +72,10 @@ const WarningStudentView: React.FC<WarningStudentViewProps> = ({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {students.map((student) => (
-        <Card key={student.id} className="hover:shadow-md transition-shadow border-l-4 border-l-red-400">
+        <Card
+          key={student.id}
+          className="hover:shadow-md transition-shadow border-l-4 border-l-red-400"
+        >
           <CardHeader className="pb-3">
             <div className="flex justify-between items-start">
               <div>
@@ -81,10 +84,10 @@ const WarningStudentView: React.FC<WarningStudentViewProps> = ({
                   {student.name}
                 </CardTitle>
                 <Badge variant="secondary" className="mt-1">
-                  {student.class_name || '未分班'}
+                  {student.class_name || "未分班"}
                 </Badge>
               </div>
-              <Badge 
+              <Badge
                 className={`${getSeverityColor(student.highestSeverity)} font-medium`}
                 variant="outline"
               >
@@ -101,7 +104,7 @@ const WarningStudentView: React.FC<WarningStudentViewProps> = ({
                   {student.warningCount} 项
                 </span>
               </div>
-              
+
               {/* 平均成绩 */}
               {student.averageScore && (
                 <div className="flex justify-between items-center">
@@ -120,7 +123,9 @@ const WarningStudentView: React.FC<WarningStudentViewProps> = ({
               {/* 最新预警 */}
               {student.latestWarning && (
                 <div>
-                  <span className="text-sm text-gray-600 block mb-1">最新预警</span>
+                  <span className="text-sm text-gray-600 block mb-1">
+                    最新预警
+                  </span>
                   <div className="bg-gray-50 rounded-lg p-2">
                     <p className="text-sm font-medium text-gray-800">
                       {student.latestWarning.rule_name}
@@ -128,10 +133,13 @@ const WarningStudentView: React.FC<WarningStudentViewProps> = ({
                     <div className="flex items-center gap-1 mt-1">
                       <Clock className="h-3 w-3 text-gray-400" />
                       <span className="text-xs text-gray-500">
-                        {formatDistanceToNow(new Date(student.latestWarning.created_at), { 
-                          addSuffix: true,
-                          locale: zhCN 
-                        })}
+                        {formatDistanceToNow(
+                          new Date(student.latestWarning.created_at),
+                          {
+                            addSuffix: true,
+                            locale: zhCN,
+                          }
+                        )}
                       </span>
                     </div>
                   </div>
@@ -140,9 +148,9 @@ const WarningStudentView: React.FC<WarningStudentViewProps> = ({
 
               {/* 操作按钮 */}
               <div className="flex gap-2 pt-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="flex-1"
                   onClick={() => onViewStudent(student.id)}
                 >
@@ -150,8 +158,8 @@ const WarningStudentView: React.FC<WarningStudentViewProps> = ({
                   查看详情
                 </Button>
                 {onViewWarningDetails && (
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     className="flex-1 text-orange-600 hover:bg-orange-50"
                     onClick={() => onViewWarningDetails(student.id)}

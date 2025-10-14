@@ -41,9 +41,6 @@ const WarningAnalysis = lazy(() => import("./pages/WarningAnalysis"));
 const HomeworkManagement = lazy(() => import("./pages/HomeworkManagement"));
 const HomeworkDetailPage = lazy(() => import("./pages/HomeworkDetail"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
-const StudentPortraitManagement = lazy(
-  () => import("./pages/StudentPortraitManagement")
-);
 const ClassAnalytics = lazy(() => import("./pages/ClassAnalytics"));
 const ExamManagement = lazy(() => import("./pages/ExamManagement"));
 const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
@@ -63,6 +60,12 @@ const CreateWarningTablePage = lazy(
   () => import("./pages/tools/CreateWarningTable")
 );
 const DiagnosisPage = lazy(() => import("./pages/DiagnosisPage"));
+const TestDuplicateStudents = lazy(
+  () => import("./pages/TestDuplicateStudents")
+);
+const CleanDuplicateStudents = lazy(
+  () => import("./pages/CleanDuplicateStudents")
+);
 import {
   initGlobalErrorHandlers,
   reduceBrowserWorkload,
@@ -214,133 +217,149 @@ function App() {
             {/* 🌟 Week 6: 全局数据流状态管理 */}
             <DataFlowProvider>
               <DatabaseInitializer>
-            {/* 🚀 应用初始化器 */}
-            <AppInitializer>
-              <ErrorBoundary
-                componentName="App"
-                enableRecovery={true}
-                showErrorDetails={true}
-                isolateFailures={false}
-              >
-                <BrowserRouter>
-                  <Suspense fallback={<PageLoadingFallback />}>
-                    <Routes>
-                      {/* 公开路由 */}
-                      <Route path="/" element={<ModernHomepage />} />
-                      <Route path="/login" element={<Login />} />
-                      <Route path="/privacy" element={<PrivacyPolicy />} />
-                      <Route path="/icp-notice" element={<ICPNotice />} />
-                      <Route
-                        path="/unauthorized"
-                        element={<UnauthorizedPage />}
-                      />
-                      <Route
-                        path="/test/cascade-analysis"
-                        element={<CascadeAnalysisTestPage />}
-                      />
-                      {/* 已移除测试路由: /test/analysis-dashboards */}
+                {/* 🚀 应用初始化器 */}
+                <AppInitializer>
+                  <ErrorBoundary
+                    componentName="App"
+                    enableRecovery={true}
+                    showErrorDetails={true}
+                    isolateFailures={false}
+                  >
+                    <BrowserRouter>
+                      <Suspense fallback={<PageLoadingFallback />}>
+                        <Routes>
+                          {/* 公开路由 */}
+                          <Route path="/" element={<ModernHomepage />} />
+                          <Route path="/login" element={<Login />} />
+                          <Route path="/privacy" element={<PrivacyPolicy />} />
+                          <Route path="/icp-notice" element={<ICPNotice />} />
+                          <Route
+                            path="/unauthorized"
+                            element={<UnauthorizedPage />}
+                          />
+                          <Route
+                            path="/test/cascade-analysis"
+                            element={<CascadeAnalysisTestPage />}
+                          />
+                          {/* 已移除测试路由: /test/analysis-dashboards */}
 
-                      {/* 诊断工具路由（保持公开用于系统维护） */}
-                      <Route
-                        path="/tools/diagnostics"
-                        element={<DiagnosticsTool />}
-                      />
-                      <Route
-                        path="/tools/init-tables"
-                        element={<InitTables />}
-                      />
-                      <Route
-                        path="/tools/create-warning-table"
-                        element={<CreateWarningTablePage />}
-                      />
-                      <Route
-                        path="/performance-monitoring"
-                        element={<PerformanceMonitoring />}
-                      />
-                      <Route path="/diagnosis" element={<DiagnosisPage />} />
-                      <Route path="/test-context" element={<ContextTest />} />
-                      <Route path="/test-theme" element={<ThemeTest />} />
+                          {/* 诊断工具路由（保持公开用于系统维护） */}
+                          <Route
+                            path="/tools/diagnostics"
+                            element={<DiagnosticsTool />}
+                          />
+                          <Route
+                            path="/tools/init-tables"
+                            element={<InitTables />}
+                          />
+                          <Route
+                            path="/tools/create-warning-table"
+                            element={<CreateWarningTablePage />}
+                          />
+                          <Route
+                            path="/performance-monitoring"
+                            element={<PerformanceMonitoring />}
+                          />
+                          <Route
+                            path="/diagnosis"
+                            element={<DiagnosisPage />}
+                          />
+                          <Route
+                            path="/test-context"
+                            element={<ContextTest />}
+                          />
+                          <Route path="/test-theme" element={<ThemeTest />} />
+                          <Route
+                            path="/test-duplicates"
+                            element={<TestDuplicateStudents />}
+                          />
+                          <Route
+                            path="/clean-duplicates"
+                            element={<CleanDuplicateStudents />}
+                          />
 
-                      {/* 受保护的路由 - 需要登录验证 */}
-                      <Route element={<ProtectedRoute />}>
-                        <Route path="/dashboard" element={<Index />} />
-                        <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
-                        <Route path="/data-import" element={<Index />} />
-                        <Route path="/simple-import" element={<Index />} />
-                        <Route path="/profile" element={<ProfilePage />} />
-
-                        <Route
-                          element={
-                            <ProtectedRoute
-                              allowedRoles={["admin", "teacher"]}
+                          {/* 受保护的路由 - 需要登录验证 */}
+                          <Route element={<ProtectedRoute />}>
+                            <Route path="/dashboard" element={<Index />} />
+                            <Route
+                              path="/teacher-dashboard"
+                              element={<TeacherDashboard />}
                             />
-                          }
-                        >
-                          <Route
-                            path="/grade-analysis"
-                            element={<GradeAnalysis />}
-                          />
-                          <Route
-                            path="/advanced-analysis"
-                            element={<AdvancedAnalysis />}
-                          />
-                          <Route
-                            path="/warning-analysis"
-                            element={<WarningAnalysis />}
-                          />
-                          <Route
-                            path="/exam-management"
-                            element={<ExamManagement />}
-                          />
-                          <Route
-                            path="/student-management"
-                            element={<StudentManagement />}
-                          />
-                          <Route
-                            path="/class-management"
-                            element={<ClassManagement />}
-                          />
-                          <Route
-                            path="/class-profile/:classId"
-                            element={<ClassProfile />}
-                          />
-                          <Route
-                            path="/student-portrait-management"
-                            element={<StudentPortraitManagement />}
-                          />
-                        </Route>
+                            <Route path="/data-import" element={<Index />} />
+                            <Route path="/simple-import" element={<Index />} />
+                            <Route path="/profile" element={<ProfilePage />} />
 
-                        <Route
-                          path="/student-profile/:studentId"
-                          element={<StudentProfile />}
-                        />
-                        <Route path="/ai-settings" element={<AISettings />} />
+                            <Route
+                              element={
+                                <ProtectedRoute
+                                  allowedRoles={["admin", "teacher"]}
+                                />
+                              }
+                            >
+                              <Route
+                                path="/grade-analysis"
+                                element={<GradeAnalysis />}
+                              />
+                              <Route
+                                path="/advanced-analysis"
+                                element={<AdvancedAnalysis />}
+                              />
+                              <Route
+                                path="/warning-analysis"
+                                element={<WarningAnalysis />}
+                              />
+                              <Route
+                                path="/exam-management"
+                                element={<ExamManagement />}
+                              />
+                              <Route
+                                path="/student-management"
+                                element={<StudentManagement />}
+                              />
+                              <Route
+                                path="/class-management"
+                                element={<ClassManagement />}
+                              />
+                              <Route
+                                path="/class-profile/:classId"
+                                element={<ClassProfile />}
+                              />
+                            </Route>
 
-                        <Route
-                          path="/homework"
-                          element={<HomeworkManagement />}
-                        />
-                        <Route
-                          path="/homework/edit/:homeworkId"
-                          element={<HomeworkManagement />}
-                        />
-                        <Route
-                          path="/homework/:homeworkId"
-                          element={<HomeworkDetailPage />}
-                        />
-                        <Route
-                          path="/student-homework"
-                          element={<StudentManagement />}
-                        />
-                      </Route>
+                            <Route
+                              path="/student-profile/:studentId"
+                              element={<StudentProfile />}
+                            />
+                            <Route
+                              path="/ai-settings"
+                              element={<AISettings />}
+                            />
 
-                      {/* 默认404路由 */}
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </Suspense>
-                </BrowserRouter>
-              </ErrorBoundary>
-            </AppInitializer>
+                            <Route
+                              path="/homework"
+                              element={<HomeworkManagement />}
+                            />
+                            <Route
+                              path="/homework/edit/:homeworkId"
+                              element={<HomeworkManagement />}
+                            />
+                            <Route
+                              path="/homework/:homeworkId"
+                              element={<HomeworkDetailPage />}
+                            />
+                            <Route
+                              path="/student-homework"
+                              element={<StudentManagement />}
+                            />
+                          </Route>
+
+                          {/* 默认404路由 */}
+                          <Route path="*" element={<NotFound />} />
+                        </Routes>
+                      </Suspense>
+                    </BrowserRouter>
+                  </ErrorBoundary>
+                </AppInitializer>
               </DatabaseInitializer>
             </DataFlowProvider>
           </GlobalLoadingProvider>

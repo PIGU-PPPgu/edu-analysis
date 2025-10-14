@@ -113,15 +113,17 @@ const ExportLearningReport: React.FC<ExportLearningReportProps> = ({
 
     try {
       // 动态导入exportService
-      const { advancedExportService } = await import("@/services/advancedExportService");
-      
+      const { advancedExportService } = await import(
+        "@/services/advancedExportService"
+      );
+
       // 调用真实的导出服务
       const result = await advancedExportService.exportStudentReport(
-        student.studentId, 
+        student.studentId,
         {
-          format: reportFormat as 'pdf' | 'csv' | 'xlsx' | 'json',
-          fields: selectedSections.map(s => s.id),
-          fileName: `${student.name}_学习报告`
+          format: reportFormat as "pdf" | "csv" | "xlsx" | "json",
+          fields: selectedSections.map((s) => s.id),
+          fileName: `${student.name}_学习报告`,
         }
       );
 

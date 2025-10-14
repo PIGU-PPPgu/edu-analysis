@@ -594,8 +594,7 @@ export async function getGroupPerformance(
 
         // 排序并找出当前小组的排名
         groupScores.sort((a, b) => b.average - a.average);
-        overall_rank =
-          groupScores.findIndex((g) => g.id === groupId) + 1;
+        overall_rank = groupScores.findIndex((g) => g.id === groupId) + 1;
       }
     } catch (error) {
       console.error("计算班级排名失败:", error);
@@ -625,16 +624,14 @@ export async function getGroupPerformance(
         const examAverages = Array.from(examGroups.entries()).map(
           ([examId, scores]) => ({
             examId,
-            average:
-              scores.reduce((sum, s) => sum + s, 0) / scores.length,
+            average: scores.reduce((sum, s) => sum + s, 0) / scores.length,
           })
         );
 
         if (examAverages.length >= 2) {
           const [latest, previous] = examAverages;
           improvement_rate =
-            ((latest.average - previous.average) / previous.average) *
-            100;
+            ((latest.average - previous.average) / previous.average) * 100;
         }
       }
     } catch (error) {
@@ -670,9 +667,7 @@ export async function getGroupPerformance(
           .eq("class_name", group.class_name);
 
         if (subjectGrades && subjectGrades.length > 0) {
-          const scores = subjectGrades.map(
-            (g: any) => g[`${subject}_score`]
-          );
+          const scores = subjectGrades.map((g: any) => g[`${subject}_score`]);
           const average =
             scores.reduce((sum: number, s: number) => sum + s, 0) /
             scores.length;

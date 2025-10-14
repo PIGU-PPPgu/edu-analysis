@@ -16,10 +16,7 @@ import {
   Trash2,
   RefreshCw,
 } from "lucide-react";
-import {
-  useDataFlow,
-  useTask,
-} from "@/contexts/DataFlowContext";
+import { useDataFlow, useTask } from "@/contexts/DataFlowContext";
 import { TaskType, DataFlowState } from "@/types/dataFlow";
 
 /**
@@ -101,9 +98,7 @@ export const Example2_TaskControl: React.FC<{ taskId?: string }> = ({
           <CardTitle>示例2: 任务控制</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-gray-500">
-            请先在示例1中创建任务
-          </p>
+          <p className="text-sm text-gray-500">请先在示例1中创建任务</p>
         </CardContent>
       </Card>
     );
@@ -261,7 +256,13 @@ export const Example3_TaskList: React.FC = () => {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant={task.state === DataFlowState.COMPLETED ? "default" : "outline"}>
+                <Badge
+                  variant={
+                    task.state === DataFlowState.COMPLETED
+                      ? "default"
+                      : "outline"
+                  }
+                >
                   {task.state}
                 </Badge>
                 <Button
@@ -276,9 +277,7 @@ export const Example3_TaskList: React.FC = () => {
           ))}
 
           {tasks.size === 0 && (
-            <p className="text-sm text-gray-500 text-center py-4">
-              暂无任务
-            </p>
+            <p className="text-sm text-gray-500 text-center py-4">暂无任务</p>
           )}
         </div>
       </CardContent>
@@ -305,7 +304,9 @@ export const DataFlowExamples: React.FC = () => {
         <div
           onClick={(e) => {
             const target = e.target as HTMLElement;
-            const taskId = target.closest("[data-task-id]")?.getAttribute("data-task-id");
+            const taskId = target
+              .closest("[data-task-id]")
+              ?.getAttribute("data-task-id");
             if (taskId) setCreatedTaskId(taskId);
           }}
         >
@@ -340,9 +341,16 @@ export const DataFlowExamples: React.FC = () => {
 
           <h3>使用步骤</h3>
           <ol>
-            <li>调用 <code>createTask()</code> 创建任务</li>
-            <li>使用 <code>useTask(taskId)</code> 获取任务状态和操作</li>
-            <li>调用 <code>start()</code> / <code>pause()</code> / <code>resume()</code> 控制任务</li>
+            <li>
+              调用 <code>createTask()</code> 创建任务
+            </li>
+            <li>
+              使用 <code>useTask(taskId)</code> 获取任务状态和操作
+            </li>
+            <li>
+              调用 <code>start()</code> / <code>pause()</code> /{" "}
+              <code>resume()</code> 控制任务
+            </li>
             <li>监听进度更新,展示给用户</li>
             <li>任务完成后可删除或保留记录</li>
           </ol>

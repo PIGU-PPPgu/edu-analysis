@@ -793,14 +793,14 @@ export function SmartGroupManager({
         <CardContent>
           <div className="space-y-3 text-sm">
             <div className="flex items-start gap-2">
-              <Target className="h-4 w-4 text-blue-500 mt-0.5" />
+              <Target className="h-4 w-4 text-[#5E9622] mt-0.5" />
               <div>
                 <strong>平衡分组：</strong>
                 适合大多数教学场景，确保每组都有不同能力水平的学生，促进互助学习。
               </div>
             </div>
             <div className="flex items-start gap-2">
-              <Users className="h-4 w-4 text-green-500 mt-0.5" />
+              <Users className="h-4 w-4 text-[#5E9622] mt-0.5" />
               <div>
                 <strong>最佳组大小：</strong>
                 建议每组3-5人，既保证参与度又便于管理。

@@ -3,41 +3,41 @@
  * 实现Supabase和自建数据库的无缝切换
  */
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import axios, { AxiosInstance } from 'axios';
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import axios, { AxiosInstance } from "axios";
 
 // 数据源类型
 export enum DataSource {
-  SUPABASE = 'supabase',
-  SELF_HOSTED = 'self_hosted',
-  HYBRID = 'hybrid'
+  SUPABASE = "supabase",
+  SELF_HOSTED = "self_hosted",
+  HYBRID = "hybrid",
 }
 
 // 数据表分配策略
 export const TABLE_ROUTING = {
   // 留在Supabase的表
   supabase: [
-    'auth.users',
-    'storage.objects',
-    'notifications',
-    'user_profiles',
-    'user_settings'
+    "auth.users",
+    "storage.objects",
+    "notifications",
+    "user_profiles",
+    "user_settings",
   ],
   // 迁移到自建数据库的表
   selfHosted: [
-    'students',
-    'classes',
-    'teachers',
-    'exams',
-    'exam_scores',
-    'homeworks',
-    'homework_submissions',
-    'knowledge_points',
-    'knowledge_mastery',
-    'warning_rules',
-    'warning_records',
-    'student_portraits'
-  ]
+    "students",
+    "classes",
+    "teachers",
+    "exams",
+    "exam_scores",
+    "homeworks",
+    "homework_submissions",
+    "knowledge_points",
+    "knowledge_mastery",
+    "warning_rules",
+    "warning_records",
+    "student_portraits",
+  ],
 };
 
 /**
@@ -66,7 +66,7 @@ interface QueryOptions {
  * 事务操作
  */
 interface TransactionOperation {
-  type: 'insert' | 'update' | 'delete';
+  type: "insert" | "update" | "delete";
   table: string;
   data?: any;
   id?: string;
@@ -83,7 +83,7 @@ class SupabaseAdapter implements IDatabaseAdapter {
   }
 
   async query(table: string, options: QueryOptions = {}) {
-    let query = this.client.from(table).select(options.select || '*');
+    let query = this.client.from(table).select(options.select || "*");
 
     if (options.where) {
       Object.entries(options.where).forEach(([key, value]) => {
@@ -100,15 +100,18 @@ class SupabaseAdapter implements IDatabaseAdapter {
     }
 
     if (options.offset) {
-      query = query.range(options.offset, options.offset + (options.limit || 10) - 1);
+      query = query.range(
+        options.offset,
+        options.offset + (options.limit || 10) - 1
+      );
     }
 
     const { data, error } = await query;
-    
+
     if (error) {
       throw new Error(`Supabase查询错误: ${error.message}`);
     }
-    
+
     return data;
   }
 
@@ -117,11 +120,11 @@ class SupabaseAdapter implements IDatabaseAdapter {
       .from(table)
       .insert(data)
       .select();
-    
+
     if (error) {
       throw new Error(`Supabase插入错误: ${error.message}`);
     }
-    
+
     return result;
   }
 
@@ -129,57 +132,50 @@ class SupabaseAdapter implements IDatabaseAdapter {
     const { data: result, error } = await this.client
       .from(table)
       .update(data)
-      .eq('id', id)
+      .eq("id", id)
       .select();
-    
+
     if (error) {
       throw new Error(`Supabase更新错误: ${error.message}`);
     }
-    
+
     return result;
   }
 
   async delete(table: string, id: string) {
-    const { error } = await this.client
-      .from(table)
-      .delete()
-      .eq('id', id);
-    
+    const { error } = await this.client.from(table).delete().eq("id", id);
+
     if (error) {
       throw new Error(`Supabase删除错误: ${error.message}`);
     }
-    
+
     return { success: true };
   }
 
   async transaction(operations: TransactionOperation[]) {
     // Supabase不支持原生事务，模拟实现
+    // 注意: 无法保证原子性，失败时不会自动回滚
     const results = [];
-    
-    try {
-      for (const op of operations) {
-        let result;
-        
-        switch (op.type) {
-          case 'insert':
-            result = await this.insert(op.table, op.data);
-            break;
-          case 'update':
-            result = await this.update(op.table, op.id!, op.data);
-            break;
-          case 'delete':
-            result = await this.delete(op.table, op.id!);
-            break;
-        }
-        
-        results.push(result);
+
+    for (const op of operations) {
+      let result;
+
+      switch (op.type) {
+        case "insert":
+          result = await this.insert(op.table, op.data);
+          break;
+        case "update":
+          result = await this.update(op.table, op.id!, op.data);
+          break;
+        case "delete":
+          result = await this.delete(op.table, op.id!);
+          break;
       }
-      
-      return results;
-    } catch (error) {
-      // 理想情况下应该回滚，但Supabase不支持
-      throw error;
+
+      results.push(result);
     }
+
+    return results;
   }
 }
 
@@ -194,28 +190,28 @@ class SelfHostedAdapter implements IDatabaseAdapter {
       baseURL,
       timeout: 10000,
       headers: {
-        'Content-Type': 'application/json'
-      }
+        "Content-Type": "application/json",
+      },
     });
 
     // 请求拦截器
     this.api.interceptors.request.use(
-      config => {
+      (config) => {
         // 添加认证token
-        const token = localStorage.getItem('api_token');
+        const token = localStorage.getItem("api_token");
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
         return config;
       },
-      error => Promise.reject(error)
+      (error) => Promise.reject(error)
     );
 
     // 响应拦截器
     this.api.interceptors.response.use(
-      response => response.data,
-      error => {
-        console.error('API错误:', error);
+      (response) => response.data,
+      (error) => {
+        console.error("API错误:", error);
         return Promise.reject(error);
       }
     );
@@ -224,9 +220,9 @@ class SelfHostedAdapter implements IDatabaseAdapter {
   async query(table: string, options: QueryOptions = {}) {
     const response = await this.api.post(`/api/query`, {
       table,
-      ...options
+      ...options,
     });
-    
+
     return response.data;
   }
 
@@ -246,10 +242,10 @@ class SelfHostedAdapter implements IDatabaseAdapter {
   }
 
   async transaction(operations: TransactionOperation[]) {
-    const response = await this.api.post('/api/transaction', {
-      operations
+    const response = await this.api.post("/api/transaction", {
+      operations,
     });
-    
+
     return response.data;
   }
 }
@@ -265,15 +261,13 @@ export class HybridDatabaseAdapter implements IDatabaseAdapter {
 
   constructor(config: DatabaseConfig) {
     this.config = config;
-    
+
     this.supabaseAdapter = new SupabaseAdapter(
       config.supabase.url,
       config.supabase.anonKey
     );
-    
-    this.selfHostedAdapter = new SelfHostedAdapter(
-      config.selfHosted.apiUrl
-    );
+
+    this.selfHostedAdapter = new SelfHostedAdapter(config.selfHosted.apiUrl);
   }
 
   /**
@@ -283,11 +277,11 @@ export class HybridDatabaseAdapter implements IDatabaseAdapter {
     if (TABLE_ROUTING.supabase.includes(table)) {
       return DataSource.SUPABASE;
     }
-    
+
     if (TABLE_ROUTING.selfHosted.includes(table)) {
       return DataSource.SELF_HOSTED;
     }
-    
+
     // 默认使用自建数据库
     return DataSource.SELF_HOSTED;
   }
@@ -297,11 +291,11 @@ export class HybridDatabaseAdapter implements IDatabaseAdapter {
    */
   private getAdapter(table: string): IDatabaseAdapter {
     const source = this.getDataSource(table);
-    
+
     if (source === DataSource.SUPABASE) {
       return this.supabaseAdapter;
     }
-    
+
     return this.selfHostedAdapter;
   }
 
@@ -311,20 +305,20 @@ export class HybridDatabaseAdapter implements IDatabaseAdapter {
   async query(table: string, options: QueryOptions = {}) {
     // 生成缓存键
     const cacheKey = this.getCacheKey(table, options);
-    
+
     // 检查缓存
     const cached = this.getFromCache(cacheKey);
     if (cached) {
       return cached;
     }
-    
+
     // 执行查询
     const adapter = this.getAdapter(table);
     const result = await adapter.query(table, options);
-    
+
     // 写入缓存
     this.setCache(cacheKey, result);
-    
+
     return result;
   }
 
@@ -334,22 +328,22 @@ export class HybridDatabaseAdapter implements IDatabaseAdapter {
   async insert(table: string, data: any) {
     const adapter = this.getAdapter(table);
     const result = await adapter.insert(table, data);
-    
+
     // 如果启用双写模式，同时写入另一个数据库
     if (this.config.enableDualWrite && this.shouldDualWrite(table)) {
       try {
         const secondaryAdapter = this.getSecondaryAdapter(table);
         await secondaryAdapter.insert(table, data);
       } catch (error) {
-        console.error('双写失败:', error);
+        console.error("双写失败:", error);
         // 记录双写失败，但不影响主写入
-        this.logDualWriteError(table, 'insert', data, error);
+        this.logDualWriteError(table, "insert", data, error);
       }
     }
-    
+
     // 清除相关缓存
     this.clearTableCache(table);
-    
+
     return result;
   }
 
@@ -359,21 +353,21 @@ export class HybridDatabaseAdapter implements IDatabaseAdapter {
   async update(table: string, id: string, data: any) {
     const adapter = this.getAdapter(table);
     const result = await adapter.update(table, id, data);
-    
+
     // 双写处理
     if (this.config.enableDualWrite && this.shouldDualWrite(table)) {
       try {
         const secondaryAdapter = this.getSecondaryAdapter(table);
         await secondaryAdapter.update(table, id, data);
       } catch (error) {
-        console.error('双写失败:', error);
-        this.logDualWriteError(table, 'update', { id, data }, error);
+        console.error("双写失败:", error);
+        this.logDualWriteError(table, "update", { id, data }, error);
       }
     }
-    
+
     // 清除相关缓存
     this.clearTableCache(table);
-    
+
     return result;
   }
 
@@ -383,21 +377,21 @@ export class HybridDatabaseAdapter implements IDatabaseAdapter {
   async delete(table: string, id: string) {
     const adapter = this.getAdapter(table);
     const result = await adapter.delete(table, id);
-    
+
     // 双写处理
     if (this.config.enableDualWrite && this.shouldDualWrite(table)) {
       try {
         const secondaryAdapter = this.getSecondaryAdapter(table);
         await secondaryAdapter.delete(table, id);
       } catch (error) {
-        console.error('双写失败:', error);
-        this.logDualWriteError(table, 'delete', { id }, error);
+        console.error("双写失败:", error);
+        this.logDualWriteError(table, "delete", { id }, error);
       }
     }
-    
+
     // 清除相关缓存
     this.clearTableCache(table);
-    
+
     return result;
   }
 
@@ -408,34 +402,36 @@ export class HybridDatabaseAdapter implements IDatabaseAdapter {
     // 按数据源分组操作
     const supabaseOps: TransactionOperation[] = [];
     const selfHostedOps: TransactionOperation[] = [];
-    
-    operations.forEach(op => {
+
+    operations.forEach((op) => {
       const source = this.getDataSource(op.table);
-      
+
       if (source === DataSource.SUPABASE) {
         supabaseOps.push(op);
       } else {
         selfHostedOps.push(op);
       }
     });
-    
+
     const results = [];
-    
+
     // 执行Supabase事务
     if (supabaseOps.length > 0) {
-      const supabaseResults = await this.supabaseAdapter.transaction(supabaseOps);
+      const supabaseResults =
+        await this.supabaseAdapter.transaction(supabaseOps);
       results.push(...supabaseResults);
     }
-    
+
     // 执行自建数据库事务
     if (selfHostedOps.length > 0) {
-      const selfHostedResults = await this.selfHostedAdapter.transaction(selfHostedOps);
+      const selfHostedResults =
+        await this.selfHostedAdapter.transaction(selfHostedOps);
       results.push(...selfHostedResults);
     }
-    
+
     // 清除缓存
-    operations.forEach(op => this.clearTableCache(op.table));
-    
+    operations.forEach((op) => this.clearTableCache(op.table));
+
     return results;
   }
 
@@ -446,11 +442,11 @@ export class HybridDatabaseAdapter implements IDatabaseAdapter {
    */
   private getSecondaryAdapter(table: string): IDatabaseAdapter {
     const primary = this.getDataSource(table);
-    
+
     if (primary === DataSource.SUPABASE) {
       return this.selfHostedAdapter;
     }
-    
+
     return this.supabaseAdapter;
   }
 
@@ -460,28 +456,33 @@ export class HybridDatabaseAdapter implements IDatabaseAdapter {
   private shouldDualWrite(table: string): boolean {
     // 在迁移期间，这些表需要双写
     const dualWriteTables = [
-      'students',
-      'classes',
-      'exam_scores',
-      'warning_records'
+      "students",
+      "classes",
+      "exam_scores",
+      "warning_records",
     ];
-    
+
     return dualWriteTables.includes(table);
   }
 
   /**
    * 记录双写错误
    */
-  private logDualWriteError(table: string, operation: string, data: any, error: any) {
+  private logDualWriteError(
+    table: string,
+    operation: string,
+    data: any,
+    error: any
+  ) {
     // 发送到错误追踪系统
-    console.error('双写错误记录:', {
+    console.error("双写错误记录:", {
       table,
       operation,
       data,
       error: error.message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-    
+
     // TODO: 存储到错误队列，后续重试
   }
 
@@ -497,17 +498,17 @@ export class HybridDatabaseAdapter implements IDatabaseAdapter {
    */
   private getFromCache(key: string): any {
     const entry = this.cache.get(key);
-    
+
     if (!entry) {
       return null;
     }
-    
+
     // 检查是否过期
     if (Date.now() > entry.expireAt) {
       this.cache.delete(key);
       return null;
     }
-    
+
     return entry.data;
   }
 
@@ -517,7 +518,7 @@ export class HybridDatabaseAdapter implements IDatabaseAdapter {
   private setCache(key: string, data: any, ttl: number = 60000) {
     this.cache.set(key, {
       data,
-      expireAt: Date.now() + ttl
+      expireAt: Date.now() + ttl,
     });
   }
 
@@ -526,14 +527,14 @@ export class HybridDatabaseAdapter implements IDatabaseAdapter {
    */
   private clearTableCache(table: string) {
     const keysToDelete: string[] = [];
-    
+
     this.cache.forEach((_, key) => {
       if (key.startsWith(`${table}:`)) {
         keysToDelete.push(key);
       }
     });
-    
-    keysToDelete.forEach(key => this.cache.delete(key));
+
+    keysToDelete.forEach((key) => this.cache.delete(key));
   }
 }
 
@@ -567,9 +568,9 @@ export function initDatabaseAdapter(config: DatabaseConfig) {
 
 export function getDatabaseAdapter(): HybridDatabaseAdapter {
   if (!dbAdapter) {
-    throw new Error('数据库适配器未初始化，请先调用initDatabaseAdapter');
+    throw new Error("数据库适配器未初始化，请先调用initDatabaseAdapter");
   }
-  
+
   return dbAdapter;
 }
 
@@ -579,20 +580,20 @@ export const db = {
   query: (table: string, options?: QueryOptions) => {
     return getDatabaseAdapter().query(table, options);
   },
-  
+
   insert: (table: string, data: any) => {
     return getDatabaseAdapter().insert(table, data);
   },
-  
+
   update: (table: string, id: string, data: any) => {
     return getDatabaseAdapter().update(table, id, data);
   },
-  
+
   delete: (table: string, id: string) => {
     return getDatabaseAdapter().delete(table, id);
   },
-  
+
   transaction: (operations: TransactionOperation[]) => {
     return getDatabaseAdapter().transaction(operations);
-  }
+  },
 };

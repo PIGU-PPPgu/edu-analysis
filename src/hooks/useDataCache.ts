@@ -2,7 +2,7 @@
  * 统一数据缓存管理Hook
  * 提供智能缓存、自动失效和后台刷新功能
  */
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from "react";
 
 export interface CacheConfig {
   ttl?: number; // 缓存时间(毫秒)，默认5分钟
@@ -44,10 +44,10 @@ class DataCache {
       value: {
         data,
         timestamp: now,
-        isLoading: false
+        isLoading: false,
       },
       accessTime: now,
-      accessCount: 1
+      accessCount: 1,
     });
 
     this.notifySubscribers(key);
@@ -123,7 +123,7 @@ class DataCache {
   }
 
   private evictLRU(): void {
-    let oldestKey = '';
+    let oldestKey = "";
     let oldestTime = Date.now();
 
     for (const [key, entry] of this.cache.entries()) {
@@ -151,13 +151,15 @@ class DataCache {
       size: this.cache.size,
       maxSize: this.maxSize,
       hitRatio: this.calculateHitRatio(),
-      memoryUsage: this.estimateMemoryUsage()
+      memoryUsage: this.estimateMemoryUsage(),
     };
   }
 
   private calculateHitRatio(): number {
-    const totalAccess = Array.from(this.cache.values())
-      .reduce((sum, entry) => sum + entry.accessCount, 0);
+    const totalAccess = Array.from(this.cache.values()).reduce(
+      (sum, entry) => sum + entry.accessCount,
+      0
+    );
     return totalAccess > 0 ? this.cache.size / totalAccess : 0;
   }
 
@@ -177,7 +179,7 @@ export function useDataCache<T>(
   const {
     ttl = 5 * 60 * 1000, // 5分钟
     refreshOnWindowFocus = true,
-    staleWhileRevalidate = true
+    staleWhileRevalidate = true,
   } = config;
 
   const [state, setState] = useState<{
@@ -191,7 +193,7 @@ export function useDataCache<T>(
       data: cached?.data || null,
       isLoading: cached?.isLoading || false,
       error: cached?.error || null,
-      lastUpdated: cached?.timestamp || null
+      lastUpdated: cached?.timestamp || null,
     };
   });
 
@@ -201,64 +203,67 @@ export function useDataCache<T>(
   configRef.current = config;
 
   // 刷新数据
-  const refresh = useCallback(async (force = false) => {
-    const currentCache = globalCache.get<T>(key);
-    const isStale = globalCache.isStale(key, ttl);
+  const refresh = useCallback(
+    async (force = false) => {
+      const currentCache = globalCache.get<T>(key);
+      const isStale = globalCache.isStale(key, ttl);
 
-    // 如果缓存新鲜且不强制刷新，直接返回
-    if (!force && currentCache && !isStale) {
-      setState({
-        data: currentCache.data,
-        isLoading: false,
-        error: currentCache.error || null,
-        lastUpdated: currentCache.timestamp
-      });
-      return currentCache.data;
-    }
+      // 如果缓存新鲜且不强制刷新，直接返回
+      if (!force && currentCache && !isStale) {
+        setState({
+          data: currentCache.data,
+          isLoading: false,
+          error: currentCache.error || null,
+          lastUpdated: currentCache.timestamp,
+        });
+        return currentCache.data;
+      }
 
-    // SWR策略：返回旧数据，后台刷新
-    if (staleWhileRevalidate && currentCache && !currentCache.isLoading) {
-      setState({
-        data: currentCache.data,
-        isLoading: true,
-        error: null,
-        lastUpdated: currentCache.timestamp
-      });
-    } else {
-      setState(prev => ({
-        ...prev,
-        isLoading: true,
-        error: null
-      }));
-    }
+      // SWR策略：返回旧数据，后台刷新
+      if (staleWhileRevalidate && currentCache && !currentCache.isLoading) {
+        setState({
+          data: currentCache.data,
+          isLoading: true,
+          error: null,
+          lastUpdated: currentCache.timestamp,
+        });
+      } else {
+        setState((prev) => ({
+          ...prev,
+          isLoading: true,
+          error: null,
+        }));
+      }
 
-    globalCache.setLoading(key, true);
+      globalCache.setLoading(key, true);
 
-    try {
-      const newData = await fetcherRef.current();
+      try {
+        const newData = await fetcherRef.current();
 
-      globalCache.set(key, newData);
-      setState({
-        data: newData,
-        isLoading: false,
-        error: null,
-        lastUpdated: Date.now()
-      });
+        globalCache.set(key, newData);
+        setState({
+          data: newData,
+          isLoading: false,
+          error: null,
+          lastUpdated: Date.now(),
+        });
 
-      return newData;
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      globalCache.setError(key, err);
+        return newData;
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        globalCache.setError(key, err);
 
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: err
-      }));
+        setState((prev) => ({
+          ...prev,
+          isLoading: false,
+          error: err,
+        }));
 
-      throw err;
-    }
-  }, [key, ttl, staleWhileRevalidate]);
+        throw err;
+      }
+    },
+    [key, ttl, staleWhileRevalidate]
+  );
 
   // 预加载数据
   const prefetch = useCallback(async () => {
@@ -278,7 +283,7 @@ export function useDataCache<T>(
       data: null,
       isLoading: false,
       error: null,
-      lastUpdated: null
+      lastUpdated: null,
     });
   }, [key]);
 
@@ -291,7 +296,7 @@ export function useDataCache<T>(
           data: cached.data,
           isLoading: cached.isLoading,
           error: cached.error || null,
-          lastUpdated: cached.timestamp
+          lastUpdated: cached.timestamp,
         });
       }
     });
@@ -309,8 +314,8 @@ export function useDataCache<T>(
       }
     };
 
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
   }, [key, ttl, refreshOnWindowFocus, refresh]);
 
   // 初始加载
@@ -328,7 +333,7 @@ export function useDataCache<T>(
     refresh,
     prefetch,
     invalidate,
-    isStale: globalCache.isStale(key, ttl)
+    isStale: globalCache.isStale(key, ttl),
   };
 }
 
@@ -336,12 +341,16 @@ export function useDataCache<T>(
 export const cacheUtils = {
   // 批量预加载
   async prefetchAll<T>(
-    items: Array<{ key: string; fetcher: () => Promise<T>; config?: CacheConfig }>
+    items: Array<{
+      key: string;
+      fetcher: () => Promise<T>;
+      config?: CacheConfig;
+    }>
   ) {
     const promises = items.map(({ key, fetcher, config = {} }) => {
       const { ttl = 5 * 60 * 1000 } = config;
       if (!globalCache.has(key) || globalCache.isStale(key, ttl)) {
-        return fetcher().then(data => globalCache.set(key, data));
+        return fetcher().then((data) => globalCache.set(key, data));
       }
       return Promise.resolve();
     });
@@ -356,7 +365,7 @@ export const cacheUtils = {
 
   // 按模式清空缓存
   clearByPattern(pattern: RegExp) {
-    for (const key of Array.from(globalCache['cache'].keys())) {
+    for (const key of Array.from(globalCache["cache"].keys())) {
       if (pattern.test(key)) {
         globalCache.delete(key);
       }
@@ -370,16 +379,16 @@ export const cacheUtils = {
 
   // 批量失效缓存
   invalidateKeys(keys: string[]) {
-    keys.forEach(key => globalCache.delete(key));
+    keys.forEach((key) => globalCache.delete(key));
   },
 
   // 生成缓存键
   generateKey(base: string, params: Record<string, any> = {}) {
     const sortedParams = Object.keys(params)
       .sort()
-      .map(key => `${key}=${JSON.stringify(params[key])}`)
-      .join('&');
+      .map((key) => `${key}=${JSON.stringify(params[key])}`)
+      .join("&");
 
     return sortedParams ? `${base}?${sortedParams}` : base;
-  }
+  },
 };

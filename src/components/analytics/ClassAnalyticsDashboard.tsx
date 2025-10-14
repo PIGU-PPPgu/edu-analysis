@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -37,8 +37,8 @@ import {
   PolarGrid,
   PolarAngleAxis,
   PolarRadiusAxis,
-  Radar
-} from 'recharts';
+  Radar,
+} from "recharts";
 import {
   Users,
   TrendingUp,
@@ -52,8 +52,8 @@ import {
   Activity,
   Eye,
   Download,
-  Filter
-} from 'lucide-react';
+  Filter,
+} from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -62,7 +62,7 @@ import {
   type ClassGradeOverview,
   type SubjectComparisonAnalysis,
   type StudentPerformanceTracking,
-  type GradeDistributionAnalysis
+  type GradeDistributionAnalysis,
 } from "@/services/classAnalyticsService";
 
 interface ClassAnalyticsDashboardProps {
@@ -72,21 +72,30 @@ interface ClassAnalyticsDashboardProps {
 
 const ClassAnalyticsDashboard: React.FC<ClassAnalyticsDashboardProps> = ({
   className: initialClassName,
-  examTitle: initialExamTitle
+  examTitle: initialExamTitle,
 }) => {
   // 状态管理
   const [classes, setClasses] = useState<string[]>([]);
   const [exams, setExams] = useState<string[]>([]);
-  const [selectedClass, setSelectedClass] = useState<string>(initialClassName || '');
-  const [selectedExam, setSelectedExam] = useState<string>(initialExamTitle || '');
+  const [selectedClass, setSelectedClass] = useState<string>(
+    initialClassName || ""
+  );
+  const [selectedExam, setSelectedExam] = useState<string>(
+    initialExamTitle || ""
+  );
   const [isLoading, setIsLoading] = useState(false);
-  
+
   // 分析数据状态
   const [basicInfo, setBasicInfo] = useState<ClassBasicInfo | null>(null);
-  const [gradeOverview, setGradeOverview] = useState<ClassGradeOverview | null>(null);
-  const [subjectComparison, setSubjectComparison] = useState<SubjectComparisonAnalysis | null>(null);
-  const [studentTracking, setStudentTracking] = useState<StudentPerformanceTracking | null>(null);
-  const [distributionAnalysis, setDistributionAnalysis] = useState<GradeDistributionAnalysis | null>(null);
+  const [gradeOverview, setGradeOverview] = useState<ClassGradeOverview | null>(
+    null
+  );
+  const [subjectComparison, setSubjectComparison] =
+    useState<SubjectComparisonAnalysis | null>(null);
+  const [studentTracking, setStudentTracking] =
+    useState<StudentPerformanceTracking | null>(null);
+  const [distributionAnalysis, setDistributionAnalysis] =
+    useState<GradeDistributionAnalysis | null>(null);
 
   // 初始化数据加载
   useEffect(() => {
@@ -104,14 +113,16 @@ const ClassAnalyticsDashboard: React.FC<ClassAnalyticsDashboardProps> = ({
     try {
       // 获取所有班级
       const { data: classData } = await supabase
-        .from('grade_data_new')
-        .select('class_name')
-        .order('class_name');
-      
+        .from("grade_data_new")
+        .select("class_name")
+        .order("class_name");
+
       if (classData) {
-        const uniqueClasses = [...new Set(classData.map(item => item.class_name))];
+        const uniqueClasses = [
+          ...new Set(classData.map((item) => item.class_name)),
+        ];
         setClasses(uniqueClasses);
-        
+
         if (!selectedClass && uniqueClasses.length > 0) {
           setSelectedClass(uniqueClasses[0]);
         }
@@ -119,45 +130,60 @@ const ClassAnalyticsDashboard: React.FC<ClassAnalyticsDashboardProps> = ({
 
       // 获取所有考试
       const { data: examData } = await supabase
-        .from('grade_data_new')
-        .select('exam_title, exam_date')
-        .order('exam_date', { ascending: false });
-      
+        .from("grade_data_new")
+        .select("exam_title, exam_date")
+        .order("exam_date", { ascending: false });
+
       if (examData) {
-        const uniqueExams = [...new Set(examData.map(item => item.exam_title))];
+        const uniqueExams = [
+          ...new Set(examData.map((item) => item.exam_title)),
+        ];
         setExams(uniqueExams);
-        
+
         if (!selectedExam && uniqueExams.length > 0) {
           setSelectedExam(uniqueExams[0]);
         }
       }
     } catch (error) {
-      console.error('加载可选数据失败:', error);
-      toast.error('加载班级和考试信息失败');
+      console.error("加载可选数据失败:", error);
+      toast.error("加载班级和考试信息失败");
     }
   };
 
   // 加载班级分析数据
   const loadClassAnalytics = async () => {
     if (!selectedClass) return;
-    
+
     setIsLoading(true);
     try {
-      console.log('🔄 开始加载班级分析数据:', { selectedClass, selectedExam });
-      
+      console.log("🔄 开始加载班级分析数据:", { selectedClass, selectedExam });
+
       // 并行加载多个分析数据
       const [
         basicInfoData,
         gradeOverviewData,
         subjectComparisonData,
         studentTrackingData,
-        distributionAnalysisData
+        distributionAnalysisData,
       ] = await Promise.all([
         classAnalyticsService.getClassBasicInfo(selectedClass),
-        classAnalyticsService.getClassGradeOverview(selectedClass, selectedExam),
-        selectedExam ? classAnalyticsService.getSubjectComparisonAnalysis(selectedClass, selectedExam) : null,
+        classAnalyticsService.getClassGradeOverview(
+          selectedClass,
+          selectedExam
+        ),
+        selectedExam
+          ? classAnalyticsService.getSubjectComparisonAnalysis(
+              selectedClass,
+              selectedExam
+            )
+          : null,
         classAnalyticsService.getStudentPerformanceTracking(selectedClass, 20),
-        selectedExam ? classAnalyticsService.getGradeDistributionAnalysis(selectedClass, selectedExam) : null
+        selectedExam
+          ? classAnalyticsService.getGradeDistributionAnalysis(
+              selectedClass,
+              selectedExam
+            )
+          : null,
       ]);
 
       setBasicInfo(basicInfoData);
@@ -166,10 +192,10 @@ const ClassAnalyticsDashboard: React.FC<ClassAnalyticsDashboardProps> = ({
       setStudentTracking(studentTrackingData);
       setDistributionAnalysis(distributionAnalysisData);
 
-      console.log('✅ 班级分析数据加载完成');
+      console.log("✅ 班级分析数据加载完成");
     } catch (error) {
-      console.error('❌ 加载班级分析数据失败:', error);
-      toast.error('加载班级分析数据失败');
+      console.error("❌ 加载班级分析数据失败:", error);
+      toast.error("加载班级分析数据失败");
     } finally {
       setIsLoading(false);
     }
@@ -181,33 +207,38 @@ const ClassAnalyticsDashboard: React.FC<ClassAnalyticsDashboardProps> = ({
 
     const cards = [
       {
-        title: '学生总数',
+        title: "学生总数",
         value: basicInfo.studentCount,
         icon: Users,
-        color: 'blue',
-        description: `活跃学生 ${basicInfo.activeStudents} 名`
+        color: "blue",
+        description: `活跃学生 ${basicInfo.activeStudents} 名`,
       },
       {
-        title: '班级平均分',
+        title: "班级平均分",
         value: gradeOverview.totalScore.average,
         icon: Target,
-        color: 'green',
-        description: `标准差 ${gradeOverview.totalScore.standardDeviation}`
+        color: "green",
+        description: `标准差 ${gradeOverview.totalScore.standardDeviation}`,
       },
       {
-        title: '及格率',
+        title: "及格率",
         value: `${gradeOverview.totalScore.passRate}%`,
         icon: Award,
-        color: gradeOverview.totalScore.passRate >= 80 ? 'green' : gradeOverview.totalScore.passRate >= 60 ? 'yellow' : 'red',
-        description: `优秀率 ${gradeOverview.totalScore.excellenceRate}%`
+        color:
+          gradeOverview.totalScore.passRate >= 80
+            ? "green"
+            : gradeOverview.totalScore.passRate >= 60
+              ? "yellow"
+              : "red",
+        description: `优秀率 ${gradeOverview.totalScore.excellenceRate}%`,
       },
       {
-        title: '考试次数',
+        title: "考试次数",
         value: basicInfo.examCount,
         icon: BookOpen,
-        color: 'purple',
-        description: `科目数 ${basicInfo.subjectCount}`
-      }
+        color: "purple",
+        description: `科目数 ${basicInfo.subjectCount}`,
+      },
     ];
 
     return (
@@ -219,17 +250,27 @@ const ClassAnalyticsDashboard: React.FC<ClassAnalyticsDashboardProps> = ({
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">{card.title}</p>
+                    <p className="text-sm font-medium text-gray-600">
+                      {card.title}
+                    </p>
                     <p className="text-2xl font-bold">{card.value}</p>
-                    <p className="text-xs text-gray-500 mt-1">{card.description}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {card.description}
+                    </p>
                   </div>
-                  <div className={`p-2 rounded-lg ${
-                    card.color === 'blue' ? 'bg-blue-100 text-blue-600' :
-                    card.color === 'green' ? 'bg-green-100 text-green-600' :
-                    card.color === 'yellow' ? 'bg-yellow-100 text-yellow-600' :
-                    card.color === 'red' ? 'bg-red-100 text-red-600' :
-                    'bg-purple-100 text-purple-600'
-                  }`}>
+                  <div
+                    className={`p-2 rounded-lg ${
+                      card.color === "blue"
+                        ? "bg-blue-100 text-blue-600"
+                        : card.color === "green"
+                          ? "bg-green-100 text-green-600"
+                          : card.color === "yellow"
+                            ? "bg-yellow-100 text-yellow-600"
+                            : card.color === "red"
+                              ? "bg-red-100 text-red-600"
+                              : "bg-purple-100 text-purple-600"
+                    }`}
+                  >
                     <IconComponent className="h-6 w-6" />
                   </div>
                 </div>
@@ -245,12 +286,15 @@ const ClassAnalyticsDashboard: React.FC<ClassAnalyticsDashboardProps> = ({
   const renderSubjectComparison = () => {
     if (!subjectComparison) return null;
 
-    const chartData = subjectComparison.subjectComparison.map(subject => ({
+    const chartData = subjectComparison.subjectComparison.map((subject) => ({
       name: subject.subjectName,
       average: subject.average,
-      passRate: subject.distribution.pass + subject.distribution.good + subject.distribution.excellent,
+      passRate:
+        subject.distribution.pass +
+        subject.distribution.good +
+        subject.distribution.excellent,
       excellenceRate: subject.distribution.excellent,
-      strengthLevel: subject.strengthLevel
+      strengthLevel: subject.strengthLevel,
     }));
 
     return (
@@ -282,17 +326,34 @@ const ClassAnalyticsDashboard: React.FC<ClassAnalyticsDashboardProps> = ({
           <div className="mt-6">
             <h4 className="font-semibold mb-3">科目强弱分析</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {['strong', 'average', 'weak'].map(level => {
-                const subjects = subjectComparison.subjectComparison.filter(s => s.strengthLevel === level);
-                const levelNames = { strong: '优势科目', average: '一般科目', weak: '薄弱科目' };
-                const colors = { strong: 'bg-green-100 text-green-700', average: 'bg-blue-100 text-blue-700', weak: 'bg-red-100 text-red-700' };
-                
+              {["strong", "average", "weak"].map((level) => {
+                const subjects = subjectComparison.subjectComparison.filter(
+                  (s) => s.strengthLevel === level
+                );
+                const levelNames = {
+                  strong: "优势科目",
+                  average: "一般科目",
+                  weak: "薄弱科目",
+                };
+                const colors = {
+                  strong: "bg-green-100 text-green-700",
+                  average: "bg-blue-100 text-blue-700",
+                  weak: "bg-red-100 text-red-700",
+                };
+
                 return (
-                  <div key={level} className={`p-3 rounded-lg ${colors[level]}`}>
+                  <div
+                    key={level}
+                    className={`p-3 rounded-lg ${colors[level]}`}
+                  >
                     <h5 className="font-medium">{levelNames[level]}</h5>
                     <div className="mt-2">
-                      {subjects.map(subject => (
-                        <Badge key={subject.subject} variant="outline" className="mr-1 mb-1">
+                      {subjects.map((subject) => (
+                        <Badge
+                          key={subject.subject}
+                          variant="outline"
+                          className="mr-1 mb-1"
+                        >
                           {subject.subjectName} ({subject.average})
                         </Badge>
                       ))}
@@ -308,23 +369,38 @@ const ClassAnalyticsDashboard: React.FC<ClassAnalyticsDashboardProps> = ({
             <div className="mt-6">
               <h4 className="font-semibold mb-3">科目相关性分析</h4>
               <div className="space-y-2">
-                {subjectComparison.subjectCorrelations.map((correlation, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                    <span className="text-sm">
-                      {correlation.subject1} ↔ {correlation.subject2}
-                    </span>
-                    <div className="flex items-center">
-                      <span className="text-sm mr-2">{correlation.correlation}</span>
-                      <Badge variant={
-                        correlation.strength === 'strong' ? 'default' :
-                        correlation.strength === 'medium' ? 'secondary' : 'outline'
-                      }>
-                        {correlation.strength === 'strong' ? '强相关' : 
-                         correlation.strength === 'medium' ? '中等相关' : '弱相关'}
-                      </Badge>
+                {subjectComparison.subjectCorrelations.map(
+                  (correlation, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-2 bg-gray-50 rounded"
+                    >
+                      <span className="text-sm">
+                        {correlation.subject1} ↔ {correlation.subject2}
+                      </span>
+                      <div className="flex items-center">
+                        <span className="text-sm mr-2">
+                          {correlation.correlation}
+                        </span>
+                        <Badge
+                          variant={
+                            correlation.strength === "strong"
+                              ? "default"
+                              : correlation.strength === "medium"
+                                ? "secondary"
+                                : "outline"
+                          }
+                        >
+                          {correlation.strength === "strong"
+                            ? "强相关"
+                            : correlation.strength === "medium"
+                              ? "中等相关"
+                              : "弱相关"}
+                        </Badge>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                )}
               </div>
             </div>
           )}
@@ -338,14 +414,22 @@ const ClassAnalyticsDashboard: React.FC<ClassAnalyticsDashboardProps> = ({
     if (!distributionAnalysis) return null;
 
     const pieData = distributionAnalysis.scoreDistribution
-      .filter(range => range.count > 0)
-      .map(range => ({
+      .filter((range) => range.count > 0)
+      .map((range) => ({
         name: range.scoreRange,
         value: range.count,
-        percentage: range.percentage
+        percentage: range.percentage,
       }));
 
-    const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658'];
+    const COLORS = [
+      "#0088FE",
+      "#00C49F",
+      "#FFBB28",
+      "#FF8042",
+      "#8884D8",
+      "#82CA9D",
+      "#FFC658",
+    ];
 
     return (
       <Card>
@@ -369,13 +453,18 @@ const ClassAnalyticsDashboard: React.FC<ClassAnalyticsDashboardProps> = ({
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percentage }) => `${name} (${percentage}%)`}
+                      label={({ name, percentage }) =>
+                        `${name} (${percentage}%)`
+                      }
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
                     >
                       {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
                       ))}
                     </Pie>
                     <Tooltip />
@@ -389,7 +478,10 @@ const ClassAnalyticsDashboard: React.FC<ClassAnalyticsDashboardProps> = ({
               <h4 className="font-semibold mb-3">详细分数分布</h4>
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {distributionAnalysis.scoreDistribution.map((range, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm"
+                  >
                     <span className="font-medium">{range.scoreRange}</span>
                     <div className="flex items-center space-x-2">
                       <span>{range.count}人</span>
@@ -404,11 +496,17 @@ const ClassAnalyticsDashboard: React.FC<ClassAnalyticsDashboardProps> = ({
           {/* 分布形态分析 */}
           <div className="mt-6 p-4 bg-blue-50 rounded-lg">
             <h4 className="font-semibold text-blue-800 mb-2">分布形态分析</h4>
-            <p className="text-blue-700 mb-2">{distributionAnalysis.distributionShape.description}</p>
+            <p className="text-blue-700 mb-2">
+              {distributionAnalysis.distributionShape.description}
+            </p>
             <div className="space-y-1">
-              {distributionAnalysis.distributionShape.implications.map((implication, index) => (
-                <p key={index} className="text-sm text-blue-600">• {implication}</p>
-              ))}
+              {distributionAnalysis.distributionShape.implications.map(
+                (implication, index) => (
+                  <p key={index} className="text-sm text-blue-600">
+                    • {implication}
+                  </p>
+                )
+              )}
             </div>
           </div>
         </CardContent>
@@ -418,25 +516,32 @@ const ClassAnalyticsDashboard: React.FC<ClassAnalyticsDashboardProps> = ({
 
   // 渲染学生表现追踪
   const renderStudentTracking = () => {
-    if (!studentTracking || studentTracking.studentProgress.length === 0) return null;
+    if (!studentTracking || studentTracking.studentProgress.length === 0)
+      return null;
 
     // 准备趋势图表数据
     const trendData = studentTracking.studentProgress
       .slice(0, 8) // 只显示前8名学生
-      .map(student => {
+      .map((student) => {
         const data = student.rankingTrend.map((trend, index) => ({
           exam: `考试${index + 1}`,
           rank: trend.rank,
-          score: trend.totalScore
+          score: trend.totalScore,
         }));
         return { studentName: student.studentName, data };
       });
 
     // 风险学生统计
     const riskStats = {
-      high: studentTracking.studentProgress.filter(s => s.riskAssessment.riskLevel === 'high').length,
-      medium: studentTracking.studentProgress.filter(s => s.riskAssessment.riskLevel === 'medium').length,
-      low: studentTracking.studentProgress.filter(s => s.riskAssessment.riskLevel === 'low').length
+      high: studentTracking.studentProgress.filter(
+        (s) => s.riskAssessment.riskLevel === "high"
+      ).length,
+      medium: studentTracking.studentProgress.filter(
+        (s) => s.riskAssessment.riskLevel === "medium"
+      ).length,
+      low: studentTracking.studentProgress.filter(
+        (s) => s.riskAssessment.riskLevel === "low"
+      ).length,
     };
 
     return (
@@ -452,57 +557,91 @@ const ClassAnalyticsDashboard: React.FC<ClassAnalyticsDashboardProps> = ({
           {/* 风险统计 */}
           <div className="grid grid-cols-3 gap-4 mb-6">
             <div className="text-center p-3 bg-red-50 rounded-lg">
-              <div className="text-2xl font-bold text-red-600">{riskStats.high}</div>
+              <div className="text-2xl font-bold text-red-600">
+                {riskStats.high}
+              </div>
               <div className="text-sm text-red-700">高风险学生</div>
             </div>
             <div className="text-center p-3 bg-yellow-50 rounded-lg">
-              <div className="text-2xl font-bold text-yellow-600">{riskStats.medium}</div>
+              <div className="text-2xl font-bold text-yellow-600">
+                {riskStats.medium}
+              </div>
               <div className="text-sm text-yellow-700">中风险学生</div>
             </div>
             <div className="text-center p-3 bg-green-50 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">{riskStats.low}</div>
+              <div className="text-2xl font-bold text-green-600">
+                {riskStats.low}
+              </div>
               <div className="text-sm text-green-700">低风险学生</div>
             </div>
           </div>
 
           {/* 学生表现列表 */}
           <div className="space-y-3 max-h-96 overflow-y-auto">
-            {studentTracking.studentProgress.slice(0, 10).map((student, index) => {
-              const trendIcon = student.progressAnalysis.trend === 'improving' ? TrendingUp :
-                               student.progressAnalysis.trend === 'declining' ? TrendingDown : Target;
-              const TrendIcon = trendIcon;
-              const trendColor = student.progressAnalysis.trend === 'improving' ? 'text-green-600' :
-                                student.progressAnalysis.trend === 'declining' ? 'text-red-600' : 'text-gray-600';
-              
-              return (
-                <div key={index} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
-                  <div className="flex items-center space-x-3">
-                    <div className={`p-1 rounded ${trendColor}`}>
-                      <TrendIcon className="h-4 w-4" />
+            {studentTracking.studentProgress
+              .slice(0, 10)
+              .map((student, index) => {
+                const trendIcon =
+                  student.progressAnalysis.trend === "improving"
+                    ? TrendingUp
+                    : student.progressAnalysis.trend === "declining"
+                      ? TrendingDown
+                      : Target;
+                const TrendIcon = trendIcon;
+                const trendColor =
+                  student.progressAnalysis.trend === "improving"
+                    ? "text-green-600"
+                    : student.progressAnalysis.trend === "declining"
+                      ? "text-red-600"
+                      : "text-gray-600";
+
+                return (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className={`p-1 rounded ${trendColor}`}>
+                        <TrendIcon className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <div className="font-medium">{student.studentName}</div>
+                        <div className="text-sm text-gray-600">
+                          排名变化:{" "}
+                          {student.progressAnalysis.avgRankChange > 0
+                            ? "+"
+                            : ""}
+                          {student.progressAnalysis.avgRankChange}
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="font-medium">{student.studentName}</div>
-                      <div className="text-sm text-gray-600">
-                        排名变化: {student.progressAnalysis.avgRankChange > 0 ? '+' : ''}{student.progressAnalysis.avgRankChange}
+                    <div className="text-right">
+                      <Badge
+                        variant={
+                          student.riskAssessment.riskLevel === "high"
+                            ? "destructive"
+                            : student.riskAssessment.riskLevel === "medium"
+                              ? "secondary"
+                              : "outline"
+                        }
+                      >
+                        {student.riskAssessment.riskLevel === "high"
+                          ? "高风险"
+                          : student.riskAssessment.riskLevel === "medium"
+                            ? "中风险"
+                            : "低风险"}
+                      </Badge>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {student.progressAnalysis.trend === "improving"
+                          ? "进步"
+                          : student.progressAnalysis.trend === "declining"
+                            ? "退步"
+                            : "稳定"}
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <Badge variant={
-                      student.riskAssessment.riskLevel === 'high' ? 'destructive' :
-                      student.riskAssessment.riskLevel === 'medium' ? 'secondary' : 'outline'
-                    }>
-                      {student.riskAssessment.riskLevel === 'high' ? '高风险' :
-                       student.riskAssessment.riskLevel === 'medium' ? '中风险' : '低风险'}
-                    </Badge>
-                    <div className="text-xs text-gray-500 mt-1">
-                      {student.progressAnalysis.trend === 'improving' ? '进步' :
-                       student.progressAnalysis.trend === 'declining' ? '退步' : '稳定'}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         </CardContent>
       </Card>
@@ -536,9 +675,9 @@ const ClassAnalyticsDashboard: React.FC<ClassAnalyticsDashboardProps> = ({
               分析控制面板
             </span>
             <div className="flex items-center space-x-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={loadClassAnalytics}
                 disabled={isLoading || !selectedClass}
               >
@@ -561,7 +700,7 @@ const ClassAnalyticsDashboard: React.FC<ClassAnalyticsDashboardProps> = ({
                   <SelectValue placeholder="请选择班级" />
                 </SelectTrigger>
                 <SelectContent>
-                  {classes.map(className => (
+                  {classes.map((className) => (
                     <SelectItem key={className} value={className}>
                       {className}
                     </SelectItem>
@@ -576,7 +715,7 @@ const ClassAnalyticsDashboard: React.FC<ClassAnalyticsDashboardProps> = ({
                   <SelectValue placeholder="请选择考试" />
                 </SelectTrigger>
                 <SelectContent>
-                  {exams.map(examTitle => (
+                  {exams.map((examTitle) => (
                     <SelectItem key={examTitle} value={examTitle}>
                       {examTitle}
                     </SelectItem>
@@ -618,7 +757,8 @@ const ClassAnalyticsDashboard: React.FC<ClassAnalyticsDashboardProps> = ({
               <CardHeader>
                 <CardTitle>班级成绩概览 - {gradeOverview.examTitle}</CardTitle>
                 <CardDescription>
-                  考试日期：{gradeOverview.examDate} | 考试类型：{gradeOverview.examType}
+                  考试日期：{gradeOverview.examDate} | 考试类型：
+                  {gradeOverview.examType}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -628,19 +768,27 @@ const ClassAnalyticsDashboard: React.FC<ClassAnalyticsDashboardProps> = ({
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span>平均分:</span>
-                        <span className="font-medium">{gradeOverview.totalScore.average}</span>
+                        <span className="font-medium">
+                          {gradeOverview.totalScore.average}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span>最高分:</span>
-                        <span className="font-medium">{gradeOverview.totalScore.highest}</span>
+                        <span className="font-medium">
+                          {gradeOverview.totalScore.highest}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span>最低分:</span>
-                        <span className="font-medium">{gradeOverview.totalScore.lowest}</span>
+                        <span className="font-medium">
+                          {gradeOverview.totalScore.lowest}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span>标准差:</span>
-                        <span className="font-medium">{gradeOverview.totalScore.standardDeviation}</span>
+                        <span className="font-medium">
+                          {gradeOverview.totalScore.standardDeviation}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -649,11 +797,15 @@ const ClassAnalyticsDashboard: React.FC<ClassAnalyticsDashboardProps> = ({
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span>及格率:</span>
-                        <span className="font-medium">{gradeOverview.totalScore.passRate}%</span>
+                        <span className="font-medium">
+                          {gradeOverview.totalScore.passRate}%
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span>优秀率:</span>
-                        <span className="font-medium">{gradeOverview.totalScore.excellenceRate}%</span>
+                        <span className="font-medium">
+                          {gradeOverview.totalScore.excellenceRate}%
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -663,7 +815,9 @@ const ClassAnalyticsDashboard: React.FC<ClassAnalyticsDashboardProps> = ({
                       {gradeOverview.rankDistribution.map((range, index) => (
                         <div key={index} className="flex justify-between">
                           <span>第{range.rankRange}名:</span>
-                          <span className="font-medium">{range.count}人 ({range.percentage}%)</span>
+                          <span className="font-medium">
+                            {range.count}人 ({range.percentage}%)
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -692,7 +846,10 @@ const ClassAnalyticsDashboard: React.FC<ClassAnalyticsDashboardProps> = ({
 
 function Label({ className, children, ...props }) {
   return (
-    <label className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${className || ''}`} {...props}>
+    <label
+      className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${className || ""}`}
+      {...props}
+    >
       {children}
     </label>
   );

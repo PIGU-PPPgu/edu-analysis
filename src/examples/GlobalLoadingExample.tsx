@@ -5,7 +5,10 @@
  */
 
 import React, { useState } from "react";
-import { useGlobalLoading, useLoadingOperation } from "@/contexts/GlobalLoadingContext";
+import {
+  useGlobalLoading,
+  useLoadingOperation,
+} from "@/contexts/GlobalLoadingContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NotificationManager } from "@/services/NotificationManager";
@@ -15,7 +18,8 @@ import { NotificationManager } from "@/services/NotificationManager";
  * 适用场景: 组件级操作，需要独立的加载状态
  */
 export const Example1_SpecificOperation: React.FC = () => {
-  const { isLoading, progress, start, stop, update } = useLoadingOperation("data-import");
+  const { isLoading, progress, start, stop, update } =
+    useLoadingOperation("data-import");
 
   const handleImport = async () => {
     start({
@@ -28,19 +32,19 @@ export const Example1_SpecificOperation: React.FC = () => {
     try {
       // 模拟数据导入流程
       update(20, "正在解析文件...");
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       update(40, "正在验证数据...");
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       update(60, "正在写入数据库...");
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       update(80, "正在同步索引...");
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       update(100, "导入完成!");
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       stop();
       NotificationManager.success("数据导入成功", {
@@ -81,7 +85,7 @@ export const Example2_WithLoadingWrapper: React.FC = () => {
         "grade-sync",
         async () => {
           // 模拟数据同步
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          await new Promise((resolve) => setTimeout(resolve, 2000));
           return { success: true };
         },
         {
@@ -124,7 +128,7 @@ export const Example3_GlobalOverlay: React.FC = () => {
 
     try {
       // 模拟长时间操作
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise((resolve) => setTimeout(resolve, 3000));
       stopLoading("heavy-operation");
       NotificationManager.success("处理完成");
     } catch (error) {
@@ -162,9 +166,15 @@ export const Example4_ConcurrentOperations: React.FC = () => {
 
     try {
       await Promise.all([
-        new Promise(resolve => setTimeout(resolve, 1000)).then(() => studentOp.stop()),
-        new Promise(resolve => setTimeout(resolve, 1500)).then(() => gradeOp.stop()),
-        new Promise(resolve => setTimeout(resolve, 800)).then(() => warningOp.stop()),
+        new Promise((resolve) => setTimeout(resolve, 1000)).then(() =>
+          studentOp.stop()
+        ),
+        new Promise((resolve) => setTimeout(resolve, 1500)).then(() =>
+          gradeOp.stop()
+        ),
+        new Promise((resolve) => setTimeout(resolve, 800)).then(() =>
+          warningOp.stop()
+        ),
       ]);
 
       NotificationManager.success("所有数据加载完成");
@@ -203,7 +213,7 @@ export const Example5_TimeoutAndRetry: React.FC = () => {
 
   const handleFlakyOperation = async () => {
     const currentRetryCount = retryCount;
-    setRetryCount(prev => prev + 1);
+    setRetryCount((prev) => prev + 1);
 
     start({
       message: `正在执行操作 (尝试 ${currentRetryCount + 1})...`,
@@ -283,7 +293,8 @@ export const GlobalLoadingExamples: React.FC = () => {
           <h3>基本用法</h3>
           <ul>
             <li>
-              <strong>useLoadingOperation(id)</strong>: 为特定操作创建独立的加载控制器
+              <strong>useLoadingOperation(id)</strong>:
+              为特定操作创建独立的加载控制器
             </li>
             <li>
               <strong>useGlobalLoading()</strong>: 获取全局加载状态管理器

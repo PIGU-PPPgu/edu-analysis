@@ -186,7 +186,9 @@ const SimulatedImporter: React.FC = () => {
                 <p className="text-xs text-gray-600">总数</p>
               </div>
               <div className="text-center p-2 bg-green-50 rounded">
-                <p className="font-bold text-green-600">{progress.successful}</p>
+                <p className="font-bold text-green-600">
+                  {progress.successful}
+                </p>
                 <p className="text-xs text-gray-600">成功</p>
               </div>
               <div className="text-center p-2 bg-red-50 rounded">
@@ -276,11 +278,22 @@ const SimulatedImporter: React.FC = () => {
         <div className="pt-4 border-t">
           <h4 className="text-sm font-medium mb-2">集成步骤:</h4>
           <ol className="text-xs text-gray-600 space-y-1 list-decimal list-inside">
-            <li>调用 <code>createImportTask()</code> 创建任务</li>
-            <li>调用 <code>startImport()</code> 启动任务</li>
-            <li>在处理循环中调用 <code>updateProgress()</code> 更新进度</li>
-            <li>定期调用 <code>saveCheckpoint()</code> 保存检查点</li>
-            <li>使用 <code>pauseImport()</code> / <code>resumeImport()</code> 控制暂停</li>
+            <li>
+              调用 <code>createImportTask()</code> 创建任务
+            </li>
+            <li>
+              调用 <code>startImport()</code> 启动任务
+            </li>
+            <li>
+              在处理循环中调用 <code>updateProgress()</code> 更新进度
+            </li>
+            <li>
+              定期调用 <code>saveCheckpoint()</code> 保存检查点
+            </li>
+            <li>
+              使用 <code>pauseImport()</code> / <code>resumeImport()</code>{" "}
+              控制暂停
+            </li>
             <li>状态会自动持久化到IndexedDB</li>
           </ol>
         </div>

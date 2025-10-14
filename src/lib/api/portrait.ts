@@ -151,12 +151,12 @@ class PortraitAPI {
       // 首先解析班级ID，实际是班级名称
       let className = classId;
 
-      if (classId.startsWith('class-')) {
+      if (classId.startsWith("class-")) {
         // 从ID中解析班级名称，例如 "class-初三7班" -> "初三7班"
-        className = classId.replace('class-', '').replace(/-/g, '');
+        className = classId.replace("class-", "").replace(/-/g, "");
 
         // 如果解析后的名称看起来不像班级名称，尝试从students表中查找匹配的班级
-        if (!className.includes('班') && !className.includes('级')) {
+        if (!className.includes("班") && !className.includes("级")) {
           console.log("尝试从学生表中查找匹配的班级名称...");
           const { data: allStudentClasses } = await supabase
             .from("students")
@@ -164,13 +164,16 @@ class PortraitAPI {
             .not("class_name", "is", null);
 
           if (allStudentClasses) {
-            const uniqueClasses = [...new Set(allStudentClasses.map(s => s.class_name))];
+            const uniqueClasses = [
+              ...new Set(allStudentClasses.map((s) => s.class_name)),
+            ];
             console.log("可用班级:", uniqueClasses);
 
             // 尝试模糊匹配
-            const matchedClass = uniqueClasses.find(cls =>
-              cls.toLowerCase().includes(className.toLowerCase()) ||
-              className.toLowerCase().includes(cls.toLowerCase())
+            const matchedClass = uniqueClasses.find(
+              (cls) =>
+                cls.toLowerCase().includes(className.toLowerCase()) ||
+                className.toLowerCase().includes(cls.toLowerCase())
             );
 
             if (matchedClass) {
@@ -227,7 +230,9 @@ class PortraitAPI {
       // 直接使用班级名称获取成绩数据（更高效）
       const { data: gradesData, error: gradesError } = await supabase
         .from("grade_data_new")
-        .select("student_id, total_score, chinese_score, math_score, english_score, physics_score, chemistry_score")
+        .select(
+          "student_id, total_score, chinese_score, math_score, english_score, physics_score, chemistry_score"
+        )
         .eq("class_name", className);
 
       if (gradesError) {
@@ -245,10 +250,12 @@ class PortraitAPI {
       if (gradesData && gradesData.length > 0) {
         const totalScores = gradesData
           .map((g) => g.total_score)
-          .filter(score => score !== null && score !== undefined);
+          .filter((score) => score !== null && score !== undefined);
 
         if (totalScores.length > 0) {
-          averageScore = totalScores.reduce((sum, score) => sum + score, 0) / totalScores.length;
+          averageScore =
+            totalScores.reduce((sum, score) => sum + score, 0) /
+            totalScores.length;
           excellentCount = totalScores.filter((score) => score >= 400).length; // 假设400+为优秀
           passCount = totalScores.filter((score) => score >= 300).length; // 假设300+为及格
         }
@@ -277,28 +284,35 @@ class PortraitAPI {
 
       if (gradesData && gradesData.length > 0) {
         const subjects = [
-          { name: '语文', field: 'chinese_score', excellent: 85, pass: 60 },
-          { name: '数学', field: 'math_score', excellent: 85, pass: 60 },
-          { name: '英语', field: 'english_score', excellent: 85, pass: 60 },
-          { name: '物理', field: 'physics_score', excellent: 80, pass: 60 },
-          { name: '化学', field: 'chemistry_score', excellent: 80, pass: 60 }
+          { name: "语文", field: "chinese_score", excellent: 85, pass: 60 },
+          { name: "数学", field: "math_score", excellent: 85, pass: 60 },
+          { name: "英语", field: "english_score", excellent: 85, pass: 60 },
+          { name: "物理", field: "physics_score", excellent: 80, pass: 60 },
+          { name: "化学", field: "chemistry_score", excellent: 80, pass: 60 },
         ];
 
-        subjects.forEach(subject => {
+        subjects.forEach((subject) => {
           const scores = gradesData
-            .map(g => g[subject.field as keyof typeof g])
-            .filter(score => score !== null && score !== undefined && score > 0) as number[];
+            .map((g) => g[subject.field as keyof typeof g])
+            .filter(
+              (score) => score !== null && score !== undefined && score > 0
+            ) as number[];
 
           if (scores.length > 0) {
-            const averageScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
-            const excellentCount = scores.filter(score => score >= subject.excellent).length;
-            const passingCount = scores.filter(score => score >= subject.pass).length;
+            const averageScore =
+              scores.reduce((sum, score) => sum + score, 0) / scores.length;
+            const excellentCount = scores.filter(
+              (score) => score >= subject.excellent
+            ).length;
+            const passingCount = scores.filter(
+              (score) => score >= subject.pass
+            ).length;
 
             subjectStats.push({
               name: subject.name,
               averageScore: Math.round(averageScore * 10) / 10,
               excellentCount,
-              passingCount
+              passingCount,
             });
           }
         });
@@ -408,8 +422,8 @@ class PortraitAPI {
 
       // 解析班级名称（不再依赖废弃的classes表）
       let className = classId;
-      if (classId.startsWith('class-')) {
-        className = classId.replace('class-', '').replace(/-/g, '');
+      if (classId.startsWith("class-")) {
+        className = classId.replace("class-", "").replace(/-/g, "");
       }
 
       console.log(`查询班级: ${className}`);
@@ -426,7 +440,10 @@ class PortraitAPI {
       }
 
       const students = studentsData || [];
-      console.log(`找到 ${students.length} 个学生:`, students.slice(0, 3).map(s => s.name));
+      console.log(
+        `找到 ${students.length} 个学生:`,
+        students.slice(0, 3).map((s) => s.name)
+      );
 
       console.log(`找到 ${students?.length || 0} 个学生`);
 
@@ -440,8 +457,11 @@ class PortraitAPI {
 
       // 使用映射服务获取学生成绩数据
       console.log("使用映射服务获取成绩数据...");
-      const { getGradesByClassName } = await import('../../services/enhancedMappingService');
-      const { data: grades, error: gradesError } = await getGradesByClassName(className);
+      const { getGradesByClassName } = await import(
+        "../../services/enhancedMappingService"
+      );
+      const { data: grades, error: gradesError } =
+        await getGradesByClassName(className);
 
       if (gradesError) {
         console.error("获取学生成绩失败:", gradesError);
@@ -450,8 +470,8 @@ class PortraitAPI {
       console.log(`通过映射获取到 ${grades?.length || 0} 条成绩记录`);
 
       // 获取学生ID列表
-      const studentIds = students.map(s => s.id);
-      const studentNumbers = students.map(s => s.student_id);
+      const studentIds = students.map((s) => s.id);
+      const studentNumbers = students.map((s) => s.student_id);
 
       // 按学生学号分组处理成绩（grade_data_new表使用宽表格式）
       const studentGrades: Record<string, any[]> = {}; // key是学号，不是UUID
@@ -462,15 +482,15 @@ class PortraitAPI {
 
         // 处理宽表格式：将各科目分数转换为标准格式
         const subjects = [
-          { name: '语文', score: gradeRecord.chinese_score },
-          { name: '数学', score: gradeRecord.math_score },
-          { name: '英语', score: gradeRecord.english_score },
-          { name: '物理', score: gradeRecord.physics_score },
-          { name: '化学', score: gradeRecord.chemistry_score },
-          { name: '生物', score: gradeRecord.biology_score },
-          { name: '政治', score: gradeRecord.politics_score },
-          { name: '历史', score: gradeRecord.history_score },
-          { name: '地理', score: gradeRecord.geography_score },
+          { name: "语文", score: gradeRecord.chinese_score },
+          { name: "数学", score: gradeRecord.math_score },
+          { name: "英语", score: gradeRecord.english_score },
+          { name: "物理", score: gradeRecord.physics_score },
+          { name: "化学", score: gradeRecord.chemistry_score },
+          { name: "生物", score: gradeRecord.biology_score },
+          { name: "政治", score: gradeRecord.politics_score },
+          { name: "历史", score: gradeRecord.history_score },
+          { name: "地理", score: gradeRecord.geography_score },
         ];
 
         // 为每个有分数的科目创建记录
@@ -525,7 +545,6 @@ class PortraitAPI {
         console.error("获取学生预警数量失败:", e);
       }
 
-
       // 构建学生数据
       const studentData: StudentPortraitData[] = students.map((student) => {
         const studentScores = studentGrades[student.student_id] || []; // 修复：使用学号匹配，不是UUID
@@ -540,13 +559,20 @@ class PortraitAPI {
         const portraitInfo = portraitData[student.id] || {};
 
         // 计算平均分和最近分数（StudentCard组件需要的字段）
-        const recentScores = studentScores.length > 0 
-          ? studentScores.slice(-5).map(s => s.score)  // 最近5次成绩
-          : [75 + Math.random() * 20, 80 + Math.random() * 15, 85 + Math.random() * 10]; // 模拟数据
-          
-        const averageScore = recentScores.length > 0 
-          ? recentScores.reduce((sum, score) => sum + score, 0) / recentScores.length
-          : 80 + Math.random() * 15;
+        const recentScores =
+          studentScores.length > 0
+            ? studentScores.slice(-5).map((s) => s.score) // 最近5次成绩
+            : [
+                75 + Math.random() * 20,
+                80 + Math.random() * 15,
+                85 + Math.random() * 10,
+              ]; // 模拟数据
+
+        const averageScore =
+          recentScores.length > 0
+            ? recentScores.reduce((sum, score) => sum + score, 0) /
+              recentScores.length
+            : 80 + Math.random() * 15;
 
         return {
           id: student.id,
@@ -755,8 +781,8 @@ class PortraitAPI {
       try {
         // 解析班级名称
         let className = classId;
-        if (classId.startsWith('class-')) {
-          className = classId.replace('class-', '').replace(/-/g, '');
+        if (classId.startsWith("class-")) {
+          className = classId.replace("class-", "").replace(/-/g, "");
         }
 
         // 检查是否有groups表，如果没有则返回空数组（不创建模拟数据）
@@ -767,7 +793,7 @@ class PortraitAPI {
         groupsData = data || [];
         groupsError = error;
       } catch (tableError: any) {
-        if (tableError.message?.includes('does not exist')) {
+        if (tableError.message?.includes("does not exist")) {
           console.warn("groups表不存在，返回空小组数据");
           this.setCache(cacheKey, []);
           return [];
@@ -917,8 +943,8 @@ class PortraitAPI {
 
       // 解析班级名称
       let className = classId;
-      if (classId.startsWith('class-')) {
-        className = classId.replace('class-', '').replace(/-/g, '');
+      if (classId.startsWith("class-")) {
+        className = classId.replace("class-", "").replace(/-/g, "");
       }
 
       console.log(`查询班级优秀学生: ${className}`);
@@ -942,8 +968,11 @@ class PortraitAPI {
       console.log(`找到 ${students.length} 个学生，开始获取成绩数据`);
 
       // 使用映射服务获取成绩数据
-      const { getGradesByClassName } = await import('../../services/enhancedMappingService');
-      const { data: grades, error: gradesError } = await getGradesByClassName(className);
+      const { getGradesByClassName } = await import(
+        "../../services/enhancedMappingService"
+      );
+      const { data: grades, error: gradesError } =
+        await getGradesByClassName(className);
 
       if (gradesError) {
         console.error("获取学生成绩失败:", gradesError);
@@ -953,8 +982,10 @@ class PortraitAPI {
       console.log(`通过映射获取到 ${grades?.length || 0} 条成绩记录`);
 
       // 建立学生ID映射 (student_id -> grade_student_id)
-      const { batchGetGradeTableIds } = await import('../../services/enhancedMappingService');
-      const studentIds = students.map(s => s.student_id);
+      const { batchGetGradeTableIds } = await import(
+        "../../services/enhancedMappingService"
+      );
+      const studentIds = students.map((s) => s.student_id);
       const idMappings = await batchGetGradeTableIds(studentIds);
 
       console.log(`ID映射数量: ${idMappings.size}`);
@@ -963,19 +994,22 @@ class PortraitAPI {
       const studentScores: Record<string, number> = {};
 
       // 遍历学生，查找其对应的成绩
-      students.forEach(student => {
+      students.forEach((student) => {
         const gradeTableId = idMappings.get(student.student_id);
         if (gradeTableId) {
           // 找到对应的成绩记录
-          const studentGrades = grades?.filter(g => g.student_id === gradeTableId) || [];
+          const studentGrades =
+            grades?.filter((g) => g.student_id === gradeTableId) || [];
           if (studentGrades.length > 0) {
             // 计算平均分（使用最近的成绩）
             const validScores = studentGrades
-              .map(g => parseFloat(g.total_score))
-              .filter(score => !isNaN(score) && score > 0);
+              .map((g) => parseFloat(g.total_score))
+              .filter((score) => !isNaN(score) && score > 0);
 
             if (validScores.length > 0) {
-              const avgScore = validScores.reduce((sum, score) => sum + score, 0) / validScores.length;
+              const avgScore =
+                validScores.reduce((sum, score) => sum + score, 0) /
+                validScores.length;
               studentScores[student.student_id] = avgScore;
             }
           }
@@ -1006,7 +1040,9 @@ class PortraitAPI {
         });
       }
 
-      console.log(`✅ 返回 ${topStudents.length} 个顶尖学生（${Object.keys(studentScores).length}个有成绩）`);
+      console.log(
+        `✅ 返回 ${topStudents.length} 个顶尖学生（${Object.keys(studentScores).length}个有成绩）`
+      );
 
       this.updateCache(cacheKey, topStudents);
       return topStudents;
@@ -1330,7 +1366,9 @@ class PortraitAPI {
           // 获取成绩
           const { data: grades, error: gradesError } = await supabase
             .from("grade_data_new")
-            .select("student_id, total_score, exam_date, exam_title, class_name")
+            .select(
+              "student_id, total_score, exam_date, exam_title, class_name"
+            )
             .in(
               "student_id",
               students.map((s) => s.id)
@@ -1378,18 +1416,33 @@ class PortraitAPI {
         // 重新查询包含各科目成绩的数据
         const { data: detailedGrades } = await supabase
           .from("grade_data_new")
-          .select("chinese_score, math_score, english_score, physics_score, chemistry_score, politics_score, history_score, biology_score, geography_score")
-          .in("student_id", students.map(s => s.id));
+          .select(
+            "chinese_score, math_score, english_score, physics_score, chemistry_score, politics_score, history_score, biology_score, geography_score"
+          )
+          .in(
+            "student_id",
+            students.map((s) => s.id)
+          );
 
         if (detailedGrades && detailedGrades.length > 0) {
-          const subjects = ['chinese', 'math', 'english', 'physics', 'chemistry', 'politics', 'history', 'biology', 'geography'];
+          const subjects = [
+            "chinese",
+            "math",
+            "english",
+            "physics",
+            "chemistry",
+            "politics",
+            "history",
+            "biology",
+            "geography",
+          ];
 
-          subjects.forEach(subject => {
+          subjects.forEach((subject) => {
             const fieldName = `${subject}_score`;
             const scores = detailedGrades
-              .map(g => g[fieldName])
-              .filter(score => score !== null && score !== undefined)
-              .map(score => parseFloat(score));
+              .map((g) => g[fieldName])
+              .filter((score) => score !== null && score !== undefined)
+              .map((score) => parseFloat(score));
 
             if (scores.length > 0) {
               subjectScores[subject] = scores;
@@ -2652,7 +2705,9 @@ class PortraitAPI {
    * @returns 模拟小组数据(带有_isMockData标记)
    */
   private generateMockGroups(classId: string): GroupPortraitData[] {
-    console.warn(`[画像服务] 未找到班级${classId}的小组数据,使用示例数据展示. 请在设置中创建真实小组.`);
+    console.warn(
+      `[画像服务] 未找到班级${classId}的小组数据,使用示例数据展示. 请在设置中创建真实小组.`
+    );
 
     const groupNames = ["示例小组1", "示例小组2", "示例小组3", "示例小组4"];
     const mockGroups: GroupPortraitData[] = [];
@@ -2668,22 +2723,22 @@ class PortraitAPI {
           {
             name: "小组协作",
             value: 75,
-            type: "collaboration"
+            type: "collaboration",
           },
           {
             name: "学习进度",
             value: 80,
-            type: "progress"
+            type: "progress",
           },
           {
             name: "参与度",
             value: 85,
-            type: "engagement"
-          }
+            type: "engagement",
+          },
         ],
         students: [], // 实际使用中会通过单独查询获取
         _isMockData: true, // 添加Mock标记
-        _mockDataNotice: "这是示例数据,请在设置中创建真实小组" // 添加提示
+        _mockDataNotice: "这是示例数据,请在设置中创建真实小组", // 添加提示
       } as any); // 临时any,因为GroupPortraitData可能没有_isMockData字段
     }
 

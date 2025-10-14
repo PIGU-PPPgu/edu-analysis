@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -27,17 +27,17 @@ interface AIConfigPanelProps {
   isLoading?: boolean;
 }
 
-const AIConfigPanel: React.FC<AIConfigPanelProps> = ({ 
+const AIConfigPanel: React.FC<AIConfigPanelProps> = ({
   onConfigChange,
-  isLoading = false 
+  isLoading = false,
 }) => {
   const [config, setConfig] = useState<AITagsGenerationConfig>({
-    provider: 'openai',
-    version: 'gpt-4o-mini',
-    apiKey: '',
+    provider: "openai",
+    version: "gpt-4o-mini",
+    apiKey: "",
     batchSize: 3,
     enableProgressiveUpdate: true,
-    minDataPointsRequired: 1
+    minDataPointsRequired: 1,
   });
 
   const [showApiKey, setShowApiKey] = useState(false);
@@ -45,40 +45,42 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({
 
   // 预设配置选项
   const providerOptions = [
-    { 
-      value: 'openai', 
-      label: 'OpenAI', 
-      models: ['gpt-4o-mini', 'gpt-4o', 'gpt-3.5-turbo'],
-      description: '稳定可靠，适合大规模分析'
+    {
+      value: "openai",
+      label: "OpenAI",
+      models: ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"],
+      description: "稳定可靠，适合大规模分析",
     },
-    { 
-      value: 'deepseek', 
-      label: 'DeepSeek', 
-      models: ['deepseek-v3', 'deepseek-coder'],
-      description: '中文优化，成本较低'
+    {
+      value: "deepseek",
+      label: "DeepSeek",
+      models: ["deepseek-v3", "deepseek-coder"],
+      description: "中文优化，成本较低",
     },
-    { 
-      value: 'anthropic', 
-      label: 'Anthropic', 
-      models: ['claude-3-sonnet-20240229', 'claude-3-haiku-20240307'],
-      description: '深度分析能力强'
+    {
+      value: "anthropic",
+      label: "Anthropic",
+      models: ["claude-3-sonnet-20240229", "claude-3-haiku-20240307"],
+      description: "深度分析能力强",
     },
-    { 
-      value: 'qwen', 
-      label: '通义千问', 
-      models: ['qwen-max', 'qwen-plus'],
-      description: '国内服务，中文理解优秀'
-    }
+    {
+      value: "qwen",
+      label: "通义千问",
+      models: ["qwen-max", "qwen-plus"],
+      description: "国内服务，中文理解优秀",
+    },
   ];
 
-  const currentProvider = providerOptions.find(p => p.value === config.provider);
+  const currentProvider = providerOptions.find(
+    (p) => p.value === config.provider
+  );
   const availableModels = currentProvider?.models || [];
 
   // 更新配置
   const updateConfig = (updates: Partial<AITagsGenerationConfig>) => {
     const newConfig = { ...config, ...updates };
     setConfig(newConfig);
-    
+
     // 只有在启用且API Key存在时才回调
     if (isEnabled && newConfig.apiKey.trim()) {
       onConfigChange(newConfig);
@@ -90,7 +92,7 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({
   // 启用/禁用切换
   const handleEnableToggle = (enabled: boolean) => {
     setIsEnabled(enabled);
-    
+
     if (enabled && config.apiKey.trim()) {
       onConfigChange(config);
     } else {
@@ -99,26 +101,26 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({
   };
 
   // 预设快速配置
-  const applyQuickConfig = (preset: 'fast' | 'balanced' | 'thorough') => {
+  const applyQuickConfig = (preset: "fast" | "balanced" | "thorough") => {
     const presets = {
       fast: {
-        provider: 'openai' as const,
-        version: 'gpt-4o-mini',
+        provider: "openai" as const,
+        version: "gpt-4o-mini",
         batchSize: 5,
-        minDataPointsRequired: 1
+        minDataPointsRequired: 1,
       },
       balanced: {
-        provider: 'deepseek' as const,
-        version: 'deepseek-v3',
+        provider: "deepseek" as const,
+        version: "deepseek-v3",
         batchSize: 3,
-        minDataPointsRequired: 2
+        minDataPointsRequired: 2,
       },
       thorough: {
-        provider: 'anthropic' as const,
-        version: 'claude-3-sonnet-20240229',
+        provider: "anthropic" as const,
+        version: "claude-3-sonnet-20240229",
         batchSize: 2,
-        minDataPointsRequired: 3
-      }
+        minDataPointsRequired: 3,
+      },
     };
 
     updateConfig(presets[preset]);
@@ -127,19 +129,20 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({
   // 验证API Key格式
   const validateApiKey = (apiKey: string): boolean => {
     if (!apiKey) return false;
-    
+
     const patterns = {
       openai: /^sk-[a-zA-Z0-9]{48}$/,
       deepseek: /^sk-[a-zA-Z0-9]+$/,
       anthropic: /^sk-ant-api[a-zA-Z0-9\-_]+$/,
-      qwen: /^sk-[a-zA-Z0-9]+$/
+      qwen: /^sk-[a-zA-Z0-9]+$/,
     };
 
     const pattern = patterns[config.provider as keyof typeof patterns];
     return pattern ? pattern.test(apiKey) : apiKey.length > 10;
   };
 
-  const isValidConfig = isEnabled && config.apiKey.trim() && validateApiKey(config.apiKey);
+  const isValidConfig =
+    isEnabled && config.apiKey.trim() && validateApiKey(config.apiKey);
 
   return (
     <Card className="w-full">
@@ -175,7 +178,7 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => applyQuickConfig('fast')}
+                onClick={() => applyQuickConfig("fast")}
                 disabled={isLoading}
               >
                 <Zap className="h-4 w-4 mr-1" />
@@ -184,7 +187,7 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => applyQuickConfig('balanced')}
+                onClick={() => applyQuickConfig("balanced")}
                 disabled={isLoading}
               >
                 <Settings className="h-4 w-4 mr-1" />
@@ -193,7 +196,7 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => applyQuickConfig('thorough')}
+                onClick={() => applyQuickConfig("thorough")}
                 disabled={isLoading}
               >
                 <Brain className="h-4 w-4 mr-1" />
@@ -207,10 +210,14 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({
             <Label>AI服务提供商</Label>
             <Select
               value={config.provider}
-              onValueChange={(provider) => updateConfig({ 
-                provider: provider as AITagsGenerationConfig['provider'],
-                version: providerOptions.find(p => p.value === provider)?.models[0] || ''
-              })}
+              onValueChange={(provider) =>
+                updateConfig({
+                  provider: provider as AITagsGenerationConfig["provider"],
+                  version:
+                    providerOptions.find((p) => p.value === provider)
+                      ?.models[0] || "",
+                })
+              }
               disabled={isLoading}
             >
               <SelectTrigger>
@@ -221,7 +228,9 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({
                   <SelectItem key={provider.value} value={provider.value}>
                     <div className="flex flex-col">
                       <span>{provider.label}</span>
-                      <span className="text-xs text-gray-500">{provider.description}</span>
+                      <span className="text-xs text-gray-500">
+                        {provider.description}
+                      </span>
                     </div>
                   </SelectItem>
                 ))}
@@ -260,7 +269,7 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({
                 onChange={(e) => updateConfig({ apiKey: e.target.value })}
                 placeholder={`输入${currentProvider?.label} API Key...`}
                 disabled={isLoading}
-                className={`pr-12 ${config.apiKey && !validateApiKey(config.apiKey) ? 'border-red-500' : ''}`}
+                className={`pr-12 ${config.apiKey && !validateApiKey(config.apiKey) ? "border-red-500" : ""}`}
               />
               <Button
                 variant="ghost"
@@ -269,7 +278,11 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({
                 onClick={() => setShowApiKey(!showApiKey)}
                 type="button"
               >
-                {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                {showApiKey ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
               </Button>
             </div>
             {config.apiKey && !validateApiKey(config.apiKey) && (
@@ -280,13 +293,15 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({
           {/* 高级设置 */}
           <div className="space-y-4 pt-4 border-t">
             <Label className="text-sm font-semibold">高级设置</Label>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-sm">批处理大小</Label>
                 <Select
-                  value={config.batchSize?.toString() || '3'}
-                  onValueChange={(value) => updateConfig({ batchSize: parseInt(value) })}
+                  value={config.batchSize?.toString() || "3"}
+                  onValueChange={(value) =>
+                    updateConfig({ batchSize: parseInt(value) })
+                  }
                   disabled={isLoading}
                 >
                   <SelectTrigger>
@@ -305,8 +320,10 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({
               <div className="space-y-2">
                 <Label className="text-sm">最低数据要求</Label>
                 <Select
-                  value={config.minDataPointsRequired?.toString() || '1'}
-                  onValueChange={(value) => updateConfig({ minDataPointsRequired: parseInt(value) })}
+                  value={config.minDataPointsRequired?.toString() || "1"}
+                  onValueChange={(value) =>
+                    updateConfig({ minDataPointsRequired: parseInt(value) })
+                  }
                   disabled={isLoading}
                 >
                   <SelectTrigger>
@@ -327,7 +344,9 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({
               <input
                 type="checkbox"
                 checked={config.enableProgressiveUpdate}
-                onChange={(e) => updateConfig({ enableProgressiveUpdate: e.target.checked })}
+                onChange={(e) =>
+                  updateConfig({ enableProgressiveUpdate: e.target.checked })
+                }
                 disabled={isLoading}
                 className="w-4 h-4"
               />
@@ -342,12 +361,13 @@ const AIConfigPanel: React.FC<AIConfigPanelProps> = ({
                 {isValidConfig ? "就绪" : "未配置"}
               </Badge>
             </div>
-            
+
             {isValidConfig && (
               <Alert className="mt-3">
                 <Brain className="h-4 w-4" />
                 <AlertDescription>
-                  AI增强配置已就绪。新创建的学生将自动获得基于{currentProvider?.label}的深度学习画像分析。
+                  AI增强配置已就绪。新创建的学生将自动获得基于
+                  {currentProvider?.label}的深度学习画像分析。
                 </AlertDescription>
               </Alert>
             )}

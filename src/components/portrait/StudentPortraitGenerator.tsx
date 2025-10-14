@@ -2,13 +2,13 @@
  * 学生个体画像生成器 - 基于intelligentPortraitService
  */
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   User,
   Brain,
@@ -21,7 +21,7 @@ import {
   BarChart3,
   Activity,
   Lightbulb,
-} from 'lucide-react';
+} from "lucide-react";
 import {
   ResponsiveContainer,
   RadarChart,
@@ -38,25 +38,40 @@ import {
   PieChart,
   Pie,
   Cell,
-} from 'recharts';
-import { intelligentPortraitService, type StudentPortraitAnalysis } from '@/services/intelligentPortraitService';
-import { toast } from 'sonner';
+} from "recharts";
+import {
+  intelligentPortraitService,
+  type StudentPortraitAnalysis,
+} from "@/services/intelligentPortraitService";
+import { toast } from "sonner";
 
 interface StudentPortraitGeneratorProps {
   studentId: string;
   className?: string;
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
+const COLORS = [
+  "#0088FE",
+  "#00C49F",
+  "#FFBB28",
+  "#FF8042",
+  "#8884D8",
+  "#82CA9D",
+];
 
-export function StudentPortraitGenerator({ studentId, className }: StudentPortraitGeneratorProps) {
-  const [portrait, setPortrait] = useState<StudentPortraitAnalysis | null>(null);
+export function StudentPortraitGenerator({
+  studentId,
+  className,
+}: StudentPortraitGeneratorProps) {
+  const [portrait, setPortrait] = useState<StudentPortraitAnalysis | null>(
+    null
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const generatePortrait = async () => {
     if (!studentId) {
-      setError('请提供有效的学生ID');
+      setError("请提供有效的学生ID");
       return;
     }
 
@@ -64,15 +79,17 @@ export function StudentPortraitGenerator({ studentId, className }: StudentPortra
     setError(null);
 
     try {
-      const result = await intelligentPortraitService.generateStudentPortrait(studentId);
+      const result =
+        await intelligentPortraitService.generateStudentPortrait(studentId);
       if (result) {
         setPortrait(result);
-        toast.success('学生画像生成成功！');
+        toast.success("学生画像生成成功！");
       } else {
-        setError('无法生成学生画像，请检查学生数据');
+        setError("无法生成学生画像，请检查学生数据");
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : '生成画像时发生未知错误';
+      const message =
+        err instanceof Error ? err.message : "生成画像时发生未知错误";
       setError(message);
       toast.error(`画像生成失败: ${message}`);
     } finally {
@@ -81,37 +98,73 @@ export function StudentPortraitGenerator({ studentId, className }: StudentPortra
   };
 
   // 准备学术能力雷达图数据
-  const academicRadarData = portrait ? [
-    { subject: '数学能力', value: portrait.academic_performance.math_ability },
-    { subject: '语言能力', value: portrait.academic_performance.language_ability },
-    { subject: '逻辑思维', value: portrait.academic_performance.logical_thinking },
-    { subject: '记忆能力', value: portrait.academic_performance.memory_retention },
-    { subject: '理解能力', value: portrait.academic_performance.comprehension_skills },
-    { subject: '应用能力', value: portrait.academic_performance.application_skills },
-  ] : [];
+  const academicRadarData = portrait
+    ? [
+        {
+          subject: "数学能力",
+          value: portrait.academic_performance.math_ability,
+        },
+        {
+          subject: "语言能力",
+          value: portrait.academic_performance.language_ability,
+        },
+        {
+          subject: "逻辑思维",
+          value: portrait.academic_performance.logical_thinking,
+        },
+        {
+          subject: "记忆能力",
+          value: portrait.academic_performance.memory_retention,
+        },
+        {
+          subject: "理解能力",
+          value: portrait.academic_performance.comprehension_skills,
+        },
+        {
+          subject: "应用能力",
+          value: portrait.academic_performance.application_skills,
+        },
+      ]
+    : [];
 
   // 准备学习特征数据
-  const learningTraitsData = portrait ? [
-    { name: '主动性', value: portrait.learning_characteristics.initiative },
-    { name: '专注度', value: portrait.learning_characteristics.focus_level },
-    { name: '合作性', value: portrait.learning_characteristics.collaboration_tendency },
-    { name: '创新性', value: portrait.learning_characteristics.creativity_level },
-  ] : [];
+  const learningTraitsData = portrait
+    ? [
+        { name: "主动性", value: portrait.learning_characteristics.initiative },
+        {
+          name: "专注度",
+          value: portrait.learning_characteristics.focus_level,
+        },
+        {
+          name: "合作性",
+          value: portrait.learning_characteristics.collaboration_tendency,
+        },
+        {
+          name: "创新性",
+          value: portrait.learning_characteristics.creativity_level,
+        },
+      ]
+    : [];
 
   // 准备知识掌握分布数据
-  const knowledgeMasteryData = portrait?.knowledge_mastery ? 
-    Object.entries(portrait.knowledge_mastery).map(([subject, level]) => ({
-      name: subject,
-      value: level,
-    })) : [];
+  const knowledgeMasteryData = portrait?.knowledge_mastery
+    ? Object.entries(portrait.knowledge_mastery).map(([subject, level]) => ({
+        name: subject,
+        value: level,
+      }))
+    : [];
 
   if (isLoading) {
     return (
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-          <p className="text-muted-foreground">正在分析学生数据，生成个性化画像...</p>
-          <p className="text-sm text-muted-foreground mt-2">这可能需要几秒钟时间</p>
+          <p className="text-muted-foreground">
+            正在分析学生数据，生成个性化画像...
+          </p>
+          <p className="text-sm text-muted-foreground mt-2">
+            这可能需要几秒钟时间
+          </p>
         </CardContent>
       </Card>
     );
@@ -205,7 +258,7 @@ export function StudentPortraitGenerator({ studentId, className }: StudentPortra
             <Brain className="h-4 w-4" />
             <AlertDescription>
               <strong>AI洞察：</strong>
-              {portrait.ai_insights.learning_patterns.join('，')}
+              {portrait.ai_insights.learning_patterns.join("，")}
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -233,7 +286,11 @@ export function StudentPortraitGenerator({ studentId, className }: StudentPortra
                   <RadarChart data={academicRadarData}>
                     <PolarGrid />
                     <PolarAngleAxis dataKey="subject" />
-                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} />
+                    <PolarRadiusAxis
+                      angle={30}
+                      domain={[0, 100]}
+                      tick={false}
+                    />
                     <Radar
                       name="能力评分"
                       dataKey="value"
@@ -267,36 +324,56 @@ export function StudentPortraitGenerator({ studentId, className }: StudentPortra
                     </ResponsiveContainer>
                   </div>
                 </div>
-                
+
                 <div>
                   <h4 className="font-medium mb-3">学习类型倾向</h4>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <span>视觉学习</span>
                       <div className="flex items-center gap-2">
-                        <Progress value={portrait.learning_style.visual} className="w-20" />
-                        <span className="text-sm">{portrait.learning_style.visual}%</span>
+                        <Progress
+                          value={portrait.learning_style.visual}
+                          className="w-20"
+                        />
+                        <span className="text-sm">
+                          {portrait.learning_style.visual}%
+                        </span>
                       </div>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>听觉学习</span>
                       <div className="flex items-center gap-2">
-                        <Progress value={portrait.learning_style.auditory} className="w-20" />
-                        <span className="text-sm">{portrait.learning_style.auditory}%</span>
+                        <Progress
+                          value={portrait.learning_style.auditory}
+                          className="w-20"
+                        />
+                        <span className="text-sm">
+                          {portrait.learning_style.auditory}%
+                        </span>
                       </div>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>动觉学习</span>
                       <div className="flex items-center gap-2">
-                        <Progress value={portrait.learning_style.kinesthetic} className="w-20" />
-                        <span className="text-sm">{portrait.learning_style.kinesthetic}%</span>
+                        <Progress
+                          value={portrait.learning_style.kinesthetic}
+                          className="w-20"
+                        />
+                        <span className="text-sm">
+                          {portrait.learning_style.kinesthetic}%
+                        </span>
                       </div>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>阅读写作</span>
                       <div className="flex items-center gap-2">
-                        <Progress value={portrait.learning_style.reading_writing} className="w-20" />
-                        <span className="text-sm">{portrait.learning_style.reading_writing}%</span>
+                        <Progress
+                          value={portrait.learning_style.reading_writing}
+                          className="w-20"
+                        />
+                        <span className="text-sm">
+                          {portrait.learning_style.reading_writing}%
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -323,7 +400,10 @@ export function StudentPortraitGenerator({ studentId, className }: StudentPortra
                         label={({ name, value }) => `${name}: ${value}%`}
                       >
                         {knowledgeMasteryData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={COLORS[index % COLORS.length]}
+                          />
                         ))}
                       </Pie>
                       <Tooltip />
@@ -343,7 +423,7 @@ export function StudentPortraitGenerator({ studentId, className }: StudentPortra
                 <BarChart3 className="h-4 w-4" />
                 行为模式分析
               </h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
                   <CardHeader className="pb-3">
@@ -352,7 +432,10 @@ export function StudentPortraitGenerator({ studentId, className }: StudentPortra
                   <CardContent>
                     <div className="space-y-2">
                       {portrait.strengths.map((strength, index) => (
-                        <div key={index} className="flex items-center gap-2 text-green-600">
+                        <div
+                          key={index}
+                          className="flex items-center gap-2 text-green-600"
+                        >
                           <Award className="h-4 w-4" />
                           <span className="text-sm">{strength}</span>
                         </div>
@@ -368,7 +451,10 @@ export function StudentPortraitGenerator({ studentId, className }: StudentPortra
                   <CardContent>
                     <div className="space-y-2">
                       {portrait.areas_for_improvement.map((area, index) => (
-                        <div key={index} className="flex items-center gap-2 text-orange-600">
+                        <div
+                          key={index}
+                          className="flex items-center gap-2 text-orange-600"
+                        >
                           <TrendingUp className="h-4 w-4" />
                           <span className="text-sm">{area}</span>
                         </div>
@@ -384,35 +470,46 @@ export function StudentPortraitGenerator({ studentId, className }: StudentPortra
                 <Lightbulb className="h-4 w-4" />
                 个性化教学建议
               </h3>
-              
-              <div className="space-y-4">
-                {portrait.teaching_recommendations.personalized_strategies.map((strategy, index) => (
-                  <Card key={index}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <Lightbulb className="h-5 w-5 text-blue-600 mt-0.5" />
-                        <div>
-                          <p className="font-medium mb-1">教学策略 {index + 1}</p>
-                          <p className="text-sm text-muted-foreground">{strategy}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
 
-                {portrait.teaching_recommendations.intervention_suggestions.length > 0 && (
+              <div className="space-y-4">
+                {portrait.teaching_recommendations.personalized_strategies.map(
+                  (strategy, index) => (
+                    <Card key={index}>
+                      <CardContent className="p-4">
+                        <div className="flex items-start gap-3">
+                          <Lightbulb className="h-5 w-5 text-blue-600 mt-0.5" />
+                          <div>
+                            <p className="font-medium mb-1">
+                              教学策略 {index + 1}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {strategy}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                )}
+
+                {portrait.teaching_recommendations.intervention_suggestions
+                  .length > 0 && (
                   <Card>
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-lg text-orange-600">干预建议</CardTitle>
+                      <CardTitle className="text-lg text-orange-600">
+                        干预建议
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2">
-                        {portrait.teaching_recommendations.intervention_suggestions.map((suggestion, index) => (
-                          <div key={index} className="flex items-start gap-2">
-                            <AlertCircle className="h-4 w-4 text-orange-600 mt-0.5" />
-                            <span className="text-sm">{suggestion}</span>
-                          </div>
-                        ))}
+                        {portrait.teaching_recommendations.intervention_suggestions.map(
+                          (suggestion, index) => (
+                            <div key={index} className="flex items-start gap-2">
+                              <AlertCircle className="h-4 w-4 text-orange-600 mt-0.5" />
+                              <span className="text-sm">{suggestion}</span>
+                            </div>
+                          )
+                        )}
                       </div>
                     </CardContent>
                   </Card>

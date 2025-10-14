@@ -17,8 +17,8 @@ import { cacheManager, CacheTTL } from "@/services/CacheManager";
 
 // 缓存键前缀
 const CACHE_PREFIX = {
-  TABLE: 'db_table_',
-  VIEW: 'db_view_',
+  TABLE: "db_table_",
+  VIEW: "db_view_",
 };
 
 export interface DatabaseConfig {

@@ -25,7 +25,11 @@ interface SmartPaginationProps<T> {
   data: T[];
   itemsPerPage?: number;
   searchFields?: (keyof T)[];
-  onDataChange?: (paginatedData: T[], currentPage: number, totalPages: number) => void;
+  onDataChange?: (
+    paginatedData: T[],
+    currentPage: number,
+    totalPages: number
+  ) => void;
   renderItem: (item: T, index: number) => React.ReactNode;
   className?: string;
   showSearch?: boolean;
@@ -53,13 +57,13 @@ export function SmartPagination<T extends Record<string, any>>({
   const filteredData = useMemo(() => {
     if (!searchTerm || searchFields.length === 0) return data;
 
-    return data.filter(item =>
-      searchFields.some(field => {
+    return data.filter((item) =>
+      searchFields.some((field) => {
         const value = item[field];
-        if (typeof value === 'string') {
+        if (typeof value === "string") {
           return value.toLowerCase().includes(searchTerm.toLowerCase());
         }
-        if (typeof value === 'number') {
+        if (typeof value === "number") {
           return value.toString().includes(searchTerm);
         }
         return false;
@@ -110,23 +114,23 @@ export function SmartPagination<T extends Record<string, any>>({
         for (let i = 1; i <= delta + 2; i++) {
           pages.push(i);
         }
-        pages.push('...');
+        pages.push("...");
         pages.push(totalPages);
       } else if (currentPage >= totalPages - delta) {
         // 当前页靠近结束
         pages.push(1);
-        pages.push('...');
+        pages.push("...");
         for (let i = totalPages - delta - 1; i <= totalPages; i++) {
           pages.push(i);
         }
       } else {
         // 当前页在中间
         pages.push(1);
-        pages.push('...');
+        pages.push("...");
         for (let i = currentPage - delta; i <= currentPage + delta; i++) {
           pages.push(i);
         }
-        pages.push('...');
+        pages.push("...");
         pages.push(totalPages);
       }
     }
@@ -150,7 +154,7 @@ export function SmartPagination<T extends Record<string, any>>({
           <div className="flex items-center gap-2 flex-1">
             <Search className="h-4 w-4 text-gray-400" />
             <Input
-              placeholder={`搜索 ${searchFields.map(field => String(field)).join(', ')}...`}
+              placeholder={`搜索 ${searchFields.map((field) => String(field)).join(", ")}...`}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="max-w-sm"
@@ -192,7 +196,7 @@ export function SmartPagination<T extends Record<string, any>>({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {pageSizeOptions.map(size => (
+                  {pageSizeOptions.map((size) => (
                     <SelectItem key={size} value={size.toString()}>
                       {size}
                     </SelectItem>
@@ -230,7 +234,7 @@ export function SmartPagination<T extends Record<string, any>>({
           <div className="flex items-center gap-1">
             {getPageNumbers().map((page, index) => (
               <React.Fragment key={index}>
-                {page === '...' ? (
+                {page === "..." ? (
                   <span className="px-2 py-1 text-gray-400">...</span>
                 ) : (
                   <Button
@@ -250,7 +254,9 @@ export function SmartPagination<T extends Record<string, any>>({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+            onClick={() =>
+              setCurrentPage(Math.min(totalPages, currentPage + 1))
+            }
             disabled={currentPage === totalPages}
           >
             <ChevronRight className="h-4 w-4" />
@@ -275,7 +281,7 @@ export function SmartPagination<T extends Record<string, any>>({
               max={totalPages}
               value={jumpPage}
               onChange={(e) => setJumpPage(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleJumpToPage()}
+              onKeyPress={(e) => e.key === "Enter" && handleJumpToPage()}
               className="w-16 text-center"
               placeholder="页"
             />
@@ -292,7 +298,7 @@ export function SmartPagination<T extends Record<string, any>>({
       </div>
 
       {/* 性能信息（开发模式显示） */}
-      {process.env.NODE_ENV === 'development' && (
+      {process.env.NODE_ENV === "development" && (
         <div className="text-xs text-gray-400 text-center">
           分页性能：渲染 {currentData.length} 项，总计 {totalItems} 项数据
         </div>

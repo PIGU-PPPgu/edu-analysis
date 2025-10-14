@@ -105,7 +105,12 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
   onCancel,
 }) => {
   const [step, setStep] = useState<
-    "upload" | "selectClass" | "confirm" | "importing" | "manualMatch" | "complete"
+    | "upload"
+    | "selectClass"
+    | "confirm"
+    | "importing"
+    | "manualMatch"
+    | "complete"
   >("upload");
   const [parsedData, setParsedData] = useState<ParsedData | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
@@ -113,7 +118,13 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
   const [progress, setProgress] = useState(0);
   const [progressMessage, setProgressMessage] = useState("");
   const [processingStage, setProcessingStage] = useState<
-    "uploading" | "parsing" | "validating" | "saving" | "analyzing" | "completed" | "error"
+    | "uploading"
+    | "parsing"
+    | "validating"
+    | "saving"
+    | "analyzing"
+    | "completed"
+    | "error"
   >("uploading");
   const [processingError, setProcessingError] = useState<string | null>(null);
   const [showFieldMapping, setShowFieldMapping] = useState(false);
@@ -124,7 +135,9 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
   });
 
   // 📚 班级选择相关状态
-  const [classScope, setClassScope] = useState<"specific" | "wholeGrade" | "unknown">("specific");
+  const [classScope, setClassScope] = useState<
+    "specific" | "wholeGrade" | "unknown"
+  >("specific");
   const [selectedClass, setSelectedClass] = useState<string>("");
   const [availableClasses, setAvailableClasses] = useState<string[]>([]);
   const [newClassName, setNewClassName] = useState<string>("");
@@ -155,63 +168,66 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
   }, []);
 
   // 从文件名智能推断考试信息
-  const inferExamInfoFromFileName = useCallback((fileName: string): Partial<ExamInfo> => {
-    const nameWithoutExt = fileName.replace(/\.(xlsx?|csv)$/i, "");
+  const inferExamInfoFromFileName = useCallback(
+    (fileName: string): Partial<ExamInfo> => {
+      const nameWithoutExt = fileName.replace(/\.(xlsx?|csv)$/i, "");
 
-    // 考试类型关键词匹配
-    const typeMap: Record<string, string> = {
-      "期中": "期中考试",
-      "期末": "期末考试",
-      "月考": "月考",
-      "周测": "周测",
-      "单元测": "单元测试",
-      "模拟": "模拟考试",
-      "诊断": "诊断考试",
-      "摸底": "摸底考试",
-    };
+      // 考试类型关键词匹配
+      const typeMap: Record<string, string> = {
+        期中: "期中考试",
+        期末: "期末考试",
+        月考: "月考",
+        周测: "周测",
+        单元测: "单元测试",
+        模拟: "模拟考试",
+        诊断: "诊断考试",
+        摸底: "摸底考试",
+      };
 
-    let detectedType = "月考"; // 默认
-    for (const [keyword, type] of Object.entries(typeMap)) {
-      if (nameWithoutExt.includes(keyword)) {
-        detectedType = type;
-        break;
+      let detectedType = "月考"; // 默认
+      for (const [keyword, type] of Object.entries(typeMap)) {
+        if (nameWithoutExt.includes(keyword)) {
+          detectedType = type;
+          break;
+        }
       }
-    }
 
-    // 提取日期 (YYYY-MM-DD, YYYY.MM.DD, YYYYMMDD格式)
-    const datePatterns = [
-      /(\d{4})-(\d{1,2})-(\d{1,2})/,
-      /(\d{4})\.(\d{1,2})\.(\d{1,2})/,
-      /(\d{4})(\d{2})(\d{2})/,
-    ];
+      // 提取日期 (YYYY-MM-DD, YYYY.MM.DD, YYYYMMDD格式)
+      const datePatterns = [
+        /(\d{4})-(\d{1,2})-(\d{1,2})/,
+        /(\d{4})\.(\d{1,2})\.(\d{1,2})/,
+        /(\d{4})(\d{2})(\d{2})/,
+      ];
 
-    let detectedDate = new Date().toISOString().split("T")[0];
-    for (const pattern of datePatterns) {
-      const match = nameWithoutExt.match(pattern);
-      if (match) {
-        const [_, year, month, day] = match;
-        detectedDate = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-        break;
+      let detectedDate = new Date().toISOString().split("T")[0];
+      for (const pattern of datePatterns) {
+        const match = nameWithoutExt.match(pattern);
+        if (match) {
+          const [_, year, month, day] = match;
+          detectedDate = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+          break;
+        }
       }
-    }
 
-    // 生成考试标题 (使用完整文件名,去掉扩展名和日期)
-    let title = nameWithoutExt
-      .replace(/\d{4}[-.]?\d{2}[-.]?\d{2}/g, "") // 移除日期
-      .replace(/\s+/g, " ") // 合并多余空格
-      .trim();
+      // 生成考试标题 (使用完整文件名,去掉扩展名和日期)
+      let title = nameWithoutExt
+        .replace(/\d{4}[-.]?\d{2}[-.]?\d{2}/g, "") // 移除日期
+        .replace(/\s+/g, " ") // 合并多余空格
+        .trim();
 
-    // 如果标题为空,使用考试类型作为标题
-    if (!title || title.length < 2) {
-      title = `${detectedType}成绩`;
-    }
+      // 如果标题为空,使用考试类型作为标题
+      if (!title || title.length < 2) {
+        title = `${detectedType}成绩`;
+      }
 
-    return {
-      title,
-      type: detectedType,
-      date: detectedDate,
-    };
-  }, []);
+      return {
+        title,
+        type: detectedType,
+        date: detectedDate,
+      };
+    },
+    []
+  );
 
   // 一键智能上传 - 支持Web Workers大文件处理
   const handleFileUpload = useCallback(async (file: File) => {
@@ -299,7 +315,11 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
         };
       } else {
         // 使用智能文件解析器处理真实文件
-        const modeLabel = useAI ? (aiMode === "force" ? " (AI增强模式)" : " (AI辅助模式)") : "";
+        const modeLabel = useAI
+          ? aiMode === "force"
+            ? " (AI增强模式)"
+            : " (AI辅助模式)"
+          : "";
         setProgressMessage(`使用智能解析引擎处理文件${modeLabel}...`);
 
         try {
@@ -309,7 +329,9 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
             minConfidenceForAI: 0.8,
           });
           console.log("[SimpleGradeImporter] 智能解析结果:", parseResult);
-          console.log(`[SimpleGradeImporter] 使用的解析方法: ${parseResult.metadata.parseMethod}`);
+          console.log(
+            `[SimpleGradeImporter] 使用的解析方法: ${parseResult.metadata.parseMethod}`
+          );
 
           parsedData = {
             file,
@@ -456,7 +478,9 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
         }
       );
       console.log("[真实导入] 完整解析结果:", fullParseResult);
-      console.log(`[真实导入] 使用的解析方法: ${fullParseResult.metadata.parseMethod}`);
+      console.log(
+        `[真实导入] 使用的解析方法: ${fullParseResult.metadata.parseMethod}`
+      );
 
       // 步骤3: 生成考试ID并准备考试数据
       setProgress(40);
@@ -472,7 +496,9 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
 
       // 步骤4: 转换数据格式 - 将宽表格转换为长表格
       setProgress(55);
-      setProgressMessage(`正在处理成绩数据 (共 ${fullParseResult.data.length} 名学生)...`);
+      setProgressMessage(
+        `正在处理成绩数据 (共 ${fullParseResult.data.length} 名学生)...`
+      );
 
       const headerAnalysis = analyzeCSVHeaders(fullParseResult.headers);
       console.log("[真实导入] 字段分析结果:", headerAnalysis);
@@ -599,17 +625,20 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
         console.log("[智能匹配] 开始匹配学生...");
 
         // 准备文件学生数据
-        const fileStudents = allGradeRecords.map(record => ({
+        const fileStudents = allGradeRecords.map((record) => ({
           student_id: record.student_id,
           name: record.name,
           class_name: record.class_name,
         }));
 
         // 调用智能匹配器
-        const matchingResult = await intelligentStudentMatcher.matchStudents(fileStudents);
+        const matchingResult =
+          await intelligentStudentMatcher.matchStudents(fileStudents);
 
         console.log("[智能匹配] 匹配结果:", matchingResult);
-        console.log(`[智能匹配] 统计: 精确匹配=${matchingResult.exactMatches.length}, 需手动确认=${matchingResult.manualReviewNeeded.length}`);
+        console.log(
+          `[智能匹配] 统计: 精确匹配=${matchingResult.exactMatches.length}, 需手动确认=${matchingResult.manualReviewNeeded.length}`
+        );
 
         // 如果有需要手动确认的学生,进入手动确认流程
         if (matchingResult.manualReviewNeeded.length > 0) {
@@ -623,22 +652,28 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
 
         // 所有学生都已匹配,继续自动同步流程
         console.log("[智能匹配] 所有学生已成功匹配,开始自动同步...");
-        const syncResult = await autoSyncService.syncImportedData(allGradeRecords);
+        const syncResult =
+          await autoSyncService.syncImportedData(allGradeRecords);
 
         console.log("[智能同步] 同步结果:", syncResult);
 
         if (syncResult.success) {
-          console.log(`[智能同步] 完成！自动创建了 ${syncResult.newClasses.length} 个班级和 ${syncResult.newStudents.length} 名学生`);
+          console.log(
+            `[智能同步] 完成！自动创建了 ${syncResult.newClasses.length} 个班级和 ${syncResult.newStudents.length} 名学生`
+          );
         } else if (syncResult.errors.length > 0) {
           console.warn("[智能同步] 部分同步失败:", syncResult.errors);
         }
       } catch (matchError) {
         console.error("[智能匹配] 匹配过程出错:", matchError);
-        console.warn("[智能匹配] 成绩数据已成功导入，但学生匹配时遇到问题，回退到自动创建模式");
+        console.warn(
+          "[智能匹配] 成绩数据已成功导入，但学生匹配时遇到问题，回退到自动创建模式"
+        );
 
         // 匹配失败时回退到自动同步
         try {
-          const syncResult = await autoSyncService.syncImportedData(allGradeRecords);
+          const syncResult =
+            await autoSyncService.syncImportedData(allGradeRecords);
           console.log("[智能同步] 回退同步完成:", syncResult);
         } catch (syncError) {
           console.error("[智能同步] 同步过程出错:", syncError);
@@ -704,7 +739,8 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
               const { data: newStudent, error } = await supabase
                 .from("students")
                 .insert({
-                  student_id: decision.fileStudent.student_id || `AUTO_${Date.now()}`,
+                  student_id:
+                    decision.fileStudent.student_id || `AUTO_${Date.now()}`,
                   name: decision.fileStudent.name,
                   class_name: decision.fileStudent.class_name,
                 })
@@ -857,9 +893,7 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
               {isProcessing ? (
                 <div className="space-y-4">
                   <RefreshCw className="w-12 h-12 mx-auto text-blue-600 animate-spin" />
-                  <p className="text-lg font-medium">
-                    正在智能解析文件...
-                  </p>
+                  <p className="text-lg font-medium">正在智能解析文件...</p>
                   <Progress value={progress} className="w-64 mx-auto" />
                   <p className="text-sm text-gray-600">
                     {progressMessage || "处理中..."}
@@ -898,7 +932,11 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
             {/* 🤖 AI辅助选项 */}
             <Collapsible>
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm" className="w-full flex items-center justify-between">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full flex items-center justify-between"
+                >
                   <span className="flex items-center gap-2">
                     <Settings2 className="w-4 h-4" />
                     高级选项 (AI辅助)
@@ -909,7 +947,9 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
               <CollapsibleContent className="pt-3 space-y-3">
                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex-1">
-                    <Label htmlFor="ai-mode" className="text-sm font-medium">启用AI辅助识别</Label>
+                    <Label htmlFor="ai-mode" className="text-sm font-medium">
+                      启用AI辅助识别
+                    </Label>
                     <p className="text-xs text-gray-600 mt-1">
                       当算法置信度较低时，使用AI增强识别准确率
                     </p>
@@ -1111,7 +1151,9 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    const inferredInfo = inferExamInfoFromFileName(parsedData.file.name);
+                    const inferredInfo = inferExamInfoFromFileName(
+                      parsedData.file.name
+                    );
                     setExamInfo((prev) => ({
                       ...prev,
                       ...inferredInfo,
@@ -1251,7 +1293,10 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
                 {/* 置信度显示 */}
                 <div className="mb-4 p-3 bg-gray-50 rounded-lg">
                   <div className="text-sm text-gray-600">
-                    解析置信度: <span className="font-semibold text-green-600">{Math.round(parsedData.confidence * 100)}%</span>
+                    解析置信度:{" "}
+                    <span className="font-semibold text-green-600">
+                      {Math.round(parsedData.confidence * 100)}%
+                    </span>
                   </div>
                 </div>
 
@@ -1443,7 +1488,11 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
           currentStage={processingStage}
           progress={progress}
           fileName={parsedData?.file.name}
-          fileSize={parsedData ? `${(parsedData.file.size / 1024 / 1024).toFixed(1)} MB` : undefined}
+          fileSize={
+            parsedData
+              ? `${(parsedData.file.size / 1024 / 1024).toFixed(1)} MB`
+              : undefined
+          }
           error={processingError || undefined}
           onCancel={onCancel}
         />
@@ -1476,14 +1525,17 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
               <Alert className="bg-green-50 border-green-200">
                 <CheckCircle className="h-4 w-4 text-green-600" />
                 <AlertDescription className="text-green-800">
-                  <strong>太棒了！</strong> 已成功导入 {importResult.successRecords} 名学生的成绩数据,数据已准备就绪,可以开始分析了!
+                  <strong>太棒了！</strong> 已成功导入{" "}
+                  {importResult.successRecords}{" "}
+                  名学生的成绩数据,数据已准备就绪,可以开始分析了!
                 </AlertDescription>
               </Alert>
             ) : (
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  成功导入 {importResult.successRecords} 条记录,{importResult.errorRecords} 条记录处理失败,请检查数据格式。
+                  成功导入 {importResult.successRecords} 条记录,
+                  {importResult.errorRecords} 条记录处理失败,请检查数据格式。
                 </AlertDescription>
               </Alert>
             )}

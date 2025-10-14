@@ -323,26 +323,28 @@ export const GradeAnalysisProvider: React.FC<{ children: ReactNode }> = ({
 
     setLoading(true);
     try {
-      console.log('🔍 开始分析考试数据:', currentExam.exam_title);
+      console.log("🔍 开始分析考试数据:", currentExam.exam_title);
 
       // 查询当前考试的成绩数据
       const { data: examGrades, error } = await supabase
-        .from('grades')
-        .select(`
+        .from("grades")
+        .select(
+          `
           student_id,
           subject,
           score,
           students!inner(class_name, name)
-        `)
-        .eq('exam_title', currentExam.exam_title);
+        `
+        )
+        .eq("exam_title", currentExam.exam_title);
 
       if (error) {
-        console.error('查询考试成绩失败:', error);
+        console.error("查询考试成绩失败:", error);
         throw error;
       }
 
       if (!examGrades || examGrades.length === 0) {
-        console.warn('未找到考试成绩数据');
+        console.warn("未找到考试成绩数据");
         setAnalysisResult(null);
         return;
       }
@@ -356,7 +358,7 @@ export const GradeAnalysisProvider: React.FC<{ children: ReactNode }> = ({
         { range: "0-59", count: 0 },
       ];
 
-      examGrades.forEach(grade => {
+      examGrades.forEach((grade) => {
         const score = grade.score;
         if (score >= 90) scoreRanges[0].count++;
         else if (score >= 80) scoreRanges[1].count++;
@@ -367,7 +369,7 @@ export const GradeAnalysisProvider: React.FC<{ children: ReactNode }> = ({
 
       // 按班级统计
       const classStats = new Map();
-      examGrades.forEach(grade => {
+      examGrades.forEach((grade) => {
         const className = grade.students.class_name;
         if (!classStats.has(className)) {
           classStats.set(className, { scores: [], className });
@@ -375,25 +377,29 @@ export const GradeAnalysisProvider: React.FC<{ children: ReactNode }> = ({
         classStats.get(className).scores.push(grade.score);
       });
 
-      const classPerformance = Array.from(classStats.entries()).map(([className, data]) => {
-        const scores = data.scores;
-        const average = scores.reduce((sum, score) => sum + score, 0) / scores.length;
-        const max = Math.max(...scores);
-        const min = Math.min(...scores);
-        const passRate = scores.filter(score => score >= 60).length / scores.length;
+      const classPerformance = Array.from(classStats.entries()).map(
+        ([className, data]) => {
+          const scores = data.scores;
+          const average =
+            scores.reduce((sum, score) => sum + score, 0) / scores.length;
+          const max = Math.max(...scores);
+          const min = Math.min(...scores);
+          const passRate =
+            scores.filter((score) => score >= 60).length / scores.length;
 
-        return {
-          className,
-          average: Math.round(average * 10) / 10,
-          max,
-          min,
-          passRate: Math.round(passRate * 100) / 100,
-        };
-      });
+          return {
+            className,
+            average: Math.round(average * 10) / 10,
+            max,
+            min,
+            passRate: Math.round(passRate * 100) / 100,
+          };
+        }
+      );
 
       // 按科目统计平均分
       const subjectStats = new Map();
-      examGrades.forEach(grade => {
+      examGrades.forEach((grade) => {
         const subject = grade.subject;
         if (!subjectStats.has(subject)) {
           subjectStats.set(subject, []);
@@ -403,7 +409,8 @@ export const GradeAnalysisProvider: React.FC<{ children: ReactNode }> = ({
 
       const subjectAverages = {};
       subjectStats.forEach((scores, subject) => {
-        const average = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+        const average =
+          scores.reduce((sum, score) => sum + score, 0) / scores.length;
         subjectAverages[subject] = Math.round(average * 10) / 10;
       });
 
@@ -411,13 +418,12 @@ export const GradeAnalysisProvider: React.FC<{ children: ReactNode }> = ({
         scoreDistribution: scoreRanges,
         classPerformance,
         subjectAverages,
-        totalStudents: new Set(examGrades.map(g => g.student_id)).size,
-        totalGrades: examGrades.length
+        totalStudents: new Set(examGrades.map((g) => g.student_id)).size,
+        totalGrades: examGrades.length,
       };
 
-      console.log('✅ 分析结果:', analysisResult);
+      console.log("✅ 分析结果:", analysisResult);
       setAnalysisResult(analysisResult);
-
     } catch (error) {
       console.error("分析成绩数据失败:", error);
       setAnalysisResult(null);

@@ -908,7 +908,7 @@ export async function analyzeHomeworkImage(
         // 调用方可以选择: 1) 手动输入知识点 2) 复用之前的分析 3) 重试
         throw new Error(
           `AI分析服务暂时不可用: ${backupError.message}. ` +
-          `请检查API配置或稍后重试,也可以选择手动输入知识点.`
+            `请检查API配置或稍后重试,也可以选择手动输入知识点.`
         );
       }
     }
@@ -918,8 +918,8 @@ export async function analyzeHomeworkImage(
     // 网络错误: 提供明确的错误信息和重试建议
     if (error instanceof TypeError && error.message.includes("fetch")) {
       throw new Error(
-        'AI服务连接失败,请检查网络连接或API配置. ' +
-        '你可以稍后重试,或选择手动输入知识点.'
+        "AI服务连接失败,请检查网络连接或API配置. " +
+          "你可以稍后重试,或选择手动输入知识点."
       );
     }
 

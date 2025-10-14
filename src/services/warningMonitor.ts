@@ -3,10 +3,13 @@
  * 负责自动触发预警规则、实时数据监控和自动预警生成
  */
 
-import { executeWarningRules, getWarningEngineStatus as getEngineStatus } from './warningEngineService';
-import { getWarningStatistics } from './warningService';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import {
+  executeWarningRules,
+  getWarningEngineStatus as getEngineStatus,
+} from "./warningEngineService";
+import { getWarningStatistics } from "./warningService";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 // 监控配置
 export interface MonitorConfig {
@@ -30,7 +33,7 @@ export interface MonitorStatus {
 // 数据变更事件
 interface DataChangeEvent {
   table: string;
-  action: 'INSERT' | 'UPDATE' | 'DELETE';
+  action: "INSERT" | "UPDATE" | "DELETE";
   timestamp: string;
   affectedRows: number;
 }
@@ -51,7 +54,7 @@ export class WarningMonitor {
       executeInterval: 30, // 默认30分钟
       dataChangeMonitoring: true,
       realTimeUpdates: true,
-      notificationEnabled: true
+      notificationEnabled: true,
     };
 
     this.status = {
@@ -60,7 +63,7 @@ export class WarningMonitor {
       nextExecution: null,
       totalExecutions: 0,
       errorCount: 0,
-      lastError: null
+      lastError: null,
     };
 
     this.loadConfigFromStorage();
@@ -94,7 +97,7 @@ export class WarningMonitor {
     this.notifySubscribers();
 
     if (this.config.notificationEnabled) {
-      toast.success('预警监控系统已启动');
+      toast.success("预警监控系统已启动");
     }
   }
 
@@ -120,7 +123,7 @@ export class WarningMonitor {
     this.notifySubscribers();
 
     if (this.config.notificationEnabled) {
-      toast.info('预警监控系统已停止');
+      toast.info("预警监控系统已停止");
     }
   }
 
@@ -129,9 +132,9 @@ export class WarningMonitor {
    */
   private startAutoExecution(): void {
     const intervalMs = this.config.executeInterval * 60 * 1000;
-    
+
     this.intervalId = setInterval(async () => {
-      await this.executeWarningCheck('automatic');
+      await this.executeWarningCheck("automatic");
     }, intervalMs);
 
     // 设置下次执行时间
@@ -156,49 +159,49 @@ export class WarningMonitor {
   private startDataChangeMonitoring(): void {
     // 监控成绩数据变更
     const gradeChannel = supabase
-      .channel('grade_data_changes')
+      .channel("grade_data_changes")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'grade_data'
+          event: "*",
+          schema: "public",
+          table: "grade_data",
         },
-        (payload) => this.handleDataChange('grade_data', payload)
+        (payload) => this.handleDataChange("grade_data", payload)
       )
       .subscribe();
 
     // 监控作业提交变更
     const homeworkChannel = supabase
-      .channel('homework_submissions_changes')
+      .channel("homework_submissions_changes")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'homework_submissions'
+          event: "*",
+          schema: "public",
+          table: "homework_submissions",
         },
-        (payload) => this.handleDataChange('homework_submissions', payload)
+        (payload) => this.handleDataChange("homework_submissions", payload)
       )
       .subscribe();
 
     // 监控学生数据变更
     const studentChannel = supabase
-      .channel('students_changes')
+      .channel("students_changes")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'students'
+          event: "*",
+          schema: "public",
+          table: "students",
         },
-        (payload) => this.handleDataChange('students', payload)
+        (payload) => this.handleDataChange("students", payload)
       )
       .subscribe();
 
-    this.dataListeners.set('grades', gradeChannel);
-    this.dataListeners.set('homework', homeworkChannel);
-    this.dataListeners.set('students', studentChannel);
+    this.dataListeners.set("grades", gradeChannel);
+    this.dataListeners.set("homework", homeworkChannel);
+    this.dataListeners.set("students", studentChannel);
   }
 
   /**
@@ -231,21 +234,24 @@ export class WarningMonitor {
   /**
    * 处理数据变更事件
    */
-  private async handleDataChange(tableName: string, payload: any): Promise<void> {
+  private async handleDataChange(
+    tableName: string,
+    payload: any
+  ): Promise<void> {
     const event: DataChangeEvent = {
       table: tableName,
       action: payload.eventType,
       timestamp: new Date().toISOString(),
-      affectedRows: 1
+      affectedRows: 1,
     };
 
     // 根据数据变更类型决定是否触发预警检查
     const shouldTriggerCheck = this.shouldTriggerWarningCheck(event);
-    
+
     if (shouldTriggerCheck) {
       // 延迟执行，避免频繁触发
       setTimeout(async () => {
-        await this.executeWarningCheck('data_change');
+        await this.executeWarningCheck("data_change");
       }, 5000);
     }
   }
@@ -255,17 +261,20 @@ export class WarningMonitor {
    */
   private shouldTriggerWarningCheck(event: DataChangeEvent): boolean {
     // 成绩数据新增或更新时触发
-    if (event.table === 'grade_data' && (event.action === 'INSERT' || event.action === 'UPDATE')) {
+    if (
+      event.table === "grade_data" &&
+      (event.action === "INSERT" || event.action === "UPDATE")
+    ) {
       return true;
     }
 
     // 作业提交状态变更时触发
-    if (event.table === 'homework_submissions' && event.action === 'UPDATE') {
+    if (event.table === "homework_submissions" && event.action === "UPDATE") {
       return true;
     }
 
     // 学生信息变更时触发
-    if (event.table === 'students' && event.action === 'UPDATE') {
+    if (event.table === "students" && event.action === "UPDATE") {
       return true;
     }
 
@@ -276,7 +285,7 @@ export class WarningMonitor {
    * 执行预警检查
    */
   private async executeWarningCheck(
-    trigger: 'automatic' | 'data_change' | 'manual',
+    trigger: "automatic" | "data_change" | "manual",
     triggerEvent?: string
   ): Promise<void> {
     // 检查引擎是否已在运行
@@ -287,27 +296,33 @@ export class WarningMonitor {
 
     try {
       const result = await executeWarningRules(trigger, triggerEvent);
-      
+
       this.status.totalExecutions++;
       this.status.lastExecution = new Date().toISOString();
-      
+
       // 更新下次执行时间
-      if (this.config.autoExecuteEnabled && trigger === 'automatic') {
-        const nextExecution = new Date(Date.now() + this.config.executeInterval * 60 * 1000);
+      if (this.config.autoExecuteEnabled && trigger === "automatic") {
+        const nextExecution = new Date(
+          Date.now() + this.config.executeInterval * 60 * 1000
+        );
         this.status.nextExecution = nextExecution.toISOString();
       }
 
-      if (this.config.notificationEnabled && result.totalWarningsGenerated > 0) {
+      if (
+        this.config.notificationEnabled &&
+        result.totalWarningsGenerated > 0
+      ) {
         toast.info(`检测到 ${result.totalWarningsGenerated} 个新预警`);
       }
     } catch (error) {
       this.status.errorCount++;
-      this.status.lastError = error instanceof Error ? error.message : String(error);
-      
-      console.error('预警检查失败:', error);
-      
+      this.status.lastError =
+        error instanceof Error ? error.message : String(error);
+
+      console.error("预警检查失败:", error);
+
       if (this.config.notificationEnabled) {
-        toast.error('预警检查失败');
+        toast.error("预警检查失败");
       }
     }
 
@@ -321,7 +336,7 @@ export class WarningMonitor {
     try {
       // 可以在这里获取更多实时状态信息
       const engineStatus = getEngineStatus();
-      
+
       // 如果引擎在运行但监控显示不活跃，更新状态
       if (engineStatus.isRunning && !this.status.isActive) {
         // 可能是外部触发的执行
@@ -329,7 +344,7 @@ export class WarningMonitor {
 
       this.notifySubscribers();
     } catch (error) {
-      console.error('更新监控状态失败:', error);
+      console.error("更新监控状态失败:", error);
     }
   }
 
@@ -337,7 +352,7 @@ export class WarningMonitor {
    * 手动触发预警检查
    */
   async triggerCheck(triggerEvent?: string): Promise<void> {
-    await this.executeWarningCheck('manual', triggerEvent);
+    await this.executeWarningCheck("manual", triggerEvent);
   }
 
   /**
@@ -346,15 +361,17 @@ export class WarningMonitor {
   updateConfig(newConfig: Partial<MonitorConfig>): void {
     const oldConfig = { ...this.config };
     this.config = { ...this.config, ...newConfig };
-    
+
     // 保存到本地存储
     this.saveConfigToStorage();
 
     // 如果监控已启动，需要重启以应用新配置
     if (this.status.isActive) {
       // 检查是否需要重启定时任务
-      if (oldConfig.autoExecuteEnabled !== this.config.autoExecuteEnabled ||
-          oldConfig.executeInterval !== this.config.executeInterval) {
+      if (
+        oldConfig.autoExecuteEnabled !== this.config.autoExecuteEnabled ||
+        oldConfig.executeInterval !== this.config.executeInterval
+      ) {
         this.stopAutoExecution();
         if (this.config.autoExecuteEnabled) {
           this.startAutoExecution();
@@ -403,7 +420,7 @@ export class WarningMonitor {
       try {
         callback(this.status);
       } catch (error) {
-        console.error('通知订阅者失败:', error);
+        console.error("通知订阅者失败:", error);
       }
     }
   }
@@ -413,13 +430,13 @@ export class WarningMonitor {
    */
   private loadConfigFromStorage(): void {
     try {
-      const stored = localStorage.getItem('warning_monitor_config');
+      const stored = localStorage.getItem("warning_monitor_config");
       if (stored) {
         const config = JSON.parse(stored);
         this.config = { ...this.config, ...config };
       }
     } catch (error) {
-      console.error('加载监控配置失败:', error);
+      console.error("加载监控配置失败:", error);
     }
   }
 
@@ -428,9 +445,12 @@ export class WarningMonitor {
    */
   private saveConfigToStorage(): void {
     try {
-      localStorage.setItem('warning_monitor_config', JSON.stringify(this.config));
+      localStorage.setItem(
+        "warning_monitor_config",
+        JSON.stringify(this.config)
+      );
     } catch (error) {
-      console.error('保存监控配置失败:', error);
+      console.error("保存监控配置失败:", error);
     }
   }
 
@@ -448,9 +468,11 @@ export class WarningMonitor {
     // 这里可以从数据库获取更详细的统计信息
     return {
       totalExecutions: this.status.totalExecutions,
-      successRate: this.status.totalExecutions > 0 
-        ? (this.status.totalExecutions - this.status.errorCount) / this.status.totalExecutions 
-         : 1,
+      successRate:
+        this.status.totalExecutions > 0
+          ? (this.status.totalExecutions - this.status.errorCount) /
+            this.status.totalExecutions
+          : 1,
       avgExecutionTime: 0, // 需要从执行记录中计算
       lastExecutionTime: this.status.lastExecution,
       uptime: this.status.isActive ? Date.now() : 0,

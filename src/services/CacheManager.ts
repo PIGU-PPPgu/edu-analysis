@@ -16,9 +16,9 @@
 interface CacheEntry<T = any> {
   key: string;
   value: T;
-  expireAt: number;  // 过期时间戳
+  expireAt: number; // 过期时间戳
   lastAccess: number; // 最后访问时间(用于LRU)
-  size: number;      // 数据大小(字节)
+  size: number; // 数据大小(字节)
 }
 
 /**
@@ -51,7 +51,7 @@ export class CacheManager {
   private memoryCache: Map<string, CacheEntry>;
   private stats: CacheStats;
   private readonly MAX_MEMORY_SIZE = 10 * 1024 * 1024; // 10MB
-  private readonly STORAGE_PREFIX = 'cache_';
+  private readonly STORAGE_PREFIX = "cache_";
 
   constructor() {
     this.memoryCache = new Map();
@@ -108,10 +108,7 @@ export class CacheManager {
    * 设置缓存
    */
   set<T>(key: string, value: T, options: CacheOptions = {}): void {
-    const {
-      ttl = 0,
-      persistent = false,
-    } = options;
+    const { ttl = 0, persistent = false } = options;
 
     const size = this.calculateSize(value);
     const entry: CacheEntry<T> = {
@@ -153,7 +150,7 @@ export class CacheManager {
     try {
       localStorage.removeItem(this.STORAGE_PREFIX + key);
     } catch (e) {
-      console.warn('[Cache] LocalStorage删除失败:', e);
+      console.warn("[Cache] LocalStorage删除失败:", e);
     }
 
     return !!entry;
@@ -176,7 +173,7 @@ export class CacheManager {
         }
       });
     } catch (e) {
-      console.warn('[Cache] LocalStorage清空失败:', e);
+      console.warn("[Cache] LocalStorage清空失败:", e);
     }
   }
 
@@ -286,7 +283,9 @@ export class CacheManager {
       }
     }
 
-    console.log(`[Cache] LRU淘汰了${this.stats.evictions}个条目,释放${freedSize}字节`);
+    console.log(
+      `[Cache] LRU淘汰了${this.stats.evictions}个条目,释放${freedSize}字节`
+    );
   }
 
   /**
@@ -308,7 +307,7 @@ export class CacheManager {
       const keys = Object.keys(localStorage);
       keys.forEach((k) => {
         if (k.startsWith(this.STORAGE_PREFIX)) {
-          const rawKey = k.replace(this.STORAGE_PREFIX, '');
+          const rawKey = k.replace(this.STORAGE_PREFIX, "");
           const entry = this.getFromStorage(rawKey);
           if (entry) {
             this.memoryCache.set(rawKey, entry);
@@ -319,7 +318,7 @@ export class CacheManager {
       });
       console.log(`[Cache] 从LocalStorage加载了${this.stats.entryCount}个缓存`);
     } catch (e) {
-      console.warn('[Cache] LocalStorage加载失败:', e);
+      console.warn("[Cache] LocalStorage加载失败:", e);
     }
   }
 
@@ -341,7 +340,7 @@ export class CacheManager {
 
       return entry;
     } catch (e) {
-      console.warn('[Cache] LocalStorage读取失败:', key, e);
+      console.warn("[Cache] LocalStorage读取失败:", key, e);
       return null;
     }
   }
@@ -354,7 +353,7 @@ export class CacheManager {
       const serialized = JSON.stringify(entry);
       localStorage.setItem(this.STORAGE_PREFIX + entry.key, serialized);
     } catch (e) {
-      console.warn('[Cache] LocalStorage保存失败:', entry.key, e);
+      console.warn("[Cache] LocalStorage保存失败:", entry.key, e);
     }
   }
 }
@@ -369,14 +368,14 @@ export const cacheManager = new CacheManager();
  */
 export const CacheKeys = {
   // 静态数据(长期)
-  STUDENTS_LIST: 'students_list',
-  CLASSES_LIST: 'classes_list',
-  SUBJECTS_LIST: 'subjects_list',
-  TEACHERS_LIST: 'teachers_list',
+  STUDENTS_LIST: "students_list",
+  CLASSES_LIST: "classes_list",
+  SUBJECTS_LIST: "subjects_list",
+  TEACHERS_LIST: "teachers_list",
 
   // 会话数据(永久)
-  FIELD_MAPPING_HISTORY: 'field_mapping_history',
-  IMPORT_CONFIG_PREFERENCE: 'import_config_preference',
+  FIELD_MAPPING_HISTORY: "field_mapping_history",
+  IMPORT_CONFIG_PREFERENCE: "import_config_preference",
 
   // 查询结果(短期)
   examQuery: (title: string, type: string, date: string) =>

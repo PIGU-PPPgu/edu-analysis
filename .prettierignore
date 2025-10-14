@@ -54,3 +54,6 @@ LICENSE
 # 特定目录
 backup/
 logs/
+
+# 有问题的文件 - 导致Prettier崩溃
+src/services/studentIdMappingService.ts

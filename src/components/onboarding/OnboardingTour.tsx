@@ -153,7 +153,7 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
     if (isLastStep) {
       handleComplete();
     } else {
-      setCurrentStep(prev => prev + 1);
+      setCurrentStep((prev) => prev + 1);
     }
   }, [isLastStep, clearHighlight]);
 
@@ -162,7 +162,7 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
    */
   const handlePrevious = useCallback(() => {
     clearHighlight();
-    setCurrentStep(prev => Math.max(0, prev - 1));
+    setCurrentStep((prev) => Math.max(0, prev - 1));
   }, [clearHighlight]);
 
   /**
@@ -202,25 +202,35 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
     switch (placement) {
       case "top":
         top = targetPosition.top - tooltipHeight - margin;
-        left = targetPosition.left + targetPosition.width / 2 - tooltipWidth / 2;
+        left =
+          targetPosition.left + targetPosition.width / 2 - tooltipWidth / 2;
         break;
       case "bottom":
         top = targetPosition.bottom + margin;
-        left = targetPosition.left + targetPosition.width / 2 - tooltipWidth / 2;
+        left =
+          targetPosition.left + targetPosition.width / 2 - tooltipWidth / 2;
         break;
       case "left":
-        top = targetPosition.top + targetPosition.height / 2 - tooltipHeight / 2;
+        top =
+          targetPosition.top + targetPosition.height / 2 - tooltipHeight / 2;
         left = targetPosition.left - tooltipWidth - margin;
         break;
       case "right":
-        top = targetPosition.top + targetPosition.height / 2 - tooltipHeight / 2;
+        top =
+          targetPosition.top + targetPosition.height / 2 - tooltipHeight / 2;
         left = targetPosition.right + margin;
         break;
     }
 
     // 确保不超出视口
-    top = Math.max(margin, Math.min(top, window.innerHeight - tooltipHeight - margin));
-    left = Math.max(margin, Math.min(left, window.innerWidth - tooltipWidth - margin));
+    top = Math.max(
+      margin,
+      Math.min(top, window.innerHeight - tooltipHeight - margin)
+    );
+    left = Math.max(
+      margin,
+      Math.min(left, window.innerWidth - tooltipWidth - margin)
+    );
 
     return {
       position: "fixed",
@@ -308,11 +318,7 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({
           <div className="flex items-center justify-between">
             <div>
               {!isFirstStep && (
-                <Button
-                  onClick={handlePrevious}
-                  variant="outline"
-                  size="sm"
-                >
+                <Button onClick={handlePrevious} variant="outline" size="sm">
                   <ChevronLeft className="w-4 h-4 mr-1" />
                   上一步
                 </Button>
@@ -383,7 +389,10 @@ export function isTourCompleted(tourId: string): boolean {
 /**
  * 获取所有引导完成状态
  */
-function getTourCompletedStatus(): Record<string, { completed: boolean; skipped: boolean; timestamp: number }> {
+function getTourCompletedStatus(): Record<
+  string,
+  { completed: boolean; skipped: boolean; timestamp: number }
+> {
   try {
     const data = localStorage.getItem(TOUR_STORAGE_KEY);
     return data ? JSON.parse(data) : {};

@@ -1,6 +1,6 @@
 /**
  * 🎯 成绩数据校验结果显示面板
- * 
+ *
  * 功能：
  * 1. 显示校验结果和错误详情
  * 2. 提供手动修复选项
@@ -8,7 +8,7 @@
  * 4. 可视化错误分布和统计
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -28,7 +28,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -44,10 +48,13 @@ import {
   FileText,
   Zap,
   Eye,
-  Filter
-} from 'lucide-react';
+  Filter,
+} from "lucide-react";
 import { toast } from "sonner";
-import { ValidationReport, ValidationResult } from "@/services/gradeDataValidator";
+import {
+  ValidationReport,
+  ValidationResult,
+} from "@/services/gradeDataValidator";
 import { ValidationSeverity } from "@/utils/dataValidationRules";
 
 interface GradeValidationPanelProps {
@@ -65,22 +72,26 @@ const GradeValidationPanel: React.FC<GradeValidationPanelProps> = ({
   onRevalidate,
   onExportReport,
   onApplyFixes,
-  className
+  className,
 }) => {
-  const [selectedSeverity, setSelectedSeverity] = useState<string>('all');
-  const [selectedField, setSelectedField] = useState<string>('all');
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['overview']));
+  const [selectedSeverity, setSelectedSeverity] = useState<string>("all");
+  const [selectedField, setSelectedField] = useState<string>("all");
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(
+    new Set(["overview"])
+  );
   const [showFixableOnly, setShowFixableOnly] = useState(false);
 
   // 过滤结果
   const filteredResults = React.useMemo(() => {
     if (!report) return [];
 
-    return report.results.filter(result => {
-      const severityMatch = selectedSeverity === 'all' || result.severity === selectedSeverity;
-      const fieldMatch = selectedField === 'all' || result.field === selectedField;
+    return report.results.filter((result) => {
+      const severityMatch =
+        selectedSeverity === "all" || result.severity === selectedSeverity;
+      const fieldMatch =
+        selectedField === "all" || result.field === selectedField;
       const fixableMatch = !showFixableOnly || result.canAutoFix;
-      
+
       return severityMatch && fieldMatch && fixableMatch;
     });
   }, [report, selectedSeverity, selectedField, showFixableOnly]);
@@ -88,18 +99,18 @@ const GradeValidationPanel: React.FC<GradeValidationPanelProps> = ({
   // 获取所有字段列表
   const availableFields = React.useMemo(() => {
     if (!report) return [];
-    
+
     const fields = new Set<string>();
-    report.results.forEach(result => {
+    report.results.forEach((result) => {
       if (result.field) fields.add(result.field);
     });
-    
+
     return Array.from(fields).sort();
   }, [report]);
 
   // 切换展开/折叠状态
   const toggleSection = (sectionId: string) => {
-    setExpandedSections(prev => {
+    setExpandedSections((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(sectionId)) {
         newSet.delete(sectionId);
@@ -113,34 +124,34 @@ const GradeValidationPanel: React.FC<GradeValidationPanelProps> = ({
   // 渲染严重程度图标和样式
   const renderSeverityBadge = (severity: ValidationSeverity) => {
     const config = {
-      [ValidationSeverity.CRITICAL]: { 
-        icon: XCircle, 
-        variant: 'destructive' as const, 
-        color: 'text-red-600',
-        label: '严重'
+      [ValidationSeverity.CRITICAL]: {
+        icon: XCircle,
+        variant: "destructive" as const,
+        color: "text-red-600",
+        label: "严重",
       },
-      [ValidationSeverity.ERROR]: { 
-        icon: AlertTriangle, 
-        variant: 'destructive' as const, 
-        color: 'text-red-500',
-        label: '错误'
+      [ValidationSeverity.ERROR]: {
+        icon: AlertTriangle,
+        variant: "destructive" as const,
+        color: "text-red-500",
+        label: "错误",
       },
-      [ValidationSeverity.WARNING]: { 
-        icon: AlertCircle, 
-        variant: 'secondary' as const, 
-        color: 'text-yellow-600',
-        label: '警告'
+      [ValidationSeverity.WARNING]: {
+        icon: AlertCircle,
+        variant: "secondary" as const,
+        color: "text-yellow-600",
+        label: "警告",
       },
-      [ValidationSeverity.INFO]: { 
-        icon: Info, 
-        variant: 'outline' as const, 
-        color: 'text-blue-600',
-        label: '信息'
+      [ValidationSeverity.INFO]: {
+        icon: Info,
+        variant: "outline" as const,
+        color: "text-blue-600",
+        label: "信息",
       },
     };
 
     const { icon: Icon, variant, color, label } = config[severity];
-    
+
     return (
       <Badge variant={variant} className="flex items-center gap-1">
         <Icon className={`h-3 w-3 ${color}`} />
@@ -159,7 +170,10 @@ const GradeValidationPanel: React.FC<GradeValidationPanelProps> = ({
 
     return (
       <div className="relative w-32 h-32 flex items-center justify-center">
-        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+        <svg
+          className="w-full h-full transform -rotate-90"
+          viewBox="0 0 100 100"
+        >
           {/* 背景圆 */}
           <circle
             cx="50"
@@ -184,7 +198,9 @@ const GradeValidationPanel: React.FC<GradeValidationPanelProps> = ({
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-2xl font-bold" style={{ color }}>{score}</span>
+          <span className="text-2xl font-bold" style={{ color }}>
+            {score}
+          </span>
           <span className="text-xs text-gray-600">{label}</span>
         </div>
       </div>
@@ -221,7 +237,7 @@ const GradeValidationPanel: React.FC<GradeValidationPanelProps> = ({
   }
 
   return (
-    <div className={`space-y-4 ${className || ''}`}>
+    <div className={`space-y-4 ${className || ""}`}>
       {/* 概览卡片 */}
       <Card>
         <CardHeader>
@@ -267,7 +283,11 @@ const GradeValidationPanel: React.FC<GradeValidationPanelProps> = ({
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-gray-600">成功率：</span>
                     <Badge variant="outline">
-                      {((report.validRecords / report.totalRecords) * 100).toFixed(1)}%
+                      {(
+                        (report.validRecords / report.totalRecords) *
+                        100
+                      ).toFixed(1)}
+                      %
                     </Badge>
                   </div>
                 </div>
@@ -284,7 +304,9 @@ const GradeValidationPanel: React.FC<GradeValidationPanelProps> = ({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm">严重</span>
-                    <Badge variant="destructive">{report.summary.critical}</Badge>
+                    <Badge variant="destructive">
+                      {report.summary.critical}
+                    </Badge>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm">错误</span>
@@ -324,21 +346,26 @@ const GradeValidationPanel: React.FC<GradeValidationPanelProps> = ({
                   <AlertDescription>{recommendation}</AlertDescription>
                 </Alert>
               ))}
-              
+
               {/* 自动修复按钮 */}
-              {report.results.some(r => r.canAutoFix) && (
+              {report.results.some((r) => r.canAutoFix) && (
                 <div className="pt-2 border-t">
-                  <Button 
+                  <Button
                     onClick={() => {
                       const fixableIds = report.results
-                        .filter(r => r.canAutoFix && !r.fixed)
-                        .map(r => r.id);
+                        .filter((r) => r.canAutoFix && !r.fixed)
+                        .map((r) => r.id);
                       onApplyFixes(fixableIds);
                     }}
                     className="w-full"
                   >
                     <Zap className="h-4 w-4 mr-2" />
-                    自动修复可修复的错误 ({report.results.filter(r => r.canAutoFix && !r.fixed).length})
+                    自动修复可修复的错误 (
+                    {
+                      report.results.filter((r) => r.canAutoFix && !r.fixed)
+                        .length
+                    }
+                    )
                   </Button>
                 </div>
               )}
@@ -354,9 +381,7 @@ const GradeValidationPanel: React.FC<GradeValidationPanelProps> = ({
             <Eye className="h-5 w-5 mr-2" />
             详细结果 ({filteredResults.length})
           </CardTitle>
-          <CardDescription>
-            查看和管理所有校验问题
-          </CardDescription>
+          <CardDescription>查看和管理所有校验问题</CardDescription>
         </CardHeader>
         <CardContent>
           {/* 筛选控件 */}
@@ -365,8 +390,11 @@ const GradeValidationPanel: React.FC<GradeValidationPanelProps> = ({
               <Filter className="h-4 w-4 text-gray-600" />
               <span className="text-sm text-gray-600">筛选条件：</span>
             </div>
-            
-            <Select value={selectedSeverity} onValueChange={setSelectedSeverity}>
+
+            <Select
+              value={selectedSeverity}
+              onValueChange={setSelectedSeverity}
+            >
               <SelectTrigger className="w-32">
                 <SelectValue />
               </SelectTrigger>
@@ -385,8 +413,10 @@ const GradeValidationPanel: React.FC<GradeValidationPanelProps> = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">所有字段</SelectItem>
-                {availableFields.map(field => (
-                  <SelectItem key={field} value={field}>{field}</SelectItem>
+                {availableFields.map((field) => (
+                  <SelectItem key={field} value={field}>
+                    {field}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -410,7 +440,10 @@ const GradeValidationPanel: React.FC<GradeValidationPanelProps> = ({
           ) : (
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {filteredResults.map((result, index) => (
-                <div key={result.id} className="border rounded-lg p-4 space-y-2">
+                <div
+                  key={result.id}
+                  className="border rounded-lg p-4 space-y-2"
+                >
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
                       <div className="flex items-center space-x-2">
@@ -424,10 +457,12 @@ const GradeValidationPanel: React.FC<GradeValidationPanelProps> = ({
                       </div>
                       <p className="text-sm text-gray-700">{result.message}</p>
                       {result.suggestion && (
-                        <p className="text-xs text-gray-500">💡 {result.suggestion}</p>
+                        <p className="text-xs text-gray-500">
+                          💡 {result.suggestion}
+                        </p>
                       )}
                     </div>
-                    
+
                     <div className="flex items-center space-x-2">
                       {result.canAutoFix && !result.fixed && (
                         <Button
@@ -455,7 +490,9 @@ const GradeValidationPanel: React.FC<GradeValidationPanelProps> = ({
                   {result.value !== null && result.value !== undefined && (
                     <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
                       <span className="text-gray-600">问题数据：</span>
-                      <code className="ml-1">{JSON.stringify(result.value)}</code>
+                      <code className="ml-1">
+                        {JSON.stringify(result.value)}
+                      </code>
                     </div>
                   )}
                 </div>
@@ -466,9 +503,9 @@ const GradeValidationPanel: React.FC<GradeValidationPanelProps> = ({
       </Card>
 
       {/* 字段统计（可折叠） */}
-      <Collapsible 
-        open={expandedSections.has('fieldStats')} 
-        onOpenChange={() => toggleSection('fieldStats')}
+      <Collapsible
+        open={expandedSections.has("fieldStats")}
+        onOpenChange={() => toggleSection("fieldStats")}
       >
         <Card>
           <CollapsibleTrigger asChild>
@@ -478,37 +515,40 @@ const GradeValidationPanel: React.FC<GradeValidationPanelProps> = ({
                   <BarChart3 className="h-5 w-5 mr-2" />
                   字段质量统计
                 </span>
-                {expandedSections.has('fieldStats') ? 
-                  <ChevronUp className="h-5 w-5" /> : 
+                {expandedSections.has("fieldStats") ? (
+                  <ChevronUp className="h-5 w-5" />
+                ) : (
                   <ChevronDown className="h-5 w-5" />
-                }
+                )}
               </CardTitle>
             </CardHeader>
           </CollapsibleTrigger>
           <CollapsibleContent>
             <CardContent>
               <div className="space-y-4">
-                {Object.entries(report.fieldStatistics).map(([field, stats]) => (
-                  <div key={field} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">{field}</span>
-                      <Badge variant="outline">
-                        {stats.validationRate.toFixed(1)}%
-                      </Badge>
-                    </div>
-                    <div className="space-y-1">
-                      <Progress 
-                        value={stats.validationRate} 
-                        className="h-2"
-                      />
-                      <div className="flex text-xs text-gray-600 justify-between">
-                        <span>有效: {stats.valid}</span>
-                        <span>无效: {stats.invalid}</span>
-                        <span>缺失: {stats.missing}</span>
+                {Object.entries(report.fieldStatistics).map(
+                  ([field, stats]) => (
+                    <div key={field} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">{field}</span>
+                        <Badge variant="outline">
+                          {stats.validationRate.toFixed(1)}%
+                        </Badge>
+                      </div>
+                      <div className="space-y-1">
+                        <Progress
+                          value={stats.validationRate}
+                          className="h-2"
+                        />
+                        <div className="flex text-xs text-gray-600 justify-between">
+                          <span>有效: {stats.valid}</span>
+                          <span>无效: {stats.invalid}</span>
+                          <span>缺失: {stats.missing}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                )}
               </div>
             </CardContent>
           </CollapsibleContent>

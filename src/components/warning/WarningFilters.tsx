@@ -65,7 +65,7 @@ const WarningFilters: React.FC<WarningFiltersProps> = ({
   onFilterChange,
   availableExamTypes = [
     "月考",
-    "期中考试", 
+    "期中考试",
     "期末考试",
     "模拟考试",
     "单元测试",
@@ -450,7 +450,9 @@ const WarningFilters: React.FC<WarningFiltersProps> = ({
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => updateFilter("classNames", [...availableClassNames])}
+                  onClick={() =>
+                    updateFilter("classNames", [...availableClassNames])
+                  }
                   className="text-xs border-gray-300"
                 >
                   全选班级
@@ -517,7 +519,9 @@ const WarningFilters: React.FC<WarningFiltersProps> = ({
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => updateFilter("examTitles", [...availableExamTitles])}
+                  onClick={() =>
+                    updateFilter("examTitles", [...availableExamTitles])
+                  }
                   className="text-xs border-gray-300"
                 >
                   全选考试

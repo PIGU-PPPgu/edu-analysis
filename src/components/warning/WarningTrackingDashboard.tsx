@@ -3,7 +3,7 @@
  * 管理预警记录、学生跟进和干预措施
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -54,11 +54,11 @@ import {
   UserPlus,
   Settings,
   X,
-} from 'lucide-react';
-import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
-import PriorityStudentManager from './PriorityStudentManager';
-import StudentDetailDialog from './StudentDetailDialog';
+} from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import PriorityStudentManager from "./PriorityStudentManager";
+import StudentDetailDialog from "./StudentDetailDialog";
 import {
   getWarningRecords,
   getStudentWarningProfile,
@@ -72,15 +72,15 @@ import {
   WarningRecord,
   StudentWarningProfile,
   WarningListFilter,
-} from '@/services/studentWarningTrackingService';
+} from "@/services/studentWarningTrackingService";
 import {
   getEnhancedPriorityStudents,
   removePriorityStudent,
   updatePriorityStudent,
   getStudentPriorityProfile,
   EnhancedPriorityStudent,
-} from '@/services/priorityStudentService';
-import { formatNumber } from '@/utils/formatUtils';
+} from "@/services/priorityStudentService";
+import { formatNumber } from "@/utils/formatUtils";
 
 interface WarningTrackingDashboardProps {
   className?: string;
@@ -99,7 +99,7 @@ const StatCard = ({
   value,
   icon: Icon,
   description,
-  color = "text-gray-800"
+  color = "text-gray-800",
 }: {
   title: string;
   value: string | number;
@@ -112,9 +112,7 @@ const StatCard = ({
       <div className="flex justify-between items-start">
         <div>
           <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
-          <p className={`text-3xl font-bold ${color}`}>
-            {formatNumber(value)}
-          </p>
+          <p className={`text-3xl font-bold ${color}`}>{formatNumber(value)}</p>
           {description && (
             <p className="text-sm text-gray-500 mt-1">{description}</p>
           )}
@@ -140,37 +138,45 @@ const PriorityStudentCard = ({
   onUpdate?: (student: EnhancedPriorityStudent) => void;
 }) => {
   const [showActions, setShowActions] = useState(false);
-  
+
   // 获取优先级颜色
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high': return 'bg-red-100 text-red-800 border-red-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'low': return 'bg-blue-100 text-blue-800 border-blue-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case "high":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "medium":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "low":
+        return "bg-blue-100 text-blue-800 border-blue-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
 
   // 获取优先级文本
   const getPriorityText = (priority: string) => {
     switch (priority) {
-      case 'high': return '高优先级';
-      case 'medium': return '中优先级';
-      case 'low': return '低优先级';
-      default: return priority;
+      case "high":
+        return "高优先级";
+      case "medium":
+        return "中优先级";
+      case "low":
+        return "低优先级";
+      default:
+        return priority;
     }
   };
 
   // 获取来源标注
   const getSourceBadge = (sourceType?: string) => {
-    if (sourceType === 'algorithm') {
+    if (sourceType === "algorithm") {
       return (
         <Badge className="bg-purple-100 text-purple-800 border-purple-200 text-xs flex items-center">
           <Bot className="h-3 w-3 mr-1" />
           算法
         </Badge>
       );
-    } else if (sourceType === 'manual') {
+    } else if (sourceType === "manual") {
       return (
         <Badge className="bg-green-100 text-green-800 border-green-200 text-xs flex items-center">
           <User className="h-3 w-3 mr-1" />
@@ -182,15 +188,21 @@ const PriorityStudentCard = ({
   };
 
   return (
-    <Card className={`bg-white border rounded-lg hover:shadow-md transition-shadow relative ${
-      student.isPriorityActive ? 'border-[#c0ff3f] bg-green-50/30' : 'border-gray-200'
-    }`}>
+    <Card
+      className={`bg-white border rounded-lg hover:shadow-md transition-shadow relative ${
+        student.isPriorityActive
+          ? "border-[#c0ff3f] bg-green-50/30"
+          : "border-gray-200"
+      }`}
+    >
       <CardContent className="p-4">
         {/* 卡片头部 */}
         <div className="flex justify-between items-start mb-3">
           <div className="flex-1">
             <div className="flex items-center space-x-2 mb-1">
-              <h3 className="font-medium text-gray-800">{student.studentName}</h3>
+              <h3 className="font-medium text-gray-800">
+                {student.studentName}
+              </h3>
               {getSourceBadge(student.sourceType)}
             </div>
             <p className="text-sm text-gray-500">{student.className}</p>
@@ -232,19 +244,26 @@ const PriorityStudentCard = ({
         {student.interventionGoals && student.interventionGoals.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-3">
             {student.interventionGoals.slice(0, 2).map((goal, index) => (
-              <Badge key={index} variant="secondary" className="text-xs bg-blue-100 text-blue-800 border-blue-200">
+              <Badge
+                key={index}
+                variant="secondary"
+                className="text-xs bg-blue-100 text-blue-800 border-blue-200"
+              >
                 <Target className="h-2 w-2 mr-1" />
                 {goal}
               </Badge>
             ))}
             {student.interventionGoals.length > 2 && (
-              <Badge variant="secondary" className="text-xs text-gray-500 bg-gray-100">
+              <Badge
+                variant="secondary"
+                className="text-xs text-gray-500 bg-gray-100"
+              >
                 +{student.interventionGoals.length - 2} 个目标
               </Badge>
             )}
           </div>
         )}
-        
+
         {/* 统计信息 */}
         <div className="space-y-2 mb-3">
           <div className="flex items-center text-sm text-gray-600">
@@ -258,7 +277,7 @@ const PriorityStudentCard = ({
           </div>
           <div className="flex items-center text-sm text-gray-600">
             <Clock className="h-4 w-4 mr-2 text-blue-500" />
-            <span>最近预警: {student.latestWarningDate || '无预警'}</span>
+            <span>最近预警: {student.latestWarningDate || "无预警"}</span>
           </div>
           <div className="flex items-center text-sm text-gray-600">
             <MessageSquare className="h-4 w-4 mr-2 text-green-500" />
@@ -272,7 +291,7 @@ const PriorityStudentCard = ({
             {student.reasonDescription}
           </div>
         )}
-        
+
         {/* 操作按钮 */}
         <div className="space-y-2">
           {/* 主要操作按钮 */}
@@ -298,46 +317,57 @@ const PriorityStudentCard = ({
               </Button>
             )}
           </div>
-          
+
           {/* 危险操作按钮 - 只在需要时显示 */}
-          {showActions && student.isPriorityActive && onRemove && student.priorityManagementId && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                onRemove(student.priorityManagementId!);
-                setShowActions(false);
-              }}
-              className="w-full text-xs text-red-600 hover:text-red-700 border-red-300"
-            >
-              <X className="h-3 w-3 mr-1" />
-              移除重点跟进
-            </Button>
-          )}
+          {showActions &&
+            student.isPriorityActive &&
+            onRemove &&
+            student.priorityManagementId && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  onRemove(student.priorityManagementId!);
+                  setShowActions(false);
+                }}
+                className="w-full text-xs text-red-600 hover:text-red-700 border-red-300"
+              >
+                <X className="h-3 w-3 mr-1" />
+                移除重点跟进
+              </Button>
+            )}
         </div>
       </CardContent>
     </Card>
   );
 };
 
-const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ className, filterConfig }) => {
+const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({
+  className,
+  filterConfig,
+}) => {
   // 状态管理
-  const [activeTab, setActiveTab] = useState('records');
+  const [activeTab, setActiveTab] = useState("records");
   const [warningRecords, setWarningRecords] = useState<WarningRecord[]>([]);
-  const [priorityStudents, setPriorityStudents] = useState<EnhancedPriorityStudent[]>([]);
-  
+  const [priorityStudents, setPriorityStudents] = useState<
+    EnhancedPriorityStudent[]
+  >([]);
+
   // 学生详情弹窗状态
-  const [selectedStudent, setSelectedStudent] = useState<EnhancedPriorityStudent | null>(null);
+  const [selectedStudent, setSelectedStudent] =
+    useState<EnhancedPriorityStudent | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
-  const [detailDialogMode, setDetailDialogMode] = useState<'view' | 'edit'>('view');
+  const [detailDialogMode, setDetailDialogMode] = useState<"view" | "edit">(
+    "view"
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [selectedRecords, setSelectedRecords] = useState<string[]>([]);
-  
+
   // 过滤和搜索状态
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [severityFilter, setSeverityFilter] = useState<string>('all');
-  
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [severityFilter, setSeverityFilter] = useState<string>("all");
+
   // 统计数据状态
   const [stats, setStats] = useState({
     activeWarnings: 0,
@@ -354,7 +384,10 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
   // 监听筛选配置变化
   useEffect(() => {
     if (filterConfig) {
-      console.log('🔍 [WarningTrackingDashboard] 筛选配置变化，重新加载数据:', filterConfig);
+      console.log(
+        "🔍 [WarningTrackingDashboard] 筛选配置变化，重新加载数据:",
+        filterConfig
+      );
       loadTrackingData();
     }
   }, [filterConfig]);
@@ -362,40 +395,50 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
   const loadTrackingData = async () => {
     try {
       setIsLoading(true);
-      
+
       // 构建过滤条件，结合外部筛选配置
       const filter: WarningListFilter = {
-        status: statusFilter !== 'all' ? statusFilter as any : undefined,
-        severity: severityFilter !== 'all' ? severityFilter as any : undefined,
+        status: statusFilter !== "all" ? (statusFilter as any) : undefined,
+        severity:
+          severityFilter !== "all" ? (severityFilter as any) : undefined,
         searchTerm: searchTerm.trim() || undefined,
         // 如果有外部筛选配置，使用第一个班级（单选模式）
-        className: filterConfig?.classNames && filterConfig.classNames.length > 0 
-          ? filterConfig.classNames[0] 
-          : undefined,
+        className:
+          filterConfig?.classNames && filterConfig.classNames.length > 0
+            ? filterConfig.classNames[0]
+            : undefined,
         // 🆕 添加考试筛选支持
-        examTitles: filterConfig?.examTitles && filterConfig.examTitles.length > 0 
-          ? filterConfig.examTitles 
-          : undefined,
+        examTitles:
+          filterConfig?.examTitles && filterConfig.examTitles.length > 0
+            ? filterConfig.examTitles
+            : undefined,
       };
 
-      console.log('🔍 [WarningTrackingDashboard] 构建的筛选条件:', filter);
-      console.log('🔍 [WarningTrackingDashboard] 外部筛选配置:', filterConfig);
+      console.log("🔍 [WarningTrackingDashboard] 构建的筛选条件:", filter);
+      console.log("🔍 [WarningTrackingDashboard] 外部筛选配置:", filterConfig);
 
       // 重点：使用基于成绩的实时计算，传递完整的筛选配置
       const priorityStudentsResult = await getEnhancedPriorityStudents(20, {
         classNames: filterConfig?.classNames,
         examTitles: filterConfig?.examTitles,
-        timeRange: filterConfig?.timeRange
+        timeRange: filterConfig?.timeRange,
       });
 
-      console.log('📊 [WarningTrackingDashboard] 获取到优先级学生:', priorityStudentsResult.length, '名');
-      console.log('🎯 [WarningTrackingDashboard] 学生详情:', priorityStudentsResult.map(s => ({
-        name: s.studentName,
-        class: s.className,
-        priority: s.finalPriority,
-        reasons: s.customTags,
-        riskScore: s.effectiveRiskScore
-      })));
+      console.log(
+        "📊 [WarningTrackingDashboard] 获取到优先级学生:",
+        priorityStudentsResult.length,
+        "名"
+      );
+      console.log(
+        "🎯 [WarningTrackingDashboard] 学生详情:",
+        priorityStudentsResult.map((s) => ({
+          name: s.studentName,
+          class: s.className,
+          priority: s.finalPriority,
+          reasons: s.customTags,
+          riskScore: s.effectiveRiskScore,
+        }))
+      );
 
       // 并行加载预警记录数据（保留原有功能）
       const recordsResult = await getWarningRecords(filter, 50, 0);
@@ -404,16 +447,21 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
       setPriorityStudents(priorityStudentsResult);
 
       // 计算统计数据 - 基于实际获取的学生数据
-      const activeWarnings = recordsResult.records.filter(r => r.status === 'active').length;
-      const highPriorityStudents = priorityStudentsResult.filter(s => s.finalPriority === 'high').length;
+      const activeWarnings = recordsResult.records.filter(
+        (r) => r.status === "active"
+      ).length;
+      const highPriorityStudents = priorityStudentsResult.filter(
+        (s) => s.finalPriority === "high"
+      ).length;
       const totalAtRiskStudents = priorityStudentsResult.length;
-      const resolvedToday = recordsResult.records.filter(r => 
-        r.status === 'resolved' && 
-        r.resolvedAt && 
-        new Date(r.resolvedAt).toDateString() === new Date().toDateString()
+      const resolvedToday = recordsResult.records.filter(
+        (r) =>
+          r.status === "resolved" &&
+          r.resolvedAt &&
+          new Date(r.resolvedAt).toDateString() === new Date().toDateString()
       ).length;
 
-      console.log('📈 [WarningTrackingDashboard] 统计数据:', {
+      console.log("📈 [WarningTrackingDashboard] 统计数据:", {
         activeWarnings,
         highPriorityStudents,
         totalAtRiskStudents,
@@ -426,10 +474,9 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
         totalAtRiskStudents,
         resolvedToday,
       });
-
     } catch (error) {
-      console.error('加载追踪数据失败:', error);
-      toast.error('加载数据失败');
+      console.error("加载追踪数据失败:", error);
+      toast.error("加载数据失败");
     } finally {
       setIsLoading(false);
     }
@@ -440,67 +487,81 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
     const delayedLoad = setTimeout(() => {
       loadTrackingData();
     }, 300);
-    
+
     return () => clearTimeout(delayedLoad);
   }, [searchTerm, statusFilter, severityFilter]);
 
   // 过滤后的预警记录
   const filteredRecords = useMemo(() => {
-    return warningRecords.filter(record => {
-      const matchesSearch = !searchTerm || 
+    return warningRecords.filter((record) => {
+      const matchesSearch =
+        !searchTerm ||
         record.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         record.className.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        record.details.ruleName?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesStatus = statusFilter === 'all' || record.status === statusFilter;
-      const matchesSeverity = severityFilter === 'all' || record.details.severity === severityFilter;
-      
+        record.details.ruleName
+          ?.toLowerCase()
+          .includes(searchTerm.toLowerCase());
+
+      const matchesStatus =
+        statusFilter === "all" || record.status === statusFilter;
+      const matchesSeverity =
+        severityFilter === "all" || record.details.severity === severityFilter;
+
       return matchesSearch && matchesStatus && matchesSeverity;
     });
   }, [warningRecords, searchTerm, statusFilter, severityFilter]);
 
   // 处理单个预警解决 - 优化用户体验
-  const handleResolveWarning = async (warningId: string, action: 'resolved' | 'dismissed') => {
+  const handleResolveWarning = async (
+    warningId: string,
+    action: "resolved" | "dismissed"
+  ) => {
     try {
       // 乐观更新：立即更新本地状态
-      setWarningRecords(prevRecords => 
-        prevRecords.map(record => 
-          record.id === warningId 
-            ? { ...record, status: action as const, resolvedAt: new Date().toISOString() }
+      setWarningRecords((prevRecords) =>
+        prevRecords.map((record) =>
+          record.id === warningId
+            ? {
+                ...record,
+                status: action as const,
+                resolvedAt: new Date().toISOString(),
+              }
             : record
         )
       );
 
       // 获取当前用户ID
-      const { data: { user } } = await supabase.auth.getUser();
-      const userId = user?.id || 'anonymous-user';
-      
-      const success = await resolveWarning(warningId, action, '', userId);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const userId = user?.id || "anonymous-user";
+
+      const success = await resolveWarning(warningId, action, "", userId);
       if (success) {
-        toast.success(`预警已${action === 'resolved' ? '解决' : '忽略'}`);
+        toast.success(`预警已${action === "resolved" ? "解决" : "忽略"}`);
         // 更新统计数据
-        setStats(prevStats => ({
+        setStats((prevStats) => ({
           ...prevStats,
           activeWarnings: prevStats.activeWarnings - 1,
         }));
       } else {
         // 如果失败，回滚乐观更新
-        setWarningRecords(prevRecords => 
-          prevRecords.map(record => 
-            record.id === warningId 
-              ? { ...record, status: 'active' as const, resolvedAt: undefined }
+        setWarningRecords((prevRecords) =>
+          prevRecords.map((record) =>
+            record.id === warningId
+              ? { ...record, status: "active" as const, resolvedAt: undefined }
               : record
           )
         );
       }
     } catch (error) {
-      console.error('处理预警失败:', error);
-      toast.error('操作失败');
+      console.error("处理预警失败:", error);
+      toast.error("操作失败");
       // 回滚乐观更新
-      setWarningRecords(prevRecords => 
-        prevRecords.map(record => 
-          record.id === warningId 
-            ? { ...record, status: 'active' as const, resolvedAt: undefined }
+      setWarningRecords((prevRecords) =>
+        prevRecords.map((record) =>
+          record.id === warningId
+            ? { ...record, status: "active" as const, resolvedAt: undefined }
             : record
         )
       );
@@ -508,9 +569,9 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
   };
 
   // 批量处理预警 - 优化用户体验
-  const handleBatchResolve = async (action: 'resolved' | 'dismissed') => {
+  const handleBatchResolve = async (action: "resolved" | "dismissed") => {
     if (selectedRecords.length === 0) {
-      toast.warning('请选择要处理的预警记录');
+      toast.warning("请选择要处理的预警记录");
       return;
     }
 
@@ -518,26 +579,39 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
 
     try {
       // 乐观更新：立即更新本地状态
-      setWarningRecords(prevRecords => 
-        prevRecords.map(record => 
+      setWarningRecords((prevRecords) =>
+        prevRecords.map((record) =>
           selectedRecords.includes(record.id)
-            ? { ...record, status: action as const, resolvedAt: new Date().toISOString() }
+            ? {
+                ...record,
+                status: action as const,
+                resolvedAt: new Date().toISOString(),
+              }
             : record
         )
       );
 
       // 获取当前用户ID
-      const { data: { user } } = await supabase.auth.getUser();
-      const userId = user?.id || 'anonymous-user';
-      
-      const results = await batchResolveWarnings(selectedRecords, action, '', userId);
-      const successCount = results.filter(r => r.success).length;
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const userId = user?.id || "anonymous-user";
+
+      const results = await batchResolveWarnings(
+        selectedRecords,
+        action,
+        "",
+        userId
+      );
+      const successCount = results.filter((r) => r.success).length;
       const failedCount = selectedCount - successCount;
-      
+
       if (successCount > 0) {
-        toast.success(`成功${action === 'resolved' ? '解决' : '忽略'}了 ${successCount} 条预警`);
+        toast.success(
+          `成功${action === "resolved" ? "解决" : "忽略"}了 ${successCount} 条预警`
+        );
         // 更新统计数据
-        setStats(prevStats => ({
+        setStats((prevStats) => ({
           ...prevStats,
           activeWarnings: prevStats.activeWarnings - successCount,
         }));
@@ -546,27 +620,29 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
       if (failedCount > 0) {
         toast.warning(`${failedCount} 条记录处理失败`);
         // 回滚失败的记录
-        const failedIds = results.filter(r => !r.success).map(r => r.warningId);
-        setWarningRecords(prevRecords => 
-          prevRecords.map(record => 
+        const failedIds = results
+          .filter((r) => !r.success)
+          .map((r) => r.warningId);
+        setWarningRecords((prevRecords) =>
+          prevRecords.map((record) =>
             failedIds.includes(record.id)
-              ? { ...record, status: 'active' as const, resolvedAt: undefined }
+              ? { ...record, status: "active" as const, resolvedAt: undefined }
               : record
           )
         );
       }
-      
+
       // 清除选择但不刷新整个列表
       setSelectedRecords([]);
     } catch (error) {
-      console.error('批量处理失败:', error);
-      toast.error('批量操作失败');
-      
+      console.error("批量处理失败:", error);
+      toast.error("批量操作失败");
+
       // 完全回滚乐观更新
-      setWarningRecords(prevRecords => 
-        prevRecords.map(record => 
+      setWarningRecords((prevRecords) =>
+        prevRecords.map((record) =>
           selectedRecords.includes(record.id)
-            ? { ...record, status: 'active' as const, resolvedAt: undefined }
+            ? { ...record, status: "active" as const, resolvedAt: undefined }
             : record
         )
       );
@@ -577,44 +653,54 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
   const handleUndoWarning = async (warningId: string) => {
     try {
       // 乐观更新：立即更新本地状态
-      setWarningRecords(prevRecords => 
-        prevRecords.map(record => 
-          record.id === warningId 
-            ? { ...record, status: 'active' as const, resolvedAt: undefined }
+      setWarningRecords((prevRecords) =>
+        prevRecords.map((record) =>
+          record.id === warningId
+            ? { ...record, status: "active" as const, resolvedAt: undefined }
             : record
         )
       );
 
       // 获取当前用户ID
-      const { data: { user } } = await supabase.auth.getUser();
-      const userId = user?.id || 'anonymous-user';
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const userId = user?.id || "anonymous-user";
+
       const success = await undoWarningAction(warningId, userId);
       if (success) {
-        toast.success('预警已重新激活');
+        toast.success("预警已重新激活");
         // 不需要重新加载整个列表，只更新统计数据
-        setStats(prevStats => ({
+        setStats((prevStats) => ({
           ...prevStats,
           activeWarnings: prevStats.activeWarnings + 1,
         }));
       } else {
         // 如果失败，回滚乐观更新
-        setWarningRecords(prevRecords => 
-          prevRecords.map(record => 
-            record.id === warningId 
-              ? { ...record, status: 'resolved' as const, resolvedAt: new Date().toISOString() }
+        setWarningRecords((prevRecords) =>
+          prevRecords.map((record) =>
+            record.id === warningId
+              ? {
+                  ...record,
+                  status: "resolved" as const,
+                  resolvedAt: new Date().toISOString(),
+                }
               : record
           )
         );
       }
     } catch (error) {
-      console.error('撤销预警失败:', error);
-      toast.error('撤销失败');
+      console.error("撤销预警失败:", error);
+      toast.error("撤销失败");
       // 回滚乐观更新
-      setWarningRecords(prevRecords => 
-        prevRecords.map(record => 
-          record.id === warningId 
-            ? { ...record, status: 'resolved' as const, resolvedAt: new Date().toISOString() }
+      setWarningRecords((prevRecords) =>
+        prevRecords.map((record) =>
+          record.id === warningId
+            ? {
+                ...record,
+                status: "resolved" as const,
+                resolvedAt: new Date().toISOString(),
+              }
             : record
         )
       );
@@ -624,7 +710,7 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
   // 批量撤销预警 - 优化用户体验
   const handleBatchUndo = async () => {
     if (selectedRecords.length === 0) {
-      toast.warning('请选择要撤销的预警记录');
+      toast.warning("请选择要撤销的预警记录");
       return;
     }
 
@@ -632,26 +718,28 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
 
     try {
       // 乐观更新：立即更新本地状态
-      setWarningRecords(prevRecords => 
-        prevRecords.map(record => 
+      setWarningRecords((prevRecords) =>
+        prevRecords.map((record) =>
           selectedRecords.includes(record.id)
-            ? { ...record, status: 'active' as const, resolvedAt: undefined }
+            ? { ...record, status: "active" as const, resolvedAt: undefined }
             : record
         )
       );
 
       // 获取当前用户ID
-      const { data: { user } } = await supabase.auth.getUser();
-      const userId = user?.id || 'anonymous-user';
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const userId = user?.id || "anonymous-user";
+
       const results = await batchUndoWarnings(selectedRecords, userId);
-      const successCount = results.filter(r => r.success).length;
+      const successCount = results.filter((r) => r.success).length;
       const failedCount = selectedCount - successCount;
-      
+
       if (successCount > 0) {
         toast.success(`成功撤销了 ${successCount} 条预警操作`);
         // 更新统计数据
-        setStats(prevStats => ({
+        setStats((prevStats) => ({
           ...prevStats,
           activeWarnings: prevStats.activeWarnings + successCount,
         }));
@@ -660,27 +748,37 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
       if (failedCount > 0) {
         toast.warning(`${failedCount} 条记录撤销失败`);
         // 回滚失败的记录
-        const failedIds = results.filter(r => !r.success).map(r => r.warningId);
-        setWarningRecords(prevRecords => 
-          prevRecords.map(record => 
+        const failedIds = results
+          .filter((r) => !r.success)
+          .map((r) => r.warningId);
+        setWarningRecords((prevRecords) =>
+          prevRecords.map((record) =>
             failedIds.includes(record.id)
-              ? { ...record, status: 'resolved' as const, resolvedAt: new Date().toISOString() }
+              ? {
+                  ...record,
+                  status: "resolved" as const,
+                  resolvedAt: new Date().toISOString(),
+                }
               : record
           )
         );
       }
-      
+
       // 清除选择但不刷新整个列表
       setSelectedRecords([]);
     } catch (error) {
-      console.error('批量撤销失败:', error);
-      toast.error('批量撤销失败');
-      
+      console.error("批量撤销失败:", error);
+      toast.error("批量撤销失败");
+
       // 完全回滚乐观更新
-      setWarningRecords(prevRecords => 
-        prevRecords.map(record => 
+      setWarningRecords((prevRecords) =>
+        prevRecords.map((record) =>
           selectedRecords.includes(record.id)
-            ? { ...record, status: 'resolved' as const, resolvedAt: new Date().toISOString() }
+            ? {
+                ...record,
+                status: "resolved" as const,
+                resolvedAt: new Date().toISOString(),
+              }
             : record
         )
       );
@@ -689,16 +787,16 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
 
   // 查看学生详情
   const handleViewStudentDetails = (studentId: string) => {
-    console.log('👁️ [WarningTrackingDashboard] 查看学生详情:', studentId);
-    const student = priorityStudents.find(s => s.studentId === studentId);
-    console.log('🔍 [WarningTrackingDashboard] 找到的学生数据:', student);
-    console.log('  - interventionGoals:', student?.interventionGoals);
+    console.log("👁️ [WarningTrackingDashboard] 查看学生详情:", studentId);
+    const student = priorityStudents.find((s) => s.studentId === studentId);
+    console.log("🔍 [WarningTrackingDashboard] 找到的学生数据:", student);
+    console.log("  - interventionGoals:", student?.interventionGoals);
     if (student) {
       setSelectedStudent(student);
-      setDetailDialogMode('view');
+      setDetailDialogMode("view");
       setIsDetailDialogOpen(true);
     } else {
-      toast.error('未找到学生信息');
+      toast.error("未找到学生信息");
     }
   };
 
@@ -708,25 +806,25 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
       const success = await removePriorityStudent(priorityId);
       if (success) {
         // 乐观更新：立即从本地状态中移除
-        setPriorityStudents(prev => 
-          prev.filter(s => s.priorityManagementId !== priorityId)
+        setPriorityStudents((prev) =>
+          prev.filter((s) => s.priorityManagementId !== priorityId)
         );
         // 更新统计数据
-        setStats(prevStats => ({
+        setStats((prevStats) => ({
           ...prevStats,
           totalAtRiskStudents: Math.max(0, prevStats.totalAtRiskStudents - 1),
         }));
       }
     } catch (error) {
-      console.error('移除重点跟进学生失败:', error);
-      toast.error('移除失败');
+      console.error("移除重点跟进学生失败:", error);
+      toast.error("移除失败");
     }
   };
 
   // 更新重点跟进学生
   const handleUpdatePriorityStudent = (student: EnhancedPriorityStudent) => {
     setSelectedStudent(student);
-    setDetailDialogMode('edit');
+    setDetailDialogMode("edit");
     setIsDetailDialogOpen(true);
   };
 
@@ -748,9 +846,9 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
 
   // 切换选择
   const toggleSelectRecord = (recordId: string) => {
-    setSelectedRecords(prev => 
-      prev.includes(recordId) 
-        ? prev.filter(id => id !== recordId)
+    setSelectedRecords((prev) =>
+      prev.includes(recordId)
+        ? prev.filter((id) => id !== recordId)
         : [...prev, recordId]
     );
   };
@@ -760,47 +858,63 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
     if (selectedRecords.length === filteredRecords.length) {
       setSelectedRecords([]);
     } else {
-      setSelectedRecords(filteredRecords.map(record => record.id));
+      setSelectedRecords(filteredRecords.map((record) => record.id));
     }
   };
 
   // 获取状态显示文本
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'active': return '活跃';
-      case 'resolved': return '已解决';
-      case 'dismissed': return '已忽略';
-      default: return status;
+      case "active":
+        return "活跃";
+      case "resolved":
+        return "已解决";
+      case "dismissed":
+        return "已忽略";
+      default:
+        return status;
     }
   };
 
   // 获取状态颜色
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-red-100 text-red-800 border-red-200';
-      case 'resolved': return 'bg-green-100 text-green-800 border-green-200';
-      case 'dismissed': return 'bg-gray-100 text-gray-800 border-gray-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case "active":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "resolved":
+        return "bg-green-100 text-green-800 border-green-200";
+      case "dismissed":
+        return "bg-gray-100 text-gray-800 border-gray-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
 
   // 获取严重程度文本
   const getSeverityText = (severity: string) => {
     switch (severity) {
-      case 'high': return '高风险';
-      case 'medium': return '中风险';
-      case 'low': return '低风险';
-      default: return '未知';
+      case "high":
+        return "高风险";
+      case "medium":
+        return "中风险";
+      case "low":
+        return "低风险";
+      default:
+        return "未知";
     }
   };
 
   // 获取严重程度颜色
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'high': return 'bg-red-100 text-red-800 border-red-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'low': return 'bg-green-100 text-green-800 border-green-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case "high":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "medium":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "low":
+        return "bg-green-100 text-green-800 border-green-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
 
@@ -808,30 +922,43 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
   const getWarningTriggerDetails = (details: any): string => {
     try {
       // 成绩下降预警
-      if (details.drop && details.subject && details.current_exam && details.previous_exam) {
+      if (
+        details.drop &&
+        details.subject &&
+        details.current_exam &&
+        details.previous_exam
+      ) {
         return `${details.subject}: ${details.previous_exam.score}分 → ${details.current_exam.score}分 (下降${details.drop}分)`;
       }
 
       // 连续不及格预警
       if (details.subject && details.exams && Array.isArray(details.exams)) {
-        const scores = details.exams.map(exam => `${exam.score}分`).join(', ');
+        const scores = details.exams
+          .map((exam) => `${exam.score}分`)
+          .join(", ");
         return `${details.subject}: ${scores} (连续不及格)`;
       }
 
       // 综合成绩预警
       if (details.failed_subjects && Array.isArray(details.failed_subjects)) {
-        const subjects = details.failed_subjects.map(s => `${s.subject}(${s.score}分)`).join(', ');
+        const subjects = details.failed_subjects
+          .map((s) => `${s.subject}(${s.score}分)`)
+          .join(", ");
         return `不及格科目: ${subjects}`;
       }
 
       // 出勤率预警
-      if (details.attendance_rate !== undefined && details.present_days && details.total_days) {
+      if (
+        details.attendance_rate !== undefined &&
+        details.present_days &&
+        details.total_days
+      ) {
         return `出勤率: ${(details.attendance_rate * 100).toFixed(1)}% (${details.present_days}/${details.total_days}天)`;
       }
 
       // 基于风险因素的预警（可能来自ML算法）
       if (details.riskFactors && Array.isArray(details.riskFactors)) {
-        return `风险因素: ${details.riskFactors.join(', ')}`;
+        return `风险因素: ${details.riskFactors.join(", ")}`;
       }
 
       // 如果有风险评分
@@ -839,10 +966,10 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
         return `风险评分: ${details.riskScore}`;
       }
 
-      return '详细信息不可用';
+      return "详细信息不可用";
     } catch (error) {
-      console.warn('解析预警触发条件失败:', error);
-      return '数据格式异常';
+      console.warn("解析预警触发条件失败:", error);
+      return "数据格式异常";
     }
   };
 
@@ -931,7 +1058,7 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
                       </span>
                       <Button
                         size="sm"
-                        onClick={() => handleBatchResolve('resolved')}
+                        onClick={() => handleBatchResolve("resolved")}
                         className="bg-green-600 hover:bg-green-700 text-white"
                       >
                         批量解决
@@ -939,7 +1066,7 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleBatchResolve('dismissed')}
+                        onClick={() => handleBatchResolve("dismissed")}
                         className="border-gray-300"
                       >
                         批量忽略
@@ -967,7 +1094,7 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
                 </div>
               </div>
             </CardHeader>
-            
+
             <CardContent className="space-y-4">
               {/* 搜索和过滤 */}
               <div className="flex items-center space-x-4">
@@ -980,7 +1107,7 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
                     className="pl-10"
                   />
                 </div>
-                
+
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-32">
                     <SelectValue placeholder="状态" />
@@ -992,8 +1119,11 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
                     <SelectItem value="dismissed">已忽略</SelectItem>
                   </SelectContent>
                 </Select>
-                
-                <Select value={severityFilter} onValueChange={setSeverityFilter}>
+
+                <Select
+                  value={severityFilter}
+                  onValueChange={setSeverityFilter}
+                >
                   <SelectTrigger className="w-32">
                     <SelectValue placeholder="风险级别" />
                   </SelectTrigger>
@@ -1013,7 +1143,10 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
                     <TableRow>
                       <TableHead className="w-12">
                         <Checkbox
-                          checked={selectedRecords.length === filteredRecords.length && filteredRecords.length > 0}
+                          checked={
+                            selectedRecords.length === filteredRecords.length &&
+                            filteredRecords.length > 0
+                          }
                           onCheckedChange={toggleSelectAll}
                         />
                       </TableHead>
@@ -1028,7 +1161,10 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
                   <TableBody>
                     {filteredRecords.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                        <TableCell
+                          colSpan={7}
+                          className="text-center py-8 text-gray-500"
+                        >
                           <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                           <p>暂无预警记录</p>
                         </TableCell>
@@ -1039,7 +1175,9 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
                           <TableCell>
                             <Checkbox
                               checked={selectedRecords.includes(record.id)}
-                              onCheckedChange={() => toggleSelectRecord(record.id)}
+                              onCheckedChange={() =>
+                                toggleSelectRecord(record.id)
+                              }
                             />
                           </TableCell>
                           <TableCell>
@@ -1057,10 +1195,10 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
                             <div className="space-y-1">
                               <div className="flex items-center space-x-2">
                                 <span className="text-sm font-medium">
-                                  {record.details.ruleName || '系统预警'}
+                                  {record.details.ruleName || "系统预警"}
                                 </span>
                                 {/* 🆕 预警类型标识 */}
-                                {record.details.generatedBy === 'ML' ? (
+                                {record.details.generatedBy === "ML" ? (
                                   <Badge className="bg-purple-100 text-purple-800 border-purple-200 text-xs">
                                     <Bot className="h-3 w-3 mr-1" />
                                     AI算法
@@ -1079,7 +1217,7 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
                                 </div>
                               )}
                               {/* 🆕 触发条件详情 */}
-                              {record.details.generatedBy !== 'ML' && (
+                              {record.details.generatedBy !== "ML" && (
                                 <div className="text-xs text-gray-400">
                                   {getWarningTriggerDetails(record.details)}
                                 </div>
@@ -1087,7 +1225,11 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge className={getSeverityColor(record.details.severity)}>
+                            <Badge
+                              className={getSeverityColor(
+                                record.details.severity
+                              )}
+                            >
                               {getSeverityText(record.details.severity)}
                             </Badge>
                           </TableCell>
@@ -1097,9 +1239,15 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
                             </Badge>
                           </TableCell>
                           <TableCell className="text-sm text-gray-600">
-                            <div>{new Date(record.createdAt).toLocaleDateString('zh-CN')}</div>
+                            <div>
+                              {new Date(record.createdAt).toLocaleDateString(
+                                "zh-CN"
+                              )}
+                            </div>
                             <div className="text-xs text-gray-400">
-                              {new Date(record.createdAt).toLocaleTimeString('zh-CN')}
+                              {new Date(record.createdAt).toLocaleTimeString(
+                                "zh-CN"
+                              )}
                             </div>
                           </TableCell>
                           <TableCell className="text-right">
@@ -1107,15 +1255,22 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => handleViewStudentDetails(record.studentId)}
+                                onClick={() =>
+                                  handleViewStudentDetails(record.studentId)
+                                }
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
-                              {record.status === 'active' ? (
+                              {record.status === "active" ? (
                                 <>
                                   <Button
                                     size="sm"
-                                    onClick={() => handleResolveWarning(record.id, 'resolved')}
+                                    onClick={() =>
+                                      handleResolveWarning(
+                                        record.id,
+                                        "resolved"
+                                      )
+                                    }
                                     className="bg-green-600 hover:bg-green-700 text-white"
                                   >
                                     解决
@@ -1123,21 +1278,29 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => handleResolveWarning(record.id, 'dismissed')}
+                                    onClick={() =>
+                                      handleResolveWarning(
+                                        record.id,
+                                        "dismissed"
+                                      )
+                                    }
                                   >
                                     忽略
                                   </Button>
                                 </>
-                              ) : (record.status === 'resolved' || record.status === 'dismissed') && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleUndoWarning(record.id)}
-                                  className="border-orange-300 text-orange-700 hover:bg-orange-50"
-                                >
-                                  <Undo2 className="h-3 w-3 mr-1" />
-                                  撤销
-                                </Button>
+                              ) : (
+                                (record.status === "resolved" ||
+                                  record.status === "dismissed") && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleUndoWarning(record.id)}
+                                    className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                                  >
+                                    <Undo2 className="h-3 w-3 mr-1" />
+                                    撤销
+                                  </Button>
+                                )
                               )}
                             </div>
                           </TableCell>
@@ -1168,7 +1331,7 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
                   <PriorityStudentManager
                     onStudentAdded={handlePriorityStudentAdded}
                     trigger={
-                      <Button 
+                      <Button
                         size="sm"
                         className="bg-[#c0ff3f] hover:bg-[#a8e635] text-black"
                       >
@@ -1189,7 +1352,7 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
                 </div>
               </div>
             </CardHeader>
-            
+
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {priorityStudents.length === 0 ? (
@@ -1203,8 +1366,16 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({ cla
                       key={student.studentId}
                       student={student}
                       onViewDetails={handleViewStudentDetails}
-                      onRemove={student.isPriorityActive ? handleRemovePriorityStudent : undefined}
-                      onUpdate={student.isPriorityActive ? handleUpdatePriorityStudent : undefined}
+                      onRemove={
+                        student.isPriorityActive
+                          ? handleRemovePriorityStudent
+                          : undefined
+                      }
+                      onUpdate={
+                        student.isPriorityActive
+                          ? handleUpdatePriorityStudent
+                          : undefined
+                      }
                     />
                   ))
                 )}

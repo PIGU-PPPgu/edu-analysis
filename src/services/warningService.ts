@@ -141,7 +141,7 @@ async function getTotalStudents(): Promise<number> {
 async function getStudentsWithWarnings(filter?: WarningFilter): Promise<any[]> {
   try {
     console.log("🔍 getStudentsWithWarnings - 筛选条件:", filter);
-    
+
     // 构建查询条件
     let statusFilter = ["active", "resolved", "dismissed"];
     if (filter?.warningStatus && filter.warningStatus.length > 0) {
@@ -149,14 +149,19 @@ async function getStudentsWithWarnings(filter?: WarningFilter): Promise<any[]> {
     }
 
     // 如果有班级筛选，需要关联students表
-    let query = supabase.from("warning_records").select(`
+    let query = supabase
+      .from("warning_records")
+      .select(
+        `
       student_id,
       students!inner(
         student_id,
         name,
         class_name
       )
-    `).in("status", statusFilter);
+    `
+      )
+      .in("status", statusFilter);
 
     // 应用班级筛选
     if (filter?.classNames && filter.classNames.length > 0) {
@@ -174,8 +179,14 @@ async function getStudentsWithWarnings(filter?: WarningFilter): Promise<any[]> {
         .in("exam_title", filter.examTitles);
 
       if (!gradeError && gradeData && gradeData.length > 0) {
-        const studentIdsFromGrades = [...new Set(gradeData.map(g => g.student_id))];
-        console.log("📊 从考试筛选获得的学生ID:", studentIdsFromGrades.length, "个");
+        const studentIdsFromGrades = [
+          ...new Set(gradeData.map((g) => g.student_id)),
+        ];
+        console.log(
+          "📊 从考试筛选获得的学生ID:",
+          studentIdsFromGrades.length,
+          "个"
+        );
         query = query.in("student_id", studentIdsFromGrades);
       } else {
         console.warn("⚠️ 考试筛选未找到匹配学生，返回空结果");
@@ -190,25 +201,33 @@ async function getStudentsWithWarnings(filter?: WarningFilter): Promise<any[]> {
       return [];
     }
 
-    console.log("✅ getStudentsWithWarnings - 查询结果:", data?.length, "条记录");
+    console.log(
+      "✅ getStudentsWithWarnings - 查询结果:",
+      data?.length,
+      "条记录"
+    );
 
     // 去重并返回学生信息
     const uniqueStudents = [];
     const seenIds = new Set();
-    
+
     if (data) {
       for (const record of data) {
         if (!seenIds.has(record.student_id)) {
           seenIds.add(record.student_id);
           uniqueStudents.push({
             student_id: record.student_id,
-            student_info: record.students
+            student_info: record.students,
           });
         }
       }
     }
 
-    console.log("✅ getStudentsWithWarnings - 最终返回:", uniqueStudents.length, "个唯一学生");
+    console.log(
+      "✅ getStudentsWithWarnings - 最终返回:",
+      uniqueStudents.length,
+      "个唯一学生"
+    );
     return uniqueStudents;
   } catch (error) {
     console.error("获取预警学生失败:", error);
@@ -384,13 +403,11 @@ export async function getWarningStatistics(
 async function getWarningStatisticsRealtime(
   filter?: WarningFilter
 ): Promise<WarningStatistics> {
-  console.log('🚀 [新架构] 基于原始数据实时计算预警统计', filter);
-  
+  console.log("🚀 [新架构] 基于原始数据实时计算预警统计", filter);
+
   try {
     // 1. 构建成绩数据查询 - 使用grade_data_new表（宽表格式）
-    let gradesQuery = supabase
-      .from('grade_data_new')
-      .select(`
+    let gradesQuery = supabase.from("grade_data_new").select(`
         student_id,
         name,
         class_name,
@@ -411,71 +428,83 @@ async function getWarningStatisticsRealtime(
 
     // 2. 应用筛选条件到原始数据（这是关键优势）
     if (filter?.classNames && filter.classNames.length > 0) {
-      console.log('📚 [新架构] 筛选班级:', filter.classNames);
-      gradesQuery = gradesQuery.in('class_name', filter.classNames);
+      console.log("📚 [新架构] 筛选班级:", filter.classNames);
+      gradesQuery = gradesQuery.in("class_name", filter.classNames);
     }
 
     if (filter?.examTitles && filter.examTitles.length > 0) {
-      console.log('📊 [新架构] 筛选考试:', filter.examTitles);
-      gradesQuery = gradesQuery.in('exam_title', filter.examTitles);
+      console.log("📊 [新架构] 筛选考试:", filter.examTitles);
+      gradesQuery = gradesQuery.in("exam_title", filter.examTitles);
     }
 
     // 时间范围筛选
-    if (filter?.timeRange && filter.timeRange !== 'semester') {
+    if (filter?.timeRange && filter.timeRange !== "semester") {
       const now = new Date();
       let startDate: Date;
 
       switch (filter.timeRange) {
-        case 'month':
+        case "month":
           startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
           break;
-        case 'quarter':
+        case "quarter":
           startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
           break;
-        case 'year':
+        case "year":
           startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
           break;
-        case 'custom':
+        case "custom":
           if (filter.startDate) {
             startDate = new Date(filter.startDate);
-            gradesQuery = gradesQuery.gte('exam_date', startDate.toISOString().split('T')[0]);
+            gradesQuery = gradesQuery.gte(
+              "exam_date",
+              startDate.toISOString().split("T")[0]
+            );
           }
           if (filter.endDate) {
             const endDate = new Date(filter.endDate);
-            gradesQuery = gradesQuery.lte('exam_date', endDate.toISOString().split('T')[0]);
+            gradesQuery = gradesQuery.lte(
+              "exam_date",
+              endDate.toISOString().split("T")[0]
+            );
           }
           break;
         default:
           startDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
       }
 
-      if (filter.timeRange !== 'custom' && startDate) {
-        gradesQuery = gradesQuery.gte('exam_date', startDate.toISOString().split('T')[0]);
+      if (filter.timeRange !== "custom" && startDate) {
+        gradesQuery = gradesQuery.gte(
+          "exam_date",
+          startDate.toISOString().split("T")[0]
+        );
       }
     }
 
     const { data: gradesData, error: gradesError } = await gradesQuery;
 
     if (gradesError) {
-      console.error('❌ [新架构] 获取成绩数据失败:', gradesError);
+      console.error("❌ [新架构] 获取成绩数据失败:", gradesError);
       throw gradesError;
     }
 
-    console.log('✅ [新架构] 获取到成绩数据:', gradesData?.length || 0, '条记录');
+    console.log(
+      "✅ [新架构] 获取到成绩数据:",
+      gradesData?.length || 0,
+      "条记录"
+    );
 
     // 3. 基于真实数据实时计算预警指标
     const result = analyzeWarningsFromGrades(gradesData || []);
-    
-    console.log('🎯 [新架构] 预警统计完成:', {
+
+    console.log("🎯 [新架构] 预警统计完成:", {
       totalStudents: result.totalStudents,
       warningStudents: result.warningStudents,
-      warningRatio: result.warningRatio
+      warningRatio: result.warningRatio,
     });
 
     return result;
-
   } catch (error) {
-    console.error('❌ [新架构] 实时预警计算失败，回退到旧架构:', error);
+    console.error("❌ [新架构] 实时预警计算失败，回退到旧架构:", error);
     // 出错时自动回退到旧架构
     return getWarningStatisticsLegacy(filter);
   }
@@ -483,19 +512,26 @@ async function getWarningStatisticsRealtime(
 
 // 📊 基于成绩数据实时分析预警情况（宽表格式）
 function analyzeWarningsFromGrades(gradesData: any[]): WarningStatistics {
-  console.log('🔍 [新架构] 开始分析预警情况...', gradesData.length, '条考试记录');
+  console.log(
+    "🔍 [新架构] 开始分析预警情况...",
+    gradesData.length,
+    "条考试记录"
+  );
 
   // 按学生分组数据（一个学生可能有多次考试记录）
-  const studentData = new Map<string, {
-    studentInfo: any;
-    examRecords: any[];
-  }>();
+  const studentData = new Map<
+    string,
+    {
+      studentInfo: any;
+      examRecords: any[];
+    }
+  >();
 
   // 增强的数据分组逻辑，支持容错处理
-  gradesData.forEach(record => {
+  gradesData.forEach((record) => {
     // 优先使用student_id，如果没有则使用name+class_name组合作为fallback
     let studentKey = record.student_id;
-    if (!studentKey || studentKey.trim() === '') {
+    if (!studentKey || studentKey.trim() === "") {
       // 构建备用键：姓名+班级
       if (record.name && record.class_name) {
         studentKey = `${record.name}_${record.class_name}`;
@@ -504,7 +540,7 @@ function analyzeWarningsFromGrades(gradesData: any[]): WarningStatistics {
         console.warn(`⚠️ [新架构] 跳过无效记录，缺少关键信息:`, {
           student_id: record.student_id,
           name: record.name,
-          class_name: record.class_name
+          class_name: record.class_name,
         });
         return; // 跳过无效记录
       }
@@ -515,22 +551,24 @@ function analyzeWarningsFromGrades(gradesData: any[]): WarningStatistics {
         studentInfo: {
           name: record.name,
           class_name: record.class_name,
-          student_id: record.student_id || null // 保留原始ID信息
+          student_id: record.student_id || null, // 保留原始ID信息
         },
-        examRecords: []
+        examRecords: [],
       });
     }
     studentData.get(studentKey)!.examRecords.push(record);
   });
 
   const students = Array.from(studentData.values());
-  console.log('👥 [新架构] 分析学生数:', students.length);
-  
+  console.log("👥 [新架构] 分析学生数:", students.length);
+
   // 统计数据质量
-  const studentsWithId = students.filter(s => s.studentInfo.student_id);
+  const studentsWithId = students.filter((s) => s.studentInfo.student_id);
   const studentsWithoutId = students.length - studentsWithId.length;
   if (studentsWithoutId > 0) {
-    console.warn(`⚠️ [新架构] 发现 ${studentsWithoutId} 名学生缺少student_id，使用姓名+班级分组`);
+    console.warn(
+      `⚠️ [新架构] 发现 ${studentsWithoutId} 名学生缺少student_id，使用姓名+班级分组`
+    );
   }
 
   // 计算各种预警指标
@@ -539,43 +577,61 @@ function analyzeWarningsFromGrades(gradesData: any[]): WarningStatistics {
   let totalWarnings = 0;
 
   const riskDistribution = { low: 0, medium: 0, high: 0 };
-  const categoryDistribution = { 
-    grade: 0, attendance: 0, behavior: 0, progress: 0, homework: 0, composite: 0 
+  const categoryDistribution = {
+    grade: 0,
+    attendance: 0,
+    behavior: 0,
+    progress: 0,
+    homework: 0,
+    composite: 0,
   };
 
   // 按班级统计风险学生
-  const riskByClass = new Map<string, {
-    className: string;
-    atRiskCount: number;
-    studentCount: number;
-  }>();
+  const riskByClass = new Map<
+    string,
+    {
+      className: string;
+      atRiskCount: number;
+      studentCount: number;
+    }
+  >();
   const riskFactorCounts = new Map<string, number>();
 
-  students.forEach(student => {
+  students.forEach((student) => {
     let studentWarningCount = 0;
-    let studentRiskLevel = 'low';
-    
+    let studentRiskLevel = "low";
+
     // 定义科目列表
-    const subjects = ['chinese', 'math', 'english', 'physics', 'chemistry', 'biology', 'geography', 'history', 'politics'];
-    
+    const subjects = [
+      "chinese",
+      "math",
+      "english",
+      "physics",
+      "chemistry",
+      "biology",
+      "geography",
+      "history",
+      "politics",
+    ];
+
     // 收集所有科目成绩（从多次考试记录中）
     const allSubjectScores: number[] = [];
     let totalScores: number[] = [];
     let failingSubjectCount = 0;
     let severeFailingSubjectCount = 0;
-    
-    student.examRecords.forEach(record => {
+
+    student.examRecords.forEach((record) => {
       // 收集总分
       if (record.total_score) {
         totalScores.push(record.total_score);
       }
-      
+
       // 收集各科成绩
-      subjects.forEach(subject => {
+      subjects.forEach((subject) => {
         const score = record[`${subject}_score`];
         if (score !== null && score !== undefined) {
           allSubjectScores.push(score);
-          
+
           // 统计不及格科目
           if (score < 60) failingSubjectCount++;
           if (score < 40) severeFailingSubjectCount++;
@@ -585,19 +641,27 @@ function analyzeWarningsFromGrades(gradesData: any[]): WarningStatistics {
 
     // 1. 分析总分情况
     if (totalScores.length > 0) {
-      const avgTotalScore = totalScores.reduce((sum, score) => sum + score, 0) / totalScores.length;
+      const avgTotalScore =
+        totalScores.reduce((sum, score) => sum + score, 0) / totalScores.length;
       const minTotalScore = Math.min(...totalScores);
-      
-      if (minTotalScore < 300) { // 假设满分是500+
+
+      if (minTotalScore < 300) {
+        // 假设满分是500+
         studentWarningCount++;
         categoryDistribution.grade++;
-        studentRiskLevel = 'high';
-        riskFactorCounts.set('总分过低', (riskFactorCounts.get('总分过低') || 0) + 1);
+        studentRiskLevel = "high";
+        riskFactorCounts.set(
+          "总分过低",
+          (riskFactorCounts.get("总分过低") || 0) + 1
+        );
       } else if (avgTotalScore < 400) {
         studentWarningCount++;
         categoryDistribution.progress++;
-        if (studentRiskLevel === 'low') studentRiskLevel = 'medium';
-        riskFactorCounts.set('总分平均偏低', (riskFactorCounts.get('总分平均偏低') || 0) + 1);
+        if (studentRiskLevel === "low") studentRiskLevel = "medium";
+        riskFactorCounts.set(
+          "总分平均偏低",
+          (riskFactorCounts.get("总分平均偏低") || 0) + 1
+        );
       }
     }
 
@@ -605,16 +669,22 @@ function analyzeWarningsFromGrades(gradesData: any[]): WarningStatistics {
     if (failingSubjectCount >= 3) {
       studentWarningCount++;
       categoryDistribution.grade++;
-      studentRiskLevel = 'high';
-      riskFactorCounts.set('多科目不及格', (riskFactorCounts.get('多科目不及格') || 0) + 1);
+      studentRiskLevel = "high";
+      riskFactorCounts.set(
+        "多科目不及格",
+        (riskFactorCounts.get("多科目不及格") || 0) + 1
+      );
     }
 
     // 3. 分析严重不及格情况
     if (severeFailingSubjectCount > 0) {
       studentWarningCount++;
       categoryDistribution.grade++;
-      studentRiskLevel = 'high';
-      riskFactorCounts.set('严重不及格', (riskFactorCounts.get('严重不及格') || 0) + 1);
+      studentRiskLevel = "high";
+      riskFactorCounts.set(
+        "严重不及格",
+        (riskFactorCounts.get("严重不及格") || 0) + 1
+      );
     }
 
     // 更新学生统计
@@ -623,10 +693,10 @@ function analyzeWarningsFromGrades(gradesData: any[]): WarningStatistics {
       totalWarnings += studentWarningCount;
 
       // 统计风险等级
-      if (studentRiskLevel === 'high') {
+      if (studentRiskLevel === "high") {
         highRiskStudents++;
         riskDistribution.high++;
-      } else if (studentRiskLevel === 'medium') {
+      } else if (studentRiskLevel === "medium") {
         riskDistribution.medium++;
       } else {
         riskDistribution.low++;
@@ -634,12 +704,12 @@ function analyzeWarningsFromGrades(gradesData: any[]): WarningStatistics {
     }
 
     // 按班级统计
-    const className = student.studentInfo?.class_name || '未知班级';
+    const className = student.studentInfo?.class_name || "未知班级";
     if (!riskByClass.has(className)) {
       riskByClass.set(className, {
         className,
         atRiskCount: 0,
-        studentCount: 0
+        studentCount: 0,
       });
     }
     const classData = riskByClass.get(className)!;
@@ -653,59 +723,66 @@ function analyzeWarningsFromGrades(gradesData: any[]): WarningStatistics {
   const totalWarningCount = totalWarnings || 1;
   const warningsByType = [
     {
-      type: '学业预警',
+      type: "学业预警",
       count: categoryDistribution.grade,
-      percentage: Math.round((categoryDistribution.grade / totalWarningCount) * 100),
-      trend: 'up' as const
+      percentage: Math.round(
+        (categoryDistribution.grade / totalWarningCount) * 100
+      ),
+      trend: "up" as const,
     },
     {
-      type: '进步预警', 
+      type: "进步预警",
       count: categoryDistribution.progress,
-      percentage: Math.round((categoryDistribution.progress / totalWarningCount) * 100),
-      trend: 'down' as const
+      percentage: Math.round(
+        (categoryDistribution.progress / totalWarningCount) * 100
+      ),
+      trend: "down" as const,
     },
     {
-      type: '综合预警',
+      type: "综合预警",
       count: categoryDistribution.composite,
-      percentage: Math.round((categoryDistribution.composite / totalWarningCount) * 100),
-      trend: 'unchanged' as const
-    }
+      percentage: Math.round(
+        (categoryDistribution.composite / totalWarningCount) * 100
+      ),
+      trend: "unchanged" as const,
+    },
   ];
 
   // 构建班级风险分布
   const riskByClassArray = Array.from(riskByClass.values())
-    .map(classData => ({
+    .map((classData) => ({
       className: classData.className,
       count: classData.atRiskCount,
       atRiskCount: classData.atRiskCount,
       studentCount: classData.studentCount,
-      percentage: classData.studentCount > 0 
-        ? Math.round((classData.atRiskCount / classData.studentCount) * 100)
-        : 0
+      percentage:
+        classData.studentCount > 0
+          ? Math.round((classData.atRiskCount / classData.studentCount) * 100)
+          : 0,
     }))
     .sort((a, b) => b.atRiskCount - a.atRiskCount)
     .slice(0, 5);
 
   // 构建风险因素分布
   const commonRiskFactors = Array.from(riskFactorCounts.entries())
-    .sort(([,a], [,b]) => b - a)
+    .sort(([, a], [, b]) => b - a)
     .slice(0, 5)
     .map(([factor, count]) => ({
       factor,
       count,
-      percentage: warningStudents > 0 
-        ? Math.round((count / warningStudents) * 100)
-        : 0,
-      trend: 'unchanged' as const
+      percentage:
+        warningStudents > 0 ? Math.round((count / warningStudents) * 100) : 0,
+      trend: "unchanged" as const,
     }));
 
   const result: WarningStatistics = {
     totalStudents: students.length,
     warningStudents,
     atRiskStudents: warningStudents,
-    warningRatio: students.length > 0 
-      ? parseFloat(((warningStudents / students.length) * 100).toFixed(1))
-      : 0,
+    warningRatio:
+      students.length > 0
+        ? parseFloat(((warningStudents / students.length) * 100).toFixed(1))
+        : 0,
     highRiskStudents,
     totalWarnings,
     activeWarnings: totalWarnings, // 实时计算都是活跃的
@@ -715,17 +792,17 @@ function analyzeWarningsFromGrades(gradesData: any[]): WarningStatistics {
       global: totalWarnings,
       exam: 0,
       class: 0,
-      student: 0
+      student: 0,
     },
     warningsByType,
     riskByClass: riskByClassArray,
-    commonRiskFactors
+    commonRiskFactors,
   };
 
-  console.log('✅ [新架构] 预警分析完成:', {
+  console.log("✅ [新架构] 预警分析完成:", {
     students: result.totalStudents,
     warnings: result.warningStudents,
-    ratio: result.warningRatio + '%'
+    ratio: result.warningRatio + "%",
   });
 
   return result;
@@ -735,8 +812,8 @@ function analyzeWarningsFromGrades(gradesData: any[]): WarningStatistics {
 async function getWarningStatisticsLegacy(
   filter?: WarningFilter
 ): Promise<WarningStatistics> {
-  console.log('📚 [旧架构] 使用预警记录表计算统计');
-  
+  console.log("📚 [旧架构] 使用预警记录表计算统计");
+
   return warningAnalysisCache.getWarningStats(async () => {
     try {
       // 获取带有完整关联数据的预警记录
@@ -815,13 +892,22 @@ async function getWarningStatisticsLegacy(
           .in("exam_title", filter.examTitles);
 
         if (!gradeError && gradeData && gradeData.length > 0) {
-          const studentIdsFromGrades = [...new Set(gradeData.map(g => g.student_id))];
-          console.log("📊 主查询从考试筛选获得的学生ID:", studentIdsFromGrades.length, "个");
+          const studentIdsFromGrades = [
+            ...new Set(gradeData.map((g) => g.student_id)),
+          ];
+          console.log(
+            "📊 主查询从考试筛选获得的学生ID:",
+            studentIdsFromGrades.length,
+            "个"
+          );
           query = query.in("student_id", studentIdsFromGrades);
         } else {
           console.warn("⚠️ 主查询考试筛选未找到匹配学生，返回空结果");
           // 如果没有找到匹配的学生，设置一个不可能存在的条件，返回空结果
-          query = query.eq("student_id", "00000000-0000-0000-0000-000000000000");
+          query = query.eq(
+            "student_id",
+            "00000000-0000-0000-0000-000000000000"
+          );
         }
       }
 
@@ -895,22 +981,22 @@ async function getWarningStatisticsLegacy(
       // 查询每个班级的学生总数
       const classNames = Object.keys(classStats);
       let classStudentCounts = {};
-      
+
       // 如果有班级数据，查询每个班级的学生总数
       if (classNames.length > 0) {
         try {
           const { data: studentCounts } = await supabase
-            .from('students')
-            .select('class_name')
-            .in('class_name', classNames);
-          
+            .from("students")
+            .select("class_name")
+            .in("class_name", classNames);
+
           // 统计每个班级的学生数量
           classStudentCounts = (studentCounts || []).reduce((acc, student) => {
             acc[student.class_name] = (acc[student.class_name] || 0) + 1;
             return acc;
           }, {});
         } catch (error) {
-          console.warn('获取班级学生数量失败，使用估算值:', error);
+          console.warn("获取班级学生数量失败，使用估算值:", error);
         }
       }
 
@@ -919,7 +1005,7 @@ async function getWarningStatisticsLegacy(
         .map(([className, count]) => {
           const atRiskCount = Number(count);
           const studentCount = classStudentCounts[className] || atRiskCount + 5; // 如果没有数据，估算总数
-          
+
           return {
             className: className,
             atRiskCount: atRiskCount,
@@ -1299,7 +1385,7 @@ export function getWarningRuleTemplates(): RuleTemplate[] {
       priority: 8,
     },
     {
-      name: "AI趋势分析预警", 
+      name: "AI趋势分析预警",
       description: "基于线性回归分析成绩下降趋势",
       conditions: {
         type: "ml_trend_analysis",

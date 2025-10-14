@@ -4,10 +4,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Upload, FileSpreadsheet, Users, CheckCircle2, XCircle, AlertCircle, ArrowRight } from "lucide-react";
+import {
+  Upload,
+  FileSpreadsheet,
+  Users,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  ArrowRight,
+} from "lucide-react";
 import { studentService } from "@/services/education/students";
 import * as XLSX from "xlsx";
-import UploadProgressIndicator, { ProcessingStage } from "@/components/shared/UploadProgressIndicator";
+import UploadProgressIndicator, {
+  ProcessingStage,
+} from "@/components/shared/UploadProgressIndicator";
 import { NotificationManager } from "@/services/NotificationManager";
 import { showErrorSmart } from "@/services/errorHandler";
 
@@ -30,7 +40,8 @@ export default function StudentDataImporter({
   const [isUploading, setIsUploading] = useState(false);
   const [importStats, setImportStats] = useState<ImportStats | null>(null);
   const [showSuccessCard, setShowSuccessCard] = useState(false);
-  const [processingStage, setProcessingStage] = useState<ProcessingStage>("uploading");
+  const [processingStage, setProcessingStage] =
+    useState<ProcessingStage>("uploading");
   const [processingProgress, setProcessingProgress] = useState(0);
   const [processingError, setProcessingError] = useState<string | null>(null);
   const [uploadingFile, setUploadingFile] = useState<File | null>(null);
@@ -185,9 +196,10 @@ export default function StudentDataImporter({
 
         // 保留: 最终成功通知
         NotificationManager.success("学生数据导入完成", {
-          description: errors.length > 0
-            ? `成功导入 ${imported + updated} 名学生，${errors.length} 个错误`
-            : `成功导入 ${imported + updated} 名学生`,
+          description:
+            errors.length > 0
+              ? `成功导入 ${imported + updated} 名学生，${errors.length} 个错误`
+              : `成功导入 ${imported + updated} 名学生`,
           deduplicate: true,
         });
 
@@ -203,7 +215,8 @@ export default function StudentDataImporter({
       }
     } catch (error) {
       console.error("导入学生数据失败:", error);
-      const errorMessage = error instanceof Error ? error.message : "请检查文件格式是否正确";
+      const errorMessage =
+        error instanceof Error ? error.message : "请检查文件格式是否正确";
 
       setProcessingStage("error");
       setProcessingError(errorMessage);

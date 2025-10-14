@@ -969,7 +969,7 @@ export const ModernGradeAnalysisProvider: React.FC<
         : { subject: "暂无", avgScore: 0 };
 
     // 暂时不提供对比数据，避免误导性的随机值
-    const scoreComparison = 0; 
+    const scoreComparison = 0;
     const passRateComparison = 0;
 
     console.log("🎯 统计分离完成:", {

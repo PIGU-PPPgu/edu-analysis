@@ -282,19 +282,44 @@ const DetailTab: React.FC<Props> = ({
                       <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                           <div className="bg-blue-50 p-4 rounded-lg">
-                            <h4 className="font-medium text-sm mb-2">整体表现趋势</h4>
+                            <h4 className="font-medium text-sm mb-2">
+                              整体表现趋势
+                            </h4>
                             <div className="space-y-2">
                               {[
-                                { period: "第一学期", score: 78.5, change: "基准" },
-                                { period: "第二学期", score: 82.1, change: "+3.6" },
-                                { period: "第三学期", score: 85.3, change: "+3.2" },
-                                { period: "第四学期", score: 87.2, change: "+1.9" }
+                                {
+                                  period: "第一学期",
+                                  score: 78.5,
+                                  change: "基准",
+                                },
+                                {
+                                  period: "第二学期",
+                                  score: 82.1,
+                                  change: "+3.6",
+                                },
+                                {
+                                  period: "第三学期",
+                                  score: 85.3,
+                                  change: "+3.2",
+                                },
+                                {
+                                  period: "第四学期",
+                                  score: 87.2,
+                                  change: "+1.9",
+                                },
                               ].map((item, index) => (
-                                <div key={index} className="flex items-center justify-between">
+                                <div
+                                  key={index}
+                                  className="flex items-center justify-between"
+                                >
                                   <span className="text-xs">{item.period}</span>
                                   <div className="flex items-center space-x-2">
-                                    <span className="text-sm font-medium">{item.score}</span>
-                                    <span className={`text-xs ${item.change.includes('+') ? 'text-green-600' : 'text-gray-500'}`}>
+                                    <span className="text-sm font-medium">
+                                      {item.score}
+                                    </span>
+                                    <span
+                                      className={`text-xs ${item.change.includes("+") ? "text-green-600" : "text-gray-500"}`}
+                                    >
                                       {item.change}
                                     </span>
                                   </div>
@@ -302,21 +327,30 @@ const DetailTab: React.FC<Props> = ({
                               ))}
                             </div>
                           </div>
-                          
+
                           <div className="bg-green-50 p-4 rounded-lg">
-                            <h4 className="font-medium text-sm mb-2">班级排名变化</h4>
+                            <h4 className="font-medium text-sm mb-2">
+                              班级排名变化
+                            </h4>
                             <div className="space-y-2">
                               {[
                                 { period: "第一学期", rank: 8, change: "基准" },
                                 { period: "第二学期", rank: 5, change: "↑3" },
                                 { period: "第三学期", rank: 3, change: "↑2" },
-                                { period: "第四学期", rank: 2, change: "↑1" }
+                                { period: "第四学期", rank: 2, change: "↑1" },
                               ].map((item, index) => (
-                                <div key={index} className="flex items-center justify-between">
+                                <div
+                                  key={index}
+                                  className="flex items-center justify-between"
+                                >
                                   <span className="text-xs">{item.period}</span>
                                   <div className="flex items-center space-x-2">
-                                    <span className="text-sm font-medium">第{item.rank}名</span>
-                                    <span className={`text-xs ${item.change.includes('↑') ? 'text-green-600' : 'text-gray-500'}`}>
+                                    <span className="text-sm font-medium">
+                                      第{item.rank}名
+                                    </span>
+                                    <span
+                                      className={`text-xs ${item.change.includes("↑") ? "text-green-600" : "text-gray-500"}`}
+                                    >
                                       {item.change}
                                     </span>
                                   </div>
@@ -325,10 +359,11 @@ const DetailTab: React.FC<Props> = ({
                             </div>
                           </div>
                         </div>
-                        
+
                         <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                           <p className="text-xs text-gray-600">
-                            📈 趋势分析: 班级整体呈现稳步上升趋势，平均分提升9分，排名上升6位，进步显著，建议保持当前教学策略。
+                            📈 趋势分析:
+                            班级整体呈现稳步上升趋势，平均分提升9分，排名上升6位，进步显著，建议保持当前教学策略。
                           </p>
                         </div>
                       </div>
@@ -351,44 +386,92 @@ const DetailTab: React.FC<Props> = ({
                       <div className="space-y-4">
                         <div className="grid grid-cols-1 gap-4">
                           <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
-                            <h4 className="font-medium text-sm mb-3 text-red-800">📉 需要重点关注的领域</h4>
+                            <h4 className="font-medium text-sm mb-3 text-red-800">
+                              📉 需要重点关注的领域
+                            </h4>
                             <div className="space-y-3">
                               {[
-                                { subject: "英语", issue: "口语表达能力", score: 65, improvement: "增加口语练习" },
-                                { subject: "数学", issue: "应用题解题", score: 68, improvement: "加强逻辑思维训练" },
-                                { subject: "物理", issue: "实验操作", score: 72, improvement: "增加动手实验机会" }
+                                {
+                                  subject: "英语",
+                                  issue: "口语表达能力",
+                                  score: 65,
+                                  improvement: "增加口语练习",
+                                },
+                                {
+                                  subject: "数学",
+                                  issue: "应用题解题",
+                                  score: 68,
+                                  improvement: "加强逻辑思维训练",
+                                },
+                                {
+                                  subject: "物理",
+                                  issue: "实验操作",
+                                  score: 72,
+                                  improvement: "增加动手实验机会",
+                                },
                               ].map((item, index) => (
-                                <div key={index} className="border-l-4 border-red-300 pl-3">
+                                <div
+                                  key={index}
+                                  className="border-l-4 border-red-300 pl-3"
+                                >
                                   <div className="flex items-center justify-between mb-1">
-                                    <span className="text-sm font-medium">{item.subject} - {item.issue}</span>
-                                    <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">{item.score}分</span>
+                                    <span className="text-sm font-medium">
+                                      {item.subject} - {item.issue}
+                                    </span>
+                                    <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
+                                      {item.score}分
+                                    </span>
                                   </div>
-                                  <p className="text-xs text-gray-600">建议: {item.improvement}</p>
+                                  <p className="text-xs text-gray-600">
+                                    建议: {item.improvement}
+                                  </p>
                                 </div>
                               ))}
                             </div>
                           </div>
-                          
+
                           <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
-                            <h4 className="font-medium text-sm mb-3 text-green-800">📈 表现突出的领域</h4>
+                            <h4 className="font-medium text-sm mb-3 text-green-800">
+                              📈 表现突出的领域
+                            </h4>
                             <div className="space-y-2">
                               {[
-                                { subject: "语文", strength: "阅读理解", score: 88 },
-                                { subject: "数学", strength: "基础计算", score: 92 },
-                                { subject: "化学", strength: "化学方程式", score: 85 }
+                                {
+                                  subject: "语文",
+                                  strength: "阅读理解",
+                                  score: 88,
+                                },
+                                {
+                                  subject: "数学",
+                                  strength: "基础计算",
+                                  score: 92,
+                                },
+                                {
+                                  subject: "化学",
+                                  strength: "化学方程式",
+                                  score: 85,
+                                },
                               ].map((item, index) => (
-                                <div key={index} className="flex items-center justify-between">
-                                  <span className="text-sm">{item.subject} - {item.strength}</span>
-                                  <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">{item.score}分</span>
+                                <div
+                                  key={index}
+                                  className="flex items-center justify-between"
+                                >
+                                  <span className="text-sm">
+                                    {item.subject} - {item.strength}
+                                  </span>
+                                  <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
+                                    {item.score}分
+                                  </span>
                                 </div>
                               ))}
                             </div>
                           </div>
                         </div>
-                        
+
                         <div className="mt-4 p-3 bg-blue-50 rounded-lg">
                           <p className="text-xs text-gray-600">
-                            💡 分析建议: 建议针对薄弱环节制定专项提升计划，同时发扬优势科目的成功经验，实现整体水平的均衡提升。
+                            💡 分析建议:
+                            建议针对薄弱环节制定专项提升计划，同时发扬优势科目的成功经验，实现整体水平的均衡提升。
                           </p>
                         </div>
                       </div>
@@ -468,15 +551,17 @@ const DetailTab: React.FC<Props> = ({
                           {[
                             { ability: "学习能力", score: 85, color: "blue" },
                             { ability: "思维能力", score: 78, color: "green" },
-                            { ability: "表达能力", score: 72, color: "yellow" }
+                            { ability: "表达能力", score: 72, color: "yellow" },
                           ].map((item, index) => (
                             <div key={index}>
                               <div className="flex justify-between text-sm mb-1">
                                 <span>{item.ability}</span>
-                                <span className="font-medium">{item.score}%</span>
+                                <span className="font-medium">
+                                  {item.score}%
+                                </span>
                               </div>
                               <div className="w-full bg-gray-200 rounded-full h-2">
-                                <div 
+                                <div
                                   className={`h-full rounded-full bg-${item.color}-500`}
                                   style={{ width: `${item.score}%` }}
                                 ></div>
@@ -484,20 +569,22 @@ const DetailTab: React.FC<Props> = ({
                             </div>
                           ))}
                         </div>
-                        
+
                         <div className="space-y-3">
                           {[
                             { ability: "合作能力", score: 80, color: "purple" },
                             { ability: "创新能力", score: 75, color: "pink" },
-                            { ability: "自主学习", score: 88, color: "indigo" }
+                            { ability: "自主学习", score: 88, color: "indigo" },
                           ].map((item, index) => (
                             <div key={index}>
                               <div className="flex justify-between text-sm mb-1">
                                 <span>{item.ability}</span>
-                                <span className="font-medium">{item.score}%</span>
+                                <span className="font-medium">
+                                  {item.score}%
+                                </span>
                               </div>
                               <div className="w-full bg-gray-200 rounded-full h-2">
-                                <div 
+                                <div
                                   className={`h-full rounded-full bg-${item.color}-500`}
                                   style={{ width: `${item.score}%` }}
                                 ></div>
@@ -506,9 +593,11 @@ const DetailTab: React.FC<Props> = ({
                           ))}
                         </div>
                       </div>
-                      
+
                       <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                        <h4 className="font-medium text-sm mb-2">能力分析总结</h4>
+                        <h4 className="font-medium text-sm mb-2">
+                          能力分析总结
+                        </h4>
                         <p className="text-xs text-gray-600">
                           班级整体能力发展均衡，自主学习能力突出(88%)，表达能力相对较弱(72%)，建议加强口语表达和展示能力的培养。
                         </p>
@@ -530,23 +619,29 @@ const DetailTab: React.FC<Props> = ({
                     <div className="grid grid-cols-3 gap-4">
                       <div className="text-center p-4 bg-blue-50 rounded-lg">
                         <h4 className="font-medium text-sm mb-2">课堂表现</h4>
-                        <div className="text-2xl font-bold text-blue-600 mb-1">82%</div>
+                        <div className="text-2xl font-bold text-blue-600 mb-1">
+                          82%
+                        </div>
                         <p className="text-xs text-gray-600">平均活跃度</p>
                       </div>
-                      
+
                       <div className="text-center p-4 bg-green-50 rounded-lg">
                         <h4 className="font-medium text-sm mb-2">作业质量</h4>
-                        <div className="text-2xl font-bold text-green-600 mb-1">78%</div>
+                        <div className="text-2xl font-bold text-green-600 mb-1">
+                          78%
+                        </div>
                         <p className="text-xs text-gray-600">完成质量</p>
                       </div>
-                      
+
                       <div className="text-center p-4 bg-purple-50 rounded-lg">
                         <h4 className="font-medium text-sm mb-2">考试成绩</h4>
-                        <div className="text-2xl font-bold text-purple-600 mb-1">85%</div>
+                        <div className="text-2xl font-bold text-purple-600 mb-1">
+                          85%
+                        </div>
                         <p className="text-xs text-gray-600">平均得分率</p>
                       </div>
                     </div>
-                    
+
                     <div className="mt-6 space-y-4">
                       <h4 className="font-medium text-sm">关联性分析</h4>
                       <div className="space-y-3">
@@ -559,7 +654,7 @@ const DetailTab: React.FC<Props> = ({
                             <span className="text-xs font-medium">75%</span>
                           </div>
                         </div>
-                        
+
                         <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
                           <span className="text-sm">作业质量 ↔ 考试成绩</span>
                           <div className="flex items-center space-x-2">
@@ -569,7 +664,7 @@ const DetailTab: React.FC<Props> = ({
                             <span className="text-xs font-medium">80%</span>
                           </div>
                         </div>
-                        
+
                         <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
                           <span className="text-sm">课堂表现 ↔ 作业质量</span>
                           <div className="flex items-center space-x-2">
@@ -581,10 +676,11 @@ const DetailTab: React.FC<Props> = ({
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="mt-4 p-3 bg-indigo-50 rounded-lg">
                       <p className="text-xs text-gray-600">
-                        🔍 关联分析: 作业质量与考试成绩相关性最强(80%)，建议重视作业环节的指导和反馈，通过提升作业质量来促进考试成绩的提高。
+                        🔍 关联分析:
+                        作业质量与考试成绩相关性最强(80%)，建议重视作业环节的指导和反馈，通过提升作业质量来促进考试成绩的提高。
                       </p>
                     </div>
                   </div>

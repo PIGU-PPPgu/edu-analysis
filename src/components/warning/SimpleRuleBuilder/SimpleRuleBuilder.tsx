@@ -79,7 +79,9 @@ const SimpleRuleBuilder: React.FC<SimpleRuleBuilderProps> = ({
       });
 
       // 获取当前用户ID
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       const currentUserId = user?.id || "anonymous-user";
 
       // 构建导出规则

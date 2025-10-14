@@ -81,10 +81,7 @@ export const Example1_HomepageTour: React.FC = () => {
           <Button onClick={start} disabled={isOpen}>
             开始引导
           </Button>
-          <Button
-            onClick={() => resetTour("homepage_tour")}
-            variant="outline"
-          >
+          <Button onClick={() => resetTour("homepage_tour")} variant="outline">
             重置状态
           </Button>
           <span className="text-sm text-muted-foreground">
@@ -273,9 +270,7 @@ export const OnboardingTourExamples: React.FC = () => {
     <div className="container mx-auto p-6 space-y-6">
       <div>
         <h1 className="text-3xl font-bold mb-2">OnboardingTour 使用示例</h1>
-        <p className="text-muted-foreground">
-          演示如何创建交互式新手引导
-        </p>
+        <p className="text-muted-foreground">演示如何创建交互式新手引导</p>
       </div>
 
       <div className="grid grid-cols-1 gap-6">

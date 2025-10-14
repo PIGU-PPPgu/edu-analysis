@@ -125,7 +125,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({
 
   const canPause = task.state === DataFlowState.PROCESSING && task.resumable;
   const canResume = task.state === DataFlowState.PAUSED;
-  const canStart = task.state === DataFlowState.IDLE || task.state === DataFlowState.QUEUED;
+  const canStart =
+    task.state === DataFlowState.IDLE || task.state === DataFlowState.QUEUED;
   const canCancel =
     task.state !== DataFlowState.COMPLETED &&
     task.state !== DataFlowState.FAILED &&
@@ -136,14 +137,21 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     task.state === DataFlowState.CANCELLED;
 
   return (
-    <Card className={cn("transition-all hover:shadow-md", isActive && "border-blue-500")}>
+    <Card
+      className={cn(
+        "transition-all hover:shadow-md",
+        isActive && "border-blue-500"
+      )}
+    >
       <CardContent className="pt-6">
         {/* 头部：类型和状态 */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-2">
             {getStateIcon(task.state)}
             <div>
-              <h3 className="font-semibold text-sm">{getTaskTypeLabel(task.type)}</h3>
+              <h3 className="font-semibold text-sm">
+                {getTaskTypeLabel(task.type)}
+              </h3>
               <p className="text-xs text-gray-500">
                 {task.context.fileName || "未知文件"}
               </p>
@@ -205,13 +213,12 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             </span>
           </div>
           {task.progress.processingRate !== undefined && isActive && (
-            <div>
-              速率: {task.progress.processingRate.toFixed(1)} 条/秒
-            </div>
+            <div>速率: {task.progress.processingRate.toFixed(1)} 条/秒</div>
           )}
           {task.progress.estimatedTimeRemaining !== undefined && isActive && (
             <div>
-              预计剩余: {Math.ceil(task.progress.estimatedTimeRemaining / 60)} 分钟
+              预计剩余: {Math.ceil(task.progress.estimatedTimeRemaining / 60)}{" "}
+              分钟
             </div>
           )}
         </div>

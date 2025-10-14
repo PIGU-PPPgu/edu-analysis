@@ -116,6 +116,13 @@ export function BatchPortraitActions({
     }
   };
 
+  // 组件加载时自动分析健康度
+  React.useEffect(() => {
+    if (className) {
+      analyzeHealth();
+    }
+  }, [className]);
+
   // 批量生成画像
   const batchGenerate = async (mode: "missing" | "outdated" | "all") => {
     setIsGenerating(true);

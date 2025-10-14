@@ -37,19 +37,18 @@ interface ExamGradeData {
 }
 
 export class GradeDataSyncService {
-  
   /**
    * 执行完整的成绩数据同步
    */
   async syncAllGradeData(): Promise<SyncStats> {
     const startTime = Date.now();
-    
+
     const stats: SyncStats = {
       homeworkGradesSynced: 0,
       examGradesSynced: 0,
       studentsProcessed: 0,
       errors: [],
-      syncDuration: 0
+      syncDuration: 0,
     };
 
     try {
@@ -65,18 +64,23 @@ export class GradeDataSyncService {
 
       // 3. 统计处理的学生数
       stats.studentsProcessed = await this.getProcessedStudentsCount();
-      
+
       stats.syncDuration = Date.now() - startTime;
-      
-      console.log(`✅ 成绩同步完成: 作业${stats.homeworkGradesSynced}条, 考试${stats.examGradesSynced}条, 学生${stats.studentsProcessed}人, 耗时${stats.syncDuration}ms`);
+
+      console.log(
+        `✅ 成绩同步完成: 作业${stats.homeworkGradesSynced}条, 考试${stats.examGradesSynced}条, 学生${stats.studentsProcessed}人, 耗时${stats.syncDuration}ms`
+      );
       if (stats.errors.length > 0) {
-        console.warn(`⚠️ 同步过程中出现${stats.errors.length}个错误:`, stats.errors);
+        console.warn(
+          `⚠️ 同步过程中出现${stats.errors.length}个错误:`,
+          stats.errors
+        );
       }
 
       return stats;
     } catch (error) {
-      const errorMessage = `同步失败: ${error instanceof Error ? error.message : 'Unknown error'}`;
-      console.error('❌ 成绩数据同步失败:', error);
+      const errorMessage = `同步失败: ${error instanceof Error ? error.message : "Unknown error"}`;
+      console.error("❌ 成绩数据同步失败:", error);
       stats.errors.push(errorMessage);
       stats.syncDuration = Date.now() - startTime;
       throw new Error(errorMessage);
@@ -86,15 +90,19 @@ export class GradeDataSyncService {
   /**
    * 同步作业成绩到grades表
    */
-  private async syncHomeworkGrades(): Promise<{synced: number, errors: string[]}> {
+  private async syncHomeworkGrades(): Promise<{
+    synced: number;
+    errors: string[];
+  }> {
     const errors: string[] = [];
     let synced = 0;
 
     try {
       // 获取有评分的作业提交数据
       const { data: homeworkSubmissions, error: fetchError } = await supabase
-        .from('homework_submissions')
-        .select(`
+        .from("homework_submissions")
+        .select(
+          `
           id,
           homework_id,
           student_id,
@@ -110,8 +118,9 @@ export class GradeDataSyncService {
             student_id,
             name
           )
-        `)
-        .not('score', 'is', null);
+        `
+        )
+        .not("score", "is", null);
 
       if (fetchError) {
         throw new Error(`获取作业提交数据失败: ${fetchError.message}`);
@@ -122,22 +131,29 @@ export class GradeDataSyncService {
       }
 
       // 转换为成绩记录格式
-      const gradeRecords = homeworkSubmissions.map(submission => {
-        const homework = submission.homework as any;
-        const student = submission.students as any;
-        
-        return {
-          student_id: submission.student_id,
-          subject: homework?.title || '作业', // 使用作业标题作为科目
-          score: Number(submission.score),
-          max_score: 100, // 默认满分100
-          exam_date: new Date(submission.submitted_at).toISOString().split('T')[0],
-          exam_type: '作业',
-          exam_title: homework?.title || '未知作业',
-          grade_level: this.calculateGradeLevel(Number(submission.score), 100),
-          created_at: new Date().toISOString()
-        };
-      }).filter(record => record.score > 0); // 过滤掉无效分数
+      const gradeRecords = homeworkSubmissions
+        .map((submission) => {
+          const homework = submission.homework as any;
+          const student = submission.students as any;
+
+          return {
+            student_id: submission.student_id,
+            subject: homework?.title || "作业", // 使用作业标题作为科目
+            score: Number(submission.score),
+            max_score: 100, // 默认满分100
+            exam_date: new Date(submission.submitted_at)
+              .toISOString()
+              .split("T")[0],
+            exam_type: "作业",
+            exam_title: homework?.title || "未知作业",
+            grade_level: this.calculateGradeLevel(
+              Number(submission.score),
+              100
+            ),
+            created_at: new Date().toISOString(),
+          };
+        })
+        .filter((record) => record.score > 0); // 过滤掉无效分数
 
       if (gradeRecords.length === 0) {
         return { synced: 0, errors };
@@ -145,10 +161,10 @@ export class GradeDataSyncService {
 
       // 批量插入，使用冲突忽略策略避免重复
       const { data: insertedGrades, error: insertError } = await supabase
-        .from('grades')
+        .from("grades")
         .upsert(gradeRecords, {
-          onConflict: 'student_id,subject,exam_date,exam_type',
-          ignoreDuplicates: true
+          onConflict: "student_id,subject,exam_date,exam_type",
+          ignoreDuplicates: true,
         })
         .select();
 
@@ -158,10 +174,9 @@ export class GradeDataSyncService {
 
       synced = insertedGrades?.length || gradeRecords.length;
       console.log(`✅ 成功同步 ${synced} 条作业成绩记录`);
-
     } catch (error) {
-      const errorMessage = `作业成绩同步失败: ${error instanceof Error ? error.message : 'Unknown error'}`;
-      console.error('❌ 作业成绩同步失败:', error);
+      const errorMessage = `作业成绩同步失败: ${error instanceof Error ? error.message : "Unknown error"}`;
+      console.error("❌ 作业成绩同步失败:", error);
       errors.push(errorMessage);
     }
 
@@ -172,15 +187,18 @@ export class GradeDataSyncService {
    * 同步考试成绩到grades表
    * 注意：当前考试数据可能没有实际成绩，需要生成模拟数据或等待真实数据
    */
-  private async syncExamGrades(): Promise<{synced: number, errors: string[]}> {
+  private async syncExamGrades(): Promise<{
+    synced: number;
+    errors: string[];
+  }> {
     const errors: string[] = [];
     let synced = 0;
 
     try {
       // 获取考试数据
       const { data: exams, error: examError } = await supabase
-        .from('exams')
-        .select('*');
+        .from("exams")
+        .select("*");
 
       if (examError) {
         throw new Error(`获取考试数据失败: ${examError.message}`);
@@ -195,13 +213,12 @@ export class GradeDataSyncService {
       // 2. 基于作业成绩生成模拟考试成绩用于测试
 
       // 这里先创建基础框架，等待真实数据
-      
+
       // TODO: 实现真实考试成绩数据导入逻辑
       // 可能需要从外部文件（Excel/CSV）导入或从其他系统API获取
-
     } catch (error) {
-      const errorMessage = `考试成绩同步失败: ${error instanceof Error ? error.message : 'Unknown error'}`;
-      console.error('❌ 考试成绩同步失败:', error);
+      const errorMessage = `考试成绩同步失败: ${error instanceof Error ? error.message : "Unknown error"}`;
+      console.error("❌ 考试成绩同步失败:", error);
       errors.push(errorMessage);
     }
 
@@ -211,39 +228,46 @@ export class GradeDataSyncService {
   /**
    * 生成模拟考试成绩用于测试预警系统
    */
-  async generateMockExamGrades(examId: string, studentCount: number = 50): Promise<void> {
+  async generateMockExamGrades(
+    examId: string,
+    studentCount: number = 50
+  ): Promise<void> {
     try {
       // 获取考试信息
       const { data: exam, error: examError } = await supabase
-        .from('exams')
-        .select('*')
-        .eq('id', examId)
+        .from("exams")
+        .select("*")
+        .eq("id", examId)
         .single();
 
       if (examError || !exam) {
-        throw new Error('考试不存在');
+        throw new Error("考试不存在");
       }
 
       // 获取部分学生数据
       const { data: students, error: studentsError } = await supabase
-        .from('students')
-        .select('id, student_id, name')
+        .from("students")
+        .select("id, student_id, name")
         .limit(studentCount);
 
       if (studentsError || !students) {
-        throw new Error('获取学生数据失败');
+        throw new Error("获取学生数据失败");
       }
 
       // 生成模拟成绩
-      const subjects = ['语文', '数学', '英语', '物理', '化学'];
+      const subjects = ["语文", "数学", "英语", "物理", "化学"];
       const gradeRecords = [];
 
       for (const student of students) {
         for (const subject of subjects) {
           // 生成正态分布的随机成绩 (平均75分，标准差15)
-          const score = Math.max(0, Math.min(100, 
-            75 + (Math.random() - 0.5) * 30 + (Math.random() - 0.5) * 30
-          ));
+          const score = Math.max(
+            0,
+            Math.min(
+              100,
+              75 + (Math.random() - 0.5) * 30 + (Math.random() - 0.5) * 30
+            )
+          );
 
           gradeRecords.push({
             student_id: student.id,
@@ -253,17 +277,17 @@ export class GradeDataSyncService {
             exam_date: exam.date,
             exam_type: exam.type,
             exam_title: exam.title,
-            grade_level: this.calculateGradeLevel(score, 100)
+            grade_level: this.calculateGradeLevel(score, 100),
           });
         }
       }
 
       // 批量插入模拟成绩
       const { error: insertError } = await supabase
-        .from('grades')
+        .from("grades")
         .upsert(gradeRecords, {
-          onConflict: 'student_id,subject,exam_date,exam_type',
-          ignoreDuplicates: false
+          onConflict: "student_id,subject,exam_date,exam_type",
+          ignoreDuplicates: false,
         });
 
       if (insertError) {
@@ -271,9 +295,8 @@ export class GradeDataSyncService {
       }
 
       console.log(`✅ 成功生成 ${gradeRecords.length} 条模拟考试成绩`);
-
     } catch (error) {
-      console.error('❌ 生成模拟考试成绩失败:', error);
+      console.error("❌ 生成模拟考试成绩失败:", error);
       throw error;
     }
   }
@@ -283,12 +306,12 @@ export class GradeDataSyncService {
    */
   private calculateGradeLevel(score: number, maxScore: number): string {
     const percentage = (score / maxScore) * 100;
-    
-    if (percentage >= 90) return 'A';
-    if (percentage >= 80) return 'B';
-    if (percentage >= 70) return 'C';
-    if (percentage >= 60) return 'D';
-    return 'E';
+
+    if (percentage >= 90) return "A";
+    if (percentage >= 80) return "B";
+    if (percentage >= 70) return "C";
+    if (percentage >= 60) return "D";
+    return "E";
   }
 
   /**
@@ -296,23 +319,23 @@ export class GradeDataSyncService {
    */
   private async getProcessedStudentsCount(): Promise<number> {
     const { data, error } = await supabase
-      .from('grades')
-      .select('student_id', { count: 'exact' })
-      .not('student_id', 'is', null);
+      .from("grades")
+      .select("student_id", { count: "exact" })
+      .not("student_id", "is", null);
 
     if (error) {
-      console.warn('获取学生数量失败:', error);
+      console.warn("获取学生数量失败:", error);
       return 0;
     }
 
     // 获取唯一学生数量
     const { data: uniqueStudents } = await supabase
-      .from('grades')
-      .select('student_id')
-      .not('student_id', 'is', null);
+      .from("grades")
+      .select("student_id")
+      .not("student_id", "is", null);
 
     if (uniqueStudents) {
-      const uniqueStudentIds = new Set(uniqueStudents.map(g => g.student_id));
+      const uniqueStudentIds = new Set(uniqueStudents.map((g) => g.student_id));
       return uniqueStudentIds.size;
     }
 
@@ -324,15 +347,15 @@ export class GradeDataSyncService {
    */
   async clearGradeData(): Promise<void> {
     const { error } = await supabase
-      .from('grades')
+      .from("grades")
       .delete()
-      .neq('id', '00000000-0000-0000-0000-000000000000'); // 删除所有记录
+      .neq("id", "00000000-0000-0000-0000-000000000000"); // 删除所有记录
 
     if (error) {
       throw new Error(`清理成绩数据失败: ${error.message}`);
     }
 
-    console.log('✅ 成绩数据清理完成');
+    console.log("✅ 成绩数据清理完成");
   }
 
   /**
@@ -345,9 +368,7 @@ export class GradeDataSyncService {
     examTypes: string[];
     dateRange: { earliest: string; latest: string };
   }> {
-    const { data: grades, error } = await supabase
-      .from('grades')
-      .select('*');
+    const { data: grades, error } = await supabase.from("grades").select("*");
 
     if (error || !grades) {
       return {
@@ -355,17 +376,17 @@ export class GradeDataSyncService {
         uniqueStudents: 0,
         subjects: [],
         examTypes: [],
-        dateRange: { earliest: '', latest: '' }
+        dateRange: { earliest: "", latest: "" },
       };
     }
 
-    const uniqueStudents = new Set(grades.map(g => g.student_id)).size;
-    const subjects = [...new Set(grades.map(g => g.subject))];
-    const examTypes = [...new Set(grades.map(g => g.exam_type))];
-    
+    const uniqueStudents = new Set(grades.map((g) => g.student_id)).size;
+    const subjects = [...new Set(grades.map((g) => g.subject))];
+    const examTypes = [...new Set(grades.map((g) => g.exam_type))];
+
     const dates = grades
-      .map(g => g.exam_date)
-      .filter(date => date)
+      .map((g) => g.exam_date)
+      .filter((date) => date)
       .sort();
 
     return {
@@ -374,9 +395,9 @@ export class GradeDataSyncService {
       subjects,
       examTypes,
       dateRange: {
-        earliest: dates[0] || '',
-        latest: dates[dates.length - 1] || ''
-      }
+        earliest: dates[0] || "",
+        latest: dates[dates.length - 1] || "",
+      },
     };
   }
 }

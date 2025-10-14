@@ -3,69 +3,88 @@
  * 提供引导入口和管理界面
  */
 
-import React, { useState } from 'react';
-import { useGuide } from './UserGuideProvider';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { 
-  HelpCircle, 
-  Play, 
-  Clock, 
-  CheckCircle, 
-  Lock, 
+import React, { useState } from "react";
+import { useGuide } from "./UserGuideProvider";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import {
+  HelpCircle,
+  Play,
+  Clock,
+  CheckCircle,
+  Lock,
   Settings,
   BookOpen,
   Target,
   Users,
   Workflow,
   Star,
-  Lightbulb
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+  Lightbulb,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface GuideLauncherProps {
   className?: string;
-  variant?: 'button' | 'card' | 'floating';
+  variant?: "button" | "card" | "floating";
   showForNewUsers?: boolean;
 }
 
-export function GuideLauncher({ 
-  className, 
-  variant = 'button',
-  showForNewUsers = true 
+export function GuideLauncher({
+  className,
+  variant = "button",
+  showForNewUsers = true,
 }: GuideLauncherProps) {
-  const { state, tours, startTour, updatePreferences, isTourCompleted, canStartTour } = useGuide();
+  const {
+    state,
+    tours,
+    startTour,
+    updatePreferences,
+    isTourCompleted,
+    canStartTour,
+  } = useGuide();
   const [showGuideDialog, setShowGuideDialog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
   // 检查是否为新用户（完成的引导少于2个）
   const isNewUser = state.completedTours.length < 2;
-  
+
   // 推荐的引导（基于用户进度）
   const getRecommendedTours = () => {
     if (state.completedTours.length === 0) {
-      return tours.filter(tour => tour.id === 'warning-system-intro');
+      return tours.filter((tour) => tour.id === "warning-system-intro");
     }
-    
-    return tours.filter(tour => 
-      !isTourCompleted(tour.id) && 
-      canStartTour(tour.id)
-    ).slice(0, 3);
+
+    return tours
+      .filter((tour) => !isTourCompleted(tour.id) && canStartTour(tour.id))
+      .slice(0, 3);
   };
 
   const getDifficultyIcon = (difficulty: string) => {
     switch (difficulty) {
-      case 'beginner':
+      case "beginner":
         return <Star className="h-4 w-4 text-green-500" />;
-      case 'intermediate':
+      case "intermediate":
         return <Target className="h-4 w-4 text-yellow-500" />;
-      case 'advanced':
+      case "advanced":
         return <Workflow className="h-4 w-4 text-red-500" />;
       default:
         return <BookOpen className="h-4 w-4" />;
@@ -74,11 +93,11 @@ export function GuideLauncher({
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
-      case 'system':
+      case "system":
         return <Settings className="h-4 w-4" />;
-      case 'feature':
+      case "feature":
         return <Target className="h-4 w-4" />;
-      case 'workflow':
+      case "workflow":
         return <Workflow className="h-4 w-4" />;
       default:
         return <BookOpen className="h-4 w-4" />;
@@ -91,12 +110,12 @@ export function GuideLauncher({
   };
 
   // 浮动按钮样式
-  if (variant === 'floating') {
+  if (variant === "floating") {
     return (
       <div className={cn("fixed bottom-6 right-6 z-40", className)}>
         <Dialog open={showGuideDialog} onOpenChange={setShowGuideDialog}>
           <DialogTrigger asChild>
-            <Button 
+            <Button
               size="lg"
               className="rounded-full h-14 w-14 bg-[#c0ff3f] text-black hover:bg-[#a5e034] shadow-lg border-2 border-black"
             >
@@ -112,11 +131,16 @@ export function GuideLauncher({
   }
 
   // 卡片样式（用于新用户欢迎）
-  if (variant === 'card' && showForNewUsers && isNewUser) {
+  if (variant === "card" && showForNewUsers && isNewUser) {
     const recommendedTours = getRecommendedTours();
-    
+
     return (
-      <Card className={cn("border-2 border-[#c0ff3f] bg-gradient-to-br from-[#c0ff3f]/10 to-[#c0ff3f]/5", className)}>
+      <Card
+        className={cn(
+          "border-2 border-[#c0ff3f] bg-gradient-to-br from-[#c0ff3f]/10 to-[#c0ff3f]/5",
+          className
+        )}
+      >
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Lightbulb className="h-5 w-5 text-[#c0ff3f]" />
@@ -127,8 +151,11 @@ export function GuideLauncher({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {recommendedTours.map(tour => (
-            <div key={tour.id} className="flex items-center justify-between p-3 bg-white rounded-lg border">
+          {recommendedTours.map((tour) => (
+            <div
+              key={tour.id}
+              className="flex items-center justify-between p-3 bg-white rounded-lg border"
+            >
               <div className="flex items-center gap-3">
                 {getCategoryIcon(tour.category)}
                 <div>
@@ -139,7 +166,7 @@ export function GuideLauncher({
                   </div>
                 </div>
               </div>
-              <Button 
+              <Button
                 size="sm"
                 onClick={() => handleStartTour(tour.id)}
                 className="bg-[#c0ff3f] text-black hover:bg-[#a5e034]"
@@ -149,17 +176,17 @@ export function GuideLauncher({
               </Button>
             </div>
           ))}
-          
+
           <div className="flex items-center justify-between pt-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => setShowGuideDialog(true)}
             >
               查看所有引导
             </Button>
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="sm"
               onClick={() => updatePreferences({ autoStart: false })}
               className="text-gray-500"
@@ -176,10 +203,13 @@ export function GuideLauncher({
   return (
     <Dialog open={showGuideDialog} onOpenChange={setShowGuideDialog}>
       <DialogTrigger asChild>
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           size="sm"
-          className={cn("border-[#c0ff3f] text-[#c0ff3f] hover:bg-[#c0ff3f] hover:text-black", className)}
+          className={cn(
+            "border-[#c0ff3f] text-[#c0ff3f] hover:bg-[#c0ff3f] hover:text-black",
+            className
+          )}
         >
           <HelpCircle className="h-4 w-4 mr-2" />
           使用引导
@@ -193,7 +223,7 @@ export function GuideLauncher({
 
   function GuideDialogContent() {
     const recommendedTours = getRecommendedTours();
-    const completedToursData = tours.filter(tour => isTourCompleted(tour.id));
+    const completedToursData = tours.filter((tour) => isTourCompleted(tour.id));
     const allTours = tours;
 
     return (
@@ -219,8 +249,12 @@ export function GuideLauncher({
                     推荐引导
                   </h3>
                   <div className="space-y-3">
-                    {recommendedTours.map(tour => (
-                      <TourCard key={tour.id} tour={tour} onStart={handleStartTour} />
+                    {recommendedTours.map((tour) => (
+                      <TourCard
+                        key={tour.id}
+                        tour={tour}
+                        onStart={handleStartTour}
+                      />
                     ))}
                   </div>
                 </div>
@@ -235,8 +269,12 @@ export function GuideLauncher({
                   所有引导
                 </h3>
                 <div className="space-y-3">
-                  {allTours.map(tour => (
-                    <TourCard key={tour.id} tour={tour} onStart={handleStartTour} />
+                  {allTours.map((tour) => (
+                    <TourCard
+                      key={tour.id}
+                      tour={tour}
+                      onStart={handleStartTour}
+                    />
                   ))}
                 </div>
               </div>
@@ -249,15 +287,22 @@ export function GuideLauncher({
                     已完成 ({completedToursData.length})
                   </h3>
                   <div className="space-y-2">
-                    {completedToursData.map(tour => (
-                      <div key={tour.id} className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                    {completedToursData.map((tour) => (
+                      <div
+                        key={tour.id}
+                        className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200"
+                      >
                         <CheckCircle className="h-4 w-4 text-green-500" />
                         <div className="flex-1">
-                          <div className="font-medium text-green-800">{tour.name}</div>
-                          <div className="text-sm text-green-600">{tour.description}</div>
+                          <div className="font-medium text-green-800">
+                            {tour.name}
+                          </div>
+                          <div className="text-sm text-green-600">
+                            {tour.description}
+                          </div>
                         </div>
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
                           onClick={() => handleStartTour(tour.id)}
                           className="border-green-200 text-green-700 hover:bg-green-100"
@@ -278,7 +323,7 @@ export function GuideLauncher({
               <Settings className="h-4 w-4" />
               引导设置
             </h3>
-            
+
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <Label htmlFor="auto-start" className="text-sm">
@@ -287,12 +332,12 @@ export function GuideLauncher({
                 <Switch
                   id="auto-start"
                   checked={state.userPreferences.autoStart}
-                  onCheckedChange={(checked) => 
+                  onCheckedChange={(checked) =>
                     updatePreferences({ autoStart: checked })
                   }
                 />
               </div>
-              
+
               <div className="flex items-center justify-between">
                 <Label htmlFor="show-hints" className="text-sm">
                   显示提示
@@ -300,12 +345,12 @@ export function GuideLauncher({
                 <Switch
                   id="show-hints"
                   checked={state.userPreferences.showHints}
-                  onCheckedChange={(checked) => 
+                  onCheckedChange={(checked) =>
                     updatePreferences({ showHints: checked })
                   }
                 />
               </div>
-              
+
               <div className="flex items-center justify-between">
                 <Label htmlFor="enable-tooltips" className="text-sm">
                   启用工具提示
@@ -313,7 +358,7 @@ export function GuideLauncher({
                 <Switch
                   id="enable-tooltips"
                   checked={state.userPreferences.enableTooltips}
-                  onCheckedChange={(checked) => 
+                  onCheckedChange={(checked) =>
                     updatePreferences({ enableTooltips: checked })
                   }
                 />
@@ -325,7 +370,9 @@ export function GuideLauncher({
             <div className="text-sm text-gray-600 space-y-2">
               <div className="flex items-center justify-between">
                 <span>完成引导:</span>
-                <span className="font-medium">{state.completedTours.length}</span>
+                <span className="font-medium">
+                  {state.completedTours.length}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span>总引导数:</span>
@@ -334,7 +381,10 @@ export function GuideLauncher({
               <div className="flex items-center justify-between">
                 <span>完成率:</span>
                 <span className="font-medium">
-                  {Math.round((state.completedTours.length / tours.length) * 100)}%
+                  {Math.round(
+                    (state.completedTours.length / tours.length) * 100
+                  )}
+                  %
                 </span>
               </div>
             </div>
@@ -344,40 +394,44 @@ export function GuideLauncher({
     );
   }
 
-  function TourCard({ 
-    tour, 
-    onStart 
-  }: { 
-    tour: any; 
-    onStart: (tourId: string) => void; 
+  function TourCard({
+    tour,
+    onStart,
+  }: {
+    tour: any;
+    onStart: (tourId: string) => void;
   }) {
     const isCompleted = isTourCompleted(tour.id);
     const canStart = canStartTour(tour.id);
 
     return (
-      <Card className={cn(
-        "transition-all duration-200",
-        isCompleted && "bg-green-50 border-green-200",
-        !canStart && "opacity-60"
-      )}>
+      <Card
+        className={cn(
+          "transition-all duration-200",
+          isCompleted && "bg-green-50 border-green-200",
+          !canStart && "opacity-60"
+        )}
+      >
         <CardContent className="p-4">
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-2">
                 {getCategoryIcon(tour.category)}
                 <h4 className="font-medium">{tour.name}</h4>
-                {isCompleted && <CheckCircle className="h-4 w-4 text-green-500" />}
+                {isCompleted && (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                )}
                 {!canStart && <Lock className="h-4 w-4 text-gray-400" />}
               </div>
-              
+
               <p className="text-sm text-gray-600 mb-3">{tour.description}</p>
-              
+
               <div className="flex items-center gap-4 text-xs text-gray-500">
                 <span className="flex items-center gap-1">
                   {getDifficultyIcon(tour.difficulty)}
-                  {tour.difficulty === 'beginner' && '新手'}
-                  {tour.difficulty === 'intermediate' && '进阶'}
-                  {tour.difficulty === 'advanced' && '高级'}
+                  {tour.difficulty === "beginner" && "新手"}
+                  {tour.difficulty === "intermediate" && "进阶"}
+                  {tour.difficulty === "advanced" && "高级"}
                 </span>
                 <span className="flex items-center gap-1">
                   <Clock className="h-3 w-3" />
@@ -392,15 +446,18 @@ export function GuideLauncher({
               {tour.prerequisites && tour.prerequisites.length > 0 && (
                 <div className="mt-2">
                   <span className="text-xs text-gray-500">
-                    前置要求: {tour.prerequisites.map((prereq: string) => {
-                      const prereqTour = tours.find(t => t.id === prereq);
-                      return prereqTour?.name || prereq;
-                    }).join(', ')}
+                    前置要求:{" "}
+                    {tour.prerequisites
+                      .map((prereq: string) => {
+                        const prereqTour = tours.find((t) => t.id === prereq);
+                        return prereqTour?.name || prereq;
+                      })
+                      .join(", ")}
                   </span>
                 </div>
               )}
             </div>
-            
+
             <div className="ml-4">
               <Button
                 size="sm"
@@ -408,12 +465,13 @@ export function GuideLauncher({
                 disabled={!canStart}
                 className={cn(
                   "bg-[#c0ff3f] text-black hover:bg-[#a5e034]",
-                  isCompleted && "bg-green-100 text-green-800 hover:bg-green-200",
+                  isCompleted &&
+                    "bg-green-100 text-green-800 hover:bg-green-200",
                   !canStart && "bg-gray-100 text-gray-400 hover:bg-gray-100"
                 )}
               >
                 <Play className="h-4 w-4 mr-1" />
-                {isCompleted ? '重新学习' : '开始引导'}
+                {isCompleted ? "重新学习" : "开始引导"}
               </Button>
             </div>
           </div>

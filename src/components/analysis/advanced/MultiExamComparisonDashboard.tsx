@@ -1,6 +1,6 @@
 /**
  * 🎯 多考试数据对比和趋势分析仪表板
- * 
+ *
  * 功能：
  * 1. 多考试选择和对比分析
  * 2. 班级整体趋势分析
@@ -9,7 +9,7 @@
  * 5. 预测分析和建议生成
  */
 
-import React, { useState, useEffect, useMemo, memo } from 'react';
+import React, { useState, useEffect, useMemo, memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,7 +49,7 @@ import {
   Zap,
   Award,
   AlertTriangle,
-} from 'lucide-react';
+} from "lucide-react";
 import {
   LineChart as RechartsLineChart,
   Line,
@@ -70,31 +70,36 @@ import {
   Radar,
   ScatterChart,
   Scatter,
-} from 'recharts';
+} from "recharts";
 import { toast } from "sonner";
-import { 
-  examComparisonService, 
-  type ExamInfo, 
-  type ExamComparisonResult, 
-  type StudentTrendResult, 
-  type ClassComparisonResult 
+import {
+  examComparisonService,
+  type ExamInfo,
+  type ExamComparisonResult,
+  type StudentTrendResult,
+  type ClassComparisonResult,
 } from "@/services/examComparisonService";
 
 interface MultiExamComparisonDashboardProps {
   className?: string;
 }
 
-const MultiExamComparisonDashboard: React.FC<MultiExamComparisonDashboardProps> = ({
-  className = "",
-}) => {
+const MultiExamComparisonDashboard: React.FC<
+  MultiExamComparisonDashboardProps
+> = ({ className = "" }) => {
   const [availableExams, setAvailableExams] = useState<ExamInfo[]>([]);
   const [selectedExams, setSelectedExams] = useState<string[]>([]);
-  const [comparisonResults, setComparisonResults] = useState<ExamComparisonResult[]>([]);
-  const [classComparison, setClassComparison] = useState<ClassComparisonResult | null>(null);
-  const [selectedStudent, setSelectedStudent] = useState<string>('');
-  const [studentTrend, setStudentTrend] = useState<StudentTrendResult | null>(null);
+  const [comparisonResults, setComparisonResults] = useState<
+    ExamComparisonResult[]
+  >([]);
+  const [classComparison, setClassComparison] =
+    useState<ClassComparisonResult | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<string>("");
+  const [studentTrend, setStudentTrend] = useState<StudentTrendResult | null>(
+    null
+  );
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState("overview");
 
   // 加载可用考试列表
   useEffect(() => {
@@ -102,10 +107,10 @@ const MultiExamComparisonDashboard: React.FC<MultiExamComparisonDashboardProps> 
       try {
         const exams = await examComparisonService.getAvailableExams();
         setAvailableExams(exams);
-        console.log('✅ [MultiExamComparison] 加载考试列表:', exams.length);
+        console.log("✅ [MultiExamComparison] 加载考试列表:", exams.length);
       } catch (error) {
-        console.error('❌ [MultiExamComparison] 加载考试列表失败:', error);
-        toast.error('加载考试列表失败');
+        console.error("❌ [MultiExamComparison] 加载考试列表失败:", error);
+        toast.error("加载考试列表失败");
       }
     };
 
@@ -115,24 +120,24 @@ const MultiExamComparisonDashboard: React.FC<MultiExamComparisonDashboardProps> 
   // 执行多考试对比分析
   const handleCompareExams = async () => {
     if (selectedExams.length < 2) {
-      toast.error('请至少选择两个考试进行对比');
+      toast.error("请至少选择两个考试进行对比");
       return;
     }
 
     setLoading(true);
     try {
-      console.log('🔄 [MultiExamComparison] 开始对比分析:', selectedExams);
+      console.log("🔄 [MultiExamComparison] 开始对比分析:", selectedExams);
       const results = await examComparisonService.compareExams(selectedExams);
       setComparisonResults(results);
-      
+
       // 同时获取班级对比数据
       const classResults = await examComparisonService.compareClasses();
       setClassComparison(classResults);
-      
+
       toast.success(`成功对比 ${results.length} 个考试`);
     } catch (error) {
-      console.error('❌ [MultiExamComparison] 对比分析失败:', error);
-      toast.error('对比分析失败');
+      console.error("❌ [MultiExamComparison] 对比分析失败:", error);
+      toast.error("对比分析失败");
     } finally {
       setLoading(false);
     }
@@ -141,15 +146,15 @@ const MultiExamComparisonDashboard: React.FC<MultiExamComparisonDashboardProps> 
   // 获取学生趋势分析
   const handleStudentTrendAnalysis = async (studentId: string) => {
     if (!studentId) return;
-    
+
     setLoading(true);
     try {
       const trend = await examComparisonService.analyzeStudentTrend(studentId);
       setStudentTrend(trend);
-      toast.success('学生趋势分析完成');
+      toast.success("学生趋势分析完成");
     } catch (error) {
-      console.error('❌ [MultiExamComparison] 学生趋势分析失败:', error);
-      toast.error('学生趋势分析失败');
+      console.error("❌ [MultiExamComparison] 学生趋势分析失败:", error);
+      toast.error("学生趋势分析失败");
     } finally {
       setLoading(false);
     }
@@ -158,8 +163,8 @@ const MultiExamComparisonDashboard: React.FC<MultiExamComparisonDashboardProps> 
   // 获取所有学生列表（从对比结果中提取）
   const allStudents = useMemo(() => {
     const students = new Map<string, string>();
-    comparisonResults.forEach(result => {
-      result.topPerformers.forEach(performer => {
+    comparisonResults.forEach((result) => {
+      result.topPerformers.forEach((performer) => {
         students.set(performer.studentId, performer.studentName);
       });
     });
@@ -168,7 +173,7 @@ const MultiExamComparisonDashboard: React.FC<MultiExamComparisonDashboardProps> 
 
   // 准备图表数据
   const chartData = useMemo(() => {
-    return comparisonResults.map(result => ({
+    return comparisonResults.map((result) => ({
       examTitle: result.examInfo.exam_title,
       examDate: result.examInfo.exam_date,
       totalParticipants: result.summary.totalParticipants,
@@ -180,11 +185,13 @@ const MultiExamComparisonDashboard: React.FC<MultiExamComparisonDashboardProps> 
   // 科目趋势数据
   const subjectTrendData = useMemo(() => {
     if (comparisonResults.length === 0) return [];
-    
-    const subjects = comparisonResults[0].subjectStats.map(s => s.subject);
-    return subjects.map(subject => {
-      const data = comparisonResults.map(result => {
-        const subjectData = result.subjectStats.find(s => s.subject === subject);
+
+    const subjects = comparisonResults[0].subjectStats.map((s) => s.subject);
+    return subjects.map((subject) => {
+      const data = comparisonResults.map((result) => {
+        const subjectData = result.subjectStats.find(
+          (s) => s.subject === subject
+        );
         return {
           examTitle: result.examInfo.exam_title,
           score: subjectData?.averageScore || 0,
@@ -197,9 +204,9 @@ const MultiExamComparisonDashboard: React.FC<MultiExamComparisonDashboardProps> 
   // 渲染趋势图标
   const renderTrendIcon = (trend: string) => {
     switch (trend) {
-      case 'improving':
+      case "improving":
         return <TrendingUp className="h-4 w-4 text-green-600" />;
-      case 'declining':
+      case "declining":
         return <TrendingDown className="h-4 w-4 text-red-600" />;
       default:
         return <Minus className="h-4 w-4 text-gray-600" />;
@@ -210,16 +217,20 @@ const MultiExamComparisonDashboard: React.FC<MultiExamComparisonDashboardProps> 
   const renderOverviewCards = () => {
     if (comparisonResults.length === 0) return null;
 
-    const totalStudents = comparisonResults.reduce((sum, result) => 
-      sum + result.summary.totalParticipants, 0
-    ) / comparisonResults.length;
+    const totalStudents =
+      comparisonResults.reduce(
+        (sum, result) => sum + result.summary.totalParticipants,
+        0
+      ) / comparisonResults.length;
 
-    const avgScore = comparisonResults.reduce((sum, result) => 
-      sum + result.summary.overallAverage, 0
-    ) / comparisonResults.length;
+    const avgScore =
+      comparisonResults.reduce(
+        (sum, result) => sum + result.summary.overallAverage,
+        0
+      ) / comparisonResults.length;
 
-    const improvingCount = comparisonResults.filter(result => 
-      result.summary.improvementTrend === 'improving'
+    const improvingCount = comparisonResults.filter(
+      (result) => result.summary.improvementTrend === "improving"
     ).length;
 
     return (
@@ -290,38 +301,43 @@ const MultiExamComparisonDashboard: React.FC<MultiExamComparisonDashboardProps> 
               <label className="text-sm font-black text-[#191A23] uppercase tracking-wide">
                 选择考试 ({selectedExams.length} 个)
               </label>
-              <Select value="" onValueChange={(examId) => {
-                if (!selectedExams.includes(examId)) {
-                  setSelectedExams([...selectedExams, examId]);
-                }
-              }}>
+              <Select
+                value=""
+                onValueChange={(examId) => {
+                  if (!selectedExams.includes(examId)) {
+                    setSelectedExams([...selectedExams, examId]);
+                  }
+                }}
+              >
                 <SelectTrigger className="border-2 border-black shadow-[2px_2px_0px_0px_#191A23]">
                   <SelectValue placeholder="添加考试..." />
                 </SelectTrigger>
                 <SelectContent>
                   {availableExams
-                    .filter(exam => !selectedExams.includes(exam.id))
+                    .filter((exam) => !selectedExams.includes(exam.id))
                     .map((exam) => (
                       <SelectItem key={exam.id} value={exam.id}>
                         {exam.exam_title} ({exam.exam_date})
                       </SelectItem>
-                  ))}
+                    ))}
                 </SelectContent>
               </Select>
-              
+
               {/* 已选考试标签 */}
               {selectedExams.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
                   {selectedExams.map((examId) => {
-                    const exam = availableExams.find(e => e.id === examId);
+                    const exam = availableExams.find((e) => e.id === examId);
                     if (!exam) return null;
                     return (
-                      <Badge 
-                        key={examId} 
-                        variant="outline" 
+                      <Badge
+                        key={examId}
+                        variant="outline"
                         className="cursor-pointer hover:bg-red-100"
                         onClick={() => {
-                          setSelectedExams(selectedExams.filter(id => id !== examId));
+                          setSelectedExams(
+                            selectedExams.filter((id) => id !== examId)
+                          );
                         }}
                       >
                         {exam.exam_title} ×
@@ -337,7 +353,10 @@ const MultiExamComparisonDashboard: React.FC<MultiExamComparisonDashboardProps> 
               <label className="text-sm font-black text-[#191A23] uppercase tracking-wide">
                 学生趋势分析
               </label>
-              <Select value={selectedStudent} onValueChange={setSelectedStudent}>
+              <Select
+                value={selectedStudent}
+                onValueChange={setSelectedStudent}
+              >
                 <SelectTrigger className="border-2 border-black shadow-[2px_2px_0px_0px_#191A23]">
                   <SelectValue placeholder="选择学生..." />
                 </SelectTrigger>
@@ -357,17 +376,21 @@ const MultiExamComparisonDashboard: React.FC<MultiExamComparisonDashboardProps> 
                 分析操作
               </label>
               <div className="flex gap-2">
-                <Button 
+                <Button
                   onClick={handleCompareExams}
                   disabled={loading || selectedExams.length < 2}
                   className="border-2 border-black font-bold shadow-[2px_2px_0px_0px_#191A23] bg-[#B9FF66] text-[#191A23] hover:bg-[#B9FF66]/80"
                 >
-                  {loading ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : <Zap className="h-4 w-4 mr-2" />}
+                  {loading ? (
+                    <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Zap className="h-4 w-4 mr-2" />
+                  )}
                   开始对比
                 </Button>
-                
+
                 {selectedStudent && (
-                  <Button 
+                  <Button
                     onClick={() => handleStudentTrendAnalysis(selectedStudent)}
                     disabled={loading}
                     variant="outline"
@@ -390,17 +413,28 @@ const MultiExamComparisonDashboard: React.FC<MultiExamComparisonDashboardProps> 
 
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-4 border-2 border-black">
-              <TabsTrigger value="overview" className="font-bold">总体分析</TabsTrigger>
-              <TabsTrigger value="trends" className="font-bold">趋势图表</TabsTrigger>
-              <TabsTrigger value="subjects" className="font-bold">科目对比</TabsTrigger>
-              <TabsTrigger value="classes" className="font-bold">班级分析</TabsTrigger>
+              <TabsTrigger value="overview" className="font-bold">
+                总体分析
+              </TabsTrigger>
+              <TabsTrigger value="trends" className="font-bold">
+                趋势图表
+              </TabsTrigger>
+              <TabsTrigger value="subjects" className="font-bold">
+                科目对比
+              </TabsTrigger>
+              <TabsTrigger value="classes" className="font-bold">
+                班级分析
+              </TabsTrigger>
             </TabsList>
 
             {/* 总体分析 */}
             <TabsContent value="overview" className="space-y-4">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {comparisonResults.map((result, index) => (
-                  <Card key={index} className="border-2 border-black shadow-[4px_4px_0px_0px_#6B7280]">
+                  <Card
+                    key={index}
+                    className="border-2 border-black shadow-[4px_4px_0px_0px_#6B7280]"
+                  >
                     <CardHeader className="bg-[#6B7280] border-b-2 border-black">
                       <CardTitle className="text-white font-black flex items-center justify-between">
                         <span>{result.examInfo.exam_title}</span>
@@ -411,28 +445,40 @@ const MultiExamComparisonDashboard: React.FC<MultiExamComparisonDashboardProps> 
                       <div className="space-y-3">
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-medium">参与人数</span>
-                          <Badge variant="outline">{result.summary.totalParticipants}</Badge>
+                          <Badge variant="outline">
+                            {result.summary.totalParticipants}
+                          </Badge>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-medium">平均分</span>
-                          <Badge variant="outline">{result.summary.overallAverage.toFixed(1)}</Badge>
+                          <Badge variant="outline">
+                            {result.summary.overallAverage.toFixed(1)}
+                          </Badge>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-medium">班级数量</span>
-                          <Badge variant="outline">{result.classStats.length}</Badge>
+                          <Badge variant="outline">
+                            {result.classStats.length}
+                          </Badge>
                         </div>
-                        
+
                         {/* 关键洞察 */}
                         {result.summary.keyInsights.length > 0 && (
                           <div className="pt-2 border-t">
-                            <p className="text-xs font-medium text-gray-600 mb-1">关键洞察:</p>
+                            <p className="text-xs font-medium text-gray-600 mb-1">
+                              关键洞察:
+                            </p>
                             <ul className="text-xs text-gray-700 space-y-1">
-                              {result.summary.keyInsights.slice(0, 2).map((insight, i) => (
-                                <li key={i} className="flex items-start">
-                                  <span className="text-[#B9FF66] mr-1">•</span>
-                                  {insight}
-                                </li>
-                              ))}
+                              {result.summary.keyInsights
+                                .slice(0, 2)
+                                .map((insight, i) => (
+                                  <li key={i} className="flex items-start">
+                                    <span className="text-[#B9FF66] mr-1">
+                                      •
+                                    </span>
+                                    {insight}
+                                  </li>
+                                ))}
                             </ul>
                           </div>
                         )}
@@ -457,9 +503,13 @@ const MultiExamComparisonDashboard: React.FC<MultiExamComparisonDashboardProps> 
                     <ResponsiveContainer width="100%" height="100%">
                       <RechartsLineChart data={chartData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                        <XAxis dataKey="examTitle" stroke="#191A23" fontWeight="bold" />
+                        <XAxis
+                          dataKey="examTitle"
+                          stroke="#191A23"
+                          fontWeight="bold"
+                        />
                         <YAxis stroke="#191A23" fontWeight="bold" />
-                        <Tooltip 
+                        <Tooltip
                           contentStyle={{
                             border: "2px solid #191A23",
                             borderRadius: "8px",
@@ -468,18 +518,18 @@ const MultiExamComparisonDashboard: React.FC<MultiExamComparisonDashboardProps> 
                           }}
                         />
                         <Legend />
-                        <Line 
-                          type="monotone" 
-                          dataKey="overallAverage" 
-                          stroke="#B9FF66" 
+                        <Line
+                          type="monotone"
+                          dataKey="overallAverage"
+                          stroke="#B9FF66"
                           strokeWidth={3}
                           dot={{ fill: "#B9FF66", strokeWidth: 2, r: 5 }}
                           name="平均分"
                         />
-                        <Line 
-                          type="monotone" 
-                          dataKey="totalParticipants" 
-                          stroke="#6B7280" 
+                        <Line
+                          type="monotone"
+                          dataKey="totalParticipants"
+                          stroke="#6B7280"
                           strokeWidth={3}
                           dot={{ fill: "#6B7280", strokeWidth: 2, r: 5 }}
                           name="参与人数"
@@ -494,7 +544,10 @@ const MultiExamComparisonDashboard: React.FC<MultiExamComparisonDashboardProps> 
             {/* 科目对比 */}
             <TabsContent value="subjects" className="space-y-4">
               {subjectTrendData.map((subjectData, index) => (
-                <Card key={index} className="border-2 border-black shadow-[4px_4px_0px_0px_#6B7280]">
+                <Card
+                  key={index}
+                  className="border-2 border-black shadow-[4px_4px_0px_0px_#6B7280]"
+                >
                   <CardHeader className="bg-[#6B7280] border-b-2 border-black">
                     <CardTitle className="text-white font-black">
                       {subjectData.subject} 科目趋势
@@ -504,10 +557,17 @@ const MultiExamComparisonDashboard: React.FC<MultiExamComparisonDashboardProps> 
                     <div className="h-64">
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={subjectData.data}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                          <XAxis dataKey="examTitle" stroke="#191A23" fontWeight="bold" />
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            stroke="#E5E7EB"
+                          />
+                          <XAxis
+                            dataKey="examTitle"
+                            stroke="#191A23"
+                            fontWeight="bold"
+                          />
                           <YAxis stroke="#191A23" fontWeight="bold" />
-                          <Tooltip 
+                          <Tooltip
                             contentStyle={{
                               border: "2px solid #191A23",
                               borderRadius: "8px",
@@ -545,40 +605,62 @@ const MultiExamComparisonDashboard: React.FC<MultiExamComparisonDashboardProps> 
                     </CardHeader>
                     <CardContent className="p-6">
                       <div className="space-y-3">
-                        {classComparison.classPerformance.slice(0, 10).map((classData, index) => (
-                          <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border-2 border-gray-200">
-                            <div className="flex items-center gap-3">
-                              <Badge 
-                                variant={index < 3 ? "default" : "outline"}
-                                className={`font-bold ${
-                                  index === 0 ? "bg-yellow-400 text-black" :
-                                  index === 1 ? "bg-gray-400 text-white" :
-                                  index === 2 ? "bg-orange-400 text-white" :
-                                  ""
-                                }`}
-                              >
-                                #{classData.rank}
-                              </Badge>
-                              <div>
-                                <p className="font-bold text-[#191A23]">{classData.className}</p>
-                                <p className="text-sm text-gray-600">
-                                  {classData.studentCount} 人 • 平均分 {classData.averageScore.toFixed(1)}
-                                </p>
+                        {classComparison.classPerformance
+                          .slice(0, 10)
+                          .map((classData, index) => (
+                            <div
+                              key={index}
+                              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border-2 border-gray-200"
+                            >
+                              <div className="flex items-center gap-3">
+                                <Badge
+                                  variant={index < 3 ? "default" : "outline"}
+                                  className={`font-bold ${
+                                    index === 0
+                                      ? "bg-yellow-400 text-black"
+                                      : index === 1
+                                        ? "bg-gray-400 text-white"
+                                        : index === 2
+                                          ? "bg-orange-400 text-white"
+                                          : ""
+                                  }`}
+                                >
+                                  #{classData.rank}
+                                </Badge>
+                                <div>
+                                  <p className="font-bold text-[#191A23]">
+                                    {classData.className}
+                                  </p>
+                                  <p className="text-sm text-gray-600">
+                                    {classData.studentCount} 人 • 平均分{" "}
+                                    {classData.averageScore.toFixed(1)}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                {renderTrendIcon(classData.trend)}
+                                <Badge
+                                  variant={
+                                    classData.trend === "improving"
+                                      ? "default"
+                                      : "outline"
+                                  }
+                                  className={
+                                    classData.trend === "improving"
+                                      ? "bg-green-500 text-white"
+                                      : ""
+                                  }
+                                >
+                                  {classData.trend === "improving"
+                                    ? "进步中"
+                                    : classData.trend === "declining"
+                                      ? "需关注"
+                                      : "稳定"}
+                                </Badge>
                               </div>
                             </div>
-                            
-                            <div className="flex items-center gap-2">
-                              {renderTrendIcon(classData.trend)}
-                              <Badge 
-                                variant={classData.trend === 'improving' ? 'default' : 'outline'}
-                                className={classData.trend === 'improving' ? 'bg-green-500 text-white' : ''}
-                              >
-                                {classData.trend === 'improving' ? '进步中' : 
-                                 classData.trend === 'declining' ? '需关注' : '稳定'}
-                              </Badge>
-                            </div>
-                          </div>
-                        ))}
+                          ))}
                       </div>
                     </CardContent>
                   </Card>
@@ -594,12 +676,21 @@ const MultiExamComparisonDashboard: React.FC<MultiExamComparisonDashboardProps> 
                       </CardHeader>
                       <CardContent className="p-6">
                         <div className="space-y-3">
-                          {classComparison.insights.keyFindings.map((finding, index) => (
-                            <div key={index} className="flex items-start gap-2">
-                              <span className="text-[#B9FF66] font-bold">•</span>
-                              <p className="text-sm text-[#191A23] font-medium">{finding}</p>
-                            </div>
-                          ))}
+                          {classComparison.insights.keyFindings.map(
+                            (finding, index) => (
+                              <div
+                                key={index}
+                                className="flex items-start gap-2"
+                              >
+                                <span className="text-[#B9FF66] font-bold">
+                                  •
+                                </span>
+                                <p className="text-sm text-[#191A23] font-medium">
+                                  {finding}
+                                </p>
+                              </div>
+                            )
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -613,17 +704,21 @@ const MultiExamComparisonDashboard: React.FC<MultiExamComparisonDashboardProps> 
 
       {/* 学生个人趋势分析结果 */}
       {studentTrend && (
-        <Dialog open={!!studentTrend} onOpenChange={() => setStudentTrend(null)}>
+        <Dialog
+          open={!!studentTrend}
+          onOpenChange={() => setStudentTrend(null)}
+        >
           <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]">
             <DialogHeader>
               <DialogTitle className="text-2xl font-black text-[#191A23] uppercase tracking-wide">
                 {studentTrend.studentInfo.studentName} - 个人趋势分析
               </DialogTitle>
               <DialogDescription>
-                班级：{studentTrend.studentInfo.className} | 分析了 {studentTrend.examHistory.length} 次考试
+                班级：{studentTrend.studentInfo.className} | 分析了{" "}
+                {studentTrend.examHistory.length} 次考试
               </DialogDescription>
             </DialogHeader>
-            
+
             <div className="space-y-4">
               {/* 趋势概览 */}
               <div className="grid grid-cols-3 gap-4">
@@ -638,7 +733,7 @@ const MultiExamComparisonDashboard: React.FC<MultiExamComparisonDashboardProps> 
                     </p>
                   </CardContent>
                 </Card>
-                
+
                 <Card className="border border-gray-200">
                   <CardContent className="p-4 text-center">
                     <div className="text-2xl font-bold mb-2">
@@ -650,12 +745,15 @@ const MultiExamComparisonDashboard: React.FC<MultiExamComparisonDashboardProps> 
                     </p>
                   </CardContent>
                 </Card>
-                
+
                 <Card className="border border-gray-200">
                   <CardContent className="p-4 text-center">
                     <div className="text-2xl font-bold mb-2">
-                      {studentTrend.predictions.riskLevel === 'low' ? '🟢' : 
-                       studentTrend.predictions.riskLevel === 'medium' ? '🟡' : '🔴'}
+                      {studentTrend.predictions.riskLevel === "low"
+                        ? "🟢"
+                        : studentTrend.predictions.riskLevel === "medium"
+                          ? "🟡"
+                          : "🔴"}
                     </div>
                     <p className="text-sm font-medium">风险等级</p>
                     <p className="text-xs text-gray-600 capitalize">
@@ -679,17 +777,17 @@ const MultiExamComparisonDashboard: React.FC<MultiExamComparisonDashboardProps> 
                         <YAxis />
                         <Tooltip />
                         <Legend />
-                        <Line 
-                          type="monotone" 
-                          dataKey="totalScore" 
-                          stroke="#B9FF66" 
+                        <Line
+                          type="monotone"
+                          dataKey="totalScore"
+                          stroke="#B9FF66"
                           strokeWidth={2}
                           name="总分"
                         />
-                        <Line 
-                          type="monotone" 
-                          dataKey="classRank" 
-                          stroke="#6B7280" 
+                        <Line
+                          type="monotone"
+                          dataKey="classRank"
+                          stroke="#6B7280"
                           strokeWidth={2}
                           name="班级排名"
                         />
@@ -710,20 +808,32 @@ const MultiExamComparisonDashboard: React.FC<MultiExamComparisonDashboardProps> 
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                      {studentTrend.predictions.recommendations.map((rec, index) => (
-                        <div key={index} className="flex items-start gap-2">
-                          <span className="text-blue-500">•</span>
-                          <p className="text-sm">{rec}</p>
-                        </div>
-                      ))}
-                      
+                      {studentTrend.predictions.recommendations.map(
+                        (rec, index) => (
+                          <div key={index} className="flex items-start gap-2">
+                            <span className="text-blue-500">•</span>
+                            <p className="text-sm">{rec}</p>
+                          </div>
+                        )
+                      )}
+
                       {studentTrend.predictions.nextExamPrediction && (
                         <div className="mt-4 p-3 bg-blue-50 rounded-lg">
                           <p className="text-sm font-medium">
-                            📊 下次考试预测分数: {studentTrend.predictions.nextExamPrediction.toFixed(1)}
+                            📊 下次考试预测分数:{" "}
+                            {studentTrend.predictions.nextExamPrediction.toFixed(
+                              1
+                            )}
                           </p>
                           <p className="text-xs text-gray-600">
-                            置信区间: {studentTrend.predictions.confidenceInterval[0].toFixed(1)} - {studentTrend.predictions.confidenceInterval[1].toFixed(1)}
+                            置信区间:{" "}
+                            {studentTrend.predictions.confidenceInterval[0].toFixed(
+                              1
+                            )}{" "}
+                            -{" "}
+                            {studentTrend.predictions.confidenceInterval[1].toFixed(
+                              1
+                            )}
                           </p>
                         </div>
                       )}

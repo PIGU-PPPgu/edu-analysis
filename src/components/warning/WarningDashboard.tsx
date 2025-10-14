@@ -264,15 +264,15 @@ const AIInsightPanel = ({
 };
 
 // 成功状态提示组件
-const SuccessIndicator = ({ 
-  show, 
-  message 
-}: { 
-  show: boolean; 
-  message: string 
+const SuccessIndicator = ({
+  show,
+  message,
+}: {
+  show: boolean;
+  message: string;
 }) => {
   if (!show) return null;
-  
+
   return (
     <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4 flex items-center">
       <Check className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
@@ -296,8 +296,10 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
   const [aiConfigured, setAiConfigured] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [analysisProgress, setAnalysisProgress] = useState(0);
-  const [activeTab, setActiveTab] = useState<string>(externalActiveTab || "overview");
-  
+  const [activeTab, setActiveTab] = useState<string>(
+    externalActiveTab || "overview"
+  );
+
   // 当外部activeTab改变时，更新内部状态
   useEffect(() => {
     if (externalActiveTab) {
@@ -305,7 +307,7 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
     }
   }, [externalActiveTab]);
   const [tableError, setTableError] = useState<string | null>(null);
-  
+
   // 简化的卡片数据状态 - 优先使用传入的数据
   const [cardStats, setCardStats] = useState({
     totalStudents: 0,
@@ -330,17 +332,28 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
     if (warningData && !isLoading) {
       // 使用传入的数据
       totalStudents = warningData.totalStudents || 0;
-      atRiskStudents = warningData.atRiskStudents || warningData.warningStudents || 0;
+      atRiskStudents =
+        warningData.atRiskStudents || warningData.warningStudents || 0;
       highRiskStudents = warningData.highRiskStudents || 0;
       activeWarnings = warningData.activeWarnings || 0;
-      console.log("📊 使用传入的warningData:", { totalStudents, atRiskStudents, highRiskStudents, activeWarnings });
+      console.log("📊 使用传入的warningData:", {
+        totalStudents,
+        atRiskStudents,
+        highRiskStudents,
+        activeWarnings,
+      });
     } else if (cardStats.totalStudents > 0) {
       // 使用本地查询的数据
       totalStudents = cardStats.totalStudents;
       atRiskStudents = cardStats.atRiskStudents;
       highRiskStudents = cardStats.highRiskStudents;
       activeWarnings = cardStats.activeWarnings;
-      console.log("📊 使用本地cardStats:", { totalStudents, atRiskStudents, highRiskStudents, activeWarnings });
+      console.log("📊 使用本地cardStats:", {
+        totalStudents,
+        atRiskStudents,
+        highRiskStudents,
+        activeWarnings,
+      });
     }
 
     const baseStats = {
@@ -348,11 +361,17 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
       atRiskStudents,
       highRiskStudents,
       activeWarnings,
-      warningsByType: Array.isArray(warningData?.warningsByType) ? warningData.warningsByType : [],
-      riskByClass: Array.isArray(warningData?.riskByClass) ? warningData.riskByClass : [],
-      commonRiskFactors: Array.isArray(warningData?.commonRiskFactors) ? warningData.commonRiskFactors : [],
+      warningsByType: Array.isArray(warningData?.warningsByType)
+        ? warningData.warningsByType
+        : [],
+      riskByClass: Array.isArray(warningData?.riskByClass)
+        ? warningData.riskByClass
+        : [],
+      commonRiskFactors: Array.isArray(warningData?.commonRiskFactors)
+        ? warningData.commonRiskFactors
+        : [],
     };
-    
+
     console.log("📊 WarningDashboard 最终统计数据:", baseStats);
     return baseStats;
   }, [cardStats, warningData, isLoading]);
@@ -362,68 +381,80 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
     try {
       setIsLoadingCards(true);
       setCardDataError(null);
-      
-      console.log('🎯 直接查询数据库获取卡片统计数据...');
-      
+
+      console.log("🎯 直接查询数据库获取卡片统计数据...");
+
       // 并行查询基础统计数据
       const [studentsResult, warningsResult] = await Promise.allSettled([
-        supabase.from('students').select('student_id', { count: 'exact' }),
-        supabase.from('warning_records').select('student_id, status')
+        supabase.from("students").select("student_id", { count: "exact" }),
+        supabase.from("warning_records").select("student_id, status"),
       ]);
-      
+
       let totalStudents = 0;
       let atRiskStudents = 0;
       let activeWarnings = 0;
-      
+
       // 处理学生总数
-      if (studentsResult.status === 'fulfilled' && !studentsResult.value.error) {
+      if (
+        studentsResult.status === "fulfilled" &&
+        !studentsResult.value.error
+      ) {
         totalStudents = studentsResult.value.count || 0;
-        console.log('✅ 学生总数查询成功:', totalStudents);
+        console.log("✅ 学生总数查询成功:", totalStudents);
       } else {
-        console.warn('⚠️ 学生总数查询失败，使用默认值');
+        console.warn("⚠️ 学生总数查询失败，使用默认值");
         totalStudents = 10; // 测试数据中的学生数量
       }
-      
+
       // 处理预警数据
-      if (warningsResult.status === 'fulfilled' && !warningsResult.value.error) {
+      if (
+        warningsResult.status === "fulfilled" &&
+        !warningsResult.value.error
+      ) {
         const warningData = warningsResult.value.data || [];
-        const uniqueStudentIds = [...new Set(warningData.map(w => w.student_id))];
+        const uniqueStudentIds = [
+          ...new Set(warningData.map((w) => w.student_id)),
+        ];
         atRiskStudents = uniqueStudentIds.length;
-        activeWarnings = warningData.filter(w => w.status === 'active').length;
-        console.log('✅ 预警数据查询成功:', { atRiskStudents, activeWarnings });
+        activeWarnings = warningData.filter(
+          (w) => w.status === "active"
+        ).length;
+        console.log("✅ 预警数据查询成功:", { atRiskStudents, activeWarnings });
       } else {
-        console.warn('⚠️ 预警数据查询失败，使用计算值');
-        atRiskStudents = Math.min(Math.floor(totalStudents * 0.3), totalStudents);
+        console.warn("⚠️ 预警数据查询失败，使用计算值");
+        atRiskStudents = Math.min(
+          Math.floor(totalStudents * 0.3),
+          totalStudents
+        );
         activeWarnings = atRiskStudents;
       }
-      
+
       const newCardStats = {
         totalStudents,
         atRiskStudents,
         highRiskStudents: Math.floor(atRiskStudents * 0.4), // 高风险是风险学生的40%
-        activeWarnings
+        activeWarnings,
       };
-      
-      console.log('🎯 最终卡片统计数据:', newCardStats);
+
+      console.log("🎯 最终卡片统计数据:", newCardStats);
       setCardStats(newCardStats);
-      
     } catch (error) {
-      console.error('❌ 加载卡片数据失败:', error);
-      setCardDataError(`数据加载失败: ${error instanceof Error ? error.message : '未知错误'}`);
-      
+      console.error("❌ 加载卡片数据失败:", error);
+      setCardDataError(
+        `数据加载失败: ${error instanceof Error ? error.message : "未知错误"}`
+      );
+
       // 设置基本的测试数据
       setCardStats({
         totalStudents: 10,
-        atRiskStudents: 6, 
+        atRiskStudents: 6,
         highRiskStudents: 2,
-        activeWarnings: 4
+        activeWarnings: 4,
       });
     } finally {
       setIsLoadingCards(false);
     }
   };
-
-
 
   const riskFactors = useMemo(() => {
     return factorStats || stats.commonRiskFactors || [];
@@ -439,23 +470,25 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
         // 更宽松的配置检查 - 只要有provider和apiKey就认为配置完成
         const isConfigured = !!config && !!config.provider && !!apiKey;
         setAiConfigured(isConfigured);
-        console.log('🔧 AI配置状态检查:', {
+        console.log("🔧 AI配置状态检查:", {
           hasConfig: !!config,
           provider: config?.provider,
           model: config?.version,
           hasApiKey: !!apiKey,
           apiKeyLength: apiKey?.length || 0,
-          configured: isConfigured
+          configured: isConfigured,
         });
-        
+
         // 如果配置完整，显示成功提示
         if (isConfigured) {
-          console.log(`✅ AI服务配置完整: ${config.provider} 模型 ${config.version}`);
+          console.log(
+            `✅ AI服务配置完整: ${config.provider} 模型 ${config.version}`
+          );
         } else {
-          console.warn('⚠️ AI配置不完整:', {
+          console.warn("⚠️ AI配置不完整:", {
             missingConfig: !config,
             missingProvider: !config?.provider,
-            missingApiKey: !apiKey
+            missingApiKey: !apiKey,
           });
         }
       }
@@ -475,7 +508,11 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
     // 简化的数据状态检查
     if (cardDataError) {
       setTableError(cardDataError);
-    } else if (isLoading === false && isLoadingCards === false && stats.totalStudents === 0) {
+    } else if (
+      isLoading === false &&
+      isLoadingCards === false &&
+      stats.totalStudents === 0
+    ) {
       setTableError("无法加载统计数据");
     } else {
       setTableError(null);
@@ -487,27 +524,26 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
     };
   }, [warningData, isLoading, isLoadingCards, cardStats, cardDataError]);
 
-
   // 使用aiService中的功能进行AI分析
   const generateAIInsights = async () => {
-    console.log('🚀 generateAIInsights函数被调用!');
-    console.log('🔍 isMounted状态检查:', isMounted.current);
-    
+    console.log("🚀 generateAIInsights函数被调用!");
+    console.log("🔍 isMounted状态检查:", isMounted.current);
+
     // 确保组件状态正确
     if (!isMounted.current) {
-      console.warn('⚠️ isMounted为false，强制设置为true并继续执行');
+      console.warn("⚠️ isMounted为false，强制设置为true并继续执行");
       isMounted.current = true;
     }
 
     try {
-      console.log('🎯 开始AI分析，检查用户配置...');
+      console.log("🎯 开始AI分析，检查用户配置...");
       const aiConfig = await getUserAIConfig();
-      console.log('📋 用户AI配置:', aiConfig);
+      console.log("📋 用户AI配置:", aiConfig);
 
       // 更宽松的AI配置检查 - 只要有provider和version就认为配置有效
       if (!aiConfig || !aiConfig.provider || !aiConfig.version) {
-        console.warn('❌ AI配置未设置或缺少必要参数');
-        console.log('当前AI配置详情:', aiConfig);
+        console.warn("❌ AI配置未设置或缺少必要参数");
+        console.log("当前AI配置详情:", aiConfig);
         if (isMounted.current) {
           toast.error("请先配置并启用AI服务", {
             description: "点击下方'前往AI设置'按钮进行配置",
@@ -515,8 +551,8 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
               label: "立即配置",
               onClick: () => {
                 window.location.href = "/ai-settings";
-              }
-            }
+              },
+            },
           });
         }
         return;
@@ -530,7 +566,7 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
       let currentProgress = 0;
       const progressStages = [10, 25, 45, 65, 80, 95]; // 预定义的进度阶段
       let stageIndex = 0;
-      
+
       const progressInterval = setInterval(() => {
         if (isMounted.current && stageIndex < progressStages.length) {
           currentProgress = progressStages[stageIndex];
@@ -556,14 +592,14 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
               label: "前往设置",
               onClick: () => {
                 window.location.href = "/ai-settings";
-              }
-            }
+              },
+            },
           });
         }
         return;
       }
 
-      console.log('✅ AI配置和密钥验证通过，开始生成分析...');
+      console.log("✅ AI配置和密钥验证通过，开始生成分析...");
 
       // 准备完整的AI分析输入数据，包括筛选上下文
       const aiInputData = {
@@ -572,36 +608,42 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
         highRiskStudents: stats.highRiskStudents || 0,
         totalStudents: stats.totalStudents || 0,
         atRiskStudents: stats.atRiskStudents || 0,
-        
+
         // 🎯 风险因素数据
         riskFactors: stats.commonRiskFactors || [],
         classDistribution: stats.riskByClass || [],
         warningsByType: stats.warningsByType || [],
-        
+
         // 📋 筛选上下文（这是关键新增）
         filterContext: {
-          isFiltered: !!(filterConfig.classNames?.length || filterConfig.examTitles?.length),
+          isFiltered: !!(
+            filterConfig.classNames?.length || filterConfig.examTitles?.length
+          ),
           selectedClasses: filterConfig.classNames || [],
           selectedExams: filterConfig.examTitles || [],
           timeRange: filterConfig.timeRange || "semester",
           warningStatus: filterConfig.warningStatus || ["active"],
-          severityLevels: filterConfig.severityLevels || ["high", "medium", "low"],
+          severityLevels: filterConfig.severityLevels || [
+            "high",
+            "medium",
+            "low",
+          ],
         },
-        
+
         // 📈 AI配置信息
         aiProvider: aiConfig.provider,
         aiModel: aiConfig.version,
-        
+
         // 🕐 分析时间戳
         analysisTimestamp: new Date().toISOString(),
-        
+
         // 📋 数据来源说明
-        dataSource: warningData ? "传入的预警数据" : "数据库查询结果"
+        dataSource: warningData ? "传入的预警数据" : "数据库查询结果",
       };
-      
-      console.log('🔍 AI分析输入数据结构:', aiInputData);
-      console.log('📊 数据详细内容:', JSON.stringify(aiInputData, null, 2));
-      
+
+      console.log("🔍 AI分析输入数据结构:", aiInputData);
+      console.log("📊 数据详细内容:", JSON.stringify(aiInputData, null, 2));
+
       // 向用户展示我们正在分析的数据
       toast.info("📋 数据分析中", {
         description: `正在分析 ${aiInputData.totalActiveWarnings} 个预警，涉及 ${aiInputData.highRiskStudents} 名高风险学生`,
@@ -611,32 +653,34 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
       // 模拟分析过程，展示有意义的进度
       setTimeout(() => {
         if (isMounted.current) setAnalysisProgress(30);
-        console.log('📊 正在分析风险因素分布...');
+        console.log("📊 正在分析风险因素分布...");
       }, 1000);
 
       setTimeout(() => {
         if (isMounted.current) setAnalysisProgress(60);
-        console.log('🎯 正在识别关键预警模式...');
+        console.log("🎯 正在识别关键预警模式...");
       }, 2000);
 
       setTimeout(() => {
         if (isMounted.current) setAnalysisProgress(85);
-        console.log('💡 正在生成干预建议...');
+        console.log("💡 正在生成干预建议...");
       }, 3000);
 
       // 真正的AI分析调用
       try {
-        console.log('🧠 [AI分析] 开始调用AI服务进行深度分析...');
-        
+        console.log("🧠 [AI分析] 开始调用AI服务进行深度分析...");
+
         // 获取详细的优先级学生数据
-        const { getEnhancedPriorityStudents } = await import('@/services/priorityStudentService');
+        const { getEnhancedPriorityStudents } = await import(
+          "@/services/priorityStudentService"
+        );
         const priorityStudents = await getEnhancedPriorityStudents(50, {
           classNames: aiInputData.filterContext.selectedClasses,
           examTitles: aiInputData.filterContext.selectedExams,
           timeRange: aiInputData.filterContext.timeRange,
         });
-        
-        console.log('👥 [AI分析] 获取到优先级学生数据:', priorityStudents);
+
+        console.log("👥 [AI分析] 获取到优先级学生数据:", priorityStudents);
 
         // 准备AI分析的输入数据
         const analysisData = {
@@ -645,22 +689,22 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
           highRiskStudents: stats.highRiskStudents || 0,
           activeWarnings: stats.activeWarnings || 0,
           filterContext: aiInputData.filterContext,
-          priorityStudents: priorityStudents.map(s => ({
+          priorityStudents: priorityStudents.map((s) => ({
             name: s.studentName,
             class: s.className,
             priority: s.finalPriority,
             riskScore: s.effectiveRiskScore,
             warningReasons: s.customTags || [],
-            interventionGoals: s.interventionGoals || []
-          }))
+            interventionGoals: s.interventionGoals || [],
+          })),
         };
 
         if (isMounted.current) setAnalysisProgress(30);
 
         // 调用AI服务
-        console.log('🤖 正在调用AI服务...');
+        console.log("🤖 正在调用AI服务...");
         const aiClient = await getAIClient();
-        
+
         if (isMounted.current) setAnalysisProgress(60);
 
         const prompt = `作为教育专家，请分析以下学生预警数据并提供专业建议：
@@ -672,15 +716,23 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
 - 活跃预警：${analysisData.activeWarnings}个
 
 筛选条件：
-${analysisData.filterContext.isFiltered ? `
-- 目标班级：${analysisData.filterContext.selectedClasses.join('、')}
-- 分析考试：${analysisData.filterContext.selectedExams.join('、')}
-- 时间范围：${analysisData.filterContext.timeRange}` : '- 全量数据分析'}
+${
+  analysisData.filterContext.isFiltered
+    ? `
+- 目标班级：${analysisData.filterContext.selectedClasses.join("、")}
+- 分析考试：${analysisData.filterContext.selectedExams.join("、")}
+- 时间范围：${analysisData.filterContext.timeRange}`
+    : "- 全量数据分析"
+}
 
 学生详情：
-${analysisData.priorityStudents.slice(0, 20).map((s, i) => 
-`${i+1}. ${s.name}(${s.class}) - ${s.priority}风险 - 评分${s.riskScore} - 原因：${s.warningReasons.join('、') || '成绩异常'}`
-).join('\n')}
+${analysisData.priorityStudents
+  .slice(0, 20)
+  .map(
+    (s, i) =>
+      `${i + 1}. ${s.name}(${s.class}) - ${s.priority}风险 - 评分${s.riskScore} - 原因：${s.warningReasons.join("、") || "成绩异常"}`
+  )
+  .join("\n")}
 
 请提供：
 1. 整体风险评估和趋势分析
@@ -696,46 +748,47 @@ ${analysisData.priorityStudents.slice(0, 20).map((s, i) =>
           messages: [
             {
               role: "system",
-              content: "你是一位专业的教育分析师，擅长根据学生数据提供具体可行的教育建议。"
+              content:
+                "你是一位专业的教育分析师，擅长根据学生数据提供具体可行的教育建议。",
             },
             {
-              role: "user", 
-              content: prompt
-            }
+              role: "user",
+              content: prompt,
+            },
           ],
           temperature: 0.7,
-          max_tokens: 2000
+          max_tokens: 2000,
         });
 
         // 获取AI返回的内容
-        const aiContent = aiResponse.choices[0]?.message?.content || "AI分析暂时不可用";
-        
+        const aiContent =
+          aiResponse.choices[0]?.message?.content || "AI分析暂时不可用";
+
         if (isMounted.current) setAnalysisProgress(90);
 
-        console.log('✅ AI分析响应:', aiContent);
-        
+        console.log("✅ AI分析响应:", aiContent);
+
         if (isMounted.current) {
           setAnalysisProgress(100);
           setAiInsights(aiContent);
-          
+
           toast.success("🎉 AI分析完成!", {
             description: `基于${analysisData.priorityStudents.length}名学生数据生成专业教育建议`,
             duration: 6000,
           });
         }
-        
       } catch (error) {
-        console.error('❌ AI分析失败:', error);
-        
+        console.error("❌ AI分析失败:", error);
+
         if (isMounted.current) {
           setAnalysisProgress(100);
-          
+
           // 如果AI调用失败，使用改进的备用分析
           const fallbackInsights = await generateEnhancedFallbackInsight();
           setAiInsights(fallbackInsights);
-          
+
           toast.warning("AI服务暂时不可用", {
-            description: "已切换到增强分析模式，提供基于数据的详细建议"
+            description: "已切换到增强分析模式，提供基于数据的详细建议",
           });
         }
       }
@@ -769,46 +822,58 @@ ${analysisData.priorityStudents.slice(0, 20).map((s, i) =>
   // 增强的备用分析内容生成 - 基于真实统计数据和学生信息
   const generateEnhancedFallbackInsight = async () => {
     try {
-      console.log('📊 [备用分析] 开始生成基于数据的预警分析...');
-      
+      console.log("📊 [备用分析] 开始生成基于数据的预警分析...");
+
       // 获取详细的优先级学生数据
-      const { getEnhancedPriorityStudents } = await import('@/services/priorityStudentService');
+      const { getEnhancedPriorityStudents } = await import(
+        "@/services/priorityStudentService"
+      );
       const priorityStudents = await getEnhancedPriorityStudents(20, {
         classNames: filterConfig?.classNames,
         examTitles: filterConfig?.examTitles,
         timeRange: filterConfig?.timeRange,
       });
-      
-      console.log('👥 [备用分析] 获取到优先级学生:', priorityStudents.length, '名');
-      
-      const highRiskStudents = priorityStudents.filter(s => s.priorityLevel === 'high');
-      const mediumRiskStudents = priorityStudents.filter(s => s.priorityLevel === 'medium');
-      const lowRiskStudents = priorityStudents.filter(s => s.priorityLevel === 'low');
-      
+
+      console.log(
+        "👥 [备用分析] 获取到优先级学生:",
+        priorityStudents.length,
+        "名"
+      );
+
+      const highRiskStudents = priorityStudents.filter(
+        (s) => s.priorityLevel === "high"
+      );
+      const mediumRiskStudents = priorityStudents.filter(
+        (s) => s.priorityLevel === "medium"
+      );
+      const lowRiskStudents = priorityStudents.filter(
+        (s) => s.priorityLevel === "low"
+      );
+
       // 分析班级分布
       const classDistribution = new Map<string, number>();
-      priorityStudents.forEach(student => {
+      priorityStudents.forEach((student) => {
         const count = classDistribution.get(student.className) || 0;
         classDistribution.set(student.className, count + 1);
       });
-      
+
       const riskClassesData = Array.from(classDistribution.entries())
-        .sort(([,a], [,b]) => b - a)
+        .sort(([, a], [, b]) => b - a)
         .slice(0, 5);
-      
+
       // 统计预警原因
       const reasonStats = new Map<string, number>();
-      priorityStudents.forEach(student => {
-        student.customTags.forEach(tag => {
+      priorityStudents.forEach((student) => {
+        student.customTags.forEach((tag) => {
           const count = reasonStats.get(tag) || 0;
           reasonStats.set(tag, count + 1);
         });
       });
-      
+
       const topReasons = Array.from(reasonStats.entries())
-        .sort(([,a], [,b]) => b - a)
+        .sort(([, a], [, b]) => b - a)
         .slice(0, 5);
-      
+
       // 生成分析报告
       const analysisContent = `
 ## 📊 预警分析报告
@@ -819,40 +884,60 @@ ${analysisData.priorityStudents.slice(0, 20).map((s, i) =>
 - **低风险学生**: ${lowRiskStudents.length}名（${((lowRiskStudents.length / Math.max(priorityStudents.length, 1)) * 100).toFixed(1)}%）
 
 ### 👥 高风险学生详情
-${highRiskStudents.length > 0 ? 
-  highRiskStudents.slice(0, 8).map((student, index) => 
-    `**${index + 1}. ${student.studentName}**（${student.className}）
+${
+  highRiskStudents.length > 0
+    ? highRiskStudents
+        .slice(0, 8)
+        .map(
+          (student, index) =>
+            `**${index + 1}. ${student.studentName}**（${student.className}）
    - 风险评分: ${student.effectiveRiskScore}分
-   - 预警原因: ${student.customTags.join('、') || '需进一步评估'}
-   ${student.interventionGoals?.length > 0 ? '- 干预目标: ' + student.interventionGoals.join('、') : ''}
-   `).join('\n') : 
-  '暂无高风险学生'
+   - 预警原因: ${student.customTags.join("、") || "需进一步评估"}
+   ${student.interventionGoals?.length > 0 ? "- 干预目标: " + student.interventionGoals.join("、") : ""}
+   `
+        )
+        .join("\n")
+    : "暂无高风险学生"
 }
 
 ### 📚 重点关注班级
-${riskClassesData.length > 0 ? 
-  riskClassesData.map(([className, count], index) => 
-    `${index + 1}. **${className}**: ${count}名预警学生`
-  ).join('\n') : 
-  '各班级情况相对均衡'
+${
+  riskClassesData.length > 0
+    ? riskClassesData
+        .map(
+          ([className, count], index) =>
+            `${index + 1}. **${className}**: ${count}名预警学生`
+        )
+        .join("\n")
+    : "各班级情况相对均衡"
 }
 
 ### 🎯 主要预警原因分析
-${topReasons.length > 0 ? 
-  topReasons.map(([reason, count], index) => 
-    `${index + 1}. **${reason}**: ${count}名学生（${((count / Math.max(priorityStudents.length, 1)) * 100).toFixed(1)}%）`
-  ).join('\n') : 
-  '预警原因正在分析中'
+${
+  topReasons.length > 0
+    ? topReasons
+        .map(
+          ([reason, count], index) =>
+            `${index + 1}. **${reason}**: ${count}名学生（${((count / Math.max(priorityStudents.length, 1)) * 100).toFixed(1)}%）`
+        )
+        .join("\n")
+    : "预警原因正在分析中"
 }
 
 ### 🔧 干预建议
 
 #### 紧急行动（72小时内）
-${highRiskStudents.length > 0 ? `
+${
+  highRiskStudents.length > 0
+    ? `
 - 立即联系高风险学生的任课教师和班主任
-- 安排${highRiskStudents.slice(0, 3).map(s => s.studentName).join('、')}等学生的个别谈话
-- 通知相关学生家长，建立家校联系机制` : 
-'- 维持现有教学节奏，继续观察学生表现'}
+- 安排${highRiskStudents
+        .slice(0, 3)
+        .map((s) => s.studentName)
+        .join("、")}等学生的个别谈话
+- 通知相关学生家长，建立家校联系机制`
+    : "- 维持现有教学节奏，继续观察学生表现"
+}
 
 #### 中期规划（1-2周内）
 - 制定个性化学习支援计划
@@ -868,16 +953,15 @@ ${highRiskStudents.length > 0 ? `
 本分析基于${priorityStudents.length}名学生的真实预警数据生成，包括成绩记录、学习表现和历史趋势。建议每周更新分析结果。
 
 ---
-*分析时间: ${new Date().toLocaleString('zh-CN')}*
+*分析时间: ${new Date().toLocaleString("zh-CN")}*
 *数据来源: 成绩数据库 + 预警系统*
       `;
-      
-      console.log('✅ [备用分析] 生成增强预警分析完成');
+
+      console.log("✅ [备用分析] 生成增强预警分析完成");
       return analysisContent;
-      
     } catch (error) {
-      console.error('❌ [备用分析] 生成失败:', error);
-      
+      console.error("❌ [备用分析] 生成失败:", error);
+
       // 最基础的备用分析
       return generateFallbackInsight();
     }
@@ -885,8 +969,8 @@ ${highRiskStudents.length > 0 ? `
 
   // 基础备用分析内容生成 - 基于统计数据
   const generateFallbackInsight = () => {
-    console.log('📊 [基础备用分析] 使用基础统计数据生成分析...');
-    
+    console.log("📊 [基础备用分析] 使用基础统计数据生成分析...");
+
     const highRiskCount = stats.highRiskStudents || 0;
     const totalWarnings = stats.activeWarnings || 0;
     const atRiskCount = stats.atRiskStudents || 0;
@@ -912,7 +996,6 @@ ${highRiskStudents.length > 0 ? `
       `;
   };
 
-
   return (
     <div className="space-y-6">
       {!isLoadingCards && !cardDataError && cardStats.totalStudents > 0 && (
@@ -921,20 +1004,22 @@ ${highRiskStudents.length > 0 ? `
           <span className="text-sm text-green-700">统计数据已加载</span>
         </div>
       )}
-      
+
       {tableError && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
           <div className="flex items-start">
             <AlertTriangle className="h-5 w-5 text-yellow-500 mt-0.5 mr-3 flex-shrink-0" />
             <div className="flex-1">
-              <h3 className="text-sm font-medium text-yellow-800">数据加载问题</h3>
+              <h3 className="text-sm font-medium text-yellow-800">
+                数据加载问题
+              </h3>
               <p className="mt-1 text-sm text-yellow-700">
                 {tableError}。系统将尝试使用缓存数据。
               </p>
               <div className="mt-3 flex space-x-2">
-                <Button 
-                  size="sm" 
-                  variant="outline" 
+                <Button
+                  size="sm"
+                  variant="outline"
                   onClick={() => {
                     setTableError(null);
                     setCardDataError(null);
@@ -959,16 +1044,17 @@ ${highRiskStudents.length > 0 ? `
         </div>
       )}
 
-
       {/* 智能统计卡片 - 优先使用传入数据 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card className="bg-white border border-gray-200 rounded-xl hover:shadow-lg transition-shadow">
           <CardContent className="p-6">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm font-medium text-gray-500 mb-1">学生总数</p>
+                <p className="text-sm font-medium text-gray-500 mb-1">
+                  学生总数
+                </p>
                 <p className="text-3xl font-bold text-gray-800">
-                  {(isLoading || isLoadingCards) ? (
+                  {isLoading || isLoadingCards ? (
                     <Loader2 className="h-8 w-8 animate-spin" />
                   ) : (
                     formatNumber(stats.totalStudents)
@@ -987,18 +1073,25 @@ ${highRiskStudents.length > 0 ? `
           <CardContent className="p-6">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm font-medium text-gray-500 mb-1">风险学生</p>
+                <p className="text-sm font-medium text-gray-500 mb-1">
+                  风险学生
+                </p>
                 <p className="text-3xl font-bold text-gray-800">
-                  {(isLoading || isLoadingCards) ? (
+                  {isLoading || isLoadingCards ? (
                     <Loader2 className="h-8 w-8 animate-spin" />
                   ) : (
                     formatNumber(stats.atRiskStudents)
                   )}
                 </p>
                 <p className="text-sm text-gray-500 mt-1">
-                  占比 {stats.totalStudents > 0 
-                    ? ((stats.atRiskStudents / stats.totalStudents) * 100).toFixed(1) 
-                    : 0}%
+                  占比{" "}
+                  {stats.totalStudents > 0
+                    ? (
+                        (stats.atRiskStudents / stats.totalStudents) *
+                        100
+                      ).toFixed(1)
+                    : 0}
+                  %
                 </p>
               </div>
               <div className="p-3 rounded-full bg-[#c0ff3f] text-black">
@@ -1012,18 +1105,25 @@ ${highRiskStudents.length > 0 ? `
           <CardContent className="p-6">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm font-medium text-gray-500 mb-1">高风险学生</p>
+                <p className="text-sm font-medium text-gray-500 mb-1">
+                  高风险学生
+                </p>
                 <p className="text-3xl font-bold text-gray-800">
-                  {(isLoading || isLoadingCards) ? (
+                  {isLoading || isLoadingCards ? (
                     <Loader2 className="h-8 w-8 animate-spin" />
                   ) : (
                     formatNumber(stats.highRiskStudents)
                   )}
                 </p>
                 <p className="text-sm text-gray-500 mt-1">
-                  占风险学生 {stats.atRiskStudents > 0 
-                    ? ((stats.highRiskStudents / stats.atRiskStudents) * 100).toFixed(1) 
-                    : 0}%
+                  占风险学生{" "}
+                  {stats.atRiskStudents > 0
+                    ? (
+                        (stats.highRiskStudents / stats.atRiskStudents) *
+                        100
+                      ).toFixed(1)
+                    : 0}
+                  %
                 </p>
               </div>
               <div className="p-3 rounded-full bg-[#c0ff3f] text-black">
@@ -1037,9 +1137,11 @@ ${highRiskStudents.length > 0 ? `
           <CardContent className="p-6">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm font-medium text-gray-500 mb-1">活跃预警</p>
+                <p className="text-sm font-medium text-gray-500 mb-1">
+                  活跃预警
+                </p>
                 <p className="text-3xl font-bold text-gray-800">
-                  {(isLoading || isLoadingCards) ? (
+                  {isLoading || isLoadingCards ? (
                     <Loader2 className="h-8 w-8 animate-spin" />
                   ) : (
                     formatNumber(stats.activeWarnings)
@@ -1110,13 +1212,43 @@ ${highRiskStudents.length > 0 ? `
                       : []
                   }
                   levelData={
-                    Array.isArray(levelStats) && levelStats.length > 0 
-                      ? levelStats 
-                      : warningData?.riskDistribution 
+                    Array.isArray(levelStats) && levelStats.length > 0
+                      ? levelStats
+                      : warningData?.riskDistribution
                         ? [
-                            { level: "high", count: warningData.riskDistribution.high, percentage: Math.round((warningData.riskDistribution.high / (warningData.riskDistribution.high + warningData.riskDistribution.medium + warningData.riskDistribution.low)) * 100) },
-                            { level: "medium", count: warningData.riskDistribution.medium, percentage: Math.round((warningData.riskDistribution.medium / (warningData.riskDistribution.high + warningData.riskDistribution.medium + warningData.riskDistribution.low)) * 100) },
-                            { level: "low", count: warningData.riskDistribution.low, percentage: Math.round((warningData.riskDistribution.low / (warningData.riskDistribution.high + warningData.riskDistribution.medium + warningData.riskDistribution.low)) * 100) }
+                            {
+                              level: "high",
+                              count: warningData.riskDistribution.high,
+                              percentage: Math.round(
+                                (warningData.riskDistribution.high /
+                                  (warningData.riskDistribution.high +
+                                    warningData.riskDistribution.medium +
+                                    warningData.riskDistribution.low)) *
+                                  100
+                              ),
+                            },
+                            {
+                              level: "medium",
+                              count: warningData.riskDistribution.medium,
+                              percentage: Math.round(
+                                (warningData.riskDistribution.medium /
+                                  (warningData.riskDistribution.high +
+                                    warningData.riskDistribution.medium +
+                                    warningData.riskDistribution.low)) *
+                                  100
+                              ),
+                            },
+                            {
+                              level: "low",
+                              count: warningData.riskDistribution.low,
+                              percentage: Math.round(
+                                (warningData.riskDistribution.low /
+                                  (warningData.riskDistribution.high +
+                                    warningData.riskDistribution.medium +
+                                    warningData.riskDistribution.low)) *
+                                  100
+                              ),
+                            },
                           ]
                         : []
                   }
@@ -1167,11 +1299,17 @@ ${highRiskStudents.length > 0 ? `
                           风险学生比例
                         </span>
                         <span className="text-xs font-medium text-gray-700">
-                          {classData.atRiskCount || classData.count}/{classData.studentCount || (classData.atRiskCount || classData.count) + 15}(
-                          {(classData.studentCount || (classData.atRiskCount || classData.count) + 15) > 0
+                          {classData.atRiskCount || classData.count}/
+                          {classData.studentCount ||
+                            (classData.atRiskCount || classData.count) + 15}
+                          (
+                          {(classData.studentCount ||
+                            (classData.atRiskCount || classData.count) + 15) > 0
                             ? (
                                 ((classData.atRiskCount || classData.count) /
-                                  (classData.studentCount || (classData.atRiskCount || classData.count) + 15)) *
+                                  (classData.studentCount ||
+                                    (classData.atRiskCount || classData.count) +
+                                      15)) *
                                 100
                               ).toFixed(1)
                             : 0}
@@ -1260,14 +1398,17 @@ ${highRiskStudents.length > 0 ? `
                       ? riskFactors.map((item) => ({
                           ...item,
                           // 基于真实数据生成合理的历史趋势，而不是随机数
-                          trend: item.percentage > 0 ? [
-                            Math.max(0, item.percentage - 3),
-                            Math.max(0, item.percentage - 2),
-                            Math.max(0, item.percentage - 1),
-                            item.percentage,
-                            Math.min(100, item.percentage + 1),
-                            Math.min(100, item.percentage + 2),
-                          ] : [0, 0, 0, 0, 0, 0],
+                          trend:
+                            item.percentage > 0
+                              ? [
+                                  Math.max(0, item.percentage - 3),
+                                  Math.max(0, item.percentage - 2),
+                                  Math.max(0, item.percentage - 1),
+                                  item.percentage,
+                                  Math.min(100, item.percentage + 1),
+                                  Math.min(100, item.percentage + 2),
+                                ]
+                              : [0, 0, 0, 0, 0, 0],
                           category: item.factor.includes("成绩")
                             ? "学业表现"
                             : item.factor.includes("作业")
@@ -1337,10 +1478,10 @@ ${highRiskStudents.length > 0 ? `
                 </div>
                 <Button
                   onClick={() => {
-                    console.log('🔘 AI分析按钮被点击!', {
+                    console.log("🔘 AI分析按钮被点击!", {
                       isGeneratingInsights,
                       aiConfigured,
-                      buttonDisabled: isGeneratingInsights || !aiConfigured
+                      buttonDisabled: isGeneratingInsights || !aiConfigured,
                     });
                     generateAIInsights();
                   }}
@@ -1397,7 +1538,7 @@ ${highRiskStudents.length > 0 ? `
         <TabsContent value="autoWarning" className="space-y-6">
           {/* 数据集成控制 */}
           <DataIntegrationControl onDataUpdated={loadCardStats} />
-          
+
           {/* 自动预警规则管理 */}
           <AutoRulesManager onRulesExecuted={loadCardStats} />
         </TabsContent>

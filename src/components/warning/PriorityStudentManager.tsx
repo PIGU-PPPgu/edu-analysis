@@ -3,7 +3,7 @@
  * 支持搜索、添加、编辑重点跟进学生
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -38,14 +38,14 @@ import {
   X,
   Save,
   Users,
-} from 'lucide-react';
-import { toast } from 'sonner';
+} from "lucide-react";
+import { toast } from "sonner";
 import {
   searchStudentsForPriority,
   addPriorityStudent,
   updatePriorityStudent,
   EnhancedPriorityStudent,
-} from '@/services/priorityStudentService';
+} from "@/services/priorityStudentService";
 
 interface PriorityStudentManagerProps {
   onStudentAdded: () => void;
@@ -59,37 +59,40 @@ interface StudentSearchResult {
   priority_student_management?: any[];
 }
 
-const PriorityStudentManager: React.FC<PriorityStudentManagerProps> = ({ 
+const PriorityStudentManager: React.FC<PriorityStudentManagerProps> = ({
   onStudentAdded,
-  trigger 
+  trigger,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<StudentSearchResult[]>([]);
-  const [selectedStudent, setSelectedStudent] = useState<StudentSearchResult | null>(null);
+  const [selectedStudent, setSelectedStudent] =
+    useState<StudentSearchResult | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
-  
+
   // 表单状态
-  const [priorityLevel, setPriorityLevel] = useState<'high' | 'medium' | 'low'>('medium');
-  const [category, setCategory] = useState('');
-  const [reasonDescription, setReasonDescription] = useState('');
-  const [notes, setNotes] = useState('');
+  const [priorityLevel, setPriorityLevel] = useState<"high" | "medium" | "low">(
+    "medium"
+  );
+  const [category, setCategory] = useState("");
+  const [reasonDescription, setReasonDescription] = useState("");
+  const [notes, setNotes] = useState("");
   const [customTags, setCustomTags] = useState<string[]>([]);
-  const [tagInput, setTagInput] = useState('');
-  const [followUpEndDate, setFollowUpEndDate] = useState('');
+  const [tagInput, setTagInput] = useState("");
+  const [followUpEndDate, setFollowUpEndDate] = useState("");
   const [interventionGoals, setInterventionGoals] = useState<string[]>([]);
-  const [goalInput, setGoalInput] = useState('');
+  const [goalInput, setGoalInput] = useState("");
 
   // 常用分类选项
   const categoryOptions = [
-    '学业困难',
-    '行为问题', 
-    '心理健康',
-    '家庭问题',
-    '社交问题',
-    '出勤问题',
-    '其他'
+    "学业困难",
+    "行为问题",
+    "心理健康",
+    "家庭问题",
+    "社交问题",
+    "出勤问题",
+    "其他",
   ];
 
   // 搜索学生
@@ -104,8 +107,8 @@ const PriorityStudentManager: React.FC<PriorityStudentManagerProps> = ({
       const results = await searchStudentsForPriority(term, 20);
       setSearchResults(results);
     } catch (error) {
-      console.error('搜索学生失败:', error);
-      toast.error('搜索失败');
+      console.error("搜索学生失败:", error);
+      toast.error("搜索失败");
     } finally {
       setIsSearching(false);
     }
@@ -116,7 +119,7 @@ const PriorityStudentManager: React.FC<PriorityStudentManagerProps> = ({
     const delayedSearch = setTimeout(() => {
       handleSearch(searchTerm);
     }, 300);
-    
+
     return () => clearTimeout(delayedSearch);
   }, [searchTerm]);
 
@@ -130,51 +133,53 @@ const PriorityStudentManager: React.FC<PriorityStudentManagerProps> = ({
   const handleAddTag = () => {
     if (tagInput.trim() && !customTags.includes(tagInput.trim())) {
       setCustomTags([...customTags, tagInput.trim()]);
-      setTagInput('');
+      setTagInput("");
     }
   };
 
   // 移除标签
   const handleRemoveTag = (tagToRemove: string) => {
-    setCustomTags(customTags.filter(tag => tag !== tagToRemove));
+    setCustomTags(customTags.filter((tag) => tag !== tagToRemove));
   };
 
   // 添加目标
   const handleAddGoal = () => {
     if (goalInput.trim() && !interventionGoals.includes(goalInput.trim())) {
       setInterventionGoals([...interventionGoals, goalInput.trim()]);
-      setGoalInput('');
+      setGoalInput("");
     }
   };
 
   // 移除目标
   const handleRemoveGoal = (goalToRemove: string) => {
-    setInterventionGoals(interventionGoals.filter(goal => goal !== goalToRemove));
+    setInterventionGoals(
+      interventionGoals.filter((goal) => goal !== goalToRemove)
+    );
   };
 
   // 重置表单
   const resetForm = () => {
     setSelectedStudent(null);
-    setPriorityLevel('medium');
-    setCategory('');
-    setReasonDescription('');
-    setNotes('');
+    setPriorityLevel("medium");
+    setCategory("");
+    setReasonDescription("");
+    setNotes("");
     setCustomTags([]);
-    setTagInput('');
-    setFollowUpEndDate('');
+    setTagInput("");
+    setFollowUpEndDate("");
     setInterventionGoals([]);
-    setGoalInput('');
+    setGoalInput("");
   };
 
   // 提交添加学生
   const handleSubmit = async () => {
     if (!selectedStudent) {
-      toast.error('请选择要添加的学生');
+      toast.error("请选择要添加的学生");
       return;
     }
 
     if (!reasonDescription.trim()) {
-      toast.error('请填写添加原因');
+      toast.error("请填写添加原因");
       return;
     }
 
@@ -182,7 +187,7 @@ const PriorityStudentManager: React.FC<PriorityStudentManagerProps> = ({
     try {
       const success = await addPriorityStudent({
         studentId: selectedStudent.student_id,
-        sourceType: 'manual',
+        sourceType: "manual",
         priorityLevel,
         reasonDescription: reasonDescription.trim(),
         customTags,
@@ -195,14 +200,14 @@ const PriorityStudentManager: React.FC<PriorityStudentManagerProps> = ({
       if (success) {
         toast.success(`${selectedStudent.name} 已添加到重点跟进`);
         resetForm();
-        setSearchTerm('');
+        setSearchTerm("");
         setSearchResults([]);
         setIsOpen(false);
         onStudentAdded();
       }
     } catch (error) {
-      console.error('添加学生失败:', error);
-      toast.error('添加失败');
+      console.error("添加学生失败:", error);
+      toast.error("添加失败");
     } finally {
       setIsAdding(false);
     }
@@ -211,20 +216,28 @@ const PriorityStudentManager: React.FC<PriorityStudentManagerProps> = ({
   // 获取优先级颜色
   const getPriorityColor = (level: string) => {
     switch (level) {
-      case 'high': return 'text-red-600';
-      case 'medium': return 'text-yellow-600';
-      case 'low': return 'text-blue-600';
-      default: return 'text-gray-600';
+      case "high":
+        return "text-red-600";
+      case "medium":
+        return "text-yellow-600";
+      case "low":
+        return "text-blue-600";
+      default:
+        return "text-gray-600";
     }
   };
 
   // 获取优先级文本
   const getPriorityText = (level: string) => {
     switch (level) {
-      case 'high': return '高优先级';
-      case 'medium': return '中优先级';
-      case 'low': return '低优先级';
-      default: return level;
+      case "high":
+        return "高优先级";
+      case "medium":
+        return "中优先级";
+      case "low":
+        return "低优先级";
+      default:
+        return level;
     }
   };
 
@@ -232,7 +245,7 @@ const PriorityStudentManager: React.FC<PriorityStudentManagerProps> = ({
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         {trigger || (
-          <Button 
+          <Button
             className="bg-[#c0ff3f] hover:bg-[#a8e635] text-black"
             size="sm"
           >
@@ -241,7 +254,7 @@ const PriorityStudentManager: React.FC<PriorityStudentManagerProps> = ({
           </Button>
         )}
       </DialogTrigger>
-      
+
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center text-xl">
@@ -255,7 +268,9 @@ const PriorityStudentManager: React.FC<PriorityStudentManagerProps> = ({
           {!selectedStudent && (
             <div className="space-y-4">
               <div>
-                <Label htmlFor="search" className="text-base font-medium">搜索学生</Label>
+                <Label htmlFor="search" className="text-base font-medium">
+                  搜索学生
+                </Label>
                 <div className="relative mt-2">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <Input
@@ -288,7 +303,9 @@ const PriorityStudentManager: React.FC<PriorityStudentManagerProps> = ({
                               <User className="h-4 w-4 text-blue-600" />
                             </div>
                             <div>
-                              <h4 className="font-medium text-gray-800">{student.name}</h4>
+                              <h4 className="font-medium text-gray-800">
+                                {student.name}
+                              </h4>
                               <div className="flex items-center text-sm text-gray-500 mt-1">
                                 <School className="h-3 w-3 mr-1" />
                                 <span>{student.class_name}</span>
@@ -329,7 +346,9 @@ const PriorityStudentManager: React.FC<PriorityStudentManagerProps> = ({
                         <User className="h-4 w-4" />
                       </div>
                       <div>
-                        <h4 className="font-medium text-gray-800">{selectedStudent.name}</h4>
+                        <h4 className="font-medium text-gray-800">
+                          {selectedStudent.name}
+                        </h4>
                         <div className="flex items-center text-sm text-gray-600 mt-1">
                           <School className="h-3 w-3 mr-1" />
                           <span>{selectedStudent.class_name}</span>
@@ -355,8 +374,13 @@ const PriorityStudentManager: React.FC<PriorityStudentManagerProps> = ({
                 <div className="space-y-4">
                   {/* 优先级 */}
                   <div>
-                    <Label htmlFor="priority" className="text-sm font-medium">优先级 *</Label>
-                    <Select value={priorityLevel} onValueChange={(value: any) => setPriorityLevel(value)}>
+                    <Label htmlFor="priority" className="text-sm font-medium">
+                      优先级 *
+                    </Label>
+                    <Select
+                      value={priorityLevel}
+                      onValueChange={(value: any) => setPriorityLevel(value)}
+                    >
                       <SelectTrigger className="mt-1">
                         <SelectValue />
                       </SelectTrigger>
@@ -385,7 +409,9 @@ const PriorityStudentManager: React.FC<PriorityStudentManagerProps> = ({
 
                   {/* 分类 */}
                   <div>
-                    <Label htmlFor="category" className="text-sm font-medium">分类</Label>
+                    <Label htmlFor="category" className="text-sm font-medium">
+                      分类
+                    </Label>
                     <Select value={category} onValueChange={setCategory}>
                       <SelectTrigger className="mt-1">
                         <SelectValue placeholder="选择分类（可选）" />
@@ -402,7 +428,9 @@ const PriorityStudentManager: React.FC<PriorityStudentManagerProps> = ({
 
                   {/* 跟进期限 */}
                   <div>
-                    <Label htmlFor="endDate" className="text-sm font-medium">跟进期限</Label>
+                    <Label htmlFor="endDate" className="text-sm font-medium">
+                      跟进期限
+                    </Label>
                     <div className="relative mt-1">
                       <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                       <Input
@@ -411,7 +439,7 @@ const PriorityStudentManager: React.FC<PriorityStudentManagerProps> = ({
                         value={followUpEndDate}
                         onChange={(e) => setFollowUpEndDate(e.target.value)}
                         className="pl-10"
-                        min={new Date().toISOString().split('T')[0]}
+                        min={new Date().toISOString().split("T")[0]}
                       />
                     </div>
                   </div>
@@ -421,7 +449,9 @@ const PriorityStudentManager: React.FC<PriorityStudentManagerProps> = ({
                 <div className="space-y-4">
                   {/* 添加原因 */}
                   <div>
-                    <Label htmlFor="reason" className="text-sm font-medium">添加原因 *</Label>
+                    <Label htmlFor="reason" className="text-sm font-medium">
+                      添加原因 *
+                    </Label>
                     <Textarea
                       id="reason"
                       placeholder="请说明为什么要将此学生添加到重点跟进..."
@@ -434,7 +464,9 @@ const PriorityStudentManager: React.FC<PriorityStudentManagerProps> = ({
 
                   {/* 备注 */}
                   <div>
-                    <Label htmlFor="notes" className="text-sm font-medium">备注</Label>
+                    <Label htmlFor="notes" className="text-sm font-medium">
+                      备注
+                    </Label>
                     <Textarea
                       id="notes"
                       placeholder="其他备注信息（可选）..."
@@ -459,7 +491,7 @@ const PriorityStudentManager: React.FC<PriorityStudentManagerProps> = ({
                         value={tagInput}
                         onChange={(e) => setTagInput(e.target.value)}
                         className="pl-10"
-                        onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
+                        onKeyPress={(e) => e.key === "Enter" && handleAddTag()}
                       />
                     </div>
                     <Button
@@ -507,7 +539,7 @@ const PriorityStudentManager: React.FC<PriorityStudentManagerProps> = ({
                         value={goalInput}
                         onChange={(e) => setGoalInput(e.target.value)}
                         className="pl-10"
-                        onKeyPress={(e) => e.key === 'Enter' && handleAddGoal()}
+                        onKeyPress={(e) => e.key === "Enter" && handleAddGoal()}
                       />
                     </div>
                     <Button

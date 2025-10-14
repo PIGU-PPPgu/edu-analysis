@@ -3,100 +3,97 @@
  * 展示如何使用新的统一错误处理机制
  */
 
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
-import { 
-  CheckCircleIcon, 
-  XCircleIcon, 
-  LoaderIcon, 
+import React, { useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
+import {
+  CheckCircleIcon,
+  XCircleIcon,
+  LoaderIcon,
   AlertTriangleIcon,
   RefreshCwIcon,
   PlayIcon,
   StopIcon,
-  TrashIcon
-} from 'lucide-react';
-import { 
+  TrashIcon,
+} from "lucide-react";
+import {
   useStandardizedApi,
   useStandardizedListApi,
   useStandardizedFormApi,
-  useStandardizedDeleteApi 
-} from '@/hooks/useStandardizedApi';
+  useStandardizedDeleteApi,
+} from "@/hooks/useStandardizedApi";
 import {
   getWarningRulesStandardized,
   createWarningRuleStandardized,
   updateWarningRuleStandardized,
   deleteWarningRuleStandardized,
-  getWarningStatisticsStandardized
-} from '@/services/standardizedWarningService';
-import { toast } from 'sonner';
+  getWarningStatisticsStandardized,
+} from "@/services/standardizedWarningService";
+import { toast } from "sonner";
 
 export function StandardizedWarningDemo() {
-  const [newRuleName, setNewRuleName] = useState('');
-  const [selectedRuleId, setSelectedRuleId] = useState('');
+  const [newRuleName, setNewRuleName] = useState("");
+  const [selectedRuleId, setSelectedRuleId] = useState("");
 
   // 使用标准化列表API Hook
-  const rulesApi = useStandardizedListApi(
-    getWarningRulesStandardized,
-    {
-      initialLoad: true,
-      showSuccessToast: false, // 列表加载成功不需要提示
-      successMessage: '规则列表已刷新'
-    }
-  );
+  const rulesApi = useStandardizedListApi(getWarningRulesStandardized, {
+    initialLoad: true,
+    showSuccessToast: false, // 列表加载成功不需要提示
+    successMessage: "规则列表已刷新",
+  });
 
-  // 使用标准化统计API Hook  
-  const statsApi = useStandardizedApi(
-    getWarningStatisticsStandardized,
-    {
-      showSuccessToast: false,
-      errorMessage: '获取统计数据失败'
-    }
-  );
+  // 使用标准化统计API Hook
+  const statsApi = useStandardizedApi(getWarningStatisticsStandardized, {
+    showSuccessToast: false,
+    errorMessage: "获取统计数据失败",
+  });
 
   // 使用标准化表单API Hook
-  const createRuleApi = useStandardizedFormApi(
-    createWarningRuleStandardized,
-    {
-      successMessage: '规则创建成功',
-      errorMessage: '规则创建失败',
-      onSuccess: () => {
-        setNewRuleName('');
-        rulesApi.refetch();
-      }
-    }
-  );
+  const createRuleApi = useStandardizedFormApi(createWarningRuleStandardized, {
+    successMessage: "规则创建成功",
+    errorMessage: "规则创建失败",
+    onSuccess: () => {
+      setNewRuleName("");
+      rulesApi.refetch();
+    },
+  });
 
   // 使用标准化删除API Hook
   const deleteRuleApi = useStandardizedDeleteApi(
     deleteWarningRuleStandardized,
     {
-      confirmMessage: '确定要删除这个规则吗？',
-      successMessage: '规则删除成功',
-      errorMessage: '规则删除失败',
+      confirmMessage: "确定要删除这个规则吗？",
+      successMessage: "规则删除成功",
+      errorMessage: "规则删除失败",
       onSuccess: () => {
         rulesApi.refetch();
-      }
+      },
     }
   );
 
   const handleCreateRule = () => {
     if (!newRuleName.trim()) {
-      toast.error('请输入规则名称');
+      toast.error("请输入规则名称");
       return;
     }
-    
+
     createRuleApi.execute({
       name: newRuleName.trim(),
-      description: '新创建的预警规则',
-      conditions: { type: 'basic' },
-      severity: 'medium',
-      is_active: true
+      description: "新创建的预警规则",
+      conditions: { type: "basic" },
+      severity: "medium",
+      is_active: true,
     });
   };
 
@@ -131,14 +128,14 @@ export function StandardizedWarningDemo() {
                   </>
                 )}
               </Button>
-              
+
               {statsApi.data && (
                 <Badge variant="secondary">
                   <CheckCircleIcon className="mr-1 h-3 w-3" />
                   数据已加载
                 </Badge>
               )}
-              
+
               {statsApi.error && (
                 <Badge variant="destructive">
                   <XCircleIcon className="mr-1 h-3 w-3" />
@@ -171,7 +168,7 @@ export function StandardizedWarningDemo() {
                   </>
                 )}
               </Button>
-              
+
               {rulesApi.data && (
                 <Badge variant="secondary">
                   共 {rulesApi.data.length} 条规则
@@ -221,7 +218,10 @@ export function StandardizedWarningDemo() {
               {rulesApi.data && rulesApi.data.length > 0 ? (
                 <div className="space-y-2">
                   {rulesApi.data.slice(0, 3).map((rule: any) => (
-                    <div key={rule.id} className="flex items-center justify-between p-2 border rounded">
+                    <div
+                      key={rule.id}
+                      className="flex items-center justify-between p-2 border rounded"
+                    >
                       <span className="text-sm">{rule.name}</span>
                       <Button
                         size="sm"

@@ -22,13 +22,13 @@ import { cn } from "@/lib/utils";
 
 // 标准化的处理阶段
 export type ProcessingStage =
-  | "uploading"    // 上传文件
-  | "parsing"      // 解析文件
-  | "validating"   // 验证数据
-  | "saving"       // 保存到数据库
-  | "analyzing"    // 数据分析
-  | "completed"    // 完成
-  | "error";       // 错误
+  | "uploading" // 上传文件
+  | "parsing" // 解析文件
+  | "validating" // 验证数据
+  | "saving" // 保存到数据库
+  | "analyzing" // 数据分析
+  | "completed" // 完成
+  | "error"; // 错误
 
 // 阶段配置
 interface StageConfig {
@@ -112,13 +112,16 @@ const UploadProgressIndicator: React.FC<UploadProgressIndicatorProps> = ({
     if (currentStage === "completed") return 100;
     if (currentStage === "error") return 0;
 
-    const currentStageIndex = STAGE_CONFIGS.findIndex(s => s.id === currentStage);
+    const currentStageIndex = STAGE_CONFIGS.findIndex(
+      (s) => s.id === currentStage
+    );
     if (currentStageIndex === -1) return 0;
 
     // 已完成阶段的权重
-    const completedWeight = STAGE_CONFIGS
-      .slice(0, currentStageIndex)
-      .reduce((sum, stage) => sum + stage.weight, 0);
+    const completedWeight = STAGE_CONFIGS.slice(0, currentStageIndex).reduce(
+      (sum, stage) => sum + stage.weight,
+      0
+    );
 
     // 当前阶段的权重贡献
     const currentStageConfig = STAGE_CONFIGS[currentStageIndex];
@@ -129,18 +132,22 @@ const UploadProgressIndicator: React.FC<UploadProgressIndicatorProps> = ({
 
   // 计算预计剩余时间
   useEffect(() => {
-    const currentStageIndex = STAGE_CONFIGS.findIndex(s => s.id === currentStage);
+    const currentStageIndex = STAGE_CONFIGS.findIndex(
+      (s) => s.id === currentStage
+    );
     if (currentStageIndex === -1) {
       setEstimatedRemaining(0);
       return;
     }
 
     const currentStageConfig = STAGE_CONFIGS[currentStageIndex];
-    const currentStageRemaining = ((100 - progress) / 100) * currentStageConfig.estimatedTime;
+    const currentStageRemaining =
+      ((100 - progress) / 100) * currentStageConfig.estimatedTime;
 
-    const futureStagesTime = STAGE_CONFIGS
-      .slice(currentStageIndex + 1)
-      .reduce((sum, stage) => sum + stage.estimatedTime, 0);
+    const futureStagesTime = STAGE_CONFIGS.slice(currentStageIndex + 1).reduce(
+      (sum, stage) => sum + stage.estimatedTime,
+      0
+    );
 
     setEstimatedRemaining(Math.ceil(currentStageRemaining + futureStagesTime));
   }, [currentStage, progress]);
@@ -150,7 +157,7 @@ const UploadProgressIndicator: React.FC<UploadProgressIndicatorProps> = ({
     if (currentStage === "completed" || currentStage === "error") return;
 
     const timer = setInterval(() => {
-      setElapsedTime(prev => prev + 1);
+      setElapsedTime((prev) => prev + 1);
     }, 1000);
 
     return () => clearInterval(timer);
@@ -165,7 +172,7 @@ const UploadProgressIndicator: React.FC<UploadProgressIndicatorProps> = ({
   };
 
   const overallProgress = calculateOverallProgress();
-  const currentStageConfig = STAGE_CONFIGS.find(s => s.id === currentStage);
+  const currentStageConfig = STAGE_CONFIGS.find((s) => s.id === currentStage);
 
   // 紧凑模式
   if (compact) {
@@ -176,7 +183,9 @@ const UploadProgressIndicator: React.FC<UploadProgressIndicatorProps> = ({
         ) : currentStage === "completed" ? (
           <CheckCircle2 className="w-5 h-5 text-green-600" />
         ) : (
-          currentStageConfig && <currentStageConfig.icon className="w-5 h-5 text-blue-600 animate-pulse" />
+          currentStageConfig && (
+            <currentStageConfig.icon className="w-5 h-5 text-blue-600 animate-pulse" />
+          )
         )}
 
         <div className="flex-1">
@@ -201,10 +210,7 @@ const UploadProgressIndicator: React.FC<UploadProgressIndicatorProps> = ({
 
   // 完整模式
   return (
-    <Card className={cn(
-      "w-full",
-      error && "border-red-200 bg-red-50"
-    )}>
+    <Card className={cn("w-full", error && "border-red-200 bg-red-50")}>
       <CardContent className="pt-6">
         {/* 文件信息 */}
         {fileName && (
@@ -254,10 +260,7 @@ const UploadProgressIndicator: React.FC<UploadProgressIndicatorProps> = ({
                 <span className="font-medium">整体进度</span>
                 <span className="text-gray-600">{overallProgress}%</span>
               </div>
-              <Progress
-                value={overallProgress}
-                className="h-2"
-              />
+              <Progress value={overallProgress} className="h-2" />
               <div className="flex items-center justify-between text-xs text-gray-500">
                 <div className="flex items-center gap-1">
                   <Clock className="w-3 h-3" />
@@ -273,7 +276,8 @@ const UploadProgressIndicator: React.FC<UploadProgressIndicatorProps> = ({
             <div className="space-y-2">
               {STAGE_CONFIGS.map((stage, index) => {
                 const isActive = stage.id === currentStage;
-                const isCompleted = STAGE_CONFIGS.findIndex(s => s.id === currentStage) > index;
+                const isCompleted =
+                  STAGE_CONFIGS.findIndex((s) => s.id === currentStage) > index;
                 const Icon = stage.icon;
 
                 return (
@@ -286,20 +290,24 @@ const UploadProgressIndicator: React.FC<UploadProgressIndicatorProps> = ({
                     )}
                   >
                     {/* 图标 */}
-                    <div className={cn(
-                      "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
-                      isCompleted && "bg-green-100",
-                      isActive && "bg-blue-100",
-                      !isActive && !isCompleted && "bg-gray-100"
-                    )}>
+                    <div
+                      className={cn(
+                        "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
+                        isCompleted && "bg-green-100",
+                        isActive && "bg-blue-100",
+                        !isActive && !isCompleted && "bg-gray-100"
+                      )}
+                    >
                       {isCompleted ? (
                         <CheckCircle2 className="w-4 h-4 text-green-600" />
                       ) : (
-                        <Icon className={cn(
-                          "w-4 h-4",
-                          isActive && "text-blue-600 animate-pulse",
-                          !isActive && "text-gray-400"
-                        )} />
+                        <Icon
+                          className={cn(
+                            "w-4 h-4",
+                            isActive && "text-blue-600 animate-pulse",
+                            !isActive && "text-gray-400"
+                          )}
+                        />
                       )}
                     </div>
 

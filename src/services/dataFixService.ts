@@ -12,7 +12,12 @@ import { NotificationManager } from "./NotificationManager";
 
 export interface DataIssue {
   id: string;
-  type: "missing_field" | "invalid_format" | "duplicate" | "orphaned" | "inconsistent";
+  type:
+    | "missing_field"
+    | "invalid_format"
+    | "duplicate"
+    | "orphaned"
+    | "inconsistent";
   severity: "low" | "medium" | "high";
   table: string;
   recordId: string;
@@ -65,9 +70,10 @@ class DataFixService {
     const issuesBySeverity: Record<string, number> = {};
     let autoFixableCount = 0;
 
-    issues.forEach(issue => {
+    issues.forEach((issue) => {
       issuesByType[issue.type] = (issuesByType[issue.type] || 0) + 1;
-      issuesBySeverity[issue.severity] = (issuesBySeverity[issue.severity] || 0) + 1;
+      issuesBySeverity[issue.severity] =
+        (issuesBySeverity[issue.severity] || 0) + 1;
       if (issue.autoFixable) autoFixableCount++;
     });
 
@@ -84,11 +90,16 @@ class DataFixService {
   /**
    * 应用修复方案
    */
-  async applyFixes(issueIds: string[], report: DiagnosticReport): Promise<FixResult[]> {
+  async applyFixes(
+    issueIds: string[],
+    report: DiagnosticReport
+  ): Promise<FixResult[]> {
     console.log(`[DataFixService] 开始修复 ${issueIds.length} 个问题...`);
 
     const results: FixResult[] = [];
-    const issuesToFix = report.issues.filter(issue => issueIds.includes(issue.id));
+    const issuesToFix = report.issues.filter((issue) =>
+      issueIds.includes(issue.id)
+    );
 
     for (const issue of issuesToFix) {
       try {
@@ -98,7 +109,10 @@ class DataFixService {
         if (result.success) {
           console.log(`[DataFixService] ✓ 修复成功: ${issue.description}`);
         } else {
-          console.error(`[DataFixService] ✗ 修复失败: ${issue.description}`, result.error);
+          console.error(
+            `[DataFixService] ✗ 修复失败: ${issue.description}`,
+            result.error
+          );
         }
       } catch (error) {
         console.error(`[DataFixService] 修复异常: ${issue.description}`, error);
@@ -110,12 +124,13 @@ class DataFixService {
       }
     }
 
-    const successCount = results.filter(r => r.success).length;
+    const successCount = results.filter((r) => r.success).length;
     const failedCount = results.length - successCount;
 
     if (successCount > 0) {
       NotificationManager.success(`成功修复 ${successCount} 个问题`, {
-        description: failedCount > 0 ? `${failedCount} 个问题修复失败` : undefined,
+        description:
+          failedCount > 0 ? `${failedCount} 个问题修复失败` : undefined,
       });
     }
 
@@ -133,8 +148,8 @@ class DataFixService {
    */
   async autoFixAll(report: DiagnosticReport): Promise<FixResult[]> {
     const autoFixableIds = report.issues
-      .filter(issue => issue.autoFixable)
-      .map(issue => issue.id);
+      .filter((issue) => issue.autoFixable)
+      .map((issue) => issue.id);
 
     if (autoFixableIds.length === 0) {
       NotificationManager.info("没有可自动修复的问题");
@@ -158,7 +173,7 @@ class DataFixService {
 
     if (error || !students) return;
 
-    students.forEach(student => {
+    students.forEach((student) => {
       // 缺少学号
       if (!student.student_id) {
         issues.push({
@@ -215,9 +230,13 @@ class DataFixService {
 
     if (error || !grades) return;
 
-    grades.forEach(grade => {
+    grades.forEach((grade) => {
       // 总分超过满分
-      if (grade.total_score && grade.total_max_score && grade.total_score > grade.total_max_score) {
+      if (
+        grade.total_score &&
+        grade.total_max_score &&
+        grade.total_score > grade.total_max_score
+      ) {
         issues.push({
           id: `grade_invalid_score_${grade.id}`,
           type: "invalid_format",
@@ -276,16 +295,16 @@ class DataFixService {
       .limit(500);
 
     if (!gradeError && grades) {
-      const studentIds = new Set(grades.map(g => g.student_id));
+      const studentIds = new Set(grades.map((g) => g.student_id));
       const { data: students, error: studentError } = await supabase
         .from("students")
         .select("student_id")
         .in("student_id", Array.from(studentIds));
 
       if (!studentError && students) {
-        const existingIds = new Set(students.map(s => s.student_id));
+        const existingIds = new Set(students.map((s) => s.student_id));
 
-        grades.forEach(grade => {
+        grades.forEach((grade) => {
           if (!existingIds.has(grade.student_id)) {
             issues.push({
               id: `orphaned_grade_${grade.id}`,
@@ -315,9 +334,12 @@ class DataFixService {
     if (!error && students) {
       const studentIdMap = new Map<string, number>();
 
-      students.forEach(student => {
+      students.forEach((student) => {
         if (student.student_id) {
-          studentIdMap.set(student.student_id, (studentIdMap.get(student.student_id) || 0) + 1);
+          studentIdMap.set(
+            student.student_id,
+            (studentIdMap.get(student.student_id) || 0) + 1
+          );
         }
       });
 

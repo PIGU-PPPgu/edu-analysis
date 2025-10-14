@@ -131,7 +131,7 @@ const DataExport: React.FC<DataExportProps> = ({
     try {
       // 实际导出进度显示
       setExportProgress(20);
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       // 准备导出数据
       const exportData = data.map((row) => {
@@ -143,7 +143,7 @@ const DataExport: React.FC<DataExportProps> = ({
       });
 
       setExportProgress(50);
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
       // 调用导出回调或默认导出
       if (onExport) {
@@ -208,9 +208,9 @@ const DataExport: React.FC<DataExportProps> = ({
       ),
     ].join("\n");
 
-    const bom = '\uFEFF'; // UTF-8 BOM for Excel
+    const bom = "\uFEFF"; // UTF-8 BOM for Excel
     const blob = new Blob([bom + csvContent], {
-      type: "application/vnd.ms-excel;charset=utf-8"
+      type: "application/vnd.ms-excel;charset=utf-8",
     });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -249,16 +249,19 @@ const DataExport: React.FC<DataExportProps> = ({
       <body>
         <h1>${title}</h1>
         <div class="summary">
-          <strong>数据摘要:</strong> 共 ${data.length} 条记录，生成时间: ${new Date().toLocaleString('zh-CN')}
+          <strong>数据摘要:</strong> 共 ${data.length} 条记录，生成时间: ${new Date().toLocaleString("zh-CN")}
         </div>
         <table>
           <thead>
-            <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+            <tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr>
           </thead>
           <tbody>
-            ${data.map(row => 
-              `<tr>${headers.map(h => `<td>${row[h] || ''}</td>`).join('')}</tr>`
-            ).join('')}
+            ${data
+              .map(
+                (row) =>
+                  `<tr>${headers.map((h) => `<td>${row[h] || ""}</td>`).join("")}</tr>`
+              )
+              .join("")}
           </tbody>
         </table>
         <script>
@@ -270,7 +273,7 @@ const DataExport: React.FC<DataExportProps> = ({
       </html>
     `;
 
-    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = `${fileName}.html`;

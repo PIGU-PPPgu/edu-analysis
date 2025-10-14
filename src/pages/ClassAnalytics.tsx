@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -24,8 +24,8 @@ import {
   Target,
   Eye,
   Settings,
-  Download
-} from 'lucide-react';
+  Download,
+} from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import ClassAnalyticsDashboard from "@/components/analytics/ClassAnalyticsDashboard";
@@ -33,8 +33,8 @@ import ClassAnalyticsDashboard from "@/components/analytics/ClassAnalyticsDashbo
 const ClassAnalytics: React.FC = () => {
   const [availableClasses, setAvailableClasses] = useState<string[]>([]);
   const [availableExams, setAvailableExams] = useState<string[]>([]);
-  const [selectedClass, setSelectedClass] = useState<string>('');
-  const [selectedExam, setSelectedExam] = useState<string>('');
+  const [selectedClass, setSelectedClass] = useState<string>("");
+  const [selectedExam, setSelectedExam] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
 
   // 初始化加载可用数据
@@ -45,18 +45,18 @@ const ClassAnalytics: React.FC = () => {
   const loadAvailableOptions = async () => {
     setIsLoading(true);
     try {
-      console.log('📊 [班级分析页面] 加载可选项数据...');
+      console.log("📊 [班级分析页面] 加载可选项数据...");
 
       // 并行获取班级和考试数据
       const [classesResponse, examsResponse] = await Promise.all([
         supabase
-          .from('grade_data_new')
-          .select('class_name')
-          .order('class_name'),
+          .from("grade_data_new")
+          .select("class_name")
+          .order("class_name"),
         supabase
-          .from('grade_data_new')
-          .select('exam_title, exam_date')
-          .order('exam_date', { ascending: false })
+          .from("grade_data_new")
+          .select("exam_title, exam_date")
+          .order("exam_date", { ascending: false }),
       ]);
 
       if (classesResponse.error) throw classesResponse.error;
@@ -64,9 +64,11 @@ const ClassAnalytics: React.FC = () => {
 
       // 处理班级数据
       if (classesResponse.data) {
-        const uniqueClasses = [...new Set(classesResponse.data.map(item => item.class_name))];
+        const uniqueClasses = [
+          ...new Set(classesResponse.data.map((item) => item.class_name)),
+        ];
         setAvailableClasses(uniqueClasses);
-        console.log('✅ 加载到班级数据:', uniqueClasses.length, '个班级');
+        console.log("✅ 加载到班级数据:", uniqueClasses.length, "个班级");
 
         // 默认选择第一个班级
         if (uniqueClasses.length > 0 && !selectedClass) {
@@ -76,45 +78,48 @@ const ClassAnalytics: React.FC = () => {
 
       // 处理考试数据
       if (examsResponse.data) {
-        const uniqueExams = [...new Set(examsResponse.data.map(item => item.exam_title))];
+        const uniqueExams = [
+          ...new Set(examsResponse.data.map((item) => item.exam_title)),
+        ];
         setAvailableExams(uniqueExams);
-        console.log('✅ 加载到考试数据:', uniqueExams.length, '场考试');
+        console.log("✅ 加载到考试数据:", uniqueExams.length, "场考试");
 
         // 默认选择最新的考试
         if (uniqueExams.length > 0 && !selectedExam) {
           setSelectedExam(uniqueExams[0]);
         }
       }
-
     } catch (error) {
-      console.error('❌ [班级分析页面] 加载可选项失败:', error);
-      toast.error('加载班级和考试数据失败');
+      console.error("❌ [班级分析页面] 加载可选项失败:", error);
+      toast.error("加载班级和考试数据失败");
     } finally {
       setIsLoading(false);
     }
   };
 
   // 快速选择功能
-  const handleQuickSelect = async (type: 'latest-exam' | 'top-class' | 'problem-class') => {
+  const handleQuickSelect = async (
+    type: "latest-exam" | "top-class" | "problem-class"
+  ) => {
     try {
-      if (type === 'latest-exam' && availableExams.length > 0) {
+      if (type === "latest-exam" && availableExams.length > 0) {
         setSelectedExam(availableExams[0]);
-        toast.success('已选择最新考试');
+        toast.success("已选择最新考试");
         return;
       }
 
-      if (type === 'top-class') {
+      if (type === "top-class") {
         // 找出成绩最好的班级（基于最新考试的平均分）
         if (!selectedExam) return;
 
         const { data: classStats } = await supabase
-          .from('grade_data_new')
-          .select('class_name, total_score')
-          .eq('exam_title', selectedExam);
+          .from("grade_data_new")
+          .select("class_name, total_score")
+          .eq("exam_title", selectedExam);
 
         if (classStats) {
           const classAverages = new Map<string, number[]>();
-          classStats.forEach(record => {
+          classStats.forEach((record) => {
             if (record.total_score) {
               if (!classAverages.has(record.class_name)) {
                 classAverages.set(record.class_name, []);
@@ -126,7 +131,8 @@ const ClassAnalytics: React.FC = () => {
           const classWithBestAvg = Array.from(classAverages.entries())
             .map(([className, scores]) => ({
               className,
-              average: scores.reduce((sum, score) => sum + score, 0) / scores.length
+              average:
+                scores.reduce((sum, score) => sum + score, 0) / scores.length,
             }))
             .sort((a, b) => b.average - a.average)[0];
 
@@ -137,21 +143,24 @@ const ClassAnalytics: React.FC = () => {
         }
       }
 
-      if (type === 'problem-class') {
+      if (type === "problem-class") {
         // 找出需要关注的班级（基于最新考试的及格率）
         if (!selectedExam) return;
 
         const { data: classStats } = await supabase
-          .from('grade_data_new')
-          .select('class_name, total_score')
-          .eq('exam_title', selectedExam);
+          .from("grade_data_new")
+          .select("class_name, total_score")
+          .eq("exam_title", selectedExam);
 
         if (classStats) {
-          const classPassRates = new Map<string, {total: number, passed: number}>();
-          classStats.forEach(record => {
+          const classPassRates = new Map<
+            string,
+            { total: number; passed: number }
+          >();
+          classStats.forEach((record) => {
             if (record.total_score !== null) {
               if (!classPassRates.has(record.class_name)) {
-                classPassRates.set(record.class_name, {total: 0, passed: 0});
+                classPassRates.set(record.class_name, { total: 0, passed: 0 });
               }
               const stats = classPassRates.get(record.class_name)!;
               stats.total++;
@@ -162,20 +171,22 @@ const ClassAnalytics: React.FC = () => {
           const classWithLowestPassRate = Array.from(classPassRates.entries())
             .map(([className, stats]) => ({
               className,
-              passRate: stats.total > 0 ? (stats.passed / stats.total) * 100 : 0
+              passRate:
+                stats.total > 0 ? (stats.passed / stats.total) * 100 : 0,
             }))
             .sort((a, b) => a.passRate - b.passRate)[0];
 
           if (classWithLowestPassRate) {
             setSelectedClass(classWithLowestPassRate.className);
-            toast.success(`已选择需要关注班级: ${classWithLowestPassRate.className}`);
+            toast.success(
+              `已选择需要关注班级: ${classWithLowestPassRate.className}`
+            );
           }
         }
       }
-
     } catch (error) {
-      console.error('快速选择失败:', error);
-      toast.error('快速选择操作失败');
+      console.error("快速选择失败:", error);
+      toast.error("快速选择操作失败");
     }
   };
 
@@ -285,7 +296,7 @@ const ClassAnalytics: React.FC = () => {
                   <SelectValue placeholder="请选择班级" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableClasses.map(className => (
+                  {availableClasses.map((className) => (
                     <SelectItem key={className} value={className}>
                       {className}
                     </SelectItem>
@@ -302,7 +313,7 @@ const ClassAnalytics: React.FC = () => {
                   <SelectValue placeholder="请选择考试" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableExams.map(examTitle => (
+                  {availableExams.map((examTitle) => (
                     <SelectItem key={examTitle} value={examTitle}>
                       {examTitle}
                     </SelectItem>
@@ -315,10 +326,10 @@ const ClassAnalytics: React.FC = () => {
             <div className="space-y-2">
               <label className="text-sm font-medium">快速选择</label>
               <div className="flex flex-col space-y-1">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
-                  onClick={() => handleQuickSelect('latest-exam')}
+                  onClick={() => handleQuickSelect("latest-exam")}
                   disabled={availableExams.length === 0}
                 >
                   最新考试
@@ -329,19 +340,19 @@ const ClassAnalytics: React.FC = () => {
             <div className="space-y-2">
               <label className="text-sm font-medium">智能推荐</label>
               <div className="flex flex-col space-y-1">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
-                  onClick={() => handleQuickSelect('top-class')}
+                  onClick={() => handleQuickSelect("top-class")}
                   disabled={!selectedExam}
                 >
                   <TrendingUp className="h-3 w-3 mr-1" />
                   优秀班级
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
-                  onClick={() => handleQuickSelect('problem-class')}
+                  onClick={() => handleQuickSelect("problem-class")}
                   disabled={!selectedExam}
                 >
                   <Target className="h-3 w-3 mr-1" />
@@ -355,7 +366,7 @@ const ClassAnalytics: React.FC = () => {
 
       {/* 主要分析内容 */}
       {selectedClass ? (
-        <ClassAnalyticsDashboard 
+        <ClassAnalyticsDashboard
           className={selectedClass}
           examTitle={selectedExam}
         />
@@ -372,10 +383,7 @@ const ClassAnalytics: React.FC = () => {
                   选择班级和考试后，系统将为您生成详细的分析报告
                 </p>
               </div>
-              <Button 
-                onClick={loadAvailableOptions}
-                disabled={isLoading}
-              >
+              <Button onClick={loadAvailableOptions} disabled={isLoading}>
                 刷新数据选项
               </Button>
             </div>

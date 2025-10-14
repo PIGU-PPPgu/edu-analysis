@@ -40,7 +40,9 @@ interface ClassComparisonProps {
 export function ClassComparison({ className, grade }: ClassComparisonProps) {
   const [classStats, setClassStats] = useState<ClassStats[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [currentClassStats, setCurrentClassStats] = useState<ClassStats | null>(null);
+  const [currentClassStats, setCurrentClassStats] = useState<ClassStats | null>(
+    null
+  );
 
   useEffect(() => {
     loadClassComparison();
@@ -52,8 +54,7 @@ export function ClassComparison({ className, grade }: ClassComparisonProps) {
     setIsLoading(true);
     try {
       // 1. 推断年级（如果没有提供）
-      const inferredGrade =
-        grade || inferGradeFromClassName(className);
+      const inferredGrade = grade || inferGradeFromClassName(className);
 
       // 2. 获取同年级所有班级的成绩数据（最近一次考试）
       const { data: recentExam } = await supabase
@@ -104,8 +105,7 @@ export function ClassComparison({ className, grade }: ClassComparisonProps) {
       // 5. 计算各班级统计指标
       const stats: ClassStats[] = Array.from(classGroups.entries()).map(
         ([cls, scores]) => {
-          const average =
-            scores.reduce((sum, s) => sum + s, 0) / scores.length;
+          const average = scores.reduce((sum, s) => sum + s, 0) / scores.length;
           const passCount = scores.filter((s) => s >= 60).length;
           const excellentCount = scores.filter((s) => s >= 85).length;
 
@@ -191,7 +191,12 @@ export function ClassComparison({ className, grade }: ClassComparisonProps) {
         <CardTitle className="flex items-center justify-between">
           <span>年级班级对比</span>
           {currentClassStats && (
-            <Badge className={getRankBadgeColor(currentClassStats.rank, classStats.length)}>
+            <Badge
+              className={getRankBadgeColor(
+                currentClassStats.rank,
+                classStats.length
+              )}
+            >
               <Award className="w-4 h-4 mr-1" />
               年级第 {currentClassStats.rank} 名
             </Badge>
@@ -258,8 +263,18 @@ export function ClassComparison({ className, grade }: ClassComparisonProps) {
               <YAxis />
               <Tooltip />
               <Legend />
-              <Bar dataKey="passRate" fill="#10b981" name="及格率(%)" radius={[8, 8, 0, 0]} />
-              <Bar dataKey="excellentRate" fill="#8b5cf6" name="优秀率(%)" radius={[8, 8, 0, 0]} />
+              <Bar
+                dataKey="passRate"
+                fill="#10b981"
+                name="及格率(%)"
+                radius={[8, 8, 0, 0]}
+              />
+              <Bar
+                dataKey="excellentRate"
+                fill="#8b5cf6"
+                name="优秀率(%)"
+                radius={[8, 8, 0, 0]}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -288,7 +303,12 @@ export function ClassComparison({ className, grade }: ClassComparisonProps) {
                     }`}
                   >
                     <td className="px-4 py-2">
-                      <Badge className={getRankBadgeColor(stat.rank, classStats.length)}>
+                      <Badge
+                        className={getRankBadgeColor(
+                          stat.rank,
+                          classStats.length
+                        )}
+                      >
                         {stat.rank}
                       </Badge>
                     </td>
