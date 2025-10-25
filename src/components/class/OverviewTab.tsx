@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -38,6 +38,7 @@ import ScoreDistribution from "@/components/analysis/statistics/ScoreDistributio
 import { toast } from "sonner";
 import { getClassDetailedAnalysisData } from "@/services/classService";
 import { showError } from "@/services/errorHandler";
+import { advancedExportService } from "@/services/advancedExportService";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Select,
@@ -83,6 +84,7 @@ interface ExamData {
 
 interface Props {
   selectedClass: Class;
+  onTabChange?: (tab: string) => void;
 }
 
 // 科目名称映射
@@ -98,10 +100,11 @@ const SUBJECT_NAMES = {
   geography: "地理",
 };
 
-const OverviewTab: React.FC<Props> = ({ selectedClass }) => {
+const OverviewTab: React.FC<Props> = ({ selectedClass, onTabChange }) => {
   const className = selectedClass.name;
   const classGrade = selectedClass.grade;
   const [isLoading, setIsLoading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [scoreDistributionData, setScoreDistributionData] = useState<any[]>([]);
 
   // 考试对比相关状态
@@ -472,6 +475,23 @@ const OverviewTab: React.FC<Props> = ({ selectedClass }) => {
     }
   }, [selectedExam1, selectedExam2]);
 
+  // 计算科目趋势数据 - 按考试分组展示各科目平均分走势
+  const subjectTrendData = useMemo(() => {
+    if (
+      !classStats.subjectPerformance ||
+      classStats.subjectPerformance.length === 0
+    )
+      return null;
+
+    // 这里简化处理,实际应该从数据库按考试分组查询历史趋势
+    // 当前显示最新一次考试的各科目表现
+    return classStats.subjectPerformance.map((subject) => ({
+      subject: subject.subject,
+      score: subject.avgScore,
+      trend: subject.trend,
+    }));
+  }, [classStats.subjectPerformance]);
+
   return (
     <div className="space-y-6">
       {/* 核心统计卡片 */}
@@ -611,6 +631,186 @@ const OverviewTab: React.FC<Props> = ({ selectedClass }) => {
           </CardContent>
         </Card>
       </div>
+
+      {/* 快速操作 */}
+      <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#000] bg-white">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center text-lg">
+            <Zap className="h-5 w-5 mr-2 text-[#5E9622]" />
+            快速操作
+          </CardTitle>
+          <CardDescription className="text-xs">
+            一键访问常用功能，提升工作效率
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {/* 查看预警学生 */}
+            <Link to={`/warning-analysis?class=${className}`} className="group">
+              <div className="flex flex-col items-center gap-3 p-4 bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-950 dark:to-red-950 rounded-lg border-2 border-black hover:shadow-[4px_4px_0px_0px_#000] transition-all cursor-pointer">
+                <div className="h-12 w-12 bg-orange-500 rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                  <AlertTriangle className="h-6 w-6 text-white" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    预警学生
+                  </p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                    {classStats.warningCount}人需关注
+                  </p>
+                </div>
+              </div>
+            </Link>
+
+            {/* 导出成绩单 */}
+            <Button
+              variant="outline"
+              className="group flex flex-col items-center gap-3 p-4 h-auto bg-gradient-to-br from-[#B9FF66]/20 to-[#B9FF66]/40 rounded-lg border-2 border-black hover:shadow-[4px_4px_0px_0px_#000] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isExporting}
+              onClick={async () => {
+                setIsExporting(true);
+                try {
+                  const result =
+                    await advancedExportService.exportStudentGrades({
+                      format: "xlsx",
+                      fields: [],
+                      filters: { class_name: className },
+                      fileName: `${className}_成绩单_${new Date().toLocaleDateString("zh-CN").replace(/\//g, "-")}`,
+                    });
+
+                  if (result.success) {
+                    toast.success(`成功导出 ${result.recordCount} 条成绩记录`);
+                  } else {
+                    toast.error(result.error || "导出失败");
+                  }
+                } catch (error) {
+                  console.error("导出错误:", error);
+                  toast.error("导出失败，请稍后重试");
+                } finally {
+                  setIsExporting(false);
+                }
+              }}
+            >
+              <div className="h-12 w-12 bg-[#B9FF66] rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                {isExporting ? (
+                  <Loader2 className="h-6 w-6 text-black animate-spin" />
+                ) : (
+                  <FileText className="h-6 w-6 text-black" />
+                )}
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  {isExporting ? "导出中..." : "导出成绩"}
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                  Excel格式
+                </p>
+              </div>
+            </Button>
+
+            {/* 学生管理 */}
+            <Link
+              to={`/student-management?className=${encodeURIComponent(className)}`}
+              className="group"
+            >
+              <div className="flex flex-col items-center gap-3 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 rounded-lg border-2 border-black hover:shadow-[4px_4px_0px_0px_#000] transition-all cursor-pointer">
+                <div className="h-12 w-12 bg-blue-500 rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                  <Users className="h-6 w-6 text-white" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    学生管理
+                  </p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                    {classStats.studentCount}名学生
+                  </p>
+                </div>
+              </div>
+            </Link>
+
+            {/* 班级画像 */}
+            <Button
+              variant="outline"
+              className="group flex flex-col items-center gap-3 p-4 h-auto bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 rounded-lg border-2 border-black hover:shadow-[4px_4px_0px_0px_#000] transition-all"
+              onClick={() => {
+                if (onTabChange) {
+                  onTabChange("portrait");
+                } else {
+                  toast.info('请切换到"画像"标签页查看');
+                }
+              }}
+            >
+              <div className="h-12 w-12 bg-purple-500 rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                <Brain className="h-6 w-6 text-white" />
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  班级画像
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                  AI分析
+                </p>
+              </div>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 科目趋势折线图 */}
+      {subjectTrendData && subjectTrendData.length > 0 && (
+        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#000] bg-white">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center text-lg">
+              <TrendingUp className="h-5 w-5 mr-2 text-[#5E9622]" />
+              科目成绩趋势
+            </CardTitle>
+            <CardDescription className="text-xs">
+              各科目最新考试平均分对比(趋势箭头表示与上次考试对比)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-80">
+              {/* 简化趋势展示 - 柱状图配合趋势箭头 */}
+              <div className="space-y-3">
+                {subjectTrendData.map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-4">
+                    <div className="w-20 text-sm font-medium text-gray-700 dark:text-gray-300 text-right">
+                      {item.subject}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-8 relative overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-[#5E9622] to-[#B9FF66] rounded-full flex items-center justify-end pr-3 transition-all duration-500"
+                            style={{
+                              width: `${Math.min(100, (item.score / 100) * 100)}%`,
+                            }}
+                          >
+                            <span className="text-xs font-bold text-black">
+                              {item.score.toFixed(1)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="w-8 flex items-center justify-center">
+                          {item.trend === "up" && (
+                            <TrendingUp className="h-5 w-5 text-[#5E9622]" />
+                          )}
+                          {item.trend === "down" && (
+                            <TrendingDown className="h-5 w-5 text-red-500" />
+                          )}
+                          {item.trend === "stable" && (
+                            <Minus className="h-5 w-5 text-gray-500" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* 科目表现 */}
       <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#000] bg-white">

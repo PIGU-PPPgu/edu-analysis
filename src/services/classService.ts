@@ -321,6 +321,15 @@ export async function getAllClasses(): Promise<any[]> {
         getClassLastExams(classNames),
       ]);
 
+    // 批量获取能力维度数据
+    const competencyDataByClass = new Map<string, any[]>();
+    await Promise.all(
+      classNames.map(async (className) => {
+        const competency = await calculateCompetencyData(className, []);
+        competencyDataByClass.set(className, competency);
+      })
+    );
+
     // 合并数据
     const enrichedClasses = Array.from(classStats.values()).map((classInfo) => {
       const gradeData = gradeStats.find((g) => g.class_name === classInfo.name);
@@ -329,6 +338,63 @@ export async function getAllClasses(): Promise<any[]> {
         (w) => w.class_name === classInfo.name
       );
       const examData = lastExams.find((e) => e.class_name === classInfo.name);
+      const competencyData = competencyDataByClass.get(classInfo.name) || [];
+
+      // 从能力维度数据计算各项指标
+      let knowledgeMastery = 0;
+      let problemSolvingAbility = 0;
+      let learningAttitude = 0;
+      let examStability = 0;
+
+      if (competencyData.length > 0) {
+        // 知识掌握 = 所有能力维度的平均值
+        const avgAbility =
+          competencyData.reduce((sum, item) => sum + item.current, 0) /
+          competencyData.length;
+        knowledgeMastery = Math.round(avgAbility * 10) / 10;
+
+        // 解题能力 = 逻辑思维能力（数学对应）
+        const logicalThinking = competencyData.find(
+          (item) => item.name === "逻辑思维"
+        );
+        problemSolvingAbility = logicalThinking
+          ? Math.round(logicalThinking.current * 10) / 10
+          : knowledgeMastery;
+
+        // 学习态度 = 语言表达和外语应用的平均（需要记忆和持续努力的科目）
+        const languageAbility = competencyData.find(
+          (item) => item.name === "语言表达"
+        );
+        const foreignLanguage = competencyData.find(
+          (item) => item.name === "外语应用"
+        );
+        if (languageAbility && foreignLanguage) {
+          learningAttitude =
+            Math.round(
+              ((languageAbility.current + foreignLanguage.current) / 2) * 10
+            ) / 10;
+        } else {
+          learningAttitude = knowledgeMastery;
+        }
+
+        // 考试稳定性 = 能力维度标准差的倒数（转换为0-100分）
+        const variance =
+          competencyData.reduce(
+            (sum, item) => sum + Math.pow(item.current - avgAbility, 2),
+            0
+          ) / competencyData.length;
+        const stdDev = Math.sqrt(variance);
+        // 标准差越小，稳定性越高
+        examStability = Math.max(0, Math.min(100, 100 - stdDev));
+        examStability = Math.round(examStability * 10) / 10;
+      }
+
+      // 计算合格率（60分以上）
+      const passRate = gradeData?.avg_score
+        ? gradeData.avg_score >= 60
+          ? Math.min(100, Math.round((gradeData.avg_score / 60) * 90))
+          : 0
+        : 0;
 
       return {
         id: classInfo.name, // ✅ 直接使用class_name作为ID
@@ -338,10 +404,15 @@ export async function getAllClasses(): Promise<any[]> {
         homeworkCount: hwData?.homework_count || 0,
         averageScore: gradeData?.avg_score || 0,
         excellentRate: gradeData?.excellent_rate || 0,
+        passRate,
         gradeRecordCount: gradeData?.grade_records || 0,
         warningCount: warningData?.warning_count || 0,
         lastExamTitle: examData?.last_exam_title,
         lastExamDate: examData?.last_exam_date,
+        knowledgeMastery,
+        problemSolvingAbility,
+        learningAttitude,
+        examStability,
         created_at: new Date().toISOString(),
       };
     });

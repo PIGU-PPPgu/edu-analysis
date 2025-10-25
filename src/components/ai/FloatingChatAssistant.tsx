@@ -70,6 +70,7 @@ export const FloatingChatAssistant: React.FC<FloatingChatAssistantProps> = ({
     }[]
   >([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -79,20 +80,86 @@ export const FloatingChatAssistant: React.FC<FloatingChatAssistantProps> = ({
     scrollToBottom();
   }, [messages]);
 
-  // 加载用户配置的中文AI模型
+  // Cleanup abort controller on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  // Stop ongoing conversation
+  const handleStopConversation = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsLoading(false);
+
+    // Add a system message indicating the conversation was stopped
+    const stopMessage: Message = {
+      id: Date.now().toString(),
+      role: "assistant",
+      content: "⏹️ 对话已终止",
+      timestamp: new Date(),
+      model: "System",
+    };
+    setMessages((prev) => [...prev, stopMessage]);
+  };
+
+  // 加载全局默认AI模型（只显示全局设置的默认模型）
   useEffect(() => {
     const loadAvailableModels = async () => {
       try {
-        const models = await getConfiguredChineseAIModels();
-        setAvailableModels(models);
+        // 获取全局AI配置
+        const globalConfig = localStorage.getItem("global_ai_config");
+        if (!globalConfig) {
+          setMessages([
+            {
+              id: "1",
+              role: "assistant",
+              content:
+                "❗ 未检测到全局AI配置。请在AI设置中配置默认模型后再使用聊天功能。",
+              timestamp: new Date(),
+              model: "System",
+            },
+          ]);
+          return;
+        }
 
-        // 如果有可用模型且未选择模型，自动选择第一个
-        if (models.length > 0 && !selectedModel) {
-          const firstModel = models[0];
+        const config = JSON.parse(globalConfig);
+        const defaultProvider = config.defaultProvider;
+        const defaultModel = config.defaultModel;
+
+        if (!defaultProvider || !defaultModel) {
+          setMessages([
+            {
+              id: "1",
+              role: "assistant",
+              content:
+                '❗ 未设置默认AI模型。请在"全局设置"中选择默认提供商和模型。',
+              timestamp: new Date(),
+              model: "System",
+            },
+          ]);
+          return;
+        }
+
+        // 获取所有配置的模型，找到默认模型
+        const allModels = await getConfiguredChineseAIModels();
+        const defaultModelInfo = allModels.find(
+          (m) => m.providerId === defaultProvider && m.modelId === defaultModel
+        );
+
+        if (defaultModelInfo) {
+          // 只设置默认模型（不显示其他模型）
+          setAvailableModels([defaultModelInfo]);
+
           const newSelectedModel = {
-            providerId: firstModel.providerId,
-            modelId: firstModel.modelId,
-            displayName: `${firstModel.providerName} - ${firstModel.modelName}`,
+            providerId: defaultModelInfo.providerId,
+            modelId: defaultModelInfo.modelId,
+            displayName: `${defaultModelInfo.providerName} - ${defaultModelInfo.modelName}`,
           };
           setSelectedModel(newSelectedModel);
 
@@ -107,14 +174,13 @@ export const FloatingChatAssistant: React.FC<FloatingChatAssistantProps> = ({
               model: newSelectedModel.displayName,
             },
           ]);
-        } else if (models.length === 0) {
-          // 没有配置中文AI模型
+        } else {
           setMessages([
             {
               id: "1",
               role: "assistant",
               content:
-                "❗ 未检测到配置的中文AI模型。请在AI设置中配置豆包、deepseek等中文AI服务后再使用聊天功能。",
+                "❗ 无法加载默认模型。请检查AI设置中的提供商配置和API密钥。",
               timestamp: new Date(),
               model: "System",
             },
@@ -165,6 +231,9 @@ export const FloatingChatAssistant: React.FC<FloatingChatAssistantProps> = ({
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
+
+    // Create new abort controller for this request
+    abortControllerRef.current = new AbortController();
 
     try {
       // 智能数据获取 - 根据用户问题自动读取相关数据
@@ -251,8 +320,17 @@ export const FloatingChatAssistant: React.FC<FloatingChatAssistantProps> = ({
         model: selectedModel.displayName,
       };
       setMessages((prev) => [...prev, aiResponse]);
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI响应错误:", error);
+
+      // Check if the error is due to abort
+      if (
+        error.name === "AbortError" ||
+        abortControllerRef.current?.signal.aborted
+      ) {
+        // Don't show error message for intentional abort
+        return;
+      }
 
       // 错误处理：提供友好的错误信息和后备响应
       let errorMessage = "";
@@ -276,6 +354,7 @@ export const FloatingChatAssistant: React.FC<FloatingChatAssistantProps> = ({
       setMessages((prev) => [...prev, aiResponse]);
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -536,11 +615,14 @@ export const FloatingChatAssistant: React.FC<FloatingChatAssistantProps> = ({
   // 展开状态的完整聊天界面
   return (
     <div
-      className={cn("fixed bottom-6 right-6 z-50 w-96 h-[600px]", className)}
+      className={cn(
+        "fixed bottom-6 right-6 z-50 w-[420px] h-[650px]",
+        className
+      )}
     >
-      <Card className="h-full bg-white border-2 border-black shadow-[8px_8px_0px_0px_#B9FF66] flex flex-col">
+      <Card className="h-full bg-gradient-to-b from-white to-gray-50 border-3 border-black shadow-[12px_12px_0px_0px_#B9FF66] flex flex-col rounded-xl overflow-hidden">
         {/* 标题栏 */}
-        <CardHeader className="bg-[#B9FF66] border-b-2 border-black p-4 flex-shrink-0">
+        <CardHeader className="bg-gradient-to-r from-[#B9FF66] to-[#A8E055] border-b-3 border-black p-5 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-[#191A23] rounded-full border-2 border-black">
@@ -590,78 +672,73 @@ export const FloatingChatAssistant: React.FC<FloatingChatAssistantProps> = ({
             </div>
           </div>
 
-          {/* AI模型选择 */}
-          <div className="flex gap-1 mt-2 flex-wrap">
-            {availableModels.length > 0 ? (
-              availableModels.map((model) => {
-                const modelKey = `${model.providerId}-${model.modelId}`;
-                const isSelected =
-                  selectedModel?.providerId === model.providerId &&
-                  selectedModel?.modelId === model.modelId;
-                return (
-                  <Button
-                    key={modelKey}
-                    onClick={() =>
-                      setSelectedModel({
-                        providerId: model.providerId,
-                        modelId: model.modelId,
-                        displayName: `${model.providerName} - ${model.modelName}`,
-                      })
-                    }
-                    className={cn(
-                      "text-xs font-bold px-2 py-1 h-6 border border-black transition-all",
-                      isSelected
-                        ? "bg-[#191A23] text-white translate-x-[-1px] translate-y-[-1px] shadow-[2px_2px_0px_0px_#191A23]"
-                        : "bg-white text-[#191A23] hover:bg-white"
-                    )}
-                  >
-                    {model.modelName}
-                  </Button>
-                );
-              })
-            ) : (
-              <div className="text-xs text-[#191A23]/70 px-2 py-1">
-                未配置中文AI模型，请在AI设置中配置
+          {/* 当前使用模型显示 */}
+          {selectedModel && (
+            <div className="mt-3 px-3 py-2 bg-[#191A23] rounded-lg border-2 border-black">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-1">
+                  <Sparkles className="h-3.5 w-3.5 text-[#B9FF66]" />
+                  <span className="text-xs font-bold text-white">
+                    当前模型:
+                  </span>
+                  <span className="text-xs font-black text-[#B9FF66]">
+                    {selectedModel.displayName}
+                  </span>
+                </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </CardHeader>
 
         {/* 消息区域 */}
         <CardContent className="flex-1 overflow-hidden p-0">
-          <div className="h-full overflow-y-auto p-4 space-y-4">
+          <div className="h-full overflow-y-auto p-5 space-y-5 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
             {messages.map((message) => (
               <div
                 key={message.id}
                 className={cn(
-                  "flex gap-3",
+                  "flex gap-3 items-end",
                   message.role === "user" ? "justify-end" : "justify-start"
                 )}
               >
                 {message.role === "assistant" && (
-                  <div className="p-2 bg-[#B9FF66] rounded-full border-2 border-black flex-shrink-0">
-                    <Bot className="h-3 w-3 text-[#191A23]" />
+                  <div className="p-2.5 bg-gradient-to-br from-[#B9FF66] to-[#A8E055] rounded-full border-2 border-black shadow-md flex-shrink-0">
+                    <Bot className="h-4 w-4 text-[#191A23]" />
                   </div>
                 )}
 
                 <div
                   className={cn(
-                    "max-w-[80%] p-3 border-2 border-black rounded-lg",
+                    "max-w-[75%] p-4 border-2 border-black rounded-2xl shadow-[3px_3px_0px_0px_rgba(0,0,0,0.1)] transition-all hover:shadow-[5px_5px_0px_0px_rgba(0,0,0,0.15)]",
                     message.role === "user"
-                      ? "bg-[#191A23] text-white"
+                      ? "bg-gradient-to-br from-[#191A23] to-[#2a2b3a] text-white"
                       : "bg-white text-[#191A23]"
                   )}
                 >
-                  <p className="text-sm font-medium">{message.content}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-xs opacity-70">
+                  <p className="text-sm font-medium leading-relaxed whitespace-pre-wrap break-words">
+                    {message.content}
+                  </p>
+                  <div
+                    className="flex items-center gap-2 mt-3 pt-2 border-t border-opacity-20"
+                    style={{
+                      borderColor: message.role === "user" ? "#fff" : "#191A23",
+                    }}
+                  >
+                    <span className="text-xs opacity-60 font-medium">
                       {message.timestamp.toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
                     </span>
                     {message.model && (
-                      <Badge className="text-xs bg-[#6B7280] text-white">
+                      <Badge
+                        className={cn(
+                          "text-xs font-bold px-2 py-0.5 border border-black",
+                          message.role === "user"
+                            ? "bg-white/20 text-white"
+                            : "bg-gray-100 text-[#191A23]"
+                        )}
+                      >
                         {message.model}
                       </Badge>
                     )}
@@ -669,24 +746,30 @@ export const FloatingChatAssistant: React.FC<FloatingChatAssistantProps> = ({
                 </div>
 
                 {message.role === "user" && (
-                  <div className="p-2 bg-[#191A23] rounded-full border-2 border-black flex-shrink-0">
-                    <User className="h-3 w-3 text-white" />
+                  <div className="p-2.5 bg-gradient-to-br from-[#191A23] to-[#2a2b3a] rounded-full border-2 border-black shadow-md flex-shrink-0">
+                    <User className="h-4 w-4 text-white" />
                   </div>
                 )}
               </div>
             ))}
 
             {isLoading && (
-              <div className="flex gap-3 justify-start">
-                <div className="p-2 bg-[#B9FF66] rounded-full border-2 border-black flex-shrink-0">
-                  <Bot className="h-3 w-3 text-[#191A23]" />
+              <div className="flex gap-3 items-end justify-start">
+                <div className="p-2.5 bg-gradient-to-br from-[#B9FF66] to-[#A8E055] rounded-full border-2 border-black shadow-md flex-shrink-0 animate-pulse">
+                  <Bot className="h-4 w-4 text-[#191A23]" />
                 </div>
-                <div className="bg-white border-2 border-black rounded-lg p-3">
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin text-[#B9FF66]" />
+                <div className="bg-white border-2 border-black rounded-2xl p-4 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.1)]">
+                  <div className="flex items-center gap-3">
+                    <Loader2 className="h-5 w-5 animate-spin text-[#B9FF66]" />
                     <span className="text-sm font-medium text-[#191A23]">
-                      AI思考中...
+                      AI正在思考...
                     </span>
+                    <Button
+                      onClick={handleStopConversation}
+                      className="h-7 px-3 py-1 text-xs bg-red-500 hover:bg-red-600 text-white border-2 border-black font-bold rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,0.4)] transition-all"
+                    >
+                      ⏹ 停止
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -697,72 +780,75 @@ export const FloatingChatAssistant: React.FC<FloatingChatAssistantProps> = ({
         </CardContent>
 
         {/* 输入区域 */}
-        <div className="border-t-2 border-black p-4 bg-[#F8F8F8] flex-shrink-0">
+        <div className="border-t-3 border-black p-5 bg-gradient-to-b from-gray-50 to-white flex-shrink-0">
           {/* 快捷操作按钮 */}
           {availableModels.length > 0 && !isLoading && messages.length <= 1 && (
-            <div className="mb-3">
-              <div className="text-xs font-bold text-[#191A23] mb-2 uppercase tracking-wide">
+            <div className="mb-4">
+              <div className="text-xs font-black text-[#191A23] mb-2.5 uppercase tracking-wider flex items-center gap-2">
+                <Sparkles className="h-3.5 w-3.5 text-[#B9FF66]" />
                 快捷分析
               </div>
               <div className="flex gap-2 flex-wrap">
                 <Button
                   onClick={() => handleQuickAction("overview")}
-                  className="text-xs border border-black bg-white hover:bg-[#B9FF66] text-[#191A23] font-medium px-3 py-1 h-7 transition-all"
+                  className="text-xs border-2 border-black bg-white hover:bg-[#B9FF66] text-[#191A23] font-bold px-3 py-1.5 h-8 transition-all rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[-1px] hover:translate-y-[-1px]"
                 >
-                  <Database className="h-3 w-3 mr-1" />
+                  <Database className="h-3.5 w-3.5 mr-1.5" />
                   整体概览
                 </Button>
                 <Button
                   onClick={() => handleQuickAction("recentExam")}
-                  className="text-xs border border-black bg-white hover:bg-[#B9FF66] text-[#191A23] font-medium px-3 py-1 h-7 transition-all"
+                  className="text-xs border-2 border-black bg-white hover:bg-[#B9FF66] text-[#191A23] font-bold px-3 py-1.5 h-8 transition-all rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[-1px] hover:translate-y-[-1px]"
                 >
-                  <BarChart3 className="h-3 w-3 mr-1" />
+                  <BarChart3 className="h-3.5 w-3.5 mr-1.5" />
                   最近考试
                 </Button>
                 <Button
                   onClick={() => handleQuickAction("suggestions")}
-                  className="text-xs border border-black bg-white hover:bg-[#B9FF66] text-[#191A23] font-medium px-3 py-1 h-7 transition-all"
+                  className="text-xs border-2 border-black bg-white hover:bg-[#B9FF66] text-[#191A23] font-bold px-3 py-1.5 h-8 transition-all rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[-1px] hover:translate-y-[-1px]"
                 >
-                  <BookOpen className="h-3 w-3 mr-1" />
+                  <BookOpen className="h-3.5 w-3.5 mr-1.5" />
                   教学建议
                 </Button>
               </div>
             </div>
           )}
 
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="输入消息..."
-              className="border-2 border-black shadow-[2px_2px_0px_0px_#191A23] font-medium"
+              placeholder="输入您的问题..."
+              className="border-2 border-black shadow-[3px_3px_0px_0px_#191A23] font-medium rounded-lg text-sm focus:shadow-[4px_4px_0px_0px_#191A23] transition-all"
               disabled={isLoading}
             />
             <Button
               onClick={handleSendMessage}
               disabled={!input.trim() || isLoading}
-              className="border-2 border-black bg-[#B9FF66] hover:bg-[#A8E055] text-[#191A23] font-bold shadow-[2px_2px_0px_0px_#191A23] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_0px_#191A23] transition-all"
+              className="border-2 border-black bg-gradient-to-br from-[#B9FF66] to-[#A8E055] hover:from-[#A8E055] hover:to-[#97CF44] text-[#191A23] font-black shadow-[3px_3px_0px_0px_#191A23] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[4px_4px_0px_0px_#191A23] transition-all rounded-lg px-5"
             >
               <Send className="h-4 w-4" />
             </Button>
           </div>
 
-          <div className="flex items-center justify-between mt-2">
-            <span className="text-xs text-[#191A23]/70">
-              按 Enter 发送，Shift+Enter 换行
+          <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200">
+            <span className="text-xs text-[#191A23]/60 font-medium">
+              按{" "}
+              <kbd className="px-1.5 py-0.5 bg-gray-200 border border-gray-300 rounded text-xs font-mono">
+                Enter
+              </kbd>{" "}
+              发送
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {messages.length > 15 && (
-                <span className="text-xs text-orange-600 font-medium">
-                  对话较长({messages.length}条)
+                <span className="text-xs text-orange-600 font-bold bg-orange-50 px-2 py-1 rounded-md border border-orange-200">
+                  {messages.length}条消息
                 </span>
               )}
-              <div className="flex items-center gap-1">
-                <Sparkles className="h-3 w-3 text-[#B9FF66]" />
-                <span className="text-xs font-medium text-[#191A23]">
-                  基于真实数据
-                </span>
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[#191A23]">
+                <Sparkles className="h-3.5 w-3.5 text-[#B9FF66]" />
+                实时数据分析
               </div>
             </div>
           </div>

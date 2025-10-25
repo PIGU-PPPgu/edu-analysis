@@ -572,7 +572,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
 
             <Button
               onClick={() => setShowSubjectSettings(true)}
-              className="flex items-center gap-2 border-2 border-black bg-[#F7931E] hover:bg-[#F7931E] text-white font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all"
+              className="flex items-center gap-2 border-2 border-black bg-white hover:bg-[#F3F3F3] text-black font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all"
             >
               <Settings className="w-4 h-4" />
               <span className="hidden sm:inline">科目设置</span>
@@ -613,14 +613,14 @@ const CompleteAnalyticsDashboard: React.FC = () => {
               </TabsTrigger>
               <TabsTrigger
                 value="deep-analysis"
-                className="flex items-center gap-2 data-[state=active]:bg-[#F7931E] data-[state=active]:text-white font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide px-6 py-3"
+                className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-black font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide px-6 py-3"
               >
                 <BarChart3 className="w-5 h-5" />
                 <span>深度分析</span>
               </TabsTrigger>
               <TabsTrigger
                 value="data-details"
-                className="flex items-center gap-2 data-[state=active]:bg-[#9C88FF] data-[state=active]:text-white font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide px-6 py-3"
+                className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-black font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide px-6 py-3"
               >
                 <FileText className="w-5 h-5" />
                 <span>数据详情</span>
@@ -981,11 +981,9 @@ const CompleteAnalyticsDashboard: React.FC = () => {
                           "font-bold border-2 border-black",
                           value >= 90
                             ? "bg-[#B9FF66] text-black"
-                            : value >= 80
+                            : value >= 60
                               ? "bg-[#6B7280] text-white"
-                              : value >= 60
-                                ? "bg-[#F59E0B] text-white"
-                                : "bg-[#EF4444] text-white"
+                              : "bg-[#191A23] text-white"
                         )}
                       >
                         {value}分

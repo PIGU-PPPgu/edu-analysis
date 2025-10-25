@@ -51,7 +51,7 @@ interface StatCardProps {
   subtitle?: string;
   trend?: "up" | "down" | "neutral";
   icon?: React.ReactNode;
-  color?: "primary" | "warning" | "danger" | "info";
+  color?: "primary" | "secondary";
 }
 
 const StatCard: React.FC<StatCardProps> = ({
@@ -71,28 +71,12 @@ const StatCard: React.FC<StatCardProps> = ({
       iconText: "text-[#B9FF66]",
       accent: "text-[#191A23]",
     },
-    warning: {
-      bg: "bg-[#F7931E]",
-      border: "border-[#F7931E]",
+    secondary: {
+      bg: "bg-[#6B7280]",
+      border: "border-[#6B7280]",
       text: "text-white",
       iconBg: "bg-white",
-      iconText: "text-[#F7931E]",
-      accent: "text-white",
-    },
-    danger: {
-      bg: "bg-[#FF6B6B]",
-      border: "border-[#FF6B6B]",
-      text: "text-white",
-      iconBg: "bg-white",
-      iconText: "text-[#FF6B6B]",
-      accent: "text-white",
-    },
-    info: {
-      bg: "bg-[#9C88FF]",
-      border: "border-[#9C88FF]",
-      text: "text-white",
-      iconBg: "bg-white",
-      iconText: "text-[#9C88FF]",
+      iconText: "text-[#6B7280]",
       accent: "text-white",
     },
   };
@@ -252,7 +236,7 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-white flex">
       {/* 侧边筛选栏 */}
       {showSidebar && (
         <>
@@ -263,7 +247,7 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
           />
 
           {/* 筛选栏 - 移动端为覆盖层，桌面端为侧边栏 */}
-          <div className="fixed lg:static inset-y-0 left-0 z-50 w-80 bg-white border-r-2 border-black shadow-[4px_0px_0px_0px_#191A23] p-6 overflow-y-auto transform lg:transform-none transition-transform lg:transition-none">
+          <div className="fixed lg:static inset-y-0 left-0 z-50 w-80 bg-[#F8F8F8] border-r-2 border-black shadow-[4px_0px_0px_0px_#191A23] p-6 overflow-y-auto transform lg:transform-none transition-transform lg:transition-none">
             {/* 筛选栏标题 */}
             <div className="mb-6">
               <div className="flex items-center gap-3 mb-4">
@@ -493,7 +477,7 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
             {/* 清除筛选按钮 */}
             <button
               onClick={() => setFilter({})}
-              className="w-full p-3 bg-[#FF6B6B] text-white border-2 border-black rounded-lg font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all duration-200"
+              className="w-full p-3 bg-[#6B7280] text-white border-2 border-black rounded-lg font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all duration-200"
             >
               <RefreshCw className="w-4 h-4 mr-2 inline" />
               清除所有筛选
@@ -510,7 +494,7 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
             <div className="space-y-3">
               <h1 className="text-5xl font-black text-[#191A23] leading-tight">
                 高级分析
-                <span className="inline-block ml-3 px-4 py-2 bg-[#F7931E] text-white text-xl font-black border-2 border-black rounded-lg shadow-[4px_4px_0px_0px_#191A23]">
+                <span className="inline-block ml-3 px-4 py-2 bg-[#B9FF66] text-[#191A23] text-xl font-black border-2 border-black rounded-lg shadow-[4px_4px_0px_0px_#191A23]">
                   ADVANCED
                 </span>
               </h1>
@@ -537,7 +521,7 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
                     selectedComplexity === "simple" ? "advanced" : "simple"
                   )
                 }
-                className="flex items-center gap-2 border-2 border-black bg-[#F7931E] hover:bg-[#F7931E] text-white font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all"
+                className="flex items-center gap-2 border-2 border-black bg-white hover:bg-[#F3F3F3] text-black font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all"
               >
                 <Settings className="w-4 h-4" />
                 {selectedComplexity === "simple" ? "简化模式" : "高级模式"}
@@ -647,7 +631,7 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
             value={statistics?.atRiskStudents || 0}
             subtitle={`需要重点关注的学生数量`}
             icon={<AlertCircle className="w-6 h-6" />}
-            color="danger"
+            color="secondary"
           />
 
           <StatCard
@@ -655,7 +639,7 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
             value={`${Math.round((safeGradeData.length / (allGradeData.length || 1)) * 100)}%`}
             subtitle={`${safeGradeData.length} / ${allGradeData.length} 条记录`}
             icon={<BarChart className="w-6 h-6" />}
-            color="info"
+            color="primary"
           />
 
           <StatCard
@@ -667,7 +651,7 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
                 : "等待计算"
             }
             icon={<Sparkles className="w-6 h-6" />}
-            color="warning"
+            color="primary"
           />
         </div>
 
@@ -683,21 +667,21 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
             </TabsTrigger>
             <TabsTrigger
               value="trends"
-              className="data-[state=active]:bg-[#F7931E] data-[state=active]:text-white data-[state=active]:border-2 data-[state=active]:border-black data-[state=active]:shadow-[2px_2px_0px_0px_#191A23] font-bold text-[#191A23] hover:bg-[#F7931E]/20 transition-all duration-200 rounded-lg"
+              className="data-[state=active]:bg-[#B9FF66] data-[state=active]:text-[#191A23] data-[state=active]:border-2 data-[state=active]:border-black data-[state=active]:shadow-[2px_2px_0px_0px_#191A23] font-bold text-[#191A23] hover:bg-[#B9FF66]/20 transition-all duration-200 rounded-lg"
             >
               <LineChart className="w-4 h-4 mr-2" />
               趋势
             </TabsTrigger>
             <TabsTrigger
               value="correlations"
-              className="data-[state=active]:bg-[#9C88FF] data-[state=active]:text-white data-[state=active]:border-2 data-[state=active]:border-black data-[state=active]:shadow-[2px_2px_0px_0px_#191A23] font-bold text-[#191A23] hover:bg-[#9C88FF]/20 transition-all duration-200 rounded-lg"
+              className="data-[state=active]:bg-[#B9FF66] data-[state=active]:text-[#191A23] data-[state=active]:border-2 data-[state=active]:border-black data-[state=active]:shadow-[2px_2px_0px_0px_#191A23] font-bold text-[#191A23] hover:bg-[#B9FF66]/20 transition-all duration-200 rounded-lg"
             >
               <Radar className="w-4 h-4 mr-2" />
               相关性
             </TabsTrigger>
             <TabsTrigger
               value="predictions"
-              className="data-[state=active]:bg-[#FF6B6B] data-[state=active]:text-white data-[state=active]:border-2 data-[state=active]:border-black data-[state=active]:shadow-[2px_2px_0px_0px_#191A23] font-bold text-[#191A23] hover:bg-[#FF6B6B]/20 transition-all duration-200 rounded-lg"
+              className="data-[state=active]:bg-[#B9FF66] data-[state=active]:text-[#191A23] data-[state=active]:border-2 data-[state=active]:border-black data-[state=active]:shadow-[2px_2px_0px_0px_#191A23] font-bold text-[#191A23] hover:bg-[#B9FF66]/20 transition-all duration-200 rounded-lg"
             >
               <Sparkles className="w-4 h-4 mr-2" />
               预测
@@ -711,7 +695,7 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
             </TabsTrigger>
             <TabsTrigger
               value="charts"
-              className="data-[state=active]:bg-[#F7931E] data-[state=active]:text-white data-[state=active]:border-2 data-[state=active]:border-black data-[state=active]:shadow-[2px_2px_0px_0px_#191A23] font-bold text-[#191A23] hover:bg-[#F7931E]/20 transition-all duration-200 rounded-lg"
+              className="data-[state=active]:bg-[#B9FF66] data-[state=active]:text-[#191A23] data-[state=active]:border-2 data-[state=active]:border-black data-[state=active]:shadow-[2px_2px_0px_0px_#191A23] font-bold text-[#191A23] hover:bg-[#B9FF66]/20 transition-all duration-200 rounded-lg"
             >
               <PieChart className="w-4 h-4 mr-2" />
               图表
@@ -733,7 +717,7 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
               </Card>
 
               <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#191A23] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#191A23] rounded-xl overflow-hidden">
-                <CardHeader className="bg-[#F7931E] border-b-2 border-black">
+                <CardHeader className="bg-[#6B7280] border-b-2 border-black">
                   <CardTitle className="flex items-center text-white font-black uppercase tracking-wide">
                     <AlertTriangle className="w-5 h-5 mr-2" />
                     异常检测分析
@@ -748,8 +732,8 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
 
           <TabsContent value="trends" className="mt-6">
             <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#191A23] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#191A23] rounded-xl overflow-hidden">
-              <CardHeader className="bg-[#F7931E] border-b-2 border-black">
-                <CardTitle className="flex items-center text-white font-black uppercase tracking-wide">
+              <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
+                <CardTitle className="flex items-center text-[#191A23] font-black uppercase tracking-wide">
                   <TrendingUp className="w-5 h-5 mr-2" />
                   学生成绩趋势分析
                 </CardTitle>
@@ -762,8 +746,8 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
 
           <TabsContent value="correlations" className="mt-6">
             <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#191A23] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#191A23] rounded-xl overflow-hidden">
-              <CardHeader className="bg-[#9C88FF] border-b-2 border-black">
-                <CardTitle className="flex items-center text-white font-black uppercase tracking-wide">
+              <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
+                <CardTitle className="flex items-center text-[#191A23] font-black uppercase tracking-wide">
                   <Radar className="w-5 h-5 mr-2" />
                   科目相关性矩阵
                 </CardTitle>
@@ -776,8 +760,8 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
 
           <TabsContent value="predictions" className="mt-6">
             <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#191A23] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#191A23] rounded-xl overflow-hidden">
-              <CardHeader className="bg-[#FF6B6B] border-b-2 border-black">
-                <CardTitle className="flex items-center text-white font-black uppercase tracking-wide">
+              <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
+                <CardTitle className="flex items-center text-[#191A23] font-black uppercase tracking-wide">
                   <Brain className="w-5 h-5 mr-2" />
                   AI 预测分析
                 </CardTitle>
@@ -804,8 +788,8 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
 
           <TabsContent value="charts" className="mt-6">
             <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#191A23] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#191A23] rounded-xl overflow-hidden">
-              <CardHeader className="bg-[#F7931E] border-b-2 border-black">
-                <CardTitle className="flex items-center text-white font-black uppercase tracking-wide">
+              <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
+                <CardTitle className="flex items-center text-[#191A23] font-black uppercase tracking-wide">
                   <PieChart className="w-5 h-5 mr-2" />
                   图表画廊
                 </CardTitle>

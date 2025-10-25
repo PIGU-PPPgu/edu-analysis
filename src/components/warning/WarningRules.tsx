@@ -497,7 +497,7 @@ const WarningRules: React.FC<WarningRulesProps> = ({
   // 限制显示的规则数量
   const displayedRules = limit ? filteredRules.slice(0, limit) : filteredRules;
 
-  // 简化版的规则列表
+  // 简化版的规则列表 - 卡片式设计
   if (simplified) {
     return (
       <div className="space-y-3">
@@ -507,47 +507,58 @@ const WarningRules: React.FC<WarningRulesProps> = ({
             <p>暂无预警规则</p>
           </div>
         ) : isLoading ? (
-          <div className="space-y-2">
-            {[...Array(3)].map((_, i) => (
-              <div
-                key={i}
-                className="rounded-md border p-3 animate-pulse bg-gray-50"
-              >
-                <div className="w-1/3 h-4 bg-gray-200 rounded mb-2"></div>
-                <div className="w-2/3 h-3 bg-gray-200 rounded"></div>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i} className="animate-pulse border-2 border-gray-200">
+                <CardContent className="p-4">
+                  <div className="w-2/3 h-4 bg-gray-200 rounded mb-2"></div>
+                  <div className="w-full h-3 bg-gray-200 rounded"></div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         ) : (
           <>
-            <div className="space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {displayedRules.map((rule) => (
-                <div
+                <Card
                   key={rule.id}
-                  className="flex justify-between items-center p-3 rounded-md border hover:bg-gray-50 cursor-pointer"
+                  className={`cursor-pointer transition-all border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[4px_4px_0px_0px_#000] hover:translate-x-[-2px] hover:translate-y-[-2px] ${
+                    rule.is_active ? "bg-white" : "bg-gray-50"
+                  }`}
                   onClick={() => handleEditRule(rule)}
                 >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm">{rule.name}</span>
-                      {getSeverityBadge(rule.severity)}
-                      {getScopeBadge(rule.scope)}
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <CardTitle className="text-base font-black text-[#191A23]">
+                        {rule.name}
+                      </CardTitle>
                       <Switch
                         checked={rule.is_active}
                         onCheckedChange={(checked) => {
                           handleToggleActive(rule, checked);
-                          // 防止点击开关时触发父元素的点击事件
                           event?.stopPropagation();
                         }}
-                        className="ml-auto data-[state=checked]:bg-[#c0ff3f]"
+                        className="data-[state=checked]:bg-[#B9FF66]"
                       />
                     </div>
-                    <div className="text-xs text-gray-500 mt-1 truncate">
-                      {formatConditions(rule.conditions)}
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {rule.description && (
+                      <p className="text-sm text-gray-600 line-clamp-2">
+                        {rule.description}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {getSeverityBadge(rule.severity)}
+                      {getScopeBadge(rule.scope)}
+                      {getCategoryBadge(rule.category)}
                     </div>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-gray-400 ml-2 flex-shrink-0" />
-                </div>
+                    <div className="text-xs text-gray-500 mt-2 truncate">
+                      条件: {formatConditions(rule.conditions)}
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
 
@@ -555,10 +566,10 @@ const WarningRules: React.FC<WarningRulesProps> = ({
               <Button
                 variant="outline"
                 onClick={onViewAllClick}
-                className="w-full mt-2 text-sm h-9"
+                className="w-full mt-4 border-2 border-black bg-white text-black font-bold shadow-[2px_2px_0px_0px_#000] hover:bg-gray-50"
               >
                 管理预警规则
-                <ExternalLink className="ml-2 h-3.5 w-3.5" />
+                <ExternalLink className="ml-2 h-4 w-4" />
               </Button>
             )}
           </>
@@ -568,15 +579,17 @@ const WarningRules: React.FC<WarningRulesProps> = ({
   }
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#191A23]">
+      <CardHeader className="bg-gradient-to-r from-[#B9FF66]/20 to-transparent border-b-2 border-black">
         <div className="flex justify-between items-start">
           <div>
-            <CardTitle className="text-xl font-semibold flex items-center">
-              <AlertTriangle className="h-5 w-5 text-amber-500 mr-2" />
+            <CardTitle className="text-xl font-black text-[#191A23] flex items-center">
+              <div className="p-2 bg-[#B9FF66] rounded-full border-2 border-black mr-3">
+                <Settings className="h-5 w-5 text-black" />
+              </div>
               预警规则管理
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="font-medium text-[#191A23]/70 mt-2">
               配置学生预警规则，系统将根据这些规则自动识别风险学生
             </CardDescription>
           </div>
@@ -715,104 +728,120 @@ const WarningRules: React.FC<WarningRulesProps> = ({
           </div>
         </div>
 
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>规则名称</TableHead>
-                <TableHead>范围</TableHead>
-                <TableHead>分类</TableHead>
-                <TableHead>严重程度</TableHead>
-                <TableHead>优先级</TableHead>
-                <TableHead>条件</TableHead>
-                <TableHead className="w-[100px]">状态</TableHead>
-                <TableHead className="text-right">操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center">
-                    <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2" />
-                    <p>加载中...</p>
-                  </TableCell>
-                </TableRow>
-              ) : displayedRules.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={8}
-                    className="h-24 text-center text-muted-foreground"
-                  >
-                    暂无预警规则
-                  </TableCell>
-                </TableRow>
-              ) : (
-                displayedRules.map((rule) => (
-                  <TableRow key={rule.id}>
-                    <TableCell className="font-medium">
-                      <div>
-                        <div>{rule.name}</div>
-                        {rule.description && (
-                          <div
-                            className="text-sm text-gray-500 mt-1 max-w-[200px] truncate"
-                            title={rule.description}
-                          >
-                            {rule.description}
-                          </div>
-                        )}
+        {/* 卡片式规则展示 */}
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <Card key={i} className="animate-pulse border-2 border-gray-200">
+                <CardContent className="p-6">
+                  <div className="w-2/3 h-5 bg-gray-200 rounded mb-3"></div>
+                  <div className="w-full h-3 bg-gray-200 rounded mb-2"></div>
+                  <div className="w-3/4 h-3 bg-gray-200 rounded"></div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : displayedRules.length === 0 ? (
+          <div className="text-center py-16 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+            <AlertTriangle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+            <p className="text-gray-500 font-medium">暂无预警规则</p>
+            <p className="text-sm text-gray-400 mt-1">点击上方按钮创建新规则</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {displayedRules.map((rule) => (
+              <Card
+                key={rule.id}
+                className={`cursor-pointer transition-all border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[4px_4px_0px_0px_#000] hover:translate-x-[-2px] hover:translate-y-[-2px] ${
+                  rule.is_active ? "bg-white" : "bg-gray-50"
+                }`}
+                onClick={() => handleEditRule(rule)}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <CardTitle className="text-base font-black text-[#191A23] mb-2">
+                        {rule.name}
+                      </CardTitle>
+                      <div className="flex flex-wrap gap-1.5">
+                        {getSeverityBadge(rule.severity)}
+                        {getScopeBadge(rule.scope)}
+                        {getCategoryBadge(rule.category)}
                       </div>
-                    </TableCell>
-                    <TableCell>{getScopeBadge(rule.scope)}</TableCell>
-                    <TableCell>{getCategoryBadge(rule.category)}</TableCell>
-                    <TableCell>{getSeverityBadge(rule.severity)}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-xs">
-                        {rule.priority || 5}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="max-w-[200px]">
-                      <div
-                        className="truncate"
-                        title={formatConditions(rule.conditions)}
-                      >
-                        {formatConditions(rule.conditions)}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Switch
-                        checked={rule.is_active}
-                        onCheckedChange={(checked) =>
-                          handleToggleActive(rule, checked)
-                        }
-                        className="data-[state=checked]:bg-[#c0ff3f]"
-                      />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEditRule(rule)}
+                    </div>
+                    <Switch
+                      checked={rule.is_active}
+                      onCheckedChange={(checked) => {
+                        handleToggleActive(rule, checked);
+                        event?.stopPropagation();
+                      }}
+                      className="data-[state=checked]:bg-[#B9FF66]"
+                    />
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {rule.description && (
+                    <p className="text-sm text-gray-600 line-clamp-2 min-h-[2.5rem]">
+                      {rule.description}
+                    </p>
+                  )}
+                  <div className="pt-2 border-t border-gray-200">
+                    <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                      <span className="flex items-center gap-1">
+                        <span className="font-medium">优先级:</span>
+                        <Badge
+                          variant="outline"
+                          className="text-xs px-1.5 py-0"
                         >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        {!rule.is_system && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteRule(rule)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                          {rule.priority || 5}
+                        </Badge>
+                      </span>
+                      {rule.auto_trigger && (
+                        <Badge
+                          variant="outline"
+                          className="text-xs bg-[#B9FF66]/20 border-[#B9FF66]"
+                        >
+                          自动触发
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 truncate">
+                      <span className="font-medium">触发条件:</span>{" "}
+                      {formatConditions(rule.conditions)}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditRule(rule);
+                      }}
+                      className="flex-1 h-8 text-xs border-2 border-black bg-white font-bold"
+                    >
+                      <Edit className="h-3 w-3 mr-1" />
+                      编辑
+                    </Button>
+                    {!rule.is_system && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteRule(rule);
+                        }}
+                        className="h-8 text-xs border-2 border-red-500 text-red-600 hover:bg-red-50 font-bold"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
         {/* 限制数量时显示查看全部按钮 */}
         {limit && filteredRules.length > limit && showViewAllButton && (

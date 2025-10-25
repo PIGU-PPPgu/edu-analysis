@@ -8,7 +8,7 @@ import { EnhancedAIClient } from "../enhancedAIClient";
 import { aiCostManager, recordAIUsage } from "./core/aiCostManager";
 import { aiRouter, RouteRequest } from "./core/aiRouter";
 import { aiCacheManager } from "./core/aiCache";
-import { getAPIKey } from "@/utils/apiKeyManager";
+import { getApiKey, getProviderApiKey } from "@/utils/apiKeyManager";
 
 // AI请求接口
 export interface AIRequest {
@@ -211,10 +211,11 @@ export class EnhancedAIService {
     startTime: number
   ): Promise<AIResponse> {
     // 获取API密钥
-    const apiKey = getAPIKey(routeResult.selectedProvider);
-    if (!apiKey) {
+    const providerConfig = getProviderApiKey(routeResult.selectedProvider);
+    if (!providerConfig?.apiKey) {
       throw new Error(`未找到 ${routeResult.selectedProvider} 的API密钥`);
     }
+    const apiKey = providerConfig.apiKey;
 
     // 创建AI客户端
     const client = new EnhancedAIClient(

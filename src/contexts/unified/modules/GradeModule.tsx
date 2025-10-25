@@ -775,7 +775,40 @@ export const GradeModuleProvider: React.FC<{ children: React.ReactNode }> = ({
 export const useGradeModule = (): GradeModuleContextType => {
   const context = useContext(GradeModuleContext);
   if (!context) {
-    throw new Error("useGradeModule must be used within GradeModuleProvider");
+    console.warn(
+      "useGradeModule called outside GradeModuleProvider, returning default values"
+    );
+    return {
+      allGradeData: [],
+      wideGradeData: [],
+      filteredGradeData: [],
+      examList: [],
+      statistics: null,
+      filter: null,
+      loading: {
+        isLoading: false,
+        operation: undefined,
+        progress: 0,
+        message: undefined,
+      },
+      error: null,
+      lastUpdated: null,
+      availableSubjects: [],
+      availableClasses: [],
+      availableGrades: [],
+      availableExamTypes: [],
+      loadAllData: async () => {},
+      loadExamData: async () => {},
+      refreshData: async () => {},
+      setFilter: () => {},
+      updateFilter: () => {},
+      clearFilter: () => {},
+      getStudentGrades: () => [],
+      getSubjectGrades: () => [],
+      getClassGrades: () => [],
+      clearError: () => {},
+      retry: async () => {},
+    };
   }
   return context;
 };

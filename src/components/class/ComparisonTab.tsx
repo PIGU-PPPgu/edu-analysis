@@ -6,9 +6,7 @@ import {
   CardContent,
   CardDescription,
 } from "@/components/ui/card";
-// import ClassTrendChart from "@/components/analysis/ClassTrendChart"; // 已删除
-// import ScoreBoxPlot from "@/components/analysis/ScoreBoxPlot"; // 已删除
-// import CompetencyRadar from "@/components/analysis/CompetencyRadar"; // 已删除
+import { Badge } from "@/components/ui/badge";
 import { ClassData } from "@/types/database";
 
 // 定义班级类型
@@ -28,50 +26,15 @@ interface ClassSummary {
   examStability?: number;
 }
 
-// 定义图表数据类型
-interface BoxPlotItem {
-  subject: string;
-  min: number;
-  q1: number;
-  median: number;
-  q3: number;
-  max: number;
-}
-
-interface CompetencyItem {
-  name: string;
-  current: number;
-  average: number;
-  fullScore: number;
-}
-
-interface TrendItem {
-  examName: string;
-  classAvg: number;
-  gradeAvg: number;
-}
-
-interface HeatmapItem {
-  x: string;
-  y: string;
-  value: number;
-}
-
 interface ComparisonTabProps {
   selectedClass: ClassSummary | null;
   allClasses: ClassSummary[];
-  boxPlotData?: Record<string, BoxPlotItem[]>;
-  competencyData?: Record<string, CompetencyItem[]>;
-  trendData?: Record<string, TrendItem[]>;
   isLoading?: boolean;
 }
 
 const ComparisonTab: React.FC<ComparisonTabProps> = ({
   selectedClass,
   allClasses,
-  boxPlotData = {},
-  competencyData = {},
-  trendData = {},
   isLoading = false,
 }) => {
   // 如果没有选择班级或正在加载，显示加载状态
@@ -191,13 +154,251 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
     return text;
   }, [selectedClass, classToCompare]);
 
+  // 雷达图数据 - 对比选中班级和对比班级的多维度能力
+  const radarChartData = useMemo(() => {
+    if (!selectedClass || !classToCompare) return null;
+
+    const dimensions = [
+      { key: "averageScore", label: "平均分", max: 100 },
+      { key: "excellentRate", label: "优秀率", max: 100 },
+      { key: "passRate", label: "及格率", max: 100 },
+      { key: "knowledgeMastery", label: "知识掌握", max: 100 },
+      { key: "problemSolvingAbility", label: "解题能力", max: 100 },
+    ];
+
+    return {
+      dimensions,
+      selectedClassData: dimensions.map((d) => ({
+        dimension: d.label,
+        value: (selectedClass as any)[d.key] || 0,
+      })),
+      compareClassData: dimensions.map((d) => ({
+        dimension: d.label,
+        value: (classToCompare as any)[d.key] || 0,
+      })),
+    };
+  }, [selectedClass, classToCompare]);
+
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>班级关键指标热力图</CardTitle>
-          <CardDescription>
-            展示所有班级在关键指标上的表现分布。颜色越深代表数值越高。
+    <div className="space-y-4">
+      {/* 雷达图对比 */}
+      {radarChartData && (
+        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#000] bg-white">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">
+              {selectedClass.name} vs {classToCompare?.name} - 多维度对比雷达图
+            </CardTitle>
+            <CardDescription className="text-xs">
+              五个核心维度的综合能力对比分析
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="relative w-full" style={{ height: "400px" }}>
+              {/* SVG雷达图 */}
+              <svg viewBox="0 0 400 400" className="w-full h-full">
+                <defs>
+                  <filter id="glow">
+                    <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+                    <feMerge>
+                      <feMergeNode in="coloredBlur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                </defs>
+
+                {/* 背景同心圆 */}
+                {[20, 40, 60, 80, 100].map((percent, idx) => {
+                  const radius = (percent / 100) * 150;
+                  return (
+                    <circle
+                      key={idx}
+                      cx="200"
+                      cy="200"
+                      r={radius}
+                      fill="none"
+                      stroke="#e5e7eb"
+                      strokeWidth="1"
+                    />
+                  );
+                })}
+
+                {/* 维度轴线 */}
+                {radarChartData.dimensions.map((dim, idx) => {
+                  const angle =
+                    (idx * 2 * Math.PI) / radarChartData.dimensions.length -
+                    Math.PI / 2;
+                  const x = 200 + 150 * Math.cos(angle);
+                  const y = 200 + 150 * Math.sin(angle);
+                  const labelX = 200 + 170 * Math.cos(angle);
+                  const labelY = 200 + 170 * Math.sin(angle);
+
+                  return (
+                    <g key={idx}>
+                      <line
+                        x1="200"
+                        y1="200"
+                        x2={x}
+                        y2={y}
+                        stroke="#d1d5db"
+                        strokeWidth="1"
+                      />
+                      <text
+                        x={labelX}
+                        y={labelY}
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        className="text-xs font-medium fill-gray-700"
+                      >
+                        {dim.label}
+                      </text>
+                    </g>
+                  );
+                })}
+
+                {/* 对比班级数据多边形 */}
+                {classToCompare &&
+                  (() => {
+                    const points = radarChartData.compareClassData
+                      .map((item, idx) => {
+                        const angle =
+                          (idx * 2 * Math.PI) /
+                            radarChartData.dimensions.length -
+                          Math.PI / 2;
+                        const radius = (item.value / 100) * 150;
+                        const x = 200 + radius * Math.cos(angle);
+                        const y = 200 + radius * Math.sin(angle);
+                        return `${x},${y}`;
+                      })
+                      .join(" ");
+
+                    return (
+                      <polygon
+                        points={points}
+                        fill="#93c5fd"
+                        fillOpacity="0.2"
+                        stroke="#3b82f6"
+                        strokeWidth="2"
+                      />
+                    );
+                  })()}
+
+                {/* 选中班级数据多边形 */}
+                {(() => {
+                  const points = radarChartData.selectedClassData
+                    .map((item, idx) => {
+                      const angle =
+                        (idx * 2 * Math.PI) / radarChartData.dimensions.length -
+                        Math.PI / 2;
+                      const radius = (item.value / 100) * 150;
+                      const x = 200 + radius * Math.cos(angle);
+                      const y = 200 + radius * Math.sin(angle);
+                      return `${x},${y}`;
+                    })
+                    .join(" ");
+
+                  return (
+                    <polygon
+                      points={points}
+                      fill="#B9FF66"
+                      fillOpacity="0.3"
+                      stroke="#5E9622"
+                      strokeWidth="3"
+                      filter="url(#glow)"
+                    />
+                  );
+                })()}
+
+                {/* 数据点 */}
+                {radarChartData.selectedClassData.map((item, idx) => {
+                  const angle =
+                    (idx * 2 * Math.PI) / radarChartData.dimensions.length -
+                    Math.PI / 2;
+                  const radius = (item.value / 100) * 150;
+                  const x = 200 + radius * Math.cos(angle);
+                  const y = 200 + radius * Math.sin(angle);
+
+                  return (
+                    <circle key={idx} cx={x} cy={y} r="4" fill="#5E9622" />
+                  );
+                })}
+              </svg>
+
+              {/* 图例 */}
+              <div className="absolute bottom-4 right-4 flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-[#B9FF66] border-2 border-[#5E9622] rounded-sm"></div>
+                  <span className="text-xs font-medium">
+                    {selectedClass.name}
+                  </span>
+                </div>
+                {classToCompare && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 bg-blue-200 border-2 border-blue-500 rounded-sm"></div>
+                    <span className="text-xs font-medium">
+                      {classToCompare.name}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 数据详情表 */}
+            <div className="mt-6 grid grid-cols-5 gap-3">
+              {radarChartData.dimensions.map((dim, idx) => {
+                const selectedValue =
+                  radarChartData.selectedClassData[idx].value;
+                const compareValue = radarChartData.compareClassData[idx].value;
+                const diff = selectedValue - compareValue;
+
+                return (
+                  <div
+                    key={idx}
+                    className="p-3 bg-gray-50 rounded-lg border border-gray-200"
+                  >
+                    <div className="text-xs font-medium text-gray-600 mb-2">
+                      {dim.label}
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-lg font-bold text-[#5E9622]">
+                        {selectedValue.toFixed(1)}
+                      </span>
+                      {classToCompare && (
+                        <>
+                          <span className="text-sm text-gray-400">vs</span>
+                          <span className="text-sm text-blue-600">
+                            {compareValue.toFixed(1)}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    {classToCompare && (
+                      <Badge
+                        variant={
+                          diff > 0
+                            ? "default"
+                            : diff < 0
+                              ? "destructive"
+                              : "secondary"
+                        }
+                        className="text-xs mt-1"
+                      >
+                        {diff > 0 ? "+" : ""}
+                        {diff.toFixed(1)}
+                      </Badge>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#000] bg-white">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">班级关键指标对比</CardTitle>
+          <CardDescription className="text-xs">
+            一览所有班级在关键指标上的表现分布
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -297,23 +498,15 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
                         <td className="text-center p-2">
                           <div className="flex items-center justify-center space-x-2">
                             <span>
-                              {cls.knowledgeMastery?.toFixed(1) ||
-                                (
-                                  (cls.averageScore || 0) * 0.8 +
-                                  Math.random() * 10
-                                ).toFixed(1)}
-                              %
+                              {cls.knowledgeMastery?.toFixed(1) || "0.0"}%
                             </span>
                             <div
                               className={`w-4 h-4 rounded-full ${
-                                (cls.knowledgeMastery ||
-                                  (cls.averageScore || 0) * 0.8) >= 80
+                                (cls.knowledgeMastery || 0) >= 85
                                   ? "bg-green-500"
-                                  : (cls.knowledgeMastery ||
-                                        (cls.averageScore || 0) * 0.8) >= 70
+                                  : (cls.knowledgeMastery || 0) >= 75
                                     ? "bg-yellow-500"
-                                    : (cls.knowledgeMastery ||
-                                          (cls.averageScore || 0) * 0.8) >= 60
+                                    : (cls.knowledgeMastery || 0) >= 60
                                       ? "bg-orange-500"
                                       : "bg-red-500"
                               }`}
@@ -323,23 +516,15 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
                         <td className="text-center p-2">
                           <div className="flex items-center justify-center space-x-2">
                             <span>
-                              {cls.problemSolvingAbility?.toFixed(1) ||
-                                (
-                                  (cls.averageScore || 0) * 0.9 +
-                                  Math.random() * 5
-                                ).toFixed(1)}
-                              %
+                              {cls.problemSolvingAbility?.toFixed(1) || "0.0"}%
                             </span>
                             <div
                               className={`w-4 h-4 rounded-full ${
-                                (cls.problemSolvingAbility ||
-                                  (cls.averageScore || 0) * 0.9) >= 80
+                                (cls.problemSolvingAbility || 0) >= 85
                                   ? "bg-green-500"
-                                  : (cls.problemSolvingAbility ||
-                                        (cls.averageScore || 0) * 0.9) >= 70
+                                  : (cls.problemSolvingAbility || 0) >= 75
                                     ? "bg-yellow-500"
-                                    : (cls.problemSolvingAbility ||
-                                          (cls.averageScore || 0) * 0.9) >= 60
+                                    : (cls.problemSolvingAbility || 0) >= 60
                                       ? "bg-orange-500"
                                       : "bg-red-500"
                               }`}
@@ -377,35 +562,35 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#000] bg-gradient-to-br from-blue-50 to-cyan-50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">
               {selectedClass.name}{" "}
-              {classToCompare ? `vs ${classToCompare.name}` : ""} 学生表现对比
+              {classToCompare ? `vs ${classToCompare.name}` : ""} 表现对比
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="bg-muted p-4 rounded-md">
+            <div className="bg-white/80 border-2 border-black p-4 rounded-lg">
               {classToCompare && (
-                <h3 className="font-medium mb-2">
+                <h3 className="font-semibold mb-2 text-sm">
                   {selectedClass.name} vs {classToCompare.name}
                 </h3>
               )}
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-gray-700 leading-relaxed">
                 {performanceComparisonText}
               </p>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>教学建议</CardTitle>
+        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#000] bg-gradient-to-br from-green-50 to-emerald-50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">教学建议</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="bg-muted p-4 rounded-md">
-              <p className="text-sm text-muted-foreground">
+            <div className="bg-white/80 border-2 border-black p-4 rounded-lg">
+              <p className="text-sm text-gray-700 leading-relaxed">
                 {teachingSuggestionText}
               </p>
             </div>
@@ -413,12 +598,14 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>{selectedClass.name} 学习趋势</CardTitle>
-            <CardDescription>
-              {selectedClass.name}与年级平均分对比趋势
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#000] bg-white">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">
+              {selectedClass.name} 班级表现
+            </CardTitle>
+            <CardDescription className="text-xs">
+              关键指标与表现总结
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -461,12 +648,12 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
                   </p>
                   <p className="mt-3 p-2 bg-gray-50 rounded text-xs">
                     {(selectedClass.excellentRate || 0) >= 80
-                      ? "🎉 班级表现优秀，继续保持！"
+                      ? "班级表现优秀，继续保持"
                       : (selectedClass.excellentRate || 0) >= 60
-                        ? "👍 班级表现良好，可适当提升难度"
+                        ? "班级表现良好，可适当提升难度"
                         : (selectedClass.excellentRate || 0) >= 40
-                          ? "⚠️  建议加强基础知识巩固"
-                          : "🆘 需要重点关注，调整教学策略"}
+                          ? "建议加强基础知识巩固"
+                          : "需要重点关注，调整教学策略"}
                   </p>
                 </div>
               </div>
@@ -474,11 +661,13 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
           </CardContent>
         </Card>
         {classToCompare && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{classToCompare.name} 学习趋势</CardTitle>
-              <CardDescription>
-                {classToCompare.name}与年级平均分对比趋势
+          <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#000] bg-white">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">
+                {classToCompare.name} 班级表现
+              </CardTitle>
+              <CardDescription className="text-xs">
+                关键指标与表现总结
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -521,12 +710,12 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
                     </p>
                     <p className="mt-3 p-2 bg-gray-50 rounded text-xs">
                       {(classToCompare.excellentRate || 0) >= 80
-                        ? "🎉 班级表现优秀，继续保持！"
+                        ? "班级表现优秀，继续保持"
                         : (classToCompare.excellentRate || 0) >= 60
-                          ? "👍 班级表现良好，可适当提升难度"
+                          ? "班级表现良好，可适当提升难度"
                           : (classToCompare.excellentRate || 0) >= 40
-                            ? "⚠️  建议加强基础知识巩固"
-                            : "🆘 需要重点关注，调整教学策略"}
+                            ? "建议加强基础知识巩固"
+                            : "需要重点关注，调整教学策略"}
                     </p>
                   </div>
                 </div>
@@ -536,12 +725,14 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>{selectedClass.name} 成绩分布</CardTitle>
-            <CardDescription>
-              展示各学科成绩的分布情况，包括中位数、四分位数和异常值。
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#000] bg-white">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">
+              {selectedClass.name} 成绩分布
+            </CardTitle>
+            <CardDescription className="text-xs">
+              各学科成绩与成绩等级分布
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -549,91 +740,29 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="font-medium text-sm mb-2">科目成绩分析</h4>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm">语文</span>
-                      <div className="flex items-center space-x-2">
-                        <div className="bg-blue-200 h-2 w-16 rounded"></div>
-                        <span className="text-xs">
-                          {((selectedClass.averageScore || 0) * 0.85).toFixed(
-                            0
-                          )}
-                          分
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm">数学</span>
-                      <div className="flex items-center space-x-2">
-                        <div className="bg-green-200 h-2 w-16 rounded"></div>
-                        <span className="text-xs">
-                          {((selectedClass.averageScore || 0) * 0.92).toFixed(
-                            0
-                          )}
-                          分
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm">英语</span>
-                      <div className="flex items-center space-x-2">
-                        <div className="bg-yellow-200 h-2 w-16 rounded"></div>
-                        <span className="text-xs">
-                          {((selectedClass.averageScore || 0) * 0.78).toFixed(
-                            0
-                          )}
-                          分
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+                  <p className="text-xs text-gray-500 py-4">
+                    需要从OverviewTab的"各科目表现"获取真实数据
+                  </p>
                 </div>
 
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="font-medium text-sm mb-2">成绩分布</h4>
-                  <div className="space-y-2 text-xs">
-                    <div className="flex justify-between">
-                      <span>优秀(90+):</span>
-                      <span className="text-green-600">
-                        {Math.round((selectedClass.excellentRate || 0) * 0.6)}%
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>良好(80-89):</span>
-                      <span className="text-blue-600">
-                        {Math.round((selectedClass.excellentRate || 0) * 0.8)}%
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>合格(60-79):</span>
-                      <span className="text-yellow-600">
-                        {Math.round(100 - (selectedClass.excellentRate || 0))}%
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>待改进(&lt;60):</span>
-                      <span className="text-red-600">
-                        {Math.max(
-                          0,
-                          Math.round(
-                            20 - (selectedClass.excellentRate || 0) * 0.2
-                          )
-                        )}
-                        %
-                      </span>
-                    </div>
-                  </div>
+                  <p className="text-xs text-gray-500 py-4">
+                    需要从grade_data_new表查询真实分布数据
+                  </p>
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
         {classToCompare && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{classToCompare.name} 成绩分布</CardTitle>
-              <CardDescription>
-                展示各学科成绩的分布情况，包括中位数、四分位数和异常值。
+          <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#000] bg-white">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">
+                {classToCompare.name} 成绩分布
+              </CardTitle>
+              <CardDescription className="text-xs">
+                各学科成绩与成绩等级分布
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -641,89 +770,16 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <h4 className="font-medium text-sm mb-2">科目成绩分析</h4>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm">语文</span>
-                        <div className="flex items-center space-x-2">
-                          <div className="bg-blue-200 h-2 w-16 rounded"></div>
-                          <span className="text-xs">
-                            {(
-                              (classToCompare.averageScore || 0) * 0.88
-                            ).toFixed(0)}
-                            分
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm">数学</span>
-                        <div className="flex items-center space-x-2">
-                          <div className="bg-green-200 h-2 w-16 rounded"></div>
-                          <span className="text-xs">
-                            {(
-                              (classToCompare.averageScore || 0) * 0.94
-                            ).toFixed(0)}
-                            分
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm">英语</span>
-                        <div className="flex items-center space-x-2">
-                          <div className="bg-yellow-200 h-2 w-16 rounded"></div>
-                          <span className="text-xs">
-                            {(
-                              (classToCompare.averageScore || 0) * 0.82
-                            ).toFixed(0)}
-                            分
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                    <p className="text-xs text-gray-500 py-4">
+                      需要从OverviewTab的"各科目表现"获取真实数据
+                    </p>
                   </div>
 
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <h4 className="font-medium text-sm mb-2">成绩分布</h4>
-                    <div className="space-y-2 text-xs">
-                      <div className="flex justify-between">
-                        <span>优秀(90+):</span>
-                        <span className="text-green-600">
-                          {Math.round(
-                            (classToCompare.excellentRate || 0) * 0.65
-                          )}
-                          %
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>良好(80-89):</span>
-                        <span className="text-blue-600">
-                          {Math.round(
-                            (classToCompare.excellentRate || 0) * 0.75
-                          )}
-                          %
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>合格(60-79):</span>
-                        <span className="text-yellow-600">
-                          {Math.round(
-                            100 - (classToCompare.excellentRate || 0)
-                          )}
-                          %
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>待改进(&lt;60):</span>
-                        <span className="text-red-600">
-                          {Math.max(
-                            0,
-                            Math.round(
-                              15 - (classToCompare.excellentRate || 0) * 0.15
-                            )
-                          )}
-                          %
-                        </span>
-                      </div>
-                    </div>
+                    <p className="text-xs text-gray-500 py-4">
+                      需要从grade_data_new表查询真实分布数据
+                    </p>
                   </div>
                 </div>
               </div>
@@ -732,12 +788,14 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>{selectedClass.name} 能力维度</CardTitle>
-            <CardDescription>
-              班级在多个核心能力维度上的表现评估。
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#000] bg-white">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">
+              {selectedClass.name} 能力维度
+            </CardTitle>
+            <CardDescription className="text-xs">
+              多维度核心能力表现评估
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -828,7 +886,7 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
 
               <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                 <p className="text-xs text-gray-600">
-                  📊 综合评估: {selectedClass.name} 在知识掌握和解题能力方面
+                  综合评估: {selectedClass.name} 在知识掌握和解题能力方面
                   {(selectedClass.averageScore || 0) >= 80
                     ? "表现优秀"
                     : (selectedClass.averageScore || 0) >= 70
@@ -847,11 +905,13 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
           </CardContent>
         </Card>
         {classToCompare && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{classToCompare.name} 能力维度</CardTitle>
-              <CardDescription>
-                班级在多个核心能力维度上的表现评估。
+          <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#000] bg-white">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">
+                {classToCompare.name} 能力维度
+              </CardTitle>
+              <CardDescription className="text-xs">
+                多维度核心能力表现评估
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -942,7 +1002,7 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
 
                 <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                   <p className="text-xs text-gray-600">
-                    📊 综合评估: {classToCompare.name} 在知识掌握和解题能力方面
+                    综合评估: {classToCompare.name} 在知识掌握和解题能力方面
                     {(classToCompare.averageScore || 0) >= 80
                       ? "表现优秀"
                       : (classToCompare.averageScore || 0) >= 70

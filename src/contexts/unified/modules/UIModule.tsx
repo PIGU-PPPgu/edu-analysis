@@ -394,7 +394,33 @@ export const UIModuleProvider: React.FC<{ children: React.ReactNode }> = ({
 export const useUIModule = (): UIModuleContextType => {
   const context = useContext(UIModuleContext);
   if (!context) {
-    throw new Error("useUIModule must be used within UIModuleProvider");
+    console.warn(
+      "useUIModule called outside UIModuleProvider, returning default values"
+    );
+    return {
+      theme: "light",
+      sidebarCollapsed: false,
+      compactMode: false,
+      isMobile: false,
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      notifications: [],
+      globalLoading: {
+        isLoading: false,
+        operation: undefined,
+        progress: 0,
+        message: undefined,
+      },
+      performanceMode: false,
+      setTheme: () => {},
+      toggleSidebar: () => {},
+      setCompactMode: () => {},
+      addNotification: () => "",
+      removeNotification: () => {},
+      clearNotifications: () => {},
+      setGlobalLoading: () => {},
+      clearGlobalLoading: () => {},
+      setPerformanceMode: () => {},
+    };
   }
   return context;
 };

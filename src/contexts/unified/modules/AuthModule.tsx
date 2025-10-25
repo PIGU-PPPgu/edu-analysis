@@ -378,7 +378,28 @@ export const AuthModuleProvider: React.FC<{ children: React.ReactNode }> = ({
 export const useAuthModule = (): AuthModuleContextType => {
   const context = useContext(AuthModuleContext);
   if (!context) {
-    throw new Error("useAuthModule must be used within AuthModuleProvider");
+    // 返回安全的默认值而不是抛出错误
+    console.warn(
+      "useAuthModule called outside AuthModuleProvider, returning default values"
+    );
+    return {
+      user: null,
+      session: null,
+      userRole: null,
+      isAuthReady: false,
+      loading: {
+        isLoading: false,
+        operation: undefined,
+        progress: 0,
+        message: undefined,
+      },
+      error: null,
+      signIn: async () => ({ error: null }),
+      signUp: async () => ({ error: null }),
+      signOut: async () => {},
+      refreshAuth: async () => {},
+      clearError: () => {},
+    };
   }
   return context;
 };

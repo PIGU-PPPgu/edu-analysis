@@ -505,33 +505,248 @@ export const useUnifiedApp = (): UnifiedAppContextType => {
 // ==================== 便捷Hooks ====================
 
 export const useAppAuth = () => {
-  const { auth } = useUnifiedApp();
-  return auth;
+  const context = useContext(UnifiedAppContext);
+  if (!context) {
+    // 返回一个安全的默认值，而不是抛出错误
+    console.warn(
+      "useAppAuth called outside UnifiedAppProvider, returning default values"
+    );
+    return {
+      user: null,
+      session: null,
+      userRole: null,
+      isAuthReady: false,
+      loading: {
+        isLoading: false,
+        operation: undefined,
+        progress: 0,
+        message: undefined,
+      },
+      error: null,
+      signIn: async () => ({ error: null }),
+      signUp: async () => ({ error: null }),
+      signOut: async () => {},
+      refreshAuth: async () => {},
+      clearError: () => {},
+    };
+  }
+  return context.auth;
 };
 
 export const useAppGrade = () => {
-  const { grade } = useUnifiedApp();
-  return grade;
+  const context = useContext(UnifiedAppContext);
+  if (!context) {
+    console.warn("useAppGrade called outside UnifiedAppProvider");
+    return {
+      allGradeData: [],
+      wideGradeData: [],
+      filteredGradeData: [],
+      examList: [],
+      statistics: null,
+      filter: null,
+      loading: {
+        isLoading: false,
+        operation: undefined,
+        progress: 0,
+        message: undefined,
+      },
+      error: null,
+      lastUpdated: null,
+      availableSubjects: [],
+      availableClasses: [],
+      availableGrades: [],
+      availableExamTypes: [],
+      loadAllData: async () => {},
+      loadExamData: async () => {},
+      refreshData: async () => {},
+      setFilter: () => {},
+      updateFilter: () => {},
+      clearFilter: () => {},
+      getStudentGrades: () => [],
+      getSubjectGrades: () => [],
+      getClassGrades: () => [],
+      clearError: () => {},
+      retry: async () => {},
+    };
+  }
+  return context.grade;
 };
 
 export const useAppFilter = () => {
-  const { filter } = useUnifiedApp();
-  return filter;
+  const context = useContext(UnifiedAppContext);
+  if (!context) {
+    console.warn("useAppFilter called outside UnifiedAppProvider");
+    return {
+      mode: "simple" as const,
+      selectedClasses: [],
+      selectedSubjects: [],
+      selectedExam: null,
+      searchTerm: "",
+      dateRange: null,
+      isFiltered: false,
+      updateFilter: () => {},
+      resetFilter: () => {},
+      setMode: () => {},
+      addClassFilter: () => {},
+      removeClassFilter: () => {},
+      toggleSubjectFilter: () => {},
+    };
+  }
+  return context.filter;
 };
 
 export const useAppUI = () => {
-  const { ui } = useUnifiedApp();
-  return ui;
+  const context = useContext(UnifiedAppContext);
+  if (!context) {
+    console.warn("useAppUI called outside UnifiedAppProvider");
+    return {
+      theme: "light" as const,
+      sidebarCollapsed: false,
+      compactMode: false,
+      isMobile: false,
+      viewport: { width: 0, height: 0 },
+      notifications: [],
+      globalLoading: {
+        isLoading: false,
+        operation: undefined,
+        progress: 0,
+        message: undefined,
+      },
+      performanceMode: false,
+      setTheme: () => {},
+      toggleSidebar: () => {},
+      setCompactMode: () => {},
+      addNotification: () => "",
+      removeNotification: () => {},
+      clearNotifications: () => {},
+      setGlobalLoading: () => {},
+      clearGlobalLoading: () => {},
+      setPerformanceMode: () => {},
+    };
+  }
+  return context.ui;
 };
 
 export const useAppState = () => {
-  const { state } = useUnifiedApp();
-  return state;
+  const context = useContext(UnifiedAppContext);
+  if (!context) {
+    console.warn("useAppState called outside UnifiedAppProvider");
+    return {
+      auth: {
+        user: null,
+        session: null,
+        userRole: null,
+        isAuthReady: false,
+        loading: {
+          isLoading: false,
+          operation: undefined,
+          progress: 0,
+          message: undefined,
+        },
+        error: null,
+      },
+      grade: {
+        allGradeData: [],
+        wideGradeData: [],
+        filteredGradeData: [],
+        examList: [],
+        statistics: null,
+        filter: null,
+        loading: {
+          isLoading: false,
+          operation: undefined,
+          progress: 0,
+          message: undefined,
+        },
+        error: null,
+        lastUpdated: null,
+        availableSubjects: [],
+        availableClasses: [],
+        availableGrades: [],
+        availableExamTypes: [],
+      },
+      filter: {
+        mode: "simple" as const,
+        selectedClasses: [],
+        selectedSubjects: [],
+        selectedExam: null,
+        searchTerm: "",
+        dateRange: null,
+        isFiltered: false,
+      },
+      ui: {
+        theme: "light" as const,
+        sidebarCollapsed: false,
+        compactMode: false,
+        isMobile: false,
+        viewport: { width: 0, height: 0 },
+        notifications: [],
+        globalLoading: {
+          isLoading: false,
+          operation: undefined,
+          progress: 0,
+          message: undefined,
+        },
+        performanceMode: false,
+      },
+      initialized: false,
+      version: "1.0.0",
+      buildTime: new Date().toISOString(),
+    };
+  }
+  return context.state;
 };
 
 export const useAppActions = () => {
-  const { actions } = useUnifiedApp();
-  return actions;
+  const context = useContext(UnifiedAppContext);
+  if (!context) {
+    console.warn("useAppActions called outside UnifiedAppProvider");
+    return {
+      auth: {
+        signIn: async () => ({ error: null }),
+        signUp: async () => ({ error: null }),
+        signOut: async () => {},
+        refreshAuth: async () => {},
+        clearError: () => {},
+      },
+      grade: {
+        loadAllData: async () => {},
+        loadExamData: async () => {},
+        refreshData: async () => {},
+        setFilter: () => {},
+        updateFilter: () => {},
+        clearFilter: () => {},
+        getStudentGrades: () => [],
+        getSubjectGrades: () => [],
+        getClassGrades: () => [],
+        clearError: () => {},
+        retry: async () => {},
+      },
+      filter: {
+        updateFilter: () => {},
+        resetFilter: () => {},
+        setMode: () => {},
+        addClassFilter: () => {},
+        removeClassFilter: () => {},
+        toggleSubjectFilter: () => {},
+      },
+      ui: {
+        setTheme: () => {},
+        toggleSidebar: () => {},
+        setCompactMode: () => {},
+        addNotification: () => "",
+        removeNotification: () => {},
+        clearNotifications: () => {},
+        setGlobalLoading: () => {},
+        clearGlobalLoading: () => {},
+        setPerformanceMode: () => {},
+      },
+      initialize: async () => {},
+      reset: async () => {},
+      getModuleState: () => null,
+    };
+  }
+  return context.actions;
 };
 
 // ==================== 向后兼容Hooks ====================

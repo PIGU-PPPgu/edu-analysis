@@ -31,8 +31,10 @@ import {
 import {
   getAllHomeworks,
   getHomeworkSubmissions,
+  getHomeworkKnowledgePointStats,
 } from "@/services/homeworkService";
 import { getAllClasses } from "@/services/classService";
+import { StatisticsCharts } from "@/components/homework/StatisticsCharts";
 
 // 导入模拟数据
 import { getUserRoles } from "@/data/mockData";
@@ -53,6 +55,9 @@ const HomeworkManagement = () => {
   });
 
   const [loading, setLoading] = useState(true);
+
+  // 知识点统计数据
+  const [knowledgePointStats, setKnowledgePointStats] = useState<any[]>([]);
 
   // 模拟的状态选项
   const statusOptions = [
@@ -151,6 +156,16 @@ const HomeworkManagement = () => {
           totalClasses: classes.length,
           overdueHomeworks: overdueCount,
         });
+
+        // 获取知识点统计数据（使用第一个作业作为示例）
+        if (homeworks.length > 0) {
+          const kpStatsResult = await getHomeworkKnowledgePointStats(
+            homeworks[0].id
+          );
+          if (kpStatsResult.success) {
+            setKnowledgePointStats(kpStatsResult.data || []);
+          }
+        }
       } catch (error) {
         console.error("获取统计数据失败:", error);
       } finally {
@@ -297,7 +312,7 @@ const HomeworkManagement = () => {
 
               <TabsContent value="analysis">
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-4">
                     <h2 className="text-lg font-medium">作业数据分析</h2>
                     <Button variant="outline" size="sm">
                       <BarChart3 className="mr-2 h-4 w-4" />
@@ -305,15 +320,20 @@ const HomeworkManagement = () => {
                     </Button>
                   </div>
 
-                  <div className="flex flex-col items-center justify-center py-12 bg-gray-50 rounded-lg">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                      <span className="text-2xl">📊</span>
+                  {/* 知识点统计图表 */}
+                  {knowledgePointStats.length > 0 ? (
+                    <StatisticsCharts knowledgePoints={knowledgePointStats} />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-12 bg-gray-50 rounded-lg border-4 border-black">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 border-2 border-black">
+                        <span className="text-2xl">📊</span>
+                      </div>
+                      <h3 className="text-lg font-medium mb-2">暂无数据</h3>
+                      <p className="text-gray-500 text-center">
+                        暂无作业或知识点评估数据
+                      </p>
                     </div>
-                    <h3 className="text-lg font-medium mb-2">作业分析面板</h3>
-                    <p className="text-gray-500 text-center">
-                      作业分析功能正在重构中，敬请期待
-                    </p>
-                  </div>
+                  )}
                 </div>
               </TabsContent>
             </Tabs>

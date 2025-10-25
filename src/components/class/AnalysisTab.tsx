@@ -23,6 +23,7 @@ const AnalysisTab: React.FC<AnalysisTabProps> = ({
   loading = false,
 }) => {
   const [subTab, setSubTab] = useState("detail");
+  const [trendData, setTrendData] = useState<any>(null);
 
   if (!selectedClass) {
     return (
@@ -35,48 +36,25 @@ const AnalysisTab: React.FC<AnalysisTabProps> = ({
   }
 
   return (
-    <div className="space-y-6">
-      {/* 班级标识头部 - Neo-brutalism green theme */}
-      <div className="border-2 border-black shadow-[4px_4px_0px_0px_#000] rounded-lg p-6 bg-white">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="bg-[#B9FF66] border-2 border-black rounded-2xl p-3">
-              <LineChart className="h-8 w-8 text-black" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-black mb-1">
-                {selectedClass.name}
-              </h2>
-              <p className="text-[#5E9622] text-sm font-medium">
-                {selectedClass.grade} · 学业分析
-              </p>
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="bg-[#B9FF66]/10 border-2 border-black rounded-lg px-4 py-2">
-              <p className="text-xs text-[#5E9622] mb-1">当前查看</p>
-              <p className="text-lg font-bold text-black">
-                {selectedClass.name}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
+    <div className="space-y-4">
       <Card>
         <CardHeader>
           <CardTitle>学业分析</CardTitle>
         </CardHeader>
         <CardContent>
           <Tabs value={subTab} onValueChange={setSubTab}>
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="detail">
-                <TrendingUp className="h-4 w-4 mr-2" />
+                <BarChart3 className="h-4 w-4 mr-2" />
                 成绩详情
               </TabsTrigger>
               <TabsTrigger value="subject">
                 <BookOpen className="h-4 w-4 mr-2" />
                 学科分析
+              </TabsTrigger>
+              <TabsTrigger value="trend">
+                <TrendingUp className="h-4 w-4 mr-2" />
+                趋势对比
               </TabsTrigger>
             </TabsList>
 
@@ -94,6 +72,23 @@ const AnalysisTab: React.FC<AnalysisTabProps> = ({
                 subjectAnalysisData={subjectAnalysisData}
                 loading={loading}
               />
+            </TabsContent>
+
+            <TabsContent value="trend" className="mt-4">
+              <div className="space-y-4">
+                <div className="p-8 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg text-center">
+                  <TrendingUp className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    趋势对比分析
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    查看班级成绩随时间的变化趋势，包括平均分、及格率、优秀率等关键指标
+                  </p>
+                  <p className="text-xs text-[#5E9622]">
+                    💡 功能开发中，敬请期待
+                  </p>
+                </div>
+              </div>
             </TabsContent>
           </Tabs>
         </CardContent>

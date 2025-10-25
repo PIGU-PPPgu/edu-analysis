@@ -1114,3 +1114,310 @@ export async function diagnoseAndFixHomeworkSubmissions(homeworkId: string) {
     return { success: false, message: `诊断失败: ${error.message}` };
   }
 }
+
+// ==================== 作业模板相关函数 ====================
+
+/**
+ * 创建作业模板
+ */
+export async function createHomeworkTemplate(data: {
+  name: string;
+  description?: string;
+  subject_code?: string;
+  knowledge_points?: any[];
+  grading_scale_id?: string;
+  estimated_duration?: number;
+  difficulty_level?: "easy" | "medium" | "hard";
+  is_public?: boolean;
+}) {
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error("用户未登录");
+      return { success: false, message: "用户未登录" };
+    }
+
+    const { data: template, error } = await supabase
+      .from("homework_templates")
+      .insert([
+        {
+          ...data,
+          created_by: user.id,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("创建作业模板失败:", error);
+      toast.error(`创建模板失败: ${error.message}`);
+      return { success: false, message: error.message };
+    }
+
+    toast.success("作业模板创建成功");
+    return { success: true, data: template };
+  } catch (error: any) {
+    console.error("创建作业模板异常:", error);
+    toast.error(`创建模板失败: ${error.message}`);
+    return { success: false, message: error.message };
+  }
+}
+
+/**
+ * 获取作业模板列表
+ */
+export async function getHomeworkTemplates(includePublic: boolean = true) {
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    let query = supabase
+      .from("homework_templates")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (user && includePublic) {
+      // 获取用户自己的模板和公开模板
+      query = query.or(`created_by.eq.${user.id},is_public.eq.true`);
+    } else if (user) {
+      // 只获取用户自己的模板
+      query = query.eq("created_by", user.id);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("获取作业模板列表失败:", error);
+      return { success: false, message: error.message, data: [] };
+    }
+
+    return { success: true, data: data || [] };
+  } catch (error: any) {
+    console.error("获取作业模板列表异常:", error);
+    return { success: false, message: error.message, data: [] };
+  }
+}
+
+/**
+ * 更新作业模板
+ */
+export async function updateHomeworkTemplate(
+  templateId: string,
+  data: Partial<{
+    name: string;
+    description: string;
+    subject_code: string;
+    knowledge_points: any[];
+    grading_scale_id: string;
+    estimated_duration: number;
+    difficulty_level: "easy" | "medium" | "hard";
+    is_public: boolean;
+  }>
+) {
+  try {
+    const { error } = await supabase
+      .from("homework_templates")
+      .update(data)
+      .eq("id", templateId);
+
+    if (error) {
+      console.error("更新作业模板失败:", error);
+      toast.error(`更新模板失败: ${error.message}`);
+      return { success: false, message: error.message };
+    }
+
+    toast.success("模板更新成功");
+    return { success: true };
+  } catch (error: any) {
+    console.error("更新作业模板异常:", error);
+    toast.error(`更新模板失败: ${error.message}`);
+    return { success: false, message: error.message };
+  }
+}
+
+/**
+ * 删除作业模板
+ */
+export async function deleteHomeworkTemplate(templateId: string) {
+  try {
+    const { error } = await supabase
+      .from("homework_templates")
+      .delete()
+      .eq("id", templateId);
+
+    if (error) {
+      console.error("删除作业模板失败:", error);
+      toast.error(`删除模板失败: ${error.message}`);
+      return { success: false, message: error.message };
+    }
+
+    toast.success("模板删除成功");
+    return { success: true };
+  } catch (error: any) {
+    console.error("删除作业模板异常:", error);
+    toast.error(`删除模板失败: ${error.message}`);
+    return { success: false, message: error.message };
+  }
+}
+
+/**
+ * 增加模板使用次数
+ */
+export async function incrementTemplateUsage(templateId: string) {
+  try {
+    const { error } = await supabase.rpc("increment_template_usage", {
+      template_id: templateId,
+    });
+
+    if (error) {
+      console.error("更新模板使用次数失败:", error);
+    }
+  } catch (error) {
+    console.error("更新模板使用次数异常:", error);
+  }
+}
+
+// ==================== 评分历史相关函数 ====================
+
+/**
+ * 记录评分修改历史
+ */
+export async function recordGradingHistory(data: {
+  submission_id: string;
+  previous_score?: number | null;
+  new_score?: number | null;
+  previous_feedback?: string | null;
+  new_feedback?: string | null;
+  previous_knowledge_points?: any;
+  new_knowledge_points?: any;
+  modification_reason?: string;
+}) {
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      console.error("用户未登录，无法记录评分历史");
+      return { success: false, message: "用户未登录" };
+    }
+
+    const { error } = await supabase.from("grading_history").insert([
+      {
+        ...data,
+        modified_by: user.id,
+      },
+    ]);
+
+    if (error) {
+      console.error("记录评分历史失败:", error);
+      return { success: false, message: error.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("记录评分历史异常:", error);
+    return { success: false, message: error.message };
+  }
+}
+
+/**
+ * 获取评分历史记录
+ */
+export async function getGradingHistory(submissionId: string) {
+  try {
+    const { data, error } = await supabase
+      .from("grading_history")
+      .select(
+        `
+        *,
+        teachers:modified_by (
+          name
+        )
+      `
+      )
+      .eq("submission_id", submissionId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("获取评分历史失败:", error);
+      return { success: false, message: error.message, data: [] };
+    }
+
+    // 格式化数据，添加教师名称
+    const formattedData = data?.map((record) => ({
+      ...record,
+      modifier_name:
+        Array.isArray(record.teachers) && record.teachers.length > 0
+          ? record.teachers[0].name
+          : record.teachers?.name || "未知教师",
+    }));
+
+    return { success: true, data: formattedData || [] };
+  } catch (error: any) {
+    console.error("获取评分历史异常:", error);
+    return { success: false, message: error.message, data: [] };
+  }
+}
+
+// ==================== 统计分析相关函数 ====================
+
+/**
+ * 获取作业的知识点统计数据
+ */
+export async function getHomeworkKnowledgePointStats(homeworkId: string) {
+  try {
+    const { data, error } = await supabase
+      .from("student_knowledge_mastery")
+      .select(
+        `
+        mastery_level,
+        knowledge_points (
+          id,
+          name
+        )
+      `
+      )
+      .eq("homework_id", homeworkId);
+
+    if (error) {
+      console.error("获取知识点统计失败:", error);
+      return { success: false, message: error.message, data: [] };
+    }
+
+    // 按知识点聚合数据
+    const statsMap = new Map();
+    data?.forEach((record) => {
+      const kp = Array.isArray(record.knowledge_points)
+        ? record.knowledge_points[0]
+        : record.knowledge_points;
+      if (kp) {
+        if (!statsMap.has(kp.id)) {
+          statsMap.set(kp.id, {
+            id: kp.id,
+            name: kp.name,
+            masteryLevels: [],
+          });
+        }
+        statsMap.get(kp.id).masteryLevels.push(record.mastery_level);
+      }
+    });
+
+    // 计算平均值
+    const stats = Array.from(statsMap.values()).map((stat) => ({
+      id: stat.id,
+      name: stat.name,
+      masteryLevel:
+        stat.masteryLevels.reduce((a: number, b: number) => a + b, 0) /
+        stat.masteryLevels.length,
+      studentCount: stat.masteryLevels.length,
+    }));
+
+    return { success: true, data: stats };
+  } catch (error: any) {
+    console.error("获取知识点统计异常:", error);
+    return { success: false, message: error.message, data: [] };
+  }
+}

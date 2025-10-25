@@ -203,11 +203,27 @@ export const DEFAULT_PROVIDERS: Record<string, ProviderConfig> = {
     authType: "bearer",
     models: [
       {
+        id: "doubao-seed-1-6-251015",
+        name: "豆包 Seed 1.6",
+        maxTokens: 4096,
+        supportStream: true,
+        contextWindow: 128000,
+        endpointPath: "/chat/completions",
+      },
+      {
         id: "doubao-lite-128k",
         name: "豆包 Lite (128k)",
         maxTokens: 4096,
         supportStream: true,
         contextWindow: 131072,
+        endpointPath: "/chat/completions",
+      },
+      {
+        id: "doubao-pro-32k",
+        name: "豆包 Pro 32K",
+        maxTokens: 4096,
+        supportStream: true,
+        contextWindow: 32000,
         endpointPath: "/chat/completions",
       },
       {
@@ -217,14 +233,6 @@ export const DEFAULT_PROVIDERS: Record<string, ProviderConfig> = {
         supportStream: false,
         contextWindow: 32768,
         endpointPath: "/chat/completions",
-      },
-      {
-        id: "bot-20250429000553-tlhdg",
-        name: "豆包文本Bot (示例)",
-        maxTokens: 4096,
-        supportStream: true,
-        contextWindow: 32768,
-        endpointPath: "/bots/chat/completions",
       },
     ],
     requestFormat: (params, model) => ({
@@ -240,5 +248,123 @@ export const DEFAULT_PROVIDERS: Record<string, ProviderConfig> = {
         choices: response.choices || [],
       };
     },
+  },
+  moonshot: {
+    id: "moonshot",
+    name: "月之暗面 (Kimi)",
+    baseUrl: "https://api.moonshot.cn/v1",
+    authType: "bearer",
+    models: [
+      {
+        id: "moonshot-v1-8k",
+        name: "Kimi 8K",
+        maxTokens: 4096,
+        supportStream: true,
+        contextWindow: 8000,
+      },
+      {
+        id: "moonshot-v1-32k",
+        name: "Kimi 32K",
+        maxTokens: 4096,
+        supportStream: true,
+        contextWindow: 32000,
+      },
+      {
+        id: "moonshot-v1-128k",
+        name: "Kimi 128K",
+        maxTokens: 4096,
+        supportStream: true,
+        contextWindow: 128000,
+      },
+    ],
+    requestFormat: (params, model) => ({
+      model: model,
+      messages: params.messages,
+      temperature: params.temperature || 0.7,
+      max_tokens: params.max_tokens || 2048,
+      stream: Boolean(params.stream),
+    }),
+    responseFormat: (response) => ({
+      choices: response.choices || [],
+    }),
+  },
+  baidu: {
+    id: "baidu",
+    name: "百度 (文心一言)",
+    baseUrl: "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop",
+    authType: "param",
+    authKey: "access_token",
+    models: [
+      {
+        id: "ernie-4.0-8k",
+        name: "文心一言 4.0",
+        maxTokens: 2048,
+        supportStream: false,
+        contextWindow: 8000,
+      },
+      {
+        id: "ernie-3.5-8k",
+        name: "文心一言 3.5",
+        maxTokens: 2048,
+        supportStream: false,
+        contextWindow: 8000,
+      },
+    ],
+    requestFormat: (params, model) => ({
+      messages: params.messages,
+      temperature: params.temperature || 0.7,
+      max_output_tokens: params.max_tokens || 2048,
+      top_p: params.top_p || 0.8,
+    }),
+    responseFormat: (response) => ({
+      choices: [
+        {
+          message: {
+            content: response.result || "",
+            role: "assistant",
+          },
+        },
+      ],
+    }),
+  },
+  zhipu: {
+    id: "zhipu",
+    name: "智谱AI (ChatGLM)",
+    baseUrl: "https://open.bigmodel.cn/api/paas/v4",
+    authType: "bearer",
+    models: [
+      {
+        id: "glm-4",
+        name: "ChatGLM-4",
+        maxTokens: 4096,
+        supportStream: true,
+        contextWindow: 128000,
+      },
+      {
+        id: "glm-4-air",
+        name: "ChatGLM-4 Air",
+        maxTokens: 4096,
+        supportStream: true,
+        contextWindow: 128000,
+      },
+      {
+        id: "glm-4-flash",
+        name: "ChatGLM-4 Flash",
+        maxTokens: 4096,
+        supportStream: true,
+        contextWindow: 128000,
+      },
+    ],
+    requestFormat: (params, model) => ({
+      model: model,
+      messages: params.messages,
+      temperature: params.temperature || 0.7,
+      max_tokens: params.max_tokens || 2048,
+      stream: Boolean(params.stream),
+      top_p: params.top_p || 0.7,
+    }),
+    responseFormat: (response) => ({
+      choices: response.choices || [],
+    }),
   },
 };

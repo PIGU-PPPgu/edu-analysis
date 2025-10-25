@@ -188,7 +188,24 @@ export const FilterModuleProvider: React.FC<{ children: React.ReactNode }> = ({
 export const useFilterModule = (): FilterModuleContextType => {
   const context = useContext(FilterModuleContext);
   if (!context) {
-    throw new Error("useFilterModule must be used within FilterModuleProvider");
+    console.warn(
+      "useFilterModule called outside FilterModuleProvider, returning default values"
+    );
+    return {
+      mode: "simple",
+      selectedClasses: [],
+      selectedSubjects: [],
+      selectedExam: null,
+      searchTerm: "",
+      dateRange: null,
+      isFiltered: false,
+      updateFilter: () => {},
+      resetFilter: () => {},
+      setMode: () => {},
+      addClassFilter: () => {},
+      removeClassFilter: () => {},
+      toggleSubjectFilter: () => {},
+    };
   }
   return context;
 };

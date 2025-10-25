@@ -33,6 +33,8 @@ import { portraitAPI, StudentPortraitData } from "@/lib/api/portrait";
 import StudentCard from "@/components/portrait/StudentCard";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { advancedExportService } from "@/services/advancedExportService";
+import { toast } from "sonner";
 
 interface StudentsTabProps {
   classId: string;
@@ -62,10 +64,15 @@ const StudentsTab: React.FC<StudentsTabProps> = ({ classId, className }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState("name_asc");
   const [filterTag, setFilterTag] = useState<string | null>(null);
+  const [filterScoreRange, setFilterScoreRange] = useState<string>("all");
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(
     null
   );
   const [studentDetailTab, setStudentDetailTab] = useState("overview");
+  const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(
+    new Set()
+  );
+  const [isExporting, setIsExporting] = useState(false);
 
   // 获取班级学生数据
   const { data: students, isLoading: isLoadingStudents } = useQuery<
@@ -188,6 +195,25 @@ const StudentsTab: React.FC<StudentsTabProps> = ({ classId, className }) => {
       });
     }
 
+    // 成绩区间筛选
+    if (filterScoreRange !== "all") {
+      filtered = filtered.filter((student) => {
+        const score = student.avgScore;
+        switch (filterScoreRange) {
+          case "excellent": // 优秀: >=90
+            return score >= 90;
+          case "good": // 良好: 80-89
+            return score >= 80 && score < 90;
+          case "pass": // 及格: 60-79
+            return score >= 60 && score < 80;
+          case "fail": // 不及格: <60
+            return score < 60;
+          default:
+            return true;
+        }
+      });
+    }
+
     switch (sortOption) {
       case "name_asc":
         filtered.sort((a, b) => a.name.localeCompare(b.name, "zh-CN"));
@@ -239,32 +265,7 @@ const StudentsTab: React.FC<StudentsTabProps> = ({ classId, className }) => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* 班级标识头部 - Neo-brutalism green theme */}
-      <div className="border-2 border-black shadow-[4px_4px_0px_0px_#000] rounded-lg p-6 bg-white">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="bg-[#B9FF66] border-2 border-black rounded-2xl p-3">
-              <Users className="h-8 w-8 text-black" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-black mb-1">
-                {className}
-              </h2>
-              <p className="text-[#5E9622] text-sm font-medium">
-                共 {students?.length || 0} 名学生 · 学生管理
-              </p>
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="bg-[#B9FF66]/10 border-2 border-black rounded-lg px-4 py-2">
-              <p className="text-xs text-[#5E9622] mb-1">当前查看</p>
-              <p className="text-lg font-bold text-black">{className}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
+    <div className="space-y-4">
       {/* 学生列表区域 */}
       <Card>
         <CardHeader>
@@ -276,9 +277,89 @@ const StudentsTab: React.FC<StudentsTabProps> = ({ classId, className }) => {
           </div>
         </CardHeader>
         <CardContent>
+          {/* 批量操作工具栏 */}
+          {selectedStudentIds.size > 0 && (
+            <div className="mb-4 p-4 bg-[#B9FF66]/20 border-2 border-black rounded-lg flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Badge className="bg-[#B9FF66] text-black border-2 border-black">
+                  已选择 {selectedStudentIds.size} 名学生
+                </Badge>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setSelectedStudentIds(new Set())}
+                  className="h-7 text-xs hover:bg-white/50"
+                >
+                  清除选择
+                </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-black hover:bg-[#B9FF66]/30"
+                  disabled={isExporting}
+                  onClick={async () => {
+                    setIsExporting(true);
+                    try {
+                      // 获取选中学生的完整数据
+                      const selectedStudents = filteredStudents.filter((s) =>
+                        selectedStudentIds.has(s.student_id)
+                      );
+
+                      // 导出学生基本信息和成绩
+                      const exportData = selectedStudents.map((s) => ({
+                        学号: s.student_id,
+                        姓名: s.name,
+                        班级: className,
+                        平均分: (s as any).avgScore?.toFixed(1) || "N/A",
+                        AI标签: s.aiTags
+                          ? Object.values(s.aiTags).flat().join(", ")
+                          : "",
+                        自定义标签: s.customTags?.join(", ") || "",
+                      }));
+
+                      const result =
+                        await advancedExportService.exportStudentGrades({
+                          format: "xlsx",
+                          fields: [],
+                          filters: {
+                            student_id:
+                              Array.from(selectedStudentIds).join(","),
+                          },
+                          fileName: `${className}_学生数据_${new Date().toLocaleDateString("zh-CN").replace(/\//g, "-")}`,
+                        });
+
+                      if (result.success) {
+                        toast.success(
+                          `成功导出 ${selectedStudentIds.size} 名学生的数据`
+                        );
+                        setSelectedStudentIds(new Set());
+                      } else {
+                        toast.error(result.error || "导出失败");
+                      }
+                    } catch (error) {
+                      console.error("批量导出错误:", error);
+                      toast.error("导出失败，请稍后重试");
+                    } finally {
+                      setIsExporting(false);
+                    }
+                  }}
+                >
+                  {isExporting ? (
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  ) : (
+                    <FileText className="h-4 w-4 mr-1" />
+                  )}
+                  {isExporting ? "导出中..." : "批量导出"}
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* 搜索和筛选栏 */}
-          <div className="flex items-center gap-3 mb-6">
-            <div className="relative flex-1">
+          <div className="flex flex-wrap items-center gap-3 mb-6">
+            <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="搜索学生姓名或学号..."
@@ -300,6 +381,23 @@ const StudentsTab: React.FC<StudentsTabProps> = ({ classId, className }) => {
                 <SelectItem value="score_asc">成绩 (低-高)</SelectItem>
                 <SelectItem value="id_asc">学号 (升序)</SelectItem>
                 <SelectItem value="id_desc">学号 (降序)</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={filterScoreRange}
+              onValueChange={setFilterScoreRange}
+            >
+              <SelectTrigger className="w-[160px]">
+                <BarChart3 className="mr-2 h-4 w-4 text-gray-400" />
+                <SelectValue placeholder="成绩筛选" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部成绩</SelectItem>
+                <SelectItem value="excellent">优秀 (≥90)</SelectItem>
+                <SelectItem value="good">良好 (80-89)</SelectItem>
+                <SelectItem value="pass">及格 (60-79)</SelectItem>
+                <SelectItem value="fail">不及格 (&lt;60)</SelectItem>
               </SelectContent>
             </Select>
 

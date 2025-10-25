@@ -43,7 +43,9 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -149,6 +151,9 @@ const ClassManagement: React.FC = () => {
     new Set()
   );
 
+  // 班级列表折叠状态
+  const [isClassListCollapsed, setIsClassListCollapsed] = useState(false);
+
   // 新增 - 分析数据状态
   const [analysisData, setAnalysisData] = useState<AnalysisData>({
     boxPlotData: {},
@@ -226,7 +231,7 @@ const ClassManagement: React.FC = () => {
     }
   };
 
-  // 从localStorage加载最近访问班级ID和收藏
+  // 从localStorage加载最近访问班级ID、收藏和折叠状态
   useEffect(() => {
     try {
       const stored = localStorage.getItem("recentClassIds");
@@ -239,6 +244,11 @@ const ClassManagement: React.FC = () => {
       if (favorites) {
         const parsed = JSON.parse(favorites);
         setFavoriteClassIds(new Set(parsed));
+      }
+
+      const collapsed = localStorage.getItem("classListCollapsed");
+      if (collapsed !== null) {
+        setIsClassListCollapsed(collapsed === "true");
       }
     } catch (error) {
       console.error("加载最近访问班级失败:", error);
@@ -317,6 +327,27 @@ const ClassManagement: React.FC = () => {
     },
     [allFetchedClasses]
   );
+
+  // 切换班级列表折叠状态
+  const toggleClassListCollapse = useCallback(() => {
+    setIsClassListCollapsed((prev) => {
+      const newState = !prev;
+      try {
+        localStorage.setItem("classListCollapsed", String(newState));
+      } catch (error) {
+        console.error("保存折叠状态失败:", error);
+      }
+      return newState;
+    });
+  }, []);
+
+  // 快速切换班级（从下拉框）
+  const handleQuickClassSwitch = (classId: string) => {
+    const classItem = allFetchedClasses.find((c) => c.id === classId);
+    if (classItem) {
+      handleClassClick(classItem);
+    }
+  };
 
   // 获取学科分析数据 - 再次优化版本
   const fetchSubjectAnalysisData = async (
@@ -809,362 +840,471 @@ const ClassManagement: React.FC = () => {
           </Button>
         </div>
 
-        <Card className="mb-6 bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700">
+        <Card className="mb-6 bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 transition-all duration-300">
           <CardHeader>
-            <CardTitle className="text-xl font-semibold text-gray-700 dark:text-gray-200">
-              班级列表与概览
-            </CardTitle>
-            <CardDescription className="text-sm text-gray-500 dark:text-gray-400">
-              管理您的班级，查看班级学生、平均分和优秀率等关键指标。点击班级卡片切换下方详细视图。
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {/* 最近访问班级 */}
-            {recentClasses.length > 0 && (
-              <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      最近访问
-                    </span>
-                    <Badge variant="secondary" className="text-xs">
-                      {recentClasses.length}
-                    </Badge>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearRecentClasses}
-                    className="h-7 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                  >
-                    <X className="h-3 w-3 mr-1" />
-                    清除
-                  </Button>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
-                  {recentClasses.map((classItem) => (
-                    <Card
-                      key={classItem.id}
-                      className={`cursor-pointer transition-all hover:shadow-md ${
-                        selectedClass?.id === classItem.id
-                          ? "ring-2 ring-[#B9FF66] border-[#B9FF66]"
-                          : "border-gray-200 dark:border-gray-700 hover:border-[#B9FF66]"
-                      }`}
-                      onClick={() => handleClassClick(classItem)}
-                    >
-                      <CardContent className="p-3 space-y-1">
-                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate mb-1.5">
-                          {classItem.name}
-                        </div>
-                        <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
-                          <span className="flex items-center gap-1">
-                            <Users className="h-3 w-3" />
-                            {classItem.studentCount ?? "N/A"}
-                          </span>
-                          {classItem.averageScore && (
-                            <span className="font-medium text-[#5E9622] dark:text-[#B9FF66]">
-                              {classItem.averageScore.toFixed(1)}
-                            </span>
-                          )}
-                        </div>
-                        {classItem.excellentRate !== undefined && (
-                          <div className="text-xs text-gray-600 dark:text-gray-400">
-                            优秀率: {classItem.excellentRate.toFixed(0)}%
-                          </div>
-                        )}
-                        {classItem.warningCount !== undefined &&
-                          classItem.warningCount > 0 && (
-                            <div className="flex items-center text-xs text-orange-600 dark:text-orange-400">
-                              <AlertTriangle className="h-3 w-3 mr-1" />
-                              {classItem.warningCount}人
-                            </div>
-                          )}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <CardTitle className="text-xl font-semibold text-gray-700 dark:text-gray-200">
+                  班级列表与概览
+                </CardTitle>
+                <CardDescription className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  {isClassListCollapsed
+                    ? `共 ${displayedClasses.length} 个班级，当前选中: ${selectedClass?.name || "未选择"}`
+                    : "管理您的班级，查看班级学生、平均分和优秀率等关键指标。点击班级卡片切换下方详细视图。"}
+                </CardDescription>
               </div>
-            )}
-
-            <div className="flex items-center space-x-2 mb-4">
-              <div className="relative flex-grow">
-                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="筛选班级名称或年级..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-full dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                />
-              </div>
-              <Select value={sortOption} onValueChange={setSortOption}>
-                <SelectTrigger className="w-[200px] dark:bg-gray-700 dark:text-white dark:border-gray-600">
-                  <ArrowUpDown className="mr-2 h-4 w-4 text-gray-400" />
-                  <SelectValue placeholder="排序方式" />
-                </SelectTrigger>
-                <SelectContent className="dark:bg-gray-700 dark:text-white">
-                  <SelectItem value="name_asc">名称 (A-Z)</SelectItem>
-                  <SelectItem value="name_desc">名称 (Z-A)</SelectItem>
-                  <SelectItem value="students_asc">学生数 (少-多)</SelectItem>
-                  <SelectItem value="students_desc">学生数 (多-少)</SelectItem>
-                  <SelectItem value="avg_score_asc">平均分 (低-高)</SelectItem>
-                  <SelectItem value="avg_score_desc">平均分 (高-低)</SelectItem>
-                </SelectContent>
-              </Select>
               <Button
+                onClick={toggleClassListCollapse}
                 variant="outline"
                 size="sm"
-                onClick={expandAllGrades}
-                className="dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                className="bg-[#B9FF66] hover:bg-[#A8F055] text-black border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[1px_1px_0px_0px_#000] transition-all"
               >
-                <Maximize2 className="h-4 w-4 mr-2" />
-                展开全部
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={collapseAllGrades}
-                className="dark:bg-gray-700 dark:text-white dark:border-gray-600"
-              >
-                <Minimize2 className="h-4 w-4 mr-2" />
-                折叠全部
-              </Button>
-              <Button
-                variant={showFavoritesOnly ? "default" : "outline"}
-                size="sm"
-                onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-                className={
-                  showFavoritesOnly
-                    ? "bg-yellow-500 hover:bg-yellow-600 text-white"
-                    : "dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                }
-                disabled={favoriteClassIds.size === 0}
-              >
-                <Star
-                  className={`h-4 w-4 mr-2 ${showFavoritesOnly ? "fill-current" : ""}`}
-                />
-                {showFavoritesOnly ? "显示全部" : "仅收藏"}
-                {favoriteClassIds.size > 0 && (
-                  <Badge variant="secondary" className="ml-2">
-                    {favoriteClassIds.size}
-                  </Badge>
-                )}
-              </Button>
-            </div>
-
-            {loading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {Array.from({ length: 4 }).map((_, index) => (
-                  <Card
-                    key={index}
-                    className="bg-gray-50 dark:bg-gray-750 p-4 rounded-lg shadow animate-pulse"
-                  >
-                    <div className="h-6 bg-gray-300 dark:bg-gray-600 rounded w-3/4 mb-2"></div>
-                    <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-1/2 mb-1"></div>
-                    <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-1/4 mb-3"></div>
-                    <div className="flex justify-between items-center">
-                      <div className="h-8 bg-gray-300 dark:bg-gray-600 rounded w-1/3"></div>
-                      <div className="h-8 bg-gray-300 dark:bg-gray-600 rounded w-1/4"></div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            ) : displayedClasses.length === 0 ? (
-              <div className="text-center py-10 text-gray-500 dark:text-gray-400">
-                {showFavoritesOnly ? (
+                {isClassListCollapsed ? (
                   <>
-                    <Star className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
-                    <p className="text-lg font-semibold">没有收藏的班级</p>
-                    <p className="text-sm">
-                      点击班级卡片右上角的星标图标来收藏常用班级
-                    </p>
+                    <Maximize2 className="h-4 w-4 mr-2" />
+                    展开列表
                   </>
                 ) : (
                   <>
-                    <Users className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
-                    <p className="text-lg font-semibold">未找到班级</p>
-                    <p className="text-sm">
-                      {searchTerm
-                        ? "没有匹配当前筛选条件的班级。"
-                        : "您还没有创建任何班级，请点击右上角按钮创建。"}
-                    </p>
+                    <Minimize2 className="h-4 w-4 mr-2" />
+                    收起列表
                   </>
                 )}
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {groupedByGrade.map(([grade, classes]) => {
-                  const isCollapsed = collapsedGrades.has(grade);
-                  const totalStudents = classes.reduce(
-                    (sum, cls) => sum + (cls.studentCount || 0),
-                    0
-                  );
-                  const avgScore =
-                    classes.reduce(
-                      (sum, cls) => sum + (cls.averageScore || 0),
-                      0
-                    ) / classes.length;
+              </Button>
+            </div>
+          </CardHeader>
 
-                  return (
-                    <div
-                      key={grade}
-                      className="bg-white dark:bg-gray-850 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
-                    >
-                      {/* 年级标题栏 */}
-                      <div
-                        className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-750 cursor-pointer hover:from-blue-100 hover:to-purple-100 dark:hover:from-gray-750 dark:hover:to-gray-700 transition-colors"
-                        onClick={() => toggleGradeCollapse(grade)}
-                      >
-                        <div className="flex items-center space-x-3">
-                          {isCollapsed ? (
-                            <ChevronRight className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-                          ) : (
-                            <ChevronDown className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-                          )}
-                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                            {grade}
-                          </h3>
-                          <Badge variant="outline" className="ml-2">
-                            {classes.length} 个班级
-                          </Badge>
-                        </div>
-                        <div className="flex items-center space-x-6 text-sm text-gray-600 dark:text-gray-400">
-                          <div className="flex items-center space-x-1">
-                            <Users className="h-4 w-4" />
-                            <span>{totalStudents} 名学生</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <BarChart3 className="h-4 w-4" />
-                            <span>平均分: {avgScore.toFixed(1)}</span>
-                          </div>
-                        </div>
+          {/* 折叠状态：压缩视图 */}
+          {isClassListCollapsed && (
+            <CardContent className="py-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between gap-4">
+                {/* 左侧：当前班级信息 */}
+                <div className="flex items-center gap-4">
+                  {selectedClass ? (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          当前班级:
+                        </span>
+                        <Badge className="bg-[#B9FF66] text-black border-2 border-black shadow-[2px_2px_0px_0px_#000] text-sm px-3 py-1">
+                          {selectedClass.name}
+                        </Badge>
                       </div>
+                      <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
+                        <span className="flex items-center gap-1">
+                          <Users className="h-3.5 w-3.5 text-[#5E9622]" />
+                          {selectedClass.studentCount ?? 0}人
+                        </span>
+                        {selectedClass.averageScore && (
+                          <span className="flex items-center gap-1">
+                            <BarChart3 className="h-3.5 w-3.5 text-[#5E9622]" />
+                            平均 {selectedClass.averageScore.toFixed(1)}
+                          </span>
+                        )}
+                        {selectedClass.excellentRate !== undefined && (
+                          <span className="flex items-center gap-1">
+                            <Star className="h-3.5 w-3.5 text-[#5E9622]" />
+                            优秀 {selectedClass.excellentRate.toFixed(0)}%
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      未选择班级
+                    </span>
+                  )}
+                </div>
 
-                      {/* 班级卡片网格 */}
-                      {!isCollapsed && (
-                        <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                          {classes.map((classItem, index) => (
-                            <Card
-                              key={classItem.id}
-                              className={`group cursor-pointer transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-xl dark:bg-gray-800 dark:hover:bg-gray-750
+                {/* 右侧：快速切换下拉框 */}
+                <Select
+                  value={selectedClass?.id || ""}
+                  onValueChange={handleQuickClassSwitch}
+                >
+                  <SelectTrigger className="w-[240px] dark:bg-gray-700 dark:text-white dark:border-gray-600">
+                    <SelectValue placeholder="快速切换班级..." />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[400px] dark:bg-gray-700 dark:text-white">
+                    {groupedByGrade.map(([grade, classes]) => (
+                      <SelectGroup key={grade}>
+                        <SelectLabel className="text-[#5E9622] dark:text-[#B9FF66] font-semibold">
+                          {grade}
+                        </SelectLabel>
+                        {classes.map((cls) => (
+                          <SelectItem key={cls.id} value={cls.id}>
+                            <div className="flex items-center justify-between w-full gap-2">
+                              <span>{cls.name}</span>
+                              {favoriteClassIds.has(cls.id) && (
+                                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          )}
+
+          {/* 展开状态：完整视图 */}
+          {!isClassListCollapsed && (
+            <CardContent>
+              {/* 最近访问班级 */}
+              {recentClasses.length > 0 && (
+                <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        最近访问
+                      </span>
+                      <Badge variant="secondary" className="text-xs">
+                        {recentClasses.length}
+                      </Badge>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearRecentClasses}
+                      className="h-7 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      <X className="h-3 w-3 mr-1" />
+                      清除
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+                    {recentClasses.map((classItem) => (
+                      <Card
+                        key={classItem.id}
+                        className={`cursor-pointer transition-all hover:shadow-md ${
+                          selectedClass?.id === classItem.id
+                            ? "ring-2 ring-[#B9FF66] border-[#B9FF66]"
+                            : "border-gray-200 dark:border-gray-700 hover:border-[#B9FF66]"
+                        }`}
+                        onClick={() => handleClassClick(classItem)}
+                      >
+                        <CardContent className="p-3 space-y-1">
+                          <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate mb-1.5">
+                            {classItem.name}
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+                            <span className="flex items-center gap-1">
+                              <Users className="h-3 w-3" />
+                              {classItem.studentCount ?? "N/A"}
+                            </span>
+                            {classItem.averageScore && (
+                              <span className="font-medium text-[#5E9622] dark:text-[#B9FF66]">
+                                {classItem.averageScore.toFixed(1)}
+                              </span>
+                            )}
+                          </div>
+                          {classItem.excellentRate !== undefined && (
+                            <div className="text-xs text-gray-600 dark:text-gray-400">
+                              优秀率: {classItem.excellentRate.toFixed(0)}%
+                            </div>
+                          )}
+                          {classItem.warningCount !== undefined &&
+                            classItem.warningCount > 0 && (
+                              <div className="flex items-center text-xs text-orange-600 dark:text-orange-400">
+                                <AlertTriangle className="h-3 w-3 mr-1" />
+                                {classItem.warningCount}人
+                              </div>
+                            )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center space-x-2 mb-4">
+                <div className="relative flex-grow">
+                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="筛选班级名称或年级..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 w-full dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                  />
+                </div>
+                <Select value={sortOption} onValueChange={setSortOption}>
+                  <SelectTrigger className="w-[200px] dark:bg-gray-700 dark:text-white dark:border-gray-600">
+                    <ArrowUpDown className="mr-2 h-4 w-4 text-gray-400" />
+                    <SelectValue placeholder="排序方式" />
+                  </SelectTrigger>
+                  <SelectContent className="dark:bg-gray-700 dark:text-white">
+                    <SelectItem value="name_asc">名称 (A-Z)</SelectItem>
+                    <SelectItem value="name_desc">名称 (Z-A)</SelectItem>
+                    <SelectItem value="students_asc">学生数 (少-多)</SelectItem>
+                    <SelectItem value="students_desc">
+                      学生数 (多-少)
+                    </SelectItem>
+                    <SelectItem value="avg_score_asc">
+                      平均分 (低-高)
+                    </SelectItem>
+                    <SelectItem value="avg_score_desc">
+                      平均分 (高-低)
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={expandAllGrades}
+                  className="dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                >
+                  <Maximize2 className="h-4 w-4 mr-2" />
+                  展开全部
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={collapseAllGrades}
+                  className="dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                >
+                  <Minimize2 className="h-4 w-4 mr-2" />
+                  折叠全部
+                </Button>
+                <Button
+                  variant={showFavoritesOnly ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                  className={
+                    showFavoritesOnly
+                      ? "bg-yellow-500 hover:bg-yellow-600 text-white"
+                      : "dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                  }
+                  disabled={favoriteClassIds.size === 0}
+                >
+                  <Star
+                    className={`h-4 w-4 mr-2 ${showFavoritesOnly ? "fill-current" : ""}`}
+                  />
+                  {showFavoritesOnly ? "显示全部" : "仅收藏"}
+                  {favoriteClassIds.size > 0 && (
+                    <Badge variant="secondary" className="ml-2">
+                      {favoriteClassIds.size}
+                    </Badge>
+                  )}
+                </Button>
+              </div>
+
+              {loading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <Card
+                      key={index}
+                      className="bg-gray-50 dark:bg-gray-750 p-4 rounded-lg shadow animate-pulse"
+                    >
+                      <div className="h-6 bg-gray-300 dark:bg-gray-600 rounded w-3/4 mb-2"></div>
+                      <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-1/2 mb-1"></div>
+                      <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-1/4 mb-3"></div>
+                      <div className="flex justify-between items-center">
+                        <div className="h-8 bg-gray-300 dark:bg-gray-600 rounded w-1/3"></div>
+                        <div className="h-8 bg-gray-300 dark:bg-gray-600 rounded w-1/4"></div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              ) : displayedClasses.length === 0 ? (
+                <div className="text-center py-10 text-gray-500 dark:text-gray-400">
+                  {showFavoritesOnly ? (
+                    <>
+                      <Star className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
+                      <p className="text-lg font-semibold">没有收藏的班级</p>
+                      <p className="text-sm">
+                        点击班级卡片右上角的星标图标来收藏常用班级
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <Users className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
+                      <p className="text-lg font-semibold">未找到班级</p>
+                      <p className="text-sm">
+                        {searchTerm
+                          ? "没有匹配当前筛选条件的班级。"
+                          : "您还没有创建任何班级，请点击右上角按钮创建。"}
+                      </p>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {groupedByGrade.map(([grade, classes]) => {
+                    const isCollapsed = collapsedGrades.has(grade);
+                    const totalStudents = classes.reduce(
+                      (sum, cls) => sum + (cls.studentCount || 0),
+                      0
+                    );
+                    const avgScore =
+                      classes.reduce(
+                        (sum, cls) => sum + (cls.averageScore || 0),
+                        0
+                      ) / classes.length;
+
+                    return (
+                      <div
+                        key={grade}
+                        className="bg-white dark:bg-gray-850 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
+                      >
+                        {/* 年级标题栏 */}
+                        <div
+                          className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-750 cursor-pointer hover:from-blue-100 hover:to-purple-100 dark:hover:from-gray-750 dark:hover:to-gray-700 transition-colors"
+                          onClick={() => toggleGradeCollapse(grade)}
+                        >
+                          <div className="flex items-center space-x-3">
+                            {isCollapsed ? (
+                              <ChevronRight className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                            ) : (
+                              <ChevronDown className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                            )}
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                              {grade}
+                            </h3>
+                            <Badge variant="outline" className="ml-2">
+                              {classes.length} 个班级
+                            </Badge>
+                          </div>
+                          <div className="flex items-center space-x-6 text-sm text-gray-600 dark:text-gray-400">
+                            <div className="flex items-center space-x-1">
+                              <Users className="h-4 w-4" />
+                              <span>{totalStudents} 名学生</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <BarChart3 className="h-4 w-4" />
+                              <span>平均分: {avgScore.toFixed(1)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 班级卡片网格 */}
+                        {!isCollapsed && (
+                          <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                            {classes.map((classItem, index) => (
+                              <Card
+                                key={classItem.id}
+                                className={`group cursor-pointer transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-xl dark:bg-gray-800 dark:hover:bg-gray-750
                                 ${selectedClass?.id === classItem.id ? "ring-2 ring-[#B9FF66] border-[#B9FF66] shadow-lg" : "border-gray-200 dark:border-gray-700"}
                                 bg-white dark:bg-gray-850 border hover:border-[#B9FF66] rounded-lg overflow-hidden shadow-md
                               `}
-                              onClick={() => handleClassClick(classItem)}
-                            >
-                              <div
-                                className={`h-1.5 ${selectedClass?.id === classItem.id ? "bg-[#B9FF66]" : "bg-gray-300 dark:bg-gray-600"} group-hover:bg-[#B9FF66] transition-colors duration-300`}
-                              ></div>
-                              <CardHeader className="pb-2 px-4 pt-3">
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1 min-w-0">
-                                    <CardTitle className="text-lg font-semibold truncate text-gray-800 dark:text-white group-hover:text-[#5E9622] dark:group-hover:text-[#B9FF66] transition-colors duration-300">
-                                      {classItem.name}
-                                    </CardTitle>
-                                    <CardDescription className="text-xs text-gray-500 dark:text-gray-400">
-                                      {classItem.grade}
-                                    </CardDescription>
+                                onClick={() => handleClassClick(classItem)}
+                              >
+                                <div
+                                  className={`h-1.5 ${selectedClass?.id === classItem.id ? "bg-[#B9FF66]" : "bg-gray-300 dark:bg-gray-600"} group-hover:bg-[#B9FF66] transition-colors duration-300`}
+                                ></div>
+                                <CardHeader className="pb-2 px-4 pt-3">
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1 min-w-0">
+                                      <CardTitle className="text-lg font-semibold truncate text-gray-800 dark:text-white group-hover:text-[#5E9622] dark:group-hover:text-[#B9FF66] transition-colors duration-300">
+                                        {classItem.name}
+                                      </CardTitle>
+                                      <CardDescription className="text-xs text-gray-500 dark:text-gray-400">
+                                        {classItem.grade}
+                                      </CardDescription>
+                                    </div>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0 hover:bg-transparent"
+                                      onClick={(e) =>
+                                        toggleFavorite(classItem.id, e)
+                                      }
+                                    >
+                                      <Star
+                                        className={`h-5 w-5 transition-colors ${
+                                          favoriteClassIds.has(classItem.id)
+                                            ? "fill-yellow-400 text-yellow-400"
+                                            : "text-gray-300 hover:text-yellow-400"
+                                        }`}
+                                      />
+                                    </Button>
                                   </div>
+                                </CardHeader>
+                                <CardContent className="px-4 pb-3 space-y-1.5">
+                                  <div className="flex items-center text-xs text-gray-600 dark:text-gray-300">
+                                    <Users className="h-3.5 w-3.5 mr-1.5 text-[#B9FF66]" />{" "}
+                                    学生: {classItem.studentCount ?? "N/A"}
+                                  </div>
+                                  <div className="flex items-center text-xs text-gray-600 dark:text-gray-300">
+                                    <div className="flex items-center">
+                                      平均分:{" "}
+                                      {classItem.averageScore?.toFixed(1) ??
+                                        "N/A"}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center text-xs text-gray-600 dark:text-gray-300">
+                                    <div className="flex items-center">
+                                      优秀率:{" "}
+                                      {classItem.excellentRate !== undefined
+                                        ? classItem.excellentRate.toFixed(0) +
+                                          "%"
+                                        : "N/A"}
+                                    </div>
+                                  </div>
+                                  {/* 预警信息 */}
+                                  {classItem.warningCount !== undefined &&
+                                    classItem.warningCount > 0 && (
+                                      <div className="flex items-center text-xs text-orange-600 dark:text-orange-400">
+                                        <AlertTriangle className="h-3.5 w-3.5 mr-1.5" />
+                                        {classItem.warningCount} 人预警
+                                      </div>
+                                    )}
+                                  {/* 最近考试 */}
+                                  {classItem.lastExamTitle &&
+                                    classItem.lastExamDate && (
+                                      <div className="flex items-center text-xs text-blue-600 dark:text-blue-400">
+                                        <Calendar className="h-3.5 w-3.5 mr-1.5" />
+                                        {classItem.lastExamTitle} (
+                                        {new Date(
+                                          classItem.lastExamDate
+                                        ).toLocaleDateString("zh-CN", {
+                                          month: "numeric",
+                                          day: "numeric",
+                                        })}
+                                        )
+                                      </div>
+                                    )}
+                                </CardContent>
+                                <CardContent className="px-4 py-2 bg-gray-50 dark:bg-gray-800 flex justify-between items-center">
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-8 w-8 p-0 hover:bg-transparent"
-                                    onClick={(e) =>
-                                      toggleFavorite(classItem.id, e)
-                                    }
+                                    className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 hover:bg-red-50 dark:hover:bg-gray-700 px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    onClick={(e) => {
+                                      handleDeleteClass(
+                                        classItem.id,
+                                        classItem.name,
+                                        e
+                                      );
+                                    }}
                                   >
-                                    <Star
-                                      className={`h-5 w-5 transition-colors ${
-                                        favoriteClassIds.has(classItem.id)
-                                          ? "fill-yellow-400 text-yellow-400"
-                                          : "text-gray-300 hover:text-yellow-400"
-                                      }`}
-                                    />
+                                    <Trash2 className="h-4 w-4 mr-1" /> 删除
                                   </Button>
-                                </div>
-                              </CardHeader>
-                              <CardContent className="px-4 pb-3 space-y-1.5">
-                                <div className="flex items-center text-xs text-gray-600 dark:text-gray-300">
-                                  <Users className="h-3.5 w-3.5 mr-1.5 text-[#B9FF66]" />{" "}
-                                  学生: {classItem.studentCount ?? "N/A"}
-                                </div>
-                                <div className="flex items-center text-xs text-gray-600 dark:text-gray-300">
-                                  <div className="flex items-center">
-                                    平均分:{" "}
-                                    {classItem.averageScore?.toFixed(1) ??
-                                      "N/A"}
-                                  </div>
-                                </div>
-                                <div className="flex items-center text-xs text-gray-600 dark:text-gray-300">
-                                  <div className="flex items-center">
-                                    优秀率:{" "}
-                                    {classItem.excellentRate !== undefined
-                                      ? classItem.excellentRate.toFixed(0) + "%"
-                                      : "N/A"}
-                                  </div>
-                                </div>
-                                {/* 预警信息 */}
-                                {classItem.warningCount !== undefined &&
-                                  classItem.warningCount > 0 && (
-                                    <div className="flex items-center text-xs text-orange-600 dark:text-orange-400">
-                                      <AlertTriangle className="h-3.5 w-3.5 mr-1.5" />
-                                      {classItem.warningCount} 人预警
-                                    </div>
-                                  )}
-                                {/* 最近考试 */}
-                                {classItem.lastExamTitle &&
-                                  classItem.lastExamDate && (
-                                    <div className="flex items-center text-xs text-blue-600 dark:text-blue-400">
-                                      <Calendar className="h-3.5 w-3.5 mr-1.5" />
-                                      {classItem.lastExamTitle} (
-                                      {new Date(
-                                        classItem.lastExamDate
-                                      ).toLocaleDateString("zh-CN", {
-                                        month: "numeric",
-                                        day: "numeric",
-                                      })}
-                                      )
-                                    </div>
-                                  )}
-                              </CardContent>
-                              <CardContent className="px-4 py-2 bg-gray-50 dark:bg-gray-800 flex justify-between items-center">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 hover:bg-red-50 dark:hover:bg-gray-700 px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                  onClick={(e) => {
-                                    handleDeleteClass(
-                                      classItem.id,
-                                      classItem.name,
-                                      e
-                                    );
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-1" /> 删除
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-[#5E9622] hover:text-[#426811] dark:text-[#B9FF66] dark:hover:text-[#A8F055] hover:bg-[#B9FF66]/10 dark:hover:bg-gray-700 px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                  onClick={(e) => {
-                                    e.stopPropagation(); // 防止触发卡片点击
-                                    handleViewClassProfile(classItem.id);
-                                  }}
-                                >
-                                  <BarChart3 className="h-4 w-4 mr-1" />{" "}
-                                  班级画像
-                                </Button>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-[#5E9622] hover:text-[#426811] dark:text-[#B9FF66] dark:hover:text-[#A8F055] hover:bg-[#B9FF66]/10 dark:hover:bg-gray-700 px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    onClick={(e) => {
+                                      e.stopPropagation(); // 防止触发卡片点击
+                                      handleViewClassProfile(classItem.id);
+                                    }}
+                                  >
+                                    <BarChart3 className="h-4 w-4 mr-1" />{" "}
+                                    班级画像
+                                  </Button>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          )}
         </Card>
 
         {selectedClass && (
@@ -1224,7 +1364,10 @@ const ClassManagement: React.FC = () => {
               </TabsTrigger>
             </TabsList>
             <TabsContent value="overview" className="mt-4 p-0">
-              <OverviewTab selectedClass={selectedClass} />
+              <OverviewTab
+                selectedClass={selectedClass}
+                onTabChange={setSelectedTab}
+              />
             </TabsContent>
             <TabsContent value="students" className="mt-4 p-0">
               <StudentsTab
@@ -1263,9 +1406,6 @@ const ClassManagement: React.FC = () => {
               <ComparisonTab
                 selectedClass={selectedClass}
                 allClasses={allFetchedClasses}
-                boxPlotData={analysisData.boxPlotData}
-                trendData={analysisData.trendData}
-                competencyData={analysisData.competencyData}
                 isLoading={loading}
               />
             </TabsContent>

@@ -36,7 +36,9 @@ const StudentProfile = lazy(() => import("./pages/StudentProfile"));
 const StudentManagement = lazy(() => import("./pages/StudentManagement"));
 const ClassManagement = lazy(() => import("./pages/ClassManagement"));
 const ClassProfile = lazy(() => import("./pages/ClassProfile"));
-const AISettings = lazy(() => import("./pages/AISettings"));
+const AISettings = lazy(
+  () => import("./pages/settings/AISettingsPage-Enhanced")
+);
 const WarningAnalysis = lazy(() => import("./pages/WarningAnalysis"));
 const HomeworkManagement = lazy(() => import("./pages/HomeworkManagement"));
 const HomeworkDetailPage = lazy(() => import("./pages/HomeworkDetail"));

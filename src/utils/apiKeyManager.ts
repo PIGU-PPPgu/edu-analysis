@@ -1,11 +1,17 @@
 /**
- * API密钥管理工具
- * 用于安全地存储和检索API密钥，提供基本的加密和解密功能
+ * 增强版API密钥管理工具
+ * 支持多提供商、多API密钥、全局配置管理
+ * 提供localStorage持久化 + sessionStorage临时存储的混合方案
  */
 
+import { AIProviderConfig } from "@/config/aiModels";
+
 // 密钥存储在sessionStorage中的键名
-const API_KEY_STORAGE_KEY = "userApiKey";
-const API_CONFIG_STORAGE_KEY = "userApiConfig";
+const API_KEY_STORAGE_KEY = "userApiKey"; // 兼容旧版
+const API_KEYS_STORAGE_KEY = "user_api_keys"; // 多提供商API密钥
+const API_CONFIG_STORAGE_KEY = "userApiConfig"; // 兼容旧版
+const GLOBAL_AI_CONFIG_KEY = "global_ai_config"; // 全局AI配置
+const PREFERRED_PROVIDER_KEY = "preferred_ai_provider"; // 首选提供商
 const ENC_PREFIX = "ENC_"; // 加密标识前缀
 
 /**
@@ -176,7 +182,274 @@ export function getSecureApiHeaders(provider?: string): Record<string, string> {
   }
 }
 
+// ==================== 多提供商API密钥管理 ====================
+
+export interface ProviderApiKeys {
+  [providerId: string]: {
+    apiKey: string;
+    baseURL?: string;
+    orgId?: string;
+    projectId?: string;
+    region?: string;
+    lastUsed?: string;
+    isDefault?: boolean;
+  };
+}
+
+/**
+ * 保存特定提供商的API密钥
+ */
+export function saveProviderApiKey(
+  providerId: string,
+  config: AIProviderConfig,
+  persist: boolean = true
+): void {
+  const storage = persist ? localStorage : sessionStorage;
+  const allKeys = getAllProviderApiKeys(persist);
+
+  allKeys[providerId] = {
+    apiKey: config.apiKey,
+    baseURL: config.baseURL,
+    orgId: config.orgId,
+    projectId: config.projectId,
+    region: config.region,
+    lastUsed: new Date().toISOString(),
+    isDefault: false,
+  };
+
+  // 加密后存储
+  const encrypted: Record<string, any> = {};
+  Object.entries(allKeys).forEach(([key, value]) => {
+    encrypted[key] = {
+      ...value,
+      apiKey: encryptApiKey(value.apiKey),
+    };
+  });
+
+  storage.setItem(API_KEYS_STORAGE_KEY, JSON.stringify(encrypted));
+}
+
+/**
+ * 获取特定提供商的API密钥
+ */
+export function getProviderApiKey(
+  providerId: string,
+  checkBoth: boolean = true
+): AIProviderConfig | null {
+  let allKeys = getAllProviderApiKeys(false);
+
+  if (checkBoth && !allKeys[providerId]) {
+    allKeys = getAllProviderApiKeys(true);
+  }
+
+  const config = allKeys[providerId];
+  if (!config) {
+    return getProviderConfigFromEnv(providerId);
+  }
+
+  return {
+    apiKey: config.apiKey,
+    baseURL: config.baseURL,
+    orgId: config.orgId,
+    projectId: config.projectId,
+    region: config.region,
+  };
+}
+
+/**
+ * 获取所有提供商的API密钥
+ */
+function getAllProviderApiKeys(fromPersistent: boolean): ProviderApiKeys {
+  const storage = fromPersistent ? localStorage : sessionStorage;
+  const stored = storage.getItem(API_KEYS_STORAGE_KEY);
+
+  if (!stored) return {};
+
+  try {
+    const encrypted = JSON.parse(stored);
+    const decrypted: ProviderApiKeys = {};
+
+    Object.entries(encrypted).forEach(([key, value]: [string, any]) => {
+      decrypted[key] = {
+        ...value,
+        apiKey: decryptApiKey(value.apiKey),
+      };
+    });
+
+    return decrypted;
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * 从环境变量获取提供商配置
+ */
+function getProviderConfigFromEnv(providerId: string): AIProviderConfig | null {
+  const envKeyMap: Record<string, string> = {
+    openai: "VITE_OPENAI_API_KEY",
+    anthropic: "VITE_ANTHROPIC_API_KEY",
+    google: "VITE_GOOGLE_API_KEY",
+    azure: "VITE_AZURE_OPENAI_API_KEY",
+    deepseek: "VITE_DEEPSEEK_API_KEY",
+    xai: "VITE_XAI_API_KEY",
+    doubao: "VITE_DOUBAO_API_KEY",
+    moonshot: "VITE_MOONSHOT_API_KEY",
+    baidu: "VITE_BAIDU_API_KEY",
+    zhipu: "VITE_ZHIPU_API_KEY",
+  };
+
+  const envKey = envKeyMap[providerId];
+  if (!envKey) return null;
+
+  const apiKey = import.meta.env[envKey];
+  if (!apiKey) return null;
+
+  return { apiKey };
+}
+
+/**
+ * 删除特定提供商的API密钥
+ */
+export function clearProviderApiKey(
+  providerId: string,
+  fromBoth: boolean = true
+): void {
+  if (fromBoth) {
+    clearProviderApiKeyFromStorage(providerId, localStorage);
+    clearProviderApiKeyFromStorage(providerId, sessionStorage);
+  } else {
+    clearProviderApiKeyFromStorage(providerId, sessionStorage);
+  }
+}
+
+function clearProviderApiKeyFromStorage(
+  providerId: string,
+  storage: Storage
+): void {
+  const allKeys = getAllProviderApiKeys(storage === localStorage);
+  delete allKeys[providerId];
+
+  const encrypted: Record<string, any> = {};
+  Object.entries(allKeys).forEach(([key, value]) => {
+    encrypted[key] = {
+      ...value,
+      apiKey: encryptApiKey(value.apiKey),
+    };
+  });
+
+  storage.setItem(API_KEYS_STORAGE_KEY, JSON.stringify(encrypted));
+}
+
+/**
+ * 检查是否有特定提供商的API密钥
+ */
+export function hasProviderApiKey(providerId: string): boolean {
+  const config = getProviderApiKey(providerId);
+  return !!config && !!config.apiKey && config.apiKey.length > 0;
+}
+
+/**
+ * 获取所有已配置的提供商列表
+ */
+export function getConfiguredProviders(): string[] {
+  const persistent = getAllProviderApiKeys(true);
+  const session = getAllProviderApiKeys(false);
+  const allProviders = new Set([
+    ...Object.keys(persistent),
+    ...Object.keys(session),
+  ]);
+  return Array.from(allProviders);
+}
+
+// ==================== 首选提供商管理 ====================
+
+export function setPreferredProvider(providerId: string): void {
+  localStorage.setItem(PREFERRED_PROVIDER_KEY, providerId);
+}
+
+export function getPreferredProvider(): string | null {
+  return localStorage.getItem(PREFERRED_PROVIDER_KEY);
+}
+
+// ==================== 全局AI配置管理 ====================
+
+export interface GlobalAIConfig {
+  defaultProvider: string;
+  defaultModel: string;
+  defaultTemperature: number;
+  defaultMaxTokens: number;
+  fallbackProviders: string[];
+  enableCache: boolean;
+  enableCostTracking: boolean;
+  modelPreferences: {
+    [scenario: string]: {
+      provider: string;
+      model: string;
+    };
+  };
+}
+
+const DEFAULT_GLOBAL_CONFIG: GlobalAIConfig = {
+  defaultProvider: "openai",
+  defaultModel: "gpt-4o-mini",
+  defaultTemperature: 0.7,
+  defaultMaxTokens: 2000,
+  fallbackProviders: [],
+  enableCache: true,
+  enableCostTracking: true,
+  modelPreferences: {},
+};
+
+export function saveGlobalAIConfig(config: Partial<GlobalAIConfig>): void {
+  const current = getGlobalAIConfig();
+  const updated = { ...current, ...config };
+  localStorage.setItem(GLOBAL_AI_CONFIG_KEY, JSON.stringify(updated));
+}
+
+export function getGlobalAIConfig(): GlobalAIConfig {
+  const stored = localStorage.getItem(GLOBAL_AI_CONFIG_KEY);
+  if (!stored) return DEFAULT_GLOBAL_CONFIG;
+
+  try {
+    return { ...DEFAULT_GLOBAL_CONFIG, ...JSON.parse(stored) };
+  } catch {
+    return DEFAULT_GLOBAL_CONFIG;
+  }
+}
+
+export function clearGlobalAIConfig(): void {
+  localStorage.removeItem(GLOBAL_AI_CONFIG_KEY);
+}
+
+/**
+ * 获取API基础URL
+ */
+export function getApiBaseURL(providerId: string): string {
+  const config = getProviderApiKey(providerId);
+
+  if (config?.baseURL) {
+    return config.baseURL;
+  }
+
+  const defaultURLs: Record<string, string> = {
+    openai: "https://api.openai.com/v1",
+    anthropic: "https://api.anthropic.com/v1",
+    google: "https://generativelanguage.googleapis.com/v1beta",
+    openrouter: "https://openrouter.ai/api/v1",
+    deepseek: "https://api.deepseek.com/v1",
+    xai: "https://api.x.ai/v1",
+    doubao: "https://ark.cn-beijing.volces.com/api/v3",
+    moonshot: "https://api.moonshot.cn/v1",
+    baidu: "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop",
+    zhipu: "https://open.bigmodel.cn/api/paas/v4",
+  };
+
+  return defaultURLs[providerId] || "";
+}
+
 export default {
+  // 旧版兼容
   saveApiKey,
   getApiKey,
   clearApiKey,
@@ -186,4 +459,16 @@ export default {
   clearApiConfig,
   isApiConfigValid,
   getSecureApiHeaders,
+  // 新版方法
+  saveProviderApiKey,
+  getProviderApiKey,
+  clearProviderApiKey,
+  hasProviderApiKey,
+  getConfiguredProviders,
+  setPreferredProvider,
+  getPreferredProvider,
+  saveGlobalAIConfig,
+  getGlobalAIConfig,
+  clearGlobalAIConfig,
+  getApiBaseURL,
 };

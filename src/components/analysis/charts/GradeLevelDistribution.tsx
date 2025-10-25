@@ -203,31 +203,51 @@ const GradeLevelDistribution: React.FC<GradeLevelDistributionProps> = ({
       });
     });
 
+    // 强制按照 A+、A、B+、B、C+、C、缺考 的顺序排列（不包含D）
+    const gradeOrder = ["A+", "A", "B+", "B", "C+", "C", "缺考"];
+    const sortedGrades = gradeOrder.filter((grade) => allGrades.has(grade));
+
+    // 添加其他未预定义的等级（如果有）
+    const otherGrades = Array.from(allGrades).filter(
+      (grade) => !gradeOrder.includes(grade)
+    );
+
     return {
       totalStudents,
       totalRecords,
       subjectCount: distributionData.length,
       hasAnyGradeData,
-      allGrades: Array.from(allGrades).sort(),
+      allGrades: [...sortedGrades, ...otherGrades],
     };
   }, [gradeData, distributionData]);
 
-  // 动态等级颜色映射
+  // 动态等级颜色映射（按照A+、A、B+、B、C+、C、缺考顺序）
   const getLevelColor = (level: string) => {
-    // 优先级颜色：优秀等级用绿色，不及格/失败等级用红色，其他用不同透明度的绿色
-    if (level.includes("A+") || level.includes("优秀")) return "#B9FF66";
-    if (level.includes("A") && !level.includes("+")) return "#B9FF66";
-    if (level.includes("B+")) return "#B9FF66";
-    if (level.includes("B") && !level.includes("+")) return "#B9FF66";
+    // A+ 和 A 等级：深绿色
+    if (level === "A+") return "#4ADE80";
+    if (level === "A") return "#B9FF66";
+
+    // B+ 和 B 等级：浅绿色
+    if (level === "B+") return "#D4F1A6";
+    if (level === "B") return "#E8F8C7";
+
+    // C+ 和 C 等级：黄绿色
+    if (level === "C+") return "#FEF08A";
+    if (level === "C") return "#FDE68A";
+
+    // 缺考等级：红色
     if (
-      level.includes("C") ||
-      level.includes("D") ||
+      level.includes("缺考") ||
       level.includes("F") ||
       level.includes("不及格")
     )
       return "#FF6B6B";
+
+    // 其他等级（兼容旧数据）
+    if (level.includes("优秀")) return "#4ADE80";
     if (level.includes("良好")) return "#B9FF66";
-    if (level.includes("及格")) return "#B9FF66";
+    if (level.includes("及格")) return "#D4F1A6";
+
     // 默认颜色
     return "#B9FF66";
   };
@@ -259,17 +279,19 @@ const GradeLevelDistribution: React.FC<GradeLevelDistributionProps> = ({
                     ? ((count / data.total) * 100).toFixed(1)
                     : "0.0";
                 const icon =
-                  grade.includes("A+") || grade.includes("优秀")
-                    ? ""
-                    : grade.includes("A")
-                      ? ""
-                      : grade.includes("B")
-                        ? ""
-                        : grade.includes("C")
-                          ? ""
-                          : grade.includes("不及格") || grade.includes("F")
-                            ? ""
-                            : "";
+                  grade === "A+"
+                    ? "🏆"
+                    : grade === "A"
+                      ? "⭐"
+                      : grade === "B+" || grade === "B"
+                        ? "👍"
+                        : grade === "C+" || grade === "C"
+                          ? "📝"
+                          : grade.includes("缺考")
+                            ? "⚠️"
+                            : grade.includes("不及格") || grade.includes("F")
+                              ? "❌"
+                              : "";
 
                 return (
                   <p key={grade} className="text-sm font-medium text-[#191A23]">
@@ -386,17 +408,19 @@ const GradeLevelDistribution: React.FC<GradeLevelDistributionProps> = ({
             <div className="flex justify-center gap-4 flex-wrap">
               {overallStats.allGrades.map((grade, index) => {
                 const icon =
-                  grade.includes("A+") || grade.includes("优秀")
-                    ? ""
-                    : grade.includes("A")
-                      ? ""
-                      : grade.includes("B")
-                        ? ""
-                        : grade.includes("C")
-                          ? ""
-                          : grade.includes("不及格") || grade.includes("F")
-                            ? ""
-                            : "";
+                  grade === "A+"
+                    ? "🏆"
+                    : grade === "A"
+                      ? "⭐"
+                      : grade === "B+" || grade === "B"
+                        ? "👍"
+                        : grade === "C+" || grade === "C"
+                          ? "📝"
+                          : grade.includes("缺考")
+                            ? "⚠️"
+                            : grade.includes("不及格") || grade.includes("F")
+                              ? "❌"
+                              : "";
 
                 return (
                   <div key={grade} className="flex items-center gap-2">
@@ -405,9 +429,11 @@ const GradeLevelDistribution: React.FC<GradeLevelDistributionProps> = ({
                       style={{
                         backgroundColor: gradeColors[grade],
                         opacity:
-                          grade.includes("不及格") || grade.includes("F")
+                          grade.includes("不及格") ||
+                          grade.includes("F") ||
+                          grade.includes("缺考")
                             ? 1
-                            : 0.8 - index * 0.1,
+                            : 0.95 - index * 0.05,
                       }}
                     ></div>
                     <span className="font-bold text-[#191A23] text-sm">
@@ -458,27 +484,29 @@ const GradeLevelDistribution: React.FC<GradeLevelDistributionProps> = ({
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                      {Object.entries(item.gradeCounts).map(
-                        ([grade, count]) => {
-                          if (count === 0) return null;
-                          const color = getLevelColor(grade);
-                          const isLowGrade =
-                            grade.includes("不及格") || grade.includes("F");
+                      {/* 按照固定顺序显示等级 */}
+                      {overallStats.allGrades.map((grade) => {
+                        const count = item.gradeCounts[grade];
+                        if (!count || count === 0) return null;
+                        const color = getLevelColor(grade);
+                        const isLowGrade =
+                          grade.includes("不及格") ||
+                          grade.includes("F") ||
+                          grade.includes("缺考");
 
-                          return (
-                            <Badge
-                              key={grade}
-                              className={`text-center border-2 border-black ${
-                                isLowGrade
-                                  ? "bg-[#FF6B6B] text-white"
-                                  : "bg-[#B9FF66] text-[#191A23]"
-                              }`}
-                            >
-                              {grade} {count}
-                            </Badge>
-                          );
-                        }
-                      )}
+                        return (
+                          <Badge
+                            key={grade}
+                            className={`text-center border-2 border-black ${
+                              isLowGrade
+                                ? "bg-[#FF6B6B] text-white"
+                                : "bg-[#B9FF66] text-[#191A23]"
+                            }`}
+                          >
+                            {grade} {count}
+                          </Badge>
+                        );
+                      })}
                     </div>
 
                     <div className="text-right">

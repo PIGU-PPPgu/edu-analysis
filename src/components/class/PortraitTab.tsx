@@ -28,34 +28,7 @@ const PortraitTab: React.FC<PortraitTabProps> = ({ selectedClass }) => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* 班级标识头部 - Neo-brutalism green theme */}
-      <div className="border-2 border-black shadow-[4px_4px_0px_0px_#000] rounded-lg p-6 bg-white">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="bg-[#B9FF66] border-2 border-black rounded-2xl p-3">
-              <Brain className="h-8 w-8 text-black" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-black mb-1">
-                {selectedClass.name}
-              </h2>
-              <p className="text-[#5E9622] text-sm font-medium">
-                {selectedClass.grade} · 智能画像
-              </p>
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="bg-[#B9FF66]/10 border-2 border-black rounded-lg px-4 py-2">
-              <p className="text-xs text-[#5E9622] mb-1">当前查看</p>
-              <p className="text-lg font-bold text-black">
-                {selectedClass.name}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
+    <div className="space-y-4">
       <Card>
         <CardHeader>
           <CardTitle>智能画像</CardTitle>
@@ -65,15 +38,15 @@ const PortraitTab: React.FC<PortraitTabProps> = ({ selectedClass }) => {
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="smart">
                 <Sparkles className="h-4 w-4 mr-2" />
-                画像生成
+                班级画像
               </TabsTrigger>
               <TabsTrigger value="enhanced">
                 <Zap className="h-4 w-4 mr-2" />
-                能力画像
+                学生能力分析
               </TabsTrigger>
               <TabsTrigger value="ai-analysis">
                 <Brain className="h-4 w-4 mr-2" />
-                学习分析
+                AI智能洞察
               </TabsTrigger>
             </TabsList>
 
