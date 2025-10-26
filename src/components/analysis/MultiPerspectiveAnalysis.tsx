@@ -28,6 +28,7 @@ import {
   ScatterChart,
   Scatter,
   RadarChart,
+  Radar,
   PolarGrid,
   PolarAngleAxis,
   PolarRadiusAxis,

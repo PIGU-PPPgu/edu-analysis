@@ -97,37 +97,32 @@ const VirtualRow = memo<{
     onSelectRow: (id: string, selected: boolean) => void;
   };
 }>(({ index, style, data }) => {
-  // 🎯 性能监控：仅在开发环境启用
-  const startTime =
-    process.env.NODE_ENV === "development" ? performance.now() : 0;
-
   const { items, columns, onRowClick, selectedRows, onSelectRow } = data;
   const row = items[index];
 
-  if (!row) {
-    return <div style={style} className="h-12" />;
-  }
-
-  const isSelected = selectedRows.has(row.id);
-
-  // 🎯 性能优化：预计算值，避免重复计算
-  const rowClassName = `flex items-center border-b hover:bg-gray-50 cursor-pointer ${isSelected ? "bg-blue-50" : ""}`;
-
-  // 🎯 性能优化：缓存回调函数
+  // 🎯 React Hooks必须在所有条件判断之前调用
   const handleRowClick = useCallback(() => {
-    onRowClick?.(row);
-  }, [onRowClick, row.id]);
+    if (row) onRowClick?.(row);
+  }, [onRowClick, row?.id]);
 
   const handleCheckboxChange = useCallback(
     (checked: boolean) => {
-      onSelectRow(row.id, checked);
+      if (row) onSelectRow(row.id, checked);
     },
-    [onSelectRow, row.id]
+    [onSelectRow, row?.id]
   );
 
   const handleCheckboxClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
   }, []);
+
+  // Early return after all hooks
+  if (!row) {
+    return <div style={style} className="h-12" />;
+  }
+
+  const isSelected = selectedRows.has(row.id);
+  const rowClassName = `flex items-center border-b hover:bg-gray-50 cursor-pointer ${isSelected ? "bg-blue-50" : ""}`;
 
   return (
     <div style={style} className={rowClassName} onClick={handleRowClick}>

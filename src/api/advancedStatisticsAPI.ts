@@ -333,7 +333,7 @@ export class AdvancedStatisticsAPI {
       };
 
       switch (request.modelType) {
-        case PredictionModelType.LINEAR_REGRESSION:
+        case PredictionModelType.LINEAR_REGRESSION: {
           const linearResult = this.performLinearRegression(
             trainingData,
             request.targetVariable,
@@ -343,8 +343,9 @@ export class AdvancedStatisticsAPI {
           predictions = linearResult.predictions;
           modelInfo = linearResult.model;
           break;
+        }
 
-        case PredictionModelType.TIME_SERIES:
+        case PredictionModelType.TIME_SERIES: {
           const timeSeriesResult = this.performTimeSeriesPrediction(
             trainingData,
             request.targetVariable,
@@ -353,6 +354,7 @@ export class AdvancedStatisticsAPI {
           predictions = timeSeriesResult.predictions;
           modelInfo = timeSeriesResult.model;
           break;
+        }
 
         default:
           throw new Error(`不支持的模型类型: ${request.modelType}`);
