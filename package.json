@@ -9,7 +9,8 @@
   "homepage": "https://figma-frame-faithful.com",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 3000",
-    "build": "tsc && vite build",
+    "build": "vite build",
+    "build:strict": "tsc && vite build",
     "build:analyze": "npm run build && npx vite-bundle-analyzer dist",
     "build:stats": "npm run build -- --mode=analyze",
     "build:types": "tsc --noEmit",

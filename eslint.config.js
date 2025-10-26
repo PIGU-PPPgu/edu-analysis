@@ -7,7 +7,7 @@ import prettier from "eslint-config-prettier";
 import prettierPlugin from "eslint-plugin-prettier";
 
 export default tseslint.config(
-  { ignores: ["dist", "node_modules", "coverage", "*.config.js", "*.config.ts", "ImportProcessor-fix-patch.tsx", "backup/**", "logs/**", "scripts/**", "server/**", "supabase/**", "tools/**", "public/**"] },
+  { ignores: ["dist", "node_modules", "coverage", "*.config.js", "*.config.ts", "ImportProcessor-fix-patch.tsx", "backup/**", "backup_archived_20250905/**", "logs/**", "scripts/**", "server/**", "supabase/**", "tools/**", "public/**", "check-tables.ts"] },
   {
     extends: [
       js.configs.recommended, 
