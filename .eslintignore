@@ -1,0 +1,9 @@
+# 备份文件夹
+backup_archived_20250905/**
+
+# 其他不需要检查的文件
+node_modules/**
+dist/**
+build/**
+.cache/**
+*.min.js
