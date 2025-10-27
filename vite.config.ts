@@ -68,21 +68,22 @@ export default defineConfig(({ mode }) => ({
             return 'vendor-misc';
           }
           
-          // 应用代码分割
+          // 应用代码分割（简化以避免循环依赖问题）
           if (id.includes('/pages/')) {
             return 'pages';
           }
-          if (id.includes('/components/analysis/') || id.includes('/components/charts/')) {
-            return 'analysis';
-          }
+          // ⚠️ 暂时禁用 analysis 和 services 的分割以避免初始化顺序问题
+          // if (id.includes('/components/analysis/') || id.includes('/components/charts/')) {
+          //   return 'analysis';
+          // }
+          // if (id.includes('/services/')) {
+          //   return 'services';
+          // }
           if (id.includes('/components/ai/') || id.includes('/services/ai/')) {
             return 'ai-features';
           }
           if (id.includes('/components/warning/') || id.includes('/services/warning/')) {
             return 'warning-system';
-          }
-          if (id.includes('/services/')) {
-            return 'services';
           }
         },
         // 控制文件名
