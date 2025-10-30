@@ -37,19 +37,8 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        // 🚀 Master-Frontend: 简化代码分割策略，避免初始化顺序问题
-        manualChunks: (id) => {
-          // 只分割 node_modules，应用代码不手动分割
-          if (id.includes('node_modules')) {
-            // React核心库单独打包
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react/')) {
-              return 'vendor-react';
-            }
-            // 其他所有第三方库打包在一起
-            return 'vendor';
-          }
-          // 应用代码不手动分割，让 Vite 自动处理
-        },
+        // 🚀 完全禁用代码分割以避免初始化顺序问题
+        manualChunks: undefined,
         // 控制文件名
         chunkFileNames: (chunkInfo) => {
           const facadeModuleId = chunkInfo.facadeModuleId 
