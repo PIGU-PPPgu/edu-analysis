@@ -5,6 +5,29 @@ echo "========================================"
 echo "🚀 开始部署 edu-analysis..."
 echo "========================================"
 
+# 🔄 自动更新部署脚本
+echo "🔄 检查脚本更新..."
+SCRIPT_URL="https://raw.githubusercontent.com/PIGU-PPPgu/edu-analysis/main/deploy-server.sh"
+SCRIPT_PATH="$HOME/deploy.sh"
+
+# 下载最新版本到临时文件
+if wget -q -O /tmp/deploy-new.sh "$SCRIPT_URL" 2>/dev/null; then
+  # 比较文件是否不同
+  if ! cmp -s "$SCRIPT_PATH" /tmp/deploy-new.sh; then
+    echo "✅ 发现新版本，更新脚本..."
+    cp /tmp/deploy-new.sh "$SCRIPT_PATH"
+    chmod +x "$SCRIPT_PATH"
+    rm /tmp/deploy-new.sh
+    echo "🔄 重新运行更新后的脚本..."
+    exec "$SCRIPT_PATH"
+  else
+    echo "✅ 脚本已是最新版本"
+    rm /tmp/deploy-new.sh
+  fi
+else
+  echo "⚠️ 无法检查更新，使用当前版本"
+fi
+
 cd /tmp
 rm -rf edu-temp
 
