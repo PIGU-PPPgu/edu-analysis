@@ -37,54 +37,18 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        // 🚀 Master-Frontend: 改进的代码分割策略
+        // 🚀 Master-Frontend: 简化代码分割策略，避免初始化顺序问题
         manualChunks: (id) => {
+          // 只分割 node_modules，应用代码不手动分割
           if (id.includes('node_modules')) {
-            // React核心库
-            if (id.includes('react') || id.includes('react-dom')) {
+            // React核心库单独打包
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react/')) {
               return 'vendor-react';
             }
-            // 图表库
-            if (id.includes('recharts') || id.includes('@nivo') || id.includes('d3')) {
-              return 'vendor-charts';
-            }
-            // UI组件库
-            if (id.includes('radix') || id.includes('headless') || id.includes('lucide')) {
-              return 'vendor-ui';
-            }
-            // 工具库
-            if (id.includes('lodash') || id.includes('date-fns') || id.includes('clsx') || id.includes('class-variance-authority')) {
-              return 'vendor-utils';
-            }
-            // 路由和状态管理
-            if (id.includes('router') || id.includes('query') || id.includes('zustand')) {
-              return 'vendor-state';
-            }
-            // 数据库和API
-            if (id.includes('supabase') || id.includes('postgrest')) {
-              return 'vendor-db';
-            }
-            // 其他第三方库
-            return 'vendor-misc';
+            // 其他所有第三方库打包在一起
+            return 'vendor';
           }
-          
-          // 应用代码分割（简化以避免循环依赖问题）
-          if (id.includes('/pages/')) {
-            return 'pages';
-          }
-          // ⚠️ 暂时禁用 analysis 和 services 的分割以避免初始化顺序问题
-          // if (id.includes('/components/analysis/') || id.includes('/components/charts/')) {
-          //   return 'analysis';
-          // }
-          // if (id.includes('/services/')) {
-          //   return 'services';
-          // }
-          if (id.includes('/components/ai/') || id.includes('/services/ai/')) {
-            return 'ai-features';
-          }
-          if (id.includes('/components/warning/') || id.includes('/services/warning/')) {
-            return 'warning-system';
-          }
+          // 应用代码不手动分割，让 Vite 自动处理
         },
         // 控制文件名
         chunkFileNames: (chunkInfo) => {
