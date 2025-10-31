@@ -63,16 +63,9 @@ export interface WarningFiltersProps {
 const WarningFilters: React.FC<WarningFiltersProps> = ({
   filter,
   onFilterChange,
-  availableExamTypes = [
-    "月考",
-    "期中考试",
-    "期末考试",
-    "模拟考试",
-    "单元测试",
-    "诊断考试",
-  ],
-  availableClassNames = [], // 新增：班级列表默认值
-  availableExamTitles = [], // 新增：考试列表默认值
+  availableExamTypes = [], // 移除硬编码默认值，避免显示其他用户数据
+  availableClassNames = [],
+  availableExamTitles = [],
   className,
   compact = false,
   onClose,
