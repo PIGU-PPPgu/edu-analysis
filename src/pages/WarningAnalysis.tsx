@@ -283,21 +283,16 @@ const WarningAnalysis = () => {
         }));
         console.log("✅ 最终班级列表设置成功:", finalClassNames);
       } else {
-        console.warn("⚠️ 未找到任何班级数据");
-        // 设置一个默认的班级列表用于测试
-        const defaultClasses = [
-          "初三7班",
-          "初三14班",
-          "初三4班",
-          "初三1班",
-          "初三10班",
-        ];
-        setAvailableClassNames(defaultClasses);
+        console.warn(
+          "⚠️ 未找到任何班级数据 - 这是正常的，说明用户还没有上传数据"
+        );
+        // 设置空列表（不使用默认值，避免显示其他用户的数据）
+        setAvailableClassNames([]);
         setFilterConfig((prev) => ({
           ...prev,
-          classNames: defaultClasses,
+          classNames: [],
         }));
-        console.log("🔧 使用默认班级列表:", defaultClasses);
+        console.log("🔧 班级列表为空 - 用户需要先上传数据");
       }
 
       // 📊 获取考试列表 - 从grades表获取
@@ -328,15 +323,12 @@ const WarningAnalysis = () => {
           "个"
         );
       } else {
-        console.error("考试数据查询失败:", examError);
-        // 使用默认考试列表
-        finalExamTitles = [
-          "907九下月考8",
-          "908九下月考9",
-          "909九下期中考试",
-          "910九下期末考试",
-        ];
-        console.log("🔧 使用默认考试列表:", finalExamTitles);
+        console.warn(
+          "⚠️ 未找到任何考试数据 - 这是正常的，说明用户还没有上传数据"
+        );
+        // 设置空列表（不使用默认值，避免显示其他用户的数据）
+        finalExamTitles = [];
+        console.log("🔧 考试列表为空 - 用户需要先上传数据");
       }
 
       setAvailableExamTitles(finalExamTitles);
@@ -358,17 +350,9 @@ const WarningAnalysis = () => {
         description: "无法加载班级和考试数据，请检查数据库连接",
       });
 
-      // 即使出错也设置默认选项
-      const defaultClasses = [
-        "初三7班",
-        "初三14班",
-        "初三4班",
-        "初三1班",
-        "初三10班",
-      ];
-      const defaultExams = ["907九下月考8", "908九下月考9", "909九下期中考试"];
-      setAvailableClassNames(defaultClasses);
-      setAvailableExamTitles(defaultExams);
+      // 出错时设置空列表（不使用默认值）
+      setAvailableClassNames([]);
+      setAvailableExamTitles([]);
     }
   };
 

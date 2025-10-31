@@ -39,7 +39,8 @@
         "@supabase/mcp-server"
       ],
       "env": {
-        "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}"
+        "SUPABASE_URL": "https://giluhqotfjpmofowvogn.supabase.co",
+        "SUPABASE_SERVICE_ROLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdpbHVocW90ZmpwbW9mb3d2b2duIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NTMwMjAwNCwiZXhwIjoyMDYwODc4MDA0fQ.4QwQIa3zLndJo4tMhv9X_YHJjZ6Vr9p3IRt9ARgbcCI"
       }
     },
     "magic": {
