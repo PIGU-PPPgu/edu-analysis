@@ -109,21 +109,12 @@ export const SUBJECT_OPTIONS = [
   "信息技术",
 ] as const;
 
-// 班级选项
-export const CLASS_OPTIONS = [
-  "高一(1)班",
-  "高一(2)班",
-  "高一(3)班",
-  "高一(4)班",
-  "高二(1)班",
-  "高二(2)班",
-  "高二(3)班",
-  "高二(4)班",
-  "高三(1)班",
-  "高三(2)班",
-  "高三(3)班",
-  "高三(4)班",
-] as const;
+// ⚠️ DEPRECATED: 不要使用此常量！
+// 硬编码的班级列表会导致数据泄露，让不同用户看到彼此的数据
+// 应该从数据库动态加载班级列表，使用 RLS 确保数据隔离
+// 示例：await supabase.from("class_info").select("class_name")
+// @deprecated 此常量已弃用，仅保留以防向后兼容，不应在新代码中使用
+export const CLASS_OPTIONS = [] as const;
 
 // 考试类型映射
 export const EXAM_TYPE_MAP: Record<string, { color: string; emoji: string }> = {

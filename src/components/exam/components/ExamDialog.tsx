@@ -42,13 +42,13 @@ import {
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Exam,
   ExamFormData,
   ExamType,
   AcademicTerm,
   SUBJECT_OPTIONS,
-  CLASS_OPTIONS,
 } from "../types";
 
 interface ExamDialogProps {
@@ -86,6 +86,33 @@ export const ExamDialog: React.FC<ExamDialogProps> = ({
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [availableClasses, setAvailableClasses] = useState<string[]>([]);
+
+  // 加载可用班级列表
+  useEffect(() => {
+    if (open) {
+      const loadClasses = async () => {
+        try {
+          const { data, error } = await supabase
+            .from("class_info")
+            .select("class_name")
+            .order("class_name");
+
+          if (!error && data) {
+            setAvailableClasses(data.map((c) => c.class_name));
+          } else {
+            console.error("加载班级列表失败:", error);
+            setAvailableClasses([]);
+          }
+        } catch (error) {
+          console.error("加载班级列表时出错:", error);
+          setAvailableClasses([]);
+        }
+      };
+
+      loadClasses();
+    }
+  }, [open]);
 
   // 初始化表单数据
   useEffect(() => {
@@ -505,8 +532,13 @@ export const ExamDialog: React.FC<ExamDialogProps> = ({
                 <Users className="h-4 w-4" />
                 班级选择 <span className="text-red-500">*</span>
               </Label>
+              {availableClasses.length === 0 && (
+                <p className="text-sm text-muted-foreground mb-2">
+                  暂无班级数据，请先上传成绩数据
+                </p>
+              )}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
-                {CLASS_OPTIONS.map((className) => (
+                {availableClasses.map((className) => (
                   <Button
                     key={className}
                     type="button"
