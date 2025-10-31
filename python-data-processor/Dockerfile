@@ -14,8 +14,9 @@ RUN apt-get update && apt-get install -y \
 # 复制依赖文件
 COPY requirements.txt .
 
-# 设置pip配置以优化安装速度
-RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+# 设置pip配置（CI环境使用官方源，本地可覆盖）
+ARG PIP_INDEX_URL=https://pypi.org/simple
+RUN if [ -n "$PIP_INDEX_URL" ]; then pip config set global.index-url $PIP_INDEX_URL; fi
 
 # 安装Python依赖
 RUN pip install --no-cache-dir -r requirements.txt

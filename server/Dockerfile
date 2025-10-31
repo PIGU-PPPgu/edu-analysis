@@ -10,8 +10,9 @@ RUN apk add --no-cache curl
 # 复制包配置文件
 COPY package*.json ./
 
-# 设置npm配置
-RUN npm config set registry https://registry.npmmirror.com/
+# 设置npm配置（CI环境使用官方源，本地可覆盖）
+ARG NPM_REGISTRY=https://registry.npmjs.org/
+RUN npm config set registry $NPM_REGISTRY
 
 # 安装依赖
 RUN npm ci --only=production=false --silent
