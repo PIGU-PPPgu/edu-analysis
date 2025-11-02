@@ -37,6 +37,8 @@ jobs:
       run: npm run test:run || echo "⚠️ Tests need to be added"
       
     - name: 📊 Upload coverage to Codecov
+      if: always()
+      continue-on-error: true
       uses: codecov/codecov-action@v3
       with:
         file: ./coverage/lcov.info
