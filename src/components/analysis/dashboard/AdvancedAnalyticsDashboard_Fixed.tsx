@@ -238,7 +238,7 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white flex">
+    <div className="min-h-screen bg-white flex px-8">
       {/* 侧边筛选栏 */}
       {showSidebar && (
         <>
@@ -488,8 +488,8 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
         </>
       )}
 
-      {/* 主内容区域 - 方案A: 增加呼吸空间 p-6 → p-8, p-8 → px-16 py-8 增加左右间距 */}
-      <div className="flex-1 px-16 py-8 overflow-y-auto">
+      {/* 主内容区域 - 方案A: 增加呼吸空间, 最外层已有px-8 */}
+      <div className="flex-1 px-8 py-8 overflow-y-auto">
         {/* 页头 */}
         <div className="mb-6">
           <div className="flex items-center justify-between">
