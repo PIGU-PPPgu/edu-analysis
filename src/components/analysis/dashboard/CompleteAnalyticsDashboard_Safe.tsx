@@ -452,7 +452,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
         </div>
 
         {/* 主内容区域骨架屏 */}
-        <div className="flex-1 space-y-10 p-8">
+        <div className="flex-1 space-y-10 px-16 py-8">
           {/* 页面标题 */}
           <div className="space-y-3">
             <h1 className="text-5xl font-black text-[#191A23] leading-tight">
@@ -552,8 +552,8 @@ const CompleteAnalyticsDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* 主内容区域 - 方案A: space-y-10 → space-y-12 增加呼吸空间 */}
-      <div className="flex-1 space-y-12 p-8">
+      {/* 主内容区域 - 方案A: space-y-10 → space-y-12 增加呼吸空间, p-8 → px-16 py-8 增加左右间距 */}
+      <div className="flex-1 space-y-12 px-16 py-8">
         {/* Positivus风格页面标题 */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="space-y-3">
