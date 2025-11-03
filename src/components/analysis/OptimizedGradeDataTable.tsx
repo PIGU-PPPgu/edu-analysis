@@ -165,17 +165,6 @@ const VirtualRow = memo<{
       </div>
     </div>
   );
-
-  // 🎯 性能监控：记录渲染时间
-  if (process.env.NODE_ENV === "development" && startTime > 0) {
-    const renderTime = performance.now() - startTime;
-    if (renderTime > 50) {
-      // 只记录超过50ms的渲染
-      console.warn(
-        `🎯 VirtualRow-${index} 渲染耗时: ${renderTime.toFixed(2)}ms`
-      );
-    }
-  }
 });
 
 VirtualRow.displayName = "VirtualRow";
