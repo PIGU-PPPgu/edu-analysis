@@ -1,5 +1,6 @@
 /**
- * 高级成绩分析仪表板 - 修复版本
+ * 高级成绩分析仪表板 - 修复版本 (方案A优化)
+ * 渐进式展示，减少视觉拥挤，增加呼吸空间
  * 移除了有问题的依赖，保留核心功能
  */
 
@@ -90,11 +91,12 @@ const StatCard: React.FC<StatCardProps> = ({
       <TrendingUp className="w-5 h-5 text-red-600 rotate-180" />
     ) : null;
 
+  // 方案A: 减轻视觉装饰
   return (
     <Card
-      className={`${styles.bg} border-2 border-black shadow-[6px_6px_0px_0px_#191A23] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#191A23] rounded-xl overflow-hidden`}
+      className={`${styles.bg} border border-black shadow-[4px_4px_0px_0px_#191A23] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] rounded-xl overflow-hidden`}
     >
-      <CardContent className="p-6">
+      <CardContent className="p-8">
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
             <p
@@ -486,8 +488,8 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
         </>
       )}
 
-      {/* 主内容区域 */}
-      <div className="flex-1 p-6 overflow-y-auto">
+      {/* 主内容区域 - 方案A: 增加呼吸空间 p-6 → p-8 */}
+      <div className="flex-1 p-8 overflow-y-auto">
         {/* 页头 */}
         <div className="mb-6">
           <div className="flex items-center justify-between">
@@ -601,8 +603,8 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* 高级分析统计卡片 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* 方案A: 高级分析统计卡片 - 增加间距 gap-6 → gap-8, mb-8 → mb-10 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
           <StatCard
             title="总分平均分"
             value={
@@ -702,9 +704,9 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="mt-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#191A23] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#191A23] rounded-xl overflow-hidden">
+          <TabsContent value="overview" className="mt-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <Card className="bg-white border border-black shadow-[4px_4px_0px_0px_#191A23] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] rounded-xl overflow-hidden">
                 <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
                   <CardTitle className="flex items-center text-[#191A23] font-black uppercase tracking-wide">
                     <Layers className="w-5 h-5 mr-2" />
@@ -716,7 +718,7 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#191A23] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#191A23] rounded-xl overflow-hidden">
+              <Card className="bg-white border border-black shadow-[4px_4px_0px_0px_#191A23] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] rounded-xl overflow-hidden">
                 <CardHeader className="bg-[#6B7280] border-b-2 border-black">
                   <CardTitle className="flex items-center text-white font-black uppercase tracking-wide">
                     <AlertTriangle className="w-5 h-5 mr-2" />
@@ -730,8 +732,8 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="trends" className="mt-6">
-            <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#191A23] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#191A23] rounded-xl overflow-hidden">
+          <TabsContent value="trends" className="mt-8">
+            <Card className="bg-white border border-black shadow-[4px_4px_0px_0px_#191A23] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] rounded-xl overflow-hidden">
               <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
                 <CardTitle className="flex items-center text-[#191A23] font-black uppercase tracking-wide">
                   <TrendingUp className="w-5 h-5 mr-2" />
@@ -744,8 +746,8 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="correlations" className="mt-6">
-            <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#191A23] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#191A23] rounded-xl overflow-hidden">
+          <TabsContent value="correlations" className="mt-8">
+            <Card className="bg-white border border-black shadow-[4px_4px_0px_0px_#191A23] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] rounded-xl overflow-hidden">
               <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
                 <CardTitle className="flex items-center text-[#191A23] font-black uppercase tracking-wide">
                   <Radar className="w-5 h-5 mr-2" />
@@ -758,8 +760,8 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="predictions" className="mt-6">
-            <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#191A23] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#191A23] rounded-xl overflow-hidden">
+          <TabsContent value="predictions" className="mt-8">
+            <Card className="bg-white border border-black shadow-[4px_4px_0px_0px_#191A23] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] rounded-xl overflow-hidden">
               <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
                 <CardTitle className="flex items-center text-[#191A23] font-black uppercase tracking-wide">
                   <Brain className="w-5 h-5 mr-2" />
@@ -772,8 +774,8 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="behavior" className="mt-6">
-            <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#191A23] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#191A23] rounded-xl overflow-hidden">
+          <TabsContent value="behavior" className="mt-8">
+            <Card className="bg-white border border-black shadow-[4px_4px_0px_0px_#191A23] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] rounded-xl overflow-hidden">
               <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
                 <CardTitle className="flex items-center text-[#191A23] font-black uppercase tracking-wide">
                   <UserCog className="w-5 h-5 mr-2" />
@@ -786,8 +788,8 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="charts" className="mt-6">
-            <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_#191A23] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#191A23] rounded-xl overflow-hidden">
+          <TabsContent value="charts" className="mt-8">
+            <Card className="bg-white border border-black shadow-[4px_4px_0px_0px_#191A23] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] rounded-xl overflow-hidden">
               <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
                 <CardTitle className="flex items-center text-[#191A23] font-black uppercase tracking-wide">
                   <PieChart className="w-5 h-5 mr-2" />

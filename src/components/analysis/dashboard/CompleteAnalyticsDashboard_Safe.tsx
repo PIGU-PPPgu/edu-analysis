@@ -1,5 +1,6 @@
 /**
- * 完整分析仪表板 - 安全版本
+ * 完整分析仪表板 - 安全版本 (方案A优化)
+ * 渐进式展示，减少视觉拥挤，增加呼吸空间
  * 集成所有确认可用的高级分析组件，应用4色设计系统
  */
 
@@ -9,6 +10,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
 import {
   BarChart3,
@@ -125,11 +132,12 @@ const StatCard: React.FC<StatCardProps> = ({
   color = "green",
   className,
 }) => {
+  // 方案A: 减轻视觉装饰，border-2 → border, 6px阴影 → 4px
   const colorClasses = {
-    green: "bg-white border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66]",
-    black: "bg-white border-2 border-black shadow-[6px_6px_0px_0px_#191A23]",
-    gray: "bg-white border-2 border-black shadow-[6px_6px_0px_0px_#6B7280]",
-    white: "bg-white border-2 border-black shadow-[6px_6px_0px_0px_#6B7280]",
+    green: "bg-white border border-black shadow-[4px_4px_0px_0px_#B9FF66]",
+    black: "bg-white border border-black shadow-[4px_4px_0px_0px_#191A23]",
+    gray: "bg-white border border-black shadow-[4px_4px_0px_0px_#6B7280]",
+    white: "bg-white border border-black shadow-[4px_4px_0px_0px_#6B7280]",
   };
 
   const iconBgClasses = {
@@ -149,12 +157,12 @@ const StatCard: React.FC<StatCardProps> = ({
   return (
     <Card
       className={cn(
-        "transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_currentColor]",
+        "transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_currentColor]",
         colorClasses[color],
         className
       )}
     >
-      <CardContent className="p-6">
+      <CardContent className="p-8">
         <div className="flex items-start justify-between">
           <div className="space-y-3 flex-1">
             <div className="flex items-center gap-2">
@@ -389,6 +397,8 @@ const CompleteAnalyticsDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [showSidebar, setShowSidebar] = useState(true);
   const [showSubjectSettings, setShowSubjectSettings] = useState(false);
+  // 方案A: 添加展开状态管理
+  const [showAllMetrics, setShowAllMetrics] = useState(false);
 
   // 添加组件挂载状态追踪,防止卸载后的DOM操作
   const isMountedRef = useRef(true);
@@ -542,8 +552,8 @@ const CompleteAnalyticsDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* 主内容区域 */}
-      <div className="flex-1 space-y-10 p-8">
+      {/* 主内容区域 - 方案A: space-y-10 → space-y-12 增加呼吸空间 */}
+      <div className="flex-1 space-y-12 p-8">
         {/* Positivus风格页面标题 */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="space-y-3">
@@ -629,57 +639,82 @@ const CompleteAnalyticsDashboard: React.FC = () => {
           </div>
 
           {/* 概览页面 - 一目了然的等级分布 */}
-          <TabsContent value="overview" className="space-y-6">
-            {/* 关键指标卡片区域 - 只在概览页面显示 */}
+          <TabsContent value="overview" className="space-y-8">
+            {/* 方案A: 关键指标卡片区域 - 默认显示2个核心指标，可展开 */}
             {statistics && (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-                <StatCard
-                  title="平均分"
-                  value={`${Math.round(statistics.totalScoreStats?.avgScore || 0)}分`}
-                  subtitle={`比上次${statistics.scoreComparison > 0 ? "提高" : "下降"} ${Math.abs(statistics.scoreComparison || 0).toFixed(1)}分`}
-                  icon={BarChart3}
-                  trend={
-                    statistics.scoreComparison > 0
-                      ? "up"
-                      : statistics.scoreComparison < 0
-                        ? "down"
-                        : "neutral"
-                  }
-                  trendValue={`${statistics.scoreComparison > 0 ? "+" : ""}${(statistics.scoreComparison || 0).toFixed(1)}`}
-                  color="green"
-                />
+              <div className="space-y-6">
+                {/* 核心指标: 平均分和及格率 */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <StatCard
+                    title="平均分"
+                    value={`${Math.round(statistics.totalScoreStats?.avgScore || 0)}分`}
+                    subtitle={`比上次${statistics.scoreComparison > 0 ? "提高" : "下降"} ${Math.abs(statistics.scoreComparison || 0).toFixed(1)}分`}
+                    icon={BarChart3}
+                    trend={
+                      statistics.scoreComparison > 0
+                        ? "up"
+                        : statistics.scoreComparison < 0
+                          ? "down"
+                          : "neutral"
+                    }
+                    trendValue={`${statistics.scoreComparison > 0 ? "+" : ""}${(statistics.scoreComparison || 0).toFixed(1)}`}
+                    color="green"
+                  />
 
-                <StatCard
-                  title="及格率"
-                  value={`${Math.round(statistics.totalScoreStats?.passRate || 0)}%`}
-                  subtitle={`优秀率 ${Math.round(statistics.totalScoreStats?.excellentRate || 0)}%`}
-                  icon={CheckCircle}
-                  trend={
-                    statistics.passRateComparison > 0
-                      ? "up"
-                      : statistics.passRateComparison < 0
-                        ? "down"
-                        : "neutral"
-                  }
-                  trendValue={`${statistics.passRateComparison > 0 ? "+" : ""}${(statistics.passRateComparison || 0).toFixed(1)}%`}
-                  color="black"
-                />
+                  <StatCard
+                    title="及格率"
+                    value={`${Math.round(statistics.totalScoreStats?.passRate || 0)}%`}
+                    subtitle={`优秀率 ${Math.round(statistics.totalScoreStats?.excellentRate || 0)}%`}
+                    icon={CheckCircle}
+                    trend={
+                      statistics.passRateComparison > 0
+                        ? "up"
+                        : statistics.passRateComparison < 0
+                          ? "down"
+                          : "neutral"
+                    }
+                    trendValue={`${statistics.passRateComparison > 0 ? "+" : ""}${(statistics.passRateComparison || 0).toFixed(1)}%`}
+                    color="black"
+                  />
+                </div>
 
-                <StatCard
-                  title="学困生预警"
-                  value={statistics.atRiskStudents || 0}
-                  subtitle={`共 ${statistics.totalStudents} 名学生`}
-                  icon={AlertTriangle}
-                  color="gray"
-                />
+                {/* 展开更多指标 */}
+                {showAllMetrics && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <StatCard
+                      title="学困生预警"
+                      value={statistics.atRiskStudents || 0}
+                      subtitle={`共 ${statistics.totalStudents} 名学生`}
+                      icon={AlertTriangle}
+                      color="gray"
+                    />
 
-                <StatCard
-                  title="最佳科目"
-                  value={statistics.topSubject || "暂无"}
-                  subtitle={`平均分 ${Math.round(statistics.topSubjectScore || 0)} 分`}
-                  icon={Award}
-                  color="white"
-                />
+                    <StatCard
+                      title="最佳科目"
+                      value={statistics.topSubject || "暂无"}
+                      subtitle={`平均分 ${Math.round(statistics.topSubjectScore || 0)} 分`}
+                      icon={Award}
+                      color="white"
+                    />
+                  </div>
+                )}
+
+                {/* 展开/收起按钮 */}
+                <div className="flex justify-center">
+                  <Button
+                    onClick={() => setShowAllMetrics(!showAllMetrics)}
+                    variant="outline"
+                    className="border border-black bg-white hover:bg-gray-50 text-black font-bold shadow-[2px_2px_0px_0px_#191A23] hover:shadow-[3px_3px_0px_0px_#191A23] transition-all"
+                  >
+                    {showAllMetrics ? "收起指标" : "展开更多指标"}
+                    <ArrowUpRight
+                      className={cn(
+                        "ml-2 w-4 h-4 transition-transform",
+                        showAllMetrics && "rotate-180"
+                      )}
+                    />
+                  </Button>
+                </div>
               </div>
             )}
             {/* 核心内容：成绩等级分布 */}
@@ -688,108 +723,117 @@ const CompleteAnalyticsDashboard: React.FC = () => {
               className=""
             />
 
-            {/* 智能教学洞察区域 */}
-            <Card className="border-2 border-black shadow-[6px_6px_0px_0px_#B9FF66] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0px_0px_#B9FF66]">
-              <CardHeader className="bg-[#B9FF66] border-b-2 border-black">
-                <CardTitle className="text-[#191A23] font-black uppercase tracking-wide flex items-center gap-2">
-                  <Brain className="w-5 h-5" />
-                  智能教学洞察与建议
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* 教学亮点 */}
-                  <div className="p-4 bg-[#B9FF66]/20 border-2 border-[#B9FF66] rounded-lg">
-                    <h4 className="font-black text-[#191A23] mb-3 flex items-center gap-2">
-                      <CheckCircle className="w-5 h-5" />
-                      教学亮点
-                    </h4>
-                    <ul className="space-y-2 text-sm">
-                      <li className="flex items-start gap-2">
-                        <div className="w-2 h-2 bg-[#B9FF66] rounded-full mt-2 flex-shrink-0 border border-black"></div>
-                        <span className="text-[#191A23] font-medium">
-                          {statistics?.topSubject || "数学"}{" "}
-                          科目表现优异，平均分达{" "}
-                          {statistics?.topSubjectScore?.toFixed(1) || "85.2"} 分
-                        </span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <div className="w-2 h-2 bg-[#B9FF66] rounded-full mt-2 flex-shrink-0 border border-black"></div>
-                        <span className="text-[#191A23] font-medium">
-                          整体及格率{" "}
-                          {statistics?.totalScoreStats?.passRate?.toFixed(1) ||
-                            "78.5"}
-                          %，表现良好
-                        </span>
-                      </li>
-                    </ul>
+            {/* 方案A: 智能教学洞察区域 - 改为Accordion默认折叠 */}
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem
+                value="insights"
+                className="border border-black bg-white shadow-[4px_4px_0px_0px_#B9FF66]"
+              >
+                <AccordionTrigger className="px-8 py-6 bg-[#B9FF66] hover:bg-[#B9FF66] border-b border-black data-[state=open]:border-b-2">
+                  <div className="flex items-center gap-2">
+                    <Brain className="w-5 h-5 text-[#191A23]" />
+                    <span className="text-[#191A23] font-black uppercase tracking-wide">
+                      智能教学洞察与建议
+                    </span>
                   </div>
+                </AccordionTrigger>
+                <AccordionContent className="px-8 py-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* 教学亮点 */}
+                    <div className="p-6 bg-[#B9FF66]/20 border border-[#B9FF66] rounded-lg">
+                      <h4 className="font-black text-[#191A23] mb-3 flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5" />
+                        教学亮点
+                      </h4>
+                      <ul className="space-y-2 text-sm">
+                        <li className="flex items-start gap-2">
+                          <div className="w-2 h-2 bg-[#B9FF66] rounded-full mt-2 flex-shrink-0 border border-black"></div>
+                          <span className="text-[#191A23] font-medium">
+                            {statistics?.topSubject || "数学"}{" "}
+                            科目表现优异，平均分达{" "}
+                            {statistics?.topSubjectScore?.toFixed(1) || "85.2"}{" "}
+                            分
+                          </span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <div className="w-2 h-2 bg-[#B9FF66] rounded-full mt-2 flex-shrink-0 border border-black"></div>
+                          <span className="text-[#191A23] font-medium">
+                            整体及格率{" "}
+                            {statistics?.totalScoreStats?.passRate?.toFixed(
+                              1
+                            ) || "78.5"}
+                            %，表现良好
+                          </span>
+                        </li>
+                      </ul>
+                    </div>
 
-                  {/* 改进建议 */}
-                  <div className="p-4 bg-[#6B7280]/20 border-2 border-[#6B7280] rounded-lg">
-                    <h4 className="font-black text-[#191A23] mb-3 flex items-center gap-2">
-                      <Target className="w-5 h-5" />
-                      改进建议
-                    </h4>
-                    <ul className="space-y-2 text-sm">
-                      <li className="flex items-start gap-2">
-                        <div className="w-2 h-2 bg-[#6B7280] rounded-full mt-2 flex-shrink-0 border border-black"></div>
-                        <span className="text-[#191A23] font-medium">
-                          关注 {statistics?.atRiskStudents || 0}{" "}
-                          名学困生，建议个性化辅导
-                        </span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <div className="w-2 h-2 bg-[#6B7280] rounded-full mt-2 flex-shrink-0 border border-black"></div>
-                        <span className="text-[#191A23] font-medium">
-                          加强薄弱科目教学，提升整体均衡性
-                        </span>
-                      </li>
-                    </ul>
-                  </div>
+                    {/* 改进建议 */}
+                    <div className="p-6 bg-[#6B7280]/20 border border-[#6B7280] rounded-lg">
+                      <h4 className="font-black text-[#191A23] mb-3 flex items-center gap-2">
+                        <Target className="w-5 h-5" />
+                        改进建议
+                      </h4>
+                      <ul className="space-y-2 text-sm">
+                        <li className="flex items-start gap-2">
+                          <div className="w-2 h-2 bg-[#6B7280] rounded-full mt-2 flex-shrink-0 border border-black"></div>
+                          <span className="text-[#191A23] font-medium">
+                            关注 {statistics?.atRiskStudents || 0}{" "}
+                            名学困生，建议个性化辅导
+                          </span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <div className="w-2 h-2 bg-[#6B7280] rounded-full mt-2 flex-shrink-0 border border-black"></div>
+                          <span className="text-[#191A23] font-medium">
+                            加强薄弱科目教学，提升整体均衡性
+                          </span>
+                        </li>
+                      </ul>
+                    </div>
 
-                  {/* 学困生预警 */}
-                  <div className="p-4 bg-[#6B7280]/20 border-2 border-[#6B7280] rounded-lg">
-                    <h4 className="font-black text-[#191A23] mb-3 flex items-center gap-2">
-                      <AlertTriangle className="w-5 h-5" />
-                      学困生预警
-                    </h4>
-                    <div className="space-y-2">
-                      {filteredGradeData
-                        .filter((record) => {
+                    {/* 学困生预警 */}
+                    <div className="p-6 bg-[#6B7280]/20 border border-[#6B7280] rounded-lg">
+                      <h4 className="font-black text-[#191A23] mb-3 flex items-center gap-2">
+                        <AlertTriangle className="w-5 h-5" />
+                        学困生预警
+                      </h4>
+                      <div className="space-y-2">
+                        {filteredGradeData
+                          .filter((record) => {
+                            const score = record.score || record.total_score;
+                            return score && score < 60;
+                          })
+                          .slice(0, 3)
+                          .map((record, index) => (
+                            <div
+                              key={index}
+                              className="flex items-center justify-between p-2 bg-[#6B7280]/10 border border-[#6B7280] rounded text-xs"
+                            >
+                              <span className="font-bold text-[#191A23]">
+                                {record.name}
+                              </span>
+                              <Badge className="bg-[#6B7280] text-white border border-black font-bold">
+                                {record.score || record.total_score}分
+                              </Badge>
+                            </div>
+                          ))}
+                        {filteredGradeData.filter((record) => {
                           const score = record.score || record.total_score;
                           return score && score < 60;
-                        })
-                        .slice(0, 3)
-                        .map((record, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center justify-between p-2 bg-[#6B7280]/10 border border-[#6B7280] rounded text-xs"
-                          >
-                            <span className="font-bold text-[#191A23]">
-                              {record.name}
-                            </span>
-                            <Badge className="bg-[#6B7280] text-white border border-black font-bold">
-                              {record.score || record.total_score}分
-                            </Badge>
+                        }).length === 0 && (
+                          <div className="text-center py-2">
+                            <CheckCircle className="w-6 h-6 text-[#B9FF66] mx-auto mb-1" />
+                            <p className="text-xs font-bold text-[#191A23]">
+                              暂无学困生
+                            </p>
                           </div>
-                        ))}
-                      {filteredGradeData.filter((record) => {
-                        const score = record.score || record.total_score;
-                        return score && score < 60;
-                      }).length === 0 && (
-                        <div className="text-center py-2">
-                          <CheckCircle className="w-6 h-6 text-[#B9FF66] mx-auto mb-1" />
-                          <p className="text-xs font-bold text-[#191A23]">
-                            暂无学困生
-                          </p>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </TabsContent>
 
           {/* AI智能分析页面 - 按用户角色重组 */}
