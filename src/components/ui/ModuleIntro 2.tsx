@@ -1,8 +1,18 @@
-import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronUp, PlayCircle } from 'lucide-react';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import React from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ChevronDown, ChevronUp, PlayCircle } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 interface ModuleIntroProps {
   title: string;
@@ -23,14 +33,14 @@ export function ModuleIntro({
   tips,
   showCollapsible = true,
   children,
-  className = '',
+  className = "",
 }: ModuleIntroProps) {
   const [isOpen, setIsOpen] = React.useState(true);
 
   const content = (
     <>
       <p className="mb-4 text-muted-foreground">{description}</p>
-      
+
       {tips && tips.length > 0 && (
         <div className="mb-4 space-y-2">
           <h4 className="font-medium text-sm">使用提示:</h4>
@@ -41,7 +51,7 @@ export function ModuleIntro({
           </ul>
         </div>
       )}
-      
+
       {videoUrl && (
         <div className="mt-4">
           <Button
@@ -57,14 +67,16 @@ export function ModuleIntro({
           </Button>
         </div>
       )}
-      
+
       {children && <div className="mt-4">{children}</div>}
     </>
   );
 
   if (!showCollapsible) {
     return (
-      <Card className={`mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 ${className}`}>
+      <Card
+        className={`mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 ${className}`}
+      >
         <CardHeader className="pb-2">
           <div className="flex items-center gap-3">
             {icon}
@@ -77,7 +89,9 @@ export function ModuleIntro({
   }
 
   return (
-    <Card className={`mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 ${className}`}>
+    <Card
+      className={`mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 ${className}`}
+    >
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
@@ -87,12 +101,18 @@ export function ModuleIntro({
             </div>
             <CollapsibleTrigger asChild>
               <Button variant="ghost" size="sm" className="w-9 p-0">
-                {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                {isOpen ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
               </Button>
             </CollapsibleTrigger>
           </div>
           <CardDescription>
-            {!isOpen && description.substring(0, 100) + (description.length > 100 ? '...' : '')}
+            {!isOpen &&
+              description.substring(0, 100) +
+                (description.length > 100 ? "..." : "")}
           </CardDescription>
         </CardHeader>
         <CollapsibleContent>
@@ -103,4 +123,4 @@ export function ModuleIntro({
   );
 }
 
-export default ModuleIntro; 
+export default ModuleIntro;

@@ -1,9 +1,27 @@
-import React, { useState, useMemo } from 'react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import React, { useState, useMemo } from "react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+} from "lucide-react";
 
 interface Column {
   key: string;
@@ -20,12 +38,12 @@ interface PaginatedTableProps {
   maxHeight?: string;
 }
 
-const PaginatedTable: React.FC<PaginatedTableProps> = ({ 
-  data, 
-  columns, 
-  pageSize = 20, 
+const PaginatedTable: React.FC<PaginatedTableProps> = ({
+  data,
+  columns,
+  pageSize = 20,
   className = "",
-  maxHeight = "60vh"
+  maxHeight = "60vh",
 }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(pageSize);
@@ -42,7 +60,8 @@ const PaginatedTable: React.FC<PaginatedTableProps> = ({
   // 分页控制函数
   const goToFirstPage = () => setCurrentPage(1);
   const goToPreviousPage = () => setCurrentPage(Math.max(1, currentPage - 1));
-  const goToNextPage = () => setCurrentPage(Math.min(totalPages, currentPage + 1));
+  const goToNextPage = () =>
+    setCurrentPage(Math.min(totalPages, currentPage + 1));
   const goToLastPage = () => setCurrentPage(totalPages);
 
   // 处理每页显示数量变化
@@ -59,14 +78,17 @@ const PaginatedTable: React.FC<PaginatedTableProps> = ({
   return (
     <div className={`space-y-4 ${className}`}>
       {/* 数据表格 */}
-      <ScrollArea className="border rounded-md bg-white" style={{ height: maxHeight }}>
+      <ScrollArea
+        className="border rounded-md bg-white"
+        style={{ height: maxHeight }}
+      >
         <div className="overflow-x-auto">
           <Table className="min-w-full divide-y divide-gray-200">
             <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
               <TableRow>
                 {columns.map((column) => (
-                  <TableHead 
-                    key={column.key} 
+                  <TableHead
+                    key={column.key}
                     className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"
                     style={{ width: column.width }}
                   >
@@ -79,22 +101,26 @@ const PaginatedTable: React.FC<PaginatedTableProps> = ({
               {paginatedData.map((row, rowIndex) => (
                 <TableRow key={rowIndex} className="hover:bg-gray-50">
                   {columns.map((column) => (
-                    <TableCell 
-                      key={`${rowIndex}-${column.key}`} 
+                    <TableCell
+                      key={`${rowIndex}-${column.key}`}
                       className="px-3 py-2 text-xs text-gray-700 whitespace-nowrap"
                     >
-                      {column.render 
+                      {column.render
                         ? column.render(row[column.key], row, rowIndex)
-                        : String(row[column.key] !== undefined && row[column.key] !== null ? row[column.key] : '')
-                      }
+                        : String(
+                            row[column.key] !== undefined &&
+                              row[column.key] !== null
+                              ? row[column.key]
+                              : ""
+                          )}
                     </TableCell>
                   ))}
                 </TableRow>
               ))}
               {paginatedData.length === 0 && (
                 <TableRow>
-                  <TableCell 
-                    colSpan={columns.length} 
+                  <TableCell
+                    colSpan={columns.length}
                     className="px-3 py-8 text-center text-gray-500"
                   >
                     暂无数据
@@ -110,8 +136,10 @@ const PaginatedTable: React.FC<PaginatedTableProps> = ({
       <div className="flex items-center justify-between px-2">
         <div className="flex items-center space-x-2">
           <span className="text-sm text-gray-700">
-            显示第 {data.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} 到{' '}
-            {Math.min(currentPage * itemsPerPage, data.length)} 条，共 {data.length} 条记录
+            显示第{" "}
+            {data.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} 到{" "}
+            {Math.min(currentPage * itemsPerPage, data.length)} 条，共{" "}
+            {data.length} 条记录
           </span>
         </div>
 
@@ -119,7 +147,10 @@ const PaginatedTable: React.FC<PaginatedTableProps> = ({
           {/* 每页显示数量选择 */}
           <div className="flex items-center space-x-2">
             <span className="text-sm text-gray-700">每页显示:</span>
-            <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
+            <Select
+              value={itemsPerPage.toString()}
+              onValueChange={handleItemsPerPageChange}
+            >
               <SelectTrigger className="w-20 h-8">
                 <SelectValue />
               </SelectTrigger>
@@ -152,11 +183,11 @@ const PaginatedTable: React.FC<PaginatedTableProps> = ({
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            
+
             <span className="text-sm text-gray-700 px-2">
               第 {currentPage} 页，共 {totalPages} 页
             </span>
-            
+
             <Button
               variant="outline"
               size="sm"
@@ -182,4 +213,4 @@ const PaginatedTable: React.FC<PaginatedTableProps> = ({
   );
 };
 
-export default PaginatedTable; 
+export default PaginatedTable;

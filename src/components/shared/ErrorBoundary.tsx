@@ -1,8 +1,14 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import React, { Component, ErrorInfo, ReactNode } from "react";
+import { AlertTriangle, RefreshCw, Home } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Props {
   children: ReactNode;
@@ -24,28 +30,28 @@ class ErrorBoundary extends Component<Props, State> {
       hasError: false,
       error: null,
       errorInfo: null,
-      errorId: ''
+      errorId: "",
     };
   }
 
   static getDerivedStateFromError(error: Error): Partial<State> {
     // 生成错误ID用于追踪
     const errorId = `ERR_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     return {
       hasError: true,
       error,
-      errorId
+      errorId,
     };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // 记录错误信息
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
-    
+    console.error("ErrorBoundary caught an error:", error, errorInfo);
+
     this.setState({
       error,
-      errorInfo
+      errorInfo,
     });
 
     // 调用外部错误处理函数
@@ -66,14 +72,14 @@ class ErrorBoundary extends Component<Props, State> {
       errorId: this.state.errorId,
       timestamp: new Date().toISOString(),
       userAgent: navigator.userAgent,
-      url: window.location.href
+      url: window.location.href,
     };
 
     // 发送到错误监控服务
     // 例如: Sentry.captureException(error, { extra: errorReport });
-    
+
     // 暂时记录到控制台
-    console.error('Error Report:', errorReport);
+    console.error("Error Report:", errorReport);
   };
 
   private handleRetry = () => {
@@ -81,50 +87,50 @@ class ErrorBoundary extends Component<Props, State> {
       hasError: false,
       error: null,
       errorInfo: null,
-      errorId: ''
+      errorId: "",
     });
   };
 
   private handleGoHome = () => {
-    window.location.href = '/';
+    window.location.href = "/";
   };
 
   private getErrorMessage = (error: Error): string => {
     // 根据错误类型返回用户友好的错误信息
-    if (error.message.includes('ChunkLoadError')) {
-      return '页面资源加载失败，可能是网络问题或版本更新导致的。';
-    }
-    
-    if (error.message.includes('Network')) {
-      return '网络连接异常，请检查您的网络连接。';
-    }
-    
-    if (error.message.includes('Permission')) {
-      return '权限不足，请联系管理员或重新登录。';
-    }
-    
-    if (error.message.includes('Timeout')) {
-      return '请求超时，请稍后重试。';
+    if (error.message.includes("ChunkLoadError")) {
+      return "页面资源加载失败，可能是网络问题或版本更新导致的。";
     }
 
-    return '系统遇到了一个意外错误，我们正在努力修复。';
+    if (error.message.includes("Network")) {
+      return "网络连接异常，请检查您的网络连接。";
+    }
+
+    if (error.message.includes("Permission")) {
+      return "权限不足，请联系管理员或重新登录。";
+    }
+
+    if (error.message.includes("Timeout")) {
+      return "请求超时，请稍后重试。";
+    }
+
+    return "系统遇到了一个意外错误，我们正在努力修复。";
   };
 
   private getErrorSuggestions = (error: Error): string[] => {
     const suggestions: string[] = [];
-    
-    if (error.message.includes('ChunkLoadError')) {
-      suggestions.push('刷新页面重新加载资源');
-      suggestions.push('清除浏览器缓存后重试');
-    } else if (error.message.includes('Network')) {
-      suggestions.push('检查网络连接');
-      suggestions.push('稍后重试');
+
+    if (error.message.includes("ChunkLoadError")) {
+      suggestions.push("刷新页面重新加载资源");
+      suggestions.push("清除浏览器缓存后重试");
+    } else if (error.message.includes("Network")) {
+      suggestions.push("检查网络连接");
+      suggestions.push("稍后重试");
     } else {
-      suggestions.push('刷新页面重试');
-      suggestions.push('返回首页重新开始');
-      suggestions.push('如果问题持续，请联系技术支持');
+      suggestions.push("刷新页面重试");
+      suggestions.push("返回首页重新开始");
+      suggestions.push("如果问题持续，请联系技术支持");
     }
-    
+
     return suggestions;
   };
 
@@ -153,12 +159,15 @@ class ErrorBoundary extends Component<Props, State> {
                 {errorMessage}
               </CardDescription>
             </CardHeader>
-            
+
             <CardContent className="space-y-6">
               {/* 错误ID */}
               <Alert>
                 <AlertDescription className="text-sm text-gray-600">
-                  错误ID: <code className="bg-gray-100 px-2 py-1 rounded text-xs">{this.state.errorId}</code>
+                  错误ID:{" "}
+                  <code className="bg-gray-100 px-2 py-1 rounded text-xs">
+                    {this.state.errorId}
+                  </code>
                 </AlertDescription>
               </Alert>
 
@@ -177,14 +186,14 @@ class ErrorBoundary extends Component<Props, State> {
 
               {/* 操作按钮 */}
               <div className="flex flex-col sm:flex-row gap-3 pt-4">
-                <Button 
+                <Button
                   onClick={this.handleRetry}
                   className="flex-1 bg-blue-600 hover:bg-blue-700"
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
                   重试
                 </Button>
-                <Button 
+                <Button
                   onClick={this.handleGoHome}
                   variant="outline"
                   className="flex-1"
@@ -195,26 +204,32 @@ class ErrorBoundary extends Component<Props, State> {
               </div>
 
               {/* 开发环境下显示详细错误信息 */}
-              {process.env.NODE_ENV === 'development' && (
+              {process.env.NODE_ENV === "development" && (
                 <details className="mt-6">
                   <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-800">
                     查看详细错误信息 (开发模式)
                   </summary>
                   <div className="mt-3 p-4 bg-gray-100 rounded-lg">
                     <div className="text-sm">
-                      <div className="font-semibold text-red-600 mb-2">错误信息:</div>
+                      <div className="font-semibold text-red-600 mb-2">
+                        错误信息:
+                      </div>
                       <pre className="whitespace-pre-wrap text-xs text-gray-800 mb-4">
                         {error.message}
                       </pre>
-                      
-                      <div className="font-semibold text-red-600 mb-2">错误堆栈:</div>
+
+                      <div className="font-semibold text-red-600 mb-2">
+                        错误堆栈:
+                      </div>
                       <pre className="whitespace-pre-wrap text-xs text-gray-600 mb-4 max-h-40 overflow-y-auto">
                         {error.stack}
                       </pre>
-                      
+
                       {this.state.errorInfo && (
                         <>
-                          <div className="font-semibold text-red-600 mb-2">组件堆栈:</div>
+                          <div className="font-semibold text-red-600 mb-2">
+                            组件堆栈:
+                          </div>
                           <pre className="whitespace-pre-wrap text-xs text-gray-600 max-h-40 overflow-y-auto">
                             {this.state.errorInfo.componentStack}
                           </pre>
@@ -234,4 +249,4 @@ class ErrorBoundary extends Component<Props, State> {
   }
 }
 
-export default ErrorBoundary; 
+export default ErrorBoundary;

@@ -1,10 +1,15 @@
-
-import React from 'react';
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Mail, Lock } from 'lucide-react';
-import { useAuthContext } from './AuthContext';
+import React from "react";
+import {
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Mail, Lock } from "lucide-react";
+import { useAuthContext } from "./AuthContext";
 
 const RegisterForm = () => {
   const { form, isSubmitting } = useAuthContext();
@@ -22,10 +27,10 @@ const RegisterForm = () => {
                 <div className="px-3 py-2 text-gray-500">
                   <Mail className="h-5 w-5" />
                 </div>
-                <Input 
-                  {...field} 
+                <Input
+                  {...field}
                   placeholder="请输入邮箱"
-                  className="border-0 focus-visible:ring-0" 
+                  className="border-0 focus-visible:ring-0"
                 />
               </div>
             </FormControl>
@@ -45,11 +50,11 @@ const RegisterForm = () => {
                 <div className="px-3 py-2 text-gray-500">
                   <Lock className="h-5 w-5" />
                 </div>
-                <Input 
-                  {...field} 
-                  type="password" 
-                  placeholder="请设置密码" 
-                  className="border-0 focus-visible:ring-0" 
+                <Input
+                  {...field}
+                  type="password"
+                  placeholder="请设置密码"
+                  className="border-0 focus-visible:ring-0"
                 />
               </div>
             </FormControl>

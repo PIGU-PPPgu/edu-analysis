@@ -1,0 +1,86 @@
+---
+alwaysApply: false
+---
+# 认证系统
+
+本应用使用Supabase提供的认证系统进行用户管理。认证流程和相关组件的说明如下。
+
+## 认证流程
+
+1. 用户在登录页面输入电子邮件和密码
+2. 应用通过Supabase客户端发送认证请求
+3. 认证成功后，用户被重定向到首页
+4. 保护路由组件确保未登录用户无法访问受限页面
+
+## 关键认证组件
+
+- [src/pages/Login.tsx](mdc:src/pages/Login.tsx) - 登录页面
+- [src/components/auth/RoleGuard.tsx](mdc:src/components/auth/RoleGuard.tsx) - 基于角色的权限保护组件
+- [src/utils/auth.ts](mdc:src/utils/auth.ts) - 认证工具函数
+
+## 认证状态管理
+
+应用程序在App.tsx中通过以下组件管理认证状态：
+
+```tsx
+// 路由保护组件 - 保护需要认证的路由
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        // 公开页面列表
+        const publicPages = ['/', '/login'];
+        const isPublicPage = publicPages.includes(location.pathname);
+        
+        // 只有在非公开页面且未登录的情况下才重定向到登录页
+        if (!data.session && !isPublicPage) {
+          navigate('/login');
+        }
+      } catch (error) {
+        console.error('验证用户状态失败:', error);
+      } finally {
+        setIsCheckingAuth(false);
+      }
+    };
+    
+    checkAuth();
+  }, [navigate, location.pathname]);
+  
+  // 认证状态监听
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('认证状态变化:', event, session ? '已登录' : '未登录');
+    });
+    
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+  
+  if (isCheckingAuth) {
+    return <加载中组件>;
+  }
+  
+  return <>{children}</>;
+};
+```
+
+## 用户角色和权限
+
+应用程序支持多种用户角色，包括学生、教师和管理员。不同角色有不同的权限和可访问的页面：
+
+- **学生**：只能查看自己的信息和成绩
+- **教师**：可以查看和管理班级、学生成绩等
+- **管理员**：拥有系统的完全访问权限
+
+## 开发者须知
+
+1. 登录和注册使用Supabase Auth提供的API
+2. 用户信息存储在`user_profiles`表中，与Supabase的`auth.users`表关联
+3. 通过`RoleGuard`组件实现基于角色的访问控制
+4. 可以使用`supabase.auth.getUser()`获取当前登录用户信息

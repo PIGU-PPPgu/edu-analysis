@@ -1,6 +1,6 @@
-import { toast } from 'sonner';
-import { executeSql } from './dbUtil';
-import { createWarningStatisticsTable } from '@/app/db/migrations/create_warning_statistics';
+import { toast } from "sonner";
+import { executeSql } from "./dbUtil";
+import { createWarningStatisticsTable } from "@/app/db/migrations/create_warning_statistics";
 
 // 初始化数据库配置
 export async function initializeDatabase() {
@@ -11,11 +11,12 @@ export async function initializeDatabase() {
         SELECT 1 FROM pg_trigger WHERE tgname = 'on_auth_user_created'
       ) as trigger_exists;
     `;
-    
+
     const result = await executeSql(checkTriggerSql);
-    const triggerExists = Array.isArray(result) && result[0] && 'trigger_exists' in result[0] 
-      ? result[0].trigger_exists 
-      : false;
+    const triggerExists =
+      Array.isArray(result) && result[0] && "trigger_exists" in result[0]
+        ? result[0].trigger_exists
+        : false;
 
     // 如果触发器不存在，创建触发器函数和触发器
     if (!triggerExists) {
@@ -38,10 +39,10 @@ export async function initializeDatabase() {
             AFTER INSERT ON auth.users
             FOR EACH ROW EXECUTE FUNCTION public.create_user_profile();
         `);
-        
-        console.log('数据库触发器设置成功');
+
+        console.log("数据库触发器设置成功");
       } catch (error) {
-        console.error('创建触发器失败:', error);
+        console.error("创建触发器失败:", error);
         return false;
       }
     }
@@ -52,11 +53,11 @@ export async function initializeDatabase() {
     // 创建用户角色相关的RPC函数
     await setupRoleFunctions();
 
-    toast.success('数据库配置已完成');
+    toast.success("数据库配置已完成");
     return true;
   } catch (error) {
-    console.error('数据库初始化失败:', error);
-    toast.error('数据库配置失败');
+    console.error("数据库初始化失败:", error);
+    toast.error("数据库配置失败");
     return false;
   }
 }
@@ -127,7 +128,7 @@ async function setupRLS() {
 
     return true;
   } catch (error) {
-    console.error('设置RLS策略失败:', error);
+    console.error("设置RLS策略失败:", error);
     return false;
   }
 }
@@ -203,10 +204,10 @@ async function setupRoleFunctions() {
         );
     `);
 
-    console.log('用户角色RPC函数设置成功');
+    console.log("用户角色RPC函数设置成功");
     return true;
   } catch (error) {
-    console.error('设置用户角色RPC函数失败:', error);
+    console.error("设置用户角色RPC函数失败:", error);
     return false;
   }
 }
@@ -217,10 +218,13 @@ export async function setupInitialData() {
     // 检查是否已存在科目数据
     const subjectsCheckSql = `SELECT COUNT(*) as count FROM public.subjects LIMIT 1`;
     const subjectsResult = await executeSql(subjectsCheckSql);
-    const subjectsExist = Array.isArray(subjectsResult) && subjectsResult[0] && 'count' in subjectsResult[0]
-      ? subjectsResult[0].count > 0
-      : false;
-    
+    const subjectsExist =
+      Array.isArray(subjectsResult) &&
+      subjectsResult[0] &&
+      "count" in subjectsResult[0]
+        ? subjectsResult[0].count > 0
+        : false;
+
     // 如果没有科目数据，添加默认科目
     if (!subjectsExist) {
       const createSubjectsSql = `
@@ -237,16 +241,19 @@ export async function setupInitialData() {
           ('POL001', '政治', 2, true);
       `;
       await executeSql(createSubjectsSql);
-      console.log('初始科目数据已创建');
+      console.log("初始科目数据已创建");
     }
-    
+
     // 检查是否已存在考试类型数据
     const examTypesCheckSql = `SELECT COUNT(*) as count FROM public.exam_types LIMIT 1`;
     const examTypesResult = await executeSql(examTypesCheckSql);
-    const examTypesExist = Array.isArray(examTypesResult) && examTypesResult[0] && 'count' in examTypesResult[0]
-      ? examTypesResult[0].count > 0
-      : false;
-    
+    const examTypesExist =
+      Array.isArray(examTypesResult) &&
+      examTypesResult[0] &&
+      "count" in examTypesResult[0]
+        ? examTypesResult[0].count > 0
+        : false;
+
     // 如果没有考试类型数据，添加默认考试类型
     if (!examTypesExist) {
       const createExamTypesSql = `
@@ -259,46 +266,47 @@ export async function setupInitialData() {
           ('MOCK', '模拟考试', '升学模拟考试');
       `;
       await executeSql(createExamTypesSql);
-      console.log('初始考试类型数据已创建');
+      console.log("初始考试类型数据已创建");
     }
-    
+
     // 检查是否已存在学期数据
     const termsCheckSql = `SELECT COUNT(*) as count FROM public.academic_terms LIMIT 1`;
     const termsResult = await executeSql(termsCheckSql);
-    const termsExist = Array.isArray(termsResult) && termsResult[0] && 'count' in termsResult[0]
-      ? termsResult[0].count > 0
-      : false;
-    
+    const termsExist =
+      Array.isArray(termsResult) && termsResult[0] && "count" in termsResult[0]
+        ? termsResult[0].count > 0
+        : false;
+
     // 如果没有学期数据，添加当前学年的学期
     if (!termsExist) {
       const currentYear = new Date().getFullYear();
       const createTermsSql = `
         INSERT INTO public.academic_terms (term_id, academic_year, semester, start_date, end_date)
         VALUES 
-          ('${currentYear}-1', '${currentYear}-${currentYear+1}', '第一学期', '${currentYear}-09-01', '${currentYear+1}-01-31'),
-          ('${currentYear}-2', '${currentYear}-${currentYear+1}', '第二学期', '${currentYear+1}-02-01', '${currentYear+1}-07-15');
+          ('${currentYear}-1', '${currentYear}-${currentYear + 1}', '第一学期', '${currentYear}-09-01', '${currentYear + 1}-01-31'),
+          ('${currentYear}-2', '${currentYear}-${currentYear + 1}', '第二学期', '${currentYear + 1}-02-01', '${currentYear + 1}-07-15');
       `;
       await executeSql(createTermsSql);
-      console.log('初始学期数据已创建');
+      console.log("初始学期数据已创建");
     }
-    
+
     // 创建预警统计表
     try {
       const result = await createWarningStatisticsTable();
       if (result.success) {
-        console.log('预警统计表创建或已存在');
+        console.log("预警统计表创建或已存在");
       } else {
-        console.error('创建预警统计表失败:', result.error);
+        console.error("创建预警统计表失败:", result.error);
       }
     } catch (error) {
-      console.error('创建预警统计表出错:', error);
+      console.error("创建预警统计表出错:", error);
     }
-    
-    toast.success('初始数据设置成功');
+
+    toast.success("初始数据设置成功");
     return true;
   } catch (error) {
-    console.error('设置初始数据失败:', error);
-    toast.error('初始数据设置失败');
+    console.error("设置初始数据失败:", error);
+    toast.error("初始数据设置失败");
     return false;
   }
 }

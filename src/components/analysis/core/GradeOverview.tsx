@@ -1,9 +1,21 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { useGradeAnalysis } from "@/contexts/GradeAnalysisContext";
-import { toast } from 'sonner';
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Loader2, RefreshCw, AlertCircle, Info } from "lucide-react";
+import {
+  ArrowRight,
+  Loader2,
+  RefreshCw,
+  AlertCircle,
+  Info,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface GradeOverviewProps {
@@ -28,7 +40,10 @@ interface EnhancedGradeStats {
   gradeDistribution: Record<string, number>;
 }
 
-const GradeOverview: React.FC<GradeOverviewProps> = ({ parsingError, gradeData: propGradeData }) => {
+const GradeOverview: React.FC<GradeOverviewProps> = ({
+  parsingError,
+  gradeData: propGradeData,
+}) => {
   const { isDataLoaded } = useGradeAnalysis();
   const gradeData = propGradeData || [];
   const [stats, setStats] = useState<EnhancedGradeStats>({
@@ -39,7 +54,7 @@ const GradeOverview: React.FC<GradeOverviewProps> = ({ parsingError, gradeData: 
     total: 0,
     totalScore: 100,
     subjectScores: [],
-    gradeDistribution: {}
+    gradeDistribution: {},
   });
   const [isCalculating, setIsCalculating] = useState(false);
   const [calculationProgress, setCalculationProgress] = useState(0);
@@ -53,7 +68,7 @@ const GradeOverview: React.FC<GradeOverviewProps> = ({ parsingError, gradeData: 
   // 使用useCallback包装计算函数
   const calculateStats = useCallback(async () => {
     const currentGradeData = JSON.parse(stableGradeData);
-    
+
     if (!currentGradeData || currentGradeData.length === 0) {
       setStats({
         avg: 0,
@@ -63,7 +78,7 @@ const GradeOverview: React.FC<GradeOverviewProps> = ({ parsingError, gradeData: 
         total: 0,
         totalScore: 100,
         subjectScores: [],
-        gradeDistribution: {}
+        gradeDistribution: {},
       });
       return;
     }
@@ -71,19 +86,21 @@ const GradeOverview: React.FC<GradeOverviewProps> = ({ parsingError, gradeData: 
     try {
       setIsCalculating(true);
       setCalculationProgress(0);
-      
+
       setCalculationProgress(20);
-      
+
       // 获取有效分数
-      const validGrades = currentGradeData.filter(grade => {
+      const validGrades = currentGradeData.filter((grade) => {
         const effectiveScore = grade.score ?? grade.total_score;
         return effectiveScore !== null && !isNaN(Number(effectiveScore));
       });
-      
+
       setCalculationProgress(50);
-      
+
       if (validGrades.length === 0) {
-        const uniqueStudents = [...new Set(currentGradeData.map(grade => grade.student_id))];
+        const uniqueStudents = [
+          ...new Set(currentGradeData.map((grade) => grade.student_id)),
+        ];
         setStats({
           avg: 0,
           max: 0,
@@ -92,33 +109,37 @@ const GradeOverview: React.FC<GradeOverviewProps> = ({ parsingError, gradeData: 
           total: uniqueStudents.length,
           totalScore: 100,
           subjectScores: [],
-          gradeDistribution: {}
+          gradeDistribution: {},
         });
         setIsCalculating(false);
         return;
       }
-      
+
       // 计算基本统计
-      const effectiveScores = validGrades.map(grade => {
+      const effectiveScores = validGrades.map((grade) => {
         const score = grade.score ?? grade.total_score;
         return Number(score);
       });
-      
-      const uniqueStudents = [...new Set(validGrades.map(grade => grade.student_id))];
+
+      const uniqueStudents = [
+        ...new Set(validGrades.map((grade) => grade.student_id)),
+      ];
       const totalStudents = uniqueStudents.length;
-      
+
       const sum = effectiveScores.reduce((acc, score) => acc + score, 0);
       const avg = sum / effectiveScores.length;
       const max = Math.max(...effectiveScores);
       const min = Math.min(...effectiveScores);
-      
+
       setCalculationProgress(70);
-      
+
       // 计算及格率
-      const passingCount = effectiveScores.filter(score => score >= 60).length;
-      
+      const passingCount = effectiveScores.filter(
+        (score) => score >= 60
+      ).length;
+
       setCalculationProgress(90);
-      
+
       const finalStats = {
         avg,
         max,
@@ -127,9 +148,9 @@ const GradeOverview: React.FC<GradeOverviewProps> = ({ parsingError, gradeData: 
         total: totalStudents,
         totalScore: 100,
         subjectScores: [],
-        gradeDistribution: {}
+        gradeDistribution: {},
       };
-      
+
       setStats(finalStats);
       setCalculationProgress(100);
     } catch (error) {
@@ -153,9 +174,11 @@ const GradeOverview: React.FC<GradeOverviewProps> = ({ parsingError, gradeData: 
         <CardContent className="pt-6">
           <div className="text-center py-6">
             <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-4" />
-            <p className="text-lg font-medium text-red-700 mb-2">数据解析错误</p>
+            <p className="text-lg font-medium text-red-700 mb-2">
+              数据解析错误
+            </p>
             <p className="text-sm text-red-500 mb-4">{parsingError}</p>
-            <Button onClick={() => navigate('/upload')}>重新上传</Button>
+            <Button onClick={() => navigate("/upload")}>重新上传</Button>
           </div>
         </CardContent>
       </Card>
@@ -183,12 +206,14 @@ const GradeOverview: React.FC<GradeOverviewProps> = ({ parsingError, gradeData: 
             <RefreshCw className="h-6 w-6 text-green-600 animate-spin mx-auto mb-4" />
             <p className="text-lg font-medium text-green-700">分析数据中...</p>
             <div className="w-64 bg-green-100 rounded-full h-2 mx-auto mt-4">
-              <div 
+              <div
                 className="bg-green-500 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${calculationProgress}%` }}
               />
             </div>
-            <p className="text-xs text-green-400 mt-2">{calculationProgress}% 完成</p>
+            <p className="text-xs text-green-400 mt-2">
+              {calculationProgress}% 完成
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -203,7 +228,7 @@ const GradeOverview: React.FC<GradeOverviewProps> = ({ parsingError, gradeData: 
             <AlertCircle className="h-8 w-8 text-amber-500 mx-auto mb-4" />
             <p className="text-lg font-medium text-amber-700 mb-2">暂无数据</p>
             <p className="text-sm text-amber-500 mb-4">请先上传成绩数据</p>
-            <Button onClick={() => navigate('/upload')}>上传数据</Button>
+            <Button onClick={() => navigate("/upload")}>上传数据</Button>
           </div>
         </CardContent>
       </Card>
@@ -218,28 +243,32 @@ const GradeOverview: React.FC<GradeOverviewProps> = ({ parsingError, gradeData: 
         <Card>
           <CardContent className="p-6">
             <p className="text-sm font-medium text-blue-600">平均分</p>
-            <p className="text-3xl font-bold text-blue-900">{stats.avg.toFixed(1)}</p>
+            <p className="text-3xl font-bold text-blue-900">
+              {stats.avg.toFixed(1)}
+            </p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-6">
             <p className="text-sm font-medium text-green-600">最高分</p>
             <p className="text-3xl font-bold text-green-900">{stats.max}</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-6">
             <p className="text-sm font-medium text-orange-600">最低分</p>
             <p className="text-3xl font-bold text-orange-900">{stats.min}</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-6">
             <p className="text-sm font-medium text-purple-600">及格人数</p>
-            <p className="text-3xl font-bold text-purple-900">{stats.passing}</p>
+            <p className="text-3xl font-bold text-purple-900">
+              {stats.passing}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -252,9 +281,17 @@ const GradeOverview: React.FC<GradeOverviewProps> = ({ parsingError, gradeData: 
         </CardHeader>
         <CardContent>
           <div className="text-center">
-            <p className="text-lg">总计 <span className="font-bold text-blue-600">{stats.total}</span> 名学生</p>
+            <p className="text-lg">
+              总计{" "}
+              <span className="font-bold text-blue-600">{stats.total}</span>{" "}
+              名学生
+            </p>
             <p className="text-sm text-gray-500 mt-2">
-              及格率: {stats.total > 0 ? ((stats.passing / stats.total) * 100).toFixed(1) : 0}%
+              及格率:{" "}
+              {stats.total > 0
+                ? ((stats.passing / stats.total) * 100).toFixed(1)
+                : 0}
+              %
             </p>
           </div>
         </CardContent>
@@ -263,4 +300,4 @@ const GradeOverview: React.FC<GradeOverviewProps> = ({ parsingError, gradeData: 
   );
 };
 
-export default GradeOverview; 
+export default GradeOverview;

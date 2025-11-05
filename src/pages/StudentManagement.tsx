@@ -1,26 +1,26 @@
 import React, { useEffect, useState } from "react";
 import { Navbar } from "@/components/shared";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Search, 
-  Download, 
-  UserPlus, 
-  MoreHorizontal, 
-  Pencil, 
-  Trash2, 
-  Check, 
-  X 
+import {
+  Search,
+  Download,
+  UserPlus,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Check,
+  X,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -90,7 +90,11 @@ const studentSchema = z.object({
   admission_year: z.string().optional(),
   gender: z.enum(["男", "女", "其他"]).nullable(),
   contact_phone: z.string().optional(),
-  contact_email: z.string().email("请输入有效的邮箱").optional().or(z.string().length(0)),
+  contact_email: z
+    .string()
+    .email("请输入有效的邮箱")
+    .optional()
+    .or(z.string().length(0)),
 });
 
 type StudentFormValues = z.infer<typeof studentSchema>;
@@ -106,7 +110,9 @@ export default function StudentManagement() {
   const [currentStudent, setCurrentStudent] = useState<Student | null>(null);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
-  const [selectedClassName, setSelectedClassName] = useState<string | null>(null);
+  const [selectedClassName, setSelectedClassName] = useState<string | null>(
+    null
+  );
 
   // 表单设置
   const form = useForm<StudentFormValues>({
@@ -125,17 +131,17 @@ export default function StudentManagement() {
   useEffect(() => {
     // 从URL参数中获取班级ID和名称
     const searchParams = new URLSearchParams(location.search);
-    const classId = searchParams.get('classId');
-    const className = searchParams.get('className');
-    
+    const classId = searchParams.get("classId");
+    const className = searchParams.get("className");
+
     if (classId) {
       setSelectedClassId(classId);
     }
-    
+
     if (className) {
       setSelectedClassName(className);
     }
-    
+
     fetchStudents(classId || null);
     fetchClasses();
   }, [location.search]);
@@ -158,30 +164,30 @@ export default function StudentManagement() {
   const fetchStudents = async (classId: string | null = null) => {
     try {
       setLoading(true);
-      let query = supabase
-        .from('students')
-        .select(`
+      let query = supabase.from("students").select(`
           *,
           class:class_id (
             id,
             name
           )
         `);
-      
+
       // 如果有班级ID，则按班级筛选
       if (classId) {
-        query = query.eq('class_id', classId);
+        query = query.eq("class_id", classId);
       }
-      
-      const { data, error } = await query.order('created_at', { ascending: false });
+
+      const { data, error } = await query.order("created_at", {
+        ascending: false,
+      });
 
       if (error) throw error;
-      
+
       setStudents(data || []);
     } catch (error) {
-      console.error('获取学生数据失败:', error);
-      toast.error('获取学生数据失败', {
-        description: error instanceof Error ? error.message : '未知错误'
+      console.error("获取学生数据失败:", error);
+      toast.error("获取学生数据失败", {
+        description: error instanceof Error ? error.message : "未知错误",
       });
     } finally {
       setLoading(false);
@@ -191,14 +197,14 @@ export default function StudentManagement() {
   const fetchClasses = async () => {
     try {
       const { data, error } = await supabase
-        .from('classes')
-        .select('id, name, grade')
-        .order('name', { ascending: true });
+        .from("classes")
+        .select("id, name, grade")
+        .order("name", { ascending: true });
 
       if (error) throw error;
       setClasses(data || []);
     } catch (error) {
-      console.error('获取班级数据失败:', error);
+      console.error("获取班级数据失败:", error);
     }
   };
 
@@ -218,25 +224,25 @@ export default function StudentManagement() {
 
   const handleDeleteStudent = async () => {
     if (!currentStudent) return;
-    
+
     try {
       const { error } = await supabase
-        .from('students')
+        .from("students")
         .delete()
-        .eq('id', currentStudent.id);
-        
+        .eq("id", currentStudent.id);
+
       if (error) throw error;
-      
+
       toast.success("删除成功", {
-        description: `已删除学生 ${currentStudent.name}`
+        description: `已删除学生 ${currentStudent.name}`,
       });
-      
+
       // 刷新学生列表
       fetchStudents();
     } catch (error) {
-      console.error('删除学生失败:', error);
-      toast.error('删除学生失败', {
-        description: error instanceof Error ? error.message : '未知错误'
+      console.error("删除学生失败:", error);
+      toast.error("删除学生失败", {
+        description: error instanceof Error ? error.message : "未知错误",
       });
     } finally {
       setIsConfirmDeleteOpen(false);
@@ -247,51 +253,64 @@ export default function StudentManagement() {
   const handleExportStudents = () => {
     try {
       // 准备导出数据
-      const exportData = filteredStudents.map(student => ({
+      const exportData = filteredStudents.map((student) => ({
         学号: student.student_id,
         姓名: student.name,
         班级: student.class?.name || "",
         性别: student.gender || "",
         入学年份: student.admission_year || "",
         联系电话: student.contact_phone || "",
-        电子邮箱: student.contact_email || ""
+        电子邮箱: student.contact_email || "",
       }));
-      
+
       // 转换为CSV
-      const headers = ["学号", "姓名", "班级", "性别", "入学年份", "联系电话", "电子邮箱"];
+      const headers = [
+        "学号",
+        "姓名",
+        "班级",
+        "性别",
+        "入学年份",
+        "联系电话",
+        "电子邮箱",
+      ];
       const csvContent = [
         headers.join(","),
-        ...exportData.map(row => headers.map(header => `"${(row as any)[header] || ""}"`).join(","))
+        ...exportData.map((row) =>
+          headers.map((header) => `"${(row as any)[header] || ""}"`).join(",")
+        ),
       ].join("\n");
-      
+
       // 创建下载链接
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `学生信息_${new Date().toLocaleDateString()}.csv`);
-      link.style.visibility = 'hidden';
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute(
+        "download",
+        `学生信息_${new Date().toLocaleDateString()}.csv`
+      );
+      link.style.visibility = "hidden";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       toast.success("导出成功", {
-        description: `已导出 ${exportData.length} 条学生记录`
+        description: `已导出 ${exportData.length} 条学生记录`,
       });
     } catch (error) {
-      console.error('导出失败:', error);
-      toast.error('导出失败', {
-        description: error instanceof Error ? error.message : '未知错误'
+      console.error("导出失败:", error);
+      toast.error("导出失败", {
+        description: error instanceof Error ? error.message : "未知错误",
       });
     }
   };
 
   const onSubmit = async (values: StudentFormValues) => {
     if (!currentStudent) return;
-    
+
     try {
       const { error } = await supabase
-        .from('students')
+        .from("students")
         .update({
           student_id: values.student_id,
           name: values.name,
@@ -299,25 +318,25 @@ export default function StudentManagement() {
           admission_year: values.admission_year || null,
           gender: values.gender,
           contact_phone: values.contact_phone || null,
-          contact_email: values.contact_email || null
+          contact_email: values.contact_email || null,
         })
-        .eq('id', currentStudent.id);
-        
+        .eq("id", currentStudent.id);
+
       if (error) throw error;
-      
+
       toast.success("更新成功", {
-        description: `已更新学生 ${values.name} 的信息`
+        description: `已更新学生 ${values.name} 的信息`,
       });
-      
+
       setIsEditing(false);
       setCurrentStudent(null);
-      
+
       // 刷新学生列表
       fetchStudents();
     } catch (error) {
-      console.error('更新学生失败:', error);
-      toast.error('更新学生失败', {
-        description: error instanceof Error ? error.message : '未知错误'
+      console.error("更新学生失败:", error);
+      toast.error("更新学生失败", {
+        description: error instanceof Error ? error.message : "未知错误",
       });
     }
   };
@@ -326,14 +345,17 @@ export default function StudentManagement() {
   const handleClearClassFilter = () => {
     setSelectedClassId(null);
     setSelectedClassName(null);
-    navigate('/student-management');
+    navigate("/student-management");
     fetchStudents();
   };
 
-  const filteredStudents = students.filter(student => 
-    student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    student.student_id.toString().includes(searchQuery) ||
-    (student.class?.name?.toLowerCase() || '').includes(searchQuery.toLowerCase())
+  const filteredStudents = students.filter(
+    (student) =>
+      student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      student.student_id.toString().includes(searchQuery) ||
+      (student.class?.name?.toLowerCase() || "").includes(
+        searchQuery.toLowerCase()
+      )
   );
 
   return (
@@ -343,18 +365,22 @@ export default function StudentManagement() {
         <div className="flex flex-col space-y-6">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold">{selectedClassName ? `${selectedClassName} - ` : ''}学生管理</h1>
-              <p className="text-muted-foreground mt-1">管理学生信息和班级分配</p>
+              <h1 className="text-3xl font-bold">
+                {selectedClassName ? `${selectedClassName} - ` : ""}学生管理
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                管理学生信息和班级分配
+              </p>
             </div>
             <div className="flex space-x-2">
-              <Button 
-                variant="outline" 
-                onClick={() => navigate('/student-portrait-management')}
+              <Button
+                variant="outline"
+                onClick={() => navigate("/student-portrait-management")}
               >
                 查看学生画像管理
               </Button>
-              <Button 
-                onClick={() => navigate('/')}
+              <Button
+                onClick={() => navigate("/")}
                 className="bg-[#B9FF66] text-black hover:bg-[#a8e85c]"
               >
                 <UserPlus className="mr-2 h-4 w-4" />
@@ -374,15 +400,19 @@ export default function StudentManagement() {
                 />
               </div>
               {!selectedClassId && classes.length > 0 && (
-                <Select onValueChange={(value) => {
-                  const selectedClass = classes.find(c => c.id === value);
-                  if (selectedClass) {
-                    setSelectedClassId(value);
-                    setSelectedClassName(selectedClass.name);
-                    navigate(`/student-management?classId=${value}&className=${encodeURIComponent(selectedClass.name)}`);
-                    fetchStudents(value);
-                  }
-                }}>
+                <Select
+                  onValueChange={(value) => {
+                    const selectedClass = classes.find((c) => c.id === value);
+                    if (selectedClass) {
+                      setSelectedClassId(value);
+                      setSelectedClassName(selectedClass.name);
+                      navigate(
+                        `/student-management?classId=${value}&className=${encodeURIComponent(selectedClass.name)}`
+                      );
+                      fetchStudents(value);
+                    }
+                  }}
+                >
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="按班级筛选" />
                   </SelectTrigger>
@@ -403,10 +433,14 @@ export default function StudentManagement() {
           </div>
 
           {loading ? (
-            <div className="py-20 text-center text-muted-foreground">加载中...</div>
+            <div className="py-20 text-center text-muted-foreground">
+              加载中...
+            </div>
           ) : filteredStudents.length === 0 ? (
             <div className="py-20 text-center text-muted-foreground">
-              {searchQuery ? '没有找到匹配的学生' : '还没有学生数据，请添加学生'}
+              {searchQuery
+                ? "没有找到匹配的学生"
+                : "还没有学生数据，请添加学生"}
             </div>
           ) : (
             <div className="rounded-md border">
@@ -426,20 +460,24 @@ export default function StudentManagement() {
                 <TableBody>
                   {filteredStudents.map((student) => (
                     <TableRow key={student.id}>
-                      <TableCell className="font-medium">{student.student_id}</TableCell>
+                      <TableCell className="font-medium">
+                        {student.student_id}
+                      </TableCell>
                       <TableCell>{student.name}</TableCell>
                       <TableCell>
                         {student.class ? (
                           <Badge variant="outline" className="bg-blue-50">
                             {student.class.name}
                           </Badge>
-                        ) : '-'}
+                        ) : (
+                          "-"
+                        )}
                       </TableCell>
-                      <TableCell>{student.gender || '-'}</TableCell>
-                      <TableCell>{student.admission_year || '-'}</TableCell>
-                      <TableCell>{student.contact_phone || '-'}</TableCell>
+                      <TableCell>{student.gender || "-"}</TableCell>
+                      <TableCell>{student.admission_year || "-"}</TableCell>
+                      <TableCell>{student.contact_phone || "-"}</TableCell>
                       <TableCell className="truncate max-w-[180px]">
-                        {student.contact_email || '-'}
+                        {student.contact_email || "-"}
                       </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
@@ -450,11 +488,13 @@ export default function StudentManagement() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEditStudent(student)}>
+                            <DropdownMenuItem
+                              onClick={() => handleEditStudent(student)}
+                            >
                               <Pencil className="mr-2 h-4 w-4" />
                               编辑
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => handleConfirmDelete(student)}
                               className="text-red-600"
                             >
@@ -472,7 +512,7 @@ export default function StudentManagement() {
           )}
         </div>
       </div>
-      
+
       {/* 编辑学生信息对话框 */}
       <Dialog open={isEditing} onOpenChange={setIsEditing}>
         <DialogContent className="sm:max-w-[600px]">
@@ -482,7 +522,7 @@ export default function StudentManagement() {
               修改学生基本信息，包括班级、联系方式等。
             </DialogDescription>
           </DialogHeader>
-          
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -499,7 +539,7 @@ export default function StudentManagement() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="name"
@@ -513,15 +553,15 @@ export default function StudentManagement() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="class_id"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>班级 *</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
+                      <Select
+                        onValueChange={field.onChange}
                         defaultValue={field.value}
                         value={field.value}
                       >
@@ -542,15 +582,15 @@ export default function StudentManagement() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="gender"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>性别</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
+                      <Select
+                        onValueChange={field.onChange}
                         defaultValue={field.value || undefined}
                         value={field.value || undefined}
                       >
@@ -569,7 +609,7 @@ export default function StudentManagement() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="admission_year"
@@ -583,7 +623,7 @@ export default function StudentManagement() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="contact_phone"
@@ -597,7 +637,7 @@ export default function StudentManagement() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="contact_email"
@@ -612,11 +652,11 @@ export default function StudentManagement() {
                   )}
                 />
               </div>
-              
+
               <DialogFooter>
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={() => setIsEditing(false)}
                 >
                   取消
@@ -627,7 +667,7 @@ export default function StudentManagement() {
           </Form>
         </DialogContent>
       </Dialog>
-      
+
       {/* 确认删除对话框 */}
       <Dialog open={isConfirmDeleteOpen} onOpenChange={setIsConfirmDeleteOpen}>
         <DialogContent className="sm:max-w-[425px]">
@@ -638,7 +678,10 @@ export default function StudentManagement() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex space-x-2 justify-end">
-            <Button variant="outline" onClick={() => setIsConfirmDeleteOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsConfirmDeleteOpen(false)}
+            >
               <X className="mr-2 h-4 w-4" />
               取消
             </Button>

@@ -5,29 +5,29 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { 
+import {
   Select,
   SelectContent,
   SelectGroup,
   SelectItem,
   SelectLabel,
   SelectTrigger,
-  SelectValue
+  SelectValue,
 } from "@/components/ui/select";
-import { 
+import {
   Form,
   FormControl,
   FormDescription,
   FormField,
   FormItem,
   FormLabel,
-  FormMessage
+  FormMessage,
 } from "@/components/ui/form";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Plus, Upload, X, FileText } from "lucide-react";
@@ -52,17 +52,14 @@ const formSchema = z.object({
   notes: z.string().optional(),
 });
 
-const RecordStudentHomeworkDialog: React.FC<RecordStudentHomeworkDialogProps> = ({
-  open,
-  onOpenChange,
-  homework,
-  onRecorded
-}) => {
+const RecordStudentHomeworkDialog: React.FC<
+  RecordStudentHomeworkDialogProps
+> = ({ open, onOpenChange, homework, onRecorded }) => {
   const [files, setFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [students, setStudents] = useState<any[]>([]);
-  
+
   // 获取班级学生
   useEffect(() => {
     const fetchStudents = async () => {
@@ -70,39 +67,43 @@ const RecordStudentHomeworkDialog: React.FC<RecordStudentHomeworkDialogProps> = 
         try {
           // 获取班级学生
           const { data: studentsData, error } = await supabase
-            .from('students')
-            .select('*')
-            .eq('class_id', homework.classes.id)
-            .order('name');
-          
+            .from("students")
+            .select("*")
+            .eq("class_id", homework.classes.id)
+            .order("name");
+
           if (error) throw error;
-          
+
           // 获取已有作业记录的学生列表
-          const { data: submittedStudents, error: submissionError } = await supabase
-            .from('homework_submissions')
-            .select('student_id')
-            .eq('homework_id', homework.id);
-          
+          const { data: submittedStudents, error: submissionError } =
+            await supabase
+              .from("homework_submissions")
+              .select("student_id")
+              .eq("homework_id", homework.id);
+
           if (submissionError) throw submissionError;
-          
+
           // 过滤掉已提交作业的学生
-          const alreadySubmittedIds = submittedStudents?.map(s => s.student_id) || [];
-          
-          setStudents(studentsData?.filter(student => 
-            !alreadySubmittedIds.includes(student.id)
-          ) || []);
+          const alreadySubmittedIds =
+            submittedStudents?.map((s) => s.student_id) || [];
+
+          setStudents(
+            studentsData?.filter(
+              (student) => !alreadySubmittedIds.includes(student.id)
+            ) || []
+          );
         } catch (error) {
-          console.error('获取学生列表失败:', error);
-          toast.error('获取学生列表失败');
+          console.error("获取学生列表失败:", error);
+          toast.error("获取学生列表失败");
         }
       }
     };
-    
+
     if (open) {
       fetchStudents();
     }
   }, [open, homework]);
-  
+
   // 表单设置
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -112,76 +113,76 @@ const RecordStudentHomeworkDialog: React.FC<RecordStudentHomeworkDialogProps> = 
       notes: "",
     },
   });
-  
+
   // 处理文件拖放
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
   };
-  
+
   const handleDragLeave = () => {
     setIsDragging(false);
   };
-  
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    
+
     if (e.dataTransfer.files) {
       const newFiles = Array.from(e.dataTransfer.files);
-      setFiles(prev => [...prev, ...newFiles]);
+      setFiles((prev) => [...prev, ...newFiles]);
     }
   };
-  
+
   // 处理文件选择
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
-      setFiles(prev => [...prev, ...newFiles]);
+      setFiles((prev) => [...prev, ...newFiles]);
     }
   };
-  
+
   // 移除文件
   const removeFile = (index: number) => {
     setFiles(files.filter((_, i) => i !== index));
   };
-  
+
   // 提交表单
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (students.length === 0) {
-      toast.error('没有可用的学生');
+      toast.error("没有可用的学生");
       return;
     }
-    
+
     setUploading(true);
-    
+
     try {
       // 上传文件
       const uploadedFiles = [];
-      
+
       if (files.length > 0) {
         for (const file of files) {
-          const fileExt = file.name.split('.').pop();
+          const fileExt = file.name.split(".").pop();
           const filePath = `${homework.id}/${values.studentId}/${uuidv4()}.${fileExt}`;
-          
+
           const { error: uploadError } = await supabase.storage
-            .from('homework_files')
+            .from("homework_files")
             .upload(filePath, file);
-          
+
           if (uploadError) throw uploadError;
-          
+
           uploadedFiles.push({
             name: file.name,
             path: filePath,
             size: file.size,
-            type: file.type
+            type: file.type,
           });
         }
       }
-      
+
       // 创建作业记录
       const { error: submissionError } = await supabase
-        .from('homework_submissions')
+        .from("homework_submissions")
         .insert({
           homework_id: homework.id,
           student_id: values.studentId,
@@ -190,20 +191,20 @@ const RecordStudentHomeworkDialog: React.FC<RecordStudentHomeworkDialogProps> = 
           files: uploadedFiles.length > 0 ? uploadedFiles : null,
           submitted_at: new Date().toISOString(),
         });
-      
+
       if (submissionError) throw submissionError;
-      
-      toast.success('成功记录学生作业');
+
+      toast.success("成功记录学生作业");
       onRecorded();
       onOpenChange(false);
     } catch (error) {
-      console.error('记录作业失败:', error);
-      toast.error('记录作业失败');
+      console.error("记录作业失败:", error);
+      toast.error("记录作业失败");
     } finally {
       setUploading(false);
     }
   };
-  
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[600px]">
@@ -213,7 +214,7 @@ const RecordStudentHomeworkDialog: React.FC<RecordStudentHomeworkDialogProps> = 
             为 {homework?.title} 添加学生作业记录
           </DialogDescription>
         </DialogHeader>
-        
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
@@ -222,8 +223,8 @@ const RecordStudentHomeworkDialog: React.FC<RecordStudentHomeworkDialogProps> = 
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>选择学生</FormLabel>
-                  <Select 
-                    onValueChange={field.onChange} 
+                  <Select
+                    onValueChange={field.onChange}
                     defaultValue={field.value}
                   >
                     <FormControl>
@@ -251,15 +252,15 @@ const RecordStudentHomeworkDialog: React.FC<RecordStudentHomeworkDialogProps> = 
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={form.control}
               name="status"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>作业状态</FormLabel>
-                  <Select 
-                    onValueChange={field.onChange} 
+                  <Select
+                    onValueChange={field.onChange}
                     defaultValue={field.value}
                   >
                     <FormControl>
@@ -277,7 +278,7 @@ const RecordStudentHomeworkDialog: React.FC<RecordStudentHomeworkDialogProps> = 
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={form.control}
               name="notes"
@@ -285,9 +286,9 @@ const RecordStudentHomeworkDialog: React.FC<RecordStudentHomeworkDialogProps> = 
                 <FormItem>
                   <FormLabel>备注</FormLabel>
                   <FormControl>
-                    <Textarea 
-                      placeholder="记录作业的完成情况、问题或备注..." 
-                      className="resize-none" 
+                    <Textarea
+                      placeholder="记录作业的完成情况、问题或备注..."
+                      className="resize-none"
                       rows={3}
                       {...field}
                     />
@@ -296,7 +297,7 @@ const RecordStudentHomeworkDialog: React.FC<RecordStudentHomeworkDialogProps> = 
                 </FormItem>
               )}
             />
-            
+
             <div className="space-y-2">
               <Label>上传文件</Label>
               <div
@@ -327,7 +328,7 @@ const RecordStudentHomeworkDialog: React.FC<RecordStudentHomeworkDialogProps> = 
                 </div>
               </div>
             </div>
-            
+
             {files.length > 0 && (
               <div className="space-y-2">
                 <Label>已选文件</Label>
@@ -358,9 +359,13 @@ const RecordStudentHomeworkDialog: React.FC<RecordStudentHomeworkDialogProps> = 
                 </div>
               </div>
             )}
-            
+
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
                 取消
               </Button>
               <Button type="submit" disabled={uploading}>
@@ -384,4 +389,4 @@ const RecordStudentHomeworkDialog: React.FC<RecordStudentHomeworkDialogProps> = 
   );
 };
 
-export default RecordStudentHomeworkDialog; 
+export default RecordStudentHomeworkDialog;

@@ -113,8 +113,8 @@ serve(async (req) => {
 
     // 2. 获取成绩数据
     let gradeQuery = supabaseClient
-      .from('grade_data')
-      .select('id, student_id, name, COALESCE(class_name, \'未知班级\') as class_name, subject, total_score')
+      .from('grade_data_new')
+      .select('id, student_id, name, COALESCE(class_name, \'未知班级\') as class_name, total_score, chinese_score, math_score, english_score, physics_score, chemistry_score, politics_score, history_score')
       .eq('exam_id', examId)
       .not('total_score', 'is', null); // 过滤掉没有分数的记录
 
@@ -140,111 +140,76 @@ serve(async (req) => {
 
     console.log(`[get-class-boxplot-data] Retrieved ${gradeData.length} grade records`);
 
-    // 3. 按科目分组并计算统计数据
+    // 3. 转换wide table为long format并按科目分组
     const subjectMap = new Map<string, number[]>();
-    const subjectStudentMap = new Map<string, Map<string, { name: string, score: number }>>();
-
-    // 首先，按科目对成绩进行分组
-    for (const grade of gradeData) {
-      if (!grade.subject || !grade.total_score) continue;
-
-      // 规范化科目名称
-      const normalizedSubject = normalizeSubjectName(grade.subject);
-
-      // 确保科目存在于映射中
-      if (!subjectMap.has(normalizedSubject)) {
-        subjectMap.set(normalizedSubject, []);
-        subjectStudentMap.set(normalizedSubject, new Map());
-      }
-
-      // 添加分数到该科目的分数列表
-      subjectMap.get(normalizedSubject)!.push(grade.total_score);
+    
+    // 为每个学生的每个科目创建记录
+    gradeData.forEach(student => {
+      const subjects = [
+        { name: '总分', score: student.total_score },
+        { name: '语文', score: student.chinese_score },
+        { name: '数学', score: student.math_score },
+        { name: '英语', score: student.english_score },
+        { name: '物理', score: student.physics_score },
+        { name: '化学', score: student.chemistry_score },
+        { name: '道法', score: student.politics_score },
+        { name: '历史', score: student.history_score }
+      ];
       
-      // 记录该科目下每个学生的成绩，用于后续检测异常值
-      subjectStudentMap.get(normalizedSubject)!.set(grade.student_id, {
-        name: grade.name || '未知',
-        score: grade.total_score
-      });
-    }
-
-    // 然后，为每个科目计算箱线图统计数据
-    const boxPlotData: BoxPlotData[] = [];
-
-    for (const [subject, scores] of subjectMap.entries()) {
-      if (scores.length === 0) continue;
-
-      // 排序分数
-      scores.sort((a, b) => a - b);
-
-      // 计算统计量
-      const min = scores[0];
-      const max = scores[scores.length - 1];
-      const mean = scores.reduce((sum, score) => sum + score, 0) / scores.length;
-      
-      // 计算中位数
-      const midIndex = Math.floor(scores.length / 2);
-      const median = scores.length % 2 === 0
-        ? (scores[midIndex - 1] + scores[midIndex]) / 2
-        : scores[midIndex];
-      
-      // 计算四分位数
-      const q1Index = Math.floor(scores.length / 4);
-      const q1 = scores[q1Index];
-      
-      const q3Index = Math.floor(scores.length * 3 / 4);
-      const q3 = scores[q3Index];
-      
-      // 计算IQR (四分位距)
-      const iqr = q3 - q1;
-      
-      // 定义异常值的阈值 (1.5 * IQR 法则)
-      const lowerBound = q1 - 1.5 * iqr;
-      const upperBound = q3 + 1.5 * iqr;
-      
-      // 找出异常值
-      const outliers = [];
-      const studentMap = subjectStudentMap.get(subject);
-      
-      if (studentMap) {
-        for (const [studentId, data] of studentMap.entries()) {
-          if (data.score < lowerBound || data.score > upperBound) {
-            outliers.push({
-              value: data.score,
-              studentId,
-              studentName: data.name
-            });
+      subjects.forEach(({ name, score }) => {
+        if (score !== null && score !== undefined) {
+          if (!subjectMap.has(name)) {
+            subjectMap.set(name, []);
           }
+          subjectMap.get(name)!.push(parseFloat(score.toString()));
         }
-      }
-      
-      // 添加该科目的箱线图数据
-      boxPlotData.push({
-        subject,
-        min: parseFloat(min.toFixed(2)),
-        max: parseFloat(max.toFixed(2)),
-        median: parseFloat(median.toFixed(2)),
-        q1: parseFloat(q1.toFixed(2)),
-        q3: parseFloat(q3.toFixed(2)),
-        mean: parseFloat(mean.toFixed(2)),
-        outliers
       });
-    }
-
-    console.log(`[get-class-boxplot-data] Generated boxplot data for ${boxPlotData.length} subjects`);
-
-    // 返回成功结果
-    return new Response(
-      JSON.stringify(boxPlotData),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-    );
-  } catch (error) {
-    console.error("[get-class-boxplot-data] Critical error in function execution:", error.message, error.stack);
-    // 返回错误信息
-    return new Response(JSON.stringify({ error: error.message || 'An unknown error occurred' }), {
-      status: 500, // 服务器内部错误
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+
+    // 4. 计算每个科目的箱线图统计数据
+    const results = Array.from(subjectMap.entries()).map(([subject, scores]) => {
+      if (scores.length === 0) return null;
+      
+      // 排序分数用于计算统计值
+      const sortedScores = scores.sort((a, b) => a - b);
+      const n = sortedScores.length;
+      
+      // 计算箱线图统计值
+      const min = sortedScores[0];
+      const max = sortedScores[n - 1];
+      const q1 = sortedScores[Math.floor(n * 0.25)];
+      const median = sortedScores[Math.floor(n * 0.5)];
+      const q3 = sortedScores[Math.floor(n * 0.75)];
+      
+      return {
+        subject,
+        min,
+        q1,
+        median,
+        q3,
+        max,
+        count: n,
+        scores: sortedScores // 可选：返回原始分数用于调试
+      };
+    }).filter(result => result !== null);
+
+    console.log(`[get-class-boxplot-data] Processed ${results.length} subjects`);
+    
+    return new Response(JSON.stringify(results), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200
+    });
+
+  } catch (error) {
+    console.error("[get-class-boxplot-data] Error:", error);
+    return new Response(
+      JSON.stringify({ 
+        error: error instanceof Error ? error.message : "Unknown error occurred" 
+      }), 
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500 
+      }
+    );
   }
 });
-
-console.log("get-class-boxplot-data function script parsed."); 

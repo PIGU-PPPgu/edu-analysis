@@ -73,7 +73,7 @@ export const AnimateChangeInHeight: React.FC<AnimateChangeInHeightProps> = ({
 
 export enum GradeFilterType {
   CLASS = "班级",
-  SUBJECT = "科目", 
+  SUBJECT = "科目",
   SCORE_RANGE = "分数段",
   EXAM_TYPE = "考试类型",
 }
@@ -118,10 +118,10 @@ const FilterIcon = ({ type }: { type: GradeFilterType }) => {
 };
 
 const getScoreRangeColor = (range: string) => {
-  if (range.includes('90') || range.includes('优秀')) return "bg-green-500";
-  if (range.includes('80') || range.includes('良好')) return "bg-blue-500";
-  if (range.includes('70') || range.includes('中等')) return "bg-yellow-500";
-  if (range.includes('60') || range.includes('及格')) return "bg-orange-500";
+  if (range.includes("90") || range.includes("优秀")) return "bg-green-500";
+  if (range.includes("80") || range.includes("良好")) return "bg-blue-500";
+  if (range.includes("70") || range.includes("中等")) return "bg-yellow-500";
+  if (range.includes("60") || range.includes("及格")) return "bg-orange-500";
   return "bg-red-500";
 };
 
@@ -138,7 +138,11 @@ const FilterOperatorDropdown = ({
 }) => {
   const getOperators = () => {
     if (filterType === GradeFilterType.SCORE_RANGE) {
-      return [GradeFilterOperator.GREATER_THAN, GradeFilterOperator.LESS_THAN, GradeFilterOperator.BETWEEN];
+      return [
+        GradeFilterOperator.GREATER_THAN,
+        GradeFilterOperator.LESS_THAN,
+        GradeFilterOperator.BETWEEN,
+      ];
     }
     if (filterValues.length > 1) {
       return [GradeFilterOperator.IS_ANY_OF, GradeFilterOperator.IS_NOT];
@@ -147,7 +151,7 @@ const FilterOperatorDropdown = ({
   };
 
   const operators = getOperators();
-  
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="bg-muted hover:bg-muted/80 px-2 py-1 text-xs text-muted-foreground hover:text-primary transition shrink-0 rounded-none border-l border-border">
@@ -182,7 +186,7 @@ const FilterValueCombobox = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [commandInput, setCommandInput] = useState("");
-  
+
   const nonSelectedOptions = options.filter(
     (option) => !filterValues.includes(option.value)
   );
@@ -199,24 +203,25 @@ const FilterValueCombobox = ({
     >
       <PopoverTrigger className="rounded-none px-2 py-1 bg-muted hover:bg-muted/80 transition text-xs text-muted-foreground hover:text-primary shrink-0 border-l border-border">
         <div className="flex gap-1.5 items-center">
-          {filterType === GradeFilterType.SCORE_RANGE && filterValues.length > 0 && (
-            <div className="flex items-center -space-x-1">
-              {filterValues.slice(0, 3).map((value, index) => (
-                <div
-                  key={value}
-                  className={cn(
-                    "size-2 rounded-full",
-                    getScoreRangeColor(value)
-                  )}
-                />
-              ))}
-            </div>
-          )}
+          {filterType === GradeFilterType.SCORE_RANGE &&
+            filterValues.length > 0 && (
+              <div className="flex items-center -space-x-1">
+                {filterValues.slice(0, 3).map((value, index) => (
+                  <div
+                    key={value}
+                    className={cn(
+                      "size-2 rounded-full",
+                      getScoreRangeColor(value)
+                    )}
+                  />
+                ))}
+              </div>
+            )}
           {filterValues.length === 1
             ? filterValues[0]
             : filterValues.length > 1
-            ? `${filterValues.length} 项已选`
-            : "选择..."}
+              ? `${filterValues.length} 项已选`
+              : "选择..."}
         </div>
       </PopoverTrigger>
       <PopoverContent className="w-[200px] p-0">
@@ -233,13 +238,15 @@ const FilterValueCombobox = ({
               {filterValues.length > 0 && (
                 <CommandGroup>
                   {filterValues.map((value) => {
-                    const option = options.find(opt => opt.value === value);
+                    const option = options.find((opt) => opt.value === value);
                     return (
                       <CommandItem
                         key={value}
                         className="group flex gap-2 items-center text-xs"
                         onSelect={() => {
-                          setFilterValues(filterValues.filter((v) => v !== value));
+                          setFilterValues(
+                            filterValues.filter((v) => v !== value)
+                          );
                           setOpen(false);
                         }}
                       >
@@ -270,9 +277,14 @@ const FilterValueCombobox = ({
                           setOpen(false);
                         }}
                       >
-                        <Checkbox checked={false} className="size-3 opacity-50" />
+                        <Checkbox
+                          checked={false}
+                          className="size-3 opacity-50"
+                        />
                         {option.icon}
-                        <span className="text-accent-foreground">{option.name}</span>
+                        <span className="text-accent-foreground">
+                          {option.name}
+                        </span>
                         {option.count && (
                           <span className="text-muted-foreground text-xs ml-auto">
                             {option.count}
@@ -305,7 +317,10 @@ export default function GradeFilters({
       {filters
         .filter((filter) => filter.value?.length > 0)
         .map((filter) => (
-          <div key={filter.id} className="flex items-center text-xs border border-border rounded-sm overflow-hidden">
+          <div
+            key={filter.id}
+            className="flex items-center text-xs border border-border rounded-sm overflow-hidden"
+          >
             <div className="flex gap-1.5 shrink-0 bg-muted px-2 py-1 items-center">
               <FilterIcon type={filter.type} />
               <span className="font-medium">{filter.type}</span>
@@ -346,4 +361,4 @@ export default function GradeFilters({
         ))}
     </div>
   );
-} 
+}

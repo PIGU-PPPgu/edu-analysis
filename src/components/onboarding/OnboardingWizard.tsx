@@ -1,12 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { z } from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { 
-  Card, CardContent, CardDescription, 
-  CardFooter, CardHeader, CardTitle 
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import React, { useState, useEffect } from "react";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -15,21 +19,35 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
-import { School, BookOpen, Users, BookMarked, UserCircle, Building2, Bookmark } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  School,
+  BookOpen,
+  Users,
+  BookMarked,
+  UserCircle,
+  Building2,
+  Bookmark,
+} from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 // 个人信息表单验证
 const personalInfoSchema = z.object({
-  fullName: z.string().min(1, '姓名不能为空'),
-  role: z.enum(['teacher', 'student', 'admin']),
+  fullName: z.string().min(1, "姓名不能为空"),
+  role: z.enum(["teacher", "student", "admin"]),
   phone: z.string().optional(),
   bio: z.string().optional(),
   avatarUrl: z.string().optional(),
@@ -37,27 +55,42 @@ const personalInfoSchema = z.object({
 
 // 步骤1表单验证
 const step1Schema = z.object({
-  schoolName: z.string().min(1, '学校名称不能为空'),
-  educationStage: z.enum(['primary', 'middle', 'high', 'university', 'training']),
+  schoolName: z.string().min(1, "学校名称不能为空"),
+  educationStage: z.enum([
+    "primary",
+    "middle",
+    "high",
+    "university",
+    "training",
+  ]),
 });
 
 // 步骤2表单验证
 const step2Schema = z.object({
-  gradesCount: z.coerce.number().min(1, '年级数量至少为1').max(12, '年级数量过多'),
-  classesPerGrade: z.coerce.number().min(1, '每年级班级数至少为1').max(20, '每年级班级数过多'),
-  startYear: z.coerce.number().min(2000, '开始年份格式不正确').max(2100, '结束年份不能超过2100年'),
+  gradesCount: z.coerce
+    .number()
+    .min(1, "年级数量至少为1")
+    .max(12, "年级数量过多"),
+  classesPerGrade: z.coerce
+    .number()
+    .min(1, "每年级班级数至少为1")
+    .max(20, "每年级班级数过多"),
+  startYear: z.coerce
+    .number()
+    .min(2000, "开始年份格式不正确")
+    .max(2100, "结束年份不能超过2100年"),
 });
 
 // 步骤3表单验证
 const step3Schema = z.object({
-  subjects: z.array(z.string()).min(1, '至少需要选择一个学科'),
+  subjects: z.array(z.string()).min(1, "至少需要选择一个学科"),
 });
 
 // 步骤4表单验证
 const step4Schema = z.object({
   confirmSetup: z.boolean(),
   enableNotifications: z.boolean().default(true),
-  dataImportOption: z.enum(['now', 'later']).default('later'),
+  dataImportOption: z.enum(["now", "later"]).default("later"),
 });
 
 type PersonalInfoFormValues = z.infer<typeof personalInfoSchema>;
@@ -66,31 +99,35 @@ type Step2FormValues = z.infer<typeof step2Schema>;
 type Step3FormValues = z.infer<typeof step3Schema>;
 type Step4FormValues = z.infer<typeof step4Schema>;
 
-type AllFormValues = PersonalInfoFormValues & Step1FormValues & Step2FormValues & Step3FormValues & Step4FormValues;
+type AllFormValues = PersonalInfoFormValues &
+  Step1FormValues &
+  Step2FormValues &
+  Step3FormValues &
+  Step4FormValues;
 
 // 定义教育阶段选项
 const educationStages = [
-  { value: 'primary', label: '小学' },
-  { value: 'middle', label: '初中' },
-  { value: 'high', label: '高中' },
-  { value: 'university', label: '大学/高等教育' },
-  { value: 'training', label: '培训机构' },
+  { value: "primary", label: "小学" },
+  { value: "middle", label: "初中" },
+  { value: "high", label: "高中" },
+  { value: "university", label: "大学/高等教育" },
+  { value: "training", label: "培训机构" },
 ];
 
 // 预定义学科列表
 const subjectOptions = [
-  { value: 'math', label: '数学' },
-  { value: 'chinese', label: '语文' },
-  { value: 'english', label: '英语' },
-  { value: 'physics', label: '物理' },
-  { value: 'chemistry', label: '化学' },
-  { value: 'biology', label: '生物' },
-  { value: 'history', label: '历史' },
-  { value: 'geography', label: '地理' },
-  { value: 'politics', label: '政治' },
-  { value: 'music', label: '音乐' },
-  { value: 'art', label: '美术' },
-  { value: 'pe', label: '体育' },
+  { value: "math", label: "数学" },
+  { value: "chinese", label: "语文" },
+  { value: "english", label: "英语" },
+  { value: "physics", label: "物理" },
+  { value: "chemistry", label: "化学" },
+  { value: "biology", label: "生物" },
+  { value: "history", label: "历史" },
+  { value: "geography", label: "地理" },
+  { value: "politics", label: "政治" },
+  { value: "music", label: "音乐" },
+  { value: "art", label: "美术" },
+  { value: "pe", label: "体育" },
 ];
 
 export function OnboardingWizard() {
@@ -106,40 +143,38 @@ export function OnboardingWizard() {
       const { data } = await supabase.auth.getUser();
       if (data.user) {
         setUserId(data.user.id);
-        
+
         // 检查用户是否已有进行中的引导流程
         const { data: onboarding } = await supabase
-          .from('onboarding_status')
-          .select('*')
-          .eq('user_id', data.user.id)
+          .from("onboarding_status")
+          .select("*")
+          .eq("user_id", data.user.id)
           .single();
-          
+
         if (onboarding) {
           // 恢复到之前的步骤
           if (!onboarding.is_completed && onboarding.current_step) {
             const stepMap: Record<string, number> = {
-              'personal': 0,
-              'school': 1,
-              'structure': 2,
-              'subjects': 3,
-              'complete': 4
+              personal: 0,
+              school: 1,
+              structure: 2,
+              subjects: 3,
+              complete: 4,
             };
-            
+
             setCurrentStep(stepMap[onboarding.current_step] || 0);
           }
         } else {
           // 创建新的引导记录
-          await supabase
-            .from('onboarding_status')
-            .insert({
-              user_id: data.user.id,
-              current_step: 'personal',
-              first_login: new Date().toISOString()
-            });
+          await supabase.from("onboarding_status").insert({
+            user_id: data.user.id,
+            current_step: "personal",
+            first_login: new Date().toISOString(),
+          });
         }
       }
     }
-    
+
     getUserId();
   }, []);
 
@@ -147,11 +182,11 @@ export function OnboardingWizard() {
   const personalInfoForm = useForm<PersonalInfoFormValues>({
     resolver: zodResolver(personalInfoSchema),
     defaultValues: {
-      fullName: formData.fullName || '',
-      role: formData.role || 'teacher',
-      phone: formData.phone || '',
-      bio: formData.bio || '',
-      avatarUrl: formData.avatarUrl || '',
+      fullName: formData.fullName || "",
+      role: formData.role || "teacher",
+      phone: formData.phone || "",
+      bio: formData.bio || "",
+      avatarUrl: formData.avatarUrl || "",
     },
   });
 
@@ -159,7 +194,7 @@ export function OnboardingWizard() {
   const step1Form = useForm<Step1FormValues>({
     resolver: zodResolver(step1Schema),
     defaultValues: {
-      schoolName: formData.schoolName || '',
+      schoolName: formData.schoolName || "",
       educationStage: formData.educationStage || undefined,
     },
   });
@@ -178,7 +213,7 @@ export function OnboardingWizard() {
   const step3Form = useForm<Step3FormValues>({
     resolver: zodResolver(step3Schema),
     defaultValues: {
-      subjects: formData.subjects || ['math', 'chinese', 'english'],
+      subjects: formData.subjects || ["math", "chinese", "english"],
     },
   });
 
@@ -188,7 +223,7 @@ export function OnboardingWizard() {
     defaultValues: {
       confirmSetup: false,
       enableNotifications: true,
-      dataImportOption: 'later',
+      dataImportOption: "later",
     },
   });
 
@@ -196,21 +231,27 @@ export function OnboardingWizard() {
   const handleNext = async (data: any) => {
     // 合并表单数据
     setFormData({ ...formData, ...data });
-    
+
     // 保存当前步骤
     if (userId) {
-      const stepNames = ['personal', 'school', 'structure', 'subjects', 'complete'];
+      const stepNames = [
+        "personal",
+        "school",
+        "structure",
+        "subjects",
+        "complete",
+      ];
       const nextStep = stepNames[currentStep + 1];
-      
+
       await supabase
-        .from('onboarding_status')
+        .from("onboarding_status")
         .update({
           current_step: nextStep,
           completed_steps: supabase.sql`array_append(completed_steps, ${stepNames[currentStep]})`,
         })
-        .eq('user_id', userId);
+        .eq("user_id", userId);
     }
-    
+
     // 前进到下一步
     setCurrentStep(currentStep + 1);
   };
@@ -223,40 +264,40 @@ export function OnboardingWizard() {
   // 最终提交
   const handleFinalSubmit = async (data: Step4FormValues) => {
     setIsSubmitting(true);
-    
+
     // 合并所有表单数据
     const allData = { ...formData, ...data };
-    
+
     try {
       // 保存引导设置
       await saveOnboardingData(allData as AllFormValues);
-      
+
       // 更新引导状态为已完成
       if (userId) {
         await supabase
-          .from('onboarding_status')
+          .from("onboarding_status")
           .update({
             is_completed: true,
             completed_at: new Date().toISOString(),
           })
-          .eq('user_id', userId);
+          .eq("user_id", userId);
       }
-      
-      toast.success('设置完成！', {
-        description: '教育系统初始化成功',
+
+      toast.success("设置完成！", {
+        description: "教育系统初始化成功",
       });
-      
+
       // 如果选择现在导入数据，跳转到导入页面
-      if (data.dataImportOption === 'now') {
-        navigate('/import-data');
+      if (data.dataImportOption === "now") {
+        navigate("/import-data");
       } else {
         // 否则跳转到仪表盘
-        navigate('/dashboard');
+        navigate("/dashboard");
       }
     } catch (error) {
-      console.error('设置失败:', error);
-      toast.error('设置失败', {
-        description: error instanceof Error ? error.message : '未知错误',
+      console.error("设置失败:", error);
+      toast.error("设置失败", {
+        description: error instanceof Error ? error.message : "未知错误",
       });
     } finally {
       setIsSubmitting(false);
@@ -268,7 +309,7 @@ export function OnboardingWizard() {
     try {
       // 1. 更新用户配置
       const { error: profileError } = await supabase
-        .from('user_profiles')
+        .from("user_profiles")
         .update({
           full_name: data.fullName,
           phone: data.phone,
@@ -282,16 +323,16 @@ export function OnboardingWizard() {
             school_name: data.schoolName,
           },
         })
-        .eq('id', userId);
+        .eq("id", userId);
 
       if (profileError) throw profileError;
 
       // 2. 创建学年
       const { data: academicYearData, error: yearError } = await supabase
-        .from('academic_terms')
+        .from("academic_terms")
         .insert({
           academic_year: `${data.startYear}-${data.startYear + 1}`,
-          semester: '第一学期',
+          semester: "第一学期",
           start_date: `${data.startYear}-09-01`,
           end_date: `${data.startYear + 1}-01-31`,
           is_current: true,
@@ -300,29 +341,28 @@ export function OnboardingWizard() {
         .single();
 
       if (yearError) throw yearError;
-      
+
       // 3. 创建第二学期
-      await supabase
-        .from('academic_terms')
-        .insert({
-          academic_year: `${data.startYear}-${data.startYear + 1}`,
-          semester: '第二学期',
-          start_date: `${data.startYear + 1}-02-01`,
-          end_date: `${data.startYear + 1}-07-15`,
-          is_current: false,
-        });
+      await supabase.from("academic_terms").insert({
+        academic_year: `${data.startYear}-${data.startYear + 1}`,
+        semester: "第二学期",
+        start_date: `${data.startYear + 1}-02-01`,
+        end_date: `${data.startYear + 1}-07-15`,
+        is_current: false,
+      });
 
       // 4. 创建学科
       for (const subject of data.subjects) {
-        const subjectName = subjectOptions.find(s => s.value === subject)?.label || subject;
+        const subjectName =
+          subjectOptions.find((s) => s.value === subject)?.label || subject;
         await supabase
-          .from('subjects')
+          .from("subjects")
           .insert({
             subject_code: subject,
             subject_name: subjectName,
             is_required: true,
           })
-          .onConflict('subject_code')
+          .onConflict("subject_code")
           .ignore();
       }
 
@@ -330,35 +370,34 @@ export function OnboardingWizard() {
       if (data.gradesCount && data.classesPerGrade) {
         for (let grade = 1; grade <= data.gradesCount; grade++) {
           const gradeNumber = getGradeName(grade, data.educationStage);
-          
+
           for (let classNum = 1; classNum <= data.classesPerGrade; classNum++) {
             const className = `${gradeNumber}${classNum}班`;
-            
+
             await supabase
-              .from('class_info')
+              .from("class_info")
               .insert({
                 class_name: className,
                 grade_level: gradeNumber,
                 academic_year: `${data.startYear}-${data.startYear + 1}`,
                 student_count: 0,
               })
-              .onConflict('class_name')
+              .onConflict("class_name")
               .ignore();
           }
         }
       }
-      
+
       // 6. 创建通知设置
       await supabase
-        .from('notification_settings')
+        .from("notification_settings")
         .insert({
           user_id: userId,
           email_notifications: data.enableNotifications,
           push_notifications: data.enableNotifications,
         })
-        .onConflict('user_id')
+        .onConflict("user_id")
         .merge();
-      
     } catch (error) {
       console.error("保存数据失败:", error);
       throw error;
@@ -367,18 +406,25 @@ export function OnboardingWizard() {
 
   // 根据年级索引和教育阶段获取年级名称
   const getGradeName = (index: number, stage: string) => {
-    const primaryNames = ['一年级', '二年级', '三年级', '四年级', '五年级', '六年级'];
-    const middleNames = ['初一', '初二', '初三'];
-    const highNames = ['高一', '高二', '高三'];
-    const collegeNames = ['大一', '大二', '大三', '大四'];
-    
-    if (stage === 'primary' && index <= primaryNames.length) {
+    const primaryNames = [
+      "一年级",
+      "二年级",
+      "三年级",
+      "四年级",
+      "五年级",
+      "六年级",
+    ];
+    const middleNames = ["初一", "初二", "初三"];
+    const highNames = ["高一", "高二", "高三"];
+    const collegeNames = ["大一", "大二", "大三", "大四"];
+
+    if (stage === "primary" && index <= primaryNames.length) {
       return primaryNames[index - 1];
-    } else if (stage === 'middle' && index <= middleNames.length) {
+    } else if (stage === "middle" && index <= middleNames.length) {
       return middleNames[index - 1];
-    } else if (stage === 'high' && index <= highNames.length) {
+    } else if (stage === "high" && index <= highNames.length) {
       return highNames[index - 1];
-    } else if (stage === 'university' && index <= collegeNames.length) {
+    } else if (stage === "university" && index <= collegeNames.length) {
       return collegeNames[index - 1];
     } else {
       return `第${index}级`;
@@ -390,7 +436,10 @@ export function OnboardingWizard() {
     const steps = [
       // 个人信息
       <Form key="personal" {...personalInfoForm}>
-        <form onSubmit={personalInfoForm.handleSubmit(handleNext)} className="space-y-6">
+        <form
+          onSubmit={personalInfoForm.handleSubmit(handleNext)}
+          className="space-y-6"
+        >
           <div className="space-y-4">
             <FormField
               control={personalInfoForm.control}
@@ -405,14 +454,17 @@ export function OnboardingWizard() {
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={personalInfoForm.control}
               name="role"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>您的角色</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="选择您的角色" />
@@ -428,7 +480,7 @@ export function OnboardingWizard() {
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={personalInfoForm.control}
               name="phone"
@@ -443,7 +495,7 @@ export function OnboardingWizard() {
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={personalInfoForm.control}
               name="bio"
@@ -451,10 +503,10 @@ export function OnboardingWizard() {
                 <FormItem>
                   <FormLabel>个人简介</FormLabel>
                   <FormControl>
-                    <Textarea 
-                      placeholder="请简单介绍一下您自己" 
-                      className="resize-none" 
-                      {...field} 
+                    <Textarea
+                      placeholder="请简单介绍一下您自己"
+                      className="resize-none"
+                      {...field}
                     />
                   </FormControl>
                   <FormDescription>选填</FormDescription>
@@ -463,16 +515,19 @@ export function OnboardingWizard() {
               )}
             />
           </div>
-          
+
           <div className="flex justify-end">
             <Button type="submit">下一步</Button>
           </div>
         </form>
       </Form>,
-      
+
       // 学校信息
       <Form key="step1" {...step1Form}>
-        <form onSubmit={step1Form.handleSubmit(handleNext)} className="space-y-6">
+        <form
+          onSubmit={step1Form.handleSubmit(handleNext)}
+          className="space-y-6"
+        >
           <div className="space-y-4">
             <FormField
               control={step1Form.control}
@@ -487,14 +542,17 @@ export function OnboardingWizard() {
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={step1Form.control}
               name="educationStage"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>教育阶段</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="选择教育阶段" />
@@ -513,7 +571,7 @@ export function OnboardingWizard() {
               )}
             />
           </div>
-          
+
           <div className="flex justify-between">
             <Button type="button" variant="outline" onClick={handleBack}>
               上一步
@@ -522,10 +580,13 @@ export function OnboardingWizard() {
           </div>
         </form>
       </Form>,
-      
+
       // 教育结构
       <Form key="step2" {...step2Form}>
-        <form onSubmit={step2Form.handleSubmit(handleNext)} className="space-y-6">
+        <form
+          onSubmit={step2Form.handleSubmit(handleNext)}
+          className="space-y-6"
+        >
           <div className="space-y-4">
             <FormField
               control={step2Form.control}
@@ -534,18 +595,13 @@ export function OnboardingWizard() {
                 <FormItem>
                   <FormLabel>年级数量</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="number" 
-                      min="1"
-                      max="12"
-                      {...field}
-                    />
+                    <Input type="number" min="1" max="12" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={step2Form.control}
               name="classesPerGrade"
@@ -553,18 +609,13 @@ export function OnboardingWizard() {
                 <FormItem>
                   <FormLabel>每年级班级数</FormLabel>
                   <FormControl>
-                    <Input
-                      type="number"
-                      min="1"
-                      max="20"
-                      {...field}
-                    />
+                    <Input type="number" min="1" max="20" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={step2Form.control}
               name="startYear"
@@ -572,12 +623,7 @@ export function OnboardingWizard() {
                 <FormItem>
                   <FormLabel>学年开始年份</FormLabel>
                   <FormControl>
-                    <Input
-                      type="number"
-                      min="2000"
-                      max="2100"
-                      {...field}
-                    />
+                    <Input type="number" min="2000" max="2100" {...field} />
                   </FormControl>
                   <FormDescription>
                     例如：输入2023表示2023-2024学年
@@ -587,7 +633,7 @@ export function OnboardingWizard() {
               )}
             />
           </div>
-          
+
           <div className="flex justify-between">
             <Button type="button" variant="outline" onClick={handleBack}>
               上一步
@@ -596,10 +642,13 @@ export function OnboardingWizard() {
           </div>
         </form>
       </Form>,
-      
+
       // 学科设置
       <Form key="step3" {...step3Form}>
-        <form onSubmit={step3Form.handleSubmit(handleNext)} className="space-y-6">
+        <form
+          onSubmit={step3Form.handleSubmit(handleNext)}
+          className="space-y-6"
+        >
           <div className="space-y-2">
             <FormField
               control={step3Form.control}
@@ -629,12 +678,15 @@ export function OnboardingWizard() {
                                   checked={field.value?.includes(subject.value)}
                                   onCheckedChange={(checked) => {
                                     return checked
-                                      ? field.onChange([...field.value, subject.value])
+                                      ? field.onChange([
+                                          ...field.value,
+                                          subject.value,
+                                        ])
                                       : field.onChange(
                                           field.value?.filter(
                                             (value) => value !== subject.value
                                           )
-                                        )
+                                        );
                                   }}
                                 />
                               </FormControl>
@@ -642,7 +694,7 @@ export function OnboardingWizard() {
                                 {subject.label}
                               </FormLabel>
                             </FormItem>
-                          )
+                          );
                         }}
                       />
                     ))}
@@ -652,7 +704,7 @@ export function OnboardingWizard() {
               )}
             />
           </div>
-          
+
           <div className="flex justify-between">
             <Button type="button" variant="outline" onClick={handleBack}>
               上一步
@@ -661,10 +713,13 @@ export function OnboardingWizard() {
           </div>
         </form>
       </Form>,
-      
+
       // 完成设置
       <Form key="step4" {...step4Form}>
-        <form onSubmit={step4Form.handleSubmit(handleFinalSubmit)} className="space-y-6">
+        <form
+          onSubmit={step4Form.handleSubmit(handleFinalSubmit)}
+          className="space-y-6"
+        >
           <div className="space-y-4">
             <FormField
               control={step4Form.control}
@@ -686,7 +741,7 @@ export function OnboardingWizard() {
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={step4Form.control}
               name="dataImportOption"
@@ -721,13 +776,15 @@ export function OnboardingWizard() {
                 </FormItem>
               )}
             />
-            
+
             <div className="rounded-md border p-4 bg-yellow-50">
               <div className="flex items-center gap-3">
                 <div className="rounded-full bg-yellow-100 p-1">
                   <Bookmark className="h-5 w-5 text-yellow-700" />
                 </div>
-                <p className="text-sm font-medium text-yellow-700">初始化说明</p>
+                <p className="text-sm font-medium text-yellow-700">
+                  初始化说明
+                </p>
               </div>
               <div className="mt-2 text-sm text-yellow-600 pl-9">
                 <p>完成设置后，系统将为您初始化以下内容：</p>
@@ -739,7 +796,7 @@ export function OnboardingWizard() {
                 </ul>
               </div>
             </div>
-            
+
             <FormField
               control={step4Form.control}
               name="confirmSetup"
@@ -761,13 +818,13 @@ export function OnboardingWizard() {
               )}
             />
           </div>
-          
+
           <div className="flex justify-between">
             <Button type="button" variant="outline" onClick={handleBack}>
               上一步
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={!step4Form.getValues().confirmSetup || isSubmitting}
             >
               {isSubmitting ? "处理中..." : "完成设置"}
@@ -776,24 +833,24 @@ export function OnboardingWizard() {
         </form>
       </Form>,
     ];
-    
+
     return steps[currentStep];
   };
-  
+
   const stepIcons = [
     <UserCircle key="user" className="h-6 w-6" />,
     <School key="school" className="h-6 w-6" />,
     <Building2 key="building" className="h-6 w-6" />,
     <BookOpen key="book" className="h-6 w-6" />,
-    <Bookmark key="finish" className="h-6 w-6" />
+    <Bookmark key="finish" className="h-6 w-6" />,
   ];
-  
+
   const stepTitles = [
-    "个人信息", 
+    "个人信息",
     "学校信息",
     "教育结构",
     "学科设置",
-    "完成设置"
+    "完成设置",
   ];
 
   return (
@@ -801,7 +858,9 @@ export function OnboardingWizard() {
       <Card className="w-full max-w-3xl mx-auto">
         <CardHeader>
           <div className="flex justify-between items-center mb-2">
-            <CardTitle className="text-2xl font-bold">欢迎使用教育分析系统</CardTitle>
+            <CardTitle className="text-2xl font-bold">
+              欢迎使用教育分析系统
+            </CardTitle>
             <div className="bg-primary/10 text-primary rounded-full px-3 py-1 text-sm font-medium">
               步骤 {currentStep + 1}/{stepIcons.length}
             </div>
@@ -809,25 +868,26 @@ export function OnboardingWizard() {
           <CardDescription>
             请完成以下设置步骤，帮助我们为您提供个性化的体验
           </CardDescription>
-          
+
           <div className="flex justify-between items-center mt-6 mb-2">
             {stepTitles.map((title, index) => (
-              <div 
-                key={index} 
-                className={`flex flex-col items-center ${index < currentStep 
-                  ? 'text-primary' 
-                  : index === currentStep 
-                  ? 'text-primary font-medium' 
-                  : 'text-muted-foreground'
+              <div
+                key={index}
+                className={`flex flex-col items-center ${
+                  index < currentStep
+                    ? "text-primary"
+                    : index === currentStep
+                      ? "text-primary font-medium"
+                      : "text-muted-foreground"
                 }`}
               >
-                <div 
+                <div
                   className={`rounded-full p-2 mb-1 ${
-                    index < currentStep 
-                      ? 'bg-primary/20' 
-                      : index === currentStep 
-                      ? 'bg-primary text-primary-foreground' 
-                      : 'bg-muted'
+                    index < currentStep
+                      ? "bg-primary/20"
+                      : index === currentStep
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted"
                   }`}
                 >
                   {stepIcons[index]}
@@ -836,22 +896,22 @@ export function OnboardingWizard() {
               </div>
             ))}
           </div>
-          
+
           <div className="relative mt-1 mb-6">
             <div className="absolute top-0 left-0 right-0 h-1 bg-muted rounded-full" />
-            <div 
-              className="absolute top-0 left-0 h-1 bg-primary rounded-full transition-all duration-300" 
-              style={{ width: `${(currentStep / (stepIcons.length - 1)) * 100}%` }}
+            <div
+              className="absolute top-0 left-0 h-1 bg-primary rounded-full transition-all duration-300"
+              style={{
+                width: `${(currentStep / (stepIcons.length - 1)) * 100}%`,
+              }}
             />
           </div>
         </CardHeader>
-        
-        <CardContent>
-          {renderStepContent()}
-        </CardContent>
+
+        <CardContent>{renderStepContent()}</CardContent>
       </Card>
     </div>
   );
 }
 
-export default OnboardingWizard; 
+export default OnboardingWizard;

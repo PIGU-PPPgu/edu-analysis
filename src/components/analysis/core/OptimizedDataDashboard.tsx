@@ -1,29 +1,29 @@
-import React, { useMemo, memo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Skeleton } from '@/components/ui/skeleton';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import React, { useMemo, memo } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   PieChart,
   Pie,
-  Cell
-} from 'recharts';
-import { 
-  TrendingUp, 
-  Users, 
-  Award, 
-  Target, 
+  Cell,
+} from "recharts";
+import {
+  TrendingUp,
+  Users,
+  Award,
+  Target,
   BookOpen,
   BarChart3,
-  PieChart as PieChartIcon
-} from 'lucide-react';
+  PieChart as PieChartIcon,
+} from "lucide-react";
 
 // ============================================================================
 // 类型定义
@@ -78,11 +78,46 @@ interface OptimizedDataDashboardProps {
 // ============================================================================
 
 const SCORE_RANGES = [
-  { min: 90, max: 100, label: '优秀', color: '#10B981', bgColor: 'bg-green-50', textColor: 'text-green-700' },
-  { min: 80, max: 89, label: '良好', color: '#3B82F6', bgColor: 'bg-blue-50', textColor: 'text-blue-700' },
-  { min: 70, max: 79, label: '中等', color: '#F59E0B', bgColor: 'bg-yellow-50', textColor: 'text-yellow-700' },
-  { min: 60, max: 69, label: '及格', color: '#F97316', bgColor: 'bg-orange-50', textColor: 'text-orange-700' },
-  { min: 0, max: 59, label: '不及格', color: '#EF4444', bgColor: 'bg-red-50', textColor: 'text-red-700' }
+  {
+    min: 90,
+    max: 100,
+    label: "优秀",
+    color: "#10B981",
+    bgColor: "bg-green-50",
+    textColor: "text-green-700",
+  },
+  {
+    min: 80,
+    max: 89,
+    label: "良好",
+    color: "#3B82F6",
+    bgColor: "bg-blue-50",
+    textColor: "text-blue-700",
+  },
+  {
+    min: 70,
+    max: 79,
+    label: "中等",
+    color: "#F59E0B",
+    bgColor: "bg-yellow-50",
+    textColor: "text-yellow-700",
+  },
+  {
+    min: 60,
+    max: 69,
+    label: "及格",
+    color: "#F97316",
+    bgColor: "bg-orange-50",
+    textColor: "text-orange-700",
+  },
+  {
+    min: 0,
+    max: 59,
+    label: "不及格",
+    color: "#EF4444",
+    bgColor: "bg-red-50",
+    textColor: "text-red-700",
+  },
 ] as const;
 
 // ============================================================================
@@ -100,17 +135,17 @@ const calculateBasicStats = (gradeData: GradeRecord[]): BasicStats => {
       passRate: 0,
       excellentRate: 0,
       goodRate: 0,
-      standardDeviation: 0
+      standardDeviation: 0,
     };
   }
 
   const validScores = gradeData
-    .filter(record => record.score && !isNaN(Number(record.score)))
-    .map(record => Number(record.score));
+    .filter((record) => record.score && !isNaN(Number(record.score)))
+    .map((record) => Number(record.score));
 
   if (validScores.length === 0) {
     return {
-      totalStudents: new Set(gradeData.map(r => r.student_id)).size,
+      totalStudents: new Set(gradeData.map((r) => r.student_id)).size,
       totalRecords: gradeData.length,
       averageScore: 0,
       maxScore: 0,
@@ -118,26 +153,31 @@ const calculateBasicStats = (gradeData: GradeRecord[]): BasicStats => {
       passRate: 0,
       excellentRate: 0,
       goodRate: 0,
-      standardDeviation: 0
+      standardDeviation: 0,
     };
   }
 
-  const uniqueStudents = new Set(gradeData.map(r => r.student_id));
-  const averageScore = validScores.reduce((sum, score) => sum + score, 0) / validScores.length;
+  const uniqueStudents = new Set(gradeData.map((r) => r.student_id));
+  const averageScore =
+    validScores.reduce((sum, score) => sum + score, 0) / validScores.length;
   const maxScore = Math.max(...validScores);
   const minScore = Math.min(...validScores);
-  
+
   // 计算各种比率
-  const passCount = validScores.filter(score => score >= 60).length;
-  const excellentCount = validScores.filter(score => score >= 90).length;
-  const goodCount = validScores.filter(score => score >= 80).length;
-  
+  const passCount = validScores.filter((score) => score >= 60).length;
+  const excellentCount = validScores.filter((score) => score >= 90).length;
+  const goodCount = validScores.filter((score) => score >= 80).length;
+
   const passRate = (passCount / validScores.length) * 100;
   const excellentRate = (excellentCount / validScores.length) * 100;
   const goodRate = (goodCount / validScores.length) * 100;
-  
+
   // 计算标准差
-  const variance = validScores.reduce((sum, score) => sum + Math.pow(score - averageScore, 2), 0) / validScores.length;
+  const variance =
+    validScores.reduce(
+      (sum, score) => sum + Math.pow(score - averageScore, 2),
+      0
+    ) / validScores.length;
   const standardDeviation = Math.sqrt(variance);
 
   return {
@@ -149,31 +189,33 @@ const calculateBasicStats = (gradeData: GradeRecord[]): BasicStats => {
     passRate,
     excellentRate,
     goodRate,
-    standardDeviation
+    standardDeviation,
   };
 };
 
 const calculateScoreDistribution = (gradeData: GradeRecord[]): ScoreRange[] => {
   const validScores = gradeData
-    .filter(record => record.score && !isNaN(Number(record.score)))
-    .map(record => Number(record.score));
+    .filter((record) => record.score && !isNaN(Number(record.score)))
+    .map((record) => Number(record.score));
 
   if (validScores.length === 0) {
-    return SCORE_RANGES.map(range => ({
+    return SCORE_RANGES.map((range) => ({
       range: `${range.min}-${range.max}`,
       label: range.label,
       count: 0,
       percentage: 0,
       color: range.color,
       minScore: range.min,
-      maxScore: range.max
+      maxScore: range.max,
     }));
   }
 
-  return SCORE_RANGES.map(range => {
-    const count = validScores.filter(score => score >= range.min && score <= range.max).length;
+  return SCORE_RANGES.map((range) => {
+    const count = validScores.filter(
+      (score) => score >= range.min && score <= range.max
+    ).length;
     const percentage = (count / validScores.length) * 100;
-    
+
     return {
       range: `${range.min}-${range.max}`,
       label: range.label,
@@ -181,7 +223,7 @@ const calculateScoreDistribution = (gradeData: GradeRecord[]): ScoreRange[] => {
       percentage,
       color: range.color,
       minScore: range.min,
-      maxScore: range.max
+      maxScore: range.max,
     };
   });
 };
@@ -203,13 +245,13 @@ const StatCard = memo<{
         <div className="flex-1">
           <p className="text-sm font-medium text-gray-600">{title}</p>
           <p className={`text-2xl font-bold ${color}`}>
-            {typeof value === 'number' ? value.toLocaleString() : value}
+            {typeof value === "number" ? value.toLocaleString() : value}
           </p>
-          {subtitle && (
-            <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
-          )}
+          {subtitle && <p className="text-xs text-gray-500 mt-1">{subtitle}</p>}
         </div>
-        <div className={`p-2 rounded-lg ${color.replace('text-', 'bg-').replace('-600', '-100')}`}>
+        <div
+          className={`p-2 rounded-lg ${color.replace("text-", "bg-").replace("-600", "-100")}`}
+        >
           {icon}
         </div>
       </div>
@@ -219,7 +261,7 @@ const StatCard = memo<{
 
 const ScoreDistributionChart = memo<{
   data: ScoreRange[];
-  type: 'bar' | 'pie';
+  type: "bar" | "pie";
 }>(({ data, type }) => {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -235,7 +277,7 @@ const ScoreDistributionChart = memo<{
     return null;
   };
 
-  if (type === 'pie') {
+  if (type === "pie") {
     return (
       <ResponsiveContainer width="100%" height={300}>
         <PieChart>
@@ -246,7 +288,9 @@ const ScoreDistributionChart = memo<{
             outerRadius={80}
             fill="#8884d8"
             dataKey="count"
-            label={({ label, percentage }) => `${label} ${percentage.toFixed(1)}%`}
+            label={({ label, percentage }) =>
+              `${label} ${percentage.toFixed(1)}%`
+            }
           >
             {data.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.color} />
@@ -260,10 +304,13 @@ const ScoreDistributionChart = memo<{
 
   return (
     <ResponsiveContainer width="100%" height={300}>
-      <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+      <BarChart
+        data={data}
+        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+      >
         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-        <XAxis 
-          dataKey="label" 
+        <XAxis
+          dataKey="label"
           tick={{ fontSize: 12 }}
           angle={-45}
           textAnchor="end"
@@ -322,13 +369,16 @@ const OptimizedDataDashboard: React.FC<OptimizedDataDashboardProps> = ({
   showScoreDistribution = true,
   showDetailedStats = true,
   className = "",
-  loading = false
+  loading = false,
 }) => {
   // 使用 useMemo 优化计算
   const basicStats = useMemo(() => calculateBasicStats(gradeData), [gradeData]);
-  const scoreDistribution = useMemo(() => calculateScoreDistribution(gradeData), [gradeData]);
-  
-  const [chartType, setChartType] = React.useState<'bar' | 'pie'>('bar');
+  const scoreDistribution = useMemo(
+    () => calculateScoreDistribution(gradeData),
+    [gradeData]
+  );
+
+  const [chartType, setChartType] = React.useState<"bar" | "pie">("bar");
 
   if (loading) {
     return <LoadingSkeleton />;
@@ -355,7 +405,8 @@ const OptimizedDataDashboard: React.FC<OptimizedDataDashboardProps> = ({
         <div>
           <h2 className="text-xl font-bold text-gray-900">{title}</h2>
           <p className="text-sm text-gray-600 mt-1">
-            共 {basicStats.totalStudents} 名学生 • {basicStats.totalRecords} 条记录
+            共 {basicStats.totalStudents} 名学生 • {basicStats.totalRecords}{" "}
+            条记录
           </p>
         </div>
         {showDetailedStats && (
@@ -374,7 +425,7 @@ const OptimizedDataDashboard: React.FC<OptimizedDataDashboardProps> = ({
           color="text-blue-600"
           subtitle={`${basicStats.totalRecords} 条记录`}
         />
-        
+
         <StatCard
           title="平均分"
           value={basicStats.averageScore.toFixed(1)}
@@ -382,7 +433,7 @@ const OptimizedDataDashboard: React.FC<OptimizedDataDashboardProps> = ({
           color="text-green-600"
           subtitle={`${basicStats.minScore.toFixed(1)} - ${basicStats.maxScore.toFixed(1)}`}
         />
-        
+
         <StatCard
           title="及格率"
           value={`${basicStats.passRate.toFixed(1)}%`}
@@ -390,7 +441,7 @@ const OptimizedDataDashboard: React.FC<OptimizedDataDashboardProps> = ({
           color="text-orange-600"
           subtitle={`优秀率 ${basicStats.excellentRate.toFixed(1)}%`}
         />
-        
+
         <StatCard
           title="良好率"
           value={`${basicStats.goodRate.toFixed(1)}%`}
@@ -411,17 +462,21 @@ const OptimizedDataDashboard: React.FC<OptimizedDataDashboardProps> = ({
               </CardTitle>
               <div className="flex gap-2">
                 <button
-                  onClick={() => setChartType('bar')}
+                  onClick={() => setChartType("bar")}
                   className={`p-2 rounded-lg transition-colors ${
-                    chartType === 'bar' ? 'bg-blue-100 text-blue-600' : 'text-gray-600 hover:bg-gray-100'
+                    chartType === "bar"
+                      ? "bg-blue-100 text-blue-600"
+                      : "text-gray-600 hover:bg-gray-100"
                   }`}
                 >
                   <BarChart3 className="h-4 w-4" />
                 </button>
                 <button
-                  onClick={() => setChartType('pie')}
+                  onClick={() => setChartType("pie")}
                   className={`p-2 rounded-lg transition-colors ${
-                    chartType === 'pie' ? 'bg-blue-100 text-blue-600' : 'text-gray-600 hover:bg-gray-100'
+                    chartType === "pie"
+                      ? "bg-blue-100 text-blue-600"
+                      : "text-gray-600 hover:bg-gray-100"
                   }`}
                 >
                   <PieChartIcon className="h-4 w-4" />
@@ -431,18 +486,20 @@ const OptimizedDataDashboard: React.FC<OptimizedDataDashboardProps> = ({
           </CardHeader>
           <CardContent>
             <ScoreDistributionChart data={scoreDistribution} type={chartType} />
-            
+
             {/* 分数段统计表格 */}
             <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4">
               {scoreDistribution.map((range, index) => (
                 <div key={index} className="text-center p-3 rounded-lg border">
-                  <div 
+                  <div
                     className="w-4 h-4 rounded mx-auto mb-2"
                     style={{ backgroundColor: range.color }}
                   />
                   <p className="font-semibold text-sm">{range.label}</p>
                   <p className="text-lg font-bold">{range.count}</p>
-                  <p className="text-xs text-gray-600">{range.percentage.toFixed(1)}%</p>
+                  <p className="text-xs text-gray-600">
+                    {range.percentage.toFixed(1)}%
+                  </p>
                 </div>
               ))}
             </div>
@@ -453,4 +510,4 @@ const OptimizedDataDashboard: React.FC<OptimizedDataDashboardProps> = ({
   );
 };
 
-export default memo(OptimizedDataDashboard); 
+export default memo(OptimizedDataDashboard);

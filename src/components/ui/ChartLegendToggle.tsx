@@ -1,4 +1,3 @@
-
 import React from "react";
 
 interface ChartLegendToggleProps {
@@ -14,7 +13,7 @@ const ChartLegendToggle: React.FC<ChartLegendToggleProps> = ({
   yLabels = [],
   colors,
   shownKeys,
-  onToggle
+  onToggle,
 }) => {
   return (
     <div className="flex gap-2 items-center mb-2 flex-wrap select-none">
@@ -35,12 +34,10 @@ const ChartLegendToggle: React.FC<ChartLegendToggleProps> = ({
               height: 12,
               borderRadius: "50%",
               background: colors[idx],
-              marginRight: 5
+              marginRight: 5,
             }}
           />
-          <span className="text-xs">
-            {yLabels[idx] || key}
-          </span>
+          <span className="text-xs">{yLabels[idx] || key}</span>
         </div>
       ))}
     </div>

@@ -1,5 +1,11 @@
 import React, { memo } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BarChart3, Users } from "lucide-react";
@@ -27,7 +33,8 @@ const GroupCard: React.FC<GroupCardProps> = memo(({ group, onView }) => {
               <CardTitle className="text-lg">{group.name}</CardTitle>
               {group.averageScore && (
                 <CardDescription className="flex items-center">
-                  平均成绩: <span className="font-medium ml-1">{group.averageScore}</span>
+                  平均成绩:{" "}
+                  <span className="font-medium ml-1">{group.averageScore}</span>
                 </CardDescription>
               )}
             </div>
@@ -35,7 +42,9 @@ const GroupCard: React.FC<GroupCardProps> = memo(({ group, onView }) => {
           <Badge variant="outline">{group.student_count}人</Badge>
         </div>
         {group.description && (
-          <CardDescription className="mt-2">{group.description}</CardDescription>
+          <CardDescription className="mt-2">
+            {group.description}
+          </CardDescription>
         )}
       </CardHeader>
       <CardContent className="pt-4 pb-2">
@@ -44,8 +53,13 @@ const GroupCard: React.FC<GroupCardProps> = memo(({ group, onView }) => {
             <div className="text-sm font-medium mb-2">能力评估:</div>
             <div className="grid grid-cols-3 gap-2">
               {group.stats.map((stat, index) => (
-                <div key={index} className="text-center bg-muted/20 rounded-md p-2">
-                  <div className="text-xs text-muted-foreground">{stat.name}</div>
+                <div
+                  key={index}
+                  className="text-center bg-muted/20 rounded-md p-2"
+                >
+                  <div className="text-xs text-muted-foreground">
+                    {stat.name}
+                  </div>
                   <div className="font-medium">{stat.value}</div>
                 </div>
               ))}
@@ -53,10 +67,7 @@ const GroupCard: React.FC<GroupCardProps> = memo(({ group, onView }) => {
           </div>
         )}
         <div className="flex justify-end">
-          <Button 
-            size="sm" 
-            onClick={() => onView(group.id)}
-          >
+          <Button size="sm" onClick={() => onView(group.id)}>
             <BarChart3 className="h-4 w-4 mr-2" />
             查看小组画像
           </Button>
@@ -68,4 +79,4 @@ const GroupCard: React.FC<GroupCardProps> = memo(({ group, onView }) => {
 
 GroupCard.displayName = "GroupCard";
 
-export default GroupCard; 
+export default GroupCard;

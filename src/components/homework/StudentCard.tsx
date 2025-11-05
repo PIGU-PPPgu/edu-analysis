@@ -16,7 +16,13 @@ import {
 } from "lucide-react";
 
 // 提交状态类型
-export type SubmissionStatus = "submitted" | "graded" | "not_submitted" | "late" | "absent" | "pending";
+export type SubmissionStatus =
+  | "submitted"
+  | "graded"
+  | "not_submitted"
+  | "late"
+  | "absent"
+  | "pending";
 
 // 状态配置
 const statusConfig = {
@@ -99,7 +105,7 @@ export function StudentCard({
   // 随机颜色类列表，用于头像背景
   const avatarColors = [
     "bg-red-500",
-    "bg-blue-500", 
+    "bg-blue-500",
     "bg-green-500",
     "bg-purple-500",
     "bg-pink-500",
@@ -107,10 +113,10 @@ export function StudentCard({
     "bg-yellow-500",
     "bg-orange-500",
   ];
-  
+
   // 基于学生ID生成一个稳定的随机颜色
   const getRandomColor = (id: string) => {
-    const sum = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const sum = id.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
     return avatarColors[sum % avatarColors.length];
   };
 
@@ -128,14 +134,15 @@ export function StudentCard({
         <div className="text-center mb-2">
           <h4 className="font-medium text-base">{student.name}</h4>
           {student.class && (
-            <p className="text-xs text-muted-foreground">
-              {student.class}
-            </p>
+            <p className="text-xs text-muted-foreground">{student.class}</p>
           )}
         </div>
 
         <div className="mt-3 flex items-center justify-between">
-          <Badge variant="outline" className={cn("text-xs px-2", statusInfo.color)}>
+          <Badge
+            variant="outline"
+            className={cn("text-xs px-2", statusInfo.color)}
+          >
             <span className="flex items-center gap-1">
               {statusInfo.icon}
               {statusInfo.label}
@@ -147,11 +154,14 @@ export function StudentCard({
             </Badge>
           )}
         </div>
-        
+
         {/* 添加知识点评估状态 */}
         {hasKnowledgePointEvaluation && (
           <div className="mt-2 flex items-center justify-center">
-            <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200 text-xs px-1.5 py-0.5 w-full flex justify-center">
+            <Badge
+              variant="outline"
+              className="bg-green-50 text-green-600 border-green-200 text-xs px-1.5 py-0.5 w-full flex justify-center"
+            >
               <BrainCircuit className="h-3 w-3 mr-1" />
               知识点已评估
             </Badge>
@@ -183,4 +193,4 @@ export function StudentCardGrid({
 }
 
 // 添加默认导出
-export default StudentCard; 
+export default StudentCard;

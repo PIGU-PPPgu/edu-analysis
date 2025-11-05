@@ -4,11 +4,11 @@
  */
 
 // 导入重构后的成绩导入组件
-export { default as GradeImporter } from './grade-importer/GradeImporter';
-export { default as GradeOverview } from './GradeOverview';
+export { default as GradeImporter } from "./grade-importer/GradeImporter";
+export { default as GradeOverview } from "./GradeOverview";
 
 // 重新导出grade-importer模块的所有类型和组件
-export * from './grade-importer';
+export * from "./grade-importer";
 
 // 类型导出
-export type { GradeOverviewProps } from './GradeOverview'; 
+export type { GradeOverviewProps } from "./GradeOverview";

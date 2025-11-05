@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>自定义提供商存储测试</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    .test-section {
+      margin: 20px 0;
+      padding: 15px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+    }
+    .success { background-color: #d4edda; border-color: #c3e6cb; }
+    .error { background-color: #f8d7da; border-color: #f5c6cb; }
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      cursor: pointer;
+      border: 2px solid #B9FF66;
+      background: #B9FF66;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    pre {
+      background: #f5f5f5;
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 自定义提供商存储测试</h1>
+
+  <div class="test-section">
+    <h2>测试1: 保存自定义提供商</h2>
+    <button onclick="testSave()">保存测试提供商</button>
+    <div id="save-result"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>测试2: 读取自定义提供商</h2>
+    <button onclick="testLoad()">读取提供商列表</button>
+    <div id="load-result"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>测试3: 删除自定义提供商</h2>
+    <button onclick="testDelete()">删除测试提供商</button>
+    <div id="delete-result"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>测试4: 查看localStorage</h2>
+    <button onclick="inspectStorage()">检查存储内容</button>
+    <div id="storage-result"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>测试5: 清空所有</h2>
+    <button onclick="clearAll()" style="background: #ff6b6b; border-color: #ff6b6b;">清空localStorage</button>
+    <div id="clear-result"></div>
+  </div>
+
+  <script>
+    // 使用v2版本的key,与新的格式预设系统保持一致
+    const CUSTOM_PROVIDERS_KEY = "custom_ai_providers_v2";
+
+    // 测试数据
+    const testProvider = {
+      id: "test-provider",
+      name: "Test Provider",
+      displayName: "测试提供商",
+      baseURL: "https://api.test.com/v1",
+      formatPresetId: "openai",
+      customEndpoint: "/chat/completions",
+      apiKeyFormat: "test-...",
+      models: [
+        {
+          id: "test-model-1",
+          name: "Test Model 1",
+          contextWindow: 8000,
+          maxOutputTokens: 4096
+        },
+        {
+          id: "test-model-2",
+          name: "Test Model 2",
+          contextWindow: 16000,
+          maxOutputTokens: 8192
+        }
+      ]
+    };
+
+    function testSave() {
+      const resultDiv = document.getElementById('save-result');
+      try {
+        // 获取现有提供商
+        const stored = localStorage.getItem(CUSTOM_PROVIDERS_KEY);
+        let providers = stored ? JSON.parse(stored) : [];
+
+        // 检查是否已存在
+        const existingIndex = providers.findIndex(p => p.id === testProvider.id);
+        if (existingIndex >= 0) {
+          providers[existingIndex] = testProvider;
+        } else {
+          providers.push(testProvider);
+        }
+
+        // 保存
+        localStorage.setItem(CUSTOM_PROVIDERS_KEY, JSON.stringify(providers));
+
+        resultDiv.innerHTML = `
+          <div class="success">
+            <p>✅ 保存成功！</p>
+            <pre>${JSON.stringify(testProvider, null, 2)}</pre>
+          </div>
+        `;
+      } catch (error) {
+        resultDiv.innerHTML = `
+          <div class="error">
+            <p>❌ 保存失败: ${error.message}</p>
+          </div>
+        `;
+      }
+    }
+
+    function testLoad() {
+      const resultDiv = document.getElementById('load-result');
+      try {
+        const stored = localStorage.getItem(CUSTOM_PROVIDERS_KEY);
+
+        if (!stored) {
+          resultDiv.innerHTML = `
+            <div class="error">
+              <p>⚠️ localStorage中没有数据</p>
+            </div>
+          `;
+          return;
+        }
+
+        const providers = JSON.parse(stored);
+
+        resultDiv.innerHTML = `
+          <div class="success">
+            <p>✅ 读取成功！共 ${providers.length} 个提供商</p>
+            <pre>${JSON.stringify(providers, null, 2)}</pre>
+          </div>
+        `;
+      } catch (error) {
+        resultDiv.innerHTML = `
+          <div class="error">
+            <p>❌ 读取失败: ${error.message}</p>
+          </div>
+        `;
+      }
+    }
+
+    function testDelete() {
+      const resultDiv = document.getElementById('delete-result');
+      try {
+        const stored = localStorage.getItem(CUSTOM_PROVIDERS_KEY);
+        if (!stored) {
+          resultDiv.innerHTML = `<div class="error"><p>⚠️ 没有数据可删除</p></div>`;
+          return;
+        }
+
+        let providers = JSON.parse(stored);
+        const beforeCount = providers.length;
+
+        providers = providers.filter(p => p.id !== testProvider.id);
+
+        localStorage.setItem(CUSTOM_PROVIDERS_KEY, JSON.stringify(providers));
+
+        resultDiv.innerHTML = `
+          <div class="success">
+            <p>✅ 删除成功！</p>
+            <p>删除前: ${beforeCount} 个提供商</p>
+            <p>删除后: ${providers.length} 个提供商</p>
+          </div>
+        `;
+      } catch (error) {
+        resultDiv.innerHTML = `
+          <div class="error">
+            <p>❌ 删除失败: ${error.message}</p>
+          </div>
+        `;
+      }
+    }
+
+    function inspectStorage() {
+      const resultDiv = document.getElementById('storage-result');
+      try {
+        const allKeys = Object.keys(localStorage);
+        const aiRelatedKeys = allKeys.filter(k =>
+          k.includes('ai') || k.includes('provider') || k.includes('model')
+        );
+
+        let html = '<div class="success">';
+        html += `<p>✅ localStorage总共有 ${allKeys.length} 个键</p>`;
+        html += `<p>AI相关的键: ${aiRelatedKeys.length} 个</p>`;
+
+        if (aiRelatedKeys.length > 0) {
+          html += '<h3>AI相关存储内容：</h3>';
+          aiRelatedKeys.forEach(key => {
+            const value = localStorage.getItem(key);
+            html += `<h4>${key}</h4>`;
+            html += `<pre>${value}</pre>`;
+          });
+        }
+
+        html += '</div>';
+        resultDiv.innerHTML = html;
+      } catch (error) {
+        resultDiv.innerHTML = `
+          <div class="error">
+            <p>❌ 检查失败: ${error.message}</p>
+          </div>
+        `;
+      }
+    }
+
+    function clearAll() {
+      if (!confirm('确定要清空localStorage中的所有AI配置吗？')) {
+        return;
+      }
+
+      const resultDiv = document.getElementById('clear-result');
+      try {
+        const keysToRemove = ['custom_ai_providers', 'custom_ai_providers_v2', 'custom_ai_models', 'user_api_keys', 'global_ai_config'];
+        let removedCount = 0;
+
+        keysToRemove.forEach(key => {
+          if (localStorage.getItem(key)) {
+            localStorage.removeItem(key);
+            removedCount++;
+          }
+        });
+
+        resultDiv.innerHTML = `
+          <div class="success">
+            <p>✅ 清空成功！共清除 ${removedCount} 个键</p>
+          </div>
+        `;
+      } catch (error) {
+        resultDiv.innerHTML = `
+          <div class="error">
+            <p>❌ 清空失败: ${error.message}</p>
+          </div>
+        `;
+      }
+    }
+
+    // 页面加载时自动检查
+    window.onload = function() {
+      console.log('🧪 自定义提供商存储测试页面已加载');
+      console.log('localStorage可用:', typeof(Storage) !== "undefined");
+    };
+  </script>
+</body>
+</html>

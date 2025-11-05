@@ -32,6 +32,28 @@ node_modules/
 .vscode
 # Cursor MCP configuration (contains API keys)
 .cursor/mcp.json
+# Claude Code settings (contains API keys)
+.claude/settings.local.json
 # OS specific
 # API密钥配置文件
-.env.example
+# .env.example 和 .env.subagents.example 应该被提交以供参考
+# 实际的环境文件包含真实密钥，不应提交
+.env
+.env.local
+.env.hooks
+.env.hooks.local
+.env.hooks.template
+.env.subagents
+env.tmp
+
+# 各子项目的环境文件
+server/.env
+server/.env.local
+tools/notion-integration/.env
+tools/notion-integration/.env.local
+
+# 安全相关配置
+**/*.key
+**/*.pem
+**/secrets/
+**/credentials/

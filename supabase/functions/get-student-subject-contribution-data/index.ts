@@ -115,7 +115,7 @@ serve(async (req) => {
 
     // 2. 获取成绩数据
     let gradeQuery = supabaseClient
-      .from('grade_data')
+      .from('grade_data_new')
       .select('id, student_id, name, COALESCE(class_name, \'未知班级\') as class_name, subject, total_score')
       .eq('exam_id', examId)
       .not('total_score', 'is', null); // 过滤掉没有分数的记录

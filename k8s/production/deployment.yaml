@@ -1,0 +1,376 @@
+# 🏭 生产环境Kubernetes部署配置
+# 高可用、高性能的生产环境部署
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: figma-frame-faithful
+  namespace: production
+  labels:
+    app: figma-frame-faithful
+    environment: production
+    tier: frontend
+    version: "${IMAGE_TAG}"
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+    description: "教育管理系统生产环境部署"
+    maintainer: "Education Management System Team"
+spec:
+  replicas: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: figma-frame-faithful
+      environment: production
+  template:
+    metadata:
+      labels:
+        app: figma-frame-faithful
+        environment: production
+        tier: frontend
+        version: "${IMAGE_TAG}"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "80"
+        prometheus.io/path: "/metrics"
+        deployment.timestamp: "${DEPLOYMENT_TIMESTAMP}"
+        config.linkerd.io/skip-inbound-ports: "80"
+        config.linkerd.io/skip-outbound-ports: "443"
+    spec:
+      serviceAccountName: figma-frame-faithful-production
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: figma-frame-faithful
+        image: "${IMAGE_TAG}"
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: APP_VERSION
+          value: "${IMAGE_TAG}"
+        - name: DEPLOYMENT_TIMESTAMP
+          value: "${DEPLOYMENT_TIMESTAMP}"
+        - name: KUBERNETES_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+            ephemeral-storage: "1Gi"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+            ephemeral-storage: "2Gi"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 80
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+          successThreshold: 1
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 80
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 80
+            scheme: HTTP
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 15
+          successThreshold: 1
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 30"]
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d/production.conf
+          subPath: production.conf
+          readOnly: true
+        - name: nginx-cache
+          mountPath: /var/cache/nginx
+        - name: tmp-volume
+          mountPath: /tmp
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+            add:
+            - NET_BIND_SERVICE
+          runAsNonRoot: true
+          runAsUser: 101
+      # 边车容器：日志收集
+      - name: log-collector
+        image: fluent/fluent-bit:2.2
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log
+        - name: fluent-bit-config
+          mountPath: /fluent-bit/etc/
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: nginx-production-config
+          defaultMode: 0644
+      - name: nginx-cache
+        emptyDir:
+          sizeLimit: 500Mi
+      - name: tmp-volume
+        emptyDir:
+          sizeLimit: 200Mi
+      - name: varlog
+        emptyDir:
+          sizeLimit: 200Mi
+      - name: fluent-bit-config
+        configMap:
+          name: fluent-bit-config
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 60
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "2"
+        - name: edns0
+      priorityClassName: "high-priority"
+      tolerations:
+      - key: "production"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+      - key: "high-memory"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+      affinity:
+        # Pod反亲和性 - 避免在同一节点上调度多个Pod
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - figma-frame-faithful
+              - key: environment
+                operator: In
+                values:
+                - production
+            topologyKey: kubernetes.io/hostname
+        # 节点亲和性 - 优先选择性能较好的节点
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-type
+                operator: In
+                values:
+                - production
+              - key: workload
+                operator: In
+                values:
+                - frontend
+                - general
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+              - key: instance-size
+                operator: In
+                values:
+                - large
+                - xlarge
+          - weight: 50
+            preference:
+              matchExpressions:
+              - key: zone
+                operator: In
+                values:
+                - us-east-1a
+                - us-east-1b
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-production-config
+  namespace: production
+  labels:
+    app: figma-frame-faithful
+    environment: production
+data:
+  production.conf: |
+    # 生产环境Nginx配置
+    
+    # 性能优化
+    keepalive_timeout 75s;
+    keepalive_requests 1000;
+    
+    # 缓存配置
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        add_header Vary "Accept-Encoding";
+        etag on;
+        if_modified_since exact;
+    }
+    
+    # API代理优化
+    location /api/ {
+        proxy_cache api_cache;
+        proxy_cache_valid 200 302 10m;
+        proxy_cache_valid 404 1m;
+        proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+        proxy_cache_lock on;
+        proxy_cache_lock_timeout 5s;
+        
+        add_header X-Cache-Status $upstream_cache_status;
+    }
+    
+    # 安全头（生产环境严格模式）
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https:; frame-ancestors 'none';" always;
+    
+    # 监控端点
+    location /nginx_status {
+        stub_status on;
+        access_log off;
+        allow 10.0.0.0/8;
+        allow 172.16.0.0/12;
+        allow 192.168.0.0/16;
+        deny all;
+    }
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluent-bit-config
+  namespace: production
+  labels:
+    app: figma-frame-faithful
+    environment: production
+data:
+  fluent-bit.conf: |
+    [SERVICE]
+        Flush         1
+        Log_Level     info
+        Daemon        off
+        Parsers_File  parsers.conf
+        HTTP_Server   On
+        HTTP_Listen   0.0.0.0
+        HTTP_Port     2020
+
+    [INPUT]
+        Name              tail
+        Path              /var/log/nginx/access.log
+        Parser            nginx
+        Tag               nginx.access
+        Refresh_Interval  5
+
+    [INPUT]
+        Name              tail
+        Path              /var/log/nginx/error.log
+        Parser            nginx_error
+        Tag               nginx.error
+        Refresh_Interval  5
+
+    [OUTPUT]
+        Name  forward
+        Match *
+        Host  fluent-bit-aggregator.logging.svc.cluster.local
+        Port  24224
+
+  parsers.conf: |
+    [PARSER]
+        Name   nginx
+        Format regex
+        Regex  ^(?<remote>[^ ]*) (?<host>[^ ]*) (?<user>[^ ]*) \[(?<time>[^\]]*)\] "(?<method>\S+)(?: +(?<path>[^\"]*?)(?: +\S*)?)?" (?<code>[^ ]*) (?<size>[^ ]*)(?: "(?<referer>[^\"]*)" "(?<agent>[^\"]*)")?$
+        Time_Key time
+        Time_Format %d/%b/%Y:%H:%M:%S %z
+
+    [PARSER]
+        Name   nginx_error
+        Format regex
+        Regex  ^(?<time>[^ ]+ [^ ]+) \[(?<level>[^\]]+)\] (?<message>.*)$
+        Time_Key time
+        Time_Format %Y/%m/%d %H:%M:%S
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: figma-frame-faithful-production
+  namespace: production
+  labels:
+    app: figma-frame-faithful
+    environment: production
+  annotations:
+    iam.gke.io/gcp-service-account: "figma-frame-faithful-prod@project.iam.gserviceaccount.com"
+automountServiceAccountToken: true
+
+---
+# 🏆 PriorityClass - 生产环境高优先级
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: high-priority
+value: 1000
+globalDefault: false
+description: "高优先级类，用于生产环境关键服务"

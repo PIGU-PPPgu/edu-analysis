@@ -1,12 +1,33 @@
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { 
-  History, Clock, User, MessageCircle, TrendingUp, TrendingDown, 
-  CheckCircle, XCircle, AlertTriangle, ArrowRight, RefreshCw 
+import {
+  History,
+  Clock,
+  User,
+  MessageCircle,
+  TrendingUp,
+  TrendingDown,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  ArrowRight,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
@@ -17,7 +38,13 @@ import { zhCN } from "date-fns/locale";
 interface WarningHistoryRecord {
   id: string;
   warning_id: string;
-  action_type: 'created' | 'resolved' | 'dismissed' | 'reactivated' | 'updated' | 'commented';
+  action_type:
+    | "created"
+    | "resolved"
+    | "dismissed"
+    | "reactivated"
+    | "updated"
+    | "commented";
   old_status?: string;
   new_status: string;
   action_by: string; // 操作人员ID
@@ -54,13 +81,17 @@ interface WarningHistoryProps {
   showEffectTracking?: boolean; // 是否显示效果跟踪
 }
 
-const WarningHistory: React.FC<WarningHistoryProps> = ({ 
-  warningId, 
-  studentId, 
-  showEffectTracking = false 
+const WarningHistory: React.FC<WarningHistoryProps> = ({
+  warningId,
+  studentId,
+  showEffectTracking = false,
 }) => {
-  const [historyRecords, setHistoryRecords] = useState<WarningHistoryRecord[]>([]);
-  const [effectTracking, setEffectTracking] = useState<WarningEffectTracking[]>([]);
+  const [historyRecords, setHistoryRecords] = useState<WarningHistoryRecord[]>(
+    []
+  );
+  const [effectTracking, setEffectTracking] = useState<WarningEffectTracking[]>(
+    []
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [filterAction, setFilterAction] = useState("all");
   const [timeRange, setTimeRange] = useState("month");
@@ -74,48 +105,50 @@ const WarningHistory: React.FC<WarningHistoryProps> = ({
     try {
       // 构建查询
       let historyQuery = supabase
-        .from('warning_history')
-        .select(`
+        .from("warning_history")
+        .select(
+          `
           *,
           warning_records!inner(
             id,
             students!inner(name, student_id),
             warning_rules(name, severity)
           )
-        `)
-        .order('created_at', { ascending: false });
+        `
+        )
+        .order("created_at", { ascending: false });
 
       // 应用过滤条件
       if (warningId) {
-        historyQuery = historyQuery.eq('warning_id', warningId);
-      }
-      
-      if (studentId) {
-        historyQuery = historyQuery.eq('warning_records.student_id', studentId);
+        historyQuery = historyQuery.eq("warning_id", warningId);
       }
 
-      if (filterAction !== 'all') {
-        historyQuery = historyQuery.eq('action_type', filterAction);
+      if (studentId) {
+        historyQuery = historyQuery.eq("warning_records.student_id", studentId);
+      }
+
+      if (filterAction !== "all") {
+        historyQuery = historyQuery.eq("action_type", filterAction);
       }
 
       // 时间范围过滤
       const now = new Date();
       let fromDate: Date;
       switch (timeRange) {
-        case 'week':
+        case "week":
           fromDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
           break;
-        case 'month':
+        case "month":
           fromDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
           break;
-        case 'quarter':
+        case "quarter":
           fromDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
           break;
         default:
           fromDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       }
-      
-      historyQuery = historyQuery.gte('created_at', fromDate.toISOString());
+
+      historyQuery = historyQuery.gte("created_at", fromDate.toISOString());
 
       const { data: historyData, error: historyError } = await historyQuery;
 
@@ -125,12 +158,12 @@ const WarningHistory: React.FC<WarningHistoryProps> = ({
       let effectData: WarningEffectTracking[] = [];
       if (showEffectTracking) {
         let effectQuery = supabase
-          .from('warning_effect_tracking')
-          .select('*')
-          .order('created_at', { ascending: false });
+          .from("warning_effect_tracking")
+          .select("*")
+          .order("created_at", { ascending: false });
 
         if (warningId) {
-          effectQuery = effectQuery.eq('warning_id', warningId);
+          effectQuery = effectQuery.eq("warning_id", warningId);
         }
 
         const { data: effectResult, error: effectError } = await effectQuery;
@@ -142,8 +175,8 @@ const WarningHistory: React.FC<WarningHistoryProps> = ({
       setHistoryRecords(historyData || []);
       setEffectTracking(effectData);
     } catch (error) {
-      console.error('获取预警历史失败:', error);
-      toast.error('获取预警历史失败');
+      console.error("获取预警历史失败:", error);
+      toast.error("获取预警历史失败");
     } finally {
       setIsLoading(false);
     }
@@ -151,17 +184,17 @@ const WarningHistory: React.FC<WarningHistoryProps> = ({
 
   const getActionIcon = (actionType: string) => {
     switch (actionType) {
-      case 'created':
+      case "created":
         return <AlertTriangle className="h-4 w-4 text-amber-500" />;
-      case 'resolved':
+      case "resolved":
         return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'dismissed':
+      case "dismissed":
         return <XCircle className="h-4 w-4 text-gray-500" />;
-      case 'reactivated':
+      case "reactivated":
         return <RefreshCw className="h-4 w-4 text-blue-500" />;
-      case 'updated':
+      case "updated":
         return <MessageCircle className="h-4 w-4 text-purple-500" />;
-      case 'commented':
+      case "commented":
         return <MessageCircle className="h-4 w-4 text-cyan-500" />;
       default:
         return <History className="h-4 w-4 text-gray-400" />;
@@ -170,43 +203,47 @@ const WarningHistory: React.FC<WarningHistoryProps> = ({
 
   const getActionText = (actionType: string) => {
     const actionMap: Record<string, string> = {
-      created: '创建预警',
-      resolved: '解决预警',
-      dismissed: '忽略预警',
-      reactivated: '重新激活',
-      updated: '更新信息',
-      commented: '添加备注'
+      created: "创建预警",
+      resolved: "解决预警",
+      dismissed: "忽略预警",
+      reactivated: "重新激活",
+      updated: "更新信息",
+      commented: "添加备注",
     };
     return actionMap[actionType] || actionType;
   };
 
   const getActionColor = (actionType: string) => {
     const colorMap: Record<string, string> = {
-      created: 'bg-amber-100 text-amber-800 border-amber-200',
-      resolved: 'bg-green-100 text-green-800 border-green-200',
-      dismissed: 'bg-gray-100 text-gray-800 border-gray-200',
-      reactivated: 'bg-blue-100 text-blue-800 border-blue-200',
-      updated: 'bg-purple-100 text-purple-800 border-purple-200',
-      commented: 'bg-cyan-100 text-cyan-800 border-cyan-200'
+      created: "bg-amber-100 text-amber-800 border-amber-200",
+      resolved: "bg-green-100 text-green-800 border-green-200",
+      dismissed: "bg-gray-100 text-gray-800 border-gray-200",
+      reactivated: "bg-blue-100 text-blue-800 border-blue-200",
+      updated: "bg-purple-100 text-purple-800 border-purple-200",
+      commented: "bg-cyan-100 text-cyan-800 border-cyan-200",
     };
-    return colorMap[actionType] || 'bg-gray-100 text-gray-800 border-gray-200';
+    return colorMap[actionType] || "bg-gray-100 text-gray-800 border-gray-200";
   };
 
   const formatRelativeTime = (dateString: string) => {
     try {
-      return formatDistanceToNow(new Date(dateString), { 
-        addSuffix: true, 
-        locale: zhCN 
+      return formatDistanceToNow(new Date(dateString), {
+        addSuffix: true,
+        locale: zhCN,
       });
     } catch (e) {
-      return '未知时间';
+      return "未知时间";
     }
   };
 
   const renderEffectTrackingCard = (tracking: WarningEffectTracking) => {
-    const effectivenessColor = tracking.effectiveness_score >= 4 ? 'text-green-600' :
-                              tracking.effectiveness_score >= 3 ? 'text-yellow-600' : 'text-red-600';
-    
+    const effectivenessColor =
+      tracking.effectiveness_score >= 4
+        ? "text-green-600"
+        : tracking.effectiveness_score >= 3
+          ? "text-yellow-600"
+          : "text-red-600";
+
     return (
       <Card key={tracking.warning_id} className="border-l-4 border-l-blue-500">
         <CardContent className="pt-4">
@@ -216,7 +253,7 @@ const WarningHistory: React.FC<WarningHistoryProps> = ({
               效果评分: {tracking.effectiveness_score}/5
             </Badge>
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div className="flex items-center">
               <Clock className="h-3 w-3 mr-1 text-gray-400" />
@@ -228,16 +265,21 @@ const WarningHistory: React.FC<WarningHistoryProps> = ({
               ) : (
                 <TrendingDown className="h-3 w-3 mr-1 text-red-500" />
               )}
-              <span>{tracking.improvement_noted ? '有改善' : '暂无明显改善'}</span>
+              <span>
+                {tracking.improvement_noted ? "有改善" : "暂无明显改善"}
+              </span>
             </div>
           </div>
-          
+
           {tracking.follow_up_required && (
-            <Badge variant="outline" className="mt-2 text-orange-600 border-orange-200">
+            <Badge
+              variant="outline"
+              className="mt-2 text-orange-600 border-orange-200"
+            >
               需要后续跟进
             </Badge>
           )}
-          
+
           {tracking.feedback_notes && (
             <p className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded">
               {tracking.feedback_notes}
@@ -266,13 +308,20 @@ const WarningHistory: React.FC<WarningHistoryProps> = ({
               显示预警记录的处理历史和状态变化跟踪
             </CardDescription>
           </div>
-          <Button variant="outline" size="sm" onClick={fetchHistoryData} disabled={isLoading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchHistoryData}
+            disabled={isLoading}
+          >
+            <RefreshCw
+              className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
+            />
             刷新
           </Button>
         </div>
       </CardHeader>
-      
+
       <CardContent>
         {/* 筛选工具栏 */}
         <div className="flex space-x-2 mb-4">
@@ -306,7 +355,9 @@ const WarningHistory: React.FC<WarningHistoryProps> = ({
         {/* 效果跟踪卡片 */}
         {showEffectTracking && effectTracking.length > 0 && (
           <div className="mb-6">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">预警效果跟踪</h3>
+            <h3 className="text-sm font-medium text-gray-700 mb-3">
+              预警效果跟踪
+            </h3>
             <div className="space-y-3">
               {effectTracking.map(renderEffectTrackingCard)}
             </div>
@@ -342,16 +393,20 @@ const WarningHistory: React.FC<WarningHistoryProps> = ({
                 <div className="flex-1 min-w-0 pb-8">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center space-x-2">
-                      <Badge variant="outline" className={getActionColor(record.action_type)}>
+                      <Badge
+                        variant="outline"
+                        className={getActionColor(record.action_type)}
+                      >
                         {getActionText(record.action_type)}
                       </Badge>
-                      {record.old_status && record.old_status !== record.new_status && (
-                        <div className="flex items-center text-xs text-gray-500">
-                          <span>{record.old_status}</span>
-                          <ArrowRight className="h-3 w-3 mx-1" />
-                          <span>{record.new_status}</span>
-                        </div>
-                      )}
+                      {record.old_status &&
+                        record.old_status !== record.new_status && (
+                          <div className="flex items-center text-xs text-gray-500">
+                            <span>{record.old_status}</span>
+                            <ArrowRight className="h-3 w-3 mx-1" />
+                            <span>{record.new_status}</span>
+                          </div>
+                        )}
                     </div>
                     <div className="flex items-center text-xs text-gray-500">
                       <Clock className="h-3 w-3 mr-1" />
@@ -367,31 +422,42 @@ const WarningHistory: React.FC<WarningHistoryProps> = ({
                           {record.warning.student.name.substring(0, 2)}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-sm font-medium">{record.warning.student.name}</span>
-                      <span className="text-xs text-gray-500">({record.warning.student.student_id})</span>
+                      <span className="text-sm font-medium">
+                        {record.warning.student.name}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        ({record.warning.student.student_id})
+                      </span>
                     </div>
                   )}
 
                   {/* 操作人员 */}
                   <div className="flex items-center space-x-2 mb-2 text-xs text-gray-600">
                     <User className="h-3 w-3" />
-                    <span>操作人员: {record.action_by_name || record.action_by}</span>
+                    <span>
+                      操作人员: {record.action_by_name || record.action_by}
+                    </span>
                   </div>
 
                   {/* 预警规则信息 */}
                   {record.warning?.rule && (
                     <div className="text-xs text-gray-600 mb-2">
                       预警规则: {record.warning.rule.name}
-                      <Badge 
-                        variant="outline" 
+                      <Badge
+                        variant="outline"
                         className={`ml-2 ${
-                          record.warning.rule.severity === 'high' ? 'text-red-600 border-red-200' :
-                          record.warning.rule.severity === 'medium' ? 'text-yellow-600 border-yellow-200' :
-                          'text-blue-600 border-blue-200'
+                          record.warning.rule.severity === "high"
+                            ? "text-red-600 border-red-200"
+                            : record.warning.rule.severity === "medium"
+                              ? "text-yellow-600 border-yellow-200"
+                              : "text-blue-600 border-blue-200"
                         }`}
                       >
-                        {record.warning.rule.severity === 'high' ? '高风险' :
-                         record.warning.rule.severity === 'medium' ? '中风险' : '低风险'}
+                        {record.warning.rule.severity === "high"
+                          ? "高风险"
+                          : record.warning.rule.severity === "medium"
+                            ? "中风险"
+                            : "低风险"}
                       </Badge>
                     </div>
                   )}
@@ -405,14 +471,17 @@ const WarningHistory: React.FC<WarningHistoryProps> = ({
                   )}
 
                   {/* 额外的元数据 */}
-                  {record.metadata && Object.keys(record.metadata).length > 0 && (
-                    <details className="mt-2">
-                      <summary className="text-xs text-gray-500 cursor-pointer">查看详细信息</summary>
-                      <pre className="text-xs bg-gray-50 p-2 rounded mt-1 overflow-auto">
-                        {JSON.stringify(record.metadata, null, 2)}
-                      </pre>
-                    </details>
-                  )}
+                  {record.metadata &&
+                    Object.keys(record.metadata).length > 0 && (
+                      <details className="mt-2">
+                        <summary className="text-xs text-gray-500 cursor-pointer">
+                          查看详细信息
+                        </summary>
+                        <pre className="text-xs bg-gray-50 p-2 rounded mt-1 overflow-auto">
+                          {JSON.stringify(record.metadata, null, 2)}
+                        </pre>
+                      </details>
+                    )}
                 </div>
               </div>
             ))}
@@ -423,4 +492,4 @@ const WarningHistory: React.FC<WarningHistoryProps> = ({
   );
 };
 
-export default WarningHistory; 
+export default WarningHistory;

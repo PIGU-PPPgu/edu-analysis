@@ -1,0 +1,570 @@
+# 🔄 数据恢复任务配置
+# 用于灾难恢复和数据迁移的恢复作业
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: restore-scripts
+  namespace: backup
+  labels:
+    app: backup-system
+    component: restore
+data:
+  # 数据库恢复脚本
+  restore-database.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    # 参数验证
+    if [[ $# -lt 1 ]]; then
+        echo "用法: $0 <backup-name> [target-database]"
+        echo "示例: $0 supabase-backup-20241201-020000"
+        exit 1
+    fi
+    
+    BACKUP_NAME="$1"
+    TARGET_DB="${2:-production}"
+    RESTORE_DIR="/tmp/restore"
+    
+    log() {
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+    }
+    
+    # 创建恢复目录
+    mkdir -p "$RESTORE_DIR"
+    cd "$RESTORE_DIR"
+    
+    log "开始数据库恢复: $BACKUP_NAME"
+    
+    # 从S3下载备份文件
+    log "下载备份文件..."
+    aws s3 cp "s3://${S3_BUCKET}/database/${BACKUP_NAME}.tar.gz" .
+    
+    # 解压备份文件
+    log "解压备份文件..."
+    tar -xzf "${BACKUP_NAME}.tar.gz"
+    
+    # 检查备份文件
+    if [[ ! -f "${BACKUP_NAME}-schema.sql" ]] || [[ ! -f "${BACKUP_NAME}-data.sql" ]]; then
+        log "ERROR: 备份文件不完整"
+        exit 1
+    fi
+    
+    # 确认恢复操作
+    log "⚠️  准备恢复数据库: $TARGET_DB"
+    log "⚠️  这将覆盖现有数据，请确认操作!"
+    
+    if [[ "${FORCE_RESTORE:-false}" != "true" ]]; then
+        log "请设置 FORCE_RESTORE=true 环境变量确认恢复操作"
+        exit 1
+    fi
+    
+    # 创建备份时间戳（恢复前备份）
+    PRE_RESTORE_BACKUP="pre-restore-$(date +%Y%m%d-%H%M%S)"
+    
+    log "创建恢复前备份: $PRE_RESTORE_BACKUP"
+    if command -v supabase &> /dev/null && [[ -n "${SUPABASE_DB_URL:-}" ]]; then
+        supabase db dump > "$RESTORE_DIR/${PRE_RESTORE_BACKUP}.sql"
+        aws s3 cp "${PRE_RESTORE_BACKUP}.sql" "s3://${S3_BUCKET}/pre-restore-backups/"
+    fi
+    
+    # 执行恢复
+    log "开始恢复数据库结构..."
+    if [[ -n "${SUPABASE_DB_URL:-}" ]]; then
+        # 使用pg_restore恢复
+        psql "$SUPABASE_DB_URL" < "${BACKUP_NAME}-schema.sql"
+        
+        log "开始恢复数据..."
+        psql "$SUPABASE_DB_URL" < "${BACKUP_NAME}-data.sql"
+        
+    elif command -v supabase &> /dev/null; then
+        # 使用Supabase CLI恢复
+        supabase db reset --db-url "$SUPABASE_DB_URL"
+        supabase db push --db-url "$SUPABASE_DB_URL" --schema "${BACKUP_NAME}-schema.sql"
+        
+        # 恢复数据需要特殊处理
+        log "注意: 数据恢复需要手动处理"
+        
+    else
+        log "ERROR: 无法找到恢复工具"
+        exit 1
+    fi
+    
+    # 验证恢复结果
+    log "验证恢复结果..."
+    if [[ -n "${SUPABASE_DB_URL:-}" ]]; then
+        TABLE_COUNT=$(psql "$SUPABASE_DB_URL" -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';")
+        log "恢复后表数量: $TABLE_COUNT"
+    fi
+    
+    # 清理临时文件
+    rm -rf "$RESTORE_DIR"
+    
+    log "数据库恢复完成"
+
+  # Kubernetes配置恢复脚本
+  restore-k8s-config.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    if [[ $# -lt 1 ]]; then
+        echo "用法: $0 <backup-name> [namespace]"
+        echo "示例: $0 k8s-config-backup-20241201-010000"
+        exit 1
+    fi
+    
+    BACKUP_NAME="$1"
+    TARGET_NAMESPACE="${2:-}"
+    RESTORE_DIR="/tmp/restore"
+    
+    log() {
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+    }
+    
+    mkdir -p "$RESTORE_DIR"
+    cd "$RESTORE_DIR"
+    
+    log "开始Kubernetes配置恢复: $BACKUP_NAME"
+    
+    # 下载备份文件
+    log "下载配置备份..."
+    aws s3 cp "s3://${S3_BUCKET}/kubernetes-config/${BACKUP_NAME}.tar.gz" .
+    
+    # 解压备份
+    tar -xzf "${BACKUP_NAME}.tar.gz"
+    cd "$BACKUP_NAME"
+    
+    # 确认恢复操作
+    if [[ "${FORCE_RESTORE:-false}" != "true" ]]; then
+        log "请设置 FORCE_RESTORE=true 环境变量确认恢复操作"
+        exit 1
+    fi
+    
+    # 选择性恢复
+    if [[ -n "$TARGET_NAMESPACE" ]]; then
+        log "恢复指定命名空间: $TARGET_NAMESPACE"
+        
+        # 过滤特定命名空间的资源
+        for file in *.yaml; do
+            if grep -q "namespace: $TARGET_NAMESPACE" "$file"; then
+                log "恢复 $file 中的 $TARGET_NAMESPACE 资源..."
+                kubectl apply -f "$file" --namespace="$TARGET_NAMESPACE" || true
+            fi
+        done
+    else
+        log "恢复所有配置..."
+        
+        # 按顺序恢复资源
+        RESTORE_ORDER=(
+            "custom-resources.yaml"
+            "persistent-volumes.yaml"
+            "configmaps.yaml"
+            "secrets.yaml"
+            "services.yaml"
+            "deployments.yaml"
+            "statefulsets.yaml"
+            "persistent-volume-claims.yaml"
+            "ingress.yaml"
+            "network-policies.yaml"
+        )
+        
+        for file in "${RESTORE_ORDER[@]}"; do
+            if [[ -f "$file" ]]; then
+                log "恢复 $file..."
+                kubectl apply -f "$file" || log "WARNING: 恢复 $file 时出现错误"
+                sleep 5  # 等待资源创建
+            fi
+        done
+    fi
+    
+    # 验证恢复结果
+    log "验证恢复结果..."
+    if [[ -n "$TARGET_NAMESPACE" ]]; then
+        kubectl get all -n "$TARGET_NAMESPACE"
+    else
+        kubectl get namespaces
+        kubectl get pods --all-namespaces | head -20
+    fi
+    
+    # 清理
+    rm -rf "$RESTORE_DIR"
+    
+    log "Kubernetes配置恢复完成"
+
+  # 应用数据恢复脚本
+  restore-app-data.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    if [[ $# -lt 1 ]]; then
+        echo "用法: $0 <backup-name> [restore-type]"
+        echo "示例: $0 app-data-backup-20241201-030000 config"
+        echo "恢复类型: config, uploads, redis, all"
+        exit 1
+    fi
+    
+    BACKUP_NAME="$1"
+    RESTORE_TYPE="${2:-all}"
+    RESTORE_DIR="/tmp/restore"
+    
+    log() {
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+    }
+    
+    mkdir -p "$RESTORE_DIR"
+    cd "$RESTORE_DIR"
+    
+    log "开始应用数据恢复: $BACKUP_NAME (类型: $RESTORE_TYPE)"
+    
+    # 确认恢复操作
+    if [[ "${FORCE_RESTORE:-false}" != "true" ]]; then
+        log "请设置 FORCE_RESTORE=true 环境变量确认恢复操作"
+        exit 1
+    fi
+    
+    # 恢复配置
+    if [[ "$RESTORE_TYPE" == "config" ]] || [[ "$RESTORE_TYPE" == "all" ]]; then
+        log "恢复应用配置..."
+        
+        # 下载配置备份
+        aws s3 cp "s3://${S3_BUCKET}/app-data/${BACKUP_NAME}-config.tar.gz" . || log "WARNING: 配置备份不存在"
+        
+        if [[ -f "${BACKUP_NAME}-config.tar.gz" ]]; then
+            tar -xzf "${BACKUP_NAME}-config.tar.gz"
+            
+            # 恢复ConfigMap
+            if [[ -f "${BACKUP_NAME}-app-config.yaml" ]]; then
+                kubectl apply -f "${BACKUP_NAME}-app-config.yaml"
+                log "应用配置已恢复"
+            fi
+            
+            # 恢复Secret (需要谨慎处理)
+            if [[ -f "${BACKUP_NAME}-app-secrets.yaml" ]]; then
+                log "WARNING: 恢复Secrets需要人工确认"
+                # kubectl apply -f "${BACKUP_NAME}-app-secrets.yaml"
+            fi
+        fi
+    fi
+    
+    # 恢复上传文件
+    if [[ "$RESTORE_TYPE" == "uploads" ]] || [[ "$RESTORE_TYPE" == "all" ]]; then
+        log "恢复上传文件..."
+        
+        if kubectl get pvc app-data-pvc -n production &>/dev/null; then
+            # 直接从S3恢复到Pod
+            POD_NAME=$(kubectl get pods -n production -l app=figma-frame-faithful -o jsonpath='{.items[0].metadata.name}')
+            
+            if [[ -n "$POD_NAME" ]]; then
+                log "恢复文件到 Pod: $POD_NAME"
+                aws s3 cp "s3://${S3_BUCKET}/app-data/${BACKUP_NAME}-uploads.tar.gz" - | \
+                  kubectl exec -n production "$POD_NAME" -- tar -xzf - -C /app/
+                log "上传文件已恢复"
+            fi
+        fi
+    fi
+    
+    # 恢复Redis数据
+    if [[ "$RESTORE_TYPE" == "redis" ]] || [[ "$RESTORE_TYPE" == "all" ]]; then
+        log "恢复Redis数据..."
+        
+        if kubectl get service redis -n production &>/dev/null; then
+            # 下载Redis备份
+            aws s3 cp "s3://${S3_BUCKET}/app-data/${BACKUP_NAME}-redis-dump.rdb" . || log "WARNING: Redis备份不存在"
+            
+            if [[ -f "${BACKUP_NAME}-redis-dump.rdb" ]]; then
+                REDIS_POD=$(kubectl get pods -n production -l app=redis -o jsonpath='{.items[0].metadata.name}')
+                
+                if [[ -n "$REDIS_POD" ]]; then
+                    # 停止Redis服务
+                    kubectl exec -n production "$REDIS_POD" -- redis-cli SHUTDOWN NOSAVE || true
+                    sleep 5
+                    
+                    # 复制备份文件
+                    kubectl cp "${BACKUP_NAME}-redis-dump.rdb" "production/$REDIS_POD:/data/dump.rdb"
+                    
+                    # 重启Redis Pod
+                    kubectl delete pod -n production "$REDIS_POD"
+                    kubectl wait --for=condition=Ready pod -l app=redis -n production --timeout=300s
+                    
+                    log "Redis数据已恢复"
+                fi
+            fi
+        fi
+    fi
+    
+    # 清理
+    rm -rf "$RESTORE_DIR"
+    
+    log "应用数据恢复完成"
+
+  # 监控数据恢复脚本
+  restore-monitoring.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    if [[ $# -lt 1 ]]; then
+        echo "用法: $0 <backup-name> [component]"
+        echo "示例: $0 monitoring-backup-20241201-040000 prometheus"
+        echo "组件: prometheus, grafana, alertmanager, elasticsearch, all"
+        exit 1
+    fi
+    
+    BACKUP_NAME="$1"
+    COMPONENT="${2:-all}"
+    RESTORE_DIR="/tmp/restore"
+    
+    log() {
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+    }
+    
+    mkdir -p "$RESTORE_DIR"
+    cd "$RESTORE_DIR"
+    
+    log "开始监控数据恢复: $BACKUP_NAME (组件: $COMPONENT)"
+    
+    # 确认恢复操作
+    if [[ "${FORCE_RESTORE:-false}" != "true" ]]; then
+        log "请设置 FORCE_RESTORE=true 环境变量确认恢复操作"
+        exit 1
+    fi
+    
+    # 恢复配置
+    log "下载监控配置备份..."
+    aws s3 cp "s3://${S3_BUCKET}/monitoring/${BACKUP_NAME}-config.tar.gz" . || log "WARNING: 配置备份不存在"
+    
+    if [[ -f "${BACKUP_NAME}-config.tar.gz" ]]; then
+        tar -xzf "${BACKUP_NAME}-config.tar.gz"
+        cd "${BACKUP_NAME}"
+        
+        # 恢复Grafana配置
+        if [[ "$COMPONENT" == "grafana" ]] || [[ "$COMPONENT" == "all" ]]; then
+            if [[ -f "grafana-config.yaml" ]]; then
+                log "恢复Grafana配置..."
+                kubectl apply -f grafana-config.yaml
+                kubectl rollout restart deployment/grafana -n monitoring
+            fi
+        fi
+        
+        # 恢复AlertManager配置
+        if [[ "$COMPONENT" == "alertmanager" ]] || [[ "$COMPONENT" == "all" ]]; then
+            if [[ -f "alertmanager-config.yaml" ]]; then
+                log "恢复AlertManager配置..."
+                kubectl apply -f alertmanager-config.yaml
+                kubectl rollout restart deployment/alertmanager -n monitoring
+            fi
+        fi
+        
+        cd ..
+    fi
+    
+    # 恢复Prometheus数据
+    if [[ "$COMPONENT" == "prometheus" ]] || [[ "$COMPONENT" == "all" ]]; then
+        log "恢复Prometheus数据..."
+        
+        # 下载Prometheus快照
+        aws s3 cp "s3://${S3_BUCKET}/monitoring/prometheus-${BACKUP_NAME}.tar.gz" . || log "WARNING: Prometheus备份不存在"
+        
+        if [[ -f "prometheus-${BACKUP_NAME}.tar.gz" ]]; then
+            PROMETHEUS_POD=$(kubectl get pods -n monitoring -l app=prometheus -o jsonpath='{.items[0].metadata.name}')
+            
+            if [[ -n "$PROMETHEUS_POD" ]]; then
+                # 停止Prometheus
+                kubectl scale statefulset/prometheus -n monitoring --replicas=0
+                kubectl wait --for=delete pod -l app=prometheus -n monitoring --timeout=300s
+                
+                # 清理现有数据
+                kubectl exec -n monitoring deployment/prometheus -- rm -rf /prometheus/* || true
+                
+                # 恢复快照数据
+                kubectl cp "prometheus-${BACKUP_NAME}.tar.gz" "monitoring/$PROMETHEUS_POD:/tmp/"
+                kubectl exec -n monitoring "$PROMETHEUS_POD" -- tar -xzf /tmp/prometheus-${BACKUP_NAME}.tar.gz -C /prometheus/
+                
+                # 重启Prometheus
+                kubectl scale statefulset/prometheus -n monitoring --replicas=1
+                kubectl wait --for=condition=Ready pod -l app=prometheus -n monitoring --timeout=300s
+                
+                log "Prometheus数据已恢复"
+            fi
+        fi
+    fi
+    
+    # 恢复Elasticsearch快照
+    if [[ "$COMPONENT" == "elasticsearch" ]] || [[ "$COMPONENT" == "all" ]]; then
+        log "恢复Elasticsearch快照..."
+        
+        if kubectl get statefulset elasticsearch-master -n logging &>/dev/null; then
+            # 恢复Elasticsearch快照
+            kubectl exec -n logging statefulset/elasticsearch-master -- \
+                curl -X POST "localhost:9200/_snapshot/backup_repository/snapshot-${BACKUP_NAME}/_restore" \
+                -H 'Content-Type: application/json' \
+                -d '{
+                  "indices": "*",
+                  "ignore_unavailable": true,
+                  "include_global_state": false,
+                  "rename_pattern": "(.+)",
+                  "rename_replacement": "restored-$1"
+                }' || log "WARNING: Elasticsearch快照恢复失败"
+            
+            log "Elasticsearch快照恢复已启动"
+        fi
+    fi
+    
+    # 清理
+    rm -rf "$RESTORE_DIR"
+    
+    log "监控数据恢复完成"
+
+  # 通用恢复验证脚本
+  verify-restore.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    RESTORE_TYPE="${1:-all}"
+    
+    log() {
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+    }
+    
+    log "开始恢复验证: $RESTORE_TYPE"
+    
+    # 验证数据库连接
+    if [[ "$RESTORE_TYPE" == "database" ]] || [[ "$RESTORE_TYPE" == "all" ]]; then
+        log "验证数据库连接..."
+        if [[ -n "${SUPABASE_DB_URL:-}" ]]; then
+            if psql "$SUPABASE_DB_URL" -c "SELECT 1;" &>/dev/null; then
+                log "✅ 数据库连接正常"
+            else
+                log "❌ 数据库连接失败"
+            fi
+        fi
+    fi
+    
+    # 验证Kubernetes资源
+    if [[ "$RESTORE_TYPE" == "kubernetes" ]] || [[ "$RESTORE_TYPE" == "all" ]]; then
+        log "验证Kubernetes资源..."
+        
+        # 检查关键命名空间
+        for ns in production staging monitoring logging backup; do
+            if kubectl get namespace "$ns" &>/dev/null; then
+                log "✅ 命名空间 $ns 存在"
+            else
+                log "❌ 命名空间 $ns 不存在"
+            fi
+        done
+        
+        # 检查关键应用
+        if kubectl get deployment figma-frame-faithful -n production &>/dev/null; then
+            log "✅ 主应用部署存在"
+        else
+            log "❌ 主应用部署不存在"
+        fi
+    fi
+    
+    # 验证监控系统
+    if [[ "$RESTORE_TYPE" == "monitoring" ]] || [[ "$RESTORE_TYPE" == "all" ]]; then
+        log "验证监控系统..."
+        
+        # 检查Prometheus
+        if kubectl exec -n monitoring deployment/prometheus -- \
+             wget -q -O- http://localhost:9090/-/healthy 2>/dev/null | grep -q "Prometheus is Healthy"; then
+            log "✅ Prometheus 健康状态正常"
+        else
+            log "❌ Prometheus 健康检查失败"
+        fi
+        
+        # 检查Grafana
+        if kubectl exec -n monitoring deployment/grafana -- \
+             curl -s http://localhost:3000/api/health 2>/dev/null | grep -q "ok"; then
+            log "✅ Grafana 健康状态正常"
+        else
+            log "❌ Grafana 健康检查失败"
+        fi
+    fi
+    
+    log "恢复验证完成"
+
+---
+# 🔄 手动恢复作业模板
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: manual-restore-job
+  namespace: backup
+  labels:
+    app: backup-system
+    component: restore
+spec:
+  activeDeadlineSeconds: 7200  # 2小时超时
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app: backup-system
+        component: restore
+    spec:
+      serviceAccountName: backup-service
+      restartPolicy: Never
+      containers:
+      - name: restore
+        image: bitnami/kubectl:latest
+        command:
+        - /bin/bash
+        - -c
+        - |
+          # 安装必要工具
+          apt-get update && apt-get install -y \
+            curl wget unzip awscli postgresql-client-14 redis-tools
+          
+          # 安装Supabase CLI
+          curl -fsSL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz | \
+            tar -xz --strip-components=1 -C /usr/local/bin
+          
+          # 设置环境变量
+          export AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID"
+          export AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY"
+          export AWS_DEFAULT_REGION="$AWS_DEFAULT_REGION"
+          
+          # 等待手动操作指令
+          echo "恢复作业已准备就绪"
+          echo "请使用 kubectl exec 进入容器执行恢复脚本"
+          echo ""
+          echo "可用的恢复脚本:"
+          echo "  /scripts/restore-database.sh <backup-name>"
+          echo "  /scripts/restore-k8s-config.sh <backup-name>"
+          echo "  /scripts/restore-app-data.sh <backup-name> [type]"
+          echo "  /scripts/restore-monitoring.sh <backup-name> [component]"
+          echo "  /scripts/verify-restore.sh [type]"
+          echo ""
+          echo "示例:"
+          echo "  kubectl exec -it manual-restore-job-xxx -n backup -- /scripts/restore-database.sh supabase-backup-20241201-020000"
+          echo ""
+          
+          # 保持容器运行，等待手动操作
+          sleep 7200
+        env:
+        - name: FORCE_RESTORE
+          value: "false"  # 默认关闭，需要手动设置
+        envFrom:
+        - secretRef:
+            name: aws-credentials
+        - secretRef:
+            name: supabase-credentials
+            optional: true
+        - configMapRef:
+            name: backup-config
+        volumeMounts:
+        - name: restore-scripts
+          mountPath: /scripts
+          readOnly: true
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+      volumes:
+      - name: restore-scripts
+        configMap:
+          name: restore-scripts
+          defaultMode: 0755

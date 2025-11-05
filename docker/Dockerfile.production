@@ -1,0 +1,116 @@
+# 🐳 生产环境Dockerfile - 多阶段构建优化
+# 基于Alpine Linux的轻量级生产镜像
+
+# 阶段1：基础镜像
+FROM node:20-alpine AS base
+LABEL maintainer="Education Management System Team"
+LABEL description="Figma Frame Faithful - Production Image"
+
+# 设置工作目录
+WORKDIR /app
+
+# 安装系统依赖
+RUN apk add --no-cache \
+    dumb-init \
+    curl \
+    tzdata \
+    && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && echo "Asia/Shanghai" > /etc/timezone
+
+# 阶段2：依赖安装
+FROM base AS deps
+
+# 复制包管理文件
+COPY package*.json ./
+COPY .npmrc ./
+
+# 安装生产依赖
+RUN npm ci --only=production --prefer-offline --no-audit \
+    && npm cache clean --force
+
+# 阶段3：构建
+FROM base AS builder
+
+# 复制包管理文件
+COPY package*.json ./
+COPY .npmrc ./
+
+# 安装所有依赖（包括开发依赖）
+RUN npm ci --prefer-offline --no-audit
+
+# 复制源代码
+COPY . .
+
+# 构建应用
+ENV NODE_ENV=production
+ENV VITE_APP_ENV=production
+ARG VITE_BUILD_TIME
+ARG VITE_COMMIT_SHA
+ARG VITE_BUILD_NUMBER
+
+RUN npm run build \
+    && npm run build:analyze
+
+# 阶段4：生产镜像
+FROM nginx:1.25-alpine AS production
+
+# 安装额外工具
+RUN apk add --no-cache \
+    dumb-init \
+    curl \
+    jq \
+    && rm -rf /var/cache/apk/*
+
+# 创建非root用户
+RUN addgroup -g 1001 -S nodejs \
+    && adduser -S nextjs -u 1001
+
+# 复制自定义nginx配置
+COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY docker/nginx/gzip.conf /etc/nginx/conf.d/gzip.conf
+COPY docker/nginx/security.conf /etc/nginx/conf.d/security.conf
+
+# 复制构建产物
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# 复制健康检查脚本
+COPY docker/scripts/healthcheck.sh /usr/local/bin/healthcheck.sh
+RUN chmod +x /usr/local/bin/healthcheck.sh
+
+# 复制启动脚本
+COPY docker/scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# 设置权限
+RUN chown -R nginx:nginx /usr/share/nginx/html \
+    && chown -R nginx:nginx /var/cache/nginx \
+    && chown nginx:nginx /var/run \
+    && chmod 755 /usr/share/nginx/html
+
+# 暴露端口
+EXPOSE 80 443
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD /usr/local/bin/healthcheck.sh
+
+# 使用非root用户
+USER nginx
+
+# 设置环境变量
+ENV NODE_ENV=production
+ENV NGINX_WORKER_PROCESSES=auto
+ENV NGINX_WORKER_CONNECTIONS=1024
+
+# 启动入口
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["/usr/local/bin/entrypoint.sh"]
+
+# 元数据标签
+LABEL org.opencontainers.image.title="Figma Frame Faithful"
+LABEL org.opencontainers.image.description="Education Management System - Production Image"
+LABEL org.opencontainers.image.vendor="Education Management System Team"
+LABEL org.opencontainers.image.version="${VITE_BUILD_NUMBER:-unknown}"
+LABEL org.opencontainers.image.created="${VITE_BUILD_TIME:-unknown}"
+LABEL org.opencontainers.image.revision="${VITE_COMMIT_SHA:-unknown}"

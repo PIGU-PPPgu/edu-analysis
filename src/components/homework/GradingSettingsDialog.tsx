@@ -47,22 +47,22 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { 
-  getGradingScales, 
-  getGradingScaleWithLevels, 
-  createGradingScale, 
-  updateGradingScale, 
-  deleteGradingScale, 
+import {
+  getGradingScales,
+  getGradingScaleWithLevels,
+  createGradingScale,
+  updateGradingScale,
+  deleteGradingScale,
   GradingScale as DBGradingScale,
-  GradingScaleLevel
+  GradingScaleLevel,
 } from "@/services/gradingService";
 import {
   getUserThresholds,
   saveUserThresholds,
   getDefaultThresholds,
-  KnowledgePointThreshold as DBKnowledgePointThreshold
+  KnowledgePointThreshold as DBKnowledgePointThreshold,
 } from "@/services/knowledgePointThresholdService";
-import { useAuthContext } from "@/contexts/AuthContext";
+import { useAppAuth } from "@/contexts/unified/UnifiedAppContext";
 
 // UI组件的评分方案类型
 export type GradingScale = {
@@ -85,22 +85,24 @@ export type KnowledgePointThreshold = {
 };
 
 // 默认知识点阈值
-const defaultKnowledgePointThresholds = getDefaultThresholds().map(t => ({
+const defaultKnowledgePointThresholds = getDefaultThresholds().map((t) => ({
   level: t.level,
   threshold: t.threshold,
-  color: t.color
+  color: t.color,
 }));
 
 const scaleSchema = z.object({
   name: z.string().min(1, "评分方案名称不能为空"),
   description: z.string().optional(),
-  levels: z.array(
-    z.object({
-      value: z.preprocess((val) => Number(val), z.number().min(0).max(100)),
-      name: z.string().min(1, "等级名称不能为空"),
-      color: z.string(),
-    })
-  ).min(1, "至少需要一个评分等级"),
+  levels: z
+    .array(
+      z.object({
+        value: z.preprocess((val) => Number(val), z.number().min(0).max(100)),
+        name: z.string().min(1, "等级名称不能为空"),
+        color: z.string(),
+      })
+    )
+    .min(1, "至少需要一个评分等级"),
 });
 
 // GradingSettingsDialog组件的Props
@@ -112,20 +114,23 @@ interface GradingSettingsDialogProps {
 // 将DB格式转换为UI格式
 const convertDbScaleToUiScale = (dbScale: DBGradingScale): GradingScale => {
   return {
-    id: dbScale.id || '',
+    id: dbScale.id || "",
     name: dbScale.name,
-    description: dbScale.created_at || '',
+    description: dbScale.created_at || "",
     is_default: dbScale.is_default,
-    levels: (dbScale.levels || []).map(level => ({
+    levels: (dbScale.levels || []).map((level) => ({
       value: level.min_score,
       name: level.name,
-      color: level.color || 'bg-green-500',
-    }))
+      color: level.color || "bg-green-500",
+    })),
   };
 };
 
 // 将UI格式转换为DB格式
-const convertUiScaleToDbScale = (uiScale: GradingScale, userId?: string): DBGradingScale => {
+const convertUiScaleToDbScale = (
+  uiScale: GradingScale,
+  userId?: string
+): DBGradingScale => {
   return {
     id: uiScale.id,
     name: uiScale.name,
@@ -136,8 +141,8 @@ const convertUiScaleToDbScale = (uiScale: GradingScale, userId?: string): DBGrad
       min_score: level.value,
       max_score: 100,
       color: level.color,
-      position: index
-    }))
+      position: index,
+    })),
   };
 };
 
@@ -149,7 +154,7 @@ const convertUiThresholdsToDbThresholds = (
     level: threshold.level,
     threshold: threshold.threshold,
     color: threshold.color,
-    position: index
+    position: index,
   }));
 };
 
@@ -157,10 +162,10 @@ const convertUiThresholdsToDbThresholds = (
 const convertDbThresholdsToUiThresholds = (
   dbThresholds: DBKnowledgePointThreshold[]
 ): KnowledgePointThreshold[] => {
-  return dbThresholds.map(threshold => ({
+  return dbThresholds.map((threshold) => ({
     level: threshold.level,
     threshold: threshold.threshold,
-    color: threshold.color
+    color: threshold.color,
   }));
 };
 
@@ -168,7 +173,7 @@ export default function GradingSettingsDialog({
   open,
   onOpenChange,
 }: GradingSettingsDialogProps) {
-  const { user } = useAuthContext();
+  const { user } = useAppAuth();
   const [currentTab, setCurrentTab] = useState("scales");
   const [scales, setScales] = useState<GradingScale[]>([]);
   const [thresholds, setThresholds] = useState<KnowledgePointThreshold[]>(
@@ -205,31 +210,31 @@ export default function GradingSettingsDialog({
     setLoading(true);
     try {
       const dbScales = await getGradingScales();
-      
+
       // 处理每个评分方案
       const uiScales: GradingScale[] = [];
       for (const scale of dbScales) {
-        const detailedScale = await getGradingScaleWithLevels(scale.id || '');
+        const detailedScale = await getGradingScaleWithLevels(scale.id || "");
         if (detailedScale) {
           const uiScale = convertDbScaleToUiScale(detailedScale);
           uiScales.push(uiScale);
-          
+
           // 设置默认方案
           if (scale.is_default) {
-            setDefaultScaleId(scale.id || '');
+            setDefaultScaleId(scale.id || "");
           }
         }
       }
-      
+
       setScales(uiScales);
-      
+
       // 如果有方案，选中第一个
       if (uiScales.length > 0) {
         setSelectedScaleId(uiScales[0].id);
       }
     } catch (error) {
-      console.error('加载评分方案失败:', error);
-      toast.error('加载评分方案失败');
+      console.error("加载评分方案失败:", error);
+      toast.error("加载评分方案失败");
     } finally {
       setLoading(false);
     }
@@ -238,11 +243,11 @@ export default function GradingSettingsDialog({
   // 获取用户的知识点阈值设置
   const fetchUserThresholds = async () => {
     if (!user?.id || thresholdsLoaded) return;
-    
+
     setLoading(true);
     try {
       const dbThresholds = await getUserThresholds(user.id);
-      
+
       if (dbThresholds && dbThresholds.length > 0) {
         const uiThresholds = convertDbThresholdsToUiThresholds(dbThresholds);
         setThresholds(uiThresholds);
@@ -250,10 +255,10 @@ export default function GradingSettingsDialog({
         // 如果用户没有保存过阈值设置，使用默认设置
         setThresholds(defaultKnowledgePointThresholds);
       }
-      
+
       setThresholdsLoaded(true);
     } catch (error) {
-      console.error('获取知识点阈值设置失败:', error);
+      console.error("获取知识点阈值设置失败:", error);
       // 出错时使用默认阈值
       setThresholds(defaultKnowledgePointThresholds);
     } finally {
@@ -270,23 +275,21 @@ export default function GradingSettingsDialog({
         const updatedScale: GradingScale = {
           ...editingScale,
           name: values.name,
-          description: values.description || '',
-          levels: values.levels.map(level => ({
+          description: values.description || "",
+          levels: values.levels.map((level) => ({
             value: Number(level.value),
             name: String(level.name),
-            color: String(level.color)
+            color: String(level.color),
           })),
         };
-        
+
         const dbScale = convertUiScaleToDbScale(updatedScale, user?.id);
         const success = await updateGradingScale(dbScale);
-        
+
         if (success) {
           setScales(
             scales.map((scale) =>
-              scale.id === editingScale.id
-                ? updatedScale
-                : scale
+              scale.id === editingScale.id ? updatedScale : scale
             )
           );
           toast.success("更新成功", {
@@ -298,20 +301,22 @@ export default function GradingSettingsDialog({
         const newUiScale: GradingScale = {
           id: `scale${Date.now()}`, // 临时ID，会被数据库替换
           name: values.name,
-          description: values.description || '',
-          levels: values.levels.map(level => ({
+          description: values.description || "",
+          levels: values.levels.map((level) => ({
             value: Number(level.value),
             name: String(level.name),
-            color: String(level.color)
+            color: String(level.color),
           })),
         };
-        
+
         const dbScale = convertUiScaleToDbScale(newUiScale, user?.id);
         const createdScale = await createGradingScale(dbScale);
-        
+
         if (createdScale) {
           // 获取完整的方案（包含ID）
-          const detailedScale = await getGradingScaleWithLevels(createdScale.id);
+          const detailedScale = await getGradingScaleWithLevels(
+            createdScale.id
+          );
           if (detailedScale) {
             const newScale = convertDbScaleToUiScale(detailedScale);
             setScales([...scales, newScale]);
@@ -333,8 +338,8 @@ export default function GradingSettingsDialog({
       });
       setEditingScale(null);
     } catch (error) {
-      console.error('保存评分方案失败:', error);
-      toast.error('保存评分方案失败');
+      console.error("保存评分方案失败:", error);
+      toast.error("保存评分方案失败");
     } finally {
       setLoading(false);
     }
@@ -355,40 +360,43 @@ export default function GradingSettingsDialog({
     try {
       setLoading(true);
       const success = await deleteGradingScale(scaleId);
-      
+
       if (success) {
         setScales(scales.filter((scale) => scale.id !== scaleId));
         // 如果删除的是默认方案，重置默认方案
         if (scaleId === defaultScaleId && scales.length > 1) {
           const newDefaultId = scales.find((s) => s.id !== scaleId)?.id || "";
           setDefaultScaleId(newDefaultId);
-          
+
           // 更新数据库中的默认方案
           if (newDefaultId) {
-            const newDefaultScale = scales.find(s => s.id === newDefaultId);
+            const newDefaultScale = scales.find((s) => s.id === newDefaultId);
             if (newDefaultScale) {
-              const dbScale = convertUiScaleToDbScale({
-                ...newDefaultScale,
-                is_default: true
-              }, user?.id);
+              const dbScale = convertUiScaleToDbScale(
+                {
+                  ...newDefaultScale,
+                  is_default: true,
+                },
+                user?.id
+              );
               await updateGradingScale(dbScale);
             }
           }
         }
-        
+
         // 如果删除的是选中的方案，重新选择
         if (scaleId === selectedScaleId && scales.length > 1) {
           const newSelectedId = scales.find((s) => s.id !== scaleId)?.id || "";
           setSelectedScaleId(newSelectedId);
         }
-        
+
         toast.success("删除成功", {
           description: "评分方案已删除",
         });
       }
     } catch (error) {
-      console.error('删除评分方案失败:', error);
-      toast.error('删除评分方案失败');
+      console.error("删除评分方案失败:", error);
+      toast.error("删除评分方案失败");
     } finally {
       setLoading(false);
     }
@@ -426,43 +434,51 @@ export default function GradingSettingsDialog({
     try {
       setLoading(true);
       // 找到将要设为默认的方案
-      const newDefaultScale = scales.find(s => s.id === scaleId);
+      const newDefaultScale = scales.find((s) => s.id === scaleId);
       if (!newDefaultScale) return;
-      
+
       // 更新原默认方案
       if (defaultScaleId) {
-        const oldDefaultScale = scales.find(s => s.id === defaultScaleId);
+        const oldDefaultScale = scales.find((s) => s.id === defaultScaleId);
         if (oldDefaultScale) {
-          const dbOldScale = convertUiScaleToDbScale({
-            ...oldDefaultScale,
-            is_default: false
-          }, user?.id);
+          const dbOldScale = convertUiScaleToDbScale(
+            {
+              ...oldDefaultScale,
+              is_default: false,
+            },
+            user?.id
+          );
           await updateGradingScale(dbOldScale);
         }
       }
-      
+
       // 设置新默认方案
-      const dbNewScale = convertUiScaleToDbScale({
-        ...newDefaultScale,
-        is_default: true
-      }, user?.id);
+      const dbNewScale = convertUiScaleToDbScale(
+        {
+          ...newDefaultScale,
+          is_default: true,
+        },
+        user?.id
+      );
       const success = await updateGradingScale(dbNewScale);
-      
+
       if (success) {
         setDefaultScaleId(scaleId);
         // 更新本地状态
-        setScales(scales.map(s => ({
-          ...s,
-          is_default: s.id === scaleId
-        })));
-        
+        setScales(
+          scales.map((s) => ({
+            ...s,
+            is_default: s.id === scaleId,
+          }))
+        );
+
         toast.success("设置成功", {
           description: "默认评分方案已更新",
         });
       }
     } catch (error) {
-      console.error('设置默认评分方案失败:', error);
-      toast.error('设置默认评分方案失败');
+      console.error("设置默认评分方案失败:", error);
+      toast.error("设置默认评分方案失败");
     } finally {
       setLoading(false);
     }
@@ -472,23 +488,25 @@ export default function GradingSettingsDialog({
   const handleSelectScale = (scaleId: string) => {
     setSelectedScaleId(scaleId);
     toast.success("已选择评分方案", {
-      description: `当前选中: ${scales.find(s => s.id === scaleId)?.name}`,
+      description: `当前选中: ${scales.find((s) => s.id === scaleId)?.name}`,
     });
   };
 
   // 保存知识点阈值设置
   const handleSaveThresholds = async () => {
     if (!user?.id) {
-      toast.error('未登录，无法保存设置');
+      toast.error("未登录，无法保存设置");
       return false;
     }
-    
+
     setLoading(true);
     try {
       // 按照分数阈值从高到低排序
-      const sortedThresholds = [...thresholds].sort((a, b) => b.threshold - a.threshold);
+      const sortedThresholds = [...thresholds].sort(
+        (a, b) => b.threshold - a.threshold
+      );
       const dbThresholds = convertUiThresholdsToDbThresholds(sortedThresholds);
-      
+
       const success = await saveUserThresholds(dbThresholds, user.id);
       if (success) {
         setThresholds(sortedThresholds);
@@ -497,8 +515,8 @@ export default function GradingSettingsDialog({
       }
       return false;
     } catch (error) {
-      console.error('保存知识点阈值设置失败:', error);
-      toast.error('保存知识点阈值设置失败');
+      console.error("保存知识点阈值设置失败:", error);
+      toast.error("保存知识点阈值设置失败");
       return false;
     } finally {
       setLoading(false);
@@ -509,7 +527,7 @@ export default function GradingSettingsDialog({
   const handleSaveSettings = async () => {
     // 保存知识点阈值设置
     const thresholdsSaved = await handleSaveThresholds();
-    
+
     if (thresholdsSaved) {
       toast.success("保存成功", {
         description: "批改设置已保存",
@@ -556,17 +574,19 @@ export default function GradingSettingsDialog({
             <TabsContent value="scales" className="space-y-4 pt-4">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-medium">评分方案列表</h3>
-                <Button onClick={() => {
-                  setEditingScale(null);
-                  form.reset({
-                    name: "",
-                    description: "",
-                    levels: [
-                      { value: 90, name: "", color: "bg-green-500" },
-                      { value: 60, name: "", color: "bg-red-500" },
-                    ],
-                  });
-                }}>
+                <Button
+                  onClick={() => {
+                    setEditingScale(null);
+                    form.reset({
+                      name: "",
+                      description: "",
+                      levels: [
+                        { value: 90, name: "", color: "bg-green-500" },
+                        { value: 60, name: "", color: "bg-red-500" },
+                      ],
+                    });
+                  }}
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   添加方案
                 </Button>
@@ -574,9 +594,9 @@ export default function GradingSettingsDialog({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 {scales.map((scale) => (
-                  <Card 
+                  <Card
                     key={scale.id}
-                    className={`${selectedScaleId === scale.id ? 'border-primary' : ''}`}
+                    className={`${selectedScaleId === scale.id ? "border-primary" : ""}`}
                   >
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-start">
@@ -607,7 +627,7 @@ export default function GradingSettingsDialog({
                         <Button
                           variant="outline"
                           size="sm"
-                          className={`${selectedScaleId === scale.id ? 'bg-primary/10' : ''}`}
+                          className={`${selectedScaleId === scale.id ? "bg-primary/10" : ""}`}
                           onClick={() => handleSelectScale(scale.id)}
                         >
                           {selectedScaleId === scale.id ? (
@@ -661,10 +681,10 @@ export default function GradingSettingsDialog({
 
               <Card>
                 <CardHeader>
-                  <CardTitle>{editingScale ? "编辑评分方案" : "创建新评分方案"}</CardTitle>
-                  <CardDescription>
-                    定义评分等级和分数阈值
-                  </CardDescription>
+                  <CardTitle>
+                    {editingScale ? "编辑评分方案" : "创建新评分方案"}
+                  </CardTitle>
+                  <CardDescription>定义评分等级和分数阈值</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Form {...form}>
@@ -679,7 +699,10 @@ export default function GradingSettingsDialog({
                           <FormItem>
                             <FormLabel>方案名称</FormLabel>
                             <FormControl>
-                              <Input placeholder="输入评分方案名称" {...field} />
+                              <Input
+                                placeholder="输入评分方案名称"
+                                {...field}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -726,7 +749,9 @@ export default function GradingSettingsDialog({
                               placeholder="等级名称"
                               value={level.name}
                               onChange={(e) => {
-                                const updatedLevels = [...form.getValues("levels")];
+                                const updatedLevels = [
+                                  ...form.getValues("levels"),
+                                ];
                                 updatedLevels[index].name = e.target.value;
                                 form.setValue("levels", updatedLevels);
                               }}
@@ -739,7 +764,9 @@ export default function GradingSettingsDialog({
                                 placeholder="分数值"
                                 value={level.value}
                                 onChange={(e) => {
-                                  const updatedLevels = [...form.getValues("levels")];
+                                  const updatedLevels = [
+                                    ...form.getValues("levels"),
+                                  ];
                                   updatedLevels[index].value = parseInt(
                                     e.target.value,
                                     10
@@ -755,7 +782,9 @@ export default function GradingSettingsDialog({
                             <select
                               value={level.color}
                               onChange={(e) => {
-                                const updatedLevels = [...form.getValues("levels")];
+                                const updatedLevels = [
+                                  ...form.getValues("levels"),
+                                ];
                                 updatedLevels[index].color = e.target.value;
                                 form.setValue("levels", updatedLevels);
                               }}
@@ -820,13 +849,15 @@ export default function GradingSettingsDialog({
             <TabsContent value="thresholds" className="space-y-4 mt-4">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-lg font-medium">知识点掌握程度阈值设置</h3>
+                  <h3 className="text-lg font-medium">
+                    知识点掌握程度阈值设置
+                  </h3>
                   <p className="text-sm text-muted-foreground">
                     设置不同掌握程度的分数阈值，用于评估学生对知识点的掌握情况
                   </p>
                 </div>
-                
-                <Button 
+
+                <Button
                   variant="outline"
                   size="sm"
                   onClick={handleSaveThresholds}
@@ -841,10 +872,7 @@ export default function GradingSettingsDialog({
                 <CardContent className="pt-6">
                   <div className="space-y-3">
                     {thresholds.map((threshold, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center gap-3"
-                      >
+                      <div key={index} className="flex items-center gap-3">
                         <div className="w-20">
                           <Badge
                             variant="outline"
@@ -915,7 +943,8 @@ export default function GradingSettingsDialog({
                             .sort((a, b) => a.threshold - b.threshold)
                             .map((threshold, index, arr) => {
                               // 计算当前区间的宽度
-                              const prevThreshold = index > 0 ? arr[index - 1].threshold : 0;
+                              const prevThreshold =
+                                index > 0 ? arr[index - 1].threshold : 0;
                               const width = threshold.threshold - prevThreshold;
                               return (
                                 <div
@@ -946,5 +975,5 @@ export default function GradingSettingsDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
-} 
+  );
+}

@@ -4,7 +4,7 @@
  * 支持用户认证和数据隔离
  */
 
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from "@/integrations/supabase/client";
 
 export interface ProcessedDataRecord {
   student_id?: string;
@@ -16,7 +16,7 @@ export interface ProcessedDataRecord {
   total_score?: number;
   rank_in_class?: number;
   rank_in_grade?: number;
-  user_id?: string;  // 添加用户ID字段
+  user_id?: string; // 添加用户ID字段
 }
 
 export interface ProcessingReport {
@@ -27,7 +27,7 @@ export interface ProcessingReport {
     columns: number;
   };
   field_mapping: Record<string, string>;
-  data_structure: 'wide' | 'long';
+  data_structure: "wide" | "long";
   processing_stats: {
     total_records: number;
     unique_students: number;
@@ -60,7 +60,7 @@ export interface AnalysisResult {
     };
     columns: string[];
     field_mapping: Record<string, string>;
-    data_structure: 'wide' | 'long';
+    data_structure: "wide" | "long";
     preview: Record<string, any>[];
     recommendations: {
       processing_type: string;
@@ -75,7 +75,7 @@ export interface AnalysisResult {
 class PythonDataProcessor {
   private baseUrl: string;
 
-  constructor(baseUrl: string = 'http://localhost:5000') {
+  constructor(baseUrl: string = "http://localhost:5000") {
     this.baseUrl = baseUrl;
   }
 
@@ -84,16 +84,18 @@ class PythonDataProcessor {
    */
   private async getAuthHeaders(): Promise<Record<string, string>> {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       const headers: Record<string, string> = {};
-      
+
       if (session?.access_token) {
-        headers['Authorization'] = `Bearer ${session.access_token}`;
+        headers["Authorization"] = `Bearer ${session.access_token}`;
       }
-      
+
       return headers;
     } catch (error) {
-      console.error('获取认证信息失败:', error);
+      console.error("获取认证信息失败:", error);
       return {};
     }
   }
@@ -105,9 +107,9 @@ class PythonDataProcessor {
     try {
       const response = await fetch(`${this.baseUrl}/health`);
       const data = await response.json();
-      return data.status === 'healthy';
+      return data.status === "healthy";
     } catch (error) {
-      console.error('Python服务健康检查失败:', error);
+      console.error("Python服务健康检查失败:", error);
       return false;
     }
   }
@@ -118,31 +120,32 @@ class PythonDataProcessor {
   async analyzeFile(file: File): Promise<AnalysisResult> {
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append("file", file);
 
       const authHeaders = await this.getAuthHeaders();
-      
+
       const response = await fetch(`${this.baseUrl}/analyze`, {
-        method: 'POST',
+        method: "POST",
         headers: authHeaders,
         body: formData,
       });
 
       const result = await response.json();
-      
+
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error('用户未认证或认证已过期，请重新登录');
+          throw new Error("用户未认证或认证已过期，请重新登录");
         }
-        throw new Error(result.error || '分析文件失败');
+        throw new Error(result.error || "分析文件失败");
       }
 
       return result;
     } catch (error) {
-      console.error('分析文件失败:', error);
+      console.error("分析文件失败:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : '分析文件时发生未知错误'
+        error:
+          error instanceof Error ? error.message : "分析文件时发生未知错误",
       };
     }
   }
@@ -153,31 +156,32 @@ class PythonDataProcessor {
   async processFile(file: File): Promise<ProcessingResult> {
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append("file", file);
 
       const authHeaders = await this.getAuthHeaders();
-      
+
       const response = await fetch(`${this.baseUrl}/process`, {
-        method: 'POST',
+        method: "POST",
         headers: authHeaders,
         body: formData,
       });
 
       const result = await response.json();
-      
+
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error('用户未认证或认证已过期，请重新登录');
+          throw new Error("用户未认证或认证已过期，请重新登录");
         }
-        throw new Error(result.error || '处理文件失败');
+        throw new Error(result.error || "处理文件失败");
       }
 
       return result;
     } catch (error) {
-      console.error('处理文件失败:', error);
+      console.error("处理文件失败:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : '处理文件时发生未知错误'
+        error:
+          error instanceof Error ? error.message : "处理文件时发生未知错误",
       };
     }
   }
@@ -186,10 +190,10 @@ class PythonDataProcessor {
    * 将处理后的数据转换为系统所需格式
    */
   convertToSystemFormat(
-    processedData: ProcessedDataRecord[], 
+    processedData: ProcessedDataRecord[],
     examInfo: { title: string; type: string; date: string; subject?: string }
   ): any[] {
-    return processedData.map(record => ({
+    return processedData.map((record) => ({
       student_id: record.student_id,
       name: record.name,
       class_name: record.class_name,
@@ -206,10 +210,10 @@ class PythonDataProcessor {
       exam_date: examInfo.date,
       // 元数据
       metadata: {
-        processed_by: 'python-service',
+        processed_by: "python-service",
         processing_timestamp: new Date().toISOString(),
-        original_subject: record.subject
-      }
+        original_subject: record.subject,
+      },
     }));
   }
 
@@ -217,13 +221,13 @@ class PythonDataProcessor {
    * 根据分数计算等级
    */
   private scoreToGrade(score?: number): string {
-    if (!score) return '';
-    
-    if (score >= 90) return 'A';
-    if (score >= 80) return 'B';
-    if (score >= 70) return 'C';
-    if (score >= 60) return 'D';
-    return 'E';
+    if (!score) return "";
+
+    if (score >= 90) return "A";
+    if (score >= 80) return "B";
+    if (score >= 70) return "C";
+    if (score >= 60) return "D";
+    return "E";
   }
 
   /**
@@ -238,17 +242,17 @@ class PythonDataProcessor {
     const warnings: string[] = [];
 
     if (!result.success) {
-      errors.push(result.error || '处理失败');
+      errors.push(result.error || "处理失败");
       return { isValid: false, errors, warnings };
     }
 
     if (!result.data || result.data.length === 0) {
-      errors.push('处理后的数据为空');
+      errors.push("处理后的数据为空");
       return { isValid: false, errors, warnings };
     }
 
     // 检查必需字段
-    const requiredFields = ['student_id', 'name'];
+    const requiredFields = ["student_id", "name"];
     for (const [index, record] of result.data.entries()) {
       for (const field of requiredFields) {
         if (!record[field as keyof ProcessedDataRecord]) {
@@ -266,7 +270,7 @@ class PythonDataProcessor {
     return {
       isValid: errors.length === 0,
       errors,
-      warnings
+      warnings,
     };
   }
 
@@ -275,17 +279,18 @@ class PythonDataProcessor {
    */
   generateProcessingSummary(result: ProcessingResult): string {
     if (!result.success || !result.report) {
-      return '处理失败';
+      return "处理失败";
     }
 
     const { report } = result;
-    const coverage = report.field_mapping ? 
-      `${Object.keys(report.field_mapping).length}/${report.file_info.columns}` : '0/0';
+    const coverage = report.field_mapping
+      ? `${Object.keys(report.field_mapping).length}/${report.file_info.columns}`
+      : "0/0";
 
     return `
 处理完成！
 - 文件: ${report.file_info.filename}
-- 数据结构: ${report.data_structure === 'wide' ? '宽格式' : '长格式'}
+- 数据结构: ${report.data_structure === "wide" ? "宽格式" : "长格式"}
 - 字段映射: ${coverage} 个字段识别成功
 - 处理记录: ${report.processing_stats.total_records} 条
 - 涉及学生: ${report.processing_stats.unique_students} 人
@@ -298,4 +303,4 @@ class PythonDataProcessor {
 export const pythonDataProcessor = new PythonDataProcessor();
 
 // 导出类供自定义使用
-export { PythonDataProcessor }; 
+export { PythonDataProcessor };

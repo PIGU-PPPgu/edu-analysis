@@ -1,0 +1,742 @@
+{
+  "name": "图书推荐5分钟视频制作工作流",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# 📚 图书推荐5分钟视频制作工作流\n\n完整流程：图书推荐 → 分段脚本 → 图像生成 → 视频生成 → 音频生成 → 字幕合成 → 最终渲染",
+        "height": 120,
+        "width": 1400,
+        "color": 6
+      },
+      "id": "workflow-header",
+      "name": "工作流说明",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [-860, -200],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
+      },
+      "id": "daily-trigger",
+      "name": "每日触发器",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [-700, -40],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "为13-18岁青少年推荐一本优质图书，要求适合他们的认知水平和兴趣爱好，请推荐国内外的中文书籍。",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "你是一位专业的青少年阅读指导专家。请根据以下要求为青少年推荐图书。\n\n输出要求（必须是JSON格式），内容要是中文：\n{\n  \"bookTitle\": \"图书标题\",\n  \"author\": \"作者姓名\",\n  \"targetAge\": \"适合年龄段\",\n  \"genre\": \"图书类型\",\n  \"description\": \"100字内的图书简介\",\n  \"whyRecommend\": \"推荐理由\",\n  \"keyThemes\": [\"主要主题1\", \"主要主题2\", \"主要主题3\"],\n  \"caption\": \"社交媒体标题，包含相关话题标签\"\n}"
+        }
+      },
+      "id": "book-recommender",
+      "name": "AI图书推荐生成",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [-540, -40],
+      "typeVersion": 1.9
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1LYA16arR5h1f8bgSOc9OOZVhkxhJfmP52gCg0eqqsos",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "1209065493",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "book_title": "={{ $json.output.bookTitle }}",
+            "author": "={{ $json.output.author }}",
+            "target_age": "={{ $json.output.targetAge }}",
+            "genre": "={{ $json.output.genre }}",
+            "description": "={{ $json.output.description }}",
+            "why_recommend": "={{ $json.output.whyRecommend }}",
+            "key_themes": "={{ $json.output.keyThemes.join(', ') }}",
+            "caption": "={{ $json.output.caption }}",
+            "created_at": "={{ $now }}",
+            "task_id": "",
+            "video_url": "",
+            "status": "生成中"
+          },
+          "schema": [
+            {"id": "book_title", "type": "string"},
+            {"id": "author", "type": "string"},
+            {"id": "target_age", "type": "string"},
+            {"id": "genre", "type": "string"},
+            {"id": "description", "type": "string"},
+            {"id": "why_recommend", "type": "string"},
+            {"id": "key_themes", "type": "string"},
+            {"id": "caption", "type": "string"},
+            {"id": "created_at", "type": "string"},
+            {"id": "task_id", "type": "string"},
+            {"id": "video_url", "type": "string"},
+            {"id": "status", "type": "string"}
+          ]
+        }
+      },
+      "id": "save-to-sheets",
+      "name": "保存到Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [-220, -40],
+      "typeVersion": 4.5,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "AEBVTa1qLGHhXH8v",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=根据以下图书信息，生成5分钟视频的详细分段脚本：\n\n图书：{{ $json.output.bookTitle }}\n作者：{{ $json.output.author }}\n简介：{{ $json.output.description }}\n推荐理由：{{ $json.output.whyRecommend }}\n主题：{{ $json.output.keyThemes.join(', ') }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "你是专业的视频脚本编写师。请为5分钟的图书推荐视频创建详细分段脚本。\n\n输出格式（JSON）：\n{\n  \"segments\": [\n    {\n      \"title\": \"开场介绍\",\n      \"duration\": 30,\n      \"narration\": \"语音解说文本\",\n      \"visualPrompt\": \"视觉画面描述，适合图像生成\"\n    },\n    {\n      \"title\": \"书籍背景\", \n      \"duration\": 60,\n      \"narration\": \"语音解说文本\",\n      \"visualPrompt\": \"视觉画面描述\"\n    },\n    {\n      \"title\": \"内容概述\",\n      \"duration\": 120, \n      \"narration\": \"语音解说文本\",\n      \"visualPrompt\": \"视觉画面描述\"\n    },\n    {\n      \"title\": \"推荐理由\",\n      \"duration\": 60,\n      \"narration\": \"语音解说文本\", \n      \"visualPrompt\": \"视觉画面描述\"\n    },\n    {\n      \"title\": \"结尾总结\",\n      \"duration\": 30,\n      \"narration\": \"语音解说文本\",\n      \"visualPrompt\": \"视觉画面描述\"\n    }\n  ],\n  \"fullNarration\": \"完整的5分钟语音脚本，自然连贯\"\n}"
+        }
+      },
+      "id": "script-generator",
+      "name": "生成分段脚本",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [-40, -40],
+      "typeVersion": 1.9
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "segments",
+        "options": {}
+      },
+      "id": "split-segments",
+      "name": "分解视频段落",
+      "type": "n8n-nodes-base.splitOut",
+      "position": [160, -40],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=视频段落：{{ $json.segments.title }}\n视觉描述：{{ $json.segments.visualPrompt }}",
+        "options": {
+          "systemMessage": "你是专业的图像提示词生成器。将视频段落的视觉描述转换为适合AI图像生成的详细提示词。\n\n要求：\n1. 描述具体的场景、人物、动作\n2. 包含色彩、光线、构图信息\n3. 适合中国青少年审美\n4. 与图书主题相关\n5. 输出单行文本，无换行符\n\n示例输出：温暖的图书馆场景，一位青少年坐在木质书桌前专注阅读，柔和的阳光从窗户洒进来，书架上整齐摆放着各种书籍，温馨的学习氛围。"
+        }
+      },
+      "id": "image-prompt-generator", 
+      "name": "生成图像提示词",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [360, -40],
+      "typeVersion": 1.9
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.piapi.ai/api/v1/task",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"model\": \"Qubico/flux1-dev\",\n    \"task_type\": \"txt2img\",\n    \"input\": {\n        \"prompt\": \"{{ $json.output }}\",\n        \"width\": 1920, \n        \"height\": 1080\n    } \n}",
+        "options": {}
+      },
+      "id": "generate-image",
+      "name": "生成图像",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [560, -40],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "amount": 90
+      },
+      "id": "wait-image",
+      "name": "等待图像生成",
+      "type": "n8n-nodes-base.wait",
+      "position": [760, -40],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "url": "=https://api.piapi.ai/api/v1/task/{{ $json.data.task_id }}",
+        "options": {}
+      },
+      "id": "get-image",
+      "name": "获取图像结果",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [960, -40],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.dev.runwayml.com/v1/image_to_video",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Runway-Version",
+              "value": "2024-11-06"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "promptImage",
+              "value": "={{ $json.data.output.image_url }}"
+            },
+            {
+              "name": "model",
+              "value": "gen3a_turbo"
+            },
+            {
+              "name": "ratio",
+              "value": "16:9"
+            },
+            {
+              "name": "duration",
+              "value": "={{ $('split-segments').item.json.segments.duration }}"
+            },
+            {
+              "name": "promptText",
+              "value": "={{ $('split-segments').item.json.segments.visualPrompt }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate-video",
+      "name": "生成视频段落",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1160, -40],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "amount": "={{ Math.ceil($('split-segments').item.json.segments.duration / 10) }}",
+        "unit": "minutes"
+      },
+      "id": "wait-video",
+      "name": "等待视频生成",
+      "type": "n8n-nodes-base.wait",
+      "position": [1360, -40],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "url": "=https://api.dev.runwayml.com/v1/tasks/{{ $json.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Runway-Version",
+              "value": "2024-11-06"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-video",
+      "name": "获取视频结果",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1560, -40],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "merge-videos",
+      "name": "合并所有视频段落",
+      "type": "n8n-nodes-base.merge",
+      "position": [1760, -40],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=根据以下完整脚本生成自然流畅的中文语音解说：\n\n{{ $('script-generator').first().json.output.fullNarration }}",
+        "options": {
+          "systemMessage": "你是专业的语音脚本优化师。将文字脚本转换为适合语音合成的自然表达方式。\n\n要求：\n1. 语言自然流畅，适合青少年理解\n2. 语速适中，适合5分钟时长\n3. 添加适当的停顿标记\n4. 保持热情推荐的语调\n5. 输出纯文本，无格式符号"
+        }
+      },
+      "id": "audio-script-optimizer",
+      "name": "优化语音脚本", 
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [200, 300],
+      "typeVersion": 1.9
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xi-api-key",
+              "value": "YOUR_ELEVENLABS_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"{{ $json.output }}\",\n  \"model_id\": \"eleven_monolingual_v1\",\n  \"voice_settings\": {\n    \"stability\": 0.75,\n    \"similarity_boost\": 0.85,\n    \"style\": 0.5,\n    \"use_speaker_boost\": true\n  }\n}",
+        "options": {}
+      },
+      "id": "generate-audio",
+      "name": "生成语音解说",
+      "type": "n8n-nodes-base.httpRequest", 
+      "position": [400, 300],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "name": "={{ $('save-to-sheets').first().json.output.bookTitle }}-narration.mp3",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "options": {}
+      },
+      "id": "upload-audio",
+      "name": "上传音频到Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "position": [600, 300],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "jsCode": "// 生成SRT字幕文件\nconst segments = $('script-generator').first().json.output.segments;\nlet srtContent = '';\nlet startTime = 0;\n\nfor (let i = 0; i < segments.length; i++) {\n  const segment = segments[i];\n  const endTime = startTime + segment.duration;\n  \n  // 格式化时间为SRT格式\n  const formatTime = (seconds) => {\n    const hours = Math.floor(seconds / 3600);\n    const minutes = Math.floor((seconds % 3600) / 60);\n    const secs = seconds % 60;\n    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')},000`;\n  };\n  \n  srtContent += `${i + 1}\\n`;\n  srtContent += `${formatTime(startTime)} --> ${formatTime(endTime)}\\n`;\n  srtContent += `${segment.narration}\\n\\n`;\n  \n  startTime = endTime;\n}\n\nreturn [{\n  json: {\n    srtContent: srtContent,\n    totalDuration: startTime\n  }\n}];"
+      },
+      "id": "generate-subtitles",
+      "name": "生成字幕文件",
+      "type": "n8n-nodes-base.code",
+      "position": [800, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "final-merge",
+      "name": "合并所有素材",
+      "type": "n8n-nodes-base.merge",
+      "position": [1960, 100],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.creatomate.com/v1/renders",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_CREATOMATE_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"template_id\": \"YOUR_TEMPLATE_ID\",\n  \"modifications\": {\n    \"MainAudio.source\": \"{{ $('upload-audio').first().json.webContentLink }}\",\n    \"Video1.source\": \"{{ $json.output[0] }}\",\n    \"Video2.source\": \"{{ $json.output[1] }}\", \n    \"Video3.source\": \"{{ $json.output[2] }}\",\n    \"Video4.source\": \"{{ $json.output[3] }}\",\n    \"Video5.source\": \"{{ $json.output[4] }}\",\n    \"Subtitles.text\": \"{{ $('generate-subtitles').first().json.srtContent }}\",\n    \"Title.text\": \"{{ $('save-to-sheets').first().json.output.bookTitle }}\",\n    \"Author.text\": \"{{ $('save-to-sheets').first().json.output.author }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "render-final-video",
+      "name": "渲染最终视频",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [2160, 100],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "minutes"
+      },
+      "id": "wait-render",
+      "name": "等待渲染完成",
+      "type": "n8n-nodes-base.wait",
+      "position": [2360, 100],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {}
+      },
+      "id": "download-video",
+      "name": "下载最终视频",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [2560, 100],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "title": "={{ $('save-to-sheets').first().json.output.bookTitle }} - 图书推荐",
+        "regionCode": "US", 
+        "categoryId": "27",
+        "options": {
+          "description": "={{ $('save-to-sheets').first().json.output.caption }}",
+          "privacyStatus": "unlisted"
+        }
+      },
+      "id": "upload-youtube",
+      "name": "上传到YouTube",
+      "type": "n8n-nodes-base.youTube",
+      "position": [2760, 100],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1LYA16arR5h1f8bgSOc9OOZVhkxhJfmP52gCg0eqqsos",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "1209065493",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "video_url": "={{ $json.url }}",
+            "status": "完成",
+            "youtube_id": "={{ $json.id }}"
+          },
+          "matchingColumns": ["book_title"]
+        }
+      },
+      "id": "update-final-sheets",
+      "name": "更新最终结果",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [2960, 100],
+      "typeVersion": 4.5,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "AEBVTa1qLGHhXH8v",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "deepseek-model",
+      "name": "DeepSeek Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatDeepSeek",
+      "position": [-600, 160],
+      "typeVersion": 1,
+      "credentials": {
+        "deepSeekApi": {
+          "id": "EriBj5p7vLUecFo7",
+          "name": "DeepSeek account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "daily-trigger": {
+      "main": [
+        [
+          {
+            "node": "book-recommender",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "book-recommender": {
+      "main": [
+        [
+          {
+            "node": "save-to-sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "save-to-sheets": {
+      "main": [
+        [
+          {
+            "node": "script-generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "script-generator": {
+      "main": [
+        [
+          {
+            "node": "split-segments",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "audio-script-optimizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "split-segments": {
+      "main": [
+        [
+          {
+            "node": "image-prompt-generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "image-prompt-generator": {
+      "main": [
+        [
+          {
+            "node": "generate-image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate-image": {
+      "main": [
+        [
+          {
+            "node": "wait-image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "wait-image": {
+      "main": [
+        [
+          {
+            "node": "get-image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get-image": {
+      "main": [
+        [
+          {
+            "node": "generate-video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate-video": {
+      "main": [
+        [
+          {
+            "node": "wait-video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "wait-video": {
+      "main": [
+        [
+          {
+            "node": "get-video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get-video": {
+      "main": [
+        [
+          {
+            "node": "merge-videos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "audio-script-optimizer": {
+      "main": [
+        [
+          {
+            "node": "generate-audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate-audio": {
+      "main": [
+        [
+          {
+            "node": "upload-audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "upload-audio": {
+      "main": [
+        [
+          {
+            "node": "generate-subtitles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate-subtitles": {
+      "main": [
+        [
+          {
+            "node": "final-merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "merge-videos": {
+      "main": [
+        [
+          {
+            "node": "final-merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "final-merge": {
+      "main": [
+        [
+          {
+            "node": "render-final-video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "render-final-video": {
+      "main": [
+        [
+          {
+            "node": "wait-render",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "wait-render": {
+      "main": [
+        [
+          {
+            "node": "download-video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "download-video": {
+      "main": [
+        [
+          {
+            "node": "upload-youtube",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "upload-youtube": {
+      "main": [
+        [
+          {
+            "node": "update-final-sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "deepseek-model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "book-recommender",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "script-generator",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "image-prompt-generator",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "audio-script-optimizer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "cb2bc585ed282cc751a3b2bcdeaae79c7faf24459fd024a3cdc8a5aaacb19f3a"
+  }
+} 

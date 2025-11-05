@@ -1,5 +1,12 @@
 # 智能教育数据分析平台
 
+[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/PIGU-PPPgu/edu-analysis)
+[![React](https://img.shields.io/badge/React-18.3-61dafb.svg)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-7.0-646cff.svg)](https://vitejs.dev/)
+
+> 🚀 **v1.3.0重大更新**: 全新性能监控系统、移动端体验革命、AI智能分析系统
+
 ## 系统简介
 
 本系统是一个全面的智能教育数据分析平台，专为教师设计，集成了成绩分析和知识点评估双重功能。平台通过数据可视化和AI技术，帮助教师深入理解学生表现，发现教学盲点，并优化教学策略。

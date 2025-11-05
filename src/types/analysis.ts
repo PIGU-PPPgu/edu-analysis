@@ -1,4 +1,4 @@
-import { KnowledgePoint } from './homework';
+import { KnowledgePoint } from "./homework";
 
 /**
  * AI分析结果接口
@@ -19,10 +19,10 @@ export interface AIAnalysisResult {
  * 分析任务状态
  */
 export enum AnalysisTaskStatus {
-  PENDING = 'pending',
-  PROCESSING = 'processing',
-  COMPLETED = 'completed',
-  FAILED = 'failed'
+  PENDING = "pending",
+  PROCESSING = "processing",
+  COMPLETED = "completed",
+  FAILED = "failed",
 }
 
 /**
@@ -45,7 +45,7 @@ export interface AnalysisTask {
  */
 export interface AnalysisOptions {
   withRecommendations?: boolean;
-  detailLevel?: 'basic' | 'detailed' | 'comprehensive';
+  detailLevel?: "basic" | "detailed" | "comprehensive";
   includeExamples?: boolean;
   language?: string;
-} 
+}

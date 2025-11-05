@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { GradeAnalysisProvider } from "@/contexts/GradeAnalysisContext";
 import GradeAnalysisLayout from "./GradeAnalysisLayout";
-import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 
 // 这个组件只负责成绩分析功能，数据导入功能将只在首页实现
 const GradeAnalysis: React.FC = () => {
@@ -15,15 +12,25 @@ const GradeAnalysis: React.FC = () => {
   useEffect(() => {
     // 添加全局错误处理
     const handleError = (event: ErrorEvent) => {
-      console.error('捕获到全局错误:', event.error);
-      setError(`页面加载错误: ${event.error?.message || '未知错误'}`);
+      // 忽略 null 错误和 ResizeObserver 错误
+      if (
+        !event.error ||
+        (typeof event.error === "object" && event.error === null) ||
+        (event.error?.message &&
+          event.error.message.toLowerCase().includes("resizeobserver"))
+      ) {
+        return;
+      }
+
+      console.error("捕获到全局错误:", event.error);
+      setError(`页面加载错误: ${event.error?.message || "未知错误"}`);
       event.preventDefault();
     };
 
-    window.addEventListener('error', handleError);
-    
+    window.addEventListener("error", handleError);
+
     return () => {
-      window.removeEventListener('error', handleError);
+      window.removeEventListener("error", handleError);
     };
   }, []);
 
@@ -38,16 +45,13 @@ const GradeAnalysis: React.FC = () => {
             请确保已在Supabase中执行了创建标签相关表的SQL脚本，并刷新页面。
           </p>
           <div className="mt-4 flex gap-3">
-            <Button 
+            <Button
               variant="destructive"
               onClick={() => window.location.reload()}
             >
               刷新页面
             </Button>
-            <Button 
-              variant="outline"
-              onClick={() => navigate("/")}
-            >
+            <Button variant="outline" onClick={() => navigate("/")}>
               返回首页
             </Button>
           </div>
@@ -55,17 +59,13 @@ const GradeAnalysis: React.FC = () => {
       </div>
     );
   }
-  
-  // 正常渲染
+
+  // 正常渲染 - 直接使用现代化布局，移除旧的Provider包装
   try {
-    return (
-      <GradeAnalysisProvider>
-        <GradeAnalysisLayout />
-      </GradeAnalysisProvider>
-    );
+    return <GradeAnalysisLayout />;
   } catch (err) {
-    console.error('渲染错误:', err);
-    setError(`渲染错误: ${err instanceof Error ? err.message : '未知错误'}`);
+    console.error("渲染错误:", err);
+    setError(`渲染错误: ${err instanceof Error ? err.message : "未知错误"}`);
     return null;
   }
 };

@@ -92,4 +92,4 @@ export const Card = ({
       </div>
     </motion.div>
   );
-}; 
+};

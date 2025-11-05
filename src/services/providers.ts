@@ -1,5 +1,5 @@
-import { AIProvider } from '../types/ai';
-import { DEFAULT_PROVIDERS } from '@/config/aiProviders'; // Import from the single source of truth
+import { AIProvider } from "../types/ai";
+import { DEFAULT_PROVIDERS } from "@/config/aiProviders"; // Import from the single source of truth
 
 // OpenAI提供商配置
 // export const openAIProvider: AIProvider = { ... };
@@ -20,7 +20,11 @@ import { DEFAULT_PROVIDERS } from '@/config/aiProviders'; // Import from the sin
 // export const qwenProvider: AIProvider = { ... };
 
 // 自定义提供商适配
-export const createCustomProvider = (id: string, name: string, endpoint: string): AIProvider => {
+export const createCustomProvider = (
+  id: string,
+  name: string,
+  endpoint: string
+): AIProvider => {
   return {
     id,
     name,
@@ -28,14 +32,14 @@ export const createCustomProvider = (id: string, name: string, endpoint: string)
     requiresApiKey: true,
     models: [
       {
-        id: 'default-model',
-        name: '默认模型',
+        id: "default-model",
+        name: "默认模型",
         maxTokens: 4096,
         contextWindow: 8192,
         supportStream: true,
-        description: '自定义API提供商默认模型'
-      }
-    ]
+        description: "自定义API提供商默认模型",
+      },
+    ],
   };
 };
 
@@ -53,26 +57,28 @@ export const getProviderById = (id: string): AIProvider | undefined => {
     // Let's try a direct return first, assuming compatibility for now.
     return defaultConfig as unknown as AIProvider; // Cast needed if types differ slightly
   }
-  
+
   // Handle custom providers if needed (logic from previous version)
-  if (id === 'generic' || id.startsWith('custom-')) {
+  if (id === "generic" || id.startsWith("custom-")) {
     return createCustomProvider(
-      id, 
-      id === 'generic' ? '通用API' : `自定义(${id})`,
-      'https://api.example.com/v1/chat/completions' // Placeholder
+      id,
+      id === "generic" ? "通用API" : `自定义(${id})`,
+      "https://api.example.com/v1/chat/completions" // Placeholder
     );
   }
-  
+
   return undefined;
 };
 
 // 获取提供商的模型 (Use the new getProviderById)
-export const getModelsByProviderId = (providerId: string): Array<{id: string, name: string}> => {
+export const getModelsByProviderId = (
+  providerId: string
+): Array<{ id: string; name: string }> => {
   const provider = getProviderById(providerId);
   if (!provider || !Array.isArray(provider.models)) return [];
-  return provider.models.map(model => ({
+  return provider.models.map((model) => ({
     id: model.id,
-    name: model.name
+    name: model.name,
   }));
 };
 
@@ -80,21 +86,36 @@ export const getModelsByProviderId = (providerId: string): Array<{id: string, na
 export const getModelInfo = (providerId: string, modelId: string) => {
   const provider = getProviderById(providerId);
   if (!provider || !Array.isArray(provider.models)) return null;
-  
-  const exactMatch = provider.models.find(model => model.id === modelId);
+
+  const exactMatch = provider.models.find((model) => model.id === modelId);
   if (exactMatch) return exactMatch;
-  
+
   // Handle custom providers default model
-  if (providerId === 'generic' || providerId.startsWith('custom-')) {
+  if (providerId === "generic" || providerId.startsWith("custom-")) {
     return provider.models[0];
   }
-  
+
   return null;
 };
 
 // 可用于测试的视觉模型列表
 export const VISION_MODELS_FOR_TEST = [
-  { id: 'Qwen/Qwen2.5-VL-72B-Instruct', name: '千问视觉 (Qwen VL)', provider: 'sbjt', type: 'vision' },
-  { id: 'deepseek-ai/deepseek-vl2', name: 'DeepSeek视觉 (VL2)', provider: 'sbjt', type: 'vision' },
-  { id: 'doubao-1-5-vision-pro-32k-250115', name: '豆包视觉 (Doubao Pro 32k)', provider: 'doubao', type: 'vision' },
-]; 
+  {
+    id: "Qwen/Qwen2.5-VL-72B-Instruct",
+    name: "千问视觉 (Qwen VL)",
+    provider: "sbjt",
+    type: "vision",
+  },
+  {
+    id: "deepseek-ai/deepseek-vl2",
+    name: "DeepSeek视觉 (VL2)",
+    provider: "sbjt",
+    type: "vision",
+  },
+  {
+    id: "doubao-1-5-vision-pro-32k-250115",
+    name: "豆包视觉 (Doubao Pro 32k)",
+    provider: "doubao",
+    type: "vision",
+  },
+];

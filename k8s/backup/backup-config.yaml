@@ -1,0 +1,436 @@
+# 🔄 备份和恢复系统配置
+# 为生产环境提供全面的数据备份和灾难恢复能力
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: backup
+  labels:
+    name: backup
+    tier: infrastructure
+
+---
+# 📋 ConfigMap - 备份配置
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backup-config
+  namespace: backup
+  labels:
+    app: backup-system
+data:
+  # 备份配置文件
+  backup.conf: |
+    # 备份系统配置
+    BACKUP_RETENTION_DAYS=30
+    BACKUP_COMPRESSION=gzip
+    BACKUP_ENCRYPTION=true
+    
+    # 数据库备份配置
+    DB_BACKUP_ENABLED=true
+    DB_BACKUP_SCHEDULE="0 2 * * *"  # 每天凌晨2点
+    DB_BACKUP_RETENTION=7
+    
+    # 应用数据备份配置
+    APP_BACKUP_ENABLED=true
+    APP_BACKUP_SCHEDULE="0 3 * * *"  # 每天凌晨3点
+    APP_BACKUP_RETENTION=7
+    
+    # 监控数据备份配置
+    MONITORING_BACKUP_ENABLED=true
+    MONITORING_BACKUP_SCHEDULE="0 4 * * *"  # 每天凌晨4点
+    MONITORING_BACKUP_RETENTION=14
+    
+    # 配置文件备份
+    CONFIG_BACKUP_ENABLED=true
+    CONFIG_BACKUP_SCHEDULE="0 1 * * 0"  # 每周日凌晨1点
+    CONFIG_BACKUP_RETENTION=30
+    
+    # 存储配置
+    BACKUP_STORAGE_TYPE=s3
+    S3_BUCKET=figma-frame-faithful-backups
+    S3_REGION=us-east-1
+    S3_STORAGE_CLASS=STANDARD_IA
+    
+    # 通知配置
+    NOTIFICATION_ENABLED=true
+    NOTIFICATION_WEBHOOK=https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK
+    NOTIFICATION_EMAIL=ops@figma-frame-faithful.com
+
+  # Supabase数据库备份脚本
+  backup-supabase.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    # 配置变量
+    BACKUP_NAME="supabase-backup-$(date +%Y%m%d-%H%M%S)"
+    BACKUP_DIR="/tmp/backups"
+    
+    log() {
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+    }
+    
+    # 创建备份目录
+    mkdir -p "$BACKUP_DIR"
+    
+    log "开始Supabase数据库备份..."
+    
+    # 使用Supabase CLI进行备份
+    if command -v supabase &> /dev/null; then
+        log "使用Supabase CLI备份..."
+        
+        # 备份数据库结构
+        supabase db dump --schema-only > "$BACKUP_DIR/${BACKUP_NAME}-schema.sql"
+        
+        # 备份数据
+        supabase db dump --data-only > "$BACKUP_DIR/${BACKUP_NAME}-data.sql"
+        
+        # 备份存储桶文件（如果有）
+        if [[ "${BACKUP_STORAGE:-true}" == "true" ]]; then
+            log "备份存储桶文件..."
+            supabase storage ls --recursive > "$BACKUP_DIR/${BACKUP_NAME}-storage-list.txt"
+        fi
+        
+    else
+        # 使用pg_dump备份（如果有直接数据库访问）
+        if [[ -n "${SUPABASE_DB_URL:-}" ]]; then
+            log "使用pg_dump备份..."
+            pg_dump "$SUPABASE_DB_URL" --schema-only > "$BACKUP_DIR/${BACKUP_NAME}-schema.sql"
+            pg_dump "$SUPABASE_DB_URL" --data-only > "$BACKUP_DIR/${BACKUP_NAME}-data.sql"
+        else
+            log "ERROR: 无法找到Supabase CLI或数据库连接信息"
+            exit 1
+        fi
+    fi
+    
+    # 压缩备份文件
+    log "压缩备份文件..."
+    cd "$BACKUP_DIR"
+    tar -czf "${BACKUP_NAME}.tar.gz" ${BACKUP_NAME}*.sql ${BACKUP_NAME}*.txt 2>/dev/null || true
+    
+    # 上传到云存储
+    log "上传备份到云存储..."
+    aws s3 cp "${BACKUP_NAME}.tar.gz" "s3://${S3_BUCKET}/database/" \
+        --storage-class "$S3_STORAGE_CLASS" \
+        --metadata "backup-type=database,backup-date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    
+    # 清理本地备份文件
+    rm -f ${BACKUP_NAME}*
+    
+    log "Supabase数据库备份完成: ${BACKUP_NAME}.tar.gz"
+
+  # Kubernetes配置备份脚本
+  backup-k8s-config.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    BACKUP_NAME="k8s-config-backup-$(date +%Y%m%d-%H%M%S)"
+    BACKUP_DIR="/tmp/backups"
+    
+    log() {
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+    }
+    
+    mkdir -p "$BACKUP_DIR/$BACKUP_NAME"
+    
+    log "开始Kubernetes配置备份..."
+    
+    # 备份所有ConfigMaps
+    log "备份ConfigMaps..."
+    kubectl get configmaps --all-namespaces -o yaml > "$BACKUP_DIR/$BACKUP_NAME/configmaps.yaml"
+    
+    # 备份所有Secrets（敏感信息将被加密存储）
+    log "备份Secrets..."
+    kubectl get secrets --all-namespaces -o yaml > "$BACKUP_DIR/$BACKUP_NAME/secrets.yaml"
+    
+    # 备份Deployments
+    log "备份Deployments..."
+    kubectl get deployments --all-namespaces -o yaml > "$BACKUP_DIR/$BACKUP_NAME/deployments.yaml"
+    
+    # 备份Services
+    log "备份Services..."
+    kubectl get services --all-namespaces -o yaml > "$BACKUP_DIR/$BACKUP_NAME/services.yaml"
+    
+    # 备份Ingress
+    log "备份Ingress..."
+    kubectl get ingress --all-namespaces -o yaml > "$BACKUP_DIR/$BACKUP_NAME/ingress.yaml"
+    
+    # 备份PersistentVolumes和PersistentVolumeClaims
+    log "备份存储配置..."
+    kubectl get pv -o yaml > "$BACKUP_DIR/$BACKUP_NAME/persistent-volumes.yaml"
+    kubectl get pvc --all-namespaces -o yaml > "$BACKUP_DIR/$BACKUP_NAME/persistent-volume-claims.yaml"
+    
+    # 备份StatefulSets
+    log "备份StatefulSets..."
+    kubectl get statefulsets --all-namespaces -o yaml > "$BACKUP_DIR/$BACKUP_NAME/statefulsets.yaml"
+    
+    # 备份自定义资源
+    log "备份自定义资源..."
+    kubectl get crd -o yaml > "$BACKUP_DIR/$BACKUP_NAME/custom-resources.yaml"
+    
+    # 备份网络策略
+    log "备份网络策略..."
+    kubectl get networkpolicies --all-namespaces -o yaml > "$BACKUP_DIR/$BACKUP_NAME/network-policies.yaml"
+    
+    # 创建备份清单
+    cat > "$BACKUP_DIR/$BACKUP_NAME/backup-manifest.yaml" <<EOF
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: backup-manifest
+      namespace: backup
+    data:
+      backup-date: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      backup-name: "$BACKUP_NAME"
+      kubernetes-version: "$(kubectl version --short --client | grep Client | cut -d' ' -f3)"
+      cluster-info: |
+    $(kubectl cluster-info | sed 's/^/    /')
+    EOF
+    
+    # 压缩备份
+    log "压缩备份文件..."
+    cd "$BACKUP_DIR"
+    tar -czf "${BACKUP_NAME}.tar.gz" "$BACKUP_NAME/"
+    
+    # 上传到云存储
+    log "上传配置备份到云存储..."
+    aws s3 cp "${BACKUP_NAME}.tar.gz" "s3://${S3_BUCKET}/kubernetes-config/" \
+        --storage-class "$S3_STORAGE_CLASS" \
+        --metadata "backup-type=kubernetes-config,backup-date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    
+    # 清理本地文件
+    rm -rf "$BACKUP_NAME" "${BACKUP_NAME}.tar.gz"
+    
+    log "Kubernetes配置备份完成: ${BACKUP_NAME}.tar.gz"
+
+  # 应用数据备份脚本
+  backup-app-data.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    BACKUP_NAME="app-data-backup-$(date +%Y%m%d-%H%M%S)"
+    BACKUP_DIR="/tmp/backups"
+    
+    log() {
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+    }
+    
+    mkdir -p "$BACKUP_DIR"
+    
+    log "开始应用数据备份..."
+    
+    # 备份应用上传的文件
+    log "备份应用文件数据..."
+    if kubectl get pvc app-data-pvc -n production &>/dev/null; then
+        kubectl exec -n production deployment/figma-frame-faithful -- tar -czf - /app/uploads 2>/dev/null | \
+            aws s3 cp - "s3://${S3_BUCKET}/app-data/${BACKUP_NAME}-uploads.tar.gz" \
+            --storage-class "$S3_STORAGE_CLASS"
+    fi
+    
+    # 备份应用配置文件
+    log "备份应用配置..."
+    kubectl get configmap app-config -n production -o yaml > "$BACKUP_DIR/${BACKUP_NAME}-app-config.yaml"
+    kubectl get secret app-secrets -n production -o yaml > "$BACKUP_DIR/${BACKUP_NAME}-app-secrets.yaml"
+    
+    # 备份用户会话数据（如果使用Redis）
+    if kubectl get service redis -n production &>/dev/null; then
+        log "备份Redis会话数据..."
+        kubectl exec -n production service/redis -- redis-cli BGSAVE
+        sleep 5  # 等待备份完成
+        kubectl cp production/redis-pod:/data/dump.rdb "$BACKUP_DIR/${BACKUP_NAME}-redis-dump.rdb"
+    fi
+    
+    # 压缩本地备份文件
+    if [[ -f "$BACKUP_DIR/${BACKUP_NAME}-app-config.yaml" ]]; then
+        cd "$BACKUP_DIR"
+        tar -czf "${BACKUP_NAME}-config.tar.gz" ${BACKUP_NAME}*.yaml ${BACKUP_NAME}*.rdb 2>/dev/null || true
+        
+        # 上传配置备份
+        aws s3 cp "${BACKUP_NAME}-config.tar.gz" "s3://${S3_BUCKET}/app-data/" \
+            --storage-class "$S3_STORAGE_CLASS"
+        
+        # 清理本地文件
+        rm -f ${BACKUP_NAME}*
+    fi
+    
+    log "应用数据备份完成"
+
+  # 监控数据备份脚本
+  backup-monitoring.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    BACKUP_NAME="monitoring-backup-$(date +%Y%m%d-%H%M%S)"
+    BACKUP_DIR="/tmp/backups"
+    
+    log() {
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+    }
+    
+    mkdir -p "$BACKUP_DIR/$BACKUP_NAME"
+    
+    log "开始监控数据备份..."
+    
+    # 备份Prometheus数据
+    if kubectl get statefulset prometheus -n monitoring &>/dev/null; then
+        log "创建Prometheus数据快照..."
+        kubectl exec -n monitoring statefulset/prometheus -- \
+            curl -XPOST http://localhost:9090/api/v1/admin/tsdb/snapshot
+        
+        # 获取最新快照
+        SNAPSHOT=$(kubectl exec -n monitoring statefulset/prometheus -- \
+            ls -t /prometheus/snapshots/ | head -1)
+        
+        if [[ -n "$SNAPSHOT" ]]; then
+            log "备份Prometheus快照: $SNAPSHOT"
+            kubectl exec -n monitoring statefulset/prometheus -- \
+                tar -czf - -C /prometheus/snapshots "$SNAPSHOT" | \
+                aws s3 cp - "s3://${S3_BUCKET}/monitoring/prometheus-${BACKUP_NAME}.tar.gz" \
+                --storage-class "$S3_STORAGE_CLASS"
+        fi
+    fi
+    
+    # 备份Grafana配置
+    if kubectl get deployment grafana -n monitoring &>/dev/null; then
+        log "备份Grafana配置..."
+        kubectl get configmap grafana-config -n monitoring -o yaml > "$BACKUP_DIR/$BACKUP_NAME/grafana-config.yaml"
+        kubectl get configmap grafana-dashboards -n monitoring -o yaml > "$BACKUP_DIR/$BACKUP_NAME/grafana-dashboards.yaml"
+    fi
+    
+    # 备份AlertManager配置
+    if kubectl get deployment alertmanager -n monitoring &>/dev/null; then
+        log "备份AlertManager配置..."
+        kubectl get configmap alertmanager-config -n monitoring -o yaml > "$BACKUP_DIR/$BACKUP_NAME/alertmanager-config.yaml"
+    fi
+    
+    # 备份Elasticsearch快照
+    if kubectl get statefulset elasticsearch-master -n logging &>/dev/null; then
+        log "创建Elasticsearch快照..."
+        
+        # 创建快照仓库（如果不存在）
+        kubectl exec -n logging statefulset/elasticsearch-master -- \
+            curl -X PUT "localhost:9200/_snapshot/backup_repository" \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "type": "fs",
+              "settings": {
+                "location": "/backup",
+                "compress": true
+              }
+            }' || true
+        
+        # 创建快照
+        kubectl exec -n logging statefulset/elasticsearch-master -- \
+            curl -X PUT "localhost:9200/_snapshot/backup_repository/snapshot-${BACKUP_NAME}" \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "indices": "*",
+              "ignore_unavailable": true,
+              "include_global_state": false
+            }'
+    fi
+    
+    # 压缩并上传配置文件
+    if [[ -d "$BACKUP_DIR/$BACKUP_NAME" ]] && [[ -n "$(ls -A "$BACKUP_DIR/$BACKUP_NAME" 2>/dev/null)" ]]; then
+        cd "$BACKUP_DIR"
+        tar -czf "${BACKUP_NAME}-config.tar.gz" "$BACKUP_NAME/"
+        
+        aws s3 cp "${BACKUP_NAME}-config.tar.gz" "s3://${S3_BUCKET}/monitoring/" \
+            --storage-class "$S3_STORAGE_CLASS"
+        
+        rm -rf "$BACKUP_NAME" "${BACKUP_NAME}-config.tar.gz"
+    fi
+    
+    log "监控数据备份完成"
+
+---
+# 🔐 ServiceAccount - 备份系统
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backup-service
+  namespace: backup
+  labels:
+    app: backup-system
+
+---
+# 🔑 ClusterRole - 备份权限
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: backup-cluster-role
+  labels:
+    app: backup-system
+rules:
+# 读取所有资源用于备份
+- apiGroups: [""]
+  resources: ["*"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["*"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["extensions", "networking.k8s.io"]
+  resources: ["*"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["storage.k8s.io"]
+  resources: ["*"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apiextensions.k8s.io"]
+  resources: ["*"]
+  verbs: ["get", "list", "watch"]
+# Exec权限用于执行备份命令
+- apiGroups: [""]
+  resources: ["pods/exec"]
+  verbs: ["create"]
+# 快照创建权限
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+  resourceNames: ["prometheus-*", "elasticsearch-*"]
+
+---
+# 🔗 ClusterRoleBinding - 备份权限绑定
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: backup-cluster-role-binding
+  labels:
+    app: backup-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: backup-cluster-role
+subjects:
+- kind: ServiceAccount
+  name: backup-service
+  namespace: backup
+
+---
+# 🔐 Secret - AWS凭证
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aws-credentials
+  namespace: backup
+  labels:
+    app: backup-system
+type: Opaque
+data:
+  # 请替换为实际的base64编码的AWS凭证
+  AWS_ACCESS_KEY_ID: WU9VUl9BV1NfQUNDRVNTX0tFWV9JRA==  # YOUR_AWS_ACCESS_KEY_ID
+  AWS_SECRET_ACCESS_KEY: WU9VUl9BV1NfU0VDUkVUX0FDQ0VTU19LRVk=  # YOUR_AWS_SECRET_ACCESS_KEY
+  AWS_DEFAULT_REGION: dXMtZWFzdC0x  # us-east-1
+
+---
+# 🔐 Secret - 通知配置
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backup-notifications
+  namespace: backup
+  labels:
+    app: backup-system
+type: Opaque
+data:
+  SLACK_WEBHOOK_URL: aHR0cHM6Ly9ob29rcy5zbGFjay5jb20vc2VydmljZXMvWU9VUi9TTEFDS1dFQkhPT0s=  # https://hooks.slack.com/services/YOUR/SLACKWEBHOOK
+  EMAIL_SMTP_PASSWORD: WU9VUl9FTUFJTF9QQVNTV09SRA==  # YOUR_EMAIL_PASSWORD

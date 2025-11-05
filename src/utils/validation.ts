@@ -22,9 +22,7 @@ export const studentSchema = z.object({
 export const gradeSchema = z.object({
   student_id: z.string().min(1, "学号不能为空"),
   subject: z.string().min(1, "科目不能为空"),
-  score: z.number()
-    .min(0, "分数不能小于0")
-    .max(100, "分数不能大于100"),
+  score: z.number().min(0, "分数不能小于0").max(100, "分数不能大于100"),
   exam_date: z.string().min(1, "考试日期不能为空"),
   exam_type: z.string().min(1, "考试类型不能为空"),
   semester: z.string().optional(),
@@ -120,11 +118,11 @@ export const validateData = {
 
   // 批量验证学生数据
   async validateStudents(dataArray: any[]) {
-    return Promise.all(dataArray.map(data => this.validateStudent(data)));
+    return Promise.all(dataArray.map((data) => this.validateStudent(data)));
   },
 
   // 批量验证成绩数据
   async validateGrades(dataArray: any[]) {
-    return Promise.all(dataArray.map(data => this.validateGrade(data)));
-  }
+    return Promise.all(dataArray.map((data) => this.validateGrade(data)));
+  },
 };

@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { 
-  PlayCircle, 
-  PauseCircle, 
-  Settings, 
-  AlertTriangle, 
-  CheckCircle, 
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  PlayCircle,
+  PauseCircle,
+  Settings,
+  AlertTriangle,
+  CheckCircle,
   XCircle,
   Clock,
   TrendingUp,
@@ -18,138 +18,140 @@ import {
   RefreshCw,
   Download,
   Bell,
-  Calendar
-} from 'lucide-react'
-import { toast } from 'sonner'
-import { autoWarningService, type AutoWarningAnalysisResult } from '@/services/autoWarningService'
+  Calendar,
+} from "lucide-react";
+import { toast } from "sonner";
+import {
+  autoWarningService,
+  type AutoWarningAnalysisResult,
+} from "@/services/autoWarningService";
 
 interface AutoWarningManagerProps {
-  className?: string
+  className?: string;
 }
 
 export function AutoWarningManager({ className }: AutoWarningManagerProps) {
-  const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [analysisProgress, setAnalysisProgress] = useState(0)
-  const [lastAnalysisResult, setLastAnalysisResult] = useState<AutoWarningAnalysisResult | null>(null)
-  const [warningStats, setWarningStats] = useState<any>(null)
-  const [activeWarnings, setActiveWarnings] = useState<any[]>([])
-  const [warningRules, setWarningRules] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [lastAnalysisResult, setLastAnalysisResult] =
+    useState<AutoWarningAnalysisResult | null>(null);
+  const [warningStats, setWarningStats] = useState<any>(null);
+  const [activeWarnings, setActiveWarnings] = useState<any[]>([]);
+  const [warningRules, setWarningRules] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // 加载初始数据
   useEffect(() => {
-    loadInitialData()
-  }, [])
+    loadInitialData();
+  }, []);
 
   const loadInitialData = async () => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
       // 并行加载数据
       const [stats, warnings, rules] = await Promise.all([
         autoWarningService.getWarningStatistics(),
         autoWarningService.getActiveWarnings(),
-        autoWarningService.getWarningRules()
-      ])
+        autoWarningService.getWarningRules(),
+      ]);
 
-      setWarningStats(stats)
-      setActiveWarnings(warnings)
-      setWarningRules(rules)
-      
+      setWarningStats(stats);
+      setActiveWarnings(warnings);
+      setWarningRules(rules);
     } catch (error) {
-      console.error('加载数据失败:', error)
-      toast.error('加载数据失败')
+      console.error("加载数据失败:", error);
+      toast.error("加载数据失败");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   // 手动运行预警分析
   const runAnalysis = async () => {
-    setIsAnalyzing(true)
-    setAnalysisProgress(0)
+    setIsAnalyzing(true);
+    setAnalysisProgress(0);
 
     try {
       // 模拟进度更新
       const progressInterval = setInterval(() => {
-        setAnalysisProgress(prev => {
+        setAnalysisProgress((prev) => {
           if (prev >= 90) {
-            clearInterval(progressInterval)
-            return 90
+            clearInterval(progressInterval);
+            return 90;
           }
-          return prev + 10
-        })
-      }, 500)
+          return prev + 10;
+        });
+      }, 500);
 
-      const result = await autoWarningService.runAnalysis()
-      
-      clearInterval(progressInterval)
-      setAnalysisProgress(100)
-      setLastAnalysisResult(result)
-      
+      const result = await autoWarningService.runAnalysis();
+
+      clearInterval(progressInterval);
+      setAnalysisProgress(100);
+      setLastAnalysisResult(result);
+
       // 刷新数据
-      await loadInitialData()
-      
-      toast.success('预警分析完成', {
-        description: `发现 ${result.statistics.warnings_found} 个预警，其中高风险 ${result.statistics.high_risk_count} 个`
-      })
+      await loadInitialData();
 
+      toast.success("预警分析完成", {
+        description: `发现 ${result.statistics.warnings_found} 个预警，其中高风险 ${result.statistics.high_risk_count} 个`,
+      });
     } catch (error) {
-      console.error('预警分析失败:', error)
-      toast.error('预警分析失败', {
-        description: error.message
-      })
+      console.error("预警分析失败:", error);
+      toast.error("预警分析失败", {
+        description: error.message,
+      });
     } finally {
-      setIsAnalyzing(false)
-      setTimeout(() => setAnalysisProgress(0), 2000)
+      setIsAnalyzing(false);
+      setTimeout(() => setAnalysisProgress(0), 2000);
     }
-  }
+  };
 
   // 测试预警系统
   const testWarningSystem = async () => {
     try {
-      toast.info('开始测试预警系统...')
-      const result = await autoWarningService.testAnalysis()
-      
+      toast.info("开始测试预警系统...");
+      const result = await autoWarningService.testAnalysis();
+
       if (result.success) {
-        toast.success('预警系统测试成功', {
-          description: `规则数: ${result.rules_count}, 预警数: ${result.analysis_result?.statistics.warnings_found || 0}`
-        })
-        setLastAnalysisResult(result.analysis_result)
-        await loadInitialData()
+        toast.success("预警系统测试成功", {
+          description: `规则数: ${result.rules_count}, 预警数: ${result.analysis_result?.statistics.warnings_found || 0}`,
+        });
+        setLastAnalysisResult(result.analysis_result);
+        await loadInitialData();
       } else {
-        toast.error('预警系统测试失败', {
-          description: result.error
-        })
+        toast.error("预警系统测试失败", {
+          description: result.error,
+        });
       }
     } catch (error) {
-      console.error('测试失败:', error)
-      toast.error('测试失败')
+      console.error("测试失败:", error);
+      toast.error("测试失败");
     }
-  }
+  };
 
   // 解决预警
   const resolveWarning = async (warningId: string, notes?: string) => {
     try {
-      await autoWarningService.resolveWarning(warningId, notes)
-      toast.success('预警已解决')
-      await loadInitialData()
+      await autoWarningService.resolveWarning(warningId, notes);
+      toast.success("预警已解决");
+      await loadInitialData();
     } catch (error) {
-      console.error('解决预警失败:', error)
-      toast.error('解决预警失败')
+      console.error("解决预警失败:", error);
+      toast.error("解决预警失败");
     }
-  }
+  };
 
   // 忽略预警
   const dismissWarning = async (warningId: string, reason?: string) => {
     try {
-      await autoWarningService.dismissWarning(warningId, reason)
-      toast.success('预警已忽略')
-      await loadInitialData()
+      await autoWarningService.dismissWarning(warningId, reason);
+      toast.success("预警已忽略");
+      await loadInitialData();
     } catch (error) {
-      console.error('忽略预警失败:', error)
-      toast.error('忽略预警失败')
+      console.error("忽略预警失败:", error);
+      toast.error("忽略预警失败");
     }
-  }
+  };
 
   if (isLoading) {
     return (
@@ -157,7 +159,7 @@ export function AutoWarningManager({ className }: AutoWarningManagerProps) {
         <RefreshCw className="w-6 h-6 animate-spin mr-2" />
         <span>加载预警数据...</span>
       </div>
-    )
+    );
   }
 
   return (
@@ -176,15 +178,15 @@ export function AutoWarningManager({ className }: AutoWarningManagerProps) {
               </p>
             </div>
             <div className="flex gap-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={testWarningSystem}
                 className="flex items-center gap-2"
               >
                 <Settings className="w-4 h-4" />
                 测试系统
               </Button>
-              <Button 
+              <Button
                 onClick={runAnalysis}
                 disabled={isAnalyzing}
                 className="flex items-center gap-2"
@@ -204,7 +206,7 @@ export function AutoWarningManager({ className }: AutoWarningManagerProps) {
             </div>
           </div>
         </CardHeader>
-        
+
         {(isAnalyzing || analysisProgress > 0) && (
           <CardContent>
             <div className="space-y-2">
@@ -245,7 +247,9 @@ export function AutoWarningManager({ className }: AutoWarningManagerProps) {
                   <AlertTriangle className="w-5 h-5 text-red-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-red-600">{warningStats.active}</p>
+                  <p className="text-2xl font-bold text-red-600">
+                    {warningStats.active}
+                  </p>
                   <p className="text-sm text-gray-600">活跃预警</p>
                 </div>
               </div>
@@ -259,7 +263,9 @@ export function AutoWarningManager({ className }: AutoWarningManagerProps) {
                   <CheckCircle className="w-5 h-5 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-green-600">{warningStats.resolved}</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {warningStats.resolved}
+                  </p>
                   <p className="text-sm text-gray-600">已解决</p>
                 </div>
               </div>
@@ -273,7 +279,9 @@ export function AutoWarningManager({ className }: AutoWarningManagerProps) {
                   <TrendingUp className="w-5 h-5 text-orange-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{warningStats.resolution_rate}%</p>
+                  <p className="text-2xl font-bold">
+                    {warningStats.resolution_rate}%
+                  </p>
                   <p className="text-sm text-gray-600">解决率</p>
                 </div>
               </div>
@@ -313,57 +321,82 @@ export function AutoWarningManager({ className }: AutoWarningManagerProps) {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
-                            <Badge 
+                            <Badge
                               variant={
-                                warning.rule?.severity === 'high' ? 'destructive' :
-                                warning.rule?.severity === 'medium' ? 'default' : 'secondary'
+                                warning.rule?.severity === "high"
+                                  ? "destructive"
+                                  : warning.rule?.severity === "medium"
+                                    ? "default"
+                                    : "secondary"
                               }
                             >
-                              {warning.rule?.severity === 'high' ? '高风险' :
-                               warning.rule?.severity === 'medium' ? '中风险' : '低风险'}
+                              {warning.rule?.severity === "high"
+                                ? "高风险"
+                                : warning.rule?.severity === "medium"
+                                  ? "中风险"
+                                  : "低风险"}
                             </Badge>
-                            <span className="font-medium">{warning.student?.name}</span>
-                            <span className="text-sm text-gray-500">{warning.student?.class_name}</span>
+                            <span className="font-medium">
+                              {warning.student?.name}
+                            </span>
+                            <span className="text-sm text-gray-500">
+                              {warning.student?.class_name}
+                            </span>
                           </div>
-                          <p className="text-sm font-medium mb-1">{warning.rule?.name}</p>
-                          <p className="text-sm text-gray-600">{warning.rule?.description}</p>
-                          
+                          <p className="text-sm font-medium mb-1">
+                            {warning.rule?.name}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {warning.rule?.description}
+                          </p>
+
                           {warning.details?.risk_factors && (
                             <div className="mt-2">
-                              <p className="text-xs text-gray-500 mb-1">风险因素:</p>
+                              <p className="text-xs text-gray-500 mb-1">
+                                风险因素:
+                              </p>
                               <div className="flex flex-wrap gap-1">
-                                {warning.details.risk_factors.map((factor: string, index: number) => (
-                                  <Badge key={index} variant="outline" className="text-xs">
-                                    {factor}
-                                  </Badge>
-                                ))}
+                                {warning.details.risk_factors.map(
+                                  (factor: string, index: number) => (
+                                    <Badge
+                                      key={index}
+                                      variant="outline"
+                                      className="text-xs"
+                                    >
+                                      {factor}
+                                    </Badge>
+                                  )
+                                )}
                               </div>
                             </div>
                           )}
                         </div>
-                        
+
                         <div className="flex gap-2 ml-4">
-                          <Button 
-                            size="sm" 
+                          <Button
+                            size="sm"
                             variant="outline"
-                            onClick={() => resolveWarning(warning.id, '已处理')}
+                            onClick={() => resolveWarning(warning.id, "已处理")}
                           >
                             <CheckCircle className="w-4 h-4 mr-1" />
                             解决
                           </Button>
-                          <Button 
-                            size="sm" 
+                          <Button
+                            size="sm"
                             variant="outline"
-                            onClick={() => dismissWarning(warning.id, '暂时忽略')}
+                            onClick={() =>
+                              dismissWarning(warning.id, "暂时忽略")
+                            }
                           >
                             <XCircle className="w-4 h-4 mr-1" />
                             忽略
                           </Button>
                         </div>
                       </div>
-                      
+
                       <div className="mt-3 pt-3 border-t text-xs text-gray-500">
-                        创建时间: {new Date(warning.created_at).toLocaleString()}
+                        创建时间:{" "}
+                        {new Date(warning.created_at).toLocaleString()}
                       </div>
                     </div>
                   ))}
@@ -391,8 +424,10 @@ export function AutoWarningManager({ className }: AutoWarningManagerProps) {
                       <Brain className="w-4 h-4 text-blue-600" />
                       AI智能摘要
                     </h4>
-                    <p className="text-sm mb-3">{lastAnalysisResult.ai_summary.overview}</p>
-                    
+                    <p className="text-sm mb-3">
+                      {lastAnalysisResult.ai_summary.overview}
+                    </p>
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="text-center">
                         <p className="text-2xl font-bold text-red-600">
@@ -402,7 +437,10 @@ export function AutoWarningManager({ className }: AutoWarningManagerProps) {
                       </div>
                       <div className="text-center">
                         <p className="text-2xl font-bold text-orange-600">
-                          {lastAnalysisResult.ai_summary.risk_distribution.medium}
+                          {
+                            lastAnalysisResult.ai_summary.risk_distribution
+                              .medium
+                          }
                         </p>
                         <p className="text-xs text-gray-600">中风险</p>
                       </div>
@@ -419,12 +457,17 @@ export function AutoWarningManager({ className }: AutoWarningManagerProps) {
                   <div>
                     <h4 className="font-medium mb-3">主要风险因素</h4>
                     <div className="space-y-2">
-                      {lastAnalysisResult.ai_summary.top_risk_factors.map((factor, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                          <span className="text-sm">{factor.factor}</span>
-                          <Badge variant="outline">{factor.count}次</Badge>
-                        </div>
-                      ))}
+                      {lastAnalysisResult.ai_summary.top_risk_factors.map(
+                        (factor, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center justify-between p-2 bg-gray-50 rounded"
+                          >
+                            <span className="text-sm">{factor.factor}</span>
+                            <Badge variant="outline">{factor.count}次</Badge>
+                          </div>
+                        )
+                      )}
                     </div>
                   </div>
 
@@ -432,17 +475,25 @@ export function AutoWarningManager({ className }: AutoWarningManagerProps) {
                   <div>
                     <h4 className="font-medium mb-3">AI建议措施</h4>
                     <ul className="space-y-1">
-                      {lastAnalysisResult.ai_summary.recommendations.map((rec, index) => (
-                        <li key={index} className="text-sm flex items-start gap-2">
-                          <span className="text-blue-600">•</span>
-                          {rec}
-                        </li>
-                      ))}
+                      {lastAnalysisResult.ai_summary.recommendations.map(
+                        (rec, index) => (
+                          <li
+                            key={index}
+                            className="text-sm flex items-start gap-2"
+                          >
+                            <span className="text-blue-600">•</span>
+                            {rec}
+                          </li>
+                        )
+                      )}
                     </ul>
                   </div>
 
                   <div className="text-xs text-gray-500 pt-4 border-t">
-                    分析时间: {new Date(lastAnalysisResult.analysis_time).toLocaleString()}
+                    分析时间:{" "}
+                    {new Date(
+                      lastAnalysisResult.analysis_time
+                    ).toLocaleString()}
                   </div>
                 </div>
               ) : (
@@ -465,7 +516,10 @@ export function AutoWarningManager({ className }: AutoWarningManagerProps) {
                   <Settings className="w-5 h-5 text-gray-600" />
                   预警规则管理
                 </CardTitle>
-                <Button size="sm" onClick={() => autoWarningService.createPresetRules()}>
+                <Button
+                  size="sm"
+                  onClick={() => autoWarningService.createPresetRules()}
+                >
                   创建预设规则
                 </Button>
               </div>
@@ -478,30 +532,41 @@ export function AutoWarningManager({ className }: AutoWarningManagerProps) {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           <h4 className="font-medium">{rule.name}</h4>
-                          <Badge 
-                            variant={rule.is_active ? 'default' : 'secondary'}
+                          <Badge
+                            variant={rule.is_active ? "default" : "secondary"}
                           >
-                            {rule.is_active ? '启用' : '禁用'}
+                            {rule.is_active ? "启用" : "禁用"}
                           </Badge>
-                          <Badge 
+                          <Badge
                             variant={
-                              rule.severity === 'high' ? 'destructive' :
-                              rule.severity === 'medium' ? 'default' : 'secondary'
+                              rule.severity === "high"
+                                ? "destructive"
+                                : rule.severity === "medium"
+                                  ? "default"
+                                  : "secondary"
                             }
                           >
-                            {rule.severity === 'high' ? '高' :
-                             rule.severity === 'medium' ? '中' : '低'}风险
+                            {rule.severity === "high"
+                              ? "高"
+                              : rule.severity === "medium"
+                                ? "中"
+                                : "低"}
+                            风险
                           </Badge>
                         </div>
-                        <p className="text-sm text-gray-600 mb-2">{rule.description}</p>
+                        <p className="text-sm text-gray-600 mb-2">
+                          {rule.description}
+                        </p>
                         <div className="text-xs text-gray-500">
-                          规则类型: {rule.conditions?.type || '未知'}
+                          规则类型: {rule.conditions?.type || "未知"}
                         </div>
                       </div>
                       <div className="flex gap-2 ml-4">
-                        <Button size="sm" variant="outline">编辑</Button>
                         <Button size="sm" variant="outline">
-                          {rule.is_active ? '禁用' : '启用'}
+                          编辑
+                        </Button>
+                        <Button size="sm" variant="outline">
+                          {rule.is_active ? "禁用" : "启用"}
                         </Button>
                       </div>
                     </div>
@@ -527,7 +592,9 @@ export function AutoWarningManager({ className }: AutoWarningManagerProps) {
                   <div className="flex items-start gap-3">
                     <Clock className="w-5 h-5 text-yellow-600 mt-0.5" />
                     <div>
-                      <h4 className="font-medium text-yellow-800">自动调度功能</h4>
+                      <h4 className="font-medium text-yellow-800">
+                        自动调度功能
+                      </h4>
                       <p className="text-sm text-yellow-700 mt-1">
                         此功能将在后续版本中提供，支持定时自动运行预警分析。
                       </p>
@@ -557,7 +624,7 @@ export function AutoWarningManager({ className }: AutoWarningManagerProps) {
                       </li>
                     </ul>
                   </div>
-                  
+
                   <div>
                     <h4 className="font-medium mb-3">当前状态</h4>
                     <div className="space-y-3">
@@ -582,7 +649,7 @@ export function AutoWarningManager({ className }: AutoWarningManagerProps) {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }
 
-export default AutoWarningManager 
+export default AutoWarningManager;

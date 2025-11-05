@@ -1,0 +1,59 @@
+# 构建输出
+dist/
+build/
+coverage/
+
+# 依赖
+node_modules/
+
+# 日志文件
+*.log
+logs/
+
+# 环境变量文件
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 临时文件
+*.tmp
+*.temp
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 编辑器文件
+.vscode/
+.idea/
+
+# Git
+.git/
+
+# 生成的类型文件
+*.d.ts
+
+# 特定配置文件
+*.config.js
+*.config.ts
+tsconfig.json
+package-lock.json
+yarn.lock
+
+# 数据文件
+*.csv
+*.xlsx
+*.json
+
+# 文档
+CHANGELOG.md
+LICENSE
+
+# 特定目录
+backup/
+logs/
+
+# 有问题的文件 - 导致Prettier崩溃
+src/services/studentIdMappingService.ts

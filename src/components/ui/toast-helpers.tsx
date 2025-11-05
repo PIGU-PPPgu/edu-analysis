@@ -59,7 +59,7 @@ export const toastHelpers = {
    */
   developing: (featureName: string) => {
     toast.info(`${featureName}功能正在开发中`, {
-      description: '我们正在努力完善这个功能，敬请期待！',
+      description: "我们正在努力完善这个功能，敬请期待！",
       duration: 3000,
     });
   },
@@ -69,12 +69,14 @@ export const toastHelpers = {
    */
   loadError: (dataType: string, retry?: () => void) => {
     toast.error(`${dataType}加载失败`, {
-      description: '请检查网络连接或稍后重试',
+      description: "请检查网络连接或稍后重试",
       duration: 5000,
-      action: retry ? {
-        label: '重试',
-        onClick: retry,
-      } : undefined,
+      action: retry
+        ? {
+            label: "重试",
+            onClick: retry,
+          }
+        : undefined,
     });
   },
 
@@ -93,7 +95,7 @@ export const toastHelpers = {
    */
   actionError: (action: string, error?: string) => {
     toast.error(`${action}失败`, {
-      description: error || '请稍后重试或联系管理员',
+      description: error || "请稍后重试或联系管理员",
       duration: 5000,
     });
   },
@@ -102,7 +104,7 @@ export const toastHelpers = {
    * 权限不足提示
    */
   noPermission: (action: string) => {
-    toast.error('权限不足', {
+    toast.error("权限不足", {
       description: `您没有权限执行${action}操作`,
       duration: 4000,
     });
@@ -112,8 +114,8 @@ export const toastHelpers = {
    * 网络错误提示
    */
   networkError: () => {
-    toast.error('网络连接异常', {
-      description: '请检查您的网络连接后重试',
+    toast.error("网络连接异常", {
+      description: "请检查您的网络连接后重试",
       duration: 5000,
     });
   },
@@ -122,11 +124,11 @@ export const toastHelpers = {
    * 表单验证错误提示
    */
   validationError: (field: string, message: string) => {
-    toast.error('表单验证失败', {
+    toast.error("表单验证失败", {
       description: `${field}: ${message}`,
       duration: 4000,
     });
   },
 };
 
-export default toastHelpers; 
+export default toastHelpers;

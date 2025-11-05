@@ -34,4 +34,44 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // 🚀 完全禁用代码分割以避免初始化顺序问题
+        manualChunks: undefined,
+        // 控制文件名
+        chunkFileNames: (chunkInfo) => {
+          const facadeModuleId = chunkInfo.facadeModuleId 
+            ? chunkInfo.facadeModuleId.split('/').pop() 
+            : 'chunk';
+          return `js/${chunkInfo.name}-[hash].js`;
+        },
+        entryFileNames: 'js/[name]-[hash].js',
+        assetFileNames: (assetInfo) => {
+          const info = assetInfo.name.split('.');
+          const ext = info[info.length - 1];
+          if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(ext)) {
+            return `images/[name]-[hash].${ext}`;
+          }
+          if (/css/i.test(ext)) {
+            return `css/[name]-[hash].${ext}`;
+          }
+          return `assets/[name]-[hash].${ext}`;
+        }
+      }
+    },
+    // 🚀 Master-Frontend: 优化构建性能
+    target: 'es2020', // 提升到es2020以支持更多现代特性
+    minify: 'esbuild', // 使用 esbuild 而不是 terser
+    sourcemap: mode === 'development', // 仅开发环境生成sourcemap
+    chunkSizeWarningLimit: 1000,
+    // 预加载优化
+    modulePreload: {
+      polyfill: false, // 禁用polyfill减少bundle大小
+    },
+    // CSS代码分割
+    cssCodeSplit: true,
+    // 压缩CSS
+    cssMinify: true,
+  }
 }));

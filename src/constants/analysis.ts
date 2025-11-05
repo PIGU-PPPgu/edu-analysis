@@ -52,4 +52,4 @@ export const ANALYSIS_TIMEOUT = 60000; // 60秒
  * 分析频率限制(毫秒)
  * 防止用户过于频繁地请求AI分析
  */
-export const ANALYSIS_RATE_LIMIT = 5000; // 5秒 
+export const ANALYSIS_RATE_LIMIT = 5000; // 5秒

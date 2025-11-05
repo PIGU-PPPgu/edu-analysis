@@ -1,5 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Database, ArrowRight, FileText, Syringe } from "lucide-react";
 import Link from "next/link";
 
@@ -9,7 +15,7 @@ export default function DatabasePage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">数据库管理</h1>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Card>
           <CardHeader>
@@ -17,9 +23,7 @@ export default function DatabasePage() {
               <Database className="mr-2 h-5 w-5" />
               数据库迁移
             </CardTitle>
-            <CardDescription>
-              管理和执行数据库迁移脚本
-            </CardDescription>
+            <CardDescription>管理和执行数据库迁移脚本</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
@@ -33,16 +37,14 @@ export default function DatabasePage() {
             </Link>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
               <FileText className="mr-2 h-5 w-5" />
               知识点管理指南
             </CardTitle>
-            <CardDescription>
-              如何管理和清除AI创建的知识点
-            </CardDescription>
+            <CardDescription>如何管理和清除AI创建的知识点</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
@@ -56,16 +58,14 @@ export default function DatabasePage() {
             </Link>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
               <Syringe className="mr-2 h-5 w-5" />
               执行清理知识点操作
             </CardTitle>
-            <CardDescription>
-              执行一次性数据清理操作
-            </CardDescription>
+            <CardDescription>执行一次性数据清理操作</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
@@ -80,4 +80,4 @@ export default function DatabasePage() {
       </div>
     </div>
   );
-} 
+}

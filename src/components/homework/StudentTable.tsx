@@ -37,20 +37,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/components/ui/use-toast";
 import { mockApi } from "@/data/mockData";
-import { 
-  Download, 
-  FileUp, 
-  Filter, 
-  MoreVertical, 
-  PenLine, 
-  Search, 
+import {
+  Download,
+  FileUp,
+  Filter,
+  MoreVertical,
+  PenLine,
+  Search,
   Upload,
   FileText,
   Eye,
   CheckCircle,
   X,
   FileImage,
-  BrainCircuit
+  BrainCircuit,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
@@ -80,14 +80,17 @@ export default function StudentTable() {
   const { toast } = useToast();
   const [submissions, setSubmissions] = useState<StudentSubmission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filteredSubmissions, setFilteredSubmissions] = useState<StudentSubmission[]>([]);
+  const [filteredSubmissions, setFilteredSubmissions] = useState<
+    StudentSubmission[]
+  >([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentTab, setCurrentTab] = useState("table");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
-  const [selectedSubmission, setSelectedSubmission] = useState<StudentSubmission | null>(null);
+  const [selectedSubmission, setSelectedSubmission] =
+    useState<StudentSubmission | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [recognitionResults, setRecognitionResults] = useState<any[]>([]);
   const [isRecognizing, setIsRecognizing] = useState(false);
@@ -119,20 +122,20 @@ export default function StudentTable() {
   // 根据搜索和筛选条件过滤学生列表
   useEffect(() => {
     let filtered = [...submissions];
-    
+
     // 状态筛选
     if (statusFilter !== "all") {
-      filtered = filtered.filter(sub => sub.status === statusFilter);
+      filtered = filtered.filter((sub) => sub.status === statusFilter);
     }
-    
+
     // 搜索过滤
     if (searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(sub => 
+      filtered = filtered.filter((sub) =>
         sub.students.name.toLowerCase().includes(query)
       );
     }
-    
+
     setFilteredSubmissions(filtered);
   }, [submissions, statusFilter, searchQuery]);
 
@@ -156,19 +159,19 @@ export default function StudentTable() {
 
     setIsUploading(true);
     setUploadProgress(0);
-    
+
     // 模拟上传进度
     const interval = setInterval(() => {
-      setUploadProgress(prev => {
+      setUploadProgress((prev) => {
         if (prev >= 100) {
           clearInterval(interval);
           setIsUploading(false);
-          
+
           toast({
             title: "上传成功",
             description: `已成功上传 ${selectedFiles.length} 个文件`,
           });
-          
+
           return 0;
         }
         return prev + 10;
@@ -187,7 +190,7 @@ export default function StudentTable() {
     }
 
     setIsRecognizing(true);
-    
+
     // 模拟识别过程
     setTimeout(() => {
       // 模拟识别结果
@@ -202,12 +205,13 @@ export default function StudentTable() {
           { question: 3, answer: "这是识别的第三题答案...", confidence: 75 },
         ],
         aiScore: Math.floor(70 + Math.random() * 30),
-        aiFeedback: "整体答案结构清晰，概念理解准确，但在第三题的实现细节上需要改进。"
+        aiFeedback:
+          "整体答案结构清晰，概念理解准确，但在第三题的实现细节上需要改进。",
       }));
-      
+
       setRecognitionResults(results);
       setIsRecognizing(false);
-      
+
       toast({
         title: "识别完成",
         description: `已成功识别 ${results.length} 份作业内容`,
@@ -277,15 +281,9 @@ export default function StudentTable() {
         <CardContent>
           <Tabs value={currentTab} onValueChange={setCurrentTab}>
             <TabsList className="mb-4">
-              <TabsTrigger value="table">
-                学生列表
-              </TabsTrigger>
-              <TabsTrigger value="upload">
-                作业上传
-              </TabsTrigger>
-              <TabsTrigger value="recognition">
-                AI识别
-              </TabsTrigger>
+              <TabsTrigger value="table">学生列表</TabsTrigger>
+              <TabsTrigger value="upload">作业上传</TabsTrigger>
+              <TabsTrigger value="recognition">AI识别</TabsTrigger>
             </TabsList>
 
             <TabsContent value="table">
@@ -356,13 +354,17 @@ export default function StudentTable() {
                         <TableCell>
                           {submission.knowledge_point_evaluation ? (
                             <div className="flex gap-1 items-center">
-                              <span>{submission.knowledge_point_evaluation.length} 项</span>
+                              <span>
+                                {submission.knowledge_point_evaluation.length}{" "}
+                                项
+                              </span>
                               <Progress
                                 value={
                                   submission.knowledge_point_evaluation.reduce(
                                     (acc, kp) => acc + kp.mastery_level,
                                     0
-                                  ) / submission.knowledge_point_evaluation.length
+                                  ) /
+                                  submission.knowledge_point_evaluation.length
                                 }
                                 max={100}
                                 className="h-2 w-20"
@@ -375,7 +377,11 @@ export default function StudentTable() {
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                              >
                                 <MoreVertical className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
@@ -389,7 +395,9 @@ export default function StudentTable() {
                               </DropdownMenuItem>
                               <DropdownMenuItem>
                                 <PenLine className="h-4 w-4 mr-2" />
-                                {submission.status === "graded" ? "重新批改" : "批改"}
+                                {submission.status === "graded"
+                                  ? "重新批改"
+                                  : "批改"}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -411,7 +419,9 @@ export default function StudentTable() {
               <div className="space-y-6">
                 <div className="border-2 border-dashed rounded-lg p-8 text-center">
                   <FileUp className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-medium mb-2">上传学生作业扫描件</h3>
+                  <h3 className="text-lg font-medium mb-2">
+                    上传学生作业扫描件
+                  </h3>
                   <p className="text-sm text-muted-foreground mb-4">
                     支持JPG、PNG、PDF格式，最大20MB
                   </p>
@@ -443,7 +453,9 @@ export default function StudentTable() {
 
                 {selectedFiles.length > 0 && (
                   <div className="space-y-3">
-                    <h4 className="font-medium">已选择文件 ({selectedFiles.length})</h4>
+                    <h4 className="font-medium">
+                      已选择文件 ({selectedFiles.length})
+                    </h4>
                     <div className="space-y-2">
                       {selectedFiles.map((file, index) => (
                         <div
@@ -475,7 +487,10 @@ export default function StudentTable() {
                         使用OCR和AI技术自动识别和批改作业
                       </p>
                     </div>
-                    <Button onClick={handleRecognize} disabled={isRecognizing || selectedFiles.length === 0}>
+                    <Button
+                      onClick={handleRecognize}
+                      disabled={isRecognizing || selectedFiles.length === 0}
+                    >
                       <BrainCircuit className="h-4 w-4 mr-2" />
                       {isRecognizing ? "识别中..." : "开始识别"}
                     </Button>
@@ -490,18 +505,31 @@ export default function StudentTable() {
                     </div>
                   ) : recognitionResults.length > 0 ? (
                     <div className="space-y-4">
-                      <h4 className="font-medium">AI识别结果 ({recognitionResults.length})</h4>
-                      
+                      <h4 className="font-medium">
+                        AI识别结果 ({recognitionResults.length})
+                      </h4>
+
                       {recognitionResults.map((result) => (
-                        <div key={result.id} className="border rounded-md overflow-hidden">
+                        <div
+                          key={result.id}
+                          className="border rounded-md overflow-hidden"
+                        >
                           <div className="bg-muted p-3 flex justify-between items-center">
                             <div>
-                              <span className="font-medium">{result.fileName}</span>
+                              <span className="font-medium">
+                                {result.fileName}
+                              </span>
                               <div className="flex items-center gap-2 mt-1">
-                                <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">
+                                <Badge
+                                  variant="outline"
+                                  className="bg-blue-100 text-blue-800 border-blue-200"
+                                >
                                   识别准确率: {result.accuracy}%
                                 </Badge>
-                                <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
+                                <Badge
+                                  variant="outline"
+                                  className="bg-green-100 text-green-800 border-green-200"
+                                >
                                   AI评分: {result.aiScore}分
                                 </Badge>
                               </div>
@@ -517,20 +545,35 @@ export default function StudentTable() {
                               </Button>
                             </div>
                           </div>
-                          
+
                           <div className="p-3">
-                            <h5 className="text-sm font-medium mb-2">AI反馈意见</h5>
-                            <p className="text-sm text-muted-foreground mb-3">{result.aiFeedback}</p>
-                            
-                            <h5 className="text-sm font-medium mb-2">识别的答案</h5>
+                            <h5 className="text-sm font-medium mb-2">
+                              AI反馈意见
+                            </h5>
+                            <p className="text-sm text-muted-foreground mb-3">
+                              {result.aiFeedback}
+                            </p>
+
+                            <h5 className="text-sm font-medium mb-2">
+                              识别的答案
+                            </h5>
                             <div className="space-y-2">
                               {result.answers.map((ans, idx) => (
-                                <div key={idx} className="text-sm bg-muted/50 p-2 rounded">
+                                <div
+                                  key={idx}
+                                  className="text-sm bg-muted/50 p-2 rounded"
+                                >
                                   <div className="flex justify-between mb-1">
-                                    <span className="font-medium">第{ans.question}题</span>
-                                    <span className="text-xs">置信度: {ans.confidence}%</span>
+                                    <span className="font-medium">
+                                      第{ans.question}题
+                                    </span>
+                                    <span className="text-xs">
+                                      置信度: {ans.confidence}%
+                                    </span>
                                   </div>
-                                  <p className="text-muted-foreground">{ans.answer}</p>
+                                  <p className="text-muted-foreground">
+                                    {ans.answer}
+                                  </p>
                                 </div>
                               ))}
                             </div>
@@ -560,7 +603,7 @@ export default function StudentTable() {
               查看学生提交的作业详情和批改情况
             </DialogDescription>
           </DialogHeader>
-          
+
           {selectedSubmission && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -587,7 +630,8 @@ export default function StudentTable() {
                 <div className="space-y-2">
                   <Label>分数</Label>
                   <div className="p-2 bg-muted rounded text-sm">
-                    {selectedSubmission.status === "graded" && selectedSubmission.score
+                    {selectedSubmission.status === "graded" &&
+                    selectedSubmission.score
                       ? `${selectedSubmission.score}/100`
                       : "-"}
                   </div>
@@ -611,32 +655,44 @@ export default function StudentTable() {
                 </div>
               )}
 
-              {selectedSubmission.knowledge_point_evaluation && 
-               selectedSubmission.knowledge_point_evaluation.length > 0 && (
-                <div className="space-y-2">
-                  <Label>知识点掌握情况</Label>
+              {selectedSubmission.knowledge_point_evaluation &&
+                selectedSubmission.knowledge_point_evaluation.length > 0 && (
                   <div className="space-y-2">
-                    {selectedSubmission.knowledge_point_evaluation.map((kp) => (
-                      <div key={kp.id} className="flex items-center justify-between p-2 bg-muted rounded">
-                        <span className="text-sm">{kp.knowledge_points.name}</span>
-                        <div className="flex items-center gap-2">
-                          <Progress
-                            value={kp.mastery_level}
-                            max={100}
-                            className="h-2 w-32"
-                          />
-                          <span className="text-sm">{kp.mastery_level}%</span>
-                        </div>
-                      </div>
-                    ))}
+                    <Label>知识点掌握情况</Label>
+                    <div className="space-y-2">
+                      {selectedSubmission.knowledge_point_evaluation.map(
+                        (kp) => (
+                          <div
+                            key={kp.id}
+                            className="flex items-center justify-between p-2 bg-muted rounded"
+                          >
+                            <span className="text-sm">
+                              {kp.knowledge_points.name}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <Progress
+                                value={kp.mastery_level}
+                                max={100}
+                                className="h-2 w-32"
+                              />
+                              <span className="text-sm">
+                                {kp.mastery_level}%
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
             </div>
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDetailsDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setDetailsDialogOpen(false)}
+            >
               关闭
             </Button>
             <Button>
@@ -648,4 +704,4 @@ export default function StudentTable() {
       </Dialog>
     </div>
   );
-} 
+}

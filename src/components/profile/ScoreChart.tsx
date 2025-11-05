@@ -1,7 +1,21 @@
-
 import React from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { ScoreSummaryProps } from "./types";
 
@@ -13,9 +27,11 @@ const ScoreChart: React.FC<ScoreSummaryProps> = ({ student }) => {
         <CardDescription>该学生在各学科的得分情况</CardDescription>
       </CardHeader>
       <CardContent className="h-72">
-        <ChartContainer config={{
-          score: { color: "#B9FF66" }
-        }}>
+        <ChartContainer
+          config={{
+            score: { color: "#B9FF66" },
+          }}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={student.scores}

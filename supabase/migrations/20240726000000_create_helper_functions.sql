@@ -34,4 +34,4 @@ COMMENT ON FUNCTION exec_sql IS '安全地执行动态SQL语句，用于系统�
 
 -- 设置适当的权限
 GRANT EXECUTE ON FUNCTION has_column TO authenticated;
-GRANT EXECUTE ON FUNCTION exec_sql TO authenticated; 
+GRANT EXECUTE ON FUNCTION exec_sql TO authenticated;

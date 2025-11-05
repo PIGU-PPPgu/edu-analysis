@@ -12,7 +12,7 @@ export interface KnowledgePoint {
 export interface HomeworkQuestion {
   id: string;
   content: string;
-  type: 'multiple_choice' | 'short_answer' | 'essay' | 'file_upload';
+  type: "multiple_choice" | "short_answer" | "essay" | "file_upload";
   options?: string[];
   correctOption?: number;
   points: number;
@@ -24,7 +24,7 @@ export interface HomeworkAssignment {
   title: string;
   description: string;
   dueDate: Date | string;
-  status: 'draft' | 'published' | 'closed';
+  status: "draft" | "published" | "closed";
   questions: HomeworkQuestion[];
   totalPoints: number;
   createdAt: Date | string;
@@ -35,7 +35,7 @@ export interface StudentSubmission {
   id: string;
   homeworkId: string;
   studentId: string;
-  status: 'in_progress' | 'submitted' | 'graded';
+  status: "in_progress" | "submitted" | "graded";
   answers: {
     questionId: string;
     answer: string | number | string[];
@@ -84,4 +84,4 @@ export interface SubmissionKnowledgePoint {
   created_at?: string;
   updated_at?: string;
   knowledge_point?: KnowledgePoint;
-} 
+}

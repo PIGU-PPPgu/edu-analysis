@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -81,16 +81,16 @@ const CompactGradeFilters: React.FC<CompactGradeFiltersProps> = ({
     classes: config?.classes || [],
     subjects: config?.subjects || [],
     examTypes: config?.examTypes || [],
-    scoreRanges: config?.scoreRanges || []
+    scoreRanges: config?.scoreRanges || [],
   };
-  
+
   const safeFilterState = {
-    searchTerm: filterState?.searchTerm || '',
+    searchTerm: filterState?.searchTerm || "",
     selectedClasses: filterState?.selectedClasses || [],
     selectedSubjects: filterState?.selectedSubjects || [],
     selectedExamTypes: filterState?.selectedExamTypes || [],
-    selectedScoreRange: filterState?.selectedScoreRange || '',
-    dateRange: filterState?.dateRange
+    selectedScoreRange: filterState?.selectedScoreRange || "",
+    dateRange: filterState?.dateRange,
   };
 
   const [isClassesOpen, setIsClassesOpen] = useState(false);
@@ -106,12 +106,12 @@ const CompactGradeFilters: React.FC<CompactGradeFiltersProps> = ({
   // 重置所有筛选器
   const resetFilters = () => {
     const defaultState: CompactFilterState = {
-      searchTerm: '',
+      searchTerm: "",
       selectedClasses: [],
       selectedSubjects: [],
       selectedExamTypes: [],
-      selectedScoreRange: '',
-      dateRange: undefined
+      selectedScoreRange: "",
+      dateRange: undefined,
     };
     onFilterChange?.(defaultState);
   };
@@ -138,12 +138,14 @@ const CompactGradeFilters: React.FC<CompactGradeFiltersProps> = ({
       activeFilters.push(`${safeFilterState.selectedSubjects.length}个科目`);
     }
     if (safeFilterState.selectedExamTypes.length > 0) {
-      activeFilters.push(`${safeFilterState.selectedExamTypes.length}个考试类型`);
+      activeFilters.push(
+        `${safeFilterState.selectedExamTypes.length}个考试类型`
+      );
     }
     if (safeFilterState.selectedScoreRange) {
-      activeFilters.push('分数筛选');
+      activeFilters.push("分数筛选");
     }
-    return activeFilters.join(' · ');
+    return activeFilters.join(" · ");
   };
 
   // 班级选择器组件
@@ -155,7 +157,8 @@ const CompactGradeFilters: React.FC<CompactGradeFiltersProps> = ({
           size="sm"
           className={cn(
             "h-8 gap-1.5 text-xs font-normal",
-            safeFilterState.selectedClasses.length > 0 && "border-blue-300 bg-blue-50"
+            safeFilterState.selectedClasses.length > 0 &&
+              "border-blue-300 bg-blue-50"
           )}
         >
           <Users className="h-3.5 w-3.5" />
@@ -175,13 +178,16 @@ const CompactGradeFilters: React.FC<CompactGradeFiltersProps> = ({
             <CommandEmpty>未找到班级</CommandEmpty>
             <CommandGroup>
               {safeConfig.classes.map((className) => {
-                const isSelected = safeFilterState.selectedClasses.includes(className);
+                const isSelected =
+                  safeFilterState.selectedClasses.includes(className);
                 return (
                   <CommandItem
                     key={className}
                     onSelect={() => {
                       const newClasses = isSelected
-                        ? safeFilterState.selectedClasses.filter(c => c !== className)
+                        ? safeFilterState.selectedClasses.filter(
+                            (c) => c !== className
+                          )
                         : [...safeFilterState.selectedClasses, className];
                       updateFilter({ selectedClasses: newClasses });
                     }}
@@ -209,7 +215,8 @@ const CompactGradeFilters: React.FC<CompactGradeFiltersProps> = ({
           size="sm"
           className={cn(
             "h-8 gap-1.5 text-xs font-normal",
-            safeFilterState.selectedSubjects.length > 0 && "border-green-300 bg-green-50"
+            safeFilterState.selectedSubjects.length > 0 &&
+              "border-green-300 bg-green-50"
           )}
         >
           <BookOpen className="h-3.5 w-3.5" />
@@ -229,13 +236,16 @@ const CompactGradeFilters: React.FC<CompactGradeFiltersProps> = ({
             <CommandEmpty>未找到科目</CommandEmpty>
             <CommandGroup>
               {safeConfig.subjects.map((subject) => {
-                const isSelected = safeFilterState.selectedSubjects.includes(subject);
+                const isSelected =
+                  safeFilterState.selectedSubjects.includes(subject);
                 return (
                   <CommandItem
                     key={subject}
                     onSelect={() => {
                       const newSubjects = isSelected
-                        ? safeFilterState.selectedSubjects.filter(s => s !== subject)
+                        ? safeFilterState.selectedSubjects.filter(
+                            (s) => s !== subject
+                          )
                         : [...safeFilterState.selectedSubjects, subject];
                       updateFilter({ selectedSubjects: newSubjects });
                     }}
@@ -260,10 +270,12 @@ const CompactGradeFilters: React.FC<CompactGradeFiltersProps> = ({
       value={safeFilterState.selectedScoreRange}
       onValueChange={(value) => updateFilter({ selectedScoreRange: value })}
     >
-      <SelectTrigger className={cn(
-        "h-8 w-auto min-w-[100px] text-xs",
-        safeFilterState.selectedScoreRange && "border-yellow-300 bg-yellow-50"
-      )}>
+      <SelectTrigger
+        className={cn(
+          "h-8 w-auto min-w-[100px] text-xs",
+          safeFilterState.selectedScoreRange && "border-yellow-300 bg-yellow-50"
+        )}
+      >
         <TrendingUp className="h-3.5 w-3.5 mr-1.5" />
         <SelectValue placeholder="分数段" />
       </SelectTrigger>
@@ -334,7 +346,7 @@ const CompactGradeFilters: React.FC<CompactGradeFiltersProps> = ({
               </>
             )}
           </div>
-          
+
           {/* 已选择筛选器的标签 */}
           <div className="flex items-center gap-1">
             {safeFilterState.selectedClasses.slice(0, 2).map((className) => (
@@ -347,7 +359,9 @@ const CompactGradeFilters: React.FC<CompactGradeFiltersProps> = ({
                 <X
                   className="h-3 w-3 ml-1 cursor-pointer hover:bg-blue-200 rounded"
                   onClick={() => {
-                    const newClasses = safeFilterState.selectedClasses.filter(c => c !== className);
+                    const newClasses = safeFilterState.selectedClasses.filter(
+                      (c) => c !== className
+                    );
                     updateFilter({ selectedClasses: newClasses });
                   }}
                 />
@@ -365,4 +379,4 @@ const CompactGradeFilters: React.FC<CompactGradeFiltersProps> = ({
   );
 };
 
-export default CompactGradeFilters; 
+export default CompactGradeFilters;

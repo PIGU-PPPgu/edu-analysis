@@ -21,10 +21,12 @@ export function setDebugMode(enable: boolean) {
  */
 export function logInfo(message: string, data?: any) {
   if (!debugMode) return;
-  
+
   console.log(`[INFO] ${message}`);
   if (data !== undefined) {
-    console.log(typeof data === 'string' ? data : JSON.stringify(data, null, 2));
+    console.log(
+      typeof data === "string" ? data : JSON.stringify(data, null, 2)
+    );
   }
 }
 
@@ -35,14 +37,30 @@ export function logInfo(message: string, data?: any) {
  */
 export function logError(message: string, error?: any) {
   console.error(`[ERROR] ${message}`);
-  
+
   if (error) {
     if (error instanceof Error) {
       console.error(error.message);
       console.error(error.stack);
     } else {
-      console.error(typeof error === 'string' ? error : JSON.stringify(error, null, 2));
+      console.error(
+        typeof error === "string" ? error : JSON.stringify(error, null, 2)
+      );
     }
+  }
+}
+
+/**
+ * 记录警告日志
+ * @param message 警告消息
+ * @param data 附加数据
+ */
+export function logWarn(message: string, data?: any) {
+  console.warn(`[WARN] ${message}`);
+  if (data !== undefined) {
+    console.warn(
+      typeof data === "string" ? data : JSON.stringify(data, null, 2)
+    );
   }
 }
 
@@ -53,9 +71,11 @@ export function logError(message: string, error?: any) {
  */
 export function logWarning(message: string, data?: any) {
   console.warn(`[WARNING] ${message}`);
-  
+
   if (data !== undefined) {
-    console.warn(typeof data === 'string' ? data : JSON.stringify(data, null, 2));
+    console.warn(
+      typeof data === "string" ? data : JSON.stringify(data, null, 2)
+    );
   }
 }
 
@@ -67,12 +87,16 @@ export function logWarning(message: string, data?: any) {
  */
 export function logApiRequest(url: string, method: string, data?: any) {
   if (!debugMode) return;
-  
+
   console.log(`[API请求] ${method} ${url}`);
   if (data) {
     // 过滤敏感信息
-    const sanitizedData = typeof data === 'object' ? sanitizeData(data) : data;
-    console.log(typeof sanitizedData === 'string' ? sanitizedData : JSON.stringify(sanitizedData, null, 2));
+    const sanitizedData = typeof data === "object" ? sanitizeData(data) : data;
+    console.log(
+      typeof sanitizedData === "string"
+        ? sanitizedData
+        : JSON.stringify(sanitizedData, null, 2)
+    );
   }
 }
 
@@ -84,10 +108,12 @@ export function logApiRequest(url: string, method: string, data?: any) {
  */
 export function logApiResponse(url: string, status: number, data?: any) {
   if (!debugMode) return;
-  
+
   console.log(`[API响应] ${status} ${url}`);
   if (data) {
-    console.log(typeof data === 'string' ? data : JSON.stringify(data, null, 2));
+    console.log(
+      typeof data === "string" ? data : JSON.stringify(data, null, 2)
+    );
   }
 }
 
@@ -98,16 +124,24 @@ export function logApiResponse(url: string, status: number, data?: any) {
  */
 function sanitizeData(data: Record<string, any>) {
   const result = { ...data };
-  
-  const sensitiveKeys = ['apiKey', 'api_key', 'key', 'password', 'token', 'authorization', 'Authorization'];
-  
+
+  const sensitiveKeys = [
+    "apiKey",
+    "api_key",
+    "key",
+    "password",
+    "token",
+    "authorization",
+    "Authorization",
+  ];
+
   for (const key of Object.keys(result)) {
     if (sensitiveKeys.includes(key)) {
-      result[key] = '******';
-    } else if (typeof result[key] === 'object' && result[key] !== null) {
+      result[key] = "******";
+    } else if (typeof result[key] === "object" && result[key] !== null) {
       result[key] = sanitizeData(result[key]);
     }
   }
-  
+
   return result;
-} 
+}

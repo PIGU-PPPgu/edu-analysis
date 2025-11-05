@@ -1,0 +1,275 @@
+# 🌍 Staging环境Ingress配置
+# 为Staging环境提供HTTP/HTTPS入口和域名路由
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: figma-frame-faithful
+  namespace: staging
+  labels:
+    app: figma-frame-faithful
+    environment: staging
+    tier: frontend
+  annotations:
+    # Ingress Controller类型
+    kubernetes.io/ingress.class: "nginx"
+    
+    # SSL重定向
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    
+    # 证书管理
+    cert-manager.io/cluster-issuer: "letsencrypt-staging"
+    cert-manager.io/acme-challenge-type: "http01"
+    
+    # 速率限制
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-rps: "10"
+    
+    # 缓存配置
+    nginx.ingress.kubernetes.io/proxy-cache-valid: "200 1h"
+    nginx.ingress.kubernetes.io/cache-control: "public, max-age=3600"
+    
+    # 安全头
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://staging.figma-frame-faithful.com"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Content-Type, Authorization, X-Requested-With"
+    
+    # 自定义错误页面
+    nginx.ingress.kubernetes.io/custom-http-errors: "404,500,502,503,504"
+    nginx.ingress.kubernetes.io/default-backend: "default-http-backend"
+    
+    # 请求大小限制
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    
+    # 超时设置
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    
+    # 代理缓冲
+    nginx.ingress.kubernetes.io/proxy-buffering: "on"
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "4k"
+    
+    # WebSocket支持
+    nginx.ingress.kubernetes.io/websocket-services: "figma-frame-faithful"
+    
+    # 自定义配置片段
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      # 添加自定义头部
+      add_header X-Environment "staging" always;
+      add_header X-Frame-Options "SAMEORIGIN" always;
+      add_header X-Content-Type-Options "nosniff" always;
+      add_header X-XSS-Protection "1; mode=block" always;
+      
+      # Staging环境标识
+      add_header X-Staging-Instance "$hostname" always;
+      
+      # 健康检查特殊处理
+      location /health {
+        access_log off;
+        add_header Content-Type application/json;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+      }
+    
+    # 服务器配置片段
+    nginx.ingress.kubernetes.io/server-snippet: |
+      # 限制请求方法
+      if ($request_method !~ ^(GET|HEAD|POST|PUT|DELETE|OPTIONS)$) {
+        return 405;
+      }
+      
+      # 阻止恶意机器人
+      if ($http_user_agent ~* (wget|curl|scanner|bot)) {
+        return 444;
+      }
+spec:
+  tls:
+  - hosts:
+    - staging.figma-frame-faithful.com
+    - staging-api.figma-frame-faithful.com
+    secretName: staging-tls-secret
+  rules:
+  # 主站点
+  - host: staging.figma-frame-faithful.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: figma-frame-faithful
+            port:
+              number: 80
+      # API代理路径
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: api-service
+            port:
+              number: 3000
+      # WebSocket路径
+      - path: /ws
+        pathType: Prefix
+        backend:
+          service:
+            name: api-service
+            port:
+              number: 3000
+      # 健康检查路径
+      - path: /health
+        pathType: Exact
+        backend:
+          service:
+            name: figma-frame-faithful
+            port:
+              number: 80
+      # 静态资源路径（可选的CDN回源）
+      - path: /static
+        pathType: Prefix
+        backend:
+          service:
+            name: figma-frame-faithful
+            port:
+              number: 80
+  
+  # API专用域名（可选）
+  - host: staging-api.figma-frame-faithful.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: api-service
+            port:
+              number: 3000
+
+---
+# 🛡️ 网络策略 - 限制Staging环境的网络访问
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: figma-frame-faithful-staging-network-policy
+  namespace: staging
+  labels:
+    app: figma-frame-faithful
+    environment: staging
+spec:
+  podSelector:
+    matchLabels:
+      app: figma-frame-faithful
+      environment: staging
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # 允许来自Ingress Controller的流量
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 80
+  # 允许来自同命名空间的Pod访问
+  - from:
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 80
+  # 允许来自监控系统的访问
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 80
+  egress:
+  # 允许DNS解析
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+  # 允许访问API服务
+  - to:
+    - podSelector:
+        matchLabels:
+          app: api-service
+    ports:
+    - protocol: TCP
+      port: 3000
+  # 允许访问外部HTTPS服务（用于API调用）
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+  # 允许访问外部HTTP服务（如有需要）
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 80
+
+---
+# 🔧 HorizontalPodAutoscaler - Staging环境自动扩缩容
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: figma-frame-faithful-hpa
+  namespace: staging
+  labels:
+    app: figma-frame-faithful
+    environment: staging
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: figma-frame-faithful
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Pods
+        value: 1
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+
+---
+# 📊 PodDisruptionBudget - 确保服务可用性
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: figma-frame-faithful-pdb
+  namespace: staging
+  labels:
+    app: figma-frame-faithful
+    environment: staging
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: figma-frame-faithful
+      environment: staging

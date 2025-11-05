@@ -6,42 +6,48 @@ const Services: React.FC = () => {
   const services = [
     {
       title: ["Search engine", "optimization"],
-      illustration: "https://cdn.builder.io/api/v1/image/assets/TEMP/ec4d143d611b9fb5d8917b6653be90a8b5a0b573?placeholderIfAbsent=true",
+      illustration:
+        "https://cdn.builder.io/api/v1/image/assets/TEMP/ec4d143d611b9fb5d8917b6653be90a8b5a0b573?placeholderIfAbsent=true",
       bgColor: "bg-[#F3F3F3]",
       labelBgColor: "bg-[#B9FF66]",
       linkColor: "text-black",
     },
     {
       title: ["Pay-per-click", "advertising"],
-      illustration: "https://cdn.builder.io/api/v1/image/assets/TEMP/4fe1208f8c09d90ba2c1f91b4ef04b843588e53e?placeholderIfAbsent=true",
+      illustration:
+        "https://cdn.builder.io/api/v1/image/assets/TEMP/4fe1208f8c09d90ba2c1f91b4ef04b843588e53e?placeholderIfAbsent=true",
       bgColor: "bg-[#B9FF66]",
       labelBgColor: "bg-white",
       linkColor: "text-black",
     },
     {
       title: ["Social Media", "Marketing"],
-      illustration: "https://cdn.builder.io/api/v1/image/assets/TEMP/f36782286a158b616e66e3c7916ff7e16bf28737?placeholderIfAbsent=true",
+      illustration:
+        "https://cdn.builder.io/api/v1/image/assets/TEMP/f36782286a158b616e66e3c7916ff7e16bf28737?placeholderIfAbsent=true",
       bgColor: "bg-[#191A23]",
       labelBgColor: "bg-white",
       linkColor: "text-white",
     },
     {
       title: ["Email", "Marketing"],
-      illustration: "https://cdn.builder.io/api/v1/image/assets/TEMP/33d5b088cf784246f712c7ccf983af05badf7867?placeholderIfAbsent=true",
+      illustration:
+        "https://cdn.builder.io/api/v1/image/assets/TEMP/33d5b088cf784246f712c7ccf983af05badf7867?placeholderIfAbsent=true",
       bgColor: "bg-[#F3F3F3]",
       labelBgColor: "bg-[#B9FF66]",
       linkColor: "text-black",
     },
     {
       title: ["Content", "Creation"],
-      illustration: "https://cdn.builder.io/api/v1/image/assets/TEMP/75155b33a392121d78853aefabda89f2d11c4900?placeholderIfAbsent=true",
+      illustration:
+        "https://cdn.builder.io/api/v1/image/assets/TEMP/75155b33a392121d78853aefabda89f2d11c4900?placeholderIfAbsent=true",
       bgColor: "bg-[#B9FF66]",
       labelBgColor: "bg-white",
       linkColor: "text-black",
     },
     {
       title: ["Analytics and ", "Tracking"],
-      illustration: "https://cdn.builder.io/api/v1/image/assets/TEMP/39c84813e830450bfc8de68ac0492ad1e4dad984?placeholderIfAbsent=true",
+      illustration:
+        "https://cdn.builder.io/api/v1/image/assets/TEMP/39c84813e830450bfc8de68ac0492ad1e4dad984?placeholderIfAbsent=true",
       bgColor: "bg-[#191A23]",
       labelBgColor: "bg-[#B9FF66]",
       linkColor: "text-white",

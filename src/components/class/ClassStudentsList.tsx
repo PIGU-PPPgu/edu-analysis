@@ -1,27 +1,33 @@
-import React, { useState, useMemo } from 'react';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { 
-  Search, 
-  Users, 
-  TrendingUp, 
-  TrendingDown, 
-  Minus, 
-  ArrowUpDown, 
+import React, { useState, useMemo } from "react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Search,
+  Users,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  ArrowUpDown,
   Eye,
-  UserCheck
-} from 'lucide-react';
-import { getScoreColors, getTrendColors } from '@/config/colors';
+  UserCheck,
+} from "lucide-react";
+import { getScoreColors, getTrendColors } from "@/config/colors";
 
 interface StudentData {
   studentId: string;
@@ -46,37 +52,38 @@ const ClassStudentsList: React.FC<ClassStudentsListProps> = ({
   students,
   className,
   studentCount,
-  mockStudentData
+  mockStudentData,
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState<keyof StudentData>('name');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortField, setSortField] = useState<keyof StudentData>("name");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   // 使用传入的数据，如果没有则使用mock数据
   const studentData = students.length > 0 ? students : mockStudentData;
 
   // 搜索过滤
-  const filteredStudents = studentData.filter(student =>
-    student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.studentId.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredStudents = studentData.filter(
+    (student) =>
+      student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.studentId.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // 排序
   const sortedStudents = useMemo(() => {
-    let filtered = filteredStudents.sort((a, b) => {
+    const filtered = filteredStudents.sort((a, b) => {
       const aValue = a[sortField];
       const bValue = b[sortField];
-      
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return sortDirection === 'asc' 
+
+      if (typeof aValue === "string" && typeof bValue === "string") {
+        return sortDirection === "asc"
           ? aValue.localeCompare(bValue)
           : bValue.localeCompare(aValue);
       }
-      
-      if (typeof aValue === 'number' && typeof bValue === 'number') {
-        return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+
+      if (typeof aValue === "number" && typeof bValue === "number") {
+        return sortDirection === "asc" ? aValue - bValue : bValue - aValue;
       }
-      
+
       return 0;
     });
     return filtered;
@@ -84,10 +91,10 @@ const ClassStudentsList: React.FC<ClassStudentsListProps> = ({
 
   const handleSort = (field: keyof StudentData) => {
     if (field === sortField) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
-      setSortDirection('asc');
+      setSortDirection("asc");
     }
   };
 
@@ -99,11 +106,11 @@ const ClassStudentsList: React.FC<ClassStudentsListProps> = ({
   };
 
   const getScoreBadge = (score: number) => {
-    if (score >= 90) return { variant: 'default' as const, label: '优秀' };
-    if (score >= 80) return { variant: 'secondary' as const, label: '良好' };
-    if (score >= 70) return { variant: 'outline' as const, label: '中等' };
-    if (score >= 60) return { variant: 'outline' as const, label: '及格' };
-    return { variant: 'destructive' as const, label: '不及格' };
+    if (score >= 90) return { variant: "default" as const, label: "优秀" };
+    if (score >= 80) return { variant: "secondary" as const, label: "良好" };
+    if (score >= 70) return { variant: "outline" as const, label: "中等" };
+    if (score >= 60) return { variant: "outline" as const, label: "及格" };
+    return { variant: "destructive" as const, label: "不及格" };
   };
 
   // 如果没有数据，显示占位符
@@ -145,12 +152,10 @@ const ClassStudentsList: React.FC<ClassStudentsListProps> = ({
               班级ID: {classId} • 学生总数: {studentData.length}
             </CardDescription>
           </div>
-          <Badge variant="outline">
-            共 {sortedStudents.length} 名学生
-          </Badge>
+          <Badge variant="outline">共 {sortedStudents.length} 名学生</Badge>
         </div>
       </CardHeader>
-      
+
       <CardContent>
         {/* 搜索栏 */}
         <div className="flex items-center space-x-2 mb-6">
@@ -165,7 +170,12 @@ const ClassStudentsList: React.FC<ClassStudentsListProps> = ({
           </div>
           <Button variant="outline" size="sm">
             <ArrowUpDown className="h-4 w-4 mr-2" />
-            排序: {sortField === 'averageScore' ? '成绩' : sortField === 'name' ? '姓名' : '学号'}
+            排序:{" "}
+            {sortField === "averageScore"
+              ? "成绩"
+              : sortField === "name"
+                ? "姓名"
+                : "学号"}
           </Button>
         </div>
 
@@ -174,27 +184,27 @@ const ClassStudentsList: React.FC<ClassStudentsListProps> = ({
           <Table>
             <TableHeader>
               <TableRow className="bg-gray-50">
-                <TableHead 
+                <TableHead
                   className="cursor-pointer hover:bg-gray-100 transition-colors"
-                  onClick={() => handleSort('studentId')}
+                  onClick={() => handleSort("studentId")}
                 >
                   <div className="flex items-center gap-1">
                     学号
                     <ArrowUpDown className="h-3 w-3" />
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="cursor-pointer hover:bg-gray-100 transition-colors"
-                  onClick={() => handleSort('name')}
+                  onClick={() => handleSort("name")}
                 >
                   <div className="flex items-center gap-1">
                     姓名
                     <ArrowUpDown className="h-3 w-3" />
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="cursor-pointer hover:bg-gray-100 transition-colors"
-                  onClick={() => handleSort('averageScore')}
+                  onClick={() => handleSort("averageScore")}
                 >
                   <div className="flex items-center gap-1">
                     平均分
@@ -212,9 +222,12 @@ const ClassStudentsList: React.FC<ClassStudentsListProps> = ({
                 const scoreBadge = getScoreBadge(student.averageScore);
                 const scoreColors = getScoreColors(student.averageScore);
                 const trendColors = getTrendColors(student.trend);
-                
+
                 return (
-                  <TableRow key={student.studentId} className="hover:bg-gray-50 transition-colors">
+                  <TableRow
+                    key={student.studentId}
+                    className="hover:bg-gray-50 transition-colors"
+                  >
                     <TableCell className="font-mono text-sm">
                       {student.studentId}
                     </TableCell>
@@ -223,7 +236,9 @@ const ClassStudentsList: React.FC<ClassStudentsListProps> = ({
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <span className={`font-bold text-lg px-2 py-1 rounded ${scoreColors.text} ${scoreColors.background}`}>
+                        <span
+                          className={`font-bold text-lg px-2 py-1 rounded ${scoreColors.text} ${scoreColors.background}`}
+                        >
                           {student.averageScore.toFixed(1)}
                         </span>
                         <Badge variant={scoreBadge.variant} size="sm">
@@ -234,9 +249,14 @@ const ClassStudentsList: React.FC<ClassStudentsListProps> = ({
                     <TableCell>
                       <div className="flex items-center gap-1">
                         {getTrendIcon(student.trend)}
-                        <span className={`text-sm font-medium ${trendColors.text}`}>
-                          {student.trend > 0 ? `+${student.trend.toFixed(1)}` : 
-                           student.trend < 0 ? student.trend.toFixed(1) : '0.0'}
+                        <span
+                          className={`text-sm font-medium ${trendColors.text}`}
+                        >
+                          {student.trend > 0
+                            ? `+${student.trend.toFixed(1)}`
+                            : student.trend < 0
+                              ? student.trend.toFixed(1)
+                              : "0.0"}
                         </span>
                       </div>
                     </TableCell>
@@ -247,7 +267,7 @@ const ClassStudentsList: React.FC<ClassStudentsListProps> = ({
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-xs">
-                        #{student.gradeRank || '未知'}
+                        #{student.gradeRank || "未知"}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -274,19 +294,22 @@ const ClassStudentsList: React.FC<ClassStudentsListProps> = ({
             </div>
             <div>
               <div className="text-2xl font-bold text-green-600">
-                {(studentData.reduce((sum, s) => sum + s.averageScore, 0) / studentData.length).toFixed(1)}
+                {(
+                  studentData.reduce((sum, s) => sum + s.averageScore, 0) /
+                  studentData.length
+                ).toFixed(1)}
               </div>
               <div className="text-sm text-gray-600">班级平均分</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-purple-600">
-                {Math.max(...studentData.map(s => s.averageScore)).toFixed(1)}
+                {Math.max(...studentData.map((s) => s.averageScore)).toFixed(1)}
               </div>
               <div className="text-sm text-gray-600">最高分</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-orange-600">
-                {Math.min(...studentData.map(s => s.averageScore)).toFixed(1)}
+                {Math.min(...studentData.map((s) => s.averageScore)).toFixed(1)}
               </div>
               <div className="text-sm text-gray-600">最低分</div>
             </div>
@@ -297,4 +320,4 @@ const ClassStudentsList: React.FC<ClassStudentsListProps> = ({
   );
 };
 
-export default ClassStudentsList; 
+export default ClassStudentsList;

@@ -1,27 +1,71 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertTriangle, Plus, Trash2, Edit, RefreshCw, ChevronRight, ExternalLink, Filter, Search, Wand2 } from "lucide-react";
-import { toast } from 'sonner';
-import { 
-  getWarningRules, 
-  createWarningRule, 
-  updateWarningRule, 
-  deleteWarningRule, 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertTriangle,
+  Plus,
+  Trash2,
+  Edit,
+  RefreshCw,
+  ChevronRight,
+  ExternalLink,
+  Filter,
+  Search,
+  Wand2,
+  Brain,
+} from "lucide-react";
+import { toast } from "sonner";
+import {
+  getWarningRules,
+  createWarningRule,
+  updateWarningRule,
+  deleteWarningRule,
   toggleRuleStatus,
   getWarningRuleTemplates,
-  WarningRule, 
+  WarningRule,
   RuleFilter,
-  RuleTemplate 
-} from '@/services/warningService';
+  RuleTemplate,
+} from "@/services/warningService";
+import RuleBuilder from "./RuleBuilder/RuleBuilder";
+import { ExportedRule } from "./RuleBuilder/types";
+import SimpleRuleBuilder from "./SimpleRuleBuilder/SimpleRuleBuilder";
+import { SimpleExportedRule } from "./SimpleRuleBuilder/types";
 
 interface WarningRulesProps {
   simplified?: boolean;
@@ -34,7 +78,7 @@ const WarningRules: React.FC<WarningRulesProps> = ({
   simplified = false,
   limit,
   showViewAllButton = false,
-  onViewAllClick
+  onViewAllClick,
 }) => {
   const [rules, setRules] = useState<WarningRule[]>([]);
   const [filteredRules, setFilteredRules] = useState<WarningRule[]>([]);
@@ -42,23 +86,33 @@ const WarningRules: React.FC<WarningRulesProps> = ({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedRule, setSelectedRule] = useState<WarningRule | null>(null);
-  
+
+  // 智能规则构建器状态
+  const [showRuleBuilder, setShowRuleBuilder] = useState(false);
+  const [showSimpleBuilder, setShowSimpleBuilder] = useState(false);
+
   // 筛选状态
   const [filter, setFilter] = useState<RuleFilter>({});
-  const [searchTerm, setSearchTerm] = useState('');
-  
+  const [searchTerm, setSearchTerm] = useState("");
+
   // 表单状态
-  const [ruleName, setRuleName] = useState('');
-  const [ruleDescription, setRuleDescription] = useState('');
-  const [ruleSeverity, setRuleSeverity] = useState<'low' | 'medium' | 'high'>('medium');
-  const [ruleScope, setRuleScope] = useState<'global' | 'exam' | 'class' | 'student'>('global');
-  const [ruleCategory, setRuleCategory] = useState<'grade' | 'attendance' | 'behavior' | 'progress' | 'homework' | 'composite'>('grade');
+  const [ruleName, setRuleName] = useState("");
+  const [ruleDescription, setRuleDescription] = useState("");
+  const [ruleSeverity, setRuleSeverity] = useState<"low" | "medium" | "high">(
+    "medium"
+  );
+  const [ruleScope, setRuleScope] = useState<
+    "global" | "exam" | "class" | "student"
+  >("global");
+  const [ruleCategory, setRuleCategory] = useState<
+    "grade" | "attendance" | "behavior" | "progress" | "homework" | "composite"
+  >("grade");
   const [rulePriority, setRulePriority] = useState(5);
   const [ruleConditions, setRuleConditions] = useState<any>({
-    type: '成绩',
+    type: "成绩",
     threshold: 60,
-    operator: '<',
-    subject: '全部'
+    operator: "<",
+    subject: "全部",
   });
   const [autoTrigger, setAutoTrigger] = useState(true);
   const [notificationEnabled, setNotificationEnabled] = useState(true);
@@ -66,12 +120,12 @@ const WarningRules: React.FC<WarningRulesProps> = ({
   // 模板选择状态
   const [showTemplates, setShowTemplates] = useState(false);
   const [templates] = useState<RuleTemplate[]>(getWarningRuleTemplates());
-  
+
   const isMounted = useRef(true);
-  
+
   useEffect(() => {
     fetchRules();
-    
+
     return () => {
       isMounted.current = false;
     };
@@ -80,45 +134,46 @@ const WarningRules: React.FC<WarningRulesProps> = ({
   // 应用筛选
   useEffect(() => {
     let filtered = rules;
-    
+
     if (filter.scope) {
-      filtered = filtered.filter(rule => rule.scope === filter.scope);
+      filtered = filtered.filter((rule) => rule.scope === filter.scope);
     }
     if (filter.category) {
-      filtered = filtered.filter(rule => rule.category === filter.category);
+      filtered = filtered.filter((rule) => rule.category === filter.category);
     }
     if (filter.severity) {
-      filtered = filtered.filter(rule => rule.severity === filter.severity);
+      filtered = filtered.filter((rule) => rule.severity === filter.severity);
     }
     if (filter.is_active !== undefined) {
-      filtered = filtered.filter(rule => rule.is_active === filter.is_active);
+      filtered = filtered.filter((rule) => rule.is_active === filter.is_active);
     }
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(rule => 
-        rule.name.toLowerCase().includes(term) ||
-        (rule.description && rule.description.toLowerCase().includes(term))
+      filtered = filtered.filter(
+        (rule) =>
+          rule.name.toLowerCase().includes(term) ||
+          (rule.description && rule.description.toLowerCase().includes(term))
       );
     }
-    
+
     setFilteredRules(filtered);
   }, [rules, filter, searchTerm]);
-  
+
   // 获取预警规则
   const fetchRules = async () => {
     if (!isMounted.current) return;
-    
+
     try {
       setIsLoading(true);
       const data = await getWarningRules();
-      
+
       if (isMounted.current) {
         setRules(data);
       }
     } catch (error) {
-      console.error('获取预警规则失败:', error);
+      console.error("获取预警规则失败:", error);
       if (isMounted.current) {
-        toast.error('获取预警规则失败');
+        toast.error("获取预警规则失败");
       }
     } finally {
       if (isMounted.current) {
@@ -130,12 +185,12 @@ const WarningRules: React.FC<WarningRulesProps> = ({
   // 处理表单提交
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!ruleName.trim()) {
-      toast.error('规则名称不能为空');
+      toast.error("规则名称不能为空");
       return;
     }
-    
+
     const ruleData = {
       name: ruleName,
       description: ruleDescription,
@@ -148,24 +203,24 @@ const WarningRules: React.FC<WarningRulesProps> = ({
       is_system: false,
       auto_trigger: autoTrigger,
       notification_enabled: notificationEnabled,
-      created_by: null
+      created_by: null,
     };
-    
+
     try {
       if (isEditMode && selectedRule) {
         await updateWarningRule(selectedRule.id, ruleData);
-        toast.success('规则已更新');
+        toast.success("规则已更新");
       } else {
         await createWarningRule(ruleData);
-        toast.success('规则已创建');
+        toast.success("规则已创建");
       }
-      
+
       await fetchRules();
       setIsDialogOpen(false);
       resetForm();
     } catch (error) {
-      console.error('保存规则失败:', error);
-      toast.error('保存规则失败');
+      console.error("保存规则失败:", error);
+      toast.error("保存规则失败");
     }
   };
 
@@ -174,14 +229,14 @@ const WarningRules: React.FC<WarningRulesProps> = ({
     if (!confirm(`确定要删除规则 "${rule.name}" 吗?`)) {
       return;
     }
-    
+
     try {
       await deleteWarningRule(rule.id);
       await fetchRules();
-      toast.success('规则已删除');
+      toast.success("规则已删除");
     } catch (error) {
-      console.error('删除规则失败:', error);
-      toast.error('删除规则失败');
+      console.error("删除规则失败:", error);
+      toast.error("删除规则失败");
     }
   };
 
@@ -189,15 +244,15 @@ const WarningRules: React.FC<WarningRulesProps> = ({
   const handleToggleActive = async (rule: WarningRule, active: boolean) => {
     try {
       await toggleRuleStatus(rule.id, active);
-      
-      setRules(prev => prev.map(r => 
-        r.id === rule.id ? { ...r, is_active: active } : r
-      ));
-      
-      toast.success(`规则已${active ? '启用' : '禁用'}`);
+
+      setRules((prev) =>
+        prev.map((r) => (r.id === rule.id ? { ...r, is_active: active } : r))
+      );
+
+      toast.success(`规则已${active ? "启用" : "禁用"}`);
     } catch (error) {
-      console.error('更新规则状态失败:', error);
-      toast.error('更新规则状态失败');
+      console.error("更新规则状态失败:", error);
+      toast.error("更新规则状态失败");
     }
   };
 
@@ -205,7 +260,7 @@ const WarningRules: React.FC<WarningRulesProps> = ({
   const handleEditRule = (rule: WarningRule) => {
     setSelectedRule(rule);
     setRuleName(rule.name);
-    setRuleDescription(rule.description || '');
+    setRuleDescription(rule.description || "");
     setRuleSeverity(rule.severity);
     setRuleScope(rule.scope);
     setRuleCategory(rule.category);
@@ -222,6 +277,40 @@ const WarningRules: React.FC<WarningRulesProps> = ({
     resetForm();
     setIsEditMode(false);
     setIsDialogOpen(true);
+  };
+
+  // 处理智能构建器保存
+  const handleRuleBuilderSave = async (rule: ExportedRule) => {
+    try {
+      // 规则已经在RuleBuilder内部保存，这里只需要刷新列表和关闭构建器
+      await fetchRules();
+      setShowRuleBuilder(false);
+      toast.success("智能规则创建成功");
+    } catch (error) {
+      console.error("刷新规则列表失败:", error);
+    }
+  };
+
+  // 处理简化构建器保存
+  const handleSimpleBuilderSave = async (rule: SimpleExportedRule) => {
+    try {
+      // 规则已经在SimpleRuleBuilder内部保存，这里只需要刷新列表和关闭构建器
+      await fetchRules();
+      setShowSimpleBuilder(false);
+      toast.success("预警规则创建成功");
+    } catch (error) {
+      console.error("刷新规则列表失败:", error);
+    }
+  };
+
+  // 打开智能构建器
+  const handleOpenRuleBuilder = () => {
+    setShowRuleBuilder(true);
+  };
+
+  // 打开简化构建器
+  const handleOpenSimpleBuilder = () => {
+    setShowSimpleBuilder(true);
   };
 
   // 从模板创建规则
@@ -242,17 +331,17 @@ const WarningRules: React.FC<WarningRulesProps> = ({
 
   // 重置表单
   const resetForm = () => {
-    setRuleName('');
-    setRuleDescription('');
-    setRuleSeverity('medium');
-    setRuleScope('global');
-    setRuleCategory('grade');
+    setRuleName("");
+    setRuleDescription("");
+    setRuleSeverity("medium");
+    setRuleScope("global");
+    setRuleCategory("grade");
     setRulePriority(5);
     setRuleConditions({
-      type: '成绩',
+      type: "成绩",
       threshold: 60,
-      operator: '<',
-      subject: '全部'
+      operator: "<",
+      subject: "全部",
     });
     setAutoTrigger(true);
     setNotificationEnabled(true);
@@ -262,18 +351,39 @@ const WarningRules: React.FC<WarningRulesProps> = ({
   // 清除筛选
   const clearFilters = () => {
     setFilter({});
-    setSearchTerm('');
+    setSearchTerm("");
   };
 
   // 获取严重程度标签样式
   const getSeverityBadge = (severity: string) => {
     switch (severity) {
-      case 'high':
-        return <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">高</Badge>;
-      case 'medium':
-        return <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200">中</Badge>;
-      case 'low':
-        return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">低</Badge>;
+      case "high":
+        return (
+          <Badge
+            variant="outline"
+            className="bg-red-100 text-red-800 border-red-200"
+          >
+            高
+          </Badge>
+        );
+      case "medium":
+        return (
+          <Badge
+            variant="outline"
+            className="bg-amber-100 text-amber-800 border-amber-200"
+          >
+            中
+          </Badge>
+        );
+      case "low":
+        return (
+          <Badge
+            variant="outline"
+            className="bg-blue-100 text-blue-800 border-blue-200"
+          >
+            低
+          </Badge>
+        );
       default:
         return <Badge variant="outline">未知</Badge>;
     }
@@ -282,68 +392,112 @@ const WarningRules: React.FC<WarningRulesProps> = ({
   // 获取范围标签
   const getScopeBadge = (scope: string) => {
     const scopeMap = {
-      global: { label: '全局', className: 'bg-purple-100 text-purple-800 border-purple-200' },
-      exam: { label: '考试', className: 'bg-green-100 text-green-800 border-green-200' },
-      class: { label: '班级', className: 'bg-blue-100 text-blue-800 border-blue-200' },
-      student: { label: '学生', className: 'bg-orange-100 text-orange-800 border-orange-200' }
+      global: {
+        label: "全局",
+        className: "bg-purple-100 text-purple-800 border-purple-200",
+      },
+      exam: {
+        label: "考试",
+        className: "bg-green-100 text-green-800 border-green-200",
+      },
+      class: {
+        label: "班级",
+        className: "bg-blue-100 text-blue-800 border-blue-200",
+      },
+      student: {
+        label: "学生",
+        className: "bg-orange-100 text-orange-800 border-orange-200",
+      },
     };
-    
-    const config = scopeMap[scope as keyof typeof scopeMap] || { label: scope, className: '' };
-    return <Badge variant="outline" className={config.className}>{config.label}</Badge>;
+
+    const config = scopeMap[scope as keyof typeof scopeMap] || {
+      label: scope,
+      className: "",
+    };
+    return (
+      <Badge variant="outline" className={config.className}>
+        {config.label}
+      </Badge>
+    );
   };
 
   // 获取分类标签
   const getCategoryBadge = (category: string) => {
     const categoryMap = {
-      grade: { label: '成绩', className: 'bg-red-100 text-red-800 border-red-200' },
-      progress: { label: '进步', className: 'bg-green-100 text-green-800 border-green-200' },
-      homework: { label: '作业', className: 'bg-blue-100 text-blue-800 border-blue-200' },
-      attendance: { label: '出勤', className: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
-      behavior: { label: '行为', className: 'bg-purple-100 text-purple-800 border-purple-200' },
-      composite: { label: '综合', className: 'bg-gray-100 text-gray-800 border-gray-200' }
+      grade: {
+        label: "成绩",
+        className: "bg-red-100 text-red-800 border-red-200",
+      },
+      progress: {
+        label: "进步",
+        className: "bg-green-100 text-green-800 border-green-200",
+      },
+      homework: {
+        label: "作业",
+        className: "bg-blue-100 text-blue-800 border-blue-200",
+      },
+      attendance: {
+        label: "出勤",
+        className: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      },
+      behavior: {
+        label: "行为",
+        className: "bg-purple-100 text-purple-800 border-purple-200",
+      },
+      composite: {
+        label: "综合",
+        className: "bg-gray-100 text-gray-800 border-gray-200",
+      },
     };
-    
-    const config = categoryMap[category as keyof typeof categoryMap] || { label: category, className: '' };
-    return <Badge variant="outline" className={config.className}>{config.label}</Badge>;
+
+    const config = categoryMap[category as keyof typeof categoryMap] || {
+      label: category,
+      className: "",
+    };
+    return (
+      <Badge variant="outline" className={config.className}>
+        {config.label}
+      </Badge>
+    );
   };
-  
+
   // 格式化规则条件
   const formatConditions = (conditions: any): string => {
-    if (!conditions) return '无条件';
-    
+    if (!conditions) return "无条件";
+
     try {
-      let result = '';
-      
+      let result = "";
+
       if (conditions.type) {
         result += `${conditions.type}`;
       }
-      
-      if (conditions.subject && conditions.subject !== '全部') {
+
+      if (conditions.subject && conditions.subject !== "全部") {
         result += ` (${conditions.subject})`;
       }
-      
+
       if (conditions.threshold && conditions.operator) {
         result += ` ${conditions.operator} ${conditions.threshold}`;
       }
-      
+
       if (conditions.unit) {
         result += ` ${conditions.unit}`;
       }
-      
+
       if (Array.isArray(conditions.factors) && conditions.factors.length > 0) {
-        result += ` [${conditions.factors.join(', ')}]`;
+        result += ` [${conditions.factors.join(", ")}]`;
       }
-      
-      return result || '复合条件';
+
+      return result || "复合条件";
     } catch (e) {
       return JSON.stringify(conditions);
     }
   };
-  
+
   // 限制显示的规则数量
   const displayedRules = limit ? filteredRules.slice(0, limit) : filteredRules;
 
-  // 简化版的规则列表
+  // 简化版的规则列表 - 卡片式设计
   if (simplified) {
     return (
       <div className="space-y-3">
@@ -353,55 +507,69 @@ const WarningRules: React.FC<WarningRulesProps> = ({
             <p>暂无预警规则</p>
           </div>
         ) : isLoading ? (
-          <div className="space-y-2">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="rounded-md border p-3 animate-pulse bg-gray-50">
-                <div className="w-1/3 h-4 bg-gray-200 rounded mb-2"></div>
-                <div className="w-2/3 h-3 bg-gray-200 rounded"></div>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i} className="animate-pulse border-2 border-gray-200">
+                <CardContent className="p-4">
+                  <div className="w-2/3 h-4 bg-gray-200 rounded mb-2"></div>
+                  <div className="w-full h-3 bg-gray-200 rounded"></div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         ) : (
           <>
-            <div className="space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {displayedRules.map((rule) => (
-                <div 
-                  key={rule.id} 
-                  className="flex justify-between items-center p-3 rounded-md border hover:bg-gray-50 cursor-pointer"
+                <Card
+                  key={rule.id}
+                  className={`cursor-pointer transition-all border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[4px_4px_0px_0px_#000] hover:translate-x-[-2px] hover:translate-y-[-2px] ${
+                    rule.is_active ? "bg-white" : "bg-gray-50"
+                  }`}
                   onClick={() => handleEditRule(rule)}
                 >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm">{rule.name}</span>
-                      {getSeverityBadge(rule.severity)}
-                      {getScopeBadge(rule.scope)}
-                      <Switch 
-                        checked={rule.is_active} 
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <CardTitle className="text-base font-black text-[#191A23]">
+                        {rule.name}
+                      </CardTitle>
+                      <Switch
+                        checked={rule.is_active}
                         onCheckedChange={(checked) => {
                           handleToggleActive(rule, checked);
-                          // 防止点击开关时触发父元素的点击事件
                           event?.stopPropagation();
                         }}
-                        className="ml-auto data-[state=checked]:bg-[#c0ff3f]"
+                        className="data-[state=checked]:bg-[#B9FF66]"
                       />
                     </div>
-                    <div className="text-xs text-gray-500 mt-1 truncate">
-                      {formatConditions(rule.conditions)}
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {rule.description && (
+                      <p className="text-sm text-gray-600 line-clamp-2">
+                        {rule.description}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {getSeverityBadge(rule.severity)}
+                      {getScopeBadge(rule.scope)}
+                      {getCategoryBadge(rule.category)}
                     </div>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-gray-400 ml-2 flex-shrink-0" />
-                </div>
+                    <div className="text-xs text-gray-500 mt-2 truncate">
+                      条件: {formatConditions(rule.conditions)}
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
-            
+
             {showViewAllButton && (
-              <Button 
-                variant="outline" 
-                onClick={onViewAllClick} 
-                className="w-full mt-2 text-sm h-9"
+              <Button
+                variant="outline"
+                onClick={onViewAllClick}
+                className="w-full mt-4 border-2 border-black bg-white text-black font-bold shadow-[2px_2px_0px_0px_#000] hover:bg-gray-50"
               >
                 管理预警规则
-                <ExternalLink className="ml-2 h-3.5 w-3.5" />
+                <ExternalLink className="ml-2 h-4 w-4" />
               </Button>
             )}
           </>
@@ -409,31 +577,35 @@ const WarningRules: React.FC<WarningRulesProps> = ({
       </div>
     );
   }
-  
+
   return (
-    <Card>
-      <CardHeader>
+    <Card className="border-2 border-black shadow-[4px_4px_0px_0px_#191A23]">
+      <CardHeader className="bg-gradient-to-r from-[#B9FF66]/20 to-transparent border-b-2 border-black">
         <div className="flex justify-between items-start">
           <div>
-            <CardTitle className="text-xl font-semibold flex items-center">
-              <AlertTriangle className="h-5 w-5 text-amber-500 mr-2" />
+            <CardTitle className="text-xl font-black text-[#191A23] flex items-center">
+              <div className="p-2 bg-[#B9FF66] rounded-full border-2 border-black mr-3">
+                <Settings className="h-5 w-5 text-black" />
+              </div>
               预警规则管理
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="font-medium text-[#191A23]/70 mt-2">
               配置学生预警规则，系统将根据这些规则自动识别风险学生
             </CardDescription>
           </div>
           <div className="flex gap-2">
-            <Button 
+            <Button
               variant="outline"
               size="sm"
               onClick={fetchRules}
               disabled={isLoading}
             >
-              <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
-              {isLoading ? '刷新中...' : '刷新'}
+              <RefreshCw
+                className={`h-4 w-4 mr-1 ${isLoading ? "animate-spin" : ""}`}
+              />
+              {isLoading ? "刷新中..." : "刷新"}
             </Button>
-            <Button 
+            <Button
               variant="outline"
               size="sm"
               onClick={() => setShowTemplates(true)}
@@ -441,9 +613,25 @@ const WarningRules: React.FC<WarningRulesProps> = ({
               <Wand2 className="h-4 w-4 mr-1" />
               模板
             </Button>
-            <Button onClick={handleCreateRule}>
+            <Button
+              onClick={handleOpenSimpleBuilder}
+              className="bg-[#B9FF66] text-black border-2 border-black font-bold shadow-[2px_2px_0px_0px_#000] hover:shadow-[4px_4px_0px_0px_#000]"
+            >
               <Plus className="h-4 w-4 mr-1" />
-              新增规则
+              创建规则
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleOpenRuleBuilder}
+              className="border-2 border-gray-300 bg-white text-gray-600 font-bold"
+            >
+              <Brain className="h-4 w-4 mr-1" />
+              高级构建
+            </Button>
+            <Button variant="outline" onClick={handleCreateRule}>
+              <Plus className="h-4 w-4 mr-1" />
+              手动创建
             </Button>
           </div>
         </div>
@@ -463,7 +651,12 @@ const WarningRules: React.FC<WarningRulesProps> = ({
                 />
               </div>
             </div>
-            <Select value={filter.scope || ''} onValueChange={(value) => setFilter({...filter, scope: value || undefined})}>
+            <Select
+              value={filter.scope || ""}
+              onValueChange={(value) =>
+                setFilter({ ...filter, scope: value || undefined })
+              }
+            >
               <SelectTrigger className="w-[120px]">
                 <SelectValue placeholder="范围" />
               </SelectTrigger>
@@ -475,7 +668,12 @@ const WarningRules: React.FC<WarningRulesProps> = ({
                 <SelectItem value="student">学生</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={filter.category || ''} onValueChange={(value) => setFilter({...filter, category: value || undefined})}>
+            <Select
+              value={filter.category || ""}
+              onValueChange={(value) =>
+                setFilter({ ...filter, category: value || undefined })
+              }
+            >
               <SelectTrigger className="w-[120px]">
                 <SelectValue placeholder="分类" />
               </SelectTrigger>
@@ -489,7 +687,12 @@ const WarningRules: React.FC<WarningRulesProps> = ({
                 <SelectItem value="composite">综合</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={filter.severity || ''} onValueChange={(value) => setFilter({...filter, severity: value || undefined})}>
+            <Select
+              value={filter.severity || ""}
+              onValueChange={(value) =>
+                setFilter({ ...filter, severity: value || undefined })
+              }
+            >
               <SelectTrigger className="w-[120px]">
                 <SelectValue placeholder="严重程度" />
               </SelectTrigger>
@@ -500,7 +703,15 @@ const WarningRules: React.FC<WarningRulesProps> = ({
                 <SelectItem value="low">低</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={filter.is_active?.toString() || ''} onValueChange={(value) => setFilter({...filter, is_active: value ? value === 'true' : undefined})}>
+            <Select
+              value={filter.is_active?.toString() || ""}
+              onValueChange={(value) =>
+                setFilter({
+                  ...filter,
+                  is_active: value ? value === "true" : undefined,
+                })
+              }
+            >
               <SelectTrigger className="w-[120px]">
                 <SelectValue placeholder="状态" />
               </SelectTrigger>
@@ -517,86 +728,121 @@ const WarningRules: React.FC<WarningRulesProps> = ({
           </div>
         </div>
 
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>规则名称</TableHead>
-                <TableHead>范围</TableHead>
-                <TableHead>分类</TableHead>
-                <TableHead>严重程度</TableHead>
-                <TableHead>优先级</TableHead>
-                <TableHead>条件</TableHead>
-                <TableHead className="w-[100px]">状态</TableHead>
-                <TableHead className="text-right">操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center">
-                    <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2" />
-                    <p>加载中...</p>
-                  </TableCell>
-                </TableRow>
-              ) : displayedRules.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
-                    暂无预警规则
-                  </TableCell>
-                </TableRow>
-              ) : (
-                displayedRules.map((rule) => (
-                  <TableRow key={rule.id}>
-                    <TableCell className="font-medium">
-                      <div>
-                        <div>{rule.name}</div>
-                        {rule.description && (
-                          <div className="text-sm text-gray-500 mt-1 max-w-[200px] truncate" title={rule.description}>
-                            {rule.description}
-                          </div>
-                        )}
+        {/* 卡片式规则展示 */}
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <Card key={i} className="animate-pulse border-2 border-gray-200">
+                <CardContent className="p-6">
+                  <div className="w-2/3 h-5 bg-gray-200 rounded mb-3"></div>
+                  <div className="w-full h-3 bg-gray-200 rounded mb-2"></div>
+                  <div className="w-3/4 h-3 bg-gray-200 rounded"></div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : displayedRules.length === 0 ? (
+          <div className="text-center py-16 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+            <AlertTriangle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+            <p className="text-gray-500 font-medium">暂无预警规则</p>
+            <p className="text-sm text-gray-400 mt-1">点击上方按钮创建新规则</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {displayedRules.map((rule) => (
+              <Card
+                key={rule.id}
+                className={`cursor-pointer transition-all border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[4px_4px_0px_0px_#000] hover:translate-x-[-2px] hover:translate-y-[-2px] ${
+                  rule.is_active ? "bg-white" : "bg-gray-50"
+                }`}
+                onClick={() => handleEditRule(rule)}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <CardTitle className="text-base font-black text-[#191A23] mb-2">
+                        {rule.name}
+                      </CardTitle>
+                      <div className="flex flex-wrap gap-1.5">
+                        {getSeverityBadge(rule.severity)}
+                        {getScopeBadge(rule.scope)}
+                        {getCategoryBadge(rule.category)}
                       </div>
-                    </TableCell>
-                    <TableCell>{getScopeBadge(rule.scope)}</TableCell>
-                    <TableCell>{getCategoryBadge(rule.category)}</TableCell>
-                    <TableCell>{getSeverityBadge(rule.severity)}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-xs">
-                        {rule.priority || 5}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="max-w-[200px]">
-                      <div className="truncate" title={formatConditions(rule.conditions)}>
-                        {formatConditions(rule.conditions)}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Switch 
-                        checked={rule.is_active} 
-                        onCheckedChange={(checked) => handleToggleActive(rule, checked)}
-                        className="data-[state=checked]:bg-[#c0ff3f]"
-                      />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end space-x-2">
-                        <Button variant="ghost" size="icon" onClick={() => handleEditRule(rule)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        {!rule.is_system && (
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteRule(rule)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-        
+                    </div>
+                    <Switch
+                      checked={rule.is_active}
+                      onCheckedChange={(checked) => {
+                        handleToggleActive(rule, checked);
+                        event?.stopPropagation();
+                      }}
+                      className="data-[state=checked]:bg-[#B9FF66]"
+                    />
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {rule.description && (
+                    <p className="text-sm text-gray-600 line-clamp-2 min-h-[2.5rem]">
+                      {rule.description}
+                    </p>
+                  )}
+                  <div className="pt-2 border-t border-gray-200">
+                    <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                      <span className="flex items-center gap-1">
+                        <span className="font-medium">优先级:</span>
+                        <Badge
+                          variant="outline"
+                          className="text-xs px-1.5 py-0"
+                        >
+                          {rule.priority || 5}
+                        </Badge>
+                      </span>
+                      {rule.auto_trigger && (
+                        <Badge
+                          variant="outline"
+                          className="text-xs bg-[#B9FF66]/20 border-[#B9FF66]"
+                        >
+                          自动触发
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 truncate">
+                      <span className="font-medium">触发条件:</span>{" "}
+                      {formatConditions(rule.conditions)}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditRule(rule);
+                      }}
+                      className="flex-1 h-8 text-xs border-2 border-black bg-white font-bold"
+                    >
+                      <Edit className="h-3 w-3 mr-1" />
+                      编辑
+                    </Button>
+                    {!rule.is_system && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteRule(rule);
+                        }}
+                        className="h-8 text-xs border-2 border-red-500 text-red-600 hover:bg-red-50 font-bold"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
         {/* 限制数量时显示查看全部按钮 */}
         {limit && filteredRules.length > limit && showViewAllButton && (
           <div className="mt-4 text-center">
@@ -613,13 +859,13 @@ const WarningRules: React.FC<WarningRulesProps> = ({
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
-              {isEditMode ? '编辑预警规则' : '创建预警规则'}
+              {isEditMode ? "编辑预警规则" : "创建预警规则"}
             </DialogTitle>
             <DialogDescription>
               配置预警规则的基本信息和触发条件
             </DialogDescription>
           </DialogHeader>
-          
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -659,7 +905,10 @@ const WarningRules: React.FC<WarningRulesProps> = ({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="ruleScope">适用范围</Label>
-                <Select value={ruleScope} onValueChange={(value: any) => setRuleScope(value)}>
+                <Select
+                  value={ruleScope}
+                  onValueChange={(value: any) => setRuleScope(value)}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -673,7 +922,10 @@ const WarningRules: React.FC<WarningRulesProps> = ({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="ruleCategory">规则分类</Label>
-                <Select value={ruleCategory} onValueChange={(value: any) => setRuleCategory(value)}>
+                <Select
+                  value={ruleCategory}
+                  onValueChange={(value: any) => setRuleCategory(value)}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -691,7 +943,10 @@ const WarningRules: React.FC<WarningRulesProps> = ({
 
             <div className="space-y-2">
               <Label htmlFor="ruleSeverity">严重程度</Label>
-              <Select value={ruleSeverity} onValueChange={(value: any) => setRuleSeverity(value)}>
+              <Select
+                value={ruleSeverity}
+                onValueChange={(value: any) => setRuleSeverity(value)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -722,7 +977,7 @@ const WarningRules: React.FC<WarningRulesProps> = ({
 
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <Switch 
+                <Switch
                   id="autoTrigger"
                   checked={autoTrigger}
                   onCheckedChange={setAutoTrigger}
@@ -731,7 +986,7 @@ const WarningRules: React.FC<WarningRulesProps> = ({
                 <Label htmlFor="autoTrigger">自动触发</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <Switch 
+                <Switch
                   id="notificationEnabled"
                   checked={notificationEnabled}
                   onCheckedChange={setNotificationEnabled}
@@ -747,7 +1002,7 @@ const WarningRules: React.FC<WarningRulesProps> = ({
               取消
             </Button>
             <Button onClick={handleSubmit}>
-              {isEditMode ? '更新规则' : '创建规则'}
+              {isEditMode ? "更新规则" : "创建规则"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -762,10 +1017,14 @@ const WarningRules: React.FC<WarningRulesProps> = ({
               选择一个预设模板快速创建预警规则，您可以在创建后进行进一步自定义
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
             {templates.map((template, index) => (
-              <Card key={index} className="cursor-pointer hover:shadow-md transition-shadow border" onClick={() => handleCreateFromTemplate(template)}>
+              <Card
+                key={index}
+                className="cursor-pointer hover:shadow-md transition-shadow border"
+                onClick={() => handleCreateFromTemplate(template)}
+              >
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center justify-between">
                     {template.name}
@@ -793,6 +1052,39 @@ const WarningRules: React.FC<WarningRulesProps> = ({
               取消
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 简化版规则构建器对话框 */}
+      <Dialog open={showSimpleBuilder} onOpenChange={setShowSimpleBuilder}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-gray-50">
+          <div className="overflow-y-auto max-h-[95vh]">
+            <SimpleRuleBuilder
+              onSave={handleSimpleBuilderSave}
+              onCancel={() => setShowSimpleBuilder(false)}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 高级规则构建器对话框 */}
+      <Dialog open={showRuleBuilder} onOpenChange={setShowRuleBuilder}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-gray-50">
+          <DialogHeader className="p-6 border-b bg-white">
+            <DialogTitle className="text-xl font-bold text-[#191A23] flex items-center gap-2">
+              <Brain className="h-6 w-6 text-[#9C88FF]" />
+              高级预警规则构建器
+            </DialogTitle>
+            <DialogDescription>
+              通过可视化拖拽方式构建复杂的预警规则，支持多条件组合和实时预览
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-6 overflow-y-auto max-h-[calc(95vh-120px)]">
+            <RuleBuilder
+              onSave={handleRuleBuilderSave}
+              onCancel={() => setShowRuleBuilder(false)}
+            />
+          </div>
         </DialogContent>
       </Dialog>
     </Card>

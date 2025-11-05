@@ -2,27 +2,27 @@ import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { 
-  Form, 
-  FormControl, 
-  FormField, 
-  FormItem, 
-  FormLabel, 
-  FormMessage 
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
 } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAuthContext } from "@/contexts/AuthContext";
+import { useAuthActions } from "@/contexts/unified/modules/AuthModule";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Mail, Lock } from "lucide-react";
@@ -45,7 +45,7 @@ interface UserAuthFormProps {
 }
 
 const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
-  const { signIn } = useAuthContext();
+  const { signIn, signUp } = useAuthActions();
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("login");
@@ -75,12 +75,12 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
 
     try {
       const result = await signIn(values.email, values.password);
-      
+
       if (result.error) {
         setError(result.error.message);
         return;
       }
-      
+
       if (onSuccess) {
         onSuccess();
       }
@@ -98,30 +98,17 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
     setError(null);
 
     try {
-      // 注册新用户
-      const { data, error } = await supabase.auth.signUp({
-        email: values.email,
-        password: values.password,
-      });
+      // 使用统一的注册方法
+      const result = await signUp(values.email, values.password);
 
-      if (error) {
-        setError(error.message);
+      if (result.error) {
+        setError(result.error.message);
         return;
       }
 
-      // 检查是否需要验证电子邮箱
-      if (data?.user && data?.session) {
-        // 用户已直接登录
-        toast.success("注册成功");
-        
-        if (onSuccess) {
-          onSuccess();
-        }
-      } else {
-        // 邮箱需要验证
-        toast.success("注册成功，请查收验证邮件");
-        // 切换到登录选项卡
-        setActiveTab("login");
+      // 注册成功
+      if (onSuccess) {
+        onSuccess();
       }
     } catch (err: any) {
       console.error("注册失败:", err);
@@ -138,10 +125,9 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
           {activeTab === "login" ? "用户登录" : "创建新账户"}
         </CardTitle>
         <CardDescription className="text-center">
-          {activeTab === "login" 
-            ? "登录您的账户以继续" 
-            : "注册新账户以开始使用"
-          }
+          {activeTab === "login"
+            ? "登录您的账户以继续"
+            : "注册新账户以开始使用"}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -157,10 +143,13 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
             <TabsTrigger value="login">登录</TabsTrigger>
             <TabsTrigger value="register">注册</TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="login">
             <Form {...loginForm}>
-              <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-4">
+              <form
+                onSubmit={loginForm.handleSubmit(onLogin)}
+                className="space-y-4"
+              >
                 <FormField
                   control={loginForm.control}
                   name="email"
@@ -182,7 +171,7 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={loginForm.control}
                   name="password"
@@ -205,22 +194,27 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
                     </FormItem>
                   )}
                 />
-                
+
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       登录中...
                     </>
-                  ) : "登录"}
+                  ) : (
+                    "登录"
+                  )}
                 </Button>
               </form>
             </Form>
           </TabsContent>
-          
+
           <TabsContent value="register">
             <Form {...registerForm}>
-              <form onSubmit={registerForm.handleSubmit(onRegister)} className="space-y-4">
+              <form
+                onSubmit={registerForm.handleSubmit(onRegister)}
+                className="space-y-4"
+              >
                 <FormField
                   control={registerForm.control}
                   name="email"
@@ -242,7 +236,7 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={registerForm.control}
                   name="password"
@@ -265,14 +259,16 @@ const UserAuthForm: React.FC<UserAuthFormProps> = ({ onSuccess }) => {
                     </FormItem>
                   )}
                 />
-                
+
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       注册中...
                     </>
-                  ) : "注册"}
+                  ) : (
+                    "注册"
+                  )}
                 </Button>
               </form>
             </Form>

@@ -12,9 +12,15 @@ import {
   Lightbulb,
   Users,
   FileQuestion,
-  FilePlus2
+  FilePlus2,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -23,12 +29,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface AIAnalysisProps {
   homeworkData: any;
@@ -39,8 +40,10 @@ const AIAnalysisPanel: React.FC<AIAnalysisProps> = ({ homeworkData }) => {
   const submissions = homeworkData?.submissions || [];
   const totalStudents = homeworkData?.classes?.student_count || 0;
   const submissionCount = submissions.length;
-  const completionRate = totalStudents ? Math.round((submissionCount / totalStudents) * 100) : 0;
-  
+  const completionRate = totalStudents
+    ? Math.round((submissionCount / totalStudents) * 100)
+    : 0;
+
   // 模拟知识点掌握情况的数据
   const knowledgePoints = [
     { id: 1, name: "数据结构", mastery: 85 },
@@ -48,29 +51,29 @@ const AIAnalysisPanel: React.FC<AIAnalysisProps> = ({ homeworkData }) => {
     { id: 3, name: "排序算法", mastery: 65 },
     { id: 4, name: "二叉树", mastery: 78 },
   ];
-  
+
   // 模拟难点问题
   const difficultQuestions = [
     "第三题：二叉树的平衡性检查算法",
     "第五题：时间复杂度分析",
-    "第七题：快速排序优化"
+    "第七题：快速排序优化",
   ];
-  
+
   // 模拟趋势数据
   const trends = {
     improvement: true,
     changePercent: 12,
     previousAverage: 72,
-    currentAverage: 81
+    currentAverage: 81,
   };
-  
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <Brain className="h-5 w-5 text-primary" />
         <h3 className="text-lg font-medium">人工智能分析</h3>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2">
@@ -91,7 +94,7 @@ const AIAnalysisPanel: React.FC<AIAnalysisProps> = ({ homeworkData }) => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">平均分数</CardTitle>
@@ -99,9 +102,18 @@ const AIAnalysisPanel: React.FC<AIAnalysisProps> = ({ homeworkData }) => {
           <CardContent>
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
-                <span className="text-2xl font-bold">{trends.currentAverage}</span>
-                <Badge variant={trends.improvement ? "default" : "destructive"} className="gap-1">
-                  {trends.improvement ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                <span className="text-2xl font-bold">
+                  {trends.currentAverage}
+                </span>
+                <Badge
+                  variant={trends.improvement ? "default" : "destructive"}
+                  className="gap-1"
+                >
+                  {trends.improvement ? (
+                    <ArrowUp className="h-3 w-3" />
+                  ) : (
+                    <ArrowDown className="h-3 w-3" />
+                  )}
                   {trends.changePercent}%
                 </Badge>
               </div>
@@ -112,7 +124,7 @@ const AIAnalysisPanel: React.FC<AIAnalysisProps> = ({ homeworkData }) => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">问题集中区域</CardTitle>
@@ -130,14 +142,20 @@ const AIAnalysisPanel: React.FC<AIAnalysisProps> = ({ homeworkData }) => {
           </CardContent>
         </Card>
       </div>
-      
+
       <Tabs defaultValue="mastery">
         <TabsList className="w-full mb-4">
-          <TabsTrigger value="mastery" className="flex-1">知识点掌握情况</TabsTrigger>
-          <TabsTrigger value="students" className="flex-1">学生表现分析</TabsTrigger>
-          <TabsTrigger value="suggestions" className="flex-1">教学建议</TabsTrigger>
+          <TabsTrigger value="mastery" className="flex-1">
+            知识点掌握情况
+          </TabsTrigger>
+          <TabsTrigger value="students" className="flex-1">
+            学生表现分析
+          </TabsTrigger>
+          <TabsTrigger value="suggestions" className="flex-1">
+            教学建议
+          </TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="mastery" className="space-y-4">
           <Card>
             <CardHeader>
@@ -155,7 +173,11 @@ const AIAnalysisPanel: React.FC<AIAnalysisProps> = ({ homeworkData }) => {
                     <Progress value={point.mastery} className="h-2" />
                     <div className="flex justify-between items-center text-xs text-muted-foreground">
                       <span>
-                        {point.mastery >= 80 ? "优秀" : point.mastery >= 60 ? "良好" : "需加强"}
+                        {point.mastery >= 80
+                          ? "优秀"
+                          : point.mastery >= 60
+                            ? "良好"
+                            : "需加强"}
                       </span>
                       {point.mastery < 70 && (
                         <Badge variant="outline" className="h-5 text-xs">
@@ -168,7 +190,7 @@ const AIAnalysisPanel: React.FC<AIAnalysisProps> = ({ homeworkData }) => {
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">常见问题</CardTitle>
@@ -178,10 +200,15 @@ const AIAnalysisPanel: React.FC<AIAnalysisProps> = ({ homeworkData }) => {
               <Accordion type="single" collapsible className="w-full">
                 {difficultQuestions.map((question, index) => (
                   <AccordionItem key={index} value={`item-${index}`}>
-                    <AccordionTrigger className="text-sm">{question}</AccordionTrigger>
+                    <AccordionTrigger className="text-sm">
+                      {question}
+                    </AccordionTrigger>
                     <AccordionContent>
                       <div className="text-sm space-y-2">
-                        <p>约有 {Math.round(30 + Math.random() * 40)}% 的学生在这个问题上遇到困难。</p>
+                        <p>
+                          约有 {Math.round(30 + Math.random() * 40)}%
+                          的学生在这个问题上遇到困难。
+                        </p>
                         <p>主要问题点：</p>
                         <ul className="list-disc pl-5 space-y-1 text-sm">
                           <li>概念理解不清晰</li>
@@ -196,7 +223,7 @@ const AIAnalysisPanel: React.FC<AIAnalysisProps> = ({ homeworkData }) => {
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="students" className="space-y-4">
           <Card>
             <CardHeader>
@@ -215,7 +242,7 @@ const AIAnalysisPanel: React.FC<AIAnalysisProps> = ({ homeworkData }) => {
                   </p>
                   <p className="text-xs text-muted-foreground">学生人数</p>
                 </div>
-                
+
                 <div className="space-y-1">
                   <div className="flex items-center gap-1">
                     <div className="w-3 h-3 rounded-full bg-blue-500"></div>
@@ -226,7 +253,7 @@ const AIAnalysisPanel: React.FC<AIAnalysisProps> = ({ homeworkData }) => {
                   </p>
                   <p className="text-xs text-muted-foreground">学生人数</p>
                 </div>
-                
+
                 <div className="space-y-1">
                   <div className="flex items-center gap-1">
                     <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
@@ -237,7 +264,7 @@ const AIAnalysisPanel: React.FC<AIAnalysisProps> = ({ homeworkData }) => {
                   </p>
                   <p className="text-xs text-muted-foreground">学生人数</p>
                 </div>
-                
+
                 <div className="space-y-1">
                   <div className="flex items-center gap-1">
                     <div className="w-3 h-3 rounded-full bg-red-500"></div>
@@ -249,7 +276,7 @@ const AIAnalysisPanel: React.FC<AIAnalysisProps> = ({ homeworkData }) => {
                   <p className="text-xs text-muted-foreground">学生人数</p>
                 </div>
               </div>
-              
+
               <div className="h-40 flex items-end gap-2">
                 <div className="flex-1 bg-green-500/20 rounded-t-md h-[80%]"></div>
                 <div className="flex-1 bg-blue-500/20 rounded-t-md h-[65%]"></div>
@@ -275,7 +302,7 @@ const AIAnalysisPanel: React.FC<AIAnalysisProps> = ({ homeworkData }) => {
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">需要特别关注的学生</CardTitle>
@@ -284,14 +311,21 @@ const AIAnalysisPanel: React.FC<AIAnalysisProps> = ({ homeworkData }) => {
             <CardContent>
               <div className="space-y-3">
                 {[1, 2, 3].map((index) => (
-                  <div key={index} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-2 bg-muted/50 rounded-md"
+                  >
                     <div className="flex items-center gap-2">
                       <Users className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm font-medium">学生 {index}</span>
                     </div>
                     <div className="flex items-center">
-                      <Badge variant="outline" className="mr-2 text-xs">得分低于均值 25%</Badge>
-                      <Badge variant="outline" className="text-xs">连续3次未达标</Badge>
+                      <Badge variant="outline" className="mr-2 text-xs">
+                        得分低于均值 25%
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        连续3次未达标
+                      </Badge>
                     </div>
                   </div>
                 ))}
@@ -299,7 +333,7 @@ const AIAnalysisPanel: React.FC<AIAnalysisProps> = ({ homeworkData }) => {
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="suggestions" className="space-y-4">
           <Card>
             <CardHeader>
@@ -319,7 +353,7 @@ const AIAnalysisPanel: React.FC<AIAnalysisProps> = ({ homeworkData }) => {
                     <li>算法复杂度的计算方法</li>
                   </ul>
                 </div>
-                
+
                 <div className="p-3 border rounded-md space-y-2">
                   <div className="flex items-center gap-2">
                     <BookOpen className="h-4 w-4 text-blue-500" />
@@ -332,7 +366,7 @@ const AIAnalysisPanel: React.FC<AIAnalysisProps> = ({ homeworkData }) => {
                     <li>设计更多的案例练习，加深理解</li>
                   </ul>
                 </div>
-                
+
                 <div className="p-3 border rounded-md space-y-2">
                   <div className="flex items-center gap-2">
                     <FilePlus2 className="h-4 w-4 text-green-500" />
@@ -344,7 +378,7 @@ const AIAnalysisPanel: React.FC<AIAnalysisProps> = ({ homeworkData }) => {
                     <li>推荐优质学习资源和视频教程</li>
                   </ul>
                 </div>
-                
+
                 <div className="p-3 border rounded-md space-y-2">
                   <div className="flex items-center gap-2">
                     <Target className="h-4 w-4 text-red-500" />
@@ -366,4 +400,4 @@ const AIAnalysisPanel: React.FC<AIAnalysisProps> = ({ homeworkData }) => {
   );
 };
 
-export default AIAnalysisPanel; 
+export default AIAnalysisPanel;

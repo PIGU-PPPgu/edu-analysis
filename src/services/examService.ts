@@ -1,6 +1,6 @@
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { warningAnalysisCache } from '../utils/performanceCache';
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { warningAnalysisCache } from "../utils/performanceCache";
 
 // 考试接口定义
 export interface Exam {
@@ -12,6 +12,18 @@ export interface Exam {
   created_at: string;
   updated_at: string;
   created_by?: string;
+  description?: string;
+  start_time?: string;
+  end_time?: string;
+  duration?: number;
+  total_score?: number;
+  passing_score?: number;
+  classes?: string[];
+  status?: "draft" | "scheduled" | "ongoing" | "completed" | "cancelled";
+  participant_count?: number;
+  completion_rate?: number;
+  average_score?: number;
+  tags?: string[];
 }
 
 export interface ExamType {
@@ -51,9 +63,68 @@ export interface ScoreDistribution {
   gradeLevel?: string;
 }
 
+// 创建考试的输入接口
+export interface CreateExamInput {
+  title: string;
+  type: string;
+  date: string;
+  subject?: string;
+  description?: string;
+  start_time?: string;
+  end_time?: string;
+  total_score?: number;
+  passing_score?: number;
+  classes?: string[];
+  status?: "draft" | "scheduled";
+  tags?: string[];
+}
 
+// 更新考试的输入接口
+export interface UpdateExamInput {
+  title?: string;
+  type?: string;
+  date?: string;
+  subject?: string;
+  description?: string;
+  start_time?: string;
+  end_time?: string;
+  total_score?: number;
+  passing_score?: number;
+  classes?: string[];
+  status?: "draft" | "scheduled" | "ongoing" | "completed" | "cancelled";
+  tags?: string[];
+  academic_term_id?: string;
+}
 
+// 考试科目总分配置接口
+export interface ExamSubjectScore {
+  id?: string;
+  exam_id: string;
+  subject_code: string;
+  subject_name: string;
+  total_score: number;
+  passing_score: number;
+  excellent_score: number;
+  is_required: boolean;
+  weight: number;
+  created_at?: string;
+  updated_at?: string;
+}
 
+// 学期管理接口
+export interface AcademicTerm {
+  id: string;
+  academic_year: string;
+  semester: string;
+  semester_code: string;
+  start_date: string;
+  end_date: string;
+  is_current: boolean;
+  is_active: boolean;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
 
 /**
  * 计算分数段分布
@@ -65,65 +136,68 @@ const calculateScoreDistribution = (grades: any[]): ScoreDistribution[] => {
   }
 
   // 检查是否有grade字段的数据
-  const hasGradeData = grades.some(g => g.grade && g.grade.trim() !== '');
-  
+  const hasGradeData = grades.some((g) => g.grade && g.grade.trim() !== "");
+
   if (hasGradeData) {
     // 使用已有的grade字段统计
     const gradeCount: { [key: string]: number } = {};
-    
-    grades.forEach(g => {
-      const grade = g.grade?.trim() || 'Unknown';
+
+    grades.forEach((g) => {
+      const grade = g.grade?.trim() || "Unknown";
       gradeCount[grade] = (gradeCount[grade] || 0) + 1;
     });
-    
+
     // 按照等级顺序排序
-    const gradeOrder = ['A+', 'A', 'B+', 'B', 'C+', 'C', 'Unknown'];
-    
+    const gradeOrder = ["A+", "A", "B+", "B", "C+", "C", "Unknown"];
+
     return gradeOrder
-      .filter(grade => gradeCount[grade] > 0)
-      .map(grade => ({
+      .filter((grade) => gradeCount[grade] > 0)
+      .map((grade) => ({
         range: grade,
         count: gradeCount[grade],
         percentage: (gradeCount[grade] / grades.length) * 100,
-        gradeLevel: grade
+        gradeLevel: grade,
       }));
   } else {
     // 按排名百分比计算等级
     const validScores = grades
-      .filter(g => g.score !== null && g.score !== undefined && !isNaN(g.score))
-      .map(g => ({ ...g, score: Number(g.score) }))
+      .filter(
+        (g) => g.score !== null && g.score !== undefined && !isNaN(g.score)
+      )
+      .map((g) => ({ ...g, score: Number(g.score) }))
       .sort((a, b) => b.score - a.score); // 按分数降序排列
-    
+
     if (validScores.length === 0) {
       return [];
     }
-    
+
     const total = validScores.length;
     const gradeRanges = [
-      { grade: 'A+', min: 0, max: 0.05 },      // 前5%
-      { grade: 'A', min: 0.05, max: 0.25 },    // 5%-25%
-      { grade: 'B+', min: 0.25, max: 0.5 },    // 25%-50%
-      { grade: 'B', min: 0.5, max: 0.75 },     // 50%-75%
-      { grade: 'C+', min: 0.75, max: 0.95 },   // 75%-95%
-      { grade: 'C', min: 0.95, max: 1.0 }      // 后5%
+      { grade: "A+", min: 0, max: 0.05 }, // 前5%
+      { grade: "A", min: 0.05, max: 0.25 }, // 5%-25%
+      { grade: "B+", min: 0.25, max: 0.5 }, // 25%-50%
+      { grade: "B", min: 0.5, max: 0.75 }, // 50%-75%
+      { grade: "C+", min: 0.75, max: 0.95 }, // 75%-95%
+      { grade: "C", min: 0.95, max: 1.0 }, // 后5%
     ];
-    
+
     const gradeCount: { [key: string]: number } = {};
-    
+
     validScores.forEach((student, index) => {
       const percentile = index / total;
-      const gradeRange = gradeRanges.find(range => 
-        percentile >= range.min && percentile < range.max
-      ) || gradeRanges[gradeRanges.length - 1]; // 默认最后一个等级
-      
+      const gradeRange =
+        gradeRanges.find(
+          (range) => percentile >= range.min && percentile < range.max
+        ) || gradeRanges[gradeRanges.length - 1]; // 默认最后一个等级
+
       gradeCount[gradeRange.grade] = (gradeCount[gradeRange.grade] || 0) + 1;
     });
-    
+
     return Object.entries(gradeCount).map(([grade, count]) => ({
       range: grade,
       count,
       percentage: (count / total) * 100,
-      gradeLevel: grade
+      gradeLevel: grade,
     }));
   }
 };
@@ -134,16 +208,16 @@ const calculateScoreDistribution = (grades: any[]): ScoreDistribution[] => {
 export const getExamTypes = async (): Promise<ExamType[]> => {
   try {
     const { data, error } = await supabase
-      .from('exam_types')
-      .select('*')
-      .order('is_system', { ascending: false })
-      .order('type_name');
+      .from("exam_types")
+      .select("*")
+      .order("is_system", { ascending: false })
+      .order("type_name");
 
     if (error) throw error;
     return data || [];
   } catch (error) {
-    console.error('获取考试类型失败:', error);
-    toast.error('获取考试类型失败');
+    console.error("获取考试类型失败:", error);
+    toast.error("获取考试类型失败");
     return [];
   }
 };
@@ -152,51 +226,49 @@ export const getExamTypes = async (): Promise<ExamType[]> => {
  * 获取考试列表，支持筛选
  */
 export const getExams = async (filter?: ExamFilter): Promise<Exam[]> => {
-  return warningAnalysisCache.getExamData(
-    async () => {
-      console.log('[ExamService] 获取考试列表...');
-      
-      let query = supabase
-        .from('exams')
-        .select(`
-          id,
-          title,
-          date,
-          type,
-          subject,
-          created_at
-        `)
-        .order('date', { ascending: false });
+  // 暂时禁用缓存以确保删除后能立即看到变化
+  console.log("[ExamService] 获取考试列表...");
 
-      // 应用过滤器
-      if (filter?.dateFrom) {
-        query = query.gte('date', filter.dateFrom);
-      }
-      if (filter?.dateTo) {
-        query = query.lte('date', filter.dateTo);
-      }
-      if (filter?.type) {
-        query = query.eq('type', filter.type);
-      }
-      if (filter?.subject) {
-        query = query.eq('subject', filter.subject);
-      }
-      if (filter?.searchTerm) {
-        query = query.ilike('title', `%${filter.searchTerm}%`);
-      }
+  let query = supabase
+    .from("exams")
+    .select(
+      `
+      id,
+      title,
+      date,
+      type,
+      subject,
+      created_at
+    `
+    )
+    .order("date", { ascending: false });
 
-      const { data, error } = await query;
+  // 应用过滤器
+  if (filter?.dateFrom) {
+    query = query.gte("date", filter.dateFrom);
+  }
+  if (filter?.dateTo) {
+    query = query.lte("date", filter.dateTo);
+  }
+  if (filter?.type) {
+    query = query.eq("type", filter.type);
+  }
+  if (filter?.subject) {
+    query = query.eq("subject", filter.subject);
+  }
+  if (filter?.searchTerm) {
+    query = query.ilike("title", `%${filter.searchTerm}%`);
+  }
 
-      if (error) {
-        console.error('[ExamService] 获取考试列表失败:', error);
-        throw error;
-      }
+  const { data, error } = await query;
 
-      return data || [];
-    },
-    undefined,
-    filter
-  );
+  if (error) {
+    console.error("[ExamService] 获取考试列表失败:", error);
+    throw error;
+  }
+
+  console.log("[ExamService] 获取到考试数据:", data?.length, "条");
+  return data || [];
 };
 
 /**
@@ -205,16 +277,16 @@ export const getExams = async (filter?: ExamFilter): Promise<Exam[]> => {
 export const getExamById = async (examId: string): Promise<Exam | null> => {
   try {
     const { data, error } = await supabase
-      .from('exams')
-      .select('*')
-      .eq('id', examId)
+      .from("exams")
+      .select("*")
+      .eq("id", examId)
       .single();
 
     if (error) throw error;
     return data;
   } catch (error) {
-    console.error('获取考试详情失败:', error);
-    toast.error('获取考试详情失败');
+    console.error("获取考试详情失败:", error);
+    toast.error("获取考试详情失败");
     return null;
   }
 };
@@ -222,72 +294,164 @@ export const getExamById = async (examId: string): Promise<Exam | null> => {
 /**
  * 获取考试统计信息
  */
-export const getExamStatistics = async (examId: string): Promise<ExamStatistics> => {
-  return warningAnalysisCache.getExamData(
-    async () => {
-      console.log(`[ExamService] 获取考试统计信息: ${examId}`);
-      
-      // 获取考试信息
-      const { data: exam, error: examError } = await supabase
-        .from('exams')
-        .select('*')
-        .eq('id', examId)
-        .single();
+export const getExamStatistics = async (
+  examId: string
+): Promise<ExamStatistics> => {
+  return warningAnalysisCache.getExamData(async () => {
+    console.log(`[ExamService] 获取考试统计信息: ${examId}`);
 
-      if (examError && examError.code !== 'PGRST116') {
-        throw examError;
-      }
+    // 获取考试信息
+    const { data: exam, error: examError } = await supabase
+      .from("exams")
+      .select("*")
+      .eq("id", examId)
+      .single();
 
-      // 获取成绩数据 - 包含grade字段
-      const { data: grades, error: gradesError } = await supabase
-        .from('grade_data')
-        .select(`
+    if (examError && examError.code !== "PGRST116") {
+      throw examError;
+    }
+
+    // 获取成绩数据
+    const { data: grades, error: gradesError } = await supabase
+      .from("grade_data_new")
+      .select(
+        `
           total_score,
-          score,
-          grade,
           student_id,
           name,
           class_name,
-          subject,
-          subject_total_score
-        `)
-        .eq('exam_id', examId);
+          chinese_score,
+          math_score,
+          english_score,
+          physics_score,
+          chemistry_score,
+          biology_score,
+          politics_score,
+          history_score,
+          geography_score
+        `
+      )
+      .eq("exam_id", examId);
 
-      if (gradesError) {
-        throw gradesError;
-      }
+    if (gradesError) {
+      throw gradesError;
+    }
 
-      const scores = grades?.map(g => g.total_score || g.score).filter(s => s !== null && s !== undefined) || [];
-      const participantCount = grades?.length || 0;
-      
-      // 计算统计指标
-      const averageScore = scores.length > 0 
-        ? scores.reduce((a, b) => a + b, 0) / scores.length 
-        : 0;
-      
-      // 获取总分信息 - 优先使用subject_total_score
-      const totalScores = grades?.map(g => g.subject_total_score).filter(s => s !== null && s !== undefined) || [];
-      const defaultTotalScore = totalScores.length > 0 ? Math.max(...totalScores) : 100;
-      
-      const passThreshold = defaultTotalScore * 0.6; // 60%及格
-      const excellentThreshold = defaultTotalScore * 0.9; // 90%优秀
-      
-      const passCount = scores.filter(score => score >= passThreshold).length;
-      const passRate = participantCount > 0 ? (passCount / participantCount) * 100 : 0;
-      
-      const excellentCount = scores.filter(score => score >= excellentThreshold).length;
-      const excellentRate = participantCount > 0 ? (excellentCount / participantCount) * 100 : 0;
-      
+    // 使用新的数据库驱动计算服务
+    try {
+      const { examScoreCalculationService } = await import(
+        "./examScoreCalculationService"
+      );
+
+      const stats = await examScoreCalculationService.calculateExamStatistics(
+        examId,
+        grades || []
+      );
+
+      const scores =
+        grades
+          ?.map((g) => g.total_score)
+          .filter((s) => s !== null && s !== undefined) || [];
+
       const maxScore = scores.length > 0 ? Math.max(...scores) : 0;
       const minScore = scores.length > 0 ? Math.min(...scores) : 0;
-      
-      // 计算分数段分布 - 使用修正后的函数
+
+      // 计算分数段分布
       const scoreDistribution = calculateScoreDistribution(grades || []);
-      
+
+      console.log(
+        `[ExamService] 使用数据库配置计算 - 及格率: ${stats.passRate}%, 优秀率: ${stats.excellentRate}%`
+      );
+
       return {
         examId,
         examTitle: exam?.title || examId,
-        examDate: exam?.date || new Date().toISOString().split('T')[0],
+        examDate: exam?.date || new Date().toISOString().split("T")[0],
+        participantCount: stats.totalParticipants,
+        averageScore: stats.averageScore,
+        maxScore,
+        minScore,
+        passRate: stats.passRate,
+        excellentRate: stats.excellentRate,
+        scoreDistribution,
+        totalScore: 100, // 可以从科目配置中计算最大总分
+      };
+    } catch (error) {
+      console.warn(`[ExamService] 数据库计算服务失败，使用回退逻辑:`, error);
+
+      // 回退到原有逻辑
+      const scores =
+        grades
+          ?.map((g) => g.total_score)
+          .filter((s) => s !== null && s !== undefined) || [];
+      const participantCount = grades?.length || 0;
+
+      const averageScore =
+        scores.length > 0
+          ? scores.reduce((a, b) => a + b, 0) / scores.length
+          : 0;
+
+      // 使用默认阈值作为回退
+      let defaultTotalScore = 100;
+      let passThreshold = 60;
+      let excellentThreshold = 90;
+
+      try {
+        // 尝试从 exam_subject_scores 表获取配置
+        const { data: subjectScores } = await supabase
+          .from("exam_subject_scores")
+          .select("total_score, passing_score, excellent_score")
+          .eq("exam_id", examId);
+
+        if (subjectScores && subjectScores.length > 0) {
+          const configuredTotalScores = subjectScores.map((s) => s.total_score);
+          defaultTotalScore = Math.max(...configuredTotalScores);
+
+          const passingScores = subjectScores
+            .map((s) => s.passing_score)
+            .filter((s) => s != null);
+          const excellentScores = subjectScores
+            .map((s) => s.excellent_score)
+            .filter((s) => s != null);
+
+          if (passingScores.length > 0) {
+            passThreshold =
+              passingScores.reduce((a, b) => a + b, 0) / passingScores.length;
+          }
+          if (excellentScores.length > 0) {
+            excellentThreshold =
+              excellentScores.reduce((a, b) => a + b, 0) /
+              excellentScores.length;
+          }
+        } else {
+          passThreshold = defaultTotalScore * 0.6;
+          excellentThreshold = defaultTotalScore * 0.9;
+        }
+      } catch (innerError) {
+        console.warn("获取科目配置失败，使用硬编码默认值:", innerError);
+        passThreshold = 60;
+        excellentThreshold = 90;
+      }
+
+      const passCount = scores.filter((score) => score >= passThreshold).length;
+      const passRate =
+        participantCount > 0 ? (passCount / participantCount) * 100 : 0;
+
+      const excellentCount = scores.filter(
+        (score) => score >= excellentThreshold
+      ).length;
+      const excellentRate =
+        participantCount > 0 ? (excellentCount / participantCount) * 100 : 0;
+
+      const maxScore = scores.length > 0 ? Math.max(...scores) : 0;
+      const minScore = scores.length > 0 ? Math.min(...scores) : 0;
+
+      const scoreDistribution = calculateScoreDistribution(grades || []);
+
+      return {
+        examId,
+        examTitle: exam?.title || examId,
+        examDate: exam?.date || new Date().toISOString().split("T")[0],
         participantCount,
         averageScore: Math.round(averageScore * 100) / 100,
         maxScore,
@@ -295,11 +459,10 @@ export const getExamStatistics = async (examId: string): Promise<ExamStatistics>
         passRate: Math.round(passRate * 100) / 100,
         excellentRate: Math.round(excellentRate * 100) / 100,
         scoreDistribution,
-        totalScore: defaultTotalScore
+        totalScore: defaultTotalScore,
       };
-    },
-    examId
-  );
+    }
+  }, examId);
 };
 
 /**
@@ -308,15 +471,15 @@ export const getExamStatistics = async (examId: string): Promise<ExamStatistics>
 export const getRecentExams = async (limit: number = 10): Promise<Exam[]> => {
   try {
     const { data, error } = await supabase
-      .from('exams')
-      .select('*')
-      .order('date', { ascending: false })
+      .from("exams")
+      .select("*")
+      .order("date", { ascending: false })
       .limit(limit);
 
     if (error) throw error;
     return data || [];
   } catch (error) {
-    console.error('获取最近考试失败:', error);
+    console.error("获取最近考试失败:", error);
     return [];
   }
 };
@@ -328,19 +491,19 @@ export const getExamWarningStatistics = async (examId: string) => {
   try {
     // 获取该考试的成绩数据 - 需要先获取考试标题
     const { data: exam } = await supabase
-      .from('exams')
-      .select('title')
-      .eq('id', examId)
+      .from("exams")
+      .select("title")
+      .eq("id", examId)
       .single();
 
     if (!exam) {
-      throw new Error('考试不存在');
+      throw new Error("考试不存在");
     }
 
     const { data: gradeData, error: gradeError } = await supabase
-      .from('grade_data')
-      .select('student_id, total_score, name, class_name')
-      .eq('exam_title', exam.title);
+      .from("grade_data_new")
+      .select("student_id, total_score, name, class_name")
+      .eq("exam_title", exam.title);
 
     if (gradeError) throw gradeError;
 
@@ -350,37 +513,41 @@ export const getExamWarningStatistics = async (examId: string) => {
         atRiskStudents: 0,
         warningsByType: [],
         riskByClass: [],
-        commonRiskFactors: []
+        commonRiskFactors: [],
       };
     }
 
     // 分析风险学生（成绩低于60分的学生）
-    const failingStudents = gradeData.filter(student => (student.total_score || 0) < 60);
-    const lowPerformingStudents = gradeData.filter(student => {
+    const failingStudents = gradeData.filter(
+      (student) => (student.total_score || 0) < 60
+    );
+    const lowPerformingStudents = gradeData.filter((student) => {
       const score = student.total_score || 0;
       return score >= 60 && score < 70; // 60-70分区间的学生
     });
 
     // 按班级统计风险学生
     const classRiskMap: Record<string, { total: number; atRisk: number }> = {};
-    
-    gradeData.forEach(student => {
-      const className = student.class_name || '未知班级';
+
+    gradeData.forEach((student) => {
+      const className = student.class_name || "未知班级";
       if (!classRiskMap[className]) {
         classRiskMap[className] = { total: 0, atRisk: 0 };
       }
       classRiskMap[className].total++;
-      
+
       if ((student.total_score || 0) < 70) {
         classRiskMap[className].atRisk++;
       }
     });
 
-    const riskByClass = Object.entries(classRiskMap).map(([className, stats]) => ({
-      className,
-      studentCount: stats.total,
-      atRiskCount: stats.atRisk
-    }));
+    const riskByClass = Object.entries(classRiskMap).map(
+      ([className, stats]) => ({
+        className,
+        studentCount: stats.total,
+        atRiskCount: stats.atRisk,
+      })
+    );
 
     // 生成预警类型统计
     const totalAtRisk = failingStudents.length + lowPerformingStudents.length;
@@ -388,15 +555,21 @@ export const getExamWarningStatistics = async (examId: string) => {
       {
         type: "成绩预警",
         count: failingStudents.length,
-        percentage: totalAtRisk > 0 ? Math.round((failingStudents.length / totalAtRisk) * 100) : 0,
-        trend: "unchanged" as const
+        percentage:
+          totalAtRisk > 0
+            ? Math.round((failingStudents.length / totalAtRisk) * 100)
+            : 0,
+        trend: "unchanged" as const,
       },
       {
-        type: "学习预警", 
+        type: "学习预警",
         count: lowPerformingStudents.length,
-        percentage: totalAtRisk > 0 ? Math.round((lowPerformingStudents.length / totalAtRisk) * 100) : 0,
-        trend: "unchanged" as const
-      }
+        percentage:
+          totalAtRisk > 0
+            ? Math.round((lowPerformingStudents.length / totalAtRisk) * 100)
+            : 0,
+        trend: "unchanged" as const,
+      },
     ];
 
     // 生成常见风险因素
@@ -404,32 +577,671 @@ export const getExamWarningStatistics = async (examId: string) => {
       {
         factor: "考试成绩不及格",
         count: failingStudents.length,
-        percentage: gradeData.length > 0 ? Math.round((failingStudents.length / gradeData.length) * 100) : 0
+        percentage:
+          gradeData.length > 0
+            ? Math.round((failingStudents.length / gradeData.length) * 100)
+            : 0,
       },
       {
         factor: "成绩处于临界状态",
         count: lowPerformingStudents.length,
-        percentage: gradeData.length > 0 ? Math.round((lowPerformingStudents.length / gradeData.length) * 100) : 0
-      }
-    ].filter(factor => factor.count > 0);
+        percentage:
+          gradeData.length > 0
+            ? Math.round(
+                (lowPerformingStudents.length / gradeData.length) * 100
+              )
+            : 0,
+      },
+    ].filter((factor) => factor.count > 0);
 
     return {
       totalStudents: gradeData.length,
       atRiskStudents: totalAtRisk,
       warningsByType,
       riskByClass,
-      commonRiskFactors
+      commonRiskFactors,
     };
-
   } catch (error) {
-    console.error('获取考试预警统计失败:', error);
-    toast.error('获取考试预警统计失败');
+    console.error("获取考试预警统计失败:", error);
+    toast.error("获取考试预警统计失败");
     return {
       totalStudents: 0,
       atRiskStudents: 0,
       warningsByType: [],
       riskByClass: [],
-      commonRiskFactors: []
+      commonRiskFactors: [],
     };
   }
-}; 
+};
+
+/**
+ * 创建新考试
+ */
+export const createExam = async (
+  examData: CreateExamInput
+): Promise<Exam | null> => {
+  try {
+    const { data, error } = await supabase
+      .from("exams")
+      .insert([
+        {
+          title: examData.title,
+          type: examData.type,
+          date: examData.date,
+          subject: examData.subject,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    toast.success("考试创建成功");
+    return data;
+  } catch (error) {
+    console.error("创建考试失败:", error);
+    toast.error("创建考试失败");
+    return null;
+  }
+};
+
+/**
+ * 更新考试信息
+ */
+export const updateExam = async (
+  examId: string,
+  examData: UpdateExamInput
+): Promise<Exam | null> => {
+  try {
+    const { data, error } = await supabase
+      .from("exams")
+      .update({
+        title: examData.title,
+        type: examData.type,
+        date: examData.date,
+        subject: examData.subject,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", examId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    toast.success("考试更新成功");
+    return data;
+  } catch (error) {
+    console.error("更新考试失败:", error);
+    toast.error("更新考试失败");
+    return null;
+  }
+};
+
+/**
+ * 删除考试
+ */
+export const deleteExam = async (examId: string): Promise<boolean> => {
+  try {
+    console.log("🗑️ 开始删除考试:", examId);
+
+    const { error, data } = await supabase
+      .from("exams")
+      .delete()
+      .eq("id", examId)
+      .select(); // 添加select以获取删除的数据确认
+
+    console.log("🗑️ 删除结果:", { error, data });
+
+    if (error) {
+      console.error("🗑️ 删除失败，错误详情:", error);
+      throw error;
+    }
+
+    console.log("✅ 考试删除成功，删除的数据:", data);
+    toast.success("考试删除成功");
+    return true;
+  } catch (error) {
+    console.error("删除考试失败:", error);
+    toast.error(
+      `删除考试失败: ${error instanceof Error ? error.message : "未知错误"}`
+    );
+    return false;
+  }
+};
+
+/**
+ * 批量删除考试
+ */
+export const deleteExams = async (examIds: string[]): Promise<boolean> => {
+  try {
+    const { error } = await supabase.from("exams").delete().in("id", examIds);
+
+    if (error) throw error;
+
+    toast.success(`成功删除${examIds.length}个考试`);
+    return true;
+  } catch (error) {
+    console.error("批量删除考试失败:", error);
+    toast.error("批量删除考试失败");
+    return false;
+  }
+};
+
+/**
+ * 复制考试
+ */
+export const duplicateExam = async (examId: string): Promise<Exam | null> => {
+  try {
+    const originalExam = await getExamById(examId);
+    if (!originalExam) {
+      throw new Error("原考试不存在");
+    }
+
+    const { data, error } = await supabase
+      .from("exams")
+      .insert([
+        {
+          title: `${originalExam.title} (副本)`,
+          type: originalExam.type,
+          date: originalExam.date,
+          subject: originalExam.subject,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    toast.success("考试复制成功");
+    return data;
+  } catch (error) {
+    console.error("复制考试失败:", error);
+    toast.error("复制考试失败");
+    return null;
+  }
+};
+
+/**
+ * 获取考试统计概览
+ */
+export const getExamOverviewStatistics = async (): Promise<{
+  total: number;
+  upcoming: number;
+  ongoing: number;
+  completed: number;
+  cancelled: number;
+  averageParticipation: number;
+  averageScore: number;
+  improvementRate: number;
+  riskExams: number;
+} | null> => {
+  try {
+    // 获取所有考试
+    const { data: exams, error } = await supabase.from("exams").select("*");
+
+    if (error) throw error;
+
+    if (!exams || exams.length === 0) {
+      return {
+        total: 0,
+        upcoming: 0,
+        ongoing: 0,
+        completed: 0,
+        cancelled: 0,
+        averageParticipation: 0,
+        averageScore: 0,
+        improvementRate: 0,
+        riskExams: 0,
+      };
+    }
+
+    const now = new Date();
+    const today = now.toISOString().split("T")[0];
+
+    // 简单的状态判断逻辑（真实场景需要更复杂的状态管理）
+    const upcoming = exams.filter((exam) => exam.date > today).length;
+    const ongoing = 0; // 需要基于具体的考试时间判断
+    const completed = exams.filter((exam) => exam.date < today).length;
+
+    return {
+      total: exams.length,
+      upcoming,
+      ongoing,
+      completed,
+      cancelled: 0,
+      averageParticipation: 95.0, // 模拟数据，需要从实际成绩数据计算
+      averageScore: 78.5, // 模拟数据，需要从实际成绩数据计算
+      improvementRate: 12.5, // 模拟数据，需要历史对比计算
+      riskExams: Math.floor(exams.length * 0.1), // 模拟数据，需要基于成绩分析
+    };
+  } catch (error) {
+    console.error("获取考试概览统计失败:", error);
+    toast.error("获取考试概览统计失败");
+    return null;
+  }
+};
+
+/**
+ * 获取学期列表
+ */
+export const getAcademicTerms = async (): Promise<AcademicTerm[]> => {
+  try {
+    const { data, error } = await supabase
+      .from("academic_terms")
+      .select("*")
+      .eq("is_active", true)
+      .order("academic_year", { ascending: false })
+      .order("semester");
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error("获取学期列表失败:", error);
+    toast.error("获取学期列表失败");
+    return [];
+  }
+};
+
+/**
+ * 获取当前学期
+ */
+export const getCurrentAcademicTerm =
+  async (): Promise<AcademicTerm | null> => {
+    try {
+      const { data, error } = await supabase
+        .from("academic_terms")
+        .select("*")
+        .eq("is_current", true)
+        .single();
+
+      if (error && error.code !== "PGRST116") throw error;
+      return data;
+    } catch (error) {
+      console.error("获取当前学期失败:", error);
+      return null;
+    }
+  };
+
+/**
+ * 获取考试的科目总分配置
+ */
+export const getExamSubjectScores = async (
+  examId: string
+): Promise<ExamSubjectScore[]> => {
+  try {
+    const { data, error } = await supabase
+      .from("exam_subject_scores")
+      .select("*")
+      .eq("exam_id", examId)
+      .order("subject_code");
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error("获取考试科目总分配置失败:", error);
+    toast.error("获取考试科目总分配置失败");
+    return [];
+  }
+};
+
+/**
+ * 保存考试的科目总分配置
+ */
+export const saveExamSubjectScores = async (
+  examId: string,
+  scores: Omit<ExamSubjectScore, "id" | "created_at" | "updated_at">[]
+): Promise<boolean> => {
+  try {
+    // 先删除现有配置
+    const { error: deleteError } = await supabase
+      .from("exam_subject_scores")
+      .delete()
+      .eq("exam_id", examId);
+
+    if (deleteError) throw deleteError;
+
+    // 插入新配置
+    const { error: insertError } = await supabase
+      .from("exam_subject_scores")
+      .insert(
+        scores.map((score) => ({
+          exam_id: examId,
+          subject_code: score.subject_code,
+          subject_name: score.subject_name,
+          total_score: score.total_score,
+          passing_score: score.passing_score,
+          excellent_score: score.excellent_score,
+          is_required: score.is_required,
+          weight: score.weight,
+        }))
+      );
+
+    if (insertError) throw insertError;
+
+    toast.success("科目总分配置保存成功");
+    return true;
+  } catch (error) {
+    console.error("保存考试科目总分配置失败:", error);
+    toast.error("保存科目总分配置失败");
+    return false;
+  }
+};
+
+/**
+ * 获取考试实际成绩数据中存在的科目
+ * @param examId 考试ID
+ * @returns 实际存在成绩数据的科目列表
+ */
+const getActualExamSubjects = async (
+  examId: string
+): Promise<{ code: string; name: string }[]> => {
+  try {
+    // 首先获取考试信息，因为可能需要使用exam_title而不是exam_id
+    const { data: examInfo } = await supabase
+      .from("exams")
+      .select("id, title")
+      .eq("id", examId)
+      .single();
+
+    let gradeData = null;
+
+    // 尝试使用exam_id查询
+    const { data: gradeDataById, error: gradeErrorById } = await supabase
+      .from("grade_data_new")
+      .select(
+        `
+        chinese_score, math_score, english_score, physics_score, 
+        chemistry_score, politics_score, history_score, biology_score, geography_score
+      `
+      )
+      .eq("exam_id", examId)
+      .limit(1);
+
+    if (!gradeErrorById && gradeDataById && gradeDataById.length > 0) {
+      gradeData = gradeDataById;
+    } else if (examInfo && examInfo.title) {
+      // 如果exam_id查询失败，尝试使用exam_title查询
+      const { data: gradeDataByTitle, error: gradeErrorByTitle } =
+        await supabase
+          .from("grade_data_new")
+          .select(
+            `
+          chinese_score, math_score, english_score, physics_score, 
+          chemistry_score, politics_score, history_score, biology_score, geography_score
+        `
+          )
+          .eq("exam_title", examInfo.title)
+          .limit(1);
+
+      if (
+        !gradeErrorByTitle &&
+        gradeDataByTitle &&
+        gradeDataByTitle.length > 0
+      ) {
+        gradeData = gradeDataByTitle;
+      }
+    }
+
+    if (!gradeData?.length) {
+      return [];
+    }
+
+    // 分析实际有数据的科目
+    const record = gradeData[0];
+    const subjectMapping = {
+      chinese_score: { code: "chinese", name: "语文" },
+      math_score: { code: "math", name: "数学" },
+      english_score: { code: "english", name: "英语" },
+      physics_score: { code: "physics", name: "物理" },
+      chemistry_score: { code: "chemistry", name: "化学" },
+      biology_score: { code: "biology", name: "生物" },
+      politics_score: { code: "politics", name: "政治" },
+      history_score: { code: "history", name: "历史" },
+      geography_score: { code: "geography", name: "地理" },
+    };
+
+    const activeSubjects = Object.entries(subjectMapping)
+      .filter(([scoreField]) => {
+        const hasScore =
+          record[scoreField] !== null && record[scoreField] !== undefined;
+        return hasScore;
+      })
+      .map(([, subject]) => subject);
+
+    return activeSubjects;
+  } catch (error) {
+    console.error("获取实际考试科目失败:", error);
+    return [];
+  }
+};
+
+/**
+ * 动态获取考试实际涉及的科目
+ */
+export const getExamActiveSubjects = async (
+  examId: string
+): Promise<{
+  configuredSubjects: { code: string; name: string; configured: boolean }[];
+  hasData: boolean;
+}> => {
+  try {
+    console.log(`[getExamActiveSubjects] 开始检测考试科目，examId: ${examId}`);
+
+    // 1. 首先获取实际成绩数据中的科目
+    const actualSubjects = await getActualExamSubjects(examId);
+    console.log(
+      `[getExamActiveSubjects] 🎯 实际成绩数据中的科目:`,
+      actualSubjects.map((s) => s.name).join(", ")
+    );
+
+    // 2. 然后尝试从配置表获取
+    const { data: configuredData, error: configError } = await supabase
+      .from("exam_subject_scores")
+      .select("subject_code, subject_name")
+      .eq("exam_id", examId)
+      .order("subject_code");
+
+    if (!configError && configuredData && configuredData.length > 0) {
+      console.log(
+        `[getExamActiveSubjects] 📋 配置表中的科目:`,
+        configuredData.map((item) => item.subject_name).join(", ")
+      );
+
+      // 3. 交叉验证：只返回既有配置又有实际数据的科目
+      const validatedSubjects = configuredData
+        .filter((configItem) =>
+          actualSubjects.some(
+            (actualItem) => actualItem.code === configItem.subject_code
+          )
+        )
+        .map((item) => ({
+          code: item.subject_code,
+          name: item.subject_name,
+          configured: true,
+        }));
+
+      console.log(
+        `[getExamActiveSubjects] ✅ 验证后的有效科目:`,
+        validatedSubjects.map((s) => s.name).join(", ")
+      );
+
+      if (validatedSubjects.length > 0) {
+        return {
+          configuredSubjects: validatedSubjects,
+          hasData: true,
+        };
+      }
+    }
+
+    // 4. 如果配置验证失败，直接使用实际数据中的科目
+    console.log(`[getExamActiveSubjects] 📊 使用实际成绩数据中的科目`);
+
+    if (actualSubjects.length > 0) {
+      return {
+        configuredSubjects: actualSubjects.map((subject) => ({
+          ...subject,
+          configured: false,
+        })),
+        hasData: true,
+      };
+    }
+
+    // 5. 如果都没有数据，返回默认科目
+    console.log(
+      `[getExamActiveSubjects] ⚠️ 无法找到任何科目数据，使用默认科目`
+    );
+    return {
+      configuredSubjects: [
+        { code: "chinese", name: "语文", configured: false },
+        { code: "math", name: "数学", configured: false },
+        { code: "english", name: "英语", configured: false },
+      ],
+      hasData: false,
+    };
+  } catch (error) {
+    console.error("获取考试科目失败:", error);
+    // 返回默认科目
+    return {
+      configuredSubjects: [
+        { code: "chinese", name: "语文", configured: false },
+        { code: "math", name: "数学", configured: false },
+        { code: "english", name: "英语", configured: false },
+      ],
+      hasData: false,
+    };
+  }
+};
+
+/**
+ * 获取考试参与人数
+ */
+export const getExamParticipantCount = async (
+  examId: string
+): Promise<number> => {
+  try {
+    console.log(
+      `[getExamParticipantCount] 开始获取考试参与人数，examId: ${examId}`
+    );
+
+    // 首先尝试直接使用exam_id查询
+    const {
+      data: gradeData,
+      error,
+      count,
+    } = await supabase
+      .from("grade_data_new")
+      .select("student_id", { count: "exact" })
+      .eq("exam_id", examId);
+
+    console.log(`[getExamParticipantCount] exam_id查询结果:`, {
+      count,
+      dataLength: gradeData?.length || 0,
+      error: error?.message,
+    });
+
+    if (!error && count !== null && count > 0) {
+      console.log(
+        `[getExamParticipantCount] ✅ 通过exam_id找到 ${count} 个参与者`
+      );
+      return count;
+    }
+
+    // 如果exam_id查询失败，尝试使用exam_title
+    console.log(
+      `[getExamParticipantCount] 🔄 exam_id查询无结果，尝试exam_title查询`
+    );
+    const { data: examInfo } = await supabase
+      .from("exams")
+      .select("title")
+      .eq("id", examId)
+      .single();
+
+    console.log(`[getExamParticipantCount] 考试信息:`, examInfo);
+
+    if (examInfo && examInfo.title) {
+      const {
+        data: gradeDataByTitle,
+        error: titleError,
+        count: titleCount,
+      } = await supabase
+        .from("grade_data_new")
+        .select("student_id", { count: "exact" })
+        .eq("exam_title", examInfo.title);
+
+      console.log(`[getExamParticipantCount] exam_title查询结果:`, {
+        count: titleCount,
+        dataLength: gradeDataByTitle?.length || 0,
+        error: titleError?.message,
+      });
+
+      if (!titleError && titleCount !== null && titleCount > 0) {
+        console.log(
+          `[getExamParticipantCount] ✅ 通过exam_title找到 ${titleCount} 个参与者`
+        );
+        return titleCount;
+      }
+    }
+
+    console.log(`[getExamParticipantCount] ⚠️ 未找到任何参与者数据`);
+    return 0;
+  } catch (error) {
+    console.error("获取考试参与人数失败:", error);
+    return 0;
+  }
+};
+
+/**
+ * 根据学期筛选考试
+ */
+export const getExamsByTerm = async (
+  termId?: string,
+  filter?: ExamFilter
+): Promise<Exam[]> => {
+  try {
+    let query = supabase
+      .from("exams")
+      .select(
+        `
+        id,
+        title,
+        date,
+        type,
+        subject,
+        academic_term_id,
+        created_at
+      `
+      )
+      .order("date", { ascending: false });
+
+    // 应用学期筛选
+    if (termId && termId !== "all") {
+      query = query.eq("academic_term_id", termId);
+    }
+
+    // 应用其他过滤器
+    if (filter?.dateFrom) {
+      query = query.gte("date", filter.dateFrom);
+    }
+    if (filter?.dateTo) {
+      query = query.lte("date", filter.dateTo);
+    }
+    if (filter?.type) {
+      query = query.eq("type", filter.type);
+    }
+    if (filter?.subject) {
+      query = query.eq("subject", filter.subject);
+    }
+    if (filter?.searchTerm) {
+      query = query.ilike("title", `%${filter.searchTerm}%`);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error("根据学期筛选考试失败:", error);
+    toast.error("筛选考试失败");
+    return [];
+  }
+};

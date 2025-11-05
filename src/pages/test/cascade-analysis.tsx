@@ -1,37 +1,33 @@
-import React from 'react';
-import Head from 'next/head';
-import { Container, Box, Typography, Link } from '@mui/material';
-import CascadeAnalysisTest from '@/components/test/CascadeAnalysisTest';
+import React from "react";
+import CascadeAnalysisTest from "@/components/test/CascadeAnalysisTest";
+import { Button } from "@/components/ui/button";
 
 export default function CascadeAnalysisTestPage() {
+  React.useEffect(() => {
+    document.title = "硅基流动级联分析测试";
+  }, []);
+
   return (
     <>
-      <Head>
-        <title>硅基流动级联分析测试</title>
-        <meta name="description" content="测试Qwen和DeepSeek级联分析功能" />
-      </Head>
-      
-      <Container maxWidth="lg">
-        <Box sx={{ my: 4, textAlign: 'center' }}>
-          <Typography variant="h4" component="h1" gutterBottom>
-            硅基流动级联分析测试
-          </Typography>
-          <Typography variant="subtitle1" color="text.secondary" gutterBottom>
+      <div className="container mx-auto max-w-6xl">
+        <div className="my-8 text-center">
+          <h1 className="text-4xl font-bold mb-2">硅基流动级联分析测试</h1>
+          <p className="text-xl text-muted-foreground mb-8">
             测试Qwen视觉模型和DeepSeek模型的级联分析能力
-          </Typography>
-        </Box>
-        
+          </p>
+        </div>
+
         <CascadeAnalysisTest />
-        
-        <Box sx={{ mt: 6, mb: 4, textAlign: 'center' }}>
-          <Typography variant="body2" color="text.secondary">
+
+        <div className="mt-8 mb-6 text-center">
+          <p className="text-sm text-muted-foreground mb-4">
             该测试页面用于验证硅基流动API的级联分析功能，先使用千问模型分析图片，再用DeepSeek深入处理
-          </Typography>
-          <Link href="/" underline="hover" sx={{ mt: 2, display: 'inline-block' }}>
-            返回首页
-          </Link>
-        </Box>
-      </Container>
+          </p>
+          <Button variant="link" asChild>
+            <a href="/">返回首页</a>
+          </Button>
+        </div>
+      </div>
     </>
   );
-} 
+}

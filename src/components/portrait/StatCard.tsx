@@ -26,21 +26,31 @@ const StatCard: React.FC<StatCardProps> = ({
   // 根据颜色生成适当的类名
   const getBgClass = () => {
     switch (badgeColor) {
-      case "green": return "bg-green-50 border-green-200";
-      case "amber": return "bg-amber-50 border-amber-200";
-      case "red": return "bg-red-50 border-red-200";
-      case "purple": return "bg-purple-50 border-purple-200";
-      default: return "bg-blue-50 border-blue-200";
+      case "green":
+        return "bg-green-50 border-green-200";
+      case "amber":
+        return "bg-amber-50 border-amber-200";
+      case "red":
+        return "bg-red-50 border-red-200";
+      case "purple":
+        return "bg-purple-50 border-purple-200";
+      default:
+        return "bg-blue-50 border-blue-200";
     }
   };
 
   const getBadgeClass = () => {
     switch (badgeColor) {
-      case "green": return "bg-green-500";
-      case "amber": return "bg-amber-500";
-      case "red": return "bg-red-500";
-      case "purple": return "bg-purple-500";
-      default: return "bg-blue-500";
+      case "green":
+        return "bg-green-500";
+      case "amber":
+        return "bg-amber-500";
+      case "red":
+        return "bg-red-500";
+      case "purple":
+        return "bg-purple-500";
+      default:
+        return "bg-blue-500";
     }
   };
 
@@ -55,13 +65,11 @@ const StatCard: React.FC<StatCardProps> = ({
       <CardContent>
         <div className="flex items-center justify-between">
           <span className="text-2xl font-bold">{value}</span>
-          {badgeText && (
-            <Badge className={getBadgeClass()}>{badgeText}</Badge>
-          )}
+          {badgeText && <Badge className={getBadgeClass()}>{badgeText}</Badge>}
         </div>
       </CardContent>
     </Card>
   );
 };
 
-export default StatCard; 
+export default StatCard;

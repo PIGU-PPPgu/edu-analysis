@@ -1,0 +1,685 @@
+/**
+ * 预警系统集成测试仪表板
+ * 提供完整的系统测试控制和结果展示界面
+ */
+
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Play,
+  TestTube,
+  CheckCircle,
+  XCircle,
+  Clock,
+  AlertTriangle,
+  Activity,
+  Database,
+  Zap,
+  Bell,
+  Monitor,
+  Download,
+  RefreshCw,
+  Loader2,
+  Target,
+  Gauge,
+  Shield,
+  BarChart3,
+  FileText,
+  Settings,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { formatDistanceToNow } from 'date-fns';
+import { zhCN } from 'date-fns/locale';
+import {
+  WarningSystemIntegrationTester,
+  runQuickIntegrationTest,
+  runComprehensiveIntegrationTest,
+  type IntegrationTestReport,
+  type TestResult,
+} from '@/services/warningSystemIntegrationTest';
+
+interface IntegrationTestDashboardProps {
+  className?: string;
+}
+
+// 测试状态图标
+const getStatusIcon = (status: 'passed' | 'failed' | 'skipped' | 'running') => {
+  switch (status) {
+    case 'passed':
+      return <CheckCircle className="h-4 w-4 text-green-500" />;
+    case 'failed':
+      return <XCircle className="h-4 w-4 text-red-500" />;
+    case 'skipped':
+      return <Clock className="h-4 w-4 text-gray-400" />;
+    case 'running':
+      return <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />;
+    default:
+      return <Clock className="h-4 w-4 text-gray-400" />;
+  }
+};
+
+// 系统状态颜色
+const getSystemStatusColor = (status: 'healthy' | 'unhealthy' | 'unknown') => {
+  switch (status) {
+    case 'healthy':
+      return 'bg-green-100 text-green-800';
+    case 'unhealthy':
+      return 'bg-red-100 text-red-800';
+    case 'unknown':
+      return 'bg-gray-100 text-gray-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
+
+const IntegrationTestDashboard: React.FC<IntegrationTestDashboardProps> = ({ className }) => {
+  const [isRunning, setIsRunning] = useState(false);
+  const [testProgress, setTestProgress] = useState(0);
+  const [currentTest, setCurrentTest] = useState<string>('');
+  const [testReport, setTestReport] = useState<IntegrationTestReport | null>(null);
+  const [testHistory, setTestHistory] = useState<IntegrationTestReport[]>([]);
+  const [activeTab, setActiveTab] = useState('overview');
+
+  // 加载测试历史
+  useEffect(() => {
+    loadTestHistory();
+  }, []);
+
+  // 加载测试历史记录
+  const loadTestHistory = () => {
+    try {
+      const saved = localStorage.getItem('warning_integration_test_history');
+      if (saved) {
+        const history = JSON.parse(saved);
+        setTestHistory(history.slice(-10)); // 保留最近10次测试
+      }
+    } catch (error) {
+      console.error('加载测试历史失败:', error);
+    }
+  };
+
+  // 保存测试报告到历史
+  const saveTestReport = (report: IntegrationTestReport) => {
+    try {
+      const newHistory = [report, ...testHistory.slice(0, 9)];
+      localStorage.setItem('warning_integration_test_history', JSON.stringify(newHistory));
+      setTestHistory(newHistory);
+    } catch (error) {
+      console.error('保存测试报告失败:', error);
+    }
+  };
+
+  // 运行快速测试
+  const runQuickTest = async () => {
+    if (isRunning) return;
+    
+    setIsRunning(true);
+    setTestProgress(0);
+    setCurrentTest('准备快速测试...');
+    
+    try {
+      // 模拟进度更新
+      const progressInterval = setInterval(() => {
+        setTestProgress(prev => {
+          const newProgress = prev + Math.random() * 15;
+          return newProgress >= 95 ? 95 : newProgress;
+        });
+      }, 800);
+
+      const report = await runQuickIntegrationTest();
+      
+      clearInterval(progressInterval);
+      setTestProgress(100);
+      setCurrentTest('测试完成');
+      setTestReport(report);
+      saveTestReport(report);
+      
+      toast.success('快速测试完成', {
+        description: `${report.passedTests}/${report.totalTests} 项测试通过`
+      });
+    } catch (error) {
+      console.error('快速测试失败:', error);
+      toast.error('快速测试失败', {
+        description: error instanceof Error ? error.message : '未知错误'
+      });
+    } finally {
+      setIsRunning(false);
+      setCurrentTest('');
+    }
+  };
+
+  // 运行完整测试
+  const runFullTest = async () => {
+    if (isRunning) return;
+    
+    setIsRunning(true);
+    setTestProgress(0);
+    setCurrentTest('准备完整测试...');
+    
+    try {
+      // 模拟进度更新
+      const progressInterval = setInterval(() => {
+        setTestProgress(prev => {
+          const newProgress = prev + Math.random() * 8;
+          return newProgress >= 95 ? 95 : newProgress;
+        });
+      }, 1200);
+
+      const report = await runComprehensiveIntegrationTest();
+      
+      clearInterval(progressInterval);
+      setTestProgress(100);
+      setCurrentTest('测试完成');
+      setTestReport(report);
+      saveTestReport(report);
+      
+      toast.success('完整测试完成', {
+        description: `${report.passedTests}/${report.totalTests} 项测试通过`
+      });
+    } catch (error) {
+      console.error('完整测试失败:', error);
+      toast.error('完整测试失败', {
+        description: error instanceof Error ? error.message : '未知错误'
+      });
+    } finally {
+      setIsRunning(false);
+      setCurrentTest('');
+    }
+  };
+
+  // 导出测试报告
+  const exportReport = (report: IntegrationTestReport) => {
+    try {
+      const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `integration_test_report_${report.testSuiteId}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast.success('报告导出成功');
+    } catch (error) {
+      console.error('导出报告失败:', error);
+      toast.error('导出报告失败');
+    }
+  };
+
+  return (
+    <div className={`space-y-6 ${className}`}>
+      {/* 控制面板 */}
+      <Card className="border-gray-200 hover:shadow-lg transition-all duration-200">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center text-xl font-semibold text-gray-800">
+                <TestTube className="mr-2 h-5 w-5 text-[#c0ff3f]" />
+                预警系统集成测试
+              </CardTitle>
+              <CardDescription className="text-gray-500">
+                完整测试预警系统的所有组件和工作流程
+              </CardDescription>
+            </div>
+            <div className="flex space-x-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={loadTestHistory}
+                disabled={isRunning}
+              >
+                <RefreshCw className="mr-1 h-3 w-3" />
+                刷新历史
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {/* 测试进度 */}
+          {isRunning && (
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-blue-800">测试进行中...</span>
+                <span className="text-sm font-medium text-blue-800">{Math.round(testProgress)}%</span>
+              </div>
+              <Progress value={testProgress} className="mb-2" />
+              <p className="text-sm text-blue-600">{currentTest}</p>
+            </div>
+          )}
+
+          {/* 测试控制按钮 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="p-4 border border-gray-200">
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <h3 className="font-medium text-gray-800 mb-1">快速测试</h3>
+                  <p className="text-sm text-gray-600">测试核心功能，约2-3分钟</p>
+                </div>
+                <Target className="h-5 w-5 text-blue-500" />
+              </div>
+              <ul className="text-xs text-gray-500 space-y-1 mb-3">
+                <li>• 基础设施检查</li>
+                <li>• Edge Functions测试</li>
+                <li>• 数据一致性验证</li>
+              </ul>
+              <Button
+                onClick={runQuickTest}
+                disabled={isRunning}
+                className="w-full bg-[#c0ff3f] text-black hover:bg-[#a5e034]"
+                size="sm"
+              >
+                {isRunning ? (
+                  <>
+                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                    运行中...
+                  </>
+                ) : (
+                  <>
+                    <Play className="mr-2 h-3 w-3" />
+                    运行快速测试
+                  </>
+                )}
+              </Button>
+            </Card>
+
+            <Card className="p-4 border border-gray-200">
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <h3 className="font-medium text-gray-800 mb-1">完整测试</h3>
+                  <p className="text-sm text-gray-600">全面测试所有功能，约5-8分钟</p>
+                </div>
+                <Gauge className="h-5 w-5 text-purple-500" />
+              </div>
+              <ul className="text-xs text-gray-500 space-y-1 mb-3">
+                <li>• 所有系统组件测试</li>
+                <li>• 实时通知系统</li>
+                <li>• 性能优化验证</li>
+                <li>• 完整工作流程</li>
+              </ul>
+              <Button
+                onClick={runFullTest}
+                disabled={isRunning}
+                variant="outline"
+                className="w-full border-purple-500 text-purple-600 hover:bg-purple-50"
+                size="sm"
+              >
+                {isRunning ? (
+                  <>
+                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                    运行中...
+                  </>
+                ) : (
+                  <>
+                    <Play className="mr-2 h-3 w-3" />
+                    运行完整测试
+                  </>
+                )}
+              </Button>
+            </Card>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 测试结果展示 */}
+      {testReport && (
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid grid-cols-4 w-[600px] bg-gray-100 border border-gray-300 p-1 rounded-lg">
+            <TabsTrigger
+              value="overview"
+              className="data-[state=active]:bg-[#c0ff3f] data-[state=active]:text-black"
+            >
+              测试概览
+            </TabsTrigger>
+            <TabsTrigger
+              value="details"
+              className="data-[state=active]:bg-[#c0ff3f] data-[state=active]:text-black"
+            >
+              详细结果
+            </TabsTrigger>
+            <TabsTrigger
+              value="system"
+              className="data-[state=active]:bg-[#c0ff3f] data-[state=active]:text-black"
+            >
+              系统状态
+            </TabsTrigger>
+            <TabsTrigger
+              value="history"
+              className="data-[state=active]:bg-[#c0ff3f] data-[state=active]:text-black"
+            >
+              测试历史
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-6 mt-6">
+            {/* 测试摘要 */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card className="border-gray-200">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-500">总测试数</p>
+                      <p className="text-2xl font-bold text-gray-900">{testReport.totalTests}</p>
+                    </div>
+                    <TestTube className="h-8 w-8 text-blue-500" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-gray-200">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-500">通过测试</p>
+                      <p className="text-2xl font-bold text-green-600">{testReport.passedTests}</p>
+                    </div>
+                    <CheckCircle className="h-8 w-8 text-green-500" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-gray-200">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-500">失败测试</p>
+                      <p className="text-2xl font-bold text-red-600">{testReport.failedTests}</p>
+                    </div>
+                    <XCircle className="h-8 w-8 text-red-500" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-gray-200">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-500">执行时间</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {Math.round(testReport.totalDuration / 1000)}s
+                      </p>
+                    </div>
+                    <Clock className="h-8 w-8 text-yellow-500" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* 成功率展示 */}
+            <Card className="border-gray-200">
+              <CardHeader>
+                <CardTitle className="text-lg">测试成功率</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">
+                      {testReport.passedTests}/{testReport.totalTests} 项测试通过
+                    </span>
+                    <span className="text-sm font-medium">
+                      {Math.round((testReport.passedTests / testReport.totalTests) * 100)}%
+                    </span>
+                  </div>
+                  <Progress
+                    value={(testReport.passedTests / testReport.totalTests) * 100}
+                    className="h-3"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>通过: {testReport.passedTests}</span>
+                    <span>失败: {testReport.failedTests}</span>
+                    <span>跳过: {testReport.skippedTests}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 改进建议 */}
+            {testReport.recommendations.length > 0 && (
+              <Card className="border-gray-200">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center">
+                    <Shield className="mr-2 h-5 w-5 text-[#c0ff3f]" />
+                    改进建议
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {testReport.recommendations.map((rec, index) => (
+                      <div key={index} className="flex items-start p-3 bg-gray-50 rounded-lg">
+                        <span className="text-[#c0ff3f] mr-2 mt-1">•</span>
+                        <span className="text-sm text-gray-700">{rec}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="details" className="space-y-6 mt-6">
+            <Card className="border-gray-200">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">详细测试结果</CardTitle>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => exportReport(testReport)}
+                  >
+                    <Download className="mr-1 h-3 w-3" />
+                    导出报告
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[500px]">
+                  <div className="space-y-3">
+                    {testReport.testResults.map((test, index) => (
+                      <div
+                        key={index}
+                        className={`p-4 border rounded-lg ${
+                          test.status === 'passed'
+                            ? 'border-green-200 bg-green-50'
+                            : test.status === 'failed'
+                            ? 'border-red-200 bg-red-50'
+                            : 'border-gray-200 bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center space-x-2">
+                            {getStatusIcon(test.status)}
+                            <span className="font-medium text-gray-800">{test.testName}</span>
+                          </div>
+                          <span className="text-sm text-gray-500">{test.duration}ms</span>
+                        </div>
+                        <p className="text-sm text-gray-600">{test.details}</p>
+                        {test.error && (
+                          <div className="mt-2 p-2 bg-red-100 border border-red-200 rounded text-sm text-red-700">
+                            错误: {test.error}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="system" className="space-y-6 mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* 系统组件状态 */}
+              <Card className="border-gray-200">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center">
+                    <Monitor className="mr-2 h-5 w-5 text-[#c0ff3f]" />
+                    系统组件状态
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center">
+                        <Zap className="h-4 w-4 mr-2 text-blue-500" />
+                        <span className="text-sm font-medium">Edge Functions</span>
+                      </div>
+                      <Badge className={getSystemStatusColor(testReport.systemStatus.edgeFunctionsStatus)}>
+                        {testReport.systemStatus.edgeFunctionsStatus === 'healthy' ? '正常' :
+                         testReport.systemStatus.edgeFunctionsStatus === 'unhealthy' ? '异常' : '未知'}
+                      </Badge>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center">
+                        <Database className="h-4 w-4 mr-2 text-green-500" />
+                        <span className="text-sm font-medium">数据库系统</span>
+                      </div>
+                      <Badge className={getSystemStatusColor(testReport.systemStatus.databaseStatus)}>
+                        {testReport.systemStatus.databaseStatus === 'healthy' ? '正常' :
+                         testReport.systemStatus.databaseStatus === 'unhealthy' ? '异常' : '未知'}
+                      </Badge>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center">
+                        <Bell className="h-4 w-4 mr-2 text-yellow-500" />
+                        <span className="text-sm font-medium">通知系统</span>
+                      </div>
+                      <Badge className={getSystemStatusColor(testReport.systemStatus.notificationStatus)}>
+                        {testReport.systemStatus.notificationStatus === 'healthy' ? '正常' :
+                         testReport.systemStatus.notificationStatus === 'unhealthy' ? '异常' : '未知'}
+                      </Badge>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center">
+                        <Activity className="h-4 w-4 mr-2 text-purple-500" />
+                        <span className="text-sm font-medium">追踪系统</span>
+                      </div>
+                      <Badge className={getSystemStatusColor(testReport.systemStatus.trackingStatus)}>
+                        {testReport.systemStatus.trackingStatus === 'healthy' ? '正常' :
+                         testReport.systemStatus.trackingStatus === 'unhealthy' ? '异常' : '未知'}
+                      </Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 测试信息 */}
+              <Card className="border-gray-200">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center">
+                    <FileText className="mr-2 h-5 w-5 text-[#c0ff3f]" />
+                    测试信息
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">测试套件ID:</span>
+                      <span className="font-mono text-xs">{testReport.testSuiteId}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">开始时间:</span>
+                      <span>{new Date(testReport.startTime).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">结束时间:</span>
+                      <span>{new Date(testReport.endTime).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">总耗时:</span>
+                      <span>{Math.round(testReport.totalDuration / 1000)}秒</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">平均测试时间:</span>
+                      <span>
+                        {Math.round(
+                          testReport.testResults.reduce((sum, r) => sum + r.duration, 0) / 
+                          testReport.testResults.length
+                        )}ms
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="history" className="space-y-6 mt-6">
+            <Card className="border-gray-200">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center">
+                  <BarChart3 className="mr-2 h-5 w-5 text-[#c0ff3f]" />
+                  测试历史记录
+                </CardTitle>
+                <CardDescription>
+                  最近10次集成测试的结果记录
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {testHistory.length > 0 ? (
+                  <ScrollArea className="h-[400px]">
+                    <div className="space-y-3">
+                      {testHistory.map((report, index) => (
+                        <div
+                          key={report.testSuiteId}
+                          className="p-4 border border-gray-200 rounded-lg hover:shadow-sm transition-shadow cursor-pointer"
+                          onClick={() => setTestReport(report)}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              <Badge
+                                className={
+                                  report.failedTests === 0
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-red-100 text-red-800'
+                                }
+                              >
+                                {report.failedTests === 0 ? '全部通过' : `${report.failedTests}个失败`}
+                              </Badge>
+                              <span className="text-sm text-gray-500">
+                                {formatDistanceToNow(new Date(report.startTime), {
+                                  addSuffix: true,
+                                  locale: zhCN,
+                                })}
+                              </span>
+                            </div>
+                            <span className="text-sm text-gray-500">
+                              {Math.round(report.totalDuration / 1000)}s
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">
+                              {report.passedTests}/{report.totalTests} 项测试通过
+                            </span>
+                            <Progress
+                              value={(report.passedTests / report.totalTests) * 100}
+                              className="w-20 h-2"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>暂无测试历史记录</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      )}
+    </div>
+  );
+};
+
+export default IntegrationTestDashboard;

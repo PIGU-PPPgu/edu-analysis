@@ -1,27 +1,48 @@
-import * as React from "react"
-import * as SwitchPrimitives from "@radix-ui/react-switch"
+/**
+ * Switch 开关组件
+ * 提供开关切换功能
+ */
 
-import { cn } from "@/lib/utils"
+import React from "react";
+import { cn } from "@/lib/utils";
 
-const Switch = React.forwardRef<
-  React.ElementRef<typeof SwitchPrimitives.Root>,
-  React.ComponentPropsWithoutRef<typeof SwitchPrimitives.Root>
->(({ className, ...props }, ref) => (
-  <SwitchPrimitives.Root
-    className={cn(
-      "peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input",
-      className
-    )}
-    {...props}
-    ref={ref}
-  >
-    <SwitchPrimitives.Thumb
+interface SwitchProps {
+  id?: string;
+  checked?: boolean;
+  onCheckedChange?: (checked: boolean) => void;
+  disabled?: boolean;
+  className?: string;
+}
+
+const Switch: React.FC<SwitchProps> = ({
+  id,
+  checked = false,
+  onCheckedChange,
+  disabled = false,
+  className,
+}) => {
+  return (
+    <button
+      id={id}
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => !disabled && onCheckedChange?.(!checked)}
       className={cn(
-        "pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0"
+        "relative inline-flex h-6 w-11 items-center rounded-full border-2 border-black transition-colors focus:outline-none focus:ring-2 focus:ring-[#B9FF66] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        checked ? "bg-[#B9FF66]" : "bg-gray-200",
+        className
       )}
-    />
-  </SwitchPrimitives.Root>
-))
-Switch.displayName = SwitchPrimitives.Root.displayName
+    >
+      <span
+        className={cn(
+          "inline-block h-4 w-4 transform rounded-full bg-white border-2 border-black transition-transform shadow-[1px_1px_0px_0px_#191A23]",
+          checked ? "translate-x-5" : "translate-x-0"
+        )}
+      />
+    </button>
+  );
+};
 
-export { Switch }
+export { Switch };

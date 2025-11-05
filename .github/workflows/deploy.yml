@@ -1,0 +1,63 @@
+name: 🚀 Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  deploy:
+    name: 🚀 部署到生产服务器
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 检出代码
+        uses: actions/checkout@v4
+
+      - name: 🔐 配置 SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: 📝 添加服务器到 known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: 🚀 SSH 连接并部署
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          ssh $SERVER_USER@$SERVER_HOST << 'ENDSSH'
+            set -e
+            echo "========================================"
+            echo "🚀 开始自动部署..."
+            echo "========================================"
+
+            # 确保有最新的部署脚本
+            if [ ! -f ~/deploy.sh ]; then
+              echo "📥 下载部署脚本..."
+              wget -O ~/deploy.sh https://raw.githubusercontent.com/PIGU-PPPgu/edu-analysis/main/deploy-server.sh
+              chmod +x ~/deploy.sh
+            fi
+
+            # 运行部署脚本
+            ~/deploy.sh
+
+            echo "========================================"
+            echo "✅ 部署完成！"
+            echo "🌐 访问：https://intelliclass.online"
+            echo "========================================"
+          ENDSSH
+
+      - name: 📊 部署状态通知
+        if: always()
+        run: |
+          if [ ${{ job.status }} == 'success' ]; then
+            echo "✅ 部署成功！"
+          else
+            echo "❌ 部署失败，请检查日志"
+            exit 1
+          fi

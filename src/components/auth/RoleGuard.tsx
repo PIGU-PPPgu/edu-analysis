@@ -1,9 +1,8 @@
-
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { getCurrentUserRoles, AppRole } from '@/utils/roleUtils';
-import { toast } from 'sonner';
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { getCurrentUserRoles, AppRole } from "@/utils/roleUtils";
+import { toast } from "sonner";
 
 interface RoleGuardProps {
   children: React.ReactNode;
@@ -11,21 +10,21 @@ interface RoleGuardProps {
   fallback?: React.ReactNode;
 }
 
-const RoleGuard: React.FC<RoleGuardProps> = ({ 
-  children, 
-  allowedRoles, 
-  fallback = null 
+const RoleGuard: React.FC<RoleGuardProps> = ({
+  children,
+  allowedRoles,
+  fallback = null,
 }) => {
   const navigate = useNavigate();
-  
+
   const { data: userRoles, isLoading } = useQuery({
-    queryKey: ['userRoles'],
+    queryKey: ["userRoles"],
     queryFn: getCurrentUserRoles,
     meta: {
       onError: () => {
-        toast.error('无法验证用户权限');
-        navigate('/login');
-      }
+        toast.error("无法验证用户权限");
+        navigate("/login");
+      },
     },
   });
 
@@ -33,7 +32,9 @@ const RoleGuard: React.FC<RoleGuardProps> = ({
     return <div>加载中...</div>;
   }
 
-  const hasRequiredRole = userRoles?.some(role => allowedRoles.includes(role));
+  const hasRequiredRole = userRoles?.some((role) =>
+    allowedRoles.includes(role)
+  );
 
   if (!hasRequiredRole) {
     return fallback;

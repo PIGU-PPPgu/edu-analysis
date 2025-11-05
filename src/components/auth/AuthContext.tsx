@@ -1,7 +1,6 @@
-
-import React, { createContext, useContext, useState } from 'react';
-import { UseFormReturn } from 'react-hook-form';
-import { AuthFormData } from './types';
+import React, { createContext, useContext, useState } from "react";
+import { UseFormReturn } from "react-hook-form";
+import { AuthFormData } from "./types";
 
 interface AuthContextType {
   form: UseFormReturn<AuthFormData>;
@@ -18,20 +17,23 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const useAuthContext = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuthContext must be used within an AuthProvider');
+    throw new Error("useAuthContext must be used within an AuthProvider");
   }
   return context;
 };
 
 interface AuthProviderProps {
-  value: Omit<AuthContextType, 'setIsSubmitting' | 'setOtpSent'> & {
+  value: Omit<AuthContextType, "setIsSubmitting" | "setOtpSent"> & {
     isSubmitting: boolean;
     otpSent: boolean;
   };
   children: React.ReactNode;
 }
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({ value, children }) => {
+export const AuthProvider: React.FC<AuthProviderProps> = ({
+  value,
+  children,
+}) => {
   const [isSubmitting, setIsSubmitting] = useState(value.isSubmitting);
   const [otpSent, setOtpSent] = useState(value.otpSent);
 
@@ -44,8 +46,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ value, children }) =
   };
 
   return (
-    <AuthContext.Provider value={contextValue}>
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
   );
 };

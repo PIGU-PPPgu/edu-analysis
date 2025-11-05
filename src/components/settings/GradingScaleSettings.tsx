@@ -44,11 +44,23 @@ import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/useAuth";
 
 const DEFAULT_LEVEL_STRUCTURE = [
-  { name: "不及格", min_score: 0, max_score: 59, color: "#ff4d4f", position: 0 },
+  {
+    name: "不及格",
+    min_score: 0,
+    max_score: 59,
+    color: "#ff4d4f",
+    position: 0,
+  },
   { name: "及格", min_score: 60, max_score: 69, color: "#faad14", position: 1 },
   { name: "中等", min_score: 70, max_score: 79, color: "#1677ff", position: 2 },
   { name: "良好", min_score: 80, max_score: 89, color: "#52c41a", position: 3 },
-  { name: "优秀", min_score: 90, max_score: 100, color: "#722ed1", position: 4 },
+  {
+    name: "优秀",
+    min_score: 90,
+    max_score: 100,
+    color: "#722ed1",
+    position: 4,
+  },
 ];
 
 export default function GradingScaleSettings() {
@@ -112,7 +124,7 @@ export default function GradingScaleSettings() {
 
   const handleEditScale = () => {
     if (!selectedScale) return;
-    
+
     setIsEditing(true);
     setScaleName(selectedScale.name);
     setIsDefault(selectedScale.is_default || false);
@@ -122,11 +134,11 @@ export default function GradingScaleSettings() {
 
   const handleDeleteScale = async () => {
     if (!selectedScale?.id) return;
-    
+
     if (!confirm("确定要删除这个评级标准吗？此操作不可撤销。")) {
       return;
     }
-    
+
     setIsLoading(true);
     try {
       const success = await deleteGradingScale(selectedScale.id);
@@ -159,7 +171,7 @@ export default function GradingScaleSettings() {
       });
       return;
     }
-    
+
     if (levels.length === 0) {
       toast({
         title: "错误",
@@ -168,17 +180,19 @@ export default function GradingScaleSettings() {
       });
       return;
     }
-    
+
     // 验证分数范围
-    const hasOverlap = levels.some((level, i) => 
-      levels.some((otherLevel, j) => 
-        i !== j && (
-          (level.min_score >= otherLevel.min_score && level.min_score <= otherLevel.max_score) ||
-          (level.max_score >= otherLevel.min_score && level.max_score <= otherLevel.max_score)
-        )
+    const hasOverlap = levels.some((level, i) =>
+      levels.some(
+        (otherLevel, j) =>
+          i !== j &&
+          ((level.min_score >= otherLevel.min_score &&
+            level.min_score <= otherLevel.max_score) ||
+            (level.max_score >= otherLevel.min_score &&
+              level.max_score <= otherLevel.max_score))
       )
     );
-    
+
     if (hasOverlap) {
       toast({
         title: "错误",
@@ -187,7 +201,7 @@ export default function GradingScaleSettings() {
       });
       return;
     }
-    
+
     setIsLoading(true);
     try {
       if (isEditing && selectedScale?.id) {
@@ -198,7 +212,7 @@ export default function GradingScaleSettings() {
           is_default: isDefault,
           levels: levels,
         });
-        
+
         if (success) {
           toast({
             title: "成功",
@@ -213,7 +227,7 @@ export default function GradingScaleSettings() {
           is_default: isDefault,
           levels: levels,
         });
-        
+
         if (newScale) {
           toast({
             title: "成功",
@@ -221,7 +235,7 @@ export default function GradingScaleSettings() {
           });
         }
       }
-      
+
       setIsDialogOpen(false);
       await loadGradingScales();
     } catch (error) {
@@ -249,11 +263,18 @@ export default function GradingScaleSettings() {
     ]);
   };
 
-  const handleUpdateLevel = (index: number, field: keyof GradingScaleLevel, value: any) => {
+  const handleUpdateLevel = (
+    index: number,
+    field: keyof GradingScaleLevel,
+    value: any
+  ) => {
     const updatedLevels = [...levels];
     updatedLevels[index] = {
       ...updatedLevels[index],
-      [field]: field === 'min_score' || field === 'max_score' ? parseInt(value) : value,
+      [field]:
+        field === "min_score" || field === "max_score"
+          ? parseInt(value)
+          : value,
     };
     setLevels(updatedLevels);
   };
@@ -271,15 +292,15 @@ export default function GradingScaleSettings() {
   // 渲染分数示例
   const renderScoreExamples = (levels: GradingScaleLevel[]) => {
     if (!levels || levels.length === 0) return null;
-    
+
     // 排序等级
     const sortedLevels = [...levels].sort((a, b) => a.position - b.position);
-    
+
     return (
       <div className="flex flex-wrap gap-2 mt-4">
         {sortedLevels.map((level, index) => (
           <div key={index} className="flex flex-col items-center">
-            <Badge 
+            <Badge
               style={{ backgroundColor: level.color || undefined }}
               className="mb-1"
             >
@@ -308,9 +329,7 @@ export default function GradingScaleSettings() {
         <TabsList>
           <TabsTrigger value="list">评级标准列表</TabsTrigger>
           {selectedScale && (
-            <TabsTrigger value="detail">
-              {selectedScale.name} 详情
-            </TabsTrigger>
+            <TabsTrigger value="detail">{selectedScale.name} 详情</TabsTrigger>
           )}
         </TabsList>
 
@@ -318,9 +337,7 @@ export default function GradingScaleSettings() {
           <Card>
             <CardHeader>
               <CardTitle>已创建的评级标准</CardTitle>
-              <CardDescription>
-                管理您创建的所有评级标准
-              </CardDescription>
+              <CardDescription>管理您创建的所有评级标准</CardDescription>
             </CardHeader>
             <CardContent>
               {scales.length === 0 ? (
@@ -344,7 +361,9 @@ export default function GradingScaleSettings() {
                           {scale.name}
                         </TableCell>
                         <TableCell>
-                          {new Date(scale.created_at || "").toLocaleDateString()}
+                          {new Date(
+                            scale.created_at || ""
+                          ).toLocaleDateString()}
                         </TableCell>
                         <TableCell>
                           {scale.is_default ? (
@@ -379,7 +398,10 @@ export default function GradingScaleSettings() {
                   <div>
                     <CardTitle>{selectedScale.name}</CardTitle>
                     <CardDescription>
-                      创建于 {new Date(selectedScale.created_at || "").toLocaleDateString()}
+                      创建于{" "}
+                      {new Date(
+                        selectedScale.created_at || ""
+                      ).toLocaleDateString()}
                     </CardDescription>
                   </div>
                   <div className="flex gap-2">
@@ -592,4 +614,4 @@ export default function GradingScaleSettings() {
       </Dialog>
     </div>
   );
-} 
+}
