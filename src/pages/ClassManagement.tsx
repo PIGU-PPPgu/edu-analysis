@@ -935,7 +935,7 @@ const ClassManagement: React.FC = () => {
                             <div className="flex items-center justify-between w-full gap-2">
                               <span>{cls.name}</span>
                               {favoriteClassIds.has(cls.id) && (
-                                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                                <Star className="h-3 w-3 text-gray-400" />
                               )}
                             </div>
                           </SelectItem>
@@ -1007,7 +1007,7 @@ const ClassManagement: React.FC = () => {
                           )}
                           {classItem.warningCount !== undefined &&
                             classItem.warningCount > 0 && (
-                              <div className="flex items-center text-xs text-orange-600 dark:text-orange-400">
+                              <div className="flex items-center text-xs text-gray-600 dark:text-gray-400">
                                 <AlertTriangle className="h-3 w-3 mr-1" />
                                 {classItem.warningCount}人
                               </div>
@@ -1073,7 +1073,7 @@ const ClassManagement: React.FC = () => {
                   onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
                   className={
                     showFavoritesOnly
-                      ? "bg-yellow-500 hover:bg-yellow-600 text-white"
+                      ? "bg-gray-500 hover:bg-gray-600 text-white"
                       : "dark:bg-gray-700 dark:text-white dark:border-gray-600"
                   }
                   disabled={favoriteClassIds.size === 0}
@@ -1150,7 +1150,7 @@ const ClassManagement: React.FC = () => {
                       >
                         {/* 年级标题栏 */}
                         <div
-                          className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-750 cursor-pointer hover:from-blue-100 hover:to-purple-100 dark:hover:from-gray-750 dark:hover:to-gray-700 transition-colors"
+                          className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-750 cursor-pointer hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-750 dark:hover:to-gray-700 transition-colors"
                           onClick={() => toggleGradeCollapse(grade)}
                         >
                           <div className="flex items-center space-x-3">
@@ -1214,8 +1214,8 @@ const ClassManagement: React.FC = () => {
                                       <Star
                                         className={`h-5 w-5 transition-colors ${
                                           favoriteClassIds.has(classItem.id)
-                                            ? "fill-yellow-400 text-yellow-400"
-                                            : "text-gray-300 hover:text-yellow-400"
+                                            ? "text-gray-400"
+                                            : "text-gray-300 hover:text-gray-400"
                                         }`}
                                       />
                                     </Button>
@@ -1245,7 +1245,7 @@ const ClassManagement: React.FC = () => {
                                   {/* 预警信息 */}
                                   {classItem.warningCount !== undefined &&
                                     classItem.warningCount > 0 && (
-                                      <div className="flex items-center text-xs text-orange-600 dark:text-orange-400">
+                                      <div className="flex items-center text-xs text-gray-600 dark:text-gray-400">
                                         <AlertTriangle className="h-3.5 w-3.5 mr-1.5" />
                                         {classItem.warningCount} 人预警
                                       </div>
@@ -1253,7 +1253,7 @@ const ClassManagement: React.FC = () => {
                                   {/* 最近考试 */}
                                   {classItem.lastExamTitle &&
                                     classItem.lastExamDate && (
-                                      <div className="flex items-center text-xs text-blue-600 dark:text-blue-400">
+                                      <div className="flex items-center text-xs text-gray-700 dark:text-gray-400">
                                         <Calendar className="h-3.5 w-3.5 mr-1.5" />
                                         {classItem.lastExamTitle} (
                                         {new Date(
