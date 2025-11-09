@@ -200,7 +200,9 @@ const TeacherDashboard: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <Card>
             <CardContent className="flex items-center p-6">
-              <BookOpen className="h-8 w-8 text-blue-600" />
+              <div className="p-3 bg-[#B9FF66]/10 rounded-lg">
+                <BookOpen className="h-8 w-8 text-gray-700" />
+              </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-muted-foreground">
                   管理班级
@@ -211,7 +213,9 @@ const TeacherDashboard: React.FC = () => {
           </Card>
           <Card>
             <CardContent className="flex items-center p-6">
-              <Users className="h-8 w-8 text-green-600" />
+              <div className="p-3 bg-[#B9FF66]/20 rounded-lg">
+                <Users className="h-8 w-8 text-gray-700" />
+              </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-muted-foreground">
                   学生总数
@@ -227,7 +231,9 @@ const TeacherDashboard: React.FC = () => {
           </Card>
           <Card>
             <CardContent className="flex items-center p-6">
-              <TrendingUp className="h-8 w-8 text-purple-600" />
+              <div className="p-3 bg-gray-100 rounded-lg">
+                <TrendingUp className="h-8 w-8 text-gray-700" />
+              </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-muted-foreground">
                   平均成绩
@@ -247,7 +253,9 @@ const TeacherDashboard: React.FC = () => {
           </Card>
           <Card>
             <CardContent className="flex items-center p-6">
-              <Target className="h-8 w-8 text-orange-600" />
+              <div className="p-3 bg-gray-100 rounded-lg">
+                <Target className="h-8 w-8 text-gray-700" />
+              </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-muted-foreground">
                   优秀率
@@ -278,7 +286,7 @@ const TeacherDashboard: React.FC = () => {
             <Button
               variant="ghost"
               onClick={() => navigate("/class-management")}
-              className="text-blue-600 hover:text-blue-700"
+              className="text-gray-700 hover:text-black font-medium"
             >
               查看全部
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -301,9 +309,9 @@ const TeacherDashboard: React.FC = () => {
               ))}
             </div>
           ) : classes.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 bg-gradient-to-br from-slate-50 to-blue-50 rounded-lg border-2 border-dashed border-slate-300">
+            <div className="flex flex-col items-center justify-center py-16 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border-2 border-dashed border-gray-300">
               <div className="p-4 bg-white rounded-full mb-4 shadow-sm">
-                <BookOpen className="h-12 w-12 text-blue-400" />
+                <BookOpen className="h-12 w-12 text-gray-400" />
               </div>
               <h3 className="text-xl font-bold mb-2 text-gray-800">
                 暂无班级信息
@@ -412,7 +420,7 @@ const TeacherDashboard: React.FC = () => {
                     : "/student-management"
                 )
               }
-              className="text-blue-600 hover:text-blue-700"
+              className="text-gray-700 hover:text-black font-medium"
             >
               查看全部
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -443,9 +451,9 @@ const TeacherDashboard: React.FC = () => {
               onViewStudent={handleViewStudent}
             />
           ) : (
-            <div className="flex flex-col items-center justify-center py-16 bg-gradient-to-br from-slate-50 to-purple-50 rounded-lg border-2 border-dashed border-slate-300">
+            <div className="flex flex-col items-center justify-center py-16 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border-2 border-dashed border-gray-300">
               <div className="p-4 bg-white rounded-full mb-4 shadow-sm">
-                <Users className="h-12 w-12 text-purple-400" />
+                <Users className="h-12 w-12 text-gray-400" />
               </div>
               <h3 className="text-xl font-bold mb-2 text-gray-800">
                 暂无学生数据
