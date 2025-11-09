@@ -1319,7 +1319,7 @@ const ClassManagement: React.FC = () => {
             }}
             className="w-full mt-8"
           >
-            <TabsList className="grid w-full grid-cols-6 bg-gray-100 dark:bg-gray-900 p-1 rounded-lg shadow-inner">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-6 h-auto bg-gray-100 dark:bg-gray-900 p-1 rounded-lg shadow-inner">
               <TabsTrigger
                 value="overview"
                 className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-[#5E9622] dark:data-[state=active]:text-[#B9FF66] data-[state=active]:shadow-md rounded-md px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
