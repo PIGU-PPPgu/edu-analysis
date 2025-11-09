@@ -112,8 +112,8 @@ const GradeAnalysisLayout: React.FC = () => {
           <div className="container mx-auto px-4 py-4">
             <Card className="border-l-4 border-l-[#B9FF66] bg-[#B9FF66]/5">
               <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                     <div className="flex items-center gap-2">
                       <BarChart3 className="h-5 w-5 text-[#B9FF66]" />
                       <span className="font-medium text-gray-800">
@@ -143,7 +143,7 @@ const GradeAnalysisLayout: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                     <Button
                       onClick={handleBackToExamManagement}
                       className="gap-1 border-2 border-black bg-white hover:bg-gray-50 text-black font-bold shadow-[2px_2px_0px_0px_#000] hover:shadow-[4px_4px_0px_0px_#000] transition-all duration-200"
