@@ -64,16 +64,8 @@ const GradeAnalysisLayout: React.FC = () => {
       // 显示成功提示
       toast.success("已自动选择考试", {
         description: `正在分析: ${examTitle}`,
-        duration: 3000,
+        duration: 4000,
       });
-
-      // 添加延迟再次提示，确保用户知道筛选应该生效
-      setTimeout(() => {
-        toast.info("筛选参数已设置，正在应用筛选...", {
-          description: `筛选条件: examId=${examId}, examTitle="${examTitle}"`,
-          duration: 5000,
-        });
-      }, 1000);
     } else {
       console.log("❌ 缺少必需的URL参数");
       console.log("🔍 具体情况:");
