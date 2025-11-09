@@ -150,14 +150,35 @@ const StudentProfile: React.FC = () => {
 
   if (!student) {
     return (
-      <div className="bg-white min-h-screen">
+      <div className="bg-gray-50 min-h-screen">
         <Navbar />
         <div className="container mx-auto px-4 py-10">
-          <div className="flex flex-col gap-3 justify-center items-center h-64">
-            <p className="text-lg font-medium">找不到该学生信息</p>
-            <Button variant="outline" asChild>
-              <Link to="/student-portrait-management">返回学生画像管理</Link>
-            </Button>
+          <div className="flex flex-col items-center justify-center py-20 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border-2 border-dashed border-gray-300">
+            <div className="p-4 bg-white rounded-full mb-4 shadow-sm">
+              <Users className="h-16 w-16 text-gray-400" />
+            </div>
+            <h3 className="text-2xl font-bold mb-2 text-gray-800">
+              找不到该学生信息
+            </h3>
+            <p className="text-gray-600 mb-8 text-center max-w-md">
+              {studentId
+                ? `学生 ID "${studentId}" 不存在或已被删除`
+                : "请从学生管理页面选择一个学生"}
+            </p>
+            <div className="flex gap-3">
+              <Button variant="outline" asChild>
+                <Link to="/student-management">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  返回学生管理
+                </Link>
+              </Button>
+              <Button
+                asChild
+                className="bg-[#B9FF66] text-black hover:bg-[#a8e85c] font-medium shadow-md"
+              >
+                <Link to="/student-portrait-management">查看画像管理</Link>
+              </Button>
+            </div>
           </div>
         </div>
       </div>
