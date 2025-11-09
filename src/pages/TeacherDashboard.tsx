@@ -300,6 +300,27 @@ const TeacherDashboard: React.FC = () => {
                 </Card>
               ))}
             </div>
+          ) : classes.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 bg-gradient-to-br from-slate-50 to-blue-50 rounded-lg border-2 border-dashed border-slate-300">
+              <div className="p-4 bg-white rounded-full mb-4 shadow-sm">
+                <BookOpen className="h-12 w-12 text-blue-400" />
+              </div>
+              <h3 className="text-xl font-bold mb-2 text-gray-800">
+                暂无班级信息
+              </h3>
+              <p className="text-gray-600 mb-6 text-center max-w-md">
+                您还没有管理的班级
+                <br />
+                请联系管理员分配班级
+              </p>
+              <Button
+                onClick={() => navigate("/class-management")}
+                className="bg-[#B9FF66] text-black hover:bg-[#a8e85c] font-medium shadow-md"
+              >
+                <BookOpen className="mr-2 h-4 w-4" />
+                前往班级管理
+              </Button>
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {classes.map((classItem) => (
@@ -398,17 +419,67 @@ const TeacherDashboard: React.FC = () => {
             </Button>
           </div>
 
-          {showWarningStudents && warningStudents.length > 0 ? (
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3].map((i) => (
+                <Card key={i} className="animate-pulse">
+                  <CardContent className="p-6">
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-3"></div>
+                    <div className="h-3 bg-gray-200 rounded w-1/2 mb-2"></div>
+                    <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : showWarningStudents && warningStudents.length > 0 ? (
             <WarningStudentView
               students={warningStudents}
               onViewStudent={handleViewStudent}
               onViewWarningDetails={handleViewWarningDetails}
             />
-          ) : (
+          ) : recentStudents.length > 0 ? (
             <StudentQuickView
               students={recentStudents}
               onViewStudent={handleViewStudent}
             />
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 bg-gradient-to-br from-slate-50 to-purple-50 rounded-lg border-2 border-dashed border-slate-300">
+              <div className="p-4 bg-white rounded-full mb-4 shadow-sm">
+                <Users className="h-12 w-12 text-purple-400" />
+              </div>
+              <h3 className="text-xl font-bold mb-2 text-gray-800">
+                暂无学生数据
+              </h3>
+              <p className="text-gray-600 mb-6 text-center max-w-md">
+                {showWarningStudents
+                  ? "目前没有需要预警的学生"
+                  : "还没有学生成绩数据"}
+                <br />
+                {showWarningStudents
+                  ? "请切换到常规学生查看"
+                  : "请导入学生成绩后再查看"}
+              </p>
+              <Button
+                onClick={() =>
+                  showWarningStudents
+                    ? setShowWarningStudents(false)
+                    : navigate("/")
+                }
+                className="bg-[#B9FF66] text-black hover:bg-[#a8e85c] font-medium shadow-md"
+              >
+                {showWarningStudents ? (
+                  <>
+                    <Users className="mr-2 h-4 w-4" />
+                    查看常规学生
+                  </>
+                ) : (
+                  <>
+                    <FileSpreadsheet className="mr-2 h-4 w-4" />
+                    前往数据导入
+                  </>
+                )}
+              </Button>
+            </div>
           )}
         </div>
       </div>
