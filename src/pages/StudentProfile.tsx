@@ -214,7 +214,7 @@ const StudentProfile: React.FC = () => {
                 onValueChange={setActiveTab}
                 className="w-full"
               >
-                <TabsList className="mb-6">
+                <TabsList className="mb-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 h-auto">
                   <TabsTrigger value="overview">成绩概览</TabsTrigger>
                   <TabsTrigger value="learning-style">学习风格</TabsTrigger>
                   <TabsTrigger value="behavior">学习行为</TabsTrigger>
