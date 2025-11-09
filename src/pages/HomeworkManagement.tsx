@@ -324,14 +324,23 @@ const HomeworkManagement = () => {
                   {knowledgePointStats.length > 0 ? (
                     <StatisticsCharts knowledgePoints={knowledgePointStats} />
                   ) : (
-                    <div className="flex flex-col items-center justify-center py-12 bg-gray-50 rounded-lg border-4 border-black">
-                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 border-2 border-black">
-                        <span className="text-2xl">📊</span>
+                    <div className="flex flex-col items-center justify-center py-16 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border-2 border-dashed border-gray-300">
+                      <div className="p-4 bg-white rounded-full mb-4 shadow-sm">
+                        <BarChart3 className="h-12 w-12 text-gray-400" />
                       </div>
-                      <h3 className="text-lg font-medium mb-2">暂无数据</h3>
-                      <p className="text-gray-500 text-center">
-                        暂无作业或知识点评估数据
+                      <h3 className="text-xl font-bold mb-2 text-gray-800">
+                        暂无知识点数据
+                      </h3>
+                      <p className="text-gray-600 mb-6 text-center max-w-md">
+                        创建作业并启用知识点评估后，将显示统计图表
                       </p>
+                      <Button
+                        onClick={() => navigate("/homework-creation")}
+                        className="bg-[#B9FF66] text-black hover:bg-[#a8e85c] font-medium shadow-md"
+                      >
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        创建作业
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -340,7 +349,7 @@ const HomeworkManagement = () => {
           </>
         ) : (
           <div className="text-center py-12 border rounded-lg bg-gray-50">
-            <AlertTriangle className="h-12 w-12 mx-auto text-yellow-500 mb-4" />
+            <AlertTriangle className="h-12 w-12 mx-auto text-gray-400 mb-4" />
             <h3 className="text-lg font-semibold mb-2">未分配角色</h3>
             <p className="text-gray-600 mb-4">
               您的账户尚未分配教师角色，无法访问作业管理功能。
