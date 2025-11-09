@@ -70,42 +70,96 @@ const TeacherDashboard: React.FC = () => {
 
       // 如果预警学生数量不足，补充常规学生数据
       if (warningStudentsData.length < 6) {
-        const { data: studentsData, error } = await supabase
-          .from("students")
-          .select(
+        const warningStudentIds = warningStudentsData.map((s) => s.id);
+
+        // 使用真实查询获取学生成绩数据
+        const { data: studentsData, error } = await supabase.rpc(
+          "get_student_score_summary",
+          {
+            exclude_ids: warningStudentIds,
+            row_limit: 6 - warningStudentsData.length,
+          }
+        );
+
+        if (error) {
+          // 如果 RPC 函数不存在，回退到基础查询
+          console.warn("RPC function not found, using fallback query:", error);
+
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from("students")
+            .select(
+              `
+              id,
+              name,
+              class_name
             `
-            id,
-            name,
-            class_info!inner(class_name)
-          `
-          )
-          .not(
-            "id",
-            "in",
-            `(${warningStudentsData.map((s) => s.id).join(",") || "NULL"})`
-          )
-          .limit(6 - warningStudentsData.length);
+            )
+            .not("id", "in", `(${warningStudentIds.join(",") || "NULL"})`)
+            .limit(6 - warningStudentsData.length);
 
-        if (error) throw error;
+          if (fallbackError) throw fallbackError;
 
-        const formattedStudents =
-          studentsData?.map((student) => ({
-            id: student.id,
-            name: student.name,
-            class_name: (student as any).class_info?.class_name,
-            averageScore: Math.random() * 40 + 60, // 模拟数据
-            recentScores: [
-              Math.floor(Math.random() * 40 + 60),
-              Math.floor(Math.random() * 40 + 60),
-              Math.floor(Math.random() * 40 + 60),
-            ],
-            trend: ["up", "down", "stable"][Math.floor(Math.random() * 3)] as
-              | "up"
-              | "down"
-              | "stable",
-          })) || [];
+          // 获取每个学生的成绩统计
+          const formattedStudents = await Promise.all(
+            (fallbackData || []).map(async (student) => {
+              const { data: gradeData } = await supabase
+                .from("grade_data")
+                .select("total_score, exam_date")
+                .eq("student_id", student.id)
+                .order("exam_date", { ascending: false })
+                .limit(3);
 
-        setRecentStudents(formattedStudents);
+              const scores =
+                gradeData?.map((g) => g.total_score).filter(Boolean) || [];
+              const avgScore =
+                scores.length > 0
+                  ? scores.reduce((a, b) => a + b, 0) / scores.length
+                  : undefined;
+
+              // 计算趋势
+              let trend: "up" | "down" | "stable" = "stable";
+              if (scores.length >= 2) {
+                const diff = scores[0] - scores[1];
+                if (diff > 5) trend = "up";
+                else if (diff < -5) trend = "down";
+              }
+
+              return {
+                id: student.id,
+                name: student.name,
+                class_name: student.class_name,
+                averageScore: avgScore,
+                recentScores: scores.slice(0, 3),
+                trend,
+              };
+            })
+          );
+
+          setRecentStudents(formattedStudents);
+        } else {
+          // RPC 函数存在，使用返回的数据
+          const formattedStudents =
+            studentsData?.map((student: any) => {
+              const scores = student.recent_scores || [];
+              let trend: "up" | "down" | "stable" = "stable";
+              if (scores.length >= 2) {
+                const diff = scores[0] - scores[1];
+                if (diff > 5) trend = "up";
+                else if (diff < -5) trend = "down";
+              }
+
+              return {
+                id: student.id,
+                name: student.name,
+                class_name: student.class_name,
+                averageScore: student.average_score,
+                recentScores: scores.slice(0, 3),
+                trend,
+              };
+            }) || [];
+
+          setRecentStudents(formattedStudents);
+        }
       }
     } catch (error) {
       showError(error, { operation: "获取教师工作台数据" });
