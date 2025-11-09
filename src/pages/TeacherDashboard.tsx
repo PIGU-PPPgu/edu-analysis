@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import {
   BookOpen,
   Users,
@@ -393,9 +394,9 @@ const TeacherDashboard: React.FC = () => {
                     variant={showWarningStudents ? "default" : "outline"}
                     size="sm"
                     onClick={() => setShowWarningStudents(true)}
-                    className={
-                      showWarningStudents ? "bg-red-500 hover:bg-red-600" : ""
-                    }
+                    className={cn(
+                      showWarningStudents && "bg-red-500 hover:bg-red-600"
+                    )}
                   >
                     <AlertTriangle className="w-4 h-4 mr-1" />
                     预警学生({warningStudents.length})
