@@ -1108,25 +1108,36 @@ const ClassManagement: React.FC = () => {
                   ))}
                 </div>
               ) : displayedClasses.length === 0 ? (
-                <div className="text-center py-10 text-gray-500 dark:text-gray-400">
-                  {showFavoritesOnly ? (
-                    <>
-                      <Star className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
-                      <p className="text-lg font-semibold">没有收藏的班级</p>
-                      <p className="text-sm">
-                        点击班级卡片右上角的星标图标来收藏常用班级
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <Users className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
-                      <p className="text-lg font-semibold">未找到班级</p>
-                      <p className="text-sm">
-                        {searchTerm
-                          ? "没有匹配当前筛选条件的班级。"
-                          : "您还没有创建任何班级，请点击右上角按钮创建。"}
-                      </p>
-                    </>
+                <div className="flex flex-col items-center justify-center py-20 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700">
+                  <div className="p-4 bg-white dark:bg-gray-800 rounded-full mb-4 shadow-sm">
+                    {showFavoritesOnly ? (
+                      <Star className="h-12 w-12 text-gray-400 dark:text-gray-500" />
+                    ) : (
+                      <BookOpen className="h-12 w-12 text-gray-400 dark:text-gray-500" />
+                    )}
+                  </div>
+                  <h3 className="text-xl font-bold mb-2 text-gray-800 dark:text-gray-200">
+                    {showFavoritesOnly
+                      ? "没有收藏的班级"
+                      : searchTerm
+                        ? "没有找到匹配的班级"
+                        : "还没有班级数据"}
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400 mb-6 text-center max-w-md">
+                    {showFavoritesOnly
+                      ? "点击班级卡片右上角的星标图标来收藏常用班级"
+                      : searchTerm
+                        ? `未找到包含 "${searchTerm}" 的班级，请尝试其他筛选条件`
+                        : "创建班级以便管理学生和分析成绩数据"}
+                  </p>
+                  {!showFavoritesOnly && !searchTerm && (
+                    <Button
+                      onClick={() => setCreateDialogOpen(true)}
+                      className="bg-[#B9FF66] text-black hover:bg-[#a8e85c] font-medium shadow-md"
+                    >
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      创建班级
+                    </Button>
                   )}
                 </div>
               ) : (
