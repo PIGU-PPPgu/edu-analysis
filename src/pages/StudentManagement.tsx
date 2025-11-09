@@ -437,10 +437,31 @@ export default function StudentManagement() {
               加载中...
             </div>
           ) : filteredStudents.length === 0 ? (
-            <div className="py-20 text-center text-muted-foreground">
-              {searchQuery
-                ? "没有找到匹配的学生"
-                : "还没有学生数据，请添加学生"}
+            <div className="flex flex-col items-center justify-center py-20 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border-2 border-dashed border-gray-300">
+              <div className="p-4 bg-white rounded-full mb-4 shadow-sm">
+                {searchQuery ? (
+                  <Search className="h-12 w-12 text-gray-400" />
+                ) : (
+                  <UserPlus className="h-12 w-12 text-gray-400" />
+                )}
+              </div>
+              <h3 className="text-xl font-bold mb-2 text-gray-800">
+                {searchQuery ? "没有找到匹配的学生" : "还没有学生数据"}
+              </h3>
+              <p className="text-gray-600 mb-6 text-center max-w-md">
+                {searchQuery
+                  ? `未找到包含 "${searchQuery}" 的学生，请尝试其他关键词`
+                  : "开始添加学生信息以便管理和分析"}
+              </p>
+              {!searchQuery && (
+                <Button
+                  onClick={handleAddStudent}
+                  className="bg-[#B9FF66] text-black hover:bg-[#a8e85c] font-medium shadow-md"
+                >
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  添加学生
+                </Button>
+              )}
             </div>
           ) : (
             <div className="rounded-md border">
