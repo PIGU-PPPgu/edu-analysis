@@ -263,7 +263,7 @@ const StudentProfile: React.FC = () => {
                                   className="flex items-center justify-between"
                                 >
                                   <span>{ability.name}</span>
-                                  <span className="font-medium text-green-600">
+                                  <span className="font-medium text-gray-700">
                                     {ability.score}
                                   </span>
                                 </li>
@@ -271,19 +271,19 @@ const StudentProfile: React.FC = () => {
                               <>
                                 <li className="flex items-center justify-between">
                                   <span>记忆能力</span>
-                                  <span className="font-medium text-green-600">
+                                  <span className="font-medium text-gray-700">
                                     95
                                   </span>
                                 </li>
                                 <li className="flex items-center justify-between">
                                   <span>数学运算</span>
-                                  <span className="font-medium text-green-600">
+                                  <span className="font-medium text-gray-700">
                                     90
                                   </span>
                                 </li>
                                 <li className="flex items-center justify-between">
                                   <span>阅读理解</span>
-                                  <span className="font-medium text-green-600">
+                                  <span className="font-medium text-gray-700">
                                     85
                                   </span>
                                 </li>
@@ -307,7 +307,7 @@ const StudentProfile: React.FC = () => {
                                   className="flex items-center justify-between"
                                 >
                                   <span>{ability.name}</span>
-                                  <span className="font-medium text-orange-500">
+                                  <span className="font-medium text-gray-600">
                                     {ability.score}
                                   </span>
                                 </li>
@@ -315,19 +315,19 @@ const StudentProfile: React.FC = () => {
                               <>
                                 <li className="flex items-center justify-between">
                                   <span>创新思维</span>
-                                  <span className="font-medium text-orange-500">
+                                  <span className="font-medium text-gray-600">
                                     65
                                   </span>
                                 </li>
                                 <li className="flex items-center justify-between">
                                   <span>逻辑思维</span>
-                                  <span className="font-medium text-orange-500">
+                                  <span className="font-medium text-gray-600">
                                     75
                                   </span>
                                 </li>
                                 <li className="flex items-center justify-between">
                                   <span>沟通表达</span>
-                                  <span className="font-medium text-orange-500">
+                                  <span className="font-medium text-gray-600">
                                     80
                                   </span>
                                 </li>
@@ -369,7 +369,7 @@ const StudentProfile: React.FC = () => {
                                 </div>
                                 <div className="h-2 bg-gray-200 rounded-full">
                                   <div
-                                    className="h-2 bg-blue-500 rounded-full"
+                                    className="h-2 bg-[#B9FF66] rounded-full"
                                     style={{ width: `${habit.percentage}%` }}
                                   ></div>
                                 </div>
@@ -386,7 +386,7 @@ const StudentProfile: React.FC = () => {
                                 </div>
                                 <div className="h-2 bg-gray-200 rounded-full">
                                   <div
-                                    className="h-2 bg-blue-500 rounded-full"
+                                    className="h-2 bg-[#B9FF66] rounded-full"
                                     style={{ width: "85%" }}
                                   ></div>
                                 </div>
@@ -401,7 +401,7 @@ const StudentProfile: React.FC = () => {
                                 </div>
                                 <div className="h-2 bg-gray-200 rounded-full">
                                   <div
-                                    className="h-2 bg-blue-500 rounded-full"
+                                    className="h-2 bg-[#B9FF66] rounded-full"
                                     style={{ width: "70%" }}
                                   ></div>
                                 </div>
@@ -416,7 +416,7 @@ const StudentProfile: React.FC = () => {
                                 </div>
                                 <div className="h-2 bg-gray-200 rounded-full">
                                   <div
-                                    className="h-2 bg-blue-500 rounded-full"
+                                    className="h-2 bg-[#B9FF66] rounded-full"
                                     style={{ width: "60%" }}
                                   ></div>
                                 </div>
@@ -431,7 +431,7 @@ const StudentProfile: React.FC = () => {
                                 </div>
                                 <div className="h-2 bg-gray-200 rounded-full">
                                   <div
-                                    className="h-2 bg-blue-500 rounded-full"
+                                    className="h-2 bg-[#B9FF66] rounded-full"
                                     style={{ width: "90%" }}
                                   ></div>
                                 </div>
