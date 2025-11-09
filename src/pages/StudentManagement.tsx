@@ -487,7 +487,7 @@ export default function StudentManagement() {
                       <TableCell>{student.name}</TableCell>
                       <TableCell>
                         {student.class ? (
-                          <Badge variant="outline" className="bg-blue-50">
+                          <Badge variant="outline" className="bg-gray-50">
                             {student.class.name}
                           </Badge>
                         ) : (
