@@ -28,27 +28,11 @@ const GradeAnalysisLayout: React.FC = () => {
 
   // 检查URL参数中是否有考试信息
   useEffect(() => {
-    console.log("🔍 基础分析页面 - 检查URL参数:", location.search);
-    console.log("🔍 完整URL:", window.location.href);
-
     const urlParams = new URLSearchParams(location.search);
     const examId = urlParams.get("examId");
     const examTitle = urlParams.get("examTitle");
     const examDate = urlParams.get("examDate");
     const examType = urlParams.get("examType");
-    const filterByTitle = urlParams.get("filterByTitle");
-
-    console.log("📋 URL参数解析:", {
-      examId,
-      examTitle,
-      examDate,
-      examType,
-      filterByTitle,
-    });
-    console.log("🔍 URLSearchParams 迭代器:");
-    for (const [key, value] of urlParams) {
-      console.log(`  ${key} = "${value}"`);
-    }
 
     if (examId && examTitle) {
       const examInfo = {
@@ -58,7 +42,6 @@ const GradeAnalysisLayout: React.FC = () => {
         examType: examType || "",
       };
 
-      console.log("✅ 设置考试信息:", examInfo);
       setSelectedExamInfo(examInfo);
 
       // 显示成功提示
@@ -66,15 +49,6 @@ const GradeAnalysisLayout: React.FC = () => {
         description: `正在分析: ${examTitle}`,
         duration: 4000,
       });
-    } else {
-      console.log("❌ 缺少必需的URL参数");
-      console.log("🔍 具体情况:");
-      console.log(`  examId: "${examId}" (${typeof examId})`);
-      console.log(`  examTitle: "${examTitle}" (${typeof examTitle})`);
-
-      if (!location.search) {
-        console.log("⚠️ URL中没有查询参数!");
-      }
     }
   }, [location.search]);
 
