@@ -47,11 +47,7 @@ const ClassAnalytics = lazy(() => import("./pages/ClassAnalytics"));
 const ExamManagement = lazy(() => import("./pages/ExamManagement"));
 const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
 
-// 工具和测试页面 - 懒加载
-const CascadeAnalysisTestPage = lazy(
-  () => import("./pages/test/cascade-analysis")
-);
-// 已删除测试文件: AnalysisDashboardComparison
+// 工具页面 - 懒加载
 const DiagnosticsTool = lazy(() =>
   import("./tools/diagnostics-ui").then((module) => ({
     default: module.DiagnosticsTool,
@@ -239,12 +235,6 @@ function App() {
                             path="/unauthorized"
                             element={<UnauthorizedPage />}
                           />
-                          <Route
-                            path="/test/cascade-analysis"
-                            element={<CascadeAnalysisTestPage />}
-                          />
-                          {/* 已移除测试路由: /test/analysis-dashboards */}
-
                           {/* 诊断工具路由（保持公开用于系统维护） */}
                           <Route
                             path="/tools/diagnostics"
