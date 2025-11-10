@@ -59,13 +59,15 @@ const WarningStudentView: React.FC<WarningStudentViewProps> = ({
 
   if (!students.length) {
     return (
-      <Card>
-        <CardContent className="p-6 text-center text-gray-500">
-          <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-          <p className="font-medium">暂无预警学生</p>
-          <p className="text-sm mt-1">系统未检测到需要关注的学生</p>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col items-center justify-center py-16 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border-2 border-dashed border-gray-300">
+        <div className="p-4 bg-white rounded-full mb-4 shadow-sm">
+          <AlertTriangle className="h-12 w-12 text-gray-400" />
+        </div>
+        <h3 className="text-xl font-bold mb-2 text-gray-800">暂无预警学生</h3>
+        <p className="text-gray-600 text-center max-w-md">
+          系统未检测到需要关注的学生，所有学生状态良好
+        </p>
+      </div>
     );
   }
 
@@ -161,7 +163,7 @@ const WarningStudentView: React.FC<WarningStudentViewProps> = ({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1 text-orange-600 hover:bg-orange-50"
+                    className="flex-1 text-red-600 hover:bg-red-50"
                     onClick={() => onViewWarningDetails(student.id)}
                   >
                     <AlertTriangle className="h-3 w-3 mr-1" />
