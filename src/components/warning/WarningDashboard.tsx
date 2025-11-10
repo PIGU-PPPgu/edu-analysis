@@ -1159,7 +1159,7 @@ ${
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         {!hideTabList && (
-          <TabsList className="mb-6 grid grid-cols-5 w-[1000px] bg-gray-100 border border-gray-300 p-1 rounded-lg">
+          <TabsList className="mb-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 w-full max-w-[1000px] bg-gray-100 border border-gray-300 p-1 rounded-lg">
             <TabsTrigger
               value="overview"
               className="data-[state=active]:bg-[#c0ff3f] data-[state=active]:text-black data-[state=inactive]:text-gray-700 rounded-md py-1.5"

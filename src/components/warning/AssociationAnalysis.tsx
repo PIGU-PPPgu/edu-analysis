@@ -291,7 +291,7 @@ const AssociationAnalysis: React.FC<AssociationAnalysisProps> = ({
 
       <CardContent className="pt-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="mb-4 grid grid-cols-2 w-[400px] bg-slate-100">
+          <TabsList className="mb-4 grid grid-cols-1 sm:grid-cols-2 w-full max-w-[400px] bg-slate-100">
             <TabsTrigger
               value="rules"
               className="data-[state=active]:bg-indigo-500 data-[state=active]:text-white"
