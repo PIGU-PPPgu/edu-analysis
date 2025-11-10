@@ -1108,7 +1108,7 @@ const ExamManagementCenter: React.FC = () => {
             onValueChange={setActiveTab}
             className="w-full"
           >
-            <TabsList className="grid w-full grid-cols-4 bg-white border border-gray-200 rounded-xl p-1">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto bg-white border border-gray-200 rounded-xl p-1">
               <TabsTrigger
                 value="dashboard"
                 className="data-[state=active]:bg-[#B9FF66] data-[state=active]:text-black rounded-lg font-medium transition-all duration-200"
