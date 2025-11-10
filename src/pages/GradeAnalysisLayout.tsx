@@ -2,12 +2,12 @@
  * 🎨 现代化成绩分析页面
  * 基于新的架构和设计理念重构
  * 支持从考试管理中心跳转并自动筛选考试
+ * 🚀 Phase 4: Lazy loading optimization for large dashboard component (1144 lines)
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense, lazy } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ModernGradeAnalysisProvider } from "@/contexts/ModernGradeAnalysisContext";
-import CompleteAnalyticsDashboard from "@/components/analysis/dashboard/CompleteAnalyticsDashboard_Safe";
 import Navbar from "@/components/shared/Navbar";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -15,6 +15,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, BookOpen, ArrowLeft, BarChart3 } from "lucide-react";
+import { PageLoadingFallback } from "@/components/ui/loading-fallback";
+
+// Lazy load the large CompleteAnalyticsDashboard component
+const CompleteAnalyticsDashboard = lazy(
+  () =>
+    import("@/components/analysis/dashboard/CompleteAnalyticsDashboard_Safe")
+);
 
 const GradeAnalysisLayout: React.FC = () => {
   const location = useLocation();
@@ -142,7 +149,9 @@ const GradeAnalysisLayout: React.FC = () => {
             : undefined
         }
       >
-        <CompleteAnalyticsDashboard />
+        <Suspense fallback={<PageLoadingFallback />}>
+          <CompleteAnalyticsDashboard />
+        </Suspense>
       </ModernGradeAnalysisProvider>
     </div>
   );
