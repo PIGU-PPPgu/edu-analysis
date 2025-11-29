@@ -1,0 +1,58 @@
+/**
+ * 打印和PDF导出样式优化
+ */
+
+@media print {
+  /* 确保图表正确显示 */
+  .recharts-wrapper,
+  .recharts-surface {
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  /* 避免图表在分页时被截断 */
+  .no-page-break,
+  .recharts-wrapper {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* 隐藏不需要的元素 */
+  button,
+  .scroll-area-scrollbar {
+    display: none !important;
+  }
+
+  /* 优化卡片显示 */
+  .border-2 {
+    border-width: 1px !important;
+  }
+
+  /* 确保背景色打印 */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+}
+
+/* PDF导出专用样式 */
+.pdf-export-container {
+  background: white;
+  color: #191a23;
+}
+
+.pdf-export-container .no-page-break {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.pdf-export-container .page-break-before {
+  page-break-before: always;
+  break-before: always;
+}
+
+.pdf-export-container .page-break-after {
+  page-break-after: always;
+  break-after: always;
+}

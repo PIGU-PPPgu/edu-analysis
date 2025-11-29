@@ -383,7 +383,7 @@ export const optimizedQueries = {
       queryId,
       async () => {
         let query = supabase
-          .from("grade_data_new")
+          .from("grade_data")
           .select("*")
           .eq("exam_title", examTitle)
           .order("total_score", { ascending: false })

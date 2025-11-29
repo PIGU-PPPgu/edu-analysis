@@ -70,6 +70,7 @@ import {
   Brain,
   AlertTriangle,
   Lightbulb,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatNumber } from "@/utils/formatUtils";
@@ -97,6 +98,7 @@ import {
 } from "@/services/examService";
 import ExamSubjectScoreDialog from "./ExamSubjectScoreDialog";
 import SemesterFilter from "./SemesterFilter";
+import ReportViewer from "@/components/analysis/reports/ReportViewer";
 
 // 本地类型定义（用于UI展示）
 interface Exam extends Omit<DBExam, "subject" | "status"> {
@@ -188,6 +190,10 @@ const ExamManagementCenter: React.FC = () => {
   const [currentExamSubjectScores, setCurrentExamSubjectScores] = useState<
     ExamSubjectScore[]
   >([]);
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
+  const [selectedExamIdForReport, setSelectedExamIdForReport] = useState<
+    string | null
+  >(null);
   const [examForm, setExamForm] = useState<Partial<Exam>>({
     title: "",
     description: "",
@@ -965,6 +971,11 @@ const ExamManagementCenter: React.FC = () => {
       case "advanced-analysis":
         handleAnalysisNavigation(exam, "advanced");
         break;
+      case "view-report":
+        setSelectedExamIdForReport(exam.id);
+        setIsReportDialogOpen(true);
+        toast.info(`正在加载"${exam.title}"的分析报告`);
+        break;
       case "subject-score-config":
         handleSubjectScoreConfig(exam);
         break;
@@ -1487,6 +1498,17 @@ const ExamManagementCenter: React.FC = () => {
                                     size="sm"
                                     className="gap-1 border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#000] hover:bg-[#B9FF66] transition-all duration-200 font-bold"
                                     onClick={() =>
+                                      handleQuickAction(exam, "view-report")
+                                    }
+                                  >
+                                    <FileText className="h-4 w-4" />
+                                    查看报告
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-1 border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#000] hover:bg-[#B9FF66] transition-all duration-200 font-bold"
+                                    onClick={() =>
                                       handleQuickAction(exam, "basic-analysis")
                                     }
                                   >
@@ -1552,6 +1574,15 @@ const ExamManagementCenter: React.FC = () => {
                                     >
                                       <Eye className="h-4 w-4 mr-2" />
                                       查看详情
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        handleQuickAction(exam, "view-report")
+                                      }
+                                      className="text-[#B9FF66] focus:text-[#B9FF66] focus:bg-[#B9FF66]/10"
+                                    >
+                                      <FileText className="h-4 w-4 mr-2" />
+                                      查看报告
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                       onClick={() =>
@@ -2482,6 +2513,20 @@ const ExamManagementCenter: React.FC = () => {
             initialScores={currentExamSubjectScores}
           />
         )}
+
+        {/* 📊 分析报告对话框 */}
+        <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
+          <DialogContent className="max-w-6xl h-[90vh] p-0 border-2 border-black shadow-[6px_6px_0px_0px_#191A23]">
+            <DialogHeader className="sr-only">
+              <DialogTitle>考试分析报告</DialogTitle>
+              <DialogDescription>查看AI生成的完整分析报告</DialogDescription>
+            </DialogHeader>
+            <ReportViewer
+              examId={selectedExamIdForReport || undefined}
+              onClose={() => setIsReportDialogOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

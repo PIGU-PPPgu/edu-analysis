@@ -229,7 +229,7 @@ class PortraitAPI {
 
       // 直接使用班级名称获取成绩数据（更高效）
       const { data: gradesData, error: gradesError } = await supabase
-        .from("grade_data_new")
+        .from("grade_data")
         .select(
           "student_id, total_score, chinese_score, math_score, english_score, physics_score, chemistry_score"
         )
@@ -274,7 +274,7 @@ class PortraitAPI {
       // 使用及格率作为进步率（更真实的指标）
       const progressRate = Math.round(passRate);
 
-      // 统计各科成绩（从grade_data_new的分科字段）
+      // 统计各科成绩（从grade_data的分科字段）
       const subjectStats: {
         name: string;
         averageScore: number;
@@ -473,7 +473,7 @@ class PortraitAPI {
       const studentIds = students.map((s) => s.id);
       const studentNumbers = students.map((s) => s.student_id);
 
-      // 按学生学号分组处理成绩（grade_data_new表使用宽表格式）
+      // 按学生学号分组处理成绩（grade_data表使用宽表格式）
       const studentGrades: Record<string, any[]> = {}; // key是学号，不是UUID
       grades?.forEach((gradeRecord) => {
         if (!studentGrades[gradeRecord.student_id]) {
@@ -831,7 +831,7 @@ class PortraitAPI {
         let grades: any[] = [];
         if (!studentsError && students && students.length > 0) {
           const { data: gradesData, error: gradesError } = await supabase
-            .from("grade_data_new")
+            .from("grade_data")
             .select("student_id, total_score, exam_title, exam_date")
             .in(
               "student_id",
@@ -1108,7 +1108,7 @@ class PortraitAPI {
       if (students && students.length > 0) {
         // 获取学生考试记录，按日期分组
         const { data: examRecords, error: examError } = await supabase
-          .from("grade_data_new")
+          .from("grade_data")
           .select("exam_date, exam_type")
           .in(
             "student_id",
@@ -1365,7 +1365,7 @@ class PortraitAPI {
 
           // 获取成绩
           const { data: grades, error: gradesError } = await supabase
-            .from("grade_data_new")
+            .from("grade_data")
             .select(
               "student_id, total_score, exam_date, exam_title, class_name"
             )
@@ -1410,12 +1410,12 @@ class PortraitAPI {
       const failRate =
         scores.length > 0 ? (failCount / scores.length) * 100 : 0;
 
-      // 从grade_data_new表获取各科目详细成绩
+      // 从grade_data表获取各科目详细成绩
       let subjectScores: Record<string, number[]> = {};
       if (gradesInfo.length > 0) {
         // 重新查询包含各科目成绩的数据
         const { data: detailedGrades } = await supabase
-          .from("grade_data_new")
+          .from("grade_data")
           .select(
             "chinese_score, math_score, english_score, physics_score, chemistry_score, politics_score, history_score, biology_score, geography_score"
           )
@@ -2320,7 +2320,7 @@ class PortraitAPI {
 
       // 获取学生成绩历史
       const { data: gradesData, error: gradesError } = await supabase
-        .from("grade_data_new")
+        .from("grade_data")
         .select("student_id, total_score, exam_date, exam_type")
         .eq("student_id", studentId)
         .order("exam_date", { ascending: true });
@@ -2591,7 +2591,7 @@ class PortraitAPI {
 
       // 获取学生成绩信息
       const { data: grades, error: gradesError } = await supabase
-        .from("grade_data_new")
+        .from("grade_data")
         .select("student_id, total_score, exam_type, exam_date")
         .eq("student_id", studentId)
         .order("exam_date", { ascending: false });

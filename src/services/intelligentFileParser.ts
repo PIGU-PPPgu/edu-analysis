@@ -135,15 +135,19 @@ const SUBJECT_PATTERNS = [
 export class IntelligentFileParser {
   /**
    * 🚀 解析文件的主入口方法 - 支持AI辅助增强
-   * @param file 要解析的文件
+   * @param file 要解析的文件或ArrayBuffer
    * @param options 解析选项 (可选AI辅助)
    */
   async parseFile(
-    file: File,
+    file: File | ArrayBuffer,
     options?: ParseOptions
   ): Promise<ParsedFileResult> {
+    // 🔧 支持ArrayBuffer，避免File对象权限问题
+    const fileName = file instanceof File ? file.name : "未知文件";
+    const fileType = file instanceof File ? file.type : "";
+
     console.log(
-      `[IntelligentFileParser] 开始解析文件: ${file.name} (${file.type})`
+      `[IntelligentFileParser] 开始解析文件: ${fileName} (${fileType})`
     );
 
     // 默认选项
@@ -158,24 +162,33 @@ export class IntelligentFileParser {
       aiMode: opts.aiMode,
     });
 
-    const fileType = this.detectFileType(file);
+    const detectedFileType = this.detectFileType(file);
     let rawData: any[] = [];
     let headers: string[] = [];
 
     // 根据文件类型选择解析方法
-    switch (fileType) {
+    switch (detectedFileType) {
       case "xlsx":
       case "xls":
-        console.log(`[IntelligentFileParser] 解析Excel文件: ${fileType}`);
-        ({ data: rawData, headers } = await this.parseExcelFile(file));
+        console.log(
+          `[IntelligentFileParser] 解析Excel文件: ${detectedFileType}`
+        );
+        ({ data: rawData, headers } = await this.parseExcelFile(
+          file,
+          fileName
+        ));
         break;
       case "csv":
         console.log(`[IntelligentFileParser] 解析CSV文件`);
-        ({ data: rawData, headers } = await this.parseCSVFile(file));
+        if (file instanceof File) {
+          ({ data: rawData, headers } = await this.parseCSVFile(file));
+        } else {
+          throw new Error("CSV文件必须使用File对象");
+        }
         break;
       default:
         throw new Error(
-          `不支持的文件类型: ${fileType}。支持的格式：CSV (.csv), Excel (.xlsx, .xls)`
+          `不支持的文件类型: ${detectedFileType}。支持的格式：CSV (.csv), Excel (.xlsx, .xls)`
         );
     }
 
@@ -302,8 +315,8 @@ export class IntelligentFileParser {
     // 科目检测（使用最终分析结果）
     const detectedSubjects = finalAnalysis.subjects;
 
-    // 考试信息推断
-    const examInfo = this.inferExamInfo(file.name, headers, cleanedData);
+    // 考试信息推断（使用fileName变量，因为ArrayBuffer没有name属性）
+    const examInfo = this.inferExamInfo(fileName, headers, cleanedData);
 
     // 识别未知字段（基于最终分析结果）
     const unknownFields = this.identifyUnknownFields(
@@ -517,7 +530,13 @@ export class IntelligentFileParser {
   /**
    * 检测文件类型
    */
-  private detectFileType(file: File): string {
+  private detectFileType(file: File | ArrayBuffer): string {
+    // 🔧 支持ArrayBuffer类型
+    if (file instanceof ArrayBuffer) {
+      // ArrayBuffer默认为Excel格式（因为我们主要在Excel解析时使用）
+      return "xlsx";
+    }
+
     const fileName = file.name.toLowerCase();
     const fileType = file.type.toLowerCase();
 
@@ -666,12 +685,16 @@ export class IntelligentFileParser {
    * 解析Excel文件 (支持.xlsx和.xls) - 增强支持多级表头
    */
   private async parseExcelFile(
-    file: File
+    file: File | ArrayBuffer,
+    fileName?: string
   ): Promise<{ data: any[]; headers: string[] }> {
     try {
-      console.log(`[IntelligentFileParser] 开始解析Excel文件: ${file.name}`);
+      const name = fileName || (file instanceof File ? file.name : "未知文件");
+      console.log(`[IntelligentFileParser] 开始解析Excel文件: ${name}`);
 
-      const arrayBuffer = await file.arrayBuffer();
+      // 如果是File对象，先读取arrayBuffer；如果已经是ArrayBuffer，直接使用
+      const arrayBuffer =
+        file instanceof File ? await file.arrayBuffer() : file;
       const workbook = XLSX.read(arrayBuffer, {
         type: "array",
         cellDates: true,
@@ -907,8 +930,8 @@ export class IntelligentFileParser {
   private inferExamInfo(filename: string, headers: string[], data: any[]): any {
     const examInfo: any = {};
 
-    // 从文件名推断考试信息
-    const filenameWithoutExt = filename.replace(/\.[^/.]+$/, "");
+    // 从文件名推断考试信息（处理可能的undefined/null）
+    const filenameWithoutExt = (filename || "").replace(/\.[^/.]+$/, "");
 
     // 检测考试类型
     if (filenameWithoutExt.includes("月考")) {

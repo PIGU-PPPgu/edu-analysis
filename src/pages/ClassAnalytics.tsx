@@ -49,12 +49,9 @@ const ClassAnalytics: React.FC = () => {
 
       // 并行获取班级和考试数据
       const [classesResponse, examsResponse] = await Promise.all([
+        supabase.from("grade_data").select("class_name").order("class_name"),
         supabase
-          .from("grade_data_new")
-          .select("class_name")
-          .order("class_name"),
-        supabase
-          .from("grade_data_new")
+          .from("grade_data")
           .select("exam_title, exam_date")
           .order("exam_date", { ascending: false }),
       ]);
@@ -113,7 +110,7 @@ const ClassAnalytics: React.FC = () => {
         if (!selectedExam) return;
 
         const { data: classStats } = await supabase
-          .from("grade_data_new")
+          .from("grade_data")
           .select("class_name, total_score")
           .eq("exam_title", selectedExam);
 
@@ -148,7 +145,7 @@ const ClassAnalytics: React.FC = () => {
         if (!selectedExam) return;
 
         const { data: classStats } = await supabase
-          .from("grade_data_new")
+          .from("grade_data")
           .select("class_name, total_score")
           .eq("exam_title", selectedExam);
 

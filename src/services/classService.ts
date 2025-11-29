@@ -12,12 +12,12 @@ const CACHE_CONFIGS = {
 };
 
 /**
- * 从grade_data_new表获取班级成绩统计
+ * 从grade_data表获取班级成绩统计
  */
 async function getClassGradeStatsFromGradeDataNew(classNames: string[]) {
   try {
     const { data, error } = await supabase
-      .from("grade_data_new")
+      .from("grade_data")
       .select("class_name, total_score")
       .in("class_name", classNames)
       .not("total_score", "is", null);
@@ -210,7 +210,7 @@ async function getClassLastExams(classNames: string[]): Promise<
     if (classNames.length === 0) return [];
 
     const { data, error } = await supabase
-      .from("grade_data_new")
+      .from("grade_data")
       .select("class_name, exam_title, exam_date")
       .in("class_name", classNames)
       .not("exam_date", "is", null)
@@ -441,7 +441,7 @@ async function getMultipleClassGradeStats(classNames: string[]): Promise<
     if (classNames.length === 0) return [];
 
     const { data, error } = await supabase
-      .from("grade_data_new")
+      .from("grade_data")
       .select("class_name, total_score")
       .in("class_name", classNames)
       .not("total_score", "is", null);
@@ -573,9 +573,9 @@ async function getClassStatisticsOptimized(className: string): Promise<{
             .select("id", { count: "exact", head: true })
             .eq("class_name", className),
 
-          // 成绩统计 - 优先从grade_data_new查询，添加索引友好的条件
+          // 成绩统计 - 优先从grade_data查询，添加索引友好的条件
           supabase
-            .from("grade_data_new")
+            .from("grade_data")
             .select("total_score")
             .eq("class_name", className)
             .not("total_score", "is", null)
@@ -594,7 +594,7 @@ async function getClassStatisticsOptimized(className: string): Promise<{
         let averageScore = 0;
         let excellentRate = 0;
 
-        // 处理成绩统计，如果grade_data_new没有数据，尝试grade_data表
+        // 处理成绩统计，如果grade_data没有数据，尝试grade_data表
         if (gradeResult.data && gradeResult.data.length > 0) {
           const scores = gradeResult.data
             .map((item) => item.total_score)
@@ -1115,7 +1115,7 @@ export async function getClassDetailedAnalysisData(classId: string) {
 function calculateBoxPlotData(grades: any[]) {
   if (!grades || grades.length === 0) return [];
 
-  // 从grade_data_new获取总分数据（简化版，只分析总分）
+  // 从grade_data获取总分数据（简化版，只分析总分）
   const totalScores: number[] = [];
 
   grades.forEach((grade) => {
@@ -1200,9 +1200,9 @@ async function calculateTrendData(classId: string, grades: any[]) {
     exam_date: date,
   }));
 
-  // 构建批量查询条件 - 使用grade_data_new表
+  // 构建批量查询条件 - 使用grade_data表
   const { data: allGradesData, error: allGradesError } = await supabase
-    .from("grade_data_new")
+    .from("grade_data")
     .select("total_score, exam_type, exam_date")
     .or(
       examConditions
@@ -1654,7 +1654,7 @@ export async function getAllClassesAnalysisData() {
       throw new Error(`批量获取学生数据失败: ${studentsError.message}`);
     }
 
-    // 2. 批量获取所有成绩数据 - 使用grade_data_new表
+    // 2. 批量获取所有成绩数据 - 使用grade_data表
     // 使用分批查询避免URL长度限制
     const studentIds = allStudents?.map((s) => s.id) || [];
     const BATCH_SIZE = 50; // 每批查询50个学生ID
@@ -1663,7 +1663,7 @@ export async function getAllClassesAnalysisData() {
     for (let i = 0; i < studentIds.length; i += BATCH_SIZE) {
       const batchIds = studentIds.slice(i, i + BATCH_SIZE);
       const { data: batchGrades, error: gradesError } = await supabase
-        .from("grade_data_new")
+        .from("grade_data")
         .select("student_id, total_score, exam_type, exam_date, class_name")
         .in("student_id", batchIds)
         .not("total_score", "is", null);

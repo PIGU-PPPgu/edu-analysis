@@ -43,7 +43,9 @@ import { supabase } from "@/integrations/supabase/client";
 import UploadProgressIndicator from "@/components/shared/UploadProgressIndicator";
 import {
   convertWideToLongFormatEnhanced,
-  analyzeCSVHeaders,
+  analyzeCSVHeadersWithCache,
+  saveMappingToCache,
+  diagnoseMappingIssues,
 } from "@/services/intelligentFieldMapper";
 import { autoSyncService } from "@/services/autoSyncService";
 import { intelligentStudentMatcher } from "@/services/intelligentStudentMatcher";
@@ -71,6 +73,7 @@ interface ImportResult {
 
 interface ParsedData {
   file: File;
+  fileBuffer?: ArrayBuffer; // 🔧 新增：保存文件的ArrayBuffer避免权限问题
   preview: any[];
   mapping: Record<string, string>;
   confidence: number;
@@ -146,6 +149,7 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
   // 🤖 AI辅助选项
   const [useAI, setUseAI] = useState(false); // 是否启用AI辅助
   const [aiMode, setAIMode] = useState<"auto" | "force" | "disabled">("auto"); // AI模式
+  const [autoCreateStudents, setAutoCreateStudents] = useState(true); // 自动创建新学生（默认开启）
 
   // 加载可用班级列表
   React.useEffect(() => {
@@ -323,6 +327,9 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
         setProgressMessage(`使用智能解析引擎处理文件${modeLabel}...`);
 
         try {
+          // 🔧 先读取arrayBuffer，避免后续访问权限问题
+          const fileBuffer = await file.arrayBuffer();
+
           const parseResult = await intelligentFileParser.parseFile(file, {
             useAI,
             aiMode: useAI ? aiMode : "disabled",
@@ -335,6 +342,7 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
 
           parsedData = {
             file,
+            fileBuffer, // 🔧 保存arrayBuffer供后续使用
             preview: parseResult.data.slice(0, 5), // 只显示前5行预览
             mapping: parseResult.metadata.suggestedMappings,
             confidence: parseResult.metadata.confidence,
@@ -468,25 +476,36 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
       setProgress(25);
       setProgressMessage("正在读取完整成绩表...");
 
-      // 重新解析文件以获取完整数据（不只是预览）
-      const fullParseResult = await intelligentFileParser.parseFile(
-        parsedData.file,
-        {
-          useAI,
-          aiMode: useAI ? aiMode : "disabled",
-          minConfidenceForAI: 0.8,
-        }
-      );
+      // 🔧 使用保存的arrayBuffer重新解析，避免File权限问题
+      const fileToUse = parsedData.fileBuffer || parsedData.file;
+      const fullParseResult = await intelligentFileParser.parseFile(fileToUse, {
+        useAI,
+        aiMode: useAI ? aiMode : "disabled",
+        minConfidenceForAI: 0.8,
+      });
       console.log("[真实导入] 完整解析结果:", fullParseResult);
       console.log(
         `[真实导入] 使用的解析方法: ${fullParseResult.metadata.parseMethod}`
       );
 
-      // 步骤3: 生成考试ID并准备考试数据
+      // 步骤3: 检查考试是否已存在，如果存在则复用
       setProgress(40);
       setProgressMessage("正在准备考试记录...");
 
-      const examId = crypto.randomUUID();
+      // 先查询是否已存在相同的考试
+      const { data: existingExams } = await supabase
+        .from("exams")
+        .select("id")
+        .eq("title", examInfo.title.trim())
+        .eq("date", examInfo.date)
+        .eq("type", examInfo.type)
+        .limit(1);
+
+      const examId =
+        existingExams && existingExams.length > 0
+          ? existingExams[0].id
+          : crypto.randomUUID();
+
       const examData = {
         exam_id: examId,
         title: examInfo.title.trim(),
@@ -494,14 +513,26 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
         date: examInfo.date,
       };
 
+      console.log("[真实导入] 考试信息:", {
+        examId,
+        isExisting: !!(existingExams && existingExams.length > 0),
+        examInfo,
+      });
+
       // 步骤4: 转换数据格式 - 将宽表格转换为长表格
       setProgress(55);
       setProgressMessage(
         `正在处理成绩数据 (共 ${fullParseResult.data.length} 名学生)...`
       );
 
-      const headerAnalysis = analyzeCSVHeaders(fullParseResult.headers);
-      console.log("[真实导入] 字段分析结果:", headerAnalysis);
+      const headerAnalysis = analyzeCSVHeadersWithCache(
+        fullParseResult.headers
+      );
+      console.log(
+        "[真实导入] 字段分析结果:",
+        headerAnalysis,
+        `(缓存命中: ${headerAnalysis.cacheHits})`
+      );
 
       const allGradeRecords: any[] = [];
       let processedRows = 0;
@@ -530,22 +561,48 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
             examData
           );
 
+          // 🔍 调试：打印前3条记录的转换结果
+          if (processedRows < 3) {
+            console.log(`[调试] 第 ${processedRows + 1} 行转换结果:`, {
+              原始数据: enrichedRowData,
+              转换后: gradeRecord,
+              student_id: gradeRecord.student_id,
+              name: gradeRecord.name,
+              total_score: gradeRecord.total_score,
+              chinese_score: gradeRecord.chinese_score,
+            });
+          }
+
           // 验证记录有效性（检查映射后的英文字段）
-          if (
-            gradeRecord.student_id &&
-            gradeRecord.name &&
-            (gradeRecord.total_score != null ||
-              gradeRecord.chinese_score != null ||
-              gradeRecord.math_score != null ||
-              gradeRecord.english_score != null)
-          ) {
+          const hasStudentInfo = gradeRecord.student_id && gradeRecord.name;
+          const hasScore =
+            gradeRecord.total_score != null ||
+            gradeRecord.chinese_score != null ||
+            gradeRecord.math_score != null ||
+            gradeRecord.english_score != null;
+
+          if (hasStudentInfo && hasScore) {
             allGradeRecords.push(gradeRecord);
             successCount++;
           } else {
             errorCount++;
+            const missingFields = [];
+            if (!gradeRecord.student_id) missingFields.push("学号");
+            if (!gradeRecord.name) missingFields.push("姓名");
+            if (!hasScore) missingFields.push("成绩");
+
             errors.push(
-              `行 ${processedRows + 1}: 缺少必要数据字段（学生姓名或成绩）`
+              `行 ${processedRows + 1}: 缺少字段 [${missingFields.join(", ")}]`
             );
+
+            // 打印详细错误信息
+            if (processedRows < 5) {
+              console.error(`[调试] 第 ${processedRows + 1} 行验证失败:`, {
+                缺少字段: missingFields,
+                原始数据: enrichedRowData,
+                转换结果: gradeRecord,
+              });
+            }
           }
         } catch (error) {
           errorCount++;
@@ -565,6 +622,26 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
         错误数: errorCount,
       });
 
+      // 🔍 自动诊断字段映射问题
+      const diagnostics = diagnoseMappingIssues(
+        allGradeRecords,
+        headerAnalysis
+      );
+      if (diagnostics.some((d) => d.severity === "error")) {
+        const errorDiags = diagnostics.filter((d) => d.severity === "error");
+        toast.error("⚠️ 检测到字段映射问题", {
+          description: errorDiags.map((d) => d.message).join("；"),
+          duration: 10000,
+        });
+        console.error("[映射诊断] 严重错误:", errorDiags);
+      } else if (diagnostics.some((d) => d.severity === "warning")) {
+        const warnDiags = diagnostics.filter((d) => d.severity === "warning");
+        toast.warning("⚠️ 字段映射可能存在问题", {
+          description: warnDiags.map((d) => d.message).join("；"),
+          duration: 8000,
+        });
+      }
+
       // 步骤5: 保存到数据库
       setProgress(80);
       setProgressMessage(`正在保存 ${successCount} 名学生的成绩...`);
@@ -577,106 +654,265 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
         firstRecord: allGradeRecords[0],
       });
 
-      // 1. 首先创建考试记录 - 使用onConflict处理重复
-      const { error: examError } = await supabase.from("exams").upsert(
-        {
-          id: examId,
-          title: examInfo.title.trim(),
-          type: examInfo.type,
-          date: examInfo.date,
-          subject: "综合",
-          scope: "all",
-          created_at: new Date().toISOString(),
-        },
-        {
-          onConflict: "title,date,type",
-          ignoreDuplicates: false,
-        }
-      );
+      // 通用重试配置
+      const maxRetries = 3;
 
-      if (examError) {
-        console.error("[真实导入] 创建考试记录失败:", examError);
-        throw new Error(`创建考试记录失败: ${examError.message}`);
+      // 1. 创建考试记录（如果不存在）
+      if (!(existingExams && existingExams.length > 0)) {
+        console.log("[真实导入] 创建新考试记录...");
+        let examError = null;
+        let retryCount = 0;
+
+        while (retryCount < maxRetries) {
+          const { error } = await supabase.from("exams").insert({
+            id: examId,
+            title: examInfo.title.trim(),
+            type: examInfo.type,
+            date: examInfo.date,
+            subject: "综合",
+            scope: "all",
+            created_at: new Date().toISOString(),
+          });
+
+          if (!error) {
+            examError = null;
+            console.log("[真实导入] 考试记录创建成功");
+            break;
+          }
+
+          examError = error;
+          retryCount++;
+
+          if (retryCount < maxRetries) {
+            console.warn(
+              `[真实导入] 创建考试记录失败，第 ${retryCount} 次重试...`,
+              error
+            );
+            await new Promise((resolve) =>
+              setTimeout(resolve, 1000 * retryCount)
+            ); // 递增延迟
+          }
+        }
+
+        if (examError) {
+          console.error("[真实导入] 创建考试记录失败（已重试3次）:", examError);
+          throw new Error(`创建考试记录失败: ${examError.message}`);
+        }
+      } else {
+        console.log("[真实导入] 复用现有考试记录:", examId);
       }
 
-      // 2. 批量插入成绩数据到新表
-      const { error: saveError } = await supabase.from("grade_data").insert(
-        allGradeRecords.map((record) => ({
-          ...record,
-          exam_id: examId,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }))
-      );
+      // 2. 分批插入成绩数据到新表（避免超时）
+      const batchSize = 100; // 每批100条
+      const recordsToInsert = allGradeRecords.map((record) => ({
+        ...record,
+        exam_id: examId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }));
 
-      if (saveError) {
-        console.error("[真实导入] 数据库保存失败:", saveError);
-        throw new Error(`数据库保存失败: ${saveError.message}`);
+      for (let i = 0; i < recordsToInsert.length; i += batchSize) {
+        const batch = recordsToInsert.slice(i, i + batchSize);
+        const batchNum = Math.floor(i / batchSize) + 1;
+        const totalBatches = Math.ceil(recordsToInsert.length / batchSize);
+
+        console.log(
+          `[真实导入] 保存第 ${batchNum}/${totalBatches} 批数据 (${batch.length} 条)...`
+        );
+        setProgressMessage(
+          `正在保存成绩数据 (${batchNum}/${totalBatches} 批)...`
+        );
+
+        let saveError = null;
+        let batchRetryCount = 0;
+
+        while (batchRetryCount < maxRetries) {
+          // 调试：打印第一条记录的结构
+          if (i === 0 && batchRetryCount === 0) {
+            console.log("[调试] 第一条成绩记录示例:", batch[0]);
+          }
+
+          const { error } = await supabase.from("grade_data").insert(batch);
+
+          if (!error) {
+            saveError = null;
+            break;
+          }
+
+          saveError = error;
+          batchRetryCount++;
+
+          if (batchRetryCount < maxRetries) {
+            console.warn(
+              `[真实导入] 第 ${batchNum} 批保存失败，第 ${batchRetryCount} 次重试...`
+            );
+            await new Promise((resolve) =>
+              setTimeout(resolve, 1000 * batchRetryCount)
+            );
+          }
+        }
+
+        if (saveError) {
+          console.error(
+            `[真实导入] 第 ${batchNum} 批数据保存失败（已重试3次）:`,
+            saveError
+          );
+          const detailedError = `第 ${batchNum}/${totalBatches} 批数据保存失败: ${saveError.message}`;
+          console.error("[详细错误]", {
+            error: saveError,
+            code: saveError.code,
+            details: saveError.details,
+            hint: saveError.hint,
+            message: saveError.message,
+          });
+          toast.error("数据保存失败", {
+            description: detailedError,
+            duration: 10000,
+          });
+          throw new Error(detailedError);
+        }
+
+        // 更新进度
+        const progress = 80 + Math.floor((i / recordsToInsert.length) * 15);
+        setProgress(progress);
       }
 
       console.log("[真实导入] 成功保存到grade_data表");
 
-      // 步骤5: 智能学生匹配 - 使用严格3选2匹配
+      // 步骤5: 智能学生匹配 - 根据用户选择决定是否匹配
       setProgress(85);
-      setProgressMessage("正在匹配学生信息...");
+      setProgressMessage("正在处理学生信息...");
       setProcessingStage("analyzing");
 
       try {
-        console.log("[智能匹配] 开始匹配学生...");
-
-        // 准备文件学生数据
-        const fileStudents = allGradeRecords.map((record) => ({
-          student_id: record.student_id,
-          name: record.name,
-          class_name: record.class_name,
-        }));
-
-        // 调用智能匹配器
-        const matchingResult =
-          await intelligentStudentMatcher.matchStudents(fileStudents);
-
-        console.log("[智能匹配] 匹配结果:", matchingResult);
-        console.log(
-          `[智能匹配] 统计: 精确匹配=${matchingResult.exactMatches.length}, 需手动确认=${matchingResult.manualReviewNeeded.length}`
-        );
-
-        // 如果有需要手动确认的学生,进入手动确认流程
-        if (matchingResult.manualReviewNeeded.length > 0) {
-          console.log("[智能匹配] 发现未匹配学生,进入手动确认流程");
-          setUnmatchedStudents(matchingResult.manualReviewNeeded);
-          setProgress(90);
-          setStep("manualMatch");
-          setIsProcessing(false);
-          return; // 中断流程,等待手动确认
-        }
-
-        // 所有学生都已匹配,继续自动同步流程
-        console.log("[智能匹配] 所有学生已成功匹配,开始自动同步...");
-        const syncResult =
-          await autoSyncService.syncImportedData(allGradeRecords);
-
-        console.log("[智能同步] 同步结果:", syncResult);
-
-        if (syncResult.success) {
+        // 🔧 如果启用了自动创建新学生，直接跳过匹配流程
+        if (autoCreateStudents) {
           console.log(
-            `[智能同步] 完成！自动创建了 ${syncResult.newClasses.length} 个班级和 ${syncResult.newStudents.length} 名学生`
+            "[自动创建模式] 已启用自动创建新学生，跳过匹配流程，直接同步..."
           );
-        } else if (syncResult.errors.length > 0) {
-          console.warn("[智能同步] 部分同步失败:", syncResult.errors);
+          setProgressMessage("正在自动创建学生和班级...");
+
+          const syncResult =
+            await autoSyncService.syncImportedData(allGradeRecords);
+
+          console.log("[智能同步] 同步结果:", syncResult);
+
+          if (syncResult.success) {
+            console.log(
+              `[智能同步] 完成！自动创建了 ${syncResult.newClasses.length} 个班级和 ${syncResult.newStudents.length} 名学生`
+            );
+            toast.success("学生信息同步成功", {
+              description: `自动创建了 ${syncResult.newClasses.length} 个班级和 ${syncResult.newStudents.length} 名学生`,
+              duration: 5000,
+            });
+          } else if (syncResult.errors.length > 0) {
+            console.warn("[智能同步] 部分同步失败:", syncResult.errors);
+            toast.warning("学生同步部分失败", {
+              description: `错误: ${syncResult.errors.slice(0, 3).join(", ")}`,
+              duration: 8000,
+            });
+          }
+        } else {
+          // 启用学生匹配流程（严格模式）
+          console.log("[智能匹配] 开始匹配学生...");
+
+          // 1. 查询系统中已有的学生
+          const { data: existingStudents, error: studentsError } =
+            await supabase
+              .from("students")
+              .select("student_id, name, class_name");
+
+          if (studentsError) {
+            console.error("[智能匹配] 查询学生失败:", studentsError);
+            throw new Error(`查询学生失败: ${studentsError.message}`);
+          }
+
+          const systemStudents = (existingStudents || []).map((s: any) => ({
+            student_id: s.student_id,
+            name: s.name,
+            class_name: s.class_name,
+          }));
+
+          console.log(`[智能匹配] 系统中已有 ${systemStudents.length} 名学生`);
+
+          // 2. 准备文件学生数据
+          const fileStudents = allGradeRecords.map((record) => ({
+            student_id: record.student_id,
+            name: record.name,
+            class_name: record.class_name,
+          }));
+
+          // 3. 调用智能匹配器
+          const matchingResult = await intelligentStudentMatcher.matchStudents(
+            fileStudents,
+            systemStudents
+          );
+
+          console.log("[智能匹配] 匹配结果:", matchingResult);
+          console.log(
+            `[智能匹配] 统计: 精确匹配=${matchingResult.exactMatches.length}, 需手动确认=${matchingResult.manualReviewNeeded.length}`
+          );
+
+          // 如果有需要手动确认的学生,进入手动确认流程
+          if (matchingResult.manualReviewNeeded.length > 0) {
+            console.log("[智能匹配] 发现未匹配学生,进入手动确认流程");
+            setUnmatchedStudents(matchingResult.manualReviewNeeded);
+            setProgress(90);
+            setStep("manualMatch");
+            setIsProcessing(false);
+            return; // 中断流程,等待手动确认
+          }
+
+          // 所有学生都已匹配,继续自动同步流程
+          console.log("[智能匹配] 所有学生已成功匹配,开始自动同步...");
+          const syncResult =
+            await autoSyncService.syncImportedData(allGradeRecords);
+
+          console.log("[智能同步] 同步结果:", syncResult);
+
+          if (syncResult.success) {
+            console.log(
+              `[智能同步] 完成！自动创建了 ${syncResult.newClasses.length} 个班级和 ${syncResult.newStudents.length} 名学生`
+            );
+          } else if (syncResult.errors.length > 0) {
+            console.warn("[智能同步] 部分同步失败:", syncResult.errors);
+          }
         }
       } catch (matchError) {
-        console.error("[智能匹配] 匹配过程出错:", matchError);
-        console.warn(
-          "[智能匹配] 成绩数据已成功导入，但学生匹配时遇到问题，回退到自动创建模式"
-        );
+        console.error("[智能处理] 处理过程出错:", matchError);
+        const errorDetail =
+          matchError instanceof Error ? matchError.message : String(matchError);
+        console.error("[智能处理错误详情]", {
+          error: matchError,
+          message: errorDetail,
+          stack: matchError instanceof Error ? matchError.stack : undefined,
+        });
 
-        // 匹配失败时回退到自动同步
+        toast.warning("学生匹配遇到问题", {
+          description: "成绩已保存，正在尝试自动创建学生...",
+          duration: 5000,
+        });
+
+        // 处理失败时回退到自动同步
         try {
           const syncResult =
             await autoSyncService.syncImportedData(allGradeRecords);
           console.log("[智能同步] 回退同步完成:", syncResult);
+
+          if (!syncResult.success) {
+            toast.error("学生同步失败", {
+              description: `错误: ${syncResult.errors.join(", ")}`,
+              duration: 10000,
+            });
+          }
         } catch (syncError) {
           console.error("[智能同步] 同步过程出错:", syncError);
+          const syncErrorMsg =
+            syncError instanceof Error ? syncError.message : String(syncError);
+          toast.error("自动创建学生失败", {
+            description: syncErrorMsg,
+            duration: 10000,
+          });
         }
       }
 
@@ -697,10 +933,42 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
       setImportResult(importResult);
       setStep("complete");
 
+      // 🔄 保存成功的字段映射到缓存，供下次使用
+      if (headerAnalysis.mappings.length > 0) {
+        saveMappingToCache(headerAnalysis.mappings);
+        console.log("[缓存] 已保存本次成功的字段映射");
+      }
+
       toast.success("🎉 一键式导入成功！", {
         description: `成功创建考试"${examInfo.title}"，导入 ${importResult.successRecords} 个学生的成绩数据，系统已智能同步班级和学生信息`,
         duration: 8000,
       });
+
+      // 🤖 自动生成分析报告
+      (async () => {
+        try {
+          console.log("🤖 开始生成智能分析报告...");
+          const { reportGenerator } = await import(
+            "@/services/reportGenerator"
+          );
+
+          const report = await reportGenerator.generateCompleteReport(examId);
+          if (report) {
+            const saved = await reportGenerator.saveReport(report);
+            if (saved) {
+              console.log("✅ 报告已生成并保存:", report.metadata.reportId);
+              toast.success("📊 智能分析报告已生成", {
+                description:
+                  "数据导入完成，AI 驱动的完整分析报告已自动生成并保存",
+                duration: 5000,
+              });
+            }
+          }
+        } catch (error) {
+          console.error("⚠️ 报告生成失败（不影响导入）:", error);
+          // 报告生成失败不影响导入流程，只记录日志
+        }
+      })();
 
       onComplete?.(importResult);
     } catch (error) {
@@ -989,6 +1257,34 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
                       </label>
                     </div>
                   </div>
+                )}
+
+                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+                  <div className="flex-1">
+                    <Label
+                      htmlFor="auto-create"
+                      className="text-sm font-medium"
+                    >
+                      自动创建新学生
+                    </Label>
+                    <p className="text-xs text-gray-600 mt-1">
+                      成绩数据中的学生如不存在，自动创建到学生库（推荐开启）
+                    </p>
+                  </div>
+                  <Switch
+                    id="auto-create"
+                    checked={autoCreateStudents}
+                    onCheckedChange={setAutoCreateStudents}
+                  />
+                </div>
+
+                {!autoCreateStudents && (
+                  <Alert className="bg-yellow-50 border-yellow-200">
+                    <AlertCircle className="h-4 w-4 text-yellow-600" />
+                    <AlertDescription className="text-sm text-yellow-800">
+                      关闭后，系统会严格匹配现有学生信息，未匹配的学生需手动确认
+                    </AlertDescription>
+                  </Alert>
                 )}
               </CollapsibleContent>
             </Collapsible>

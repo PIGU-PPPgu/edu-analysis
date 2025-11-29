@@ -151,7 +151,7 @@ export async function getRiskByClass(): Promise<ClassRiskStats[]> {
         .eq("status", "active"),
 
       supabase
-        .from("grade_data_new")
+        .from("grade_data")
         .select("class_name, total_score")
         .not("class_name", "is", null)
         .not("total_score", "is", null),
@@ -535,7 +535,7 @@ export async function getStudentPerformanceStats(
 
     // 获取学生成绩数据
     const { data: gradesData, error: gradesError } = await supabase
-      .from("grade_data_new")
+      .from("grade_data")
       .select(
         "student_id, total_score, chinese_score, math_score, english_score, physics_score, chemistry_score, created_at"
       )
@@ -605,7 +605,7 @@ export async function getStudentPerformanceStats(
 
     // 班级排名（简化计算）
     const { data: classGrades } = await supabase
-      .from("grade_data_new")
+      .from("grade_data")
       .select("total_score")
       .eq("class_name", studentInfo.class_name)
       .not("total_score", "is", null);

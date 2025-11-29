@@ -2,7 +2,7 @@
  * 增强的AI标签生成服务
  *
  * 功能特性：
- * 1. 基于grade_data_new宽表数据的深度分析
+ * 1. 基于grade_data宽表数据的深度分析
  * 2. 自动集成到AutoSyncService数据同步流程
  * 3. 支持批量生成和渐进式更新
  * 4. 智能数据质量评估和fallback机制
@@ -166,7 +166,7 @@ export class EnhancedAITagsService {
 
   /**
    * 深度分析学生学习档案
-   * 从grade_data_new表提取丰富的学习特征
+   * 从grade_data表提取丰富的学习特征
    */
   async analyzeStudentLearningProfile(
     studentId: string
@@ -186,7 +186,7 @@ export class EnhancedAITagsService {
 
     // 2. 获取学生的所有成绩记录（使用宽表格式）
     const { data: gradeRecords, error: gradeError } = await supabase
-      .from("grade_data_new")
+      .from("grade_data")
       .select(
         `
         student_id,
