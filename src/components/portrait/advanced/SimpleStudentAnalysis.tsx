@@ -126,7 +126,7 @@ const SimpleStudentAnalysis: React.FC = () => {
   ): Promise<AnalysisResult> => {
     // 1. 获取学生成绩数据
     const { data: gradeData, error: gradeError } = await supabase
-      .from("grade_data")
+      .from("grade_data_new")
       .select("*")
       .eq("student_id", student.student_id)
       .order("exam_date", { ascending: false })

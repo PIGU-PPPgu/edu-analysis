@@ -1020,7 +1020,7 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({
 
       {/* 主要内容 */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="mb-6 grid grid-cols-1 sm:grid-cols-2 w-full max-w-[400px] bg-gray-100 border border-gray-300 p-1 rounded-lg">
+        <TabsList className="mb-6 grid grid-cols-2 w-[400px] bg-gray-100 border border-gray-300 p-1 rounded-lg">
           <TabsTrigger
             value="records"
             className="data-[state=active]:bg-[#c0ff3f] data-[state=active]:text-black data-[state=inactive]:text-gray-700 rounded-md py-2"

@@ -15,7 +15,7 @@ import {
   Eye,
 } from "lucide-react";
 
-// Wide-table数据接口（基于grade_data表结构）
+// Wide-table数据接口（基于新的grade_data_new表结构）
 interface WideGradeRecord {
   id: string;
   student_id: string;

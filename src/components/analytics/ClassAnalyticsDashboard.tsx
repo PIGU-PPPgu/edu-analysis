@@ -113,7 +113,7 @@ const ClassAnalyticsDashboard: React.FC<ClassAnalyticsDashboardProps> = ({
     try {
       // 获取所有班级
       const { data: classData } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("class_name")
         .order("class_name");
 
@@ -130,7 +130,7 @@ const ClassAnalyticsDashboard: React.FC<ClassAnalyticsDashboardProps> = ({
 
       // 获取所有考试
       const { data: examData } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("exam_title, exam_date")
         .order("exam_date", { ascending: false });
 

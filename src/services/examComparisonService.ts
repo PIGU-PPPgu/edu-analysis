@@ -168,9 +168,9 @@ export class ExamComparisonService {
     try {
       console.log("📋 [ExamComparison] 获取可用考试列表...");
 
-      // 从 grade_data 表中获取所有不同的考试
+      // 从 grade_data_new 表中获取所有不同的考试
       const { data, error } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("exam_id, exam_title, exam_date, exam_type")
         .order("exam_date", { ascending: false });
 
@@ -236,15 +236,15 @@ export class ExamComparisonService {
   }
 
   /**
-   * 分析单个考试 - 适配 grade_data 长表格式
+   * 分析单个考试 - 适配 grade_data_new 长表格式
    */
   private async analyzeExam(
     examId: string
   ): Promise<ExamComparisonResult | null> {
     try {
-      // 获取考试数据 - grade_data 是长表格式，每行一个学科成绩
+      // 获取考试数据 - grade_data_new 是长表格式，每行一个学科成绩
       const { data: gradeData, error } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("*")
         .or(`exam_id.eq.${examId},exam_title.eq.${examId}`)
         .order("score", { ascending: false });
@@ -419,7 +419,7 @@ export class ExamComparisonService {
   }
 
   /**
-   * 学生个人趋势分析 - 适配 grade_data 长表格式
+   * 学生个人趋势分析 - 适配 grade_data_new 长表格式
    */
   async analyzeStudentTrend(
     studentId: string,
@@ -428,9 +428,9 @@ export class ExamComparisonService {
     try {
       console.log(`📈 [ExamComparison] 开始学生趋势分析: ${studentId}`);
 
-      // 获取学生的历史考试数据 - grade_data 是长表格式
+      // 获取学生的历史考试数据 - grade_data_new 是长表格式
       const { data: gradeData, error } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("*")
         .eq("student_id", studentId)
         .order("exam_date", { ascending: false });
@@ -591,7 +591,7 @@ export class ExamComparisonService {
   }
 
   /**
-   * 班级对比分析 - 适配 grade_data 长表格式
+   * 班级对比分析 - 适配 grade_data_new 长表格式
    */
   async compareClasses(
     startDate?: string,
@@ -600,8 +600,8 @@ export class ExamComparisonService {
     try {
       console.log("🏫 [ExamComparison] 开始班级对比分析");
 
-      // 构建查询 - 使用 grade_data 表
-      let query = supabase.from("grade_data").select("*");
+      // 构建查询 - 使用 grade_data_new 表
+      let query = supabase.from("grade_data_new").select("*");
 
       if (startDate) {
         query = query.gte("exam_date", startDate);

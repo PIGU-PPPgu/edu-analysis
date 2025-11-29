@@ -71,10 +71,10 @@ const useGradeData = (examId?: string, classFilter?: string) => {
   return useQuery({
     queryKey: ["gradeData", examId, classFilter],
     queryFn: async () => {
-      console.log("[调试] 开始查询grade_data...", { examId, classFilter });
+      console.log("[调试] 开始查询grade_data_new...", { examId, classFilter });
 
       let query = supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("*")
         .order("total_score", { ascending: false });
 

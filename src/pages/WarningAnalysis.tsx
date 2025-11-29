@@ -502,7 +502,7 @@ const WarningAnalysis = () => {
               onValueChange={setActiveTab}
               className="space-y-6"
             >
-              <TabsList className="mb-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 h-auto w-full bg-gray-100 border border-gray-300 p-1 rounded-lg">
+              <TabsList className="mb-6 grid grid-cols-5 w-[1000px] bg-gray-100 border border-gray-300 p-1 rounded-lg">
                 <TabsTrigger
                   value="overview"
                   className="flex items-center gap-2 data-[state=active]:bg-[#c0ff3f] data-[state=active]:text-black data-[state=inactive]:text-gray-700 rounded-md py-1.5"

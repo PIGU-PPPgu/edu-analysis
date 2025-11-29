@@ -527,7 +527,7 @@ const HistoryComparison: React.FC<HistoryComparisonProps> = ({
 
       {/* 详细分析标签页 */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 w-full max-w-[400px] bg-gray-100 border border-gray-300 p-1 rounded-lg">
+        <TabsList className="grid grid-cols-3 w-[400px] bg-gray-100 border border-gray-300 p-1 rounded-lg">
           <TabsTrigger
             value="overview"
             className="data-[state=active]:bg-[#c0ff3f] data-[state=active]:text-black rounded-md"

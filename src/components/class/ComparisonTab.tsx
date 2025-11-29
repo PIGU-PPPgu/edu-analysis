@@ -748,7 +748,7 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="font-medium text-sm mb-2">成绩分布</h4>
                   <p className="text-xs text-gray-500 py-4">
-                    需要从grade_data表查询真实分布数据
+                    需要从grade_data_new表查询真实分布数据
                   </p>
                 </div>
               </div>
@@ -778,7 +778,7 @@ const ComparisonTab: React.FC<ComparisonTabProps> = ({
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <h4 className="font-medium text-sm mb-2">成绩分布</h4>
                     <p className="text-xs text-gray-500 py-4">
-                      需要从grade_data表查询真实分布数据
+                      需要从grade_data_new表查询真实分布数据
                     </p>
                   </div>
                 </div>

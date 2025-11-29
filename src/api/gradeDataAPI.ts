@@ -33,7 +33,7 @@ export async function fetchGradeData(
     const to = from + pageSize - 1;
 
     let query = supabase
-      .from("grade_data")
+      .from("grade_data_new")
       .select("*, count(*) OVER() as total_count", { count: "exact" })
       .order("total_score", { ascending: false })
       .range(from, to);
@@ -313,7 +313,7 @@ export async function fetchClassList(): Promise<{
 }> {
   try {
     const { data, error } = await supabase
-      .from("grade_data")
+      .from("grade_data_new")
       .select("class_name")
       .not("class_name", "is", null);
 
@@ -345,7 +345,7 @@ export async function fetchSubjectList(): Promise<{
 }> {
   try {
     const { data, error } = await supabase
-      .from("grade_data")
+      .from("grade_data_new")
       .select("subject")
       .not("subject", "is", null);
 
@@ -376,7 +376,7 @@ export async function upsertGradeData(
   gradeData: GradeRecord[]
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase.from("grade_data").upsert(gradeData, {
+    const { error } = await supabase.from("grade_data_new").upsert(gradeData, {
       onConflict: "student_id,subject,exam_id",
       ignoreDuplicates: false,
     });
@@ -405,7 +405,7 @@ export async function deleteGradeData(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const { error } = await supabase
-      .from("grade_data")
+      .from("grade_data_new")
       .delete()
       .eq("exam_id", examId);
 

@@ -223,7 +223,7 @@ export class ClassAnalyticsService {
 
       // 获取班级成绩数据概览
       const { data: gradeData, error } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("student_id, name, exam_title, exam_date, exam_type")
         .eq("class_name", className);
 
@@ -281,7 +281,7 @@ export class ClassAnalyticsService {
 
       // 构建查询
       let query = supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select(
           `
           student_id,
@@ -399,7 +399,7 @@ export class ClassAnalyticsService {
       console.log("🔍 [班级分析] 科目对比分析:", { className, examTitle });
 
       const { data: gradeData, error } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select(
           `
           student_id, name,
@@ -513,7 +513,7 @@ export class ClassAnalyticsService {
       console.log("👥 [班级分析] 学生表现追踪:", { className, limit });
 
       const { data: gradeData, error } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select(
           `
           student_id,
@@ -595,7 +595,7 @@ export class ClassAnalyticsService {
       console.log("📊 [班级分析] 成绩分布分析:", { className, examTitle });
 
       const { data: gradeData, error } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select(
           `
           student_id, name, total_score, total_rank_in_class,

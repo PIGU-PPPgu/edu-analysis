@@ -21,7 +21,7 @@ const checkExamDuplicate = async (examInfo) => {
 const checkGradeDataDuplicate = async (examId, studentId) => {
   try {
     const { data, error } = await supabase
-      .from("grade_data")
+      .from("grade_data_new")
       .select("id")
       .eq("exam_id", examId)
       .eq("student_id", studentId);
@@ -54,7 +54,7 @@ const insertGradeData = async (gradeRecord) => {
 
   try {
     const { data, error } = await supabase
-      .from("grade_data")
+      .from("grade_data_new")
       .insert(safeRecord)
       .select()
       .single();

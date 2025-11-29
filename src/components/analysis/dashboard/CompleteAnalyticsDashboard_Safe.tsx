@@ -609,7 +609,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
             className="space-y-8"
           >
             <div className="overflow-x-auto">
-              <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 bg-white border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] p-1">
+              <TabsList className="grid w-fit grid-cols-4 bg-white border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] p-1">
                 <TabsTrigger
                   value="overview"
                   className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-black font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide px-6 py-3"

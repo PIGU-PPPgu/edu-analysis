@@ -9,7 +9,7 @@ const SQL = `
 -- ============================================
 
 -- 1️⃣ 启用 RLS
-ALTER TABLE IF EXISTS grade_data ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS grade_data_new ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS students ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS class_info ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS grades ENABLE ROW LEVEL SECURITY;
@@ -21,8 +21,8 @@ DO $$
 DECLARE
     r RECORD;
 BEGIN
-    FOR r IN (SELECT policyname FROM pg_policies WHERE tablename = 'grade_data') LOOP
-        EXECUTE format('DROP POLICY IF EXISTS %I ON grade_data', r.policyname);
+    FOR r IN (SELECT policyname FROM pg_policies WHERE tablename = 'grade_data_new') LOOP
+        EXECUTE format('DROP POLICY IF EXISTS %I ON grade_data_new', r.policyname);
     END LOOP;
     FOR r IN (SELECT policyname FROM pg_policies WHERE tablename = 'students') LOOP
         EXECUTE format('DROP POLICY IF EXISTS %I ON students', r.policyname);
@@ -36,10 +36,10 @@ BEGIN
 END $$;
 
 -- 3️⃣ 创建新策略（允许所有认证用户访问）
--- grade_data
-CREATE POLICY "authenticated_read_grade_data" ON grade_data FOR SELECT TO authenticated USING (true);
-CREATE POLICY "authenticated_insert_grade_data" ON grade_data FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "authenticated_update_grade_data" ON grade_data FOR UPDATE TO authenticated USING (true);
+-- grade_data_new
+CREATE POLICY "authenticated_read_grade_data_new" ON grade_data_new FOR SELECT TO authenticated USING (true);
+CREATE POLICY "authenticated_insert_grade_data_new" ON grade_data_new FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "authenticated_update_grade_data_new" ON grade_data_new FOR UPDATE TO authenticated USING (true);
 
 -- students
 CREATE POLICY "authenticated_read_students" ON students FOR SELECT TO authenticated USING (true);

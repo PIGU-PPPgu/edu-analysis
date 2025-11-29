@@ -384,43 +384,9 @@ const AISettingsPage: React.FC = () => {
   const handleSaveGlobalConfig = () => {
     setIsLoading(true);
     try {
-      // 1. 保存新版全局配置
       saveGlobalAIConfig(globalConfig);
-
-      // 2. 🔧 同步到旧版配置（user_ai_config），用于报告生成等功能
-      const userAIConfig = {
-        provider: globalConfig.defaultProvider,
-        version: globalConfig.defaultModel,
-        model: globalConfig.defaultModel,
-        enabled: true,
-        customSettings: {
-          temperature: globalConfig.defaultTemperature,
-          maxTokens: globalConfig.defaultMaxTokens,
-        },
-        lastUpdated: new Date().toISOString(),
-      };
-
-      // 保存到 localStorage
-      localStorage.setItem("user_ai_config", JSON.stringify(userAIConfig));
-
-      console.log("✅ 全局配置已保存到两个位置:");
-      console.log("1. global_ai_config:", globalConfig);
-      console.log("2. user_ai_config:", userAIConfig);
-
-      // 显示详细的保存信息
-      const providerName = allProviders.find(
-        (p) => p.id === globalConfig.defaultProvider
-      )?.displayName;
-      const modelName = getAllProviderModels(globalConfig.defaultProvider).find(
-        (m) => m.id === globalConfig.defaultModel
-      )?.displayName;
-
-      toast.success("✅ 全局配置已保存", {
-        description: `提供商: ${providerName || globalConfig.defaultProvider}\n模型: ${modelName || globalConfig.defaultModel}`,
-        duration: 4000,
-      });
+      toast.success("全局配置已保存");
     } catch (error: any) {
-      console.error("❌ 保存配置失败:", error);
       toast.error("保存失败", { description: error.message });
     } finally {
       setIsLoading(false);

@@ -128,7 +128,7 @@ const checkGradeDataDuplicateOptimized = async (
 
     // 优化查询策略：只选择必要字段，提高查询性能
     const { data, error } = await supabase
-      .from("grade_data")
+      .from("grade_data_new")
       .select("id, student_id, exam_id, subject, created_at")
       .eq("exam_id", examId)
       .eq("student_id", studentId)
@@ -448,7 +448,7 @@ const insertGradeDataSafe = async (gradeRecord: any) => {
 
     // 插入单条宽表记录
     const { data, error } = await supabase
-      .from("grade_data")
+      .from("grade_data_new")
       .upsert(wideRecord, {
         onConflict: "exam_id,student_id",
         ignoreDuplicates: false,

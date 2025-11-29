@@ -476,9 +476,9 @@ export async function getGroupStats(
           };
         }
 
-        // 从grade_data查询成绩
+        // 从grade_data_new查询成绩
         const { data: grades, error } = await supabase
-          .from("grade_data")
+          .from("grade_data_new")
           .select("student_id, total_score, total_grade")
           .in("student_id", memberIds)
           .not("total_score", "is", null);
@@ -604,7 +604,7 @@ export async function getGroupPerformance(
     let improvement_rate = 0;
     try {
       const { data: recentExams } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("exam_id, exam_date, total_score")
         .in("student_id", memberIds)
         .not("total_score", "is", null)
@@ -660,7 +660,7 @@ export async function getGroupPerformance(
 
       for (const subject of subjects) {
         const { data: subjectGrades } = await supabase
-          .from("grade_data")
+          .from("grade_data_new")
           .select(`${subject}_score, class_name`)
           .in("student_id", memberIds)
           .not(`${subject}_score`, "is", null)
@@ -693,7 +693,7 @@ export async function getGroupPerformance(
 
     try {
       const { data: topStudents } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("student_id, name, total_score")
         .in("student_id", memberIds)
         .not("total_score", "is", null)
@@ -723,7 +723,7 @@ export async function getGroupPerformance(
     try {
       const threshold = stats.average_score * 0.8; // 低于平均分80%
       const { data: strugglingStudents } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("student_id, name, total_score")
         .in("student_id", memberIds)
         .not("total_score", "is", null)

@@ -29,11 +29,20 @@ const AdvancedAnalysis: React.FC = () => {
 
   // 检查URL参数中是否有考试信息
   useEffect(() => {
+    console.log("🔍 高级分析页面 - 检查URL参数:", location.search);
+    console.log("🔍 完整URL:", window.location.href);
+
     const urlParams = new URLSearchParams(location.search);
     const examId = urlParams.get("examId");
     const examTitle = urlParams.get("examTitle");
     const examDate = urlParams.get("examDate");
     const examType = urlParams.get("examType");
+
+    console.log("📋 URL参数解析:", { examId, examTitle, examDate, examType });
+    console.log("🔍 URLSearchParams 迭代器:");
+    for (const [key, value] of urlParams) {
+      console.log(`  ${key} = "${value}"`);
+    }
 
     if (examId && examTitle) {
       const examInfo = {
@@ -43,12 +52,23 @@ const AdvancedAnalysis: React.FC = () => {
         examType: examType || "",
       };
 
+      console.log("✅ 设置考试信息:", examInfo);
       setSelectedExamInfo(examInfo);
 
+      // 显示成功提示
       toast.success("已自动选择考试", {
         description: `正在进行高级分析: ${examTitle}`,
         duration: 3000,
       });
+    } else {
+      console.log("❌ 缺少必需的URL参数");
+      console.log("🔍 具体情况:");
+      console.log(`  examId: "${examId}" (${typeof examId})`);
+      console.log(`  examTitle: "${examTitle}" (${typeof examTitle})`);
+
+      if (!location.search) {
+        console.log("⚠️ URL中没有查询参数!");
+      }
     }
   }, [location.search]);
 
@@ -64,6 +84,7 @@ const AdvancedAnalysis: React.FC = () => {
         return;
       }
 
+      console.error("捕获到全局错误:", event.error);
       setError(`页面加载错误: ${event.error?.message || "未知错误"}`);
       event.preventDefault();
     };

@@ -582,7 +582,7 @@ const AISettings: React.FC = () => {
                     <Button onClick={handleSaveApiKey}>保存密钥</Button>
                   </div>
                   {savedApiKey && (
-                    <div className="flex items-center mt-2 text-sm text-gray-700">
+                    <div className="flex items-center mt-2 text-sm text-green-600">
                       <Check size={16} className="mr-1" />
                       已保存API密钥
                     </div>
@@ -686,7 +686,7 @@ const AISettings: React.FC = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Bot className="h-5 w-5 text-gray-700" />
+                <Bot className="h-5 w-5 text-blue-500" />
                 成绩分析AI机器人推送设置
               </CardTitle>
               <CardDescription>
@@ -697,7 +697,7 @@ const AISettings: React.FC = () => {
               {/* 分析配置区域 */}
               <div className="space-y-6">
                 <div className="flex items-center gap-2 mb-4">
-                  <AlertCircle className="h-4 w-4 text-gray-700" />
+                  <AlertCircle className="h-4 w-4 text-blue-600" />
                   <h3 className="font-semibold text-lg">AI分析配置</h3>
                 </div>
 
@@ -840,14 +840,14 @@ const AISettings: React.FC = () => {
                     </div>
 
                     {analysisPreferences.auto_trigger_enabled && (
-                      <div className="ml-6 p-3 bg-gray-50 border border-gray-200 rounded-md">
+                      <div className="ml-6 p-3 bg-green-50 border border-green-200 rounded-md">
                         <div className="flex items-start gap-2">
-                          <MessageSquare className="h-4 w-4 text-gray-700 mt-0.5" />
+                          <MessageSquare className="h-4 w-4 text-green-600 mt-0.5" />
                           <div className="text-sm">
-                            <p className="font-medium text-gray-800">
+                            <p className="font-medium text-green-800">
                               自动推送已启用
                             </p>
-                            <p className="text-gray-700 mt-1">
+                            <p className="text-green-700 mt-1">
                               使用
                               <strong>
                                 {analysisPreferences.analysis_type === "simple"
@@ -928,7 +928,7 @@ const AISettings: React.FC = () => {
               {/* 机器人推送设置 */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 mb-4">
-                  <MessageSquare className="h-4 w-4 text-gray-700" />
+                  <MessageSquare className="h-4 w-4 text-blue-600" />
                   <h3 className="font-semibold text-lg">机器人推送配置</h3>
                 </div>
 

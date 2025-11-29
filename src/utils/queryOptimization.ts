@@ -43,7 +43,7 @@ export class OptimizedQueryBuilder {
     if (cached) return cached;
 
     let query = this.supabase
-      .from("grade_data")
+      .from("grade_data_new")
       .select(
         `
         id,
@@ -115,7 +115,7 @@ export class OptimizedQueryBuilder {
       `;
 
     let query = this.supabase
-      .from("grade_data")
+      .from("grade_data_new")
       .select(selectFields)
       .eq("class_name", className)
       .order("total_score", { ascending: false });
@@ -179,7 +179,7 @@ export class OptimizedQueryBuilder {
     cutoffDate.setDate(cutoffDate.getDate() - days);
 
     let query = this.supabase
-      .from("grade_data")
+      .from("grade_data_new")
       .select(
         `
         id,
@@ -230,7 +230,7 @@ export class OptimizedQueryBuilder {
     const gradeField = `${subject}_grade`;
 
     let query = this.supabase
-      .from("grade_data")
+      .from("grade_data_new")
       .select(
         `
         student_id,
@@ -280,7 +280,7 @@ export class OptimizedQueryBuilder {
     if (cached) return cached;
 
     const result = await this.supabase
-      .from("grade_data")
+      .from("grade_data_new")
       .select("*")
       .eq("exam_id", examId)
       .in("student_id", studentIds);

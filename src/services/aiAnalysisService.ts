@@ -130,7 +130,7 @@ class AnalysisDataAggregator {
 
     // 使用考试标题获取成绩数据
     const gradeData = await supabase
-      .from("grade_data")
+      .from("grade_data_new")
       .select(
         `
         total_score,

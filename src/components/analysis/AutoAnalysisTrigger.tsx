@@ -67,7 +67,7 @@ const AutoAnalysisTrigger: React.FC<AutoAnalysisTriggerProps> = ({
     try {
       // 从Supabase获取成绩数据
       let query = supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("*")
         .eq("exam_title", examTitle);
 

@@ -281,7 +281,7 @@ export class EnhancedWarningSystem {
 
       // 获取学生成绩数据
       const { data: grades } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("*")
         .eq("student_id", studentId)
         .order("created_at", { ascending: false })
@@ -289,7 +289,7 @@ export class EnhancedWarningSystem {
 
       // 获取班级平均分数据（用于对比）
       const { data: classGrades } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("score, subject")
         .eq("class_name", student.class_name);
 

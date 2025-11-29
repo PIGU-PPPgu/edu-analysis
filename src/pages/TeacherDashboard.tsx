@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 import {
   BookOpen,
   Users,
@@ -71,96 +70,42 @@ const TeacherDashboard: React.FC = () => {
 
       // 如果预警学生数量不足，补充常规学生数据
       if (warningStudentsData.length < 6) {
-        const warningStudentIds = warningStudentsData.map((s) => s.id);
-
-        // 使用真实查询获取学生成绩数据
-        const { data: studentsData, error } = await supabase.rpc(
-          "get_student_score_summary",
-          {
-            exclude_ids: warningStudentIds,
-            row_limit: 6 - warningStudentsData.length,
-          }
-        );
-
-        if (error) {
-          // 如果 RPC 函数不存在，回退到基础查询
-          console.warn("RPC function not found, using fallback query:", error);
-
-          const { data: fallbackData, error: fallbackError } = await supabase
-            .from("students")
-            .select(
-              `
-              id,
-              name,
-              class_name
+        const { data: studentsData, error } = await supabase
+          .from("students")
+          .select(
             `
-            )
-            .not("id", "in", `(${warningStudentIds.join(",") || "NULL"})`)
-            .limit(6 - warningStudentsData.length);
+            id,
+            name,
+            class_info!inner(class_name)
+          `
+          )
+          .not(
+            "id",
+            "in",
+            `(${warningStudentsData.map((s) => s.id).join(",") || "NULL"})`
+          )
+          .limit(6 - warningStudentsData.length);
 
-          if (fallbackError) throw fallbackError;
+        if (error) throw error;
 
-          // 获取每个学生的成绩统计
-          const formattedStudents = await Promise.all(
-            (fallbackData || []).map(async (student) => {
-              const { data: gradeData } = await supabase
-                .from("grade_data")
-                .select("total_score, exam_date")
-                .eq("student_id", student.id)
-                .order("exam_date", { ascending: false })
-                .limit(3);
+        const formattedStudents =
+          studentsData?.map((student) => ({
+            id: student.id,
+            name: student.name,
+            class_name: (student as any).class_info?.class_name,
+            averageScore: Math.random() * 40 + 60, // 模拟数据
+            recentScores: [
+              Math.floor(Math.random() * 40 + 60),
+              Math.floor(Math.random() * 40 + 60),
+              Math.floor(Math.random() * 40 + 60),
+            ],
+            trend: ["up", "down", "stable"][Math.floor(Math.random() * 3)] as
+              | "up"
+              | "down"
+              | "stable",
+          })) || [];
 
-              const scores =
-                gradeData?.map((g) => g.total_score).filter(Boolean) || [];
-              const avgScore =
-                scores.length > 0
-                  ? scores.reduce((a, b) => a + b, 0) / scores.length
-                  : undefined;
-
-              // 计算趋势
-              let trend: "up" | "down" | "stable" = "stable";
-              if (scores.length >= 2) {
-                const diff = scores[0] - scores[1];
-                if (diff > 5) trend = "up";
-                else if (diff < -5) trend = "down";
-              }
-
-              return {
-                id: student.id,
-                name: student.name,
-                class_name: student.class_name,
-                averageScore: avgScore,
-                recentScores: scores.slice(0, 3),
-                trend,
-              };
-            })
-          );
-
-          setRecentStudents(formattedStudents);
-        } else {
-          // RPC 函数存在，使用返回的数据
-          const formattedStudents =
-            studentsData?.map((student: any) => {
-              const scores = student.recent_scores || [];
-              let trend: "up" | "down" | "stable" = "stable";
-              if (scores.length >= 2) {
-                const diff = scores[0] - scores[1];
-                if (diff > 5) trend = "up";
-                else if (diff < -5) trend = "down";
-              }
-
-              return {
-                id: student.id,
-                name: student.name,
-                class_name: student.class_name,
-                averageScore: student.average_score,
-                recentScores: scores.slice(0, 3),
-                trend,
-              };
-            }) || [];
-
-          setRecentStudents(formattedStudents);
-        }
+        setRecentStudents(formattedStudents);
       }
     } catch (error) {
       showError(error, { operation: "获取教师工作台数据" });
@@ -201,9 +146,7 @@ const TeacherDashboard: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <Card>
             <CardContent className="flex items-center p-6">
-              <div className="p-3 bg-[#B9FF66]/10 rounded-lg">
-                <BookOpen className="h-8 w-8 text-gray-700" />
-              </div>
+              <BookOpen className="h-8 w-8 text-blue-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-muted-foreground">
                   管理班级
@@ -214,9 +157,7 @@ const TeacherDashboard: React.FC = () => {
           </Card>
           <Card>
             <CardContent className="flex items-center p-6">
-              <div className="p-3 bg-[#B9FF66]/20 rounded-lg">
-                <Users className="h-8 w-8 text-gray-700" />
-              </div>
+              <Users className="h-8 w-8 text-green-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-muted-foreground">
                   学生总数
@@ -232,9 +173,7 @@ const TeacherDashboard: React.FC = () => {
           </Card>
           <Card>
             <CardContent className="flex items-center p-6">
-              <div className="p-3 bg-gray-100 rounded-lg">
-                <TrendingUp className="h-8 w-8 text-gray-700" />
-              </div>
+              <TrendingUp className="h-8 w-8 text-purple-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-muted-foreground">
                   平均成绩
@@ -254,9 +193,7 @@ const TeacherDashboard: React.FC = () => {
           </Card>
           <Card>
             <CardContent className="flex items-center p-6">
-              <div className="p-3 bg-gray-100 rounded-lg">
-                <Target className="h-8 w-8 text-gray-700" />
-              </div>
+              <Target className="h-8 w-8 text-orange-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-muted-foreground">
                   优秀率
@@ -287,7 +224,7 @@ const TeacherDashboard: React.FC = () => {
             <Button
               variant="ghost"
               onClick={() => navigate("/class-management")}
-              className="text-gray-700 hover:text-black font-medium"
+              className="text-blue-600 hover:text-blue-700"
             >
               查看全部
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -308,27 +245,6 @@ const TeacherDashboard: React.FC = () => {
                   </CardContent>
                 </Card>
               ))}
-            </div>
-          ) : classes.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border-2 border-dashed border-gray-300">
-              <div className="p-4 bg-white rounded-full mb-4 shadow-sm">
-                <BookOpen className="h-12 w-12 text-gray-400" />
-              </div>
-              <h3 className="text-xl font-bold mb-2 text-gray-800">
-                暂无班级信息
-              </h3>
-              <p className="text-gray-600 mb-6 text-center max-w-md">
-                您还没有管理的班级
-                <br />
-                请联系管理员分配班级
-              </p>
-              <Button
-                onClick={() => navigate("/class-management")}
-                className="bg-[#B9FF66] text-black hover:bg-[#a8e85c] font-medium shadow-md"
-              >
-                <BookOpen className="mr-2 h-4 w-4" />
-                前往班级管理
-              </Button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -394,9 +310,9 @@ const TeacherDashboard: React.FC = () => {
                     variant={showWarningStudents ? "default" : "outline"}
                     size="sm"
                     onClick={() => setShowWarningStudents(true)}
-                    className={cn(
-                      showWarningStudents && "bg-red-500 hover:bg-red-600"
-                    )}
+                    className={
+                      showWarningStudents ? "bg-red-500 hover:bg-red-600" : ""
+                    }
                   >
                     <AlertTriangle className="w-4 h-4 mr-1" />
                     预警学生({warningStudents.length})
@@ -421,74 +337,24 @@ const TeacherDashboard: React.FC = () => {
                     : "/student-management"
                 )
               }
-              className="text-gray-700 hover:text-black font-medium"
+              className="text-blue-600 hover:text-blue-700"
             >
               查看全部
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
 
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[1, 2, 3].map((i) => (
-                <Card key={i} className="animate-pulse">
-                  <CardContent className="p-6">
-                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-3"></div>
-                    <div className="h-3 bg-gray-200 rounded w-1/2 mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded w-2/3"></div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : showWarningStudents && warningStudents.length > 0 ? (
+          {showWarningStudents && warningStudents.length > 0 ? (
             <WarningStudentView
               students={warningStudents}
               onViewStudent={handleViewStudent}
               onViewWarningDetails={handleViewWarningDetails}
             />
-          ) : recentStudents.length > 0 ? (
+          ) : (
             <StudentQuickView
               students={recentStudents}
               onViewStudent={handleViewStudent}
             />
-          ) : (
-            <div className="flex flex-col items-center justify-center py-16 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border-2 border-dashed border-gray-300">
-              <div className="p-4 bg-white rounded-full mb-4 shadow-sm">
-                <Users className="h-12 w-12 text-gray-400" />
-              </div>
-              <h3 className="text-xl font-bold mb-2 text-gray-800">
-                暂无学生数据
-              </h3>
-              <p className="text-gray-600 mb-6 text-center max-w-md">
-                {showWarningStudents
-                  ? "目前没有需要预警的学生"
-                  : "还没有学生成绩数据"}
-                <br />
-                {showWarningStudents
-                  ? "请切换到常规学生查看"
-                  : "请导入学生成绩后再查看"}
-              </p>
-              <Button
-                onClick={() =>
-                  showWarningStudents
-                    ? setShowWarningStudents(false)
-                    : navigate("/")
-                }
-                className="bg-[#B9FF66] text-black hover:bg-[#a8e85c] font-medium shadow-md"
-              >
-                {showWarningStudents ? (
-                  <>
-                    <Users className="mr-2 h-4 w-4" />
-                    查看常规学生
-                  </>
-                ) : (
-                  <>
-                    <FileSpreadsheet className="mr-2 h-4 w-4" />
-                    前往数据导入
-                  </>
-                )}
-              </Button>
-            </div>
           )}
         </div>
       </div>

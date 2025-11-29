@@ -1,6 +1,6 @@
 /**
  * 统一成绩数据访问服务
- * 解决 grade_data、grade_data、grades 表的命名混乱问题
+ * 解决 grade_data、grade_data_new、grades 表的命名混乱问题
  */
 import { supabase } from "@/integrations/supabase/client";
 
@@ -63,7 +63,7 @@ export interface ComprehensiveGradeData {
 export class UnifiedGradeService {
   /**
    * 获取综合成绩数据 (多科目一体化)
-   * 使用 grade_data 表
+   * 使用 grade_data_new 表
    */
   static async getComprehensiveGrades(
     filters: {
@@ -75,7 +75,7 @@ export class UnifiedGradeService {
     } = {}
   ): Promise<ComprehensiveGradeData[]> {
     try {
-      let query = supabase.from("grade_data").select("*");
+      let query = supabase.from("grade_data_new").select("*");
 
       if (filters.student_id) {
         query = query.eq("student_id", filters.student_id);
@@ -297,7 +297,7 @@ export class UnifiedGradeService {
     try {
       // 使用综合成绩表计算
       const { data, error } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select(
           "total_score, chinese_score, math_score, english_score, physics_score, chemistry_score"
         )
@@ -358,7 +358,7 @@ export class UnifiedGradeService {
 
 // 导出兼容性常量
 export const GRADE_TABLES = {
-  COMPREHENSIVE: "grade_data", // 多科目综合成绩
+  COMPREHENSIVE: "grade_data_new", // 多科目综合成绩
   SUBJECT: "grades", // 单科目成绩
   HOMEWORK: "homework_submissions", // 作业成绩
 } as const;

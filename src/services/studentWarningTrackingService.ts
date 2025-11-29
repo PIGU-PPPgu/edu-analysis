@@ -124,7 +124,7 @@ export async function getWarningRecords(
 
       // 首先查询参与了指定考试的学生ID列表
       const { data: examStudents, error: examError } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("student_id")
         .in("exam_title", filter.examTitles);
 

@@ -128,7 +128,7 @@ const OverviewTab: React.FC<Props> = ({ selectedClass, onTabChange }) => {
   const fetchAvailableExams = async () => {
     try {
       const { data: examsData, error } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("exam_title, exam_date, total_score")
         .eq("class_name", className)
         .order("exam_date", { ascending: false });
@@ -205,7 +205,7 @@ const OverviewTab: React.FC<Props> = ({ selectedClass, onTabChange }) => {
 
       // 获取班级学生成绩数据
       const { data: gradeData } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("*")
         .eq("class_name", className)
         .order("exam_date", { ascending: false });
@@ -365,7 +365,7 @@ const OverviewTab: React.FC<Props> = ({ selectedClass, onTabChange }) => {
     try {
       // 获取两次考试的数据
       const { data: exam1Data, error: error1 } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("*")
         .eq("class_name", className)
         .eq("exam_title", selectedExam1);
@@ -377,7 +377,7 @@ const OverviewTab: React.FC<Props> = ({ selectedClass, onTabChange }) => {
       }
 
       const { data: exam2Data, error: error2 } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("*")
         .eq("class_name", className)
         .eq("exam_title", selectedExam2);

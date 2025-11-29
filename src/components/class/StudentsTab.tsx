@@ -93,14 +93,14 @@ const StudentsTab: React.FC<StudentsTabProps> = ({ classId, className }) => {
     return selectedStudent?.id;
   }, [selectedStudent]);
 
-  // 获取选中学生的成绩数据 - 修复:使用grade_data表,获取完整数据
+  // 获取选中学生的成绩数据 - 修复:使用grade_data_new表,获取完整数据
   const { data: studentGrades, isLoading: isLoadingGrades } = useQuery<any[]>({
     queryKey: ["studentGrades", selectedStudent?.student_id],
     queryFn: async () => {
       if (!selectedStudent?.student_id) return [];
 
       const { data, error } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("*")
         .eq("student_id", selectedStudent.student_id)
         .order("exam_date", { ascending: false });

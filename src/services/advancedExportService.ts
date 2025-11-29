@@ -97,11 +97,11 @@ class AdvancedExportService {
     return new Blob([htmlContent], { type: "text/html;charset=utf-8" });
   }
 
-  // 从grade_data表导出学生成绩数据
+  // 从grade_data_new表导出学生成绩数据
   async exportStudentGrades(options: ExportOptions): Promise<ExportResult> {
     try {
       let query = supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("*")
         .order("created_at", { ascending: false });
 
@@ -163,7 +163,7 @@ class AdvancedExportService {
 
       // 获取学生成绩数据
       const { data: gradeData, error: gradeError } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("*")
         .eq("student_id", studentId)
         .order("created_at", { ascending: false });
@@ -211,7 +211,7 @@ class AdvancedExportService {
   ): Promise<ExportResult> {
     try {
       const { data, error } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("*")
         .eq("class_name", className)
         .order("created_at", { ascending: false });
@@ -361,7 +361,7 @@ class AdvancedExportService {
   ): Promise<ExportResult> {
     try {
       const { data, error } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("*")
         .in("class_name", classNames)
         .order("class_name", { ascending: true });
@@ -384,7 +384,7 @@ class AdvancedExportService {
   ): Promise<ExportResult> {
     try {
       const { data, error } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("*")
         .eq("exam_title", examTitle)
         .order("total_score", { ascending: false });

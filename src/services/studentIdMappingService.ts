@@ -1,6 +1,6 @@
 /**
  * 学生ID映射服务
- * 提供students表和grade_data表之间的ID转换
+ * 提供students表和grade_data_new表之间的ID转换
  */
 
 // 映射数据（从映射分析中生成）

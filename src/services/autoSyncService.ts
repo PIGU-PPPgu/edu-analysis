@@ -484,7 +484,7 @@ export class AutoSyncService {
             );
             syncedCount++;
 
-            // 同时更新grade_data表中的student_id引用（确保使用正确的UUID）
+            // 同时更新grade_data_new表中的student_id引用（确保使用正确的UUID）
             await this.updateGradeDataStudentId(
               student.name,
               expectedClassName,
@@ -506,7 +506,7 @@ export class AutoSyncService {
 
   /**
    * 更新成绩数据表中的学生ID引用
-   * 确保grade_data.student_id指向正确的学生UUID
+   * 确保grade_data_new.student_id指向正确的学生UUID
    */
   private async updateGradeDataStudentId(
     studentName: string,
@@ -519,7 +519,7 @@ export class AutoSyncService {
       );
 
       const { error: updateError } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .update({
           student_id: studentUuid,
           updated_at: new Date().toISOString(),
@@ -663,8 +663,10 @@ export class AutoSyncService {
     ] = await Promise.all([
       supabase.from("classes").select("*", { count: "exact", head: true }),
       supabase.from("students").select("*", { count: "exact", head: true }),
-      supabase.from("grade_data").select("*", { count: "exact", head: true }),
-      supabase.from("grade_data").select("class_name").limit(1000),
+      supabase
+        .from("grade_data_new")
+        .select("*", { count: "exact", head: true }),
+      supabase.from("grade_data_new").select("class_name").limit(1000),
     ]);
 
     const uniqueGradeClasses = [
@@ -1013,7 +1015,7 @@ export class AutoSyncService {
 
       // 获取成绩数据
       const gradeQuery = supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("student_id, name, class_name");
       const { data: gradeRecords, error: gradeError } = await gradeQuery;
 

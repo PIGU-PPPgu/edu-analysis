@@ -313,7 +313,7 @@ export const getExamStatistics = async (
 
     // 获取成绩数据
     const { data: grades, error: gradesError } = await supabase
-      .from("grade_data")
+      .from("grade_data_new")
       .select(
         `
           total_score,
@@ -501,7 +501,7 @@ export const getExamWarningStatistics = async (examId: string) => {
     }
 
     const { data: gradeData, error: gradeError } = await supabase
-      .from("grade_data")
+      .from("grade_data_new")
       .select("student_id, total_score, name, class_name")
       .eq("exam_title", exam.title);
 
@@ -947,10 +947,10 @@ const getActualExamSubjects = async (
 
     // 尝试使用exam_id查询
     const { data: gradeDataById, error: gradeErrorById } = await supabase
-      .from("grade_data")
+      .from("grade_data_new")
       .select(
         `
-        chinese_score, math_score, english_score, physics_score,
+        chinese_score, math_score, english_score, physics_score, 
         chemistry_score, politics_score, history_score, biology_score, geography_score
       `
       )
@@ -963,10 +963,10 @@ const getActualExamSubjects = async (
       // 如果exam_id查询失败，尝试使用exam_title查询
       const { data: gradeDataByTitle, error: gradeErrorByTitle } =
         await supabase
-          .from("grade_data")
+          .from("grade_data_new")
           .select(
             `
-          chinese_score, math_score, english_score, physics_score,
+          chinese_score, math_score, english_score, physics_score, 
           chemistry_score, politics_score, history_score, biology_score, geography_score
         `
           )
@@ -1129,7 +1129,7 @@ export const getExamParticipantCount = async (
       error,
       count,
     } = await supabase
-      .from("grade_data")
+      .from("grade_data_new")
       .select("student_id", { count: "exact" })
       .eq("exam_id", examId);
 
@@ -1164,7 +1164,7 @@ export const getExamParticipantCount = async (
         error: titleError,
         count: titleCount,
       } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("student_id", { count: "exact" })
         .eq("exam_title", examInfo.title);
 

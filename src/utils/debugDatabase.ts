@@ -4,21 +4,21 @@ export async function debugDatabaseData() {
   console.log("🔍 开始检查数据库数据...");
 
   try {
-    // 检查 grade_data 表
-    const { data: gradeData, error: gradeError } = await supabase
-      .from("grade_data")
+    // 检查 grade_data_new 表
+    const { data: gradeDataNew, error: gradeError } = await supabase
+      .from("grade_data_new")
       .select("*")
       .limit(5);
 
-    console.log("📊 grade_data 表:", {
+    console.log("📊 grade_data_new 表:", {
       hasError: !!gradeError,
       error: gradeError?.message,
-      dataCount: gradeData?.length || 0,
-      sample: gradeData?.[0] || null,
+      dataCount: gradeDataNew?.length || 0,
+      sample: gradeDataNew?.[0] || null,
     });
 
-    if (gradeData && gradeData.length > 0) {
-      console.log("📋 grade_data 表字段:", Object.keys(gradeData[0]));
+    if (gradeDataNew && gradeDataNew.length > 0) {
+      console.log("📋 grade_data_new 表字段:", Object.keys(gradeDataNew[0]));
     }
 
     // 检查 exams 表
@@ -49,7 +49,7 @@ export async function debugDatabaseData() {
 
     // 检查总记录数
     const { count: gradeCount } = await supabase
-      .from("grade_data")
+      .from("grade_data_new")
       .select("*", { count: "exact", head: true });
 
     const { count: examCount } = await supabase
@@ -64,9 +64,9 @@ export async function debugDatabaseData() {
     // 新增：检查两表关联情况
     console.log("\n🔗 检查数据表关联关系...");
 
-    // 获取grade_data中的exam_id分布
+    // 获取grade_data_new中的exam_id分布
     const { data: examIdStats } = await supabase
-      .from("grade_data")
+      .from("grade_data_new")
       .select("exam_id");
 
     if (examIdStats) {
@@ -79,12 +79,12 @@ export async function debugDatabaseData() {
         {}
       );
 
-      console.log("📊 grade_data中exam_id分布:", examIdCounts);
+      console.log("📊 grade_data_new中exam_id分布:", examIdCounts);
     }
 
     // 检查有多少成绩数据没有对应的考试信息
     const { data: orphanedGrades } = await supabase
-      .from("grade_data")
+      .from("grade_data_new")
       .select("exam_id")
       .not(
         "exam_id",
@@ -100,7 +100,7 @@ export async function debugDatabaseData() {
 
     // 检查最近的数据变化
     const { data: recentGrades } = await supabase
-      .from("grade_data")
+      .from("grade_data_new")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(3);

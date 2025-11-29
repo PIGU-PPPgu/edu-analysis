@@ -120,9 +120,6 @@ const SUBJECT_PATTERNS = {
       "道法",
       "道德与法治",
       "道德法治",
-      "思政",
-      "思想政治",
-      "德育",
     ],
     aliases: [
       "政治分数",
@@ -135,8 +132,6 @@ const SUBJECT_PATTERNS = {
       "道法班名",
       "道法校名",
       "道法级名",
-      "思政分数",
-      "思政等级",
     ],
   },
   历史: {
@@ -278,100 +273,22 @@ const FIELD_TYPE_PATTERNS = {
 };
 
 /**
- * 学生信息字段模式 - 扩展别名库
+ * 学生信息字段模式
  */
 const STUDENT_INFO_PATTERNS = {
-  name: [
-    "姓名",
-    "名字",
-    "name",
-    "学生姓名",
-    "student_name",
-    "fullname",
-    "学生",
-    "考生姓名",
-    "考生",
-    "姓 名",
-  ],
-  student_id: [
-    "学号",
-    "student_id",
-    "id",
-    "学生编号",
-    "考号",
-    "准考证号",
-    "考生号",
-    "学籍号",
-    "编号",
-    "序号",
-    "学生学号",
-    "报名号",
-  ],
-  class_name: [
-    "班级",
-    "class",
-    "class_name",
-    "所在班级",
-    "班级名称",
-    "班",
-    "行政班",
-    "教学班",
-    "class_id",
-    "班级编号",
-  ],
+  name: ["姓名", "名字", "name", "学生姓名"],
+  student_id: ["学号", "student_id", "id", "学生编号"],
+  class_name: ["班级", "class", "class_name", "所在班级"],
 };
 
 /**
- * 特殊字段模式 - 总分和排名（扩展别名）
+ * 特殊字段模式 - 总分和排名
  */
 const SPECIAL_FIELD_PATTERNS = {
-  total_score: [
-    "总分",
-    "总成绩",
-    "total",
-    "合计",
-    "总分数",
-    "总计",
-    "sum",
-    "全科总分",
-    "各科总分",
-    "成绩总分",
-    "总",
-  ],
-  total_grade: ["总分等级", "总等级", "总评等级", "综合等级"],
-  rank_in_class: [
-    "班级排名",
-    "班排",
-    "班内排名",
-    "class_rank",
-    "班名次",
-    "班级名次",
-    "班内名次",
-    "总分班名",
-    "总分班排",
-  ],
-  rank_in_grade: [
-    "年级排名",
-    "级排",
-    "年级内排名",
-    "grade_rank",
-    "年级名次",
-    "级内排名",
-    "级名次",
-    "总分级名",
-    "总分年排",
-    "总分级排",
-  ],
-  rank_in_school: [
-    "学校排名",
-    "校排",
-    "全校排名",
-    "school_rank",
-    "校名次",
-    "全校名次",
-    "总分校名",
-    "总分校排",
-  ],
+  total_score: ["总分", "总成绩", "total", "合计", "总分数"],
+  rank_in_class: ["班级排名", "班排", "班内排名", "class_rank"],
+  rank_in_grade: ["年级排名", "级排", "年级内排名", "grade_rank"],
+  rank_in_school: ["学校排名", "校排", "全校排名", "school_rank"],
 };
 
 /**
@@ -491,7 +408,7 @@ function identifyField(header: string): FieldMapping | null {
     }
   }
 
-  // 1.2 特殊字段识别 - 总分、排名、等级等
+  // 1.2 特殊字段识别 - 总分、排名等
   for (const [field, patterns] of Object.entries(SPECIAL_FIELD_PATTERNS)) {
     for (const pattern of patterns) {
       const normalizedPattern = pattern.toLowerCase();
@@ -500,23 +417,12 @@ function identifyField(header: string): FieldMapping | null {
         normalizedHeader === normalizedPattern ||
         normalizedHeader.includes(normalizedPattern)
       ) {
-        // 确定数据类型
-        let dataType: FieldMapping["dataType"] = "score";
-        if (field.includes("rank")) {
-          if (field === "rank_in_class") dataType = "rank_class";
-          else if (field === "rank_in_grade") dataType = "rank_grade";
-          else if (field === "rank_in_school") dataType = "rank_school";
-          else dataType = "rank_class";
-        } else if (field === "total_grade") {
-          dataType = "grade";
-        }
-
         console.log(`[算法识别] ✅ 特殊字段确定匹配: ${field}, 置信度: 1.0`);
 
         return {
           originalField: header,
           mappedField: field,
-          dataType,
+          dataType: field.includes("rank") ? "rank_class" : "score",
           confidence: 1.0,
         };
       }
@@ -755,7 +661,7 @@ function identifyField(header: string): FieldMapping | null {
 
 /**
  * 将宽表格数据转换为单条完整记录（宽表模式）
- * ✅ 完全动态映射：使用智能分析结果，支持任意表头格式
+ * 完全对接CSV结构：一个学生一次考试一条记录
  */
 export function convertWideToLongFormatEnhanced(
   rowData: Record<string, any>,
@@ -772,163 +678,92 @@ export function convertWideToLongFormatEnhanced(
     exam_id: string;
   }
 ): Record<string, any> {
-  console.log("[动态映射模式] 开始处理CSV行:", rowData);
-  console.log("[动态映射模式] 使用字段映射:", headerAnalysis.mappings);
+  console.log("[兼容映射模式] 开始处理CSV行:", rowData);
 
-  // 🎯 第一步：构建反向映射表 - 从目标字段找回原始CSV列名
-  const reverseMapping: Record<string, string> = {};
-  const subjectMapping: Record<string, Record<string, string>> = {};
-
-  headerAnalysis.mappings.forEach((mapping) => {
-    const originalField = mapping.originalField;
-    const mappedField = mapping.mappedField;
-
-    if (mapping.dataType === "student_info") {
-      // 学生信息字段：name, student_id, class_name
-      reverseMapping[mappedField] = originalField;
-      console.log(`[反向映射] 学生字段: ${mappedField} ← "${originalField}"`);
-    } else if (mapping.subject) {
-      // 科目字段：按科目分组
-      const subject = mapping.subject;
-      if (!subjectMapping[subject]) {
-        subjectMapping[subject] = {};
-      }
-
-      // 映射数据类型到数据库字段
-      if (mapping.dataType === "score") {
-        subjectMapping[subject].score = originalField;
-      } else if (mapping.dataType === "grade") {
-        subjectMapping[subject].grade = originalField;
-      } else if (mapping.dataType === "rank_class") {
-        subjectMapping[subject].rank_in_class = originalField;
-      } else if (mapping.dataType === "rank_grade") {
-        subjectMapping[subject].rank_in_grade = originalField;
-      } else if (mapping.dataType === "rank_school") {
-        subjectMapping[subject].rank_in_school = originalField;
-      }
-
-      console.log(
-        `[反向映射] 科目字段: ${subject} ${mapping.dataType} ← "${originalField}"`
-      );
-    } else if (mappedField === "total_score") {
-      // 总分字段
-      reverseMapping.total_score = originalField;
-      console.log(`[反向映射] 总分: total_score ← "${originalField}"`);
-    } else if (mappedField === "total_grade") {
-      // 总分等级字段
-      reverseMapping.total_grade = originalField;
-      console.log(`[反向映射] 总等级: total_grade ← "${originalField}"`);
-    } else if (mappedField.startsWith("rank_")) {
-      // 排名字段
-      reverseMapping[mappedField] = originalField;
-      console.log(`[反向映射] 排名: ${mappedField} ← "${originalField}"`);
-    }
-  });
-
-  // 🎯 第二步：动态构建数据记录
+  // 兼容映射：CSV中文字段 → 数据库英文字段
   const record: Record<string, any> = {
-    // 考试信息
+    // 关联键
     exam_id: examInfo?.exam_id,
+
+    // 学生基本信息映射
+    student_id: rowData["姓名"] || `temp_${Date.now()}`,
+    name: rowData["姓名"] || "未知学生",
+    class_name: rowData["班级"] || "未知班级",
+
+    // 考试信息
     exam_title: examInfo?.title,
     exam_type: examInfo?.type,
     exam_date: examInfo?.date,
 
-    // 动态学生信息映射
-    student_id:
-      rowData[reverseMapping.student_id] ||
-      rowData[reverseMapping.name] ||
-      `temp_${Date.now()}`,
-    name: rowData[reverseMapping.name] || "未知学生",
-    class_name: rowData[reverseMapping.class_name] || "未知班级",
+    // 总分信息映射：CSV中文 → 数据库英文
+    total_score: parseFloat(rowData["总分分数"]) || null,
+    total_grade: rowData["总分等级"] || null,
+    total_rank_in_class: parseInt(rowData["总分班名"]) || null,
+    total_rank_in_school: parseInt(rowData["总分校名"]) || null,
+    total_rank_in_grade: parseInt(rowData["总分级名"]) || null,
 
-    // 动态总分信息映射
-    total_score: reverseMapping.total_score
-      ? parseFloat(rowData[reverseMapping.total_score]) || null
-      : null,
-    total_grade: reverseMapping.total_grade
-      ? rowData[reverseMapping.total_grade]
-      : null,
-    total_rank_in_class: reverseMapping.total_rank_in_class
-      ? parseInt(rowData[reverseMapping.total_rank_in_class]) || null
-      : null,
-    total_rank_in_school: reverseMapping.total_rank_in_school
-      ? parseInt(rowData[reverseMapping.total_rank_in_school]) || null
-      : null,
-    total_rank_in_grade: reverseMapping.total_rank_in_grade
-      ? parseInt(rowData[reverseMapping.total_rank_in_grade]) || null
-      : null,
+    // 各科目映射：CSV中文 → 数据库英文
+    // 语文
+    chinese_score: parseFloat(rowData["语文分数"]) || null,
+    chinese_grade: rowData["语文等级"] || null,
+    chinese_rank_in_class: parseInt(rowData["语文班名"]) || null,
+    chinese_rank_in_school: parseInt(rowData["语文校名"]) || null,
+    chinese_rank_in_grade: parseInt(rowData["语文级名"]) || null,
+
+    // 数学
+    math_score: parseFloat(rowData["数学分数"]) || null,
+    math_grade: rowData["数学等级"] || null,
+    math_rank_in_class: parseInt(rowData["数学班名"]) || null,
+    math_rank_in_school: parseInt(rowData["数学校名"]) || null,
+    math_rank_in_grade: parseInt(rowData["数学级名"]) || null,
+
+    // 英语
+    english_score: parseFloat(rowData["英语分数"]) || null,
+    english_grade: rowData["英语等级"] || null,
+    english_rank_in_class: parseInt(rowData["英语班名"]) || null,
+    english_rank_in_school: parseInt(rowData["英语校名"]) || null,
+    english_rank_in_grade: parseInt(rowData["英语级名"]) || null,
+
+    // 物理
+    physics_score: parseFloat(rowData["物理分数"]) || null,
+    physics_grade: rowData["物理等级"] || null,
+    physics_rank_in_class: parseInt(rowData["物理班名"]) || null,
+    physics_rank_in_school: parseInt(rowData["物理校名"]) || null,
+    physics_rank_in_grade: parseInt(rowData["物理级名"]) || null,
+
+    // 化学
+    chemistry_score: parseFloat(rowData["化学分数"]) || null,
+    chemistry_grade: rowData["化学等级"] || null,
+    chemistry_rank_in_class: parseInt(rowData["化学班名"]) || null,
+    chemistry_rank_in_school: parseInt(rowData["化学校名"]) || null,
+    chemistry_rank_in_grade: parseInt(rowData["化学级名"]) || null,
+
+    // 道法
+    politics_score: parseFloat(rowData["道法分数"]) || null,
+    politics_grade: rowData["道法等级"] || null,
+    politics_rank_in_class: parseInt(rowData["道法班名"]) || null,
+    politics_rank_in_school: parseInt(rowData["道法校名"]) || null,
+    politics_rank_in_grade: parseInt(rowData["道法级名"]) || null,
+
+    // 历史
+    history_score: parseFloat(rowData["历史分数"]) || null,
+    history_grade: rowData["历史等级"] || null,
+    history_rank_in_class: parseInt(rowData["历史班名"]) || null,
+    history_rank_in_school: parseInt(rowData["历史校名"]) || null,
+    history_rank_in_grade: parseInt(rowData["历史级名"]) || null,
 
     // 时间戳
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
 
-  // 🎯 第三步：动态映射各科目数据
-  const subjectDbMapping: Record<string, string> = {
-    语文: "chinese",
-    数学: "math",
-    英语: "english",
-    物理: "physics",
-    化学: "chemistry",
-    生物: "biology",
-    政治: "politics",
-    历史: "history",
-    地理: "geography",
-  };
-
-  Object.entries(subjectMapping).forEach(([subject, fields]) => {
-    const dbSubject = subjectDbMapping[subject] || subject.toLowerCase();
-
-    // 分数字段
-    if (fields.score) {
-      const scoreValue = parseFloat(rowData[fields.score]);
-      record[`${dbSubject}_score`] = isNaN(scoreValue) ? null : scoreValue;
-      console.log(
-        `[科目映射] ${dbSubject}_score = ${record[`${dbSubject}_score`]} (来自 "${fields.score}")`
-      );
-    }
-
-    // 等级字段
-    if (fields.grade) {
-      record[`${dbSubject}_grade`] = rowData[fields.grade] || null;
-    }
-
-    // 排名字段
-    if (fields.rank_in_class) {
-      const rankValue = parseInt(rowData[fields.rank_in_class]);
-      record[`${dbSubject}_rank_in_class`] = isNaN(rankValue)
-        ? null
-        : rankValue;
-    }
-
-    if (fields.rank_in_grade) {
-      const rankValue = parseInt(rowData[fields.rank_in_grade]);
-      record[`${dbSubject}_rank_in_grade`] = isNaN(rankValue)
-        ? null
-        : rankValue;
-    }
-
-    if (fields.rank_in_school) {
-      const rankValue = parseInt(rowData[fields.rank_in_school]);
-      record[`${dbSubject}_rank_in_school`] = isNaN(rankValue)
-        ? null
-        : rankValue;
-    }
-  });
-
-  console.log("[动态映射模式] 处理结果:", {
+  console.log("[兼容映射模式] 处理结果:", {
     学生: record.name,
     班级: record.class_name,
     总分: record.total_score,
     语文: record.chinese_score,
     数学: record.math_score,
     英语: record.english_score,
-    原始数据关键字段: {
-      name列名: reverseMapping.name,
-      name值: rowData[reverseMapping.name],
-      class列名: reverseMapping.class_name,
-      class值: rowData[reverseMapping.class_name],
-    },
   });
 
   return record;
@@ -1077,351 +912,4 @@ function levenshteinDistance(str1: string, str2: string): number {
   }
 
   return matrix[str2.length][str1.length];
-}
-
-// ============================================================================
-// 📦 字段映射缓存系统 - 记住用户的成功映射
-// ============================================================================
-
-const CACHE_KEY = "grade_import_field_mappings_cache";
-const CACHE_VERSION = "v1";
-
-interface CachedMapping {
-  originalField: string;
-  mappedField: string;
-  subject?: string;
-  dataType: FieldMapping["dataType"];
-  usageCount: number;
-  lastUsed: string;
-}
-
-interface MappingCache {
-  version: string;
-  mappings: Record<string, CachedMapping>;
-  updatedAt: string;
-}
-
-/**
- * 从缓存加载字段映射
- */
-export function loadMappingCache(): MappingCache | null {
-  try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (!cached) return null;
-
-    const cache = JSON.parse(cached) as MappingCache;
-    if (cache.version !== CACHE_VERSION) {
-      console.log("[缓存] 版本不匹配，清除旧缓存");
-      localStorage.removeItem(CACHE_KEY);
-      return null;
-    }
-
-    console.log(
-      `[缓存] 加载成功，包含 ${Object.keys(cache.mappings).length} 个映射`
-    );
-    return cache;
-  } catch (e) {
-    console.error("[缓存] 加载失败:", e);
-    return null;
-  }
-}
-
-/**
- * 保存字段映射到缓存
- */
-export function saveMappingToCache(mappings: FieldMapping[]): void {
-  try {
-    const cache = loadMappingCache() || {
-      version: CACHE_VERSION,
-      mappings: {},
-      updatedAt: new Date().toISOString(),
-    };
-
-    mappings.forEach((mapping) => {
-      const key = mapping.originalField.toLowerCase();
-      const existing = cache.mappings[key];
-
-      cache.mappings[key] = {
-        originalField: mapping.originalField,
-        mappedField: mapping.mappedField,
-        subject: mapping.subject,
-        dataType: mapping.dataType,
-        usageCount: existing ? existing.usageCount + 1 : 1,
-        lastUsed: new Date().toISOString(),
-      };
-    });
-
-    cache.updatedAt = new Date().toISOString();
-    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
-    console.log(
-      `[缓存] 保存成功，共 ${Object.keys(cache.mappings).length} 个映射`
-    );
-  } catch (e) {
-    console.error("[缓存] 保存失败:", e);
-  }
-}
-
-/**
- * 清除字段映射缓存
- */
-export function clearMappingCache(): void {
-  localStorage.removeItem(CACHE_KEY);
-  console.log("[缓存] 已清除");
-}
-
-/**
- * 使用缓存增强字段分析
- * 优先使用缓存的映射，未命中则使用智能分析
- */
-export function analyzeCSVHeadersWithCache(headers: string[]): {
-  mappings: FieldMapping[];
-  subjects: string[];
-  studentFields: FieldMapping[];
-  confidence: number;
-  cacheHits: number;
-} {
-  const cache = loadMappingCache();
-  const result = analyzeCSVHeaders(headers);
-
-  if (!cache) {
-    return { ...result, cacheHits: 0 };
-  }
-
-  let cacheHits = 0;
-
-  // 用缓存的映射覆盖智能分析结果
-  result.mappings = result.mappings.map((mapping) => {
-    const key = mapping.originalField.toLowerCase();
-    const cached = cache.mappings[key];
-
-    if (cached && cached.usageCount >= 2) {
-      // 至少使用过2次才信任缓存
-      cacheHits++;
-      console.log(
-        `[缓存命中] "${mapping.originalField}" → ${cached.mappedField} (使用${cached.usageCount}次)`
-      );
-
-      return {
-        originalField: mapping.originalField,
-        mappedField: cached.mappedField,
-        subject: cached.subject,
-        dataType: cached.dataType,
-        confidence: Math.min(1.0, 0.95 + cached.usageCount * 0.01),
-      };
-    }
-
-    return mapping;
-  });
-
-  console.log(`[缓存增强] 命中 ${cacheHits}/${headers.length} 个字段`);
-
-  return { ...result, cacheHits };
-}
-
-/**
- * 获取缓存统计信息
- */
-export function getMappingCacheStats(): {
-  totalMappings: number;
-  mostUsed: { field: string; count: number }[];
-  lastUpdated: string | null;
-} {
-  const cache = loadMappingCache();
-  if (!cache) {
-    return { totalMappings: 0, mostUsed: [], lastUpdated: null };
-  }
-
-  const sorted = Object.values(cache.mappings)
-    .sort((a, b) => b.usageCount - a.usageCount)
-    .slice(0, 5)
-    .map((m) => ({ field: m.originalField, count: m.usageCount }));
-
-  return {
-    totalMappings: Object.keys(cache.mappings).length,
-    mostUsed: sorted,
-    lastUpdated: cache.updatedAt,
-  };
-}
-
-// ============================================================================
-// 🔍 字段映射错误自动检测
-// ============================================================================
-
-export interface MappingDiagnostic {
-  field: string;
-  issue: "all_null" | "all_same" | "no_valid_scores" | "low_coverage";
-  severity: "error" | "warning" | "info";
-  message: string;
-  suggestion: string;
-}
-
-/**
- * 诊断字段映射问题
- * 分析转换后的记录，检测可能的映射错误
- */
-export function diagnoseMappingIssues(
-  records: Record<string, any>[],
-  headerAnalysis: {
-    mappings: FieldMapping[];
-    subjects: string[];
-  }
-): MappingDiagnostic[] {
-  if (records.length === 0) return [];
-
-  const diagnostics: MappingDiagnostic[] = [];
-  const sampleSize = Math.min(records.length, 20);
-  const sample = records.slice(0, sampleSize);
-
-  // 检查学生信息字段
-  const nameValues = sample.map((r) => r.name).filter(Boolean);
-  if (nameValues.length === 0) {
-    diagnostics.push({
-      field: "name",
-      issue: "all_null",
-      severity: "error",
-      message: "所有记录的姓名字段都为空",
-      suggestion: '请检查表头是否包含"姓名"、"学生姓名"等字段',
-    });
-  } else if (nameValues.every((v) => v === "未知学生")) {
-    diagnostics.push({
-      field: "name",
-      issue: "all_same",
-      severity: "error",
-      message: '所有姓名都显示为"未知学生"，字段映射可能有误',
-      suggestion: "请检查CSV表头中的姓名列名是否被正确识别",
-    });
-  }
-
-  // 检查成绩字段
-  const scoreFields = [
-    "total_score",
-    "chinese_score",
-    "math_score",
-    "english_score",
-    "physics_score",
-    "chemistry_score",
-    "biology_score",
-    "politics_score",
-    "history_score",
-    "geography_score",
-  ];
-
-  let validScoreCount = 0;
-  const nullScoreFields: string[] = [];
-
-  scoreFields.forEach((field) => {
-    const values = sample.map((r) => r[field]).filter((v) => v != null);
-    if (values.length > 0) {
-      validScoreCount++;
-    } else if (
-      headerAnalysis.subjects.some((s) => field.includes(s.toLowerCase()))
-    ) {
-      nullScoreFields.push(field);
-    }
-  });
-
-  // 总分特殊检查
-  const totalScores = sample.map((r) => r.total_score).filter((v) => v != null);
-  if (
-    totalScores.length === 0 &&
-    headerAnalysis.mappings.some((m) => m.mappedField === "total_score")
-  ) {
-    diagnostics.push({
-      field: "total_score",
-      issue: "all_null",
-      severity: "warning",
-      message: "总分字段映射存在但所有值为空",
-      suggestion: '请检查CSV中的总分列名（如"总分"、"合计"）',
-    });
-  }
-
-  // 检查是否有任何有效成绩
-  if (validScoreCount === 0) {
-    diagnostics.push({
-      field: "scores",
-      issue: "no_valid_scores",
-      severity: "error",
-      message: "未找到任何有效的成绩数据",
-      suggestion: '请确认CSV包含成绩列（如"语文"、"数学"等）',
-    });
-  }
-
-  // 检查科目覆盖率
-  const expectedSubjects = headerAnalysis.subjects.length;
-  if (expectedSubjects > 0 && validScoreCount < expectedSubjects * 0.5) {
-    diagnostics.push({
-      field: "subjects",
-      issue: "low_coverage",
-      severity: "warning",
-      message: `识别到 ${expectedSubjects} 个科目，但只有 ${validScoreCount} 个有有效数据`,
-      suggestion: "部分科目的成绩列可能未被正确识别",
-    });
-  }
-
-  // 检查班级字段
-  const classValues = sample.map((r) => r.class_name).filter(Boolean);
-  if (classValues.length === 0 || classValues.every((v) => v === "未知班级")) {
-    diagnostics.push({
-      field: "class_name",
-      issue: "all_null",
-      severity: "warning",
-      message: "班级字段可能未正确识别",
-      suggestion: '请检查表头是否包含"班级"、"班"等字段',
-    });
-  }
-
-  // 打印诊断结果
-  if (diagnostics.length > 0) {
-    console.log("[映射诊断] 发现以下问题:");
-    diagnostics.forEach((d) => {
-      const icon =
-        d.severity === "error" ? "❌" : d.severity === "warning" ? "⚠️" : "ℹ️";
-      console.log(`  ${icon} [${d.field}] ${d.message}`);
-      console.log(`     建议: ${d.suggestion}`);
-    });
-  } else {
-    console.log("[映射诊断] ✅ 未发现明显的映射问题");
-  }
-
-  return diagnostics;
-}
-
-/**
- * 快速验证映射结果是否合理
- */
-export function validateMappingResults(records: Record<string, any>[]): {
-  valid: boolean;
-  errors: string[];
-} {
-  const errors: string[] = [];
-
-  if (records.length === 0) {
-    errors.push("没有可验证的记录");
-    return { valid: false, errors };
-  }
-
-  const sample = records.slice(0, 10);
-
-  // 必须有姓名
-  const hasNames = sample.some((r) => r.name && r.name !== "未知学生");
-  if (!hasNames) {
-    errors.push("所有记录都缺少有效的姓名");
-  }
-
-  // 必须有至少一个成绩
-  const hasScores = sample.some(
-    (r) =>
-      r.total_score != null ||
-      r.chinese_score != null ||
-      r.math_score != null ||
-      r.english_score != null
-  );
-  if (!hasScores) {
-    errors.push("所有记录都缺少有效的成绩数据");
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors,
-  };
 }

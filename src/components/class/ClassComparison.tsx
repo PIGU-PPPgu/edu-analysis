@@ -58,7 +58,7 @@ export function ClassComparison({ className, grade }: ClassComparisonProps) {
 
       // 2. 获取同年级所有班级的成绩数据（最近一次考试）
       const { data: recentExam } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("exam_id, exam_date")
         .order("exam_date", { ascending: false })
         .limit(1)
@@ -71,7 +71,7 @@ export function ClassComparison({ className, grade }: ClassComparisonProps) {
 
       // 3. 获取该考试的所有成绩数据
       const { data: allGrades, error } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("class_name, total_score")
         .eq("exam_id", recentExam.exam_id)
         .not("total_score", "is", null);

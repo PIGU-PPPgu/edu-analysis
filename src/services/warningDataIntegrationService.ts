@@ -42,7 +42,7 @@ export class WarningDataIntegrationService {
 
     try {
       // 1. 查询需要检查的成绩数据
-      let gradeQuery = supabase.from("grade_data").select(`
+      let gradeQuery = supabase.from("grade_data_new").select(`
         student_id,
         name,
         class_name,
@@ -151,7 +151,7 @@ export class WarningDataIntegrationService {
           if (student) {
             // 更新成绩记录的student_id
             const { error: updateError } = await supabase
-              .from("grade_data")
+              .from("grade_data_new")
               .update({ student_id: student.id })
               .eq("name", record.name)
               .eq("class_name", record.class_name)

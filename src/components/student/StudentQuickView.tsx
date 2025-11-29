@@ -46,15 +46,12 @@ const StudentQuickView: React.FC<StudentQuickViewProps> = ({
 
   if (!students.length) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border-2 border-dashed border-gray-300">
-        <div className="p-4 bg-white rounded-full mb-4 shadow-sm">
-          <User className="h-12 w-12 text-gray-400" />
-        </div>
-        <h3 className="text-xl font-bold mb-2 text-gray-800">暂无学生数据</h3>
-        <p className="text-gray-600 text-center max-w-md">
-          当前没有学生数据可显示
-        </p>
-      </div>
+      <Card>
+        <CardContent className="p-6 text-center text-gray-500">
+          <User className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+          <p>暂无学生数据</p>
+        </CardContent>
+      </Card>
     );
   }
 

@@ -22,7 +22,9 @@ export class SupabaseAdapter implements DataAdapter {
     try {
       console.log("[SupabaseAdapter] 获取成绩数据，筛选条件:", filter);
 
-      let query = supabase.from("grade_data").select("*", { count: "exact" });
+      let query = supabase
+        .from("grade_data_new")
+        .select("*", { count: "exact" });
 
       // 应用筛选条件
       if (filter.studentId) {
@@ -90,7 +92,7 @@ export class SupabaseAdapter implements DataAdapter {
   async createGrade(data: any): Promise<any> {
     try {
       const { data: result, error } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .insert([data])
         .select()
         .single();
@@ -106,7 +108,7 @@ export class SupabaseAdapter implements DataAdapter {
   async updateGrade(id: string, data: any): Promise<any> {
     try {
       const { data: result, error } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .update(data)
         .eq("id", id)
         .select()
@@ -122,7 +124,10 @@ export class SupabaseAdapter implements DataAdapter {
 
   async deleteGrade(id: string): Promise<boolean> {
     try {
-      const { error } = await supabase.from("grade_data").delete().eq("id", id);
+      const { error } = await supabase
+        .from("grade_data_new")
+        .delete()
+        .eq("id", id);
 
       if (error) throw error;
       return true;
@@ -399,7 +404,7 @@ export class SupabaseAdapter implements DataAdapter {
       // 获取特定考试的统计
       const [examInfo, gradeStats] = await Promise.all([
         supabase.from("exams").select("*").eq("id", examId).single(),
-        supabase.from("grade_data").select("*").eq("exam_id", examId),
+        supabase.from("grade_data_new").select("*").eq("exam_id", examId),
       ]);
 
       if (examInfo.error) throw examInfo.error;
@@ -427,7 +432,7 @@ export class SupabaseAdapter implements DataAdapter {
 
   private async getGradeStatistics(studentId?: string): Promise<any> {
     // 实现成绩统计逻辑
-    const query = supabase.from("grade_data").select("*");
+    const query = supabase.from("grade_data_new").select("*");
 
     if (studentId) {
       query.eq("student_id", studentId);

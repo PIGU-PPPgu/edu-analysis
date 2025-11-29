@@ -174,9 +174,9 @@ export class IntelligentPortraitService {
         return null;
       }
 
-      // 2. 获取成绩数据（使用grade_data表）
+      // 2. 获取成绩数据（使用grade_data_new表）
       const { data: gradeData, error: gradeError } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("*")
         .eq("student_id", studentId)
         .order("exam_date", { ascending: false })

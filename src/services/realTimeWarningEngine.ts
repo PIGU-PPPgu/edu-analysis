@@ -224,7 +224,7 @@ class StudentDataCollector {
   // 获取最近成绩数据
   private async getRecentGrades(studentId: string) {
     const { data, error } = await supabase
-      .from("grade_data")
+      .from("grade_data_new")
       .select(
         `
         score,
@@ -682,7 +682,7 @@ export class RealTimeWarningEngine {
       case "exam":
         // 获取参加该考试的所有学生
         const { data: examGrades, error } = await supabase
-          .from("grade_data")
+          .from("grade_data_new")
           .select("student_id")
           .eq("exam_id", event.entityId);
 

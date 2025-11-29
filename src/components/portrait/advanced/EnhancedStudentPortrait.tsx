@@ -223,7 +223,7 @@ const EnhancedStudentPortrait: React.FC = () => {
     try {
       // 获取成绩数据（包含历史趋势）
       const { data: gradeData } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select(
           "subject, score, exam_date, exam_type, rank_in_class, rank_in_grade"
         )
@@ -244,7 +244,7 @@ const EnhancedStudentPortrait: React.FC = () => {
 
       // 获取班级平均数据用于对比
       const { data: classData } = await supabase
-        .from("grade_data")
+        .from("grade_data_new")
         .select("subject, score, exam_date, exam_type")
         .eq(
           "class_name",
