@@ -1,3 +1,4 @@
+// 环境变量由 setup-env.ts 加载，确保它在setupFiles中首先执行
 import { expect, afterEach, beforeAll, afterAll, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
 import * as matchers from "@testing-library/jest-dom/matchers";
@@ -38,8 +39,8 @@ Object.defineProperty(window, "matchMedia", {
   })),
 });
 
-// 模拟fetch
-global.fetch = vi.fn();
+// 不要mock fetch - Supabase需要真实的fetch来工作
+// global.fetch = vi.fn();
 
 // 抑制console.error在测试中的输出
 const originalError = console.error;

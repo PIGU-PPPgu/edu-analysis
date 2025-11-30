@@ -554,6 +554,24 @@ export const gradeAnalysisService = {
             `[性能优化] 批次 ${i + 1} 插入成功，累计插入 ${totalInserted}/${gradeDataWithExamId.length} 条记录`
           );
         }
+      } else if (mergeStrategy === "skip") {
+        // skip策略：不进行任何数据操作，直接返回成功
+        console.log(
+          `[性能优化] 使用skip策略，跳过数据导入（无现有数据检测到）`
+        );
+
+        // 计算耗时
+        const endTime = Date.now();
+        const timeUsed = (endTime - startTime) / 1000;
+        console.log(
+          `[性能优化] 跳过数据导入完成，耗时: ${timeUsed.toFixed(2)}秒`
+        );
+
+        return {
+          success: true,
+          message: `考试数据已存在或无需导入，根据策略跳过导入`,
+          examId,
+        };
       } else {
         throw new Error(`不支持的合并策略: ${mergeStrategy}`);
       }
