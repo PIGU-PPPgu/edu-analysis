@@ -349,16 +349,21 @@ export class IntelligentFileParser {
     algorithmConfidence: number
   ): boolean {
     // 模式1: 明确禁用AI
-    if (opts.aiMode === "disabled" || opts.useAI === false) {
+    if (opts.aiMode === "disabled") {
       return false;
     }
 
-    // 模式2: 强制使用AI
+    // 模式2: 强制使用AI (优先级最高)
     if (opts.aiMode === "force") {
       return true;
     }
 
-    // 模式3: 自动模式 - 根据算法置信度决定
+    // 模式3: useAI标志控制
+    if (opts.useAI === false) {
+      return false;
+    }
+
+    // 模式4: 自动模式 - 根据算法置信度决定
     const threshold = opts.minConfidenceForAI ?? 0.8;
     return algorithmConfidence < threshold;
   }
@@ -517,20 +522,11 @@ export class IntelligentFileParser {
   /**
    * 检测文件类型
    */
-  private detectFileType(file: File): string {
+  public detectFileType(file: File): string {
     const fileName = file.name.toLowerCase();
     const fileType = file.type.toLowerCase();
 
-    // 优先根据MIME类型判断
-    if (fileType.includes("spreadsheet") || fileType.includes("excel")) {
-      return "xlsx";
-    }
-
-    if (fileType.includes("csv") || fileType === "text/csv") {
-      return "csv";
-    }
-
-    // 根据文件扩展名判断
+    // 优先根据文件扩展名判断（更可靠）
     if (fileName.endsWith(".xlsx")) {
       return "xlsx";
     } else if (fileName.endsWith(".xls")) {
@@ -539,11 +535,27 @@ export class IntelligentFileParser {
       return "csv";
     }
 
-    // 默认尝试作为CSV处理
-    console.warn(
-      `[IntelligentFileParser] 无法确定文件类型，默认作为CSV处理: ${fileName} (${fileType})`
+    // 其次根据MIME类型判断
+    if (
+      fileType.includes("spreadsheet") ||
+      fileType ===
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    ) {
+      return "xlsx";
+    }
+
+    if (fileType === "application/vnd.ms-excel") {
+      return "xls";
+    }
+
+    if (fileType.includes("csv") || fileType === "text/csv") {
+      return "csv";
+    }
+
+    // 不支持的文件类型抛出错误
+    throw new Error(
+      `不支持的文件类型: ${fileName} (${fileType})。支持的格式：CSV (.csv), Excel (.xlsx, .xls)`
     );
-    return "csv";
   }
 
   /**
@@ -557,12 +569,49 @@ export class IntelligentFileParser {
     worksheet: XLSX.WorkSheet
   ): { headers: string[]; dataStartRow: number } {
     if (jsonData.length < 2) {
-      // 只有一行,直接返回
-      const headers =
-        jsonData[0]
-          ?.map((h: any) => String(h || "").trim())
-          .filter((h) => h !== "") || [];
-      return { headers, dataStartRow: 1 };
+      // 只有一行时,判断是header还是data
+      const row = jsonData[0] || [];
+
+      // 检测是否看起来像表头（包含常见的字段名）
+      const headerKeywords = [
+        "姓名",
+        "学号",
+        "班级",
+        "分数",
+        "成绩",
+        "等级",
+        "排名",
+        "name",
+        "id",
+        "class",
+        "score",
+        "grade",
+        "rank",
+      ];
+
+      const looksLikeHeader = row.some((cell: any) => {
+        const cellStr = String(cell || "").toLowerCase();
+        return headerKeywords.some((keyword) =>
+          cellStr.includes(keyword.toLowerCase())
+        );
+      });
+
+      if (looksLikeHeader) {
+        // 看起来像表头,使用第一行作为表头
+        const headers = row
+          .map((h: any) => String(h || "").trim())
+          .filter((h) => h !== "");
+        return { headers, dataStartRow: 1 };
+      } else {
+        // 不像表头,生成列索引作为表头,第一行作为数据
+        const headers = row.map(
+          (_: any, index: number) => `Column${index + 1}`
+        );
+        console.log(
+          `[多级表头检测] 未检测到表头关键词,使用列索引: ${headers.join(", ")}`
+        );
+        return { headers, dataStartRow: 0 };
+      }
     }
 
     // 检查是否存在合并单元格信息
@@ -672,12 +721,38 @@ export class IntelligentFileParser {
       console.log(`[IntelligentFileParser] 开始解析Excel文件: ${file.name}`);
 
       const arrayBuffer = await file.arrayBuffer();
+
+      // 验证文件不为空
+      if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+        throw new Error("文件为空或无法读取");
+      }
+
+      // 验证文件格式魔数 (magic bytes)
+      const bytes = new Uint8Array(arrayBuffer);
+      const isValidXlsx =
+        bytes.length >= 2 && bytes[0] === 0x50 && bytes[1] === 0x4b; // PK (ZIP format)
+      const isValidXls =
+        bytes.length >= 8 && bytes[0] === 0xd0 && bytes[1] === 0xcf; // OLE2 format
+
+      if (!isValidXlsx && !isValidXls) {
+        throw new Error("无效的Excel文件格式: 文件头签名不匹配");
+      }
+
       const workbook = XLSX.read(arrayBuffer, {
         type: "array",
         cellDates: true,
         cellNF: false,
         cellText: false,
       });
+
+      // 验证工作簿有效性
+      if (
+        !workbook ||
+        !workbook.SheetNames ||
+        workbook.SheetNames.length === 0
+      ) {
+        throw new Error("无效的Excel文件格式");
+      }
 
       // 获取第一个工作表
       const sheetName = workbook.SheetNames[0];
@@ -688,6 +763,11 @@ export class IntelligentFileParser {
       console.log(`[IntelligentFileParser] 使用工作表: ${sheetName}`);
       const worksheet = workbook.Sheets[sheetName];
 
+      // 验证工作表有效性
+      if (!worksheet || Object.keys(worksheet).length === 0) {
+        throw new Error("工作表为空或无效");
+      }
+
       // 转换为JSON格式，保持原始数据类型
       const jsonData = XLSX.utils.sheet_to_json(worksheet, {
         header: 1, // 使用数组格式，第一行作为表头
@@ -696,8 +776,24 @@ export class IntelligentFileParser {
         dateNF: "yyyy-mm-dd", // 日期格式
       }) as any[][];
 
-      if (jsonData.length === 0) {
+      if (!jsonData || jsonData.length === 0) {
         throw new Error("Excel文件中没有数据");
+      }
+
+      // 验证数据不全是空行(忽略所有类型的空白字符)
+      const hasNonEmptyRow = jsonData.some((row) => {
+        if (!row || !Array.isArray(row)) return false;
+        return row.some((cell) => {
+          // 检查null/undefined
+          if (cell === null || cell === undefined) return false;
+          // 转换为字符串并移除所有空白字符
+          const cellStr = String(cell).replace(/\s+/g, "");
+          return cellStr.length > 0;
+        });
+      });
+
+      if (!hasNonEmptyRow) {
+        throw new Error("Excel文件中没有有效数据");
       }
 
       // 🆕 检测并处理多级表头

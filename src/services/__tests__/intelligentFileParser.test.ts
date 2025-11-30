@@ -10,6 +10,7 @@ import {
   ParseOptions,
   FieldType,
 } from "../intelligentFileParser";
+import { aiEnhancedFileParser } from "@/services/aiEnhancedFileParser";
 
 // Mock dependencies
 vi.mock("@/integrations/supabase/client", () => ({
@@ -172,7 +173,7 @@ describe("IntelligentFileParser", () => {
         headers: ["学号", "姓名", "总分"],
       };
 
-      vi.mocked(parseCSV).mockResolvedValue(mockCSVData as any);
+      vi.mocked(parseCSV).mockReturnValue(mockCSVData as any);
 
       const csvContent = "学号,姓名,总分\n001,张三,250\n002,李四,240";
       const file = new File([csvContent], "test.csv", { type: "text/csv" });
@@ -251,10 +252,6 @@ describe("IntelligentFileParser", () => {
     });
 
     it("强制AI模式应调用AI增强解析", async () => {
-      const { aiEnhancedFileParser } = await import(
-        "@/services/aiEnhancedFileParser"
-      );
-
       const mockData = [
         ["学号", "姓名", "总分"],
         ["001", "张三", "250"],

@@ -42,6 +42,24 @@ Object.defineProperty(window, "matchMedia", {
 // 不要mock fetch - Supabase需要真实的fetch来工作
 // global.fetch = vi.fn();
 
+// Polyfill File.arrayBuffer() for Node.js test environment
+if (typeof File !== "undefined" && !File.prototype.arrayBuffer) {
+  File.prototype.arrayBuffer = function (this: File): Promise<ArrayBuffer> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (reader.result instanceof ArrayBuffer) {
+          resolve(reader.result);
+        } else {
+          reject(new Error("Failed to read file as ArrayBuffer"));
+        }
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(this);
+    });
+  };
+}
+
 // 抑制console.error在测试中的输出
 const originalError = console.error;
 beforeAll(() => {
