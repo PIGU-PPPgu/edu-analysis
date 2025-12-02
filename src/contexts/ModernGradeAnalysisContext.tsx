@@ -372,7 +372,7 @@ export const ModernGradeAnalysisProvider: React.FC<
         supabase.from("exams").select("*").order("date", { ascending: false }),
 
         supabase
-          .from("grade_data_new")
+          .from("grade_data")
           .select("*")
           .order("created_at", { ascending: false }),
       ]);
@@ -481,7 +481,7 @@ export const ModernGradeAnalysisProvider: React.FC<
 
     try {
       const { data, error } = await supabase
-        .from("grade_data_new")
+        .from("grade_data")
         .select("*")
         .eq("exam_id", examId)
         .order("student_id");

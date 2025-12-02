@@ -143,7 +143,7 @@ const MappingEditor: React.FC<MappingEditorProps> = ({
 
       // 获取字段映射（从考试表或者成绩数据中推断）
       const { data: gradeData, error: gradeError } = await supabase
-        .from("grade_data_new")
+        .from("grade_data")
         .select("*")
         .eq("exam_id", examId)
         .limit(5);

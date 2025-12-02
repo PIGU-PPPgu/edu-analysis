@@ -78,7 +78,7 @@ export const cleanTestData = async (tables?: string[]) => {
     "homework_submissions",
     "knowledge_points",
     "homework",
-    "grade_data_new", // 修复：使用正确的表名
+    "grade_data", // 修复：使用正确的表名
     "grades",
     "students",
     "exams",

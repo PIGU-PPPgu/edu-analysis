@@ -683,7 +683,7 @@ const ExamManagementCenter: React.FC = () => {
       type: exam.type,
     });
 
-    // 使用考试标题作为主要筛选条件，因为grade_data_new表使用exam_title字段
+    // 使用考试标题作为主要筛选条件，因为grade_data表使用exam_title字段
     const params = new URLSearchParams({
       examId: exam.id,
       examTitle: exam.title,

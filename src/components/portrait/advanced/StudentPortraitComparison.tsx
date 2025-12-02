@@ -207,7 +207,7 @@ const StudentPortraitComparison: React.FC = () => {
 
     // 获取学生成绩数据
     const { data: gradeData } = await supabase
-      .from("grade_data_new")
+      .from("grade_data")
       .select(
         "subject, score, exam_date, exam_type, rank_in_class, rank_in_grade"
       )

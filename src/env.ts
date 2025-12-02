@@ -12,14 +12,15 @@ function getEnvVar(key: string): string | undefined {
   // 优先检查 VITE_ 前缀的变量（用于客户端）
   const viteKey = `VITE_${key}`;
 
+  // 在 Node.js/测试环境中，优先使用 process.env（dotenv加载的变量在这里）
+  if (typeof process !== "undefined" && process.env) {
+    const processValue = process.env[viteKey] || process.env[key];
+    if (processValue) return processValue;
+  }
+
   // 在浏览器环境中，Vite 会将 VITE_ 前缀的环境变量注入到 import.meta.env
   if (typeof import.meta !== "undefined" && import.meta.env) {
     return import.meta.env[viteKey] || import.meta.env[key];
-  }
-
-  // 在 Node.js 环境中使用 process.env
-  if (typeof process !== "undefined" && process.env) {
-    return process.env[viteKey] || process.env[key];
   }
 
   return undefined;

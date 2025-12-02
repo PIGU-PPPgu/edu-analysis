@@ -241,7 +241,7 @@ export class UnifiedDataService {
       if (cached) return cached;
 
       let query = supabase
-        .from("grade_data_new")
+        .from("grade_data")
         .select("*")
         .order("created_at", { ascending: false });
 

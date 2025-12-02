@@ -220,7 +220,7 @@ const PriorityDashboardCards: React.FC = () => {
           const scores = await Promise.all(
             recentExams.slice(0, 3).map(async (exam) => {
               const { data: grades } = await supabase
-                .from("grade_data_new")
+                .from("grade_data")
                 .select("total_score")
                 .eq("exam_id", exam.id)
                 .eq("class_name", cls.class_name);

@@ -57,7 +57,7 @@ export function ClassTrendAnalysis({
     try {
       // 1. 获取该班级最近的考试记录
       const { data: exams, error: examsError } = await supabase
-        .from("grade_data_new")
+        .from("grade_data")
         .select("exam_id, exam_title, exam_date")
         .eq("class_name", className)
         .not("exam_date", "is", null)
@@ -82,7 +82,7 @@ export function ClassTrendAnalysis({
 
       for (const exam of uniqueExams) {
         const { data: grades, error } = await supabase
-          .from("grade_data_new")
+          .from("grade_data")
           .select("total_score")
           .eq("class_name", className)
           .eq("exam_id", exam.exam_id)

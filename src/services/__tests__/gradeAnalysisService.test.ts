@@ -26,12 +26,12 @@ describe("GradeAnalysisService", () => {
     // 清理缓存
     requestCache.clear();
     // 清理测试数据
-    await cleanTestData(["grade_data_new", "exams", "students"]);
+    await cleanTestData(["grade_data", "exams", "students"]);
   });
 
   afterEach(async () => {
     // 清理测试数据
-    await cleanTestData(["grade_data_new", "exams", "students"]);
+    await cleanTestData(["grade_data", "exams", "students"]);
     // 清理缓存
     requestCache.clear();
   });

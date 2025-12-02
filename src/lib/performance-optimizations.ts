@@ -62,7 +62,7 @@ export class DatabaseOptimizer {
     const startIndex = (page - 1) * pageSize;
 
     let query = supabase
-      .from("grade_data_new")
+      .from("grade_data")
       .select(
         `
         id,
@@ -103,7 +103,7 @@ export class DatabaseOptimizer {
   static async getBatchData(studentIds: string[]) {
     // 使用 IN 查询而不是多个单独查询
     return supabase
-      .from("grade_data_new")
+      .from("grade_data")
       .select("*")
       .in("student_id", studentIds)
       .limit(1000);

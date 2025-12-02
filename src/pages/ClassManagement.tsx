@@ -439,11 +439,11 @@ const ClassManagement: React.FC = () => {
           student_id, 
           name, 
           class_name,
-          grade_data_new!inner(total_score, exam_date)
+          grade_data!inner(total_score, exam_date)
         `
         )
         .eq("class_name", selectedClass.name)
-        .order("grade_data_new(exam_date)", { ascending: false })
+        .order("grade_data(exam_date)", { ascending: false })
         .limit(1);
 
       if (studentsError) {
@@ -472,7 +472,7 @@ const ClassManagement: React.FC = () => {
             student_id: student.student_id,
             name: student.name,
             class_name: student.class_name,
-            overall_score: student.grade_data_new?.[0]?.total_score || 0,
+            overall_score: student.grade_data?.[0]?.total_score || 0,
           })
         );
 

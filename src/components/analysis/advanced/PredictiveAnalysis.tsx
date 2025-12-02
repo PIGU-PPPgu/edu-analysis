@@ -107,7 +107,7 @@ const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
 
       // 获取历史成绩数据（增加更多上下文信息）
       const { data: grades } = await supabase
-        .from("grade_data_new")
+        .from("grade_data")
         .select(
           `
           *,

@@ -1,6 +1,6 @@
 /**
  * 增强版学生ID映射服务
- * 提供students表和grade_data_new表之间的ID转换
+ * 提供students表和grade_data表之间的ID转换
  * 支持数据库查询和缓存映射
  */
 
@@ -137,7 +137,7 @@ export async function getGradesByStudentTableId(studentTableId: string) {
   }
 
   return await supabase
-    .from("grade_data_new")
+    .from("grade_data")
     .select("*")
     .eq("student_id", gradeTableId);
 }
@@ -167,7 +167,7 @@ export async function getGradesByClassName(className: string) {
 
   // 3. 查询成绩数据
   const { data: grades, error: gradesError } = await supabase
-    .from("grade_data_new")
+    .from("grade_data")
     .select("*")
     .in("student_id", gradeIds);
 
@@ -210,7 +210,7 @@ export async function validateMapping() {
 
     // 验证成绩表记录存在
     const { data: grade } = await supabase
-      .from("grade_data_new")
+      .from("grade_data")
       .select("student_id, name, class_name")
       .eq("student_id", gradeId)
       .limit(1)

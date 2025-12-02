@@ -77,7 +77,7 @@ export const analyzeExamDifficulty = async (
 
     // 获取成绩数据
     const { data: grades, error: gradesError } = await supabase
-      .from("grade_data_new")
+      .from("grade_data")
       .select("*")
       .eq("exam_id", examId);
 

@@ -169,12 +169,12 @@ async function getStudentsWithWarnings(filter?: WarningFilter): Promise<any[]> {
       query = query.in("students.class_name", filter.classNames);
     }
 
-    // 如果有考试筛选，需要额外查询grade_data_new表来过滤
+    // 如果有考试筛选，需要额外查询grade_data表来过滤
     if (filter?.examTitles && filter.examTitles.length > 0) {
       console.log("📊 应用考试筛选:", filter.examTitles);
-      // 先从grade_data_new表获取符合考试条件的学生ID
+      // 先从grade_data表获取符合考试条件的学生ID
       const { data: gradeData, error: gradeError } = await supabase
-        .from("grade_data_new")
+        .from("grade_data")
         .select("student_id")
         .in("exam_title", filter.examTitles);
 
@@ -406,8 +406,8 @@ async function getWarningStatisticsRealtime(
   console.log("🚀 [新架构] 基于原始数据实时计算预警统计", filter);
 
   try {
-    // 1. 构建成绩数据查询 - 使用grade_data_new表（宽表格式）
-    let gradesQuery = supabase.from("grade_data_new").select(`
+    // 1. 构建成绩数据查询 - 使用grade_data表（宽表格式）
+    let gradesQuery = supabase.from("grade_data").select(`
         student_id,
         name,
         class_name,
@@ -882,12 +882,12 @@ async function getWarningStatisticsLegacy(
         query = query.in("students.class_name", filter.classNames);
       }
 
-      // 如果有考试筛选，需要额外查询grade_data_new表来过滤学生ID
+      // 如果有考试筛选，需要额外查询grade_data表来过滤学生ID
       if (filter?.examTitles && filter.examTitles.length > 0) {
         console.log("📊 主查询应用考试筛选:", filter.examTitles);
-        // 先从grade_data_new表获取符合考试条件的学生ID
+        // 先从grade_data表获取符合考试条件的学生ID
         const { data: gradeData, error: gradeError } = await supabase
-          .from("grade_data_new")
+          .from("grade_data")
           .select("student_id")
           .in("exam_title", filter.examTitles);
 

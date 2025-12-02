@@ -593,7 +593,7 @@ export const GradeModuleProvider: React.FC<{ children: React.ReactNode }> = ({
       const [examResponse, gradeResponse] = await Promise.all([
         supabase.from("exams").select("*").order("date", { ascending: false }),
         supabase
-          .from("grade_data_new")
+          .from("grade_data")
           .select("*")
           .order("created_at", { ascending: false }),
       ]);
@@ -640,7 +640,7 @@ export const GradeModuleProvider: React.FC<{ children: React.ReactNode }> = ({
 
       try {
         const { data, error } = await supabase
-          .from("grade_data_new")
+          .from("grade_data")
           .select("*")
           .eq("exam_id", examId)
           .order("student_id");
