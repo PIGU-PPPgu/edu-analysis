@@ -301,7 +301,7 @@ export const homeworkScenarios: RuleScenario[] = [
       sqlTemplate: `
         SELECT s.student_id, s.name, s.class_name, COUNT(*) as missing_count
         FROM students s
-        JOIN homework h ON s.class_id = h.class_id
+        JOIN homework h ON (s.class_name = h.class_name OR s.class_id = h.class_id)
         LEFT JOIN homework_submissions hs ON h.id = hs.homework_id AND s.id = hs.student_id
         WHERE hs.id IS NULL
         AND h.due_date >= {timeWindowStart}

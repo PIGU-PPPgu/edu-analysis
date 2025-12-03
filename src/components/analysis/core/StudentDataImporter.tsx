@@ -108,9 +108,11 @@ export default function StudentDataImporter({
       // 姓名字段映射
       transformedRow.name = row.name || row["姓名"] || row.姓名 || "";
 
-      // 班级字段映射
-      transformedRow.class_id =
-        row.class_id || row.class_name || row["班级"] || row.班级 || "";
+      // 班级字段映射 - 优先使用 class_name (TEXT)
+      const classValue =
+        row.class_name || row["班级"] || row.班级 || row.class_id || "";
+      transformedRow.class_name = classValue; // ✅ 主字段
+      transformedRow.class_id = classValue; // ⚠️ 过渡期兼容字段
 
       // 可选字段映射
       transformedRow.admission_year =
@@ -128,7 +130,7 @@ export default function StudentDataImporter({
       if (!transformedRow.name) {
         throw new Error(`第${index + 2}行：姓名不能为空`);
       }
-      if (!transformedRow.class_id) {
+      if (!transformedRow.class_name) {
         throw new Error(`第${index + 2}行：班级不能为空`);
       }
 

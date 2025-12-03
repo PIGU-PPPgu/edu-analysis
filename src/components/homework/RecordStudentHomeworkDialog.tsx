@@ -65,11 +65,14 @@ const RecordStudentHomeworkDialog: React.FC<
     const fetchStudents = async () => {
       if (homework?.classes?.id) {
         try {
-          // 获取班级学生
+          // 获取班级学生 - 支持 class_name 和 class_id 双字段查询
+          const classIdentifier = homework.classes.id;
           const { data: studentsData, error } = await supabase
             .from("students")
             .select("*")
-            .eq("class_id", homework.classes.id)
+            .or(
+              `class_name.eq.${classIdentifier},class_id.eq.${classIdentifier}`
+            )
             .order("name");
 
           if (error) throw error;

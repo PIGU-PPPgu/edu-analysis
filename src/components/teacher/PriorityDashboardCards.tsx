@@ -103,8 +103,8 @@ const PriorityDashboardCards: React.FC = () => {
           id,
           title,
           due_date,
-          class_id,
-          classes!inner(name)
+          class_name,
+          class_id
         `
         )
         .gte("due_date", new Date().toISOString())
@@ -121,10 +121,15 @@ const PriorityDashboardCards: React.FC = () => {
             .select("*", { count: "exact", head: true })
             .eq("homework_id", hw.id);
 
+          // 优先使用 class_name，回退到 class_id
+          const classIdentifier =
+            (hw as any).class_name || (hw as any).class_id;
           const { count: totalStudents } = await supabase
             .from("students")
             .select("*", { count: "exact", head: true })
-            .eq("class_id", hw.class_id);
+            .or(
+              `class_name.eq.${classIdentifier},class_id.eq.${classIdentifier}`
+            );
 
           return {
             id: hw.id,
@@ -132,7 +137,7 @@ const PriorityDashboardCards: React.FC = () => {
             dueDate: hw.due_date,
             submissionCount: submissionCount || 0,
             totalStudents: totalStudents || 0,
-            className: (hw as any).classes?.name || "未知班级",
+            className: classIdentifier || "未知班级",
           };
         })
       );
