@@ -321,6 +321,44 @@ export const generateMultipleClasses = (options: {
 };
 
 /**
+ * 批量生成多个班级的学生数据（兼容旧测试API）
+ * @deprecated 推荐使用 generateMultipleClasses
+ */
+export const generateStudentsByClassNames = (
+  count: number,
+  options?: {
+    classNames?: string[]; // 支持多个班级
+    className?: string; // 支持单个班级
+    gradeLevel?: string;
+    admissionYear?: number;
+    includeContact?: boolean;
+    allowDuplicateNames?: boolean;
+  }
+): GeneratedStudent[] => {
+  // 如果提供了 classNames（复数），平均分配学生到各班级
+  if (options?.classNames && options.classNames.length > 0) {
+    const allStudents: GeneratedStudent[] = [];
+    const studentsPerClass = Math.floor(count / options.classNames.length);
+    const remainder = count % options.classNames.length;
+
+    options.classNames.forEach((className, index) => {
+      const classCount = studentsPerClass + (index < remainder ? 1 : 0);
+      const students = generateStudents(classCount, {
+        ...options,
+        className, // 使用单个 className
+        classNames: undefined, // 移除 classNames
+      });
+      allStudents.push(...students);
+    });
+
+    return allStudents;
+  }
+
+  // 回退到标准单班级生成
+  return generateStudents(count, options);
+};
+
+/**
  * 生成带有特殊情况的学生数据（用于边界测试）
  */
 export const generateEdgeCaseStudents = (): GeneratedStudent[] => {

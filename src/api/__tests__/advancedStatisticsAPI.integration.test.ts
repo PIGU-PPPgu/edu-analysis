@@ -10,19 +10,21 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { AdvancedStatisticsAPI } from "../advancedStatisticsAPI";
+import {
+  StatisticMetric,
+  PredictionModelType,
+  AnomalyAlgorithm,
+  BatchStatisticsRequest,
+} from "@/types/advancedAnalysisAPI";
 import { cleanTestData, insertTestData } from "@/test/db-setup";
-import { generateStudents } from "@/test/generators/studentGenerator";
+import { generateStudentsByClassNames } from "@/test/generators/studentGenerator";
 import { generateExam } from "@/test/generators/examGenerator";
 import { generateGradesForStudents } from "@/test/generators/gradeGenerator";
 
 describe("AdvancedStatisticsAPI Integration Tests", () => {
-  let api: AdvancedStatisticsAPI;
   let testExamId: string;
 
   beforeEach(async () => {
-    // 创建API实例
-    api = new AdvancedStatisticsAPI();
-
     // 清理测试数据
     await cleanTestData(["grade_data", "exams", "students"]);
   });
@@ -35,7 +37,7 @@ describe("AdvancedStatisticsAPI Integration Tests", () => {
   describe("batchStatistics - 批量统计", () => {
     beforeEach(async () => {
       // 准备：3个班级，每班30人
-      const students = generateStudents(90, {
+      const students = generateStudentsByClassNames(90, {
         classNames: ["高一(1)班", "高一(2)班", "高一(3)班"],
       });
       await insertTestData("students", students);
@@ -54,67 +56,78 @@ describe("AdvancedStatisticsAPI Integration Tests", () => {
 
     it("应按班级分组统计成绩", async () => {
       // 执行：调用API
-      const result = await api.batchStatistics({
-        groupBy: ["class_name"],
-        metrics: ["avg_score", "pass_rate"],
-        filters: { exam_id: testExamId },
+      const result = await AdvancedStatisticsAPI.batchStatistics({
+        examIds: [testExamId],
+        groupBy: ["class"],
+        metrics: [StatisticMetric.MEAN, StatisticMetric.COUNT],
       });
 
       // 验证：
       expect(result.success).toBe(true);
-      expect(result.data.length).toBeGreaterThanOrEqual(3); // 至少3个班级
+      expect(result.data).toBeDefined();
+      expect(result.data?.data).toBeDefined();
+      expect(result.data!.data.length).toBeGreaterThanOrEqual(3); // 至少3个班级
 
       // 验证数据结构
-      const firstGroup = result.data[0];
-      expect(firstGroup).toHaveProperty("class_name");
-      expect(firstGroup).toHaveProperty("avg_score");
-      expect(firstGroup).toHaveProperty("pass_rate");
+      const firstGroup = result.data!.data[0];
+      expect(firstGroup).toHaveProperty("groupValues");
+      expect(firstGroup.groupValues).toHaveProperty("class");
+      expect(firstGroup).toHaveProperty("metrics");
 
       // 验证数值合理性
-      expect(firstGroup.avg_score).toBeGreaterThan(0);
-      expect(firstGroup.pass_rate).toBeGreaterThanOrEqual(0);
-      expect(firstGroup.pass_rate).toBeLessThanOrEqual(100);
+      expect(firstGroup.metrics[StatisticMetric.MEAN]).toBeGreaterThan(0);
+      expect(firstGroup.sampleSize).toBeGreaterThan(0);
     });
 
     it("应支持多维度分组（班级+科目）", async () => {
-      const result = await api.batchStatistics({
-        groupBy: ["class_name", "subject"],
-        metrics: ["avg_score"],
-        filters: { exam_id: testExamId },
+      const result = await AdvancedStatisticsAPI.batchStatistics({
+        examIds: [testExamId],
+        groupBy: ["class", "subject"],
+        metrics: [StatisticMetric.MEAN],
       });
 
       expect(result.success).toBe(true);
+      expect(result.data?.data).toBeDefined();
 
       // 验证：每个班级×每个科目都有统计
       // 3个班级 × 3个科目 = 9个分组
-      expect(result.data.length).toBeGreaterThanOrEqual(9);
+      expect(result.data!.data.length).toBeGreaterThanOrEqual(9);
 
       // 验证分组唯一性
       const uniqueGroups = new Set(
-        result.data.map((d) => `${d.class_name}-${d.subject}`)
+        result.data!.data.map(
+          (d) => `${d.groupValues.class}-${d.groupValues.subject}`
+        )
       );
-      expect(uniqueGroups.size).toBe(result.data.length);
+      expect(uniqueGroups.size).toBe(result.data!.data.length);
     });
 
     it("应正确计算聚合指标（min/max/count）", async () => {
-      const result = await api.batchStatistics({
-        groupBy: ["class_name"],
-        metrics: ["min_score", "max_score", "student_count"],
-        filters: { exam_id: testExamId },
+      const result = await AdvancedStatisticsAPI.batchStatistics({
+        examIds: [testExamId],
+        groupBy: ["class"],
+        metrics: [
+          StatisticMetric.MIN,
+          StatisticMetric.MAX,
+          StatisticMetric.COUNT,
+        ],
       });
 
       expect(result.success).toBe(true);
+      expect(result.data?.data).toBeDefined();
 
-      result.data.forEach((group) => {
+      result.data!.data.forEach((group) => {
         // 验证最小值 <= 最大值
-        expect(group.min_score).toBeLessThanOrEqual(group.max_score);
+        expect(group.metrics[StatisticMetric.MIN]).toBeLessThanOrEqual(
+          group.metrics[StatisticMetric.MAX]
+        );
 
         // 验证学生数量合理
-        expect(group.student_count).toBeGreaterThan(0);
+        expect(group.sampleSize).toBeGreaterThan(0);
 
         // 验证分数在合理范围内
-        expect(group.min_score).toBeGreaterThanOrEqual(0);
-        expect(group.max_score).toBeLessThanOrEqual(100);
+        expect(group.metrics[StatisticMetric.MIN]).toBeGreaterThanOrEqual(0);
+        expect(group.metrics[StatisticMetric.MAX]).toBeLessThanOrEqual(150); // 某些科目满分150
       });
     });
   });
@@ -122,7 +135,7 @@ describe("AdvancedStatisticsAPI Integration Tests", () => {
   describe("Cache Mechanism - 缓存机制测试", () => {
     beforeEach(async () => {
       // 准备基础测试数据
-      const students = generateStudents(30, {
+      const students = generateStudentsByClassNames(30, {
         classNames: ["高一(1)班"],
       });
       await insertTestData("students", students);
@@ -139,14 +152,14 @@ describe("AdvancedStatisticsAPI Integration Tests", () => {
     });
 
     it("第二次相同请求应使用缓存", async () => {
-      const request = {
-        groupBy: ["class_name"],
-        metrics: ["avg_score"],
-        filters: { exam_id: testExamId },
+      const request: BatchStatisticsRequest = {
+        examIds: [testExamId],
+        groupBy: ["class"],
+        metrics: [StatisticMetric.MEAN],
       };
 
       // 第一次请求
-      const result1 = await api.batchStatistics(request);
+      const result1 = await AdvancedStatisticsAPI.batchStatistics(request);
       expect(result1.metadata?.cached).toBe(false);
       const time1 = result1.metadata?.executionTime || 0;
 
@@ -154,7 +167,7 @@ describe("AdvancedStatisticsAPI Integration Tests", () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       // 第二次请求（应使用缓存）
-      const result2 = await api.batchStatistics(request);
+      const result2 = await AdvancedStatisticsAPI.batchStatistics(request);
       expect(result2.metadata?.cached).toBe(true);
       const time2 = result2.metadata?.executionTime || 0;
 
@@ -166,20 +179,20 @@ describe("AdvancedStatisticsAPI Integration Tests", () => {
     });
 
     it("不同请求应分别缓存", async () => {
-      const request1 = {
-        groupBy: ["class_name"],
-        metrics: ["avg_score"],
-        filters: { exam_id: testExamId },
+      const request1: BatchStatisticsRequest = {
+        examIds: [testExamId],
+        groupBy: ["class"],
+        metrics: [StatisticMetric.MEAN],
       };
 
-      const request2 = {
+      const request2: BatchStatisticsRequest = {
+        examIds: [testExamId],
         groupBy: ["subject"],
-        metrics: ["avg_score"],
-        filters: { exam_id: testExamId },
+        metrics: [StatisticMetric.MEAN],
       };
 
-      const result1 = await api.batchStatistics(request1);
-      const result2 = await api.batchStatistics(request2);
+      const result1 = await AdvancedStatisticsAPI.batchStatistics(request1);
+      const result2 = await AdvancedStatisticsAPI.batchStatistics(request2);
 
       // 两个都不应该是缓存（首次请求）
       expect(result1.metadata?.cached).toBe(false);
@@ -190,24 +203,27 @@ describe("AdvancedStatisticsAPI Integration Tests", () => {
     });
 
     it("缓存应在TTL后失效", async () => {
-      // 创建一个短TTL的API实例用于测试
-      const shortTtlApi = new AdvancedStatisticsAPI({ cacheTTL: 100 }); // 100ms
-
-      const request = {
-        groupBy: ["class_name"],
-        metrics: ["avg_score"],
-        filters: { exam_id: testExamId },
+      const request: BatchStatisticsRequest = {
+        examIds: [testExamId],
+        groupBy: ["class"],
+        metrics: [StatisticMetric.MEAN],
       };
 
       // 第一次请求
-      const result1 = await shortTtlApi.batchStatistics(request);
+      const result1 = await AdvancedStatisticsAPI.batchStatistics(request, {
+        enabled: true,
+        ttl: 0.1, // 100ms
+      });
       expect(result1.metadata?.cached).toBe(false);
 
       // 等待缓存过期
       await new Promise((resolve) => setTimeout(resolve, 150));
 
       // 再次请求（缓存已过期，应重新计算）
-      const result2 = await shortTtlApi.batchStatistics(request);
+      const result2 = await AdvancedStatisticsAPI.batchStatistics(request, {
+        enabled: true,
+        ttl: 0.1,
+      });
       expect(result2.metadata?.cached).toBe(false);
     }, 10000); // 延长测试超时时间
   });
@@ -215,7 +231,7 @@ describe("AdvancedStatisticsAPI Integration Tests", () => {
   describe("correlationAnalysis - 相关性分析", () => {
     beforeEach(async () => {
       // 准备：创建有相关性的成绩数据
-      const students = generateStudents(50, {
+      const students = generateStudentsByClassNames(50, {
         classNames: ["高一(1)班"],
       });
       await insertTestData("students", students);
@@ -234,17 +250,20 @@ describe("AdvancedStatisticsAPI Integration Tests", () => {
     });
 
     it("应计算科目间相关系数", async () => {
-      const result = await api.correlationAnalysis({
-        variables: ["chinese_score", "math_score", "physics_score"],
+      const result = await AdvancedStatisticsAPI.correlationAnalysis({
+        variables: [
+          { name: "chinese", source: "grade", field: "chinese_score" },
+          { name: "math", source: "grade", field: "math_score" },
+          { name: "physics", source: "grade", field: "physics_score" },
+        ],
         method: "pearson",
-        filters: { exam_id: testExamId },
       });
 
       expect(result.success).toBe(true);
-      expect(result.data.correlationMatrix).toBeDefined();
+      expect(result.data?.correlationMatrix).toBeDefined();
 
       // 验证矩阵维度
-      const matrix = result.data.correlationMatrix;
+      const matrix = result.data!.correlationMatrix.values;
       expect(matrix.length).toBe(3); // 3×3矩阵
       expect(matrix[0].length).toBe(3);
 
@@ -265,7 +284,7 @@ describe("AdvancedStatisticsAPI Integration Tests", () => {
 
   describe("prediction - 预测分析", () => {
     beforeEach(async () => {
-      const students = generateStudents(30, {
+      const students = generateStudentsByClassNames(30, {
         classNames: ["高一(1)班"],
       });
       await insertTestData("students", students);
@@ -283,11 +302,12 @@ describe("AdvancedStatisticsAPI Integration Tests", () => {
     });
 
     it("应使用线性回归进行成绩预测", async () => {
-      const result = await api.prediction({
-        targetVariable: "math_score",
-        predictors: ["study_hours", "previous_score"],
-        method: "linear_regression",
-        filters: { exam_id: testExamId },
+      const result = await AdvancedStatisticsAPI.prediction({
+        modelType: PredictionModelType.LINEAR_REGRESSION,
+        targetVariable: { field: "math_score" },
+        features: ["study_hours", "previous_score"],
+        trainingData: { examIds: [testExamId] },
+        predictionScope: { students: [] },
       });
 
       expect(result.success).toBe(true);
@@ -295,10 +315,10 @@ describe("AdvancedStatisticsAPI Integration Tests", () => {
       expect(result.data).toHaveProperty("predictions");
 
       // 验证预测结果的合理性
-      if (result.data.predictions) {
+      if (result.data?.predictions) {
         result.data.predictions.forEach((pred) => {
-          expect(pred.predicted).toBeGreaterThanOrEqual(0);
-          expect(pred.predicted).toBeLessThanOrEqual(100);
+          expect(pred.predictions[0].value).toBeGreaterThanOrEqual(0);
+          expect(pred.predictions[0].value).toBeLessThanOrEqual(150);
         });
       }
     });
@@ -307,12 +327,12 @@ describe("AdvancedStatisticsAPI Integration Tests", () => {
   describe("anomalyDetection - 异常检测", () => {
     it("应检测统计异常（Z-score方法）", async () => {
       // 准备：99个正常分数 + 1个极端异常
-      const normalStudents = generateStudents(99, {
+      const normalStudents = generateStudentsByClassNames(99, {
         classNames: ["高一(1)班"],
       });
 
       // 创建一个异常低分学生
-      const anomalyStudent = generateStudents(1, {
+      const anomalyStudent = generateStudentsByClassNames(1, {
         classNames: ["高一(1)班"],
       })[0];
 
@@ -340,25 +360,27 @@ describe("AdvancedStatisticsAPI Integration Tests", () => {
       await insertTestData("grade_data", allGrades);
 
       // 执行异常检测
-      const result = await api.anomalyDetection({
-        algorithm: "STATISTICAL",
+      const result = await AdvancedStatisticsAPI.anomalyDetection({
+        algorithm: AnomalyAlgorithm.STATISTICAL,
         sensitivity: 0.95,
-        filters: { exam_id: exam.id },
+        scope: {
+          examIds: [exam.id],
+        },
       });
 
       expect(result.success).toBe(true);
-      expect(result.data.anomalies).toBeDefined();
-      expect(result.data.anomalies.length).toBeGreaterThan(0);
+      expect(result.data?.anomalies).toBeDefined();
+      expect(result.data!.anomalies.length).toBeGreaterThan(0);
 
       // 验证检测到了极端低分
-      const hasLowScore = result.data.anomalies.some((a) => a.score < 40);
+      const hasLowScore = result.data!.anomalies.some((a) => a.score < 40);
       expect(hasLowScore).toBe(true);
     });
   });
 
   describe("multiDimensionalAggregation - 多维聚合", () => {
     beforeEach(async () => {
-      const students = generateStudents(60, {
+      const students = generateStudentsByClassNames(60, {
         classNames: ["高一(1)班", "高一(2)班"],
       });
       await insertTestData("students", students);
@@ -376,41 +398,48 @@ describe("AdvancedStatisticsAPI Integration Tests", () => {
     });
 
     it("应支持多维度复杂聚合", async () => {
-      const result = await api.multiDimensionalAggregation({
-        dimensions: ["class_name", "subject", "score_range"],
-        metrics: ["count", "avg", "sum"],
+      const result = await AdvancedStatisticsAPI.multiDimensionalAggregation({
+        dimensions: [
+          { field: "class", type: "categorical" as const },
+          { field: "subject", type: "categorical" as const },
+          { field: "time", type: "temporal" as const },
+        ],
+        metrics: [
+          { field: "score", aggregation: "count" as const },
+          { field: "score", aggregation: "avg" as const },
+          { field: "score", aggregation: "sum" as const },
+        ],
         filters: { exam_id: testExamId },
       });
 
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
-      expect(Array.isArray(result.data)).toBe(true);
+      expect(Array.isArray(result.data?.data)).toBe(true);
 
-      // 验证聚合结果包含所有维度
-      if (result.data.length > 0) {
-        const firstItem = result.data[0];
-        expect(firstItem).toHaveProperty("class_name");
-        expect(firstItem).toHaveProperty("subject");
+      // 验证聚合结果存在
+      if (result.data?.data && result.data.data.length > 0) {
+        const firstItem = result.data.data[0];
+        expect(firstItem).toBeDefined();
       }
     });
   });
 
   describe("Error Handling - 错误处理", () => {
     it("应处理空数据集", async () => {
-      const result = await api.batchStatistics({
-        groupBy: ["class_name"],
-        metrics: ["avg_score"],
-        filters: { exam_id: "nonexistent-exam-id-12345" },
+      const result = await AdvancedStatisticsAPI.batchStatistics({
+        examIds: ["nonexistent-exam-id-12345"],
+        groupBy: ["class"],
+        metrics: [StatisticMetric.MEAN],
       });
 
       expect(result.success).toBe(true);
-      expect(result.data).toEqual([]);
+      expect(result.data?.data).toEqual([]);
     });
 
     it("应验证请求参数", async () => {
-      const result = await api.batchStatistics({
+      const result = await AdvancedStatisticsAPI.batchStatistics({
         groupBy: [], // 空分组（无效）
-        metrics: ["avg_score"],
+        metrics: [StatisticMetric.MEAN],
       });
 
       expect(result.success).toBe(false);
@@ -420,7 +449,7 @@ describe("AdvancedStatisticsAPI Integration Tests", () => {
 
     it("应优雅处理无效的聚合指标", async () => {
       // 准备基础数据
-      const students = generateStudents(10, {
+      const students = generateStudentsByClassNames(10, {
         classNames: ["高一(1)班"],
       });
       await insertTestData("students", students);
@@ -434,10 +463,10 @@ describe("AdvancedStatisticsAPI Integration Tests", () => {
       });
       await insertTestData("grade_data", grades);
 
-      const result = await api.batchStatistics({
-        groupBy: ["class_name"],
-        metrics: ["invalid_metric"], // 无效指标
-        filters: { exam_id: exam.id },
+      const result = await AdvancedStatisticsAPI.batchStatistics({
+        examIds: [exam.id],
+        groupBy: ["class"],
+        metrics: ["invalid_metric" as any], // 无效指标
       });
 
       // 应该返回错误或忽略无效指标

@@ -120,9 +120,11 @@ export class ClassService {
       if (response.success && response.data?.length) {
         const classInfo = response.data[0];
 
-        // 获取实时学生数量
+        // 获取实时学生数量 - 支持 class_name (TEXT) 和 class_id (UUID) 双字段
         const studentCountResponse = await apiClient.query("students", {
-          filters: { class_id: className },
+          filters: {
+            or: [{ class_name: className }, { class_id: className }],
+          } as any,
           select: ["id"],
         });
 
@@ -236,9 +238,11 @@ export class ClassService {
 
       const classInfo = classResponse.data;
 
-      // 获取学生数量
+      // 获取学生数量 - 支持双字段查询
       const studentsResponse = await apiClient.query("students", {
-        filters: { class_id: className },
+        filters: {
+          or: [{ class_name: className }, { class_id: className }],
+        } as any,
         select: ["id"],
       });
 
@@ -301,8 +305,11 @@ export class ClassService {
         classNames.map(async (className) => {
           const performanceMetrics =
             await this.getClassPerformanceMetrics(className);
+          // 支持双字段查询
           const studentsResponse = await apiClient.query("students", {
-            filters: { class_id: className },
+            filters: {
+              or: [{ class_name: className }, { class_id: className }],
+            } as any,
             select: ["id"],
           });
 
@@ -857,17 +864,23 @@ export class ClassService {
 
       const classNames = classes.map((c) => c.class_name);
 
-      // 批量获取学生数量
+      // 批量获取学生数量 - 支持双字段查询
       const studentsResponse = await apiClient.query("students", {
-        filters: { class_id: { in: classNames } },
-        select: ["class_id"],
+        filters: {
+          or: [
+            { class_name: { in: classNames } as any },
+            { class_id: { in: classNames } as any },
+          ],
+        } as any,
+        select: ["class_id", "class_name"], // 返回两个字段用于匹配
       });
 
       if (studentsResponse.success && studentsResponse.data) {
         const studentCounts = new Map<string, number>();
 
         studentsResponse.data.forEach((student) => {
-          const className = student.class_id;
+          // 优先使用 class_name 匹配，回退到 class_id
+          const className = student.class_name || student.class_id;
           studentCounts.set(className, (studentCounts.get(className) || 0) + 1);
         });
 

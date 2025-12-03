@@ -301,7 +301,6 @@ describe("IntelligentFileParser", () => {
         subjects: [],
         confidence: 0.5, // 低置信度
         studentFields: [],
-        cacheHits: 0,
       });
 
       const mockData = [

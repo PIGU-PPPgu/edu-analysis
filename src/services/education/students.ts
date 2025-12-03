@@ -12,6 +12,7 @@ import { logError, logInfo } from "@/utils/logger";
 import { apiClient } from "../core/api";
 import { dataCache } from "../core/cache";
 import type { APIResponse } from "../core/api";
+import { getClassNameByUUID } from "@/utils/classIdAdapter";
 
 export interface Student {
   id: string;
@@ -59,8 +60,7 @@ export interface StudentGroup {
 }
 
 export interface ClassSummary {
-  class_id: string;
-  class_name: string;
+  class_name: string; // 主键：使用 class_name (TEXT) 替代 class_id (UUID)
   total_students: number;
   performance_stats: {
     average_score: number;
@@ -111,16 +111,12 @@ export class StudentService {
       if (response.success && response.data?.length) {
         const student = response.data[0];
 
-        // 补充班级信息
-        if (student.class_id && !student.class_name) {
-          const classResponse = await apiClient.query("class_info", {
-            filters: { class_name: student.class_id },
-            select: ["class_name"],
-            limit: 1,
-          });
-
-          if (classResponse.success && classResponse.data?.length) {
-            student.class_name = classResponse.data[0].class_name;
+        // 补充班级信息：优先使用 class_name，如果只有 class_id 则转换
+        if (!student.class_name && student.class_id) {
+          // 使用 classIdAdapter 转换 UUID → TEXT
+          const className = await getClassNameByUUID(student.class_id);
+          if (className) {
+            student.class_name = className;
           }
         }
 
@@ -176,9 +172,14 @@ export class StudentService {
           orderBy = [{ column: "created_at", ascending: false }];
       }
 
-      // 查询学生列表
+      // 查询学生列表 - 支持 class_name (TEXT) 和 class_id (UUID) 双字段
       const response = await apiClient.query<Student>("students", {
-        filters: { class_id: classId },
+        filters: {
+          or: [
+            { class_name: classId }, // 优先使用新字段
+            { class_id: classId }, // 回退到旧字段
+          ],
+        } as any,
         orderBy,
         limit: options.limit || 50,
         offset: options.offset || 0,
@@ -544,9 +545,12 @@ export class StudentService {
 
       const filters: any = {};
 
-      // 班级过滤
+      // 班级过滤 - 支持 class_name (TEXT) 和 class_id (UUID) 双字段
       if (options.classId) {
-        filters.class_id = options.classId;
+        filters.or = [
+          { class_name: options.classId },
+          { class_id: options.classId },
+        ];
       }
 
       // 构建搜索条件（姓名或学号模糊匹配）
@@ -643,8 +647,7 @@ export class StudentService {
       }> = [];
 
       const summary: ClassSummary = {
-        class_id: classId,
-        class_name,
+        class_name, // 使用 class_name 作为主键
         total_students,
         performance_stats: performanceStats,
         recent_activity,

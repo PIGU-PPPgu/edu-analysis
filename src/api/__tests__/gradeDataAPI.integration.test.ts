@@ -20,7 +20,7 @@ import {
   fetchSubjectList,
 } from "../gradeDataAPI";
 import { cleanTestData, insertTestData } from "@/test/db-setup";
-import { generateStudents } from "@/test/generators/studentGenerator";
+import { generateStudentsByClassNames } from "@/test/generators/studentGenerator";
 import { generateExam } from "@/test/generators/examGenerator";
 import { generateGradesForStudents } from "@/test/generators/gradeGenerator";
 import type { GradeRecord } from "@/types/grade";
@@ -41,15 +41,15 @@ describe("GradeDataAPI Integration Tests", () => {
   describe("fetchGradeData - 成绩数据查询", () => {
     it("应成功获取考试成绩数据（无筛选）", async () => {
       // 准备：插入100条测试数据
-      const students = generateStudents(100, {
+      const students = generateStudentsByClassNames(100, {
         classNames: ["高一(1)班", "高一(2)班"],
       });
       await insertTestData("students", students);
 
       const exam = generateExam({
         title: "期中考试",
-        date: "2024-11-01",
-        type: "期中",
+        examDate: "2024-11-01",
+        examType: "期中",
       });
       await insertTestData("exams", [exam]);
       testExamId = exam.id;
@@ -79,10 +79,10 @@ describe("GradeDataAPI Integration Tests", () => {
 
     it("应正确应用班级筛选", async () => {
       // 准备：2个班级的数据
-      const class1Students = generateStudents(30, {
+      const class1Students = generateStudentsByClassNames(30, {
         classNames: ["高一(1)班"],
       });
-      const class2Students = generateStudents(30, {
+      const class2Students = generateStudentsByClassNames(30, {
         classNames: ["高一(2)班"],
       });
       const allStudents = [...class1Students, ...class2Students];
@@ -99,7 +99,7 @@ describe("GradeDataAPI Integration Tests", () => {
 
       // 执行：只查询高一(1)班
       const result = await fetchGradeData(exam.id, {
-        class_name: "高一(1)班",
+        class: "高一(1)班",
       });
 
       // 验证：所有记录都是高一(1)班
@@ -111,7 +111,7 @@ describe("GradeDataAPI Integration Tests", () => {
 
     it("应正确实现分页", async () => {
       // 准备：200条数据
-      const students = generateStudents(200, {
+      const students = generateStudentsByClassNames(200, {
         classNames: ["高一(1)班"],
       });
       await insertTestData("students", students);
@@ -162,7 +162,7 @@ describe("GradeDataAPI Integration Tests", () => {
   describe("fetchGradeDataBySubject/ByClass - 专项查询", () => {
     beforeEach(async () => {
       // 准备通用测试数据
-      const students = generateStudents(30, {
+      const students = generateStudentsByClassNames(30, {
         classNames: ["高一(1)班"],
       });
       await insertTestData("students", students);
@@ -200,7 +200,7 @@ describe("GradeDataAPI Integration Tests", () => {
   });
 
   describe("calculateGradeStatistics - 统计计算", () => {
-    it("应正确计算平均分", () => {
+    it("应正确计算平均分", async () => {
       const testData: GradeRecord[] = [
         { id: "1", score: 80 } as GradeRecord,
         { id: "2", score: 85 } as GradeRecord,
@@ -210,12 +210,12 @@ describe("GradeDataAPI Integration Tests", () => {
       ];
       const expectedAvg = 90;
 
-      const stats = calculateGradeStatistics(testData);
+      const stats = await calculateGradeStatistics(testData);
 
       expect(stats.average).toBeCloseTo(expectedAvg, 2);
     });
 
-    it("应正确计算中位数", () => {
+    it("应正确计算中位数", async () => {
       const testData: GradeRecord[] = [
         { id: "1", score: 60 } as GradeRecord,
         { id: "2", score: 70 } as GradeRecord,
@@ -224,12 +224,12 @@ describe("GradeDataAPI Integration Tests", () => {
         { id: "5", score: 100 } as GradeRecord,
       ];
 
-      const stats = calculateGradeStatistics(testData);
+      const stats = await calculateGradeStatistics(testData);
 
       expect(stats.median).toBe(80);
     });
 
-    it("应正确计算标准差", () => {
+    it("应正确计算标准差", async () => {
       const scores = [60, 70, 80, 90, 100];
       const mean = 80;
       const variance =
@@ -244,12 +244,12 @@ describe("GradeDataAPI Integration Tests", () => {
           }) as GradeRecord
       );
 
-      const stats = calculateGradeStatistics(testData);
+      const stats = await calculateGradeStatistics(testData);
 
       expect(stats.standardDeviation).toBeCloseTo(expectedStdDev, 1);
     });
 
-    it("应正确计算及格率和优秀率", () => {
+    it("应正确计算及格率和优秀率", async () => {
       // 100个学生：60个及格（≥60分），40个不及格
       const passScores = Array(60).fill(80);
       const failScores = Array(40).fill(50);
@@ -259,12 +259,16 @@ describe("GradeDataAPI Integration Tests", () => {
         (score, i) =>
           ({
             id: `${i}`,
+            student_id: `student-${i}`,
+            student_name: `测试学生${i}`,
+            class_name: "高一(1)班",
+            subject: "chinese",
             score,
-            max_score: 100,
+            总分分数: score,
           }) as GradeRecord
       );
 
-      const stats = calculateGradeStatistics(testData);
+      const stats = await calculateGradeStatistics(testData);
 
       expect(stats.passRate).toBeCloseTo(60, 0);
       expect(stats.excellentRate).toBeDefined();
@@ -276,9 +280,9 @@ describe("GradeDataAPI Integration Tests", () => {
     it("应获取所有考试列表", async () => {
       // 准备：插入3个考试
       const exams = [
-        generateExam({ title: "期中考试", date: "2024-11-01" }),
-        generateExam({ title: "期末考试", date: "2024-12-15" }),
-        generateExam({ title: "月考", date: "2024-10-15" }),
+        generateExam({ title: "期中考试", examDate: "2024-11-01" }),
+        generateExam({ title: "期末考试", examDate: "2024-12-15" }),
+        generateExam({ title: "月考", examDate: "2024-10-15" }),
       ];
       await insertTestData("exams", exams);
 
@@ -301,14 +305,14 @@ describe("GradeDataAPI Integration Tests", () => {
       // 验证
       expect(result.data).toBeDefined();
       expect(result.data.id).toBe(exam.id);
-      expect(result.data.title).toBe("测试考试详情");
+      expect(result.data.name).toBe("测试考试详情");
     });
   });
 
   describe("fetchClassList/SubjectList - 列表查询", () => {
     it("应获取班级列表", async () => {
       // 准备：创建多个班级的学生
-      const students = generateStudents(60, {
+      const students = generateStudentsByClassNames(60, {
         classNames: ["高一(1)班", "高一(2)班", "高一(3)班"],
       });
       await insertTestData("students", students);
@@ -325,7 +329,7 @@ describe("GradeDataAPI Integration Tests", () => {
 
     it("应获取科目列表", async () => {
       // 准备：创建多科目成绩数据
-      const students = generateStudents(10, {
+      const students = generateStudentsByClassNames(10, {
         classNames: ["高一(1)班"],
       });
       await insertTestData("students", students);
@@ -340,7 +344,7 @@ describe("GradeDataAPI Integration Tests", () => {
       await insertTestData("grade_data", grades);
 
       // 执行
-      const result = await fetchSubjectList(exam.id);
+      const result = await fetchSubjectList();
 
       // 验证：应包含4个科目
       expect(result.data.length).toBeGreaterThanOrEqual(4);

@@ -15,10 +15,11 @@ import {
 } from "../../test/db-setup";
 import {
   generateStudents,
+  generateStudentsByClassNames,
   generateGradesForStudents,
   generateExam,
 } from "../../test/generators";
-import type { ExamInfo } from "@/components/analysis/ImportReviewDialog";
+import type { ExamInfo } from "../examDuplicateChecker";
 import { requestCache } from "@/utils/cacheUtils";
 
 describe("GradeAnalysisService", () => {
@@ -39,7 +40,9 @@ describe("GradeAnalysisService", () => {
   describe("saveExamData - replace策略", () => {
     it("应成功保存新考试数据（replace策略）", async () => {
       // 准备测试学生数据
-      const students = generateStudents(10, { classNames: ["高一(1)班"] });
+      const students = generateStudentsByClassNames(10, {
+        classNames: ["高一(1)班"],
+      });
       await insertTestData("students", students);
 
       // 准备考试信息
@@ -82,7 +85,9 @@ describe("GradeAnalysisService", () => {
     });
 
     it("应替换已存在的考试数据（replace策略）", async () => {
-      const students = generateStudents(5, { classNames: ["高一(1)班"] });
+      const students = generateStudentsByClassNames(5, {
+        classNames: ["高一(1)班"],
+      });
       await insertTestData("students", students);
 
       const examInfo: ExamInfo = {
@@ -133,7 +138,9 @@ describe("GradeAnalysisService", () => {
 
   describe("saveExamData - append策略", () => {
     it("应追加新记录，保留已存在的记录（append策略）", async () => {
-      const students = generateStudents(5, { classNames: ["高一(1)班"] });
+      const students = generateStudentsByClassNames(5, {
+        classNames: ["高一(1)班"],
+      });
       await insertTestData("students", students);
 
       const examInfo: ExamInfo = {
@@ -182,7 +189,9 @@ describe("GradeAnalysisService", () => {
     });
 
     it("应忽略重复记录（append策略）", async () => {
-      const students = generateStudents(3, { classNames: ["高一(1)班"] });
+      const students = generateStudentsByClassNames(3, {
+        classNames: ["高一(1)班"],
+      });
       await insertTestData("students", students);
 
       const examInfo: ExamInfo = {
@@ -223,7 +232,9 @@ describe("GradeAnalysisService", () => {
 
   describe("saveExamData - skip策略", () => {
     it("应跳过已存在的考试数据（skip策略）", async () => {
-      const students = generateStudents(3, { classNames: ["高一(1)班"] });
+      const students = generateStudentsByClassNames(3, {
+        classNames: ["高一(1)班"],
+      });
       await insertTestData("students", students);
 
       const examInfo: ExamInfo = {
@@ -263,7 +274,9 @@ describe("GradeAnalysisService", () => {
 
   describe("saveExamData - 宽表格转长表格", () => {
     it("应正确转换宽表格数据（一行包含多科目）", async () => {
-      const students = generateStudents(3, { classNames: ["高一(1)班"] });
+      const students = generateStudentsByClassNames(3, {
+        classNames: ["高一(1)班"],
+      });
       await insertTestData("students", students);
 
       const examInfo: ExamInfo = {
@@ -298,7 +311,9 @@ describe("GradeAnalysisService", () => {
     });
 
     it("应正确处理包含多维度数据的宽表格（分数+等级+排名）", async () => {
-      const students = generateStudents(2, { classNames: ["高一(1)班"] });
+      const students = generateStudentsByClassNames(2, {
+        classNames: ["高一(1)班"],
+      });
       await insertTestData("students", students);
 
       const examInfo: ExamInfo = {
@@ -380,7 +395,9 @@ describe("GradeAnalysisService", () => {
     });
 
     it("应处理不支持的合并策略", async () => {
-      const students = generateStudents(1, { classNames: ["高一(1)班"] });
+      const students = generateStudentsByClassNames(1, {
+        classNames: ["高一(1)班"],
+      });
       await insertTestData("students", students);
 
       const examInfo: ExamInfo = {
@@ -414,7 +431,7 @@ describe("GradeAnalysisService", () => {
 
   describe("saveExamData - 性能测试", () => {
     it("应在合理时间内保存大量数据（100个学生×5科目）", async () => {
-      const students = generateStudents(100, {
+      const students = generateStudentsByClassNames(100, {
         classNames: ["高一(1)班", "高一(2)班", "高一(3)班"],
       });
       await insertTestData("students", students);
@@ -483,7 +500,7 @@ describe("GradeAnalysisService", () => {
     }, 15000); // 设置15秒超时
 
     it("应使用批处理保存超大数据（>500条记录）", async () => {
-      const students = generateStudents(200, {
+      const students = generateStudentsByClassNames(200, {
         classNames: ["高一(1)班", "高一(2)班", "高一(3)班", "高一(4)班"],
       });
       await insertTestData("students", students);
@@ -536,7 +553,9 @@ describe("GradeAnalysisService", () => {
 
   describe("getExamList - 考试列表查询", () => {
     it("应返回按日期降序排列的考试列表", async () => {
-      const students = generateStudents(2, { classNames: ["高一(1)班"] });
+      const students = generateStudentsByClassNames(2, {
+        classNames: ["高一(1)班"],
+      });
       await insertTestData("students", students);
 
       // 创建多个考试
@@ -601,7 +620,9 @@ describe("GradeAnalysisService", () => {
 
   describe("Edge Cases - 边界情况", () => {
     it("应处理特殊字符的考试标题", async () => {
-      const students = generateStudents(1, { classNames: ["高一(1)班"] });
+      const students = generateStudentsByClassNames(1, {
+        classNames: ["高一(1)班"],
+      });
       await insertTestData("students", students);
 
       const examInfo: ExamInfo = {
@@ -632,7 +653,9 @@ describe("GradeAnalysisService", () => {
     });
 
     it("应处理分数为0的有效成绩", async () => {
-      const students = generateStudents(1, { classNames: ["高一(1)班"] });
+      const students = generateStudentsByClassNames(1, {
+        classNames: ["高一(1)班"],
+      });
       await insertTestData("students", students);
 
       const examInfo: ExamInfo = {
@@ -663,7 +686,9 @@ describe("GradeAnalysisService", () => {
     });
 
     it("应处理满分成绩", async () => {
-      const students = generateStudents(1, { classNames: ["高一(1)班"] });
+      const students = generateStudentsByClassNames(1, {
+        classNames: ["高一(1)班"],
+      });
       await insertTestData("students", students);
 
       const examInfo: ExamInfo = {

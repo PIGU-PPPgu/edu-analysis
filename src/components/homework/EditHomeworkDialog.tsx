@@ -30,7 +30,8 @@ interface EditHomeworkDialogProps {
     id: string;
     title: string;
     description: string;
-    class_id: string;
+    class_id?: string; // ⚠️ 可选（过渡期兼容）
+    class_name?: string; // ✅ 新增主字段
     due_date: string | null;
     grading_scale_id: string | null;
   } | null;
@@ -79,7 +80,7 @@ const EditHomeworkDialog: React.FC<EditHomeworkDialogProps> = ({
       setFormData({
         title: homework.title || "",
         description: homework.description || "",
-        classId: homework.class_id || "",
+        classId: homework.class_name || homework.class_id || "", // ✅ 优先使用class_name
         dueDate: homework.due_date || "",
         gradingScaleId: homework.grading_scale_id || "",
       });
@@ -100,7 +101,8 @@ const EditHomeworkDialog: React.FC<EditHomeworkDialogProps> = ({
       const { success } = await updateHomework(homework.id, {
         title: formData.title,
         description: formData.description,
-        class_id: formData.classId,
+        class_name: formData.classId, // ✅ 新增主字段（值实际是班级名称）
+        class_id: formData.classId, // ⚠️ 过渡期兼容字段
         due_date: formData.dueDate || null,
         grading_scale_id:
           formData.gradingScaleId === "default"

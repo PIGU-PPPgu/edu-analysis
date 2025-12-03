@@ -20,7 +20,8 @@ export interface Homework {
   title: string;
   description?: string;
   due_date: string;
-  class_id: string;
+  class_id?: string; // ⚠️ 保留为可选（过渡期兼容）
+  class_name?: string; // ➕ 新增主键字段 (TEXT)
   created_by: string;
   grading_scale_id?: string;
   created_at: string;
@@ -66,7 +67,8 @@ export interface HomeworkCreationData {
   title: string;
   description?: string;
   due_date: string;
-  class_id: string;
+  class_id?: string; // ⚠️ 保留为可选（过渡期兼容）
+  class_name?: string; // ➕ 新增主键字段 (TEXT)
   created_by: string;
   grading_scale_id?: string;
   knowledge_points?: string[];
@@ -88,7 +90,10 @@ export class HomeworkService {
     data: HomeworkCreationData
   ): Promise<APIResponse<Homework>> {
     try {
-      logInfo("创建作业", { title: data.title, class_id: data.class_id });
+      logInfo("创建作业", {
+        title: data.title,
+        class_name: data.class_name || data.class_id, // 支持两者
+      });
 
       // 验证数据
       const validation = this.validateHomeworkData(data);
@@ -99,9 +104,12 @@ export class HomeworkService {
         };
       }
 
-      // 创建作业记录
+      // 创建作业记录 - 过渡期双字段写入策略
+      const classValue = data.class_name || data.class_id;
       const homeworkResponse = await apiClient.insert<Homework>("homework", {
         ...data,
+        class_name: classValue, // ✅ 主字段
+        class_id: classValue, // ⚠️ 过渡期兼容字段
         created_at: new Date().toISOString(),
       });
 
@@ -122,7 +130,7 @@ export class HomeworkService {
       }
 
       // 清除相关缓存
-      this.clearHomeworkCache(data.class_id);
+      this.clearHomeworkCache(data.class_name || data.class_id || "");
 
       logInfo("作业创建成功", { homework_id: homework.id });
       return { success: true, data: homework };
@@ -155,7 +163,10 @@ export class HomeworkService {
         return { success: true, data: cached };
       }
 
-      const filters: any = { class_id: classId };
+      // 支持 class_name (TEXT) 和 class_id (UUID) 双字段查询
+      const filters: any = {
+        or: [{ class_name: classId }, { class_id: classId }],
+      };
       const orderBy = [{ column: "created_at", ascending: false }];
 
       // 根据状态过滤
@@ -375,9 +386,12 @@ export class HomeworkService {
 
       const homework = homeworkResponse.data[0];
 
-      // 获取班级学生总数
+      // 获取班级学生总数 - 支持 class_name (TEXT) 和 class_id (UUID) 双字段
+      const classIdentifier = homework.class_name || homework.class_id;
       const studentsResponse = await apiClient.query("students", {
-        filters: { class_id: homework.class_id },
+        filters: {
+          or: [{ class_name: classIdentifier }, { class_id: classIdentifier }],
+        } as any,
         select: ["id"],
       });
 
@@ -648,8 +662,8 @@ export class HomeworkService {
       }
     }
 
-    if (!data.class_id?.trim()) {
-      errors.push("班级ID不能为空");
+    if (!data.class_name?.trim() && !data.class_id?.trim()) {
+      errors.push("班级标识不能为空（class_name 或 class_id 必填其一）");
     }
 
     if (!data.created_by?.trim()) {

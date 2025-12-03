@@ -4,6 +4,7 @@
  */
 
 import { GeneratedStudent } from "./studentGenerator";
+import { GeneratedExam } from "./examGenerator";
 
 export interface GeneratedGrade {
   id?: string;
@@ -207,62 +208,102 @@ export const generateGradeForStudent = (
 
 /**
  * 为多个学生生成成绩并计算排名
+ * 支持两种参数格式：
+ * 1. 展开的参数：examId, examTitle 等
+ * 2. exam 对象：GeneratedExam
  */
 export const generateGradesForStudents = (
   students: GeneratedStudent[],
-  options: {
-    examId?: string;
-    examTitle: string;
-    examType?: string;
-    examDate?: string;
-    subjects?: string[];
-    performanceLevelDistribution?: {
-      excellent?: number;
-      good?: number;
-      average?: number;
-      poor?: number;
-    };
-  }
+  options:
+    | {
+        examId?: string;
+        examTitle: string;
+        examType?: string;
+        examDate?: string;
+        subjects?: string[];
+        scoreRange?: [number, number]; // ➕ 新增：分数范围 [min, max]
+        performanceLevelDistribution?: {
+          excellent?: number;
+          good?: number;
+          average?: number;
+          poor?: number;
+        };
+      }
+    | {
+        exam: GeneratedExam;
+        subjects?: string[];
+        scoreRange?: [number, number]; // ➕ 新增：分数范围 [min, max]
+        performanceLevelDistribution?: {
+          excellent?: number;
+          good?: number;
+          average?: number;
+          poor?: number;
+        };
+      }
 ): GeneratedGrade[] => {
+  // 检测是否使用 exam 对象格式
+  const hasExamObject = "exam" in options;
+
+  // 统一转换为展开格式
+  const normalizedOptions = hasExamObject
+    ? {
+        examId: options.exam.id,
+        examTitle: options.exam.title,
+        examType: options.exam.exam_type,
+        examDate: options.exam.exam_date,
+        subjects: options.subjects,
+        scoreRange: options.scoreRange, // ➕ 传递 scoreRange
+        performanceLevelDistribution: options.performanceLevelDistribution,
+      }
+    : options;
   const {
     examId = generateExamId(),
     examTitle,
     examType,
     examDate,
     subjects,
+    scoreRange, // ➕ 提取 scoreRange
     performanceLevelDistribution = {
       excellent: 0.1,
       good: 0.3,
       average: 0.5,
       poor: 0.1,
     },
-  } = options;
+  } = normalizedOptions;
 
   // 为每个学生分配表现水平
   const gradesWithLevels = students.map((student) => {
     const rand = Math.random();
     let level: "excellent" | "good" | "average" | "poor" = "average";
 
-    if (rand < performanceLevelDistribution.excellent!) {
-      level = "excellent";
-    } else if (
-      rand <
-      performanceLevelDistribution.excellent! +
-        performanceLevelDistribution.good!
-    ) {
-      level = "good";
-    } else if (
-      rand <
-      performanceLevelDistribution.excellent! +
-        performanceLevelDistribution.good! +
-        performanceLevelDistribution.average!
-    ) {
+    // ➕ 如果指定了 scoreRange，使用简单分布
+    if (scoreRange) {
+      // scoreRange 模式下，忽略 performanceLevelDistribution
+      // 使用均匀分布在指定范围内
       level = "average";
     } else {
-      level = "poor";
+      // 标准表现水平分布
+      if (rand < performanceLevelDistribution.excellent!) {
+        level = "excellent";
+      } else if (
+        rand <
+        performanceLevelDistribution.excellent! +
+          performanceLevelDistribution.good!
+      ) {
+        level = "good";
+      } else if (
+        rand <
+        performanceLevelDistribution.excellent! +
+          performanceLevelDistribution.good! +
+          performanceLevelDistribution.average!
+      ) {
+        level = "average";
+      } else {
+        level = "poor";
+      }
     }
 
-    return generateGradeForStudent(student, {
+    const grade = generateGradeForStudent(student, {
       examId,
       examTitle,
       examType,
@@ -270,6 +311,39 @@ export const generateGradesForStudents = (
       subjects,
       performanceLevel: level,
     });
+
+    // ➕ 如果指定了 scoreRange，强制调整分数到指定范围
+    if (scoreRange) {
+      const [minScore, maxScore] = scoreRange;
+      const currentTotal = grade.total_score;
+      const currentMax = grade.total_max_score || 100;
+
+      // 按比例缩放到目标范围
+      const targetScore = minScore + (maxScore - minScore) * Math.random();
+      const scaleFactor = targetScore / currentTotal;
+
+      // 缩放所有科目分数
+      const activeSubjects = subjects || ["chinese", "math", "english"];
+      activeSubjects.forEach((subject) => {
+        const scoreKey = `${subject}_score` as keyof GeneratedGrade;
+        if (grade[scoreKey]) {
+          (grade as any)[scoreKey] = Math.min(
+            (grade as any)[scoreKey] * scaleFactor,
+            SUBJECT_MAX_SCORES[subject as keyof typeof SUBJECT_MAX_SCORES] ||
+              100
+          );
+        }
+      });
+
+      // 重新计算总分
+      grade.total_score = targetScore;
+      grade.total_grade = calculateGrade(
+        targetScore,
+        grade.total_max_score || 100
+      );
+    }
+
+    return grade;
   });
 
   // 计算排名

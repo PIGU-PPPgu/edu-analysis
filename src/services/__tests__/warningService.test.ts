@@ -21,7 +21,10 @@ import {
   cleanTestData,
   insertTestData,
 } from "../../test/db-setup";
-import { generateStudents } from "../../test/generators";
+import {
+  generateStudents,
+  generateStudentsByClassNames,
+} from "../../test/generators";
 import { requestCache } from "@/utils/cacheUtils";
 
 describe("WarningService", () => {
@@ -323,7 +326,9 @@ describe("WarningService", () => {
 
   describe("getWarningRecords - 获取预警记录", () => {
     it("应返回按时间倒序排列的预警记录", async () => {
-      const students = generateStudents(2, { classNames: ["高一(1)班"] });
+      const students = generateStudentsByClassNames(2, {
+        classNames: ["高一(1)班"],
+      });
       await insertTestData("students", students);
 
       // 创建一个规则
@@ -379,7 +384,9 @@ describe("WarningService", () => {
     });
 
     it("应支持按学生ID筛选", async () => {
-      const students = generateStudents(2, { classNames: ["高一(1)班"] });
+      const students = generateStudentsByClassNames(2, {
+        classNames: ["高一(1)班"],
+      });
       await insertTestData("students", students);
 
       const rule: Partial<WarningRule> = {
@@ -428,7 +435,9 @@ describe("WarningService", () => {
     });
 
     it("应支持按状态筛选", async () => {
-      const students = generateStudents(1, { classNames: ["高一(1)班"] });
+      const students = generateStudentsByClassNames(1, {
+        classNames: ["高一(1)班"],
+      });
       await insertTestData("students", students);
 
       const rule: Partial<WarningRule> = {
@@ -479,7 +488,9 @@ describe("WarningService", () => {
 
   describe("resolveWarningRecord - 解决预警记录", () => {
     it("应成功解决预警记录", async () => {
-      const students = generateStudents(1, { classNames: ["高一(1)班"] });
+      const students = generateStudentsByClassNames(1, {
+        classNames: ["高一(1)班"],
+      });
       await insertTestData("students", students);
 
       const rule: Partial<WarningRule> = {
@@ -536,7 +547,7 @@ describe("WarningService", () => {
 
   describe("getWarningStatistics - 预警统计", () => {
     it("应返回完整的预警统计信息", async () => {
-      const students = generateStudents(10, {
+      const students = generateStudentsByClassNames(10, {
         classNames: ["高一(1)班", "高一(2)班"],
       });
       await insertTestData("students", students);
@@ -560,7 +571,9 @@ describe("WarningService", () => {
     });
 
     it("应正确计算预警比率", async () => {
-      const students = generateStudents(5, { classNames: ["高一(1)班"] });
+      const students = generateStudentsByClassNames(5, {
+        classNames: ["高一(1)班"],
+      });
       await insertTestData("students", students);
 
       const stats = await getWarningStatistics();

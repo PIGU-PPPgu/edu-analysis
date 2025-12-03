@@ -225,7 +225,8 @@ export default function TeacherHomeworkList() {
           .insert({
             title: values.title,
             description: values.description,
-            class_id: values.classId,
+            class_name: values.classId, // ✅ 新增主字段（值实际是班级名称）
+            class_id: values.classId, // ⚠️ 过渡期兼容字段
             due_date: values.dueDate,
             created_by: user.id,
           })

@@ -67,7 +67,8 @@ export type Database = {
           title: string;
           description: string;
           due_date: string;
-          class_id: string;
+          class_id?: string; // ⚠️ 可选（过渡期兼容字段）
+          class_name?: string; // ✅ 新增主字段
           teacher_id: string;
           created_at: string;
         };
@@ -76,7 +77,8 @@ export type Database = {
           title: string;
           description: string;
           due_date: string;
-          class_id: string;
+          class_id?: string; // ⚠️ 可选（过渡期兼容字段）
+          class_name?: string; // ✅ 新增主字段
           teacher_id: string;
           created_at?: string;
         };
@@ -86,6 +88,7 @@ export type Database = {
           description?: string;
           due_date?: string;
           class_id?: string;
+          class_name?: string;
           teacher_id?: string;
           created_at?: string;
         };

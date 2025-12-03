@@ -10,6 +10,7 @@ export * from "./examGenerator";
 export {
   generateStudents,
   generateStudent,
+  generateStudentsByClassNames, // ➕ 新增：支持旧测试API
   generateEdgeCaseStudents,
 } from "./studentGenerator";
 export {
