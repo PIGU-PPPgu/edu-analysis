@@ -67,6 +67,7 @@ const CleanDuplicateStudents = lazy(
 );
 const PerformanceTest = lazy(() => import("./pages/PerformanceTest"));
 const ChartPerformanceTest = lazy(() => import("./pages/ChartPerformanceTest"));
+const DemoModePage = lazy(() => import("./pages/DemoModePage"));
 import {
   initGlobalErrorHandlers,
   reduceBrowserWorkload,
@@ -282,6 +283,7 @@ function App() {
                             path="/chart-performance-test"
                             element={<ChartPerformanceTest />}
                           />
+                          <Route path="/demo-mode" element={<DemoModePage />} />
 
                           {/* 受保护的路由 - 需要登录验证 */}
                           <Route element={<ProtectedRoute />}>
