@@ -20,7 +20,8 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ChevronDown, ChevronUp, Search, Eye } from "lucide-react";
+import { ChevronDown, ChevronUp, Search, Eye, Zap } from "lucide-react";
+import { VirtualGradeTable } from "@/components/tables/VirtualGradeTable";
 
 // StudentGrade 接口定义
 interface StudentGrade {
@@ -99,6 +100,12 @@ const getGradeBadge = (grade?: string) => {
 export default function GradeTable({ gradeData, onRowClick }: GradeTableProps) {
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState([{ id: "score", desc: true }]);
+  const [useVirtualScroll, setUseVirtualScroll] = useState(false);
+
+  // Automatically enable virtual scrolling for large datasets (>50 records)
+  const VIRTUAL_SCROLL_THRESHOLD = 50;
+  const shouldUseVirtualScroll =
+    gradeData.length > VIRTUAL_SCROLL_THRESHOLD || useVirtualScroll;
 
   // 定义表格列
   const columns: ColumnDef<StudentGrade>[] = useMemo(
@@ -268,9 +275,41 @@ export default function GradeTable({ gradeData, onRowClick }: GradeTableProps) {
     },
   });
 
+  // Apply sorting and filtering to data for virtual scroll
+  const processedData = useMemo(() => {
+    let data = [...gradeData];
+
+    // Apply filter
+    if (globalFilter) {
+      data = data.filter((grade) => {
+        const searchableContent =
+          `${grade.name || grade.students?.name || ""} ${grade.student_id} ${grade.class_name || grade.students?.class_name || ""} ${grade.subject || ""}`.toLowerCase();
+        return searchableContent.includes(globalFilter.toLowerCase());
+      });
+    }
+
+    // Apply sorting
+    if (sorting.length > 0) {
+      const sort = sorting[0];
+      data.sort((a, b) => {
+        const aValue = (a as any)[sort.id];
+        const bValue = (b as any)[sort.id];
+
+        if (aValue === bValue) return 0;
+        if (aValue == null) return 1;
+        if (bValue == null) return -1;
+
+        const comparison = aValue < bValue ? -1 : 1;
+        return sort.desc ? -comparison : comparison;
+      });
+    }
+
+    return data;
+  }, [gradeData, globalFilter, sorting]);
+
   return (
     <div className="space-y-4">
-      {/* 搜索框 */}
+      {/* 搜索框和模式切换 */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -281,100 +320,124 @@ export default function GradeTable({ gradeData, onRowClick }: GradeTableProps) {
             className="pl-10"
           />
         </div>
+        {gradeData.length > VIRTUAL_SCROLL_THRESHOLD && (
+          <Button
+            variant={shouldUseVirtualScroll ? "default" : "outline"}
+            size="sm"
+            onClick={() => setUseVirtualScroll(!useVirtualScroll)}
+            className="gap-2"
+          >
+            <Zap className="h-4 w-4" />
+            {shouldUseVirtualScroll ? "虚拟滚动" : "分页模式"}
+          </Button>
+        )}
       </div>
 
-      {/* 表格 */}
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder ? null : (
-                      <div
-                        className={cn(
-                          "flex items-center space-x-2",
-                          header.column.getCanSort() &&
-                            "cursor-pointer select-none"
-                        )}
-                        onClick={header.column.getToggleSortingHandler()}
-                      >
-                        {flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                        {header.column.getCanSort() && (
-                          <div className="flex flex-col">
-                            {{
-                              asc: <ChevronUp className="h-4 w-4" />,
-                              desc: <ChevronDown className="h-4 w-4" />,
-                            }[header.column.getIsSorted() as string] ?? null}
+      {/* 条件渲染: 虚拟滚动 vs 传统分页表格 */}
+      {shouldUseVirtualScroll ? (
+        <VirtualGradeTable
+          grades={processedData}
+          onRowClick={onRowClick}
+          height={600}
+          globalFilter={globalFilter}
+        />
+      ) : (
+        <>
+          {/* 表格 */}
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                      <TableHead key={header.id}>
+                        {header.isPlaceholder ? null : (
+                          <div
+                            className={cn(
+                              "flex items-center space-x-2",
+                              header.column.getCanSort() &&
+                                "cursor-pointer select-none"
+                            )}
+                            onClick={header.column.getToggleSortingHandler()}
+                          >
+                            {flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                            {header.column.getCanSort() && (
+                              <div className="flex flex-col">
+                                {{
+                                  asc: <ChevronUp className="h-4 w-4" />,
+                                  desc: <ChevronDown className="h-4 w-4" />,
+                                }[header.column.getIsSorted() as string] ??
+                                  null}
+                              </div>
+                            )}
                           </div>
                         )}
-                      </div>
-                    )}
-                  </TableHead>
+                      </TableHead>
+                    ))}
+                  </TableRow>
                 ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => onRowClick?.(row.original)}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow
+                      key={row.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => onRowClick?.(row.original)}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columns.length}
+                      className="h-24 text-center"
+                    >
+                      暂无数据
                     </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  暂无数据
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
 
-      {/* 分页控制 */}
-      <div className="flex items-center justify-between space-x-2 py-4">
-        <div className="text-sm text-muted-foreground">
-          共 {table.getFilteredRowModel().rows.length} 条记录
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            上一页
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            下一页
-          </Button>
-        </div>
-      </div>
+          {/* 分页控制 */}
+          <div className="flex items-center justify-between space-x-2 py-4">
+            <div className="text-sm text-muted-foreground">
+              共 {table.getFilteredRowModel().rows.length} 条记录
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+              >
+                上一页
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+              >
+                下一页
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
