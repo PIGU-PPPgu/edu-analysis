@@ -1,0 +1,49 @@
+# Netlify Configuration for Figma Frame Faithful Frontend
+
+[build]
+  # 构建命令
+  command = "npm run build"
+
+  # 构建输出目录
+  publish = "dist"
+
+  # Node.js 版本
+  environment = { NODE_VERSION = "18" }
+
+# 部署上下文配置
+[context.production]
+  command = "npm run build"
+
+[context.deploy-preview]
+  command = "npm run build"
+
+[context.branch-deploy]
+  command = "npm run build"
+
+# SPA 路由配置 - 所有路由重定向到 index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# 安全头配置
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"
+    X-XSS-Protection = "1; mode=block"
+
+# 缓存配置
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# 环境变量说明
+# 需要在 Netlify Dashboard 中配置以下环境变量：
+# - VITE_SUPABASE_URL: Supabase 项目 URL
+# - VITE_SUPABASE_ANON_KEY: Supabase 匿名密钥
+# - VITE_AI_API_KEY: AI 服务 API 密钥（如果使用）
+# - VITE_APP_VERSION: 应用版本号（可选）
