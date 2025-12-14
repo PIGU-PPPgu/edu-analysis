@@ -1,14 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Navbar } from "@/components/shared";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { VirtualStudentTable } from "@/components/tables/VirtualStudentTable";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -443,72 +436,14 @@ export default function StudentManagement() {
                 : "还没有学生数据，请添加学生"}
             </div>
           ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>学号</TableHead>
-                    <TableHead>姓名</TableHead>
-                    <TableHead>班级</TableHead>
-                    <TableHead>性别</TableHead>
-                    <TableHead>入学年份</TableHead>
-                    <TableHead>联系电话</TableHead>
-                    <TableHead>邮箱</TableHead>
-                    <TableHead className="text-right">操作</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredStudents.map((student) => (
-                    <TableRow key={student.id}>
-                      <TableCell className="font-medium">
-                        {student.student_id}
-                      </TableCell>
-                      <TableCell>{student.name}</TableCell>
-                      <TableCell>
-                        {student.class ? (
-                          <Badge variant="outline" className="bg-blue-50">
-                            {student.class.name}
-                          </Badge>
-                        ) : (
-                          "-"
-                        )}
-                      </TableCell>
-                      <TableCell>{student.gender || "-"}</TableCell>
-                      <TableCell>{student.admission_year || "-"}</TableCell>
-                      <TableCell>{student.contact_phone || "-"}</TableCell>
-                      <TableCell className="truncate max-w-[180px]">
-                        {student.contact_email || "-"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <span className="sr-only">打开菜单</span>
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => handleEditStudent(student)}
-                            >
-                              <Pencil className="mr-2 h-4 w-4" />
-                              编辑
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleConfirmDelete(student)}
-                              className="text-red-600"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              删除
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <VirtualStudentTable
+              students={filteredStudents}
+              onEdit={handleEditStudent}
+              onDelete={handleConfirmDelete}
+              height={600}
+              searchQuery={searchQuery}
+              selectedClassId={selectedClassId}
+            />
           )}
         </div>
       </div>
