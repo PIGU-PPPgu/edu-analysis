@@ -137,7 +137,7 @@ class RoutePreloader {
       "/homework": () => import("../pages/HomeworkManagement"),
       "/warning-analysis": () => import("../pages/WarningAnalysis"),
       "/exam-center": () => import("../components/warning/ExamWarningAnalysis"),
-      "/ai-settings": () => import("../pages/AISettings"),
+      "/ai-settings": () => import("../pages/settings/AISettingsPage-Enhanced"),
       "/ai-insights": () => import("../components/ai/FloatingChatAssistant"),
       "/behavior-analysis": () =>
         import("../components/analysis/advanced/LearningBehaviorAnalysis"),
