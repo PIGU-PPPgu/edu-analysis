@@ -1,0 +1,355 @@
+# 系统全面优化项目 PRD
+
+## 项目概述
+对 Figma Frame Faithful 教育管理系统进行全面性能和架构优化，涵盖数据库、前端、后端和代码质量四个维度。
+
+## 项目目标
+1. 提升系统整体性能60%以上
+2. 降低技术债务，提高代码可维护性
+3. 增强系统安全性和稳定性
+4. 建立完善的开发和测试流程
+
+## 实施原则
+- 每个设计阶段必须经过三AI（Claude + Gemini + Codex）协作讨论
+- 每个完成的任务必须提交git记录
+- 优先处理高ROI（投入产出比）的优化项
+- 采用渐进式迁移，避免破坏性变更
+
+---
+
+## Phase 1: 性能关键优化（Week 1）
+
+### Task 1.1: 数据库索引优化
+**描述**: 为grade_data等核心表添加复合索引，优化高频查询性能
+**优先级**: Critical
+**预期收益**: 查询速度提升60-80%
+
+**子任务**:
+- 分析当前查询模式，识别慢查询
+- 设计复合索引方案（exam_id+class_name等）
+- 使用CONCURRENTLY创建索引（避免锁表）
+- 验证索引效果（EXPLAIN ANALYZE）
+- 更新数据库迁移文档
+
+**三AI协作点**:
+- Codex审查索引设计方案
+- 验证索引对写入性能的影响
+
+**Git提交要求**:
+- 提交索引迁移SQL文件
+- 更新数据库schema文档
+
+---
+
+### Task 1.2: 实现虚拟滚动
+**描述**: 为学生列表、成绩列表等长列表组件实现虚拟滚动，解决大数据量渲染卡顿
+**优先级**: High
+**预期收益**: 列表性能提升90%，支持10k+行流畅滚动
+
+**子任务**:
+- 安装 @tanstack/react-virtual 依赖
+- 重构 StudentList 组件（src/pages/StudentManagement.tsx）
+- 重构 GradeList 组件（src/pages/GradeAnalysis.tsx）
+- 添加性能测试（渲染1000+行）
+- 更新组件文档
+
+**三AI协作点**:
+- Gemini设计虚拟滚动UI交互
+- Claude实现核心逻辑
+- Codex审查性能优化方案
+
+**Git提交要求**:
+- 单独提交每个重构的组件
+- 包含性能对比数据（Before/After）
+
+---
+
+### Task 1.3: 图表组件渲染优化
+**描述**: 使用React.memo和useMemo优化Recharts组件，减少不必要的重渲染
+**优先级**: High
+**预期收益**: 图表渲染次数减少70%
+
+**子任务**:
+- 审计现有图表组件（GradeTrendChart, ClassComparisonChart等）
+- 使用React DevTools Profiler识别重渲染问题
+- 实现OptimizedChart包装器
+- 重构至少5个核心图表组件
+- 添加渲染性能监控
+
+**三AI协作点**:
+- Gemini优化图表视觉性能
+- Codex审查memo依赖项设计
+
+**Git提交要求**:
+- feat: optimize chart rendering with memo and useMemo
+- 包含Profiler截图对比
+
+---
+
+## Phase 2: 架构改进（Week 2-3）
+
+### Task 2.1: 合并重复数据表
+**描述**: 将classes表合并到class_info，统一班级数据模型
+**优先级**: Medium
+**风险**: 中等（需要数据迁移）
+
+**子任务**:
+- 备份当前数据库
+- 编写数据迁移脚本
+- 更新所有外键引用（students.class_id → class_name）
+- 更新API和服务层代码
+- 执行迁移并验证数据完整性
+- 删除旧表
+
+**三AI协作点**:
+- Codex设计迁移策略（零停机时间）
+- 审查数据一致性方案
+
+**Git提交要求**:
+- migration: merge classes into class_info
+- 分多个提交：1) 迁移脚本 2) 代码更新 3) 清理
+
+---
+
+### Task 2.2: 实现三层架构
+**描述**: 重构代码为Repository-Service-API三层，分离关注点
+**优先级**: High
+**预期收益**: 可维护性提升80%，便于单元测试
+
+**子任务**:
+- 创建repositories目录和基础Repository类
+- 重构gradeRepository（纯数据访问）
+- 重构gradeService（业务逻辑）
+- 重构gradeDataAPI（API接口层）
+- 更新其他5个核心模块（warning, homework, student等）
+- 添加单元测试（至少50%覆盖率）
+
+**三AI协作点**:
+- Codex设计Repository接口规范
+- Claude实现核心重构
+- 审查依赖注入方案
+
+**Git提交要求**:
+- refactor: implement three-layer architecture
+- 每个层独立提交，包含完整测试
+
+---
+
+### Task 2.3: 统一错误处理
+**描述**: 实现全局错误处理层，统一错误类型和用户提示
+**优先级**: Medium
+
+**子任务**:
+- 设计AppError继承体系
+- 实现全局错误处理中间件
+- 集成到API层和Service层
+- 添加错误日志记录（Sentry集成可选）
+- 更新用户错误提示UI
+
+**三AI协作点**:
+- Codex设计错误分类体系
+- Gemini优化错误提示UI
+
+**Git提交要求**:
+- feat: add unified error handling system
+
+---
+
+## Phase 3: 安全加固（Week 4）
+
+### Task 3.1: RLS策略安全审查
+**描述**: 审查并加强Supabase RLS策略，确保数据访问安全
+**优先级**: High
+**安全等级**: Critical
+
+**子任务**:
+- 审查所有30+表的RLS策略
+- 识别过于宽松的策略
+- 重写grade_data访问控制
+- 实现教师-班级授权检查
+- 添加安全测试用例
+
+**三AI协作点**:
+- Codex全面审查安全漏洞
+- 设计最小权限原则策略
+
+**Git提交要求**:
+- security: strengthen RLS policies
+- 包含安全审计报告
+
+---
+
+### Task 3.2: 输入验证层
+**描述**: 使用Zod实现全链路输入验证
+**优先级**: High
+
+**子任务**:
+- 安装zod依赖
+- 定义核心数据Schema（Grade, Student, Exam等）
+- 在API入口添加验证中间件
+- 重构所有数据导入流程
+- 添加验证错误提示
+
+**三AI协作点**:
+- Codex设计Schema规范
+
+**Git提交要求**:
+- feat: add input validation with Zod
+
+---
+
+## Phase 4: 持续改进（Ongoing）
+
+### Task 4.1: 清理技术债务
+**描述**: 删除遗留文件，统一类型定义
+**优先级**: Low
+
+**子任务**:
+- 删除App-Legacy.tsx和App-UnifiedContext-Example.tsx
+- 合并gradeTypes.ts到grade.ts
+- 全局替换导入路径
+- 修复strict模式下的any类型
+- 更新代码规范文档
+
+**Git提交要求**:
+- chore: remove legacy files and duplicate types
+
+---
+
+### Task 4.2: 单元测试覆盖
+**描述**: 为核心业务逻辑添加单元测试
+**优先级**: Medium
+**目标**: 50%代码覆盖率
+
+**子任务**:
+- 配置Vitest测试环境
+- 为gradeService添加测试（10+用例）
+- 为warningService添加测试
+- 为Repository层添加测试
+- 集成测试到CI/CD
+
+**Git提交要求**:
+- test: add unit tests for core services
+
+---
+
+### Task 4.3: 前端缓存优化
+**描述**: 优化React Query缓存策略
+**优先级**: Low
+
+**子任务**:
+- 配置全局缓存参数（staleTime, cacheTime）
+- 实现关键数据预加载
+- 添加缓存失效策略
+- 监控缓存命中率
+
+**Git提交要求**:
+- perf: optimize React Query cache strategy
+
+---
+
+## 可选任务（高风险）
+
+### Optional Task: 重构grade_data宽表
+**描述**: 将grade_data拆分为grades_core和grades_subjects
+**优先级**: Low
+**风险**: 极高（影响所有查询）
+**决策**: 需要用户确认后才执行
+
+**前置条件**:
+- Phase 1和2全部完成
+- 有完整的备份和回滚方案
+- 在测试环境验证至少2周
+
+---
+
+## 成功标准
+
+### 性能指标
+- [ ] 成绩查询响应时间 < 200ms（当前~500ms）
+- [ ] 列表滚动FPS > 55（当前~20fps）
+- [ ] 图表渲染时间 < 100ms（当前~300ms）
+
+### 质量指标
+- [ ] TypeScript strict模式零错误
+- [ ] 单元测试覆盖率 > 50%
+- [ ] 无Critical安全漏洞
+
+### 用户体验
+- [ ] 零生产环境故障
+- [ ] 用户满意度调查 > 85%
+
+---
+
+## 风险管理
+
+### 高风险任务
+1. 数据库表合并（Task 2.1）
+2. RLS策略变更（Task 3.1）
+3. 宽表重构（Optional Task）
+
+### 缓解措施
+- 所有数据库操作前完整备份
+- 使用Feature Flag控制新功能上线
+- 每个Phase结束后进行全面回归测试
+- 保留回滚脚本（至少保留30天）
+
+---
+
+## 时间表
+
+| 阶段 | 时间 | 关键里程碑 |
+|------|------|-----------|
+| Phase 1 | Week 1 | 性能提升60% |
+| Phase 2 | Week 2-3 | 三层架构完成 |
+| Phase 3 | Week 4 | 安全加固完成 |
+| Phase 4 | Ongoing | 技术债务清零 |
+
+---
+
+## 资源需求
+
+### 开发资源
+- 1名全栈开发（你 + Claude团队）
+- 时间投入：80小时
+
+### 技术资源
+- Supabase Pro账号（支持CONCURRENTLY索引）
+- 测试数据库环境
+- 性能监控工具（可选：Sentry, Datadog）
+
+---
+
+## 项目协作规范
+
+### 三AI协作流程
+1. **设计阶段**：使用team-orchestrator.sh调用Gemini/Codex
+2. **实现阶段**：Claude主导编码
+3. **审查阶段**：Codex进行代码review
+
+### Git提交规范
+- 格式：`<type>(<scope>): <subject>`
+- Type: feat, fix, refactor, perf, test, chore, security
+- 每个提交必须包含完整的上下文
+- 重要提交附带性能/安全审计报告
+
+### 质量门禁
+- [ ] TypeScript类型检查通过
+- [ ] 单元测试通过
+- [ ] 代码review通过（Codex）
+- [ ] 性能指标达标
+
+---
+
+## 附录
+
+### 参考文档
+- Gemini UI优化建议：.claude/logs/gemini-design-output.txt
+- Codex架构审查（部分失败，需重试）
+- 数据库Schema：CLAUDE.md数据库部分
+
+### 工具和库
+- @tanstack/react-virtual
+- zod
+- vitest
+- @testing-library/react

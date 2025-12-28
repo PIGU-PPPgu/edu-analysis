@@ -38,15 +38,15 @@ import HomeworkManagement from "./pages/HomeworkManagement";
 import HomeworkDetailPage from "./pages/HomeworkDetail";
 import ProfilePage from "./pages/ProfilePage";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
-import CascadeAnalysisTestPage from "./pages/test/cascade-analysis";
+// import CascadeAnalysisTestPage from "./pages/test/cascade-analysis"; // 文件已删除
 import { initDefaultAIConfig } from "./utils/userAuth";
-import StudentPortraitManagement from "./pages/StudentPortraitManagement";
+// import StudentPortraitManagement from "./pages/StudentPortraitManagement"; // 文件已删除
 import { DiagnosticsTool } from "./tools/diagnostics-ui";
 import InitTables from "./pages/InitTables";
 import CreateWarningTablePage from "./pages/tools/CreateWarningTable";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ICPNotice from "./pages/ICPNotice";
-import QuickDiagnosisPage from "./pages/QuickDiagnosisPage";
+// import QuickDiagnosisPage from "./pages/QuickDiagnosisPage"; // 文件已删除
 import {
   initGlobalErrorHandlers,
   reduceBrowserWorkload,
@@ -310,10 +310,11 @@ function App() {
                         path="/unauthorized"
                         element={<UnauthorizedPage />}
                       />
-                      <Route
+                      {/* 已删除的测试页面 */}
+                      {/* <Route
                         path="/test/cascade-analysis"
                         element={<CascadeAnalysisTestPage />}
-                      />
+                      /> */}
 
                       {/* 诊断工具路由（保持公开用于系统维护） */}
                       <Route
@@ -332,10 +333,11 @@ function App() {
                         path="/performance-monitoring"
                         element={<PerformanceMonitoring />}
                       />
-                      <Route
+                      {/* 已删除的诊断页面 */}
+                      {/* <Route
                         path="/diagnosis"
                         element={<QuickDiagnosisPage />}
-                      />
+                      /> */}
 
                       {/* 受保护的路由 - 需要登录验证 */}
                       <Route element={<ProtectedRoute />}>
@@ -375,10 +377,11 @@ function App() {
                             path="/class-profile/:classId"
                             element={<ClassProfile />}
                           />
-                          <Route
+                          {/* 已删除的页面 */}
+                          {/* <Route
                             path="/student-portrait-management"
                             element={<StudentPortraitManagement />}
-                          />
+                          /> */}
                         </Route>
 
                         <Route

@@ -265,7 +265,7 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
         </div>
 
         {showMainNav && (
-          <nav className="hidden lg:flex items-center gap-2 text-xs xl:gap-3 xl:text-sm">
+          <nav className="hidden md:flex items-center gap-2 text-xs xl:gap-3 xl:text-sm">
             <Link
               to="/teacher-dashboard"
               className={`font-medium transition-colors hover:text-primary ${

@@ -442,7 +442,7 @@ const detectIQRAnomaly = (value: number, q1: number, q3: number) => {
   };
 };
 
-const groupRecordsByStudent = (records: any[]) => {
+const groupRecordsByStudent = (records: any[]): Record<string, any[]> => {
   return records.reduce(
     (acc, record) => {
       if (!acc[record.student_id]) {
@@ -455,7 +455,7 @@ const groupRecordsByStudent = (records: any[]) => {
   );
 };
 
-const groupRecordsByExamType = (records: any[]) => {
+const groupRecordsByExamType = (records: any[]): Record<string, any[]> => {
   return records.reduce(
     (acc, record) => {
       const examType = record.exam_type || "regular";

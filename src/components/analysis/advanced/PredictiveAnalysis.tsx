@@ -123,45 +123,45 @@ const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
       }
 
       // 数据预处理和时间序列构建
-      const processedGrades = this.preprocessGradeData(grades);
-      const timeSeriesData = this.buildTimeSeriesData(processedGrades);
+      const processedGrades = preprocessGradeData(grades)!;
+      const timeSeriesData = buildTimeSeriesData(processedGrades)!;
 
       // 计算当前平均分（加权平均，近期成绩权重更高）
-      const currentAverage = this.calculateWeightedAverage(timeSeriesData);
+      const currentAverage = calculateWeightedAverage(timeSeriesData)!;
 
       // 按科目分组进行高级时间序列分析
-      const subjectTimeSeriesMap = this.groupBySubject(timeSeriesData);
+      const subjectTimeSeriesMap = groupBySubject(timeSeriesData)!;
 
       // 生成增强预测分数（集成多种预测模型）
-      const predictedScores = await this.generateEnhancedPredictions(
+      const predictedScores = (await generateEnhancedPredictions(
         subjectTimeSeriesMap,
         timeframe
-      );
+      ))!;
 
       // 增强趋势分析（使用移动平均和回归分析）
-      const trendDirection = this.analyzeTrendDirection(timeSeriesData);
+      const trendDirection = analyzeTrendDirection(timeSeriesData)!;
 
       // 多因子风险评估
-      const riskLevel = this.assessMultiFactorRisk(
+      const riskLevel = assessMultiFactorRisk(
         timeSeriesData,
         trendDirection,
         currentAverage
-      );
+      )!;
 
       // 智能建议生成（基于ML分析结果）
-      const recommendations = this.generateIntelligentRecommendations(
+      const recommendations = generateIntelligentRecommendations(
         timeSeriesData,
         trendDirection,
         riskLevel,
         currentAverage,
         predictedScores
-      );
+      )!;
 
       // 优势和劣势识别（基于多维度分析）
-      const { strengths, weaknesses } = this.identifyStrengthsAndWeaknesses(
+      const { strengths, weaknesses } = identifyStrengthsAndWeaknesses(
         subjectTimeSeriesMap,
         predictedScores
-      );
+      )!;
 
       return {
         studentId,
@@ -181,7 +181,7 @@ const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
   };
 
   // 数据预处理函数
-  const preprocessGradeData = (grades: any[]) => {
+  const preprocessGradeData = (grades: any[]): any[] => {
     return grades
       .filter((g) => g.score && g.score > 0) // 过滤无效数据
       .map((g) => ({
@@ -195,7 +195,7 @@ const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
   };
 
   // 时间序列数据构建
-  const buildTimeSeriesData = (processedGrades: any[]) => {
+  const buildTimeSeriesData = (processedGrades: any[]): any[] => {
     return processedGrades.map((grade, index) => ({
       ...grade,
       timeIndex: index,
@@ -212,7 +212,7 @@ const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
   };
 
   // 加权平均计算（近期成绩权重更高）
-  const calculateWeightedAverage = (timeSeriesData: any[]) => {
+  const calculateWeightedAverage = (timeSeriesData: any[]): number => {
     if (timeSeriesData.length === 0) return 0;
 
     const weights = timeSeriesData.map((_, index) => {
@@ -232,7 +232,7 @@ const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
   };
 
   // 按科目分组
-  const groupBySubject = (timeSeriesData: any[]) => {
+  const groupBySubject = (timeSeriesData: any[]): { [key: string]: any[] } => {
     const subjectMap: { [key: string]: any[] } = {};
 
     timeSeriesData.forEach((data) => {
@@ -345,7 +345,7 @@ const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
   // 季节性调整
   const calculateSeasonalAdjustment = (series: any[]) => {
     // 简化的季节性分析，基于考试类型
-    const examTypePattern: { [key: string]: number } = {};
+    const examTypePattern: { [key: string]: number[] } = {};
     series.forEach((item) => {
       const type = item.examType || "regular";
       if (!examTypePattern[type]) {

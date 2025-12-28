@@ -1,13 +1,19 @@
 {
   "hooks": {
-    "PostToolUse": {
-      "mcp__supabase__execute_sql": "bash scripts/grade-analysis-hook.sh",
-      "mcp__task_master_ai__set_task_status": "bash scripts/project-progress-hook.sh"
-    }
+    "PostToolUse": [
+      {
+        "matcher": {"tools": ["mcp__supabase__execute_sql"]},
+        "hooks": [{"type": "command", "command": "bash scripts/grade-analysis-hook.sh"}]
+      },
+      {
+        "matcher": {"tools": ["mcp__task_master_ai__set_task_status"]},
+        "hooks": [{"type": "command", "command": "bash scripts/project-progress-hook.sh"}]
+      }
+    ]
   },
   "allowedTools": [
     "mcp__supabase__*",
-    "mcp__task_master_ai__*", 
+    "mcp__task_master_ai__*",
     "Bash(scripts/*)",
     "Bash(*hook*)",
     "Bash(*analysis*)"

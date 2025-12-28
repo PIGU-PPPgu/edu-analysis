@@ -34,7 +34,7 @@ export async function fetchGradeData(
 
     let query = supabase
       .from("grade_data")
-      .select("*, count(*) OVER() as total_count", { count: "exact" })
+      .select("*", { count: "exact" })
       .order("total_score", { ascending: false })
       .range(from, to);
 
@@ -85,7 +85,7 @@ export async function fetchGradeData(
 
     return {
       data: standardizedData,
-      total: standardizedData.length,
+      total: count ?? standardizedData.length,
     };
   } catch (error) {
     console.error("获取成绩数据失败:", error);

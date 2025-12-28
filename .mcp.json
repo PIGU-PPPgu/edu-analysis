@@ -1,16 +1,5 @@
 {
   "mcpServers": {
-    "linear": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@tacticlaunch/mcp-linear"
-      ],
-      "env": {
-        "LINEAR_API_KEY": "${LINEAR_API_KEY}",
-        "LINEAR_PROFILE": "${LINEAR_PROFILE}"
-      }
-    },
     "sequential-thinking": {
       "command": "npx",
       "args": [

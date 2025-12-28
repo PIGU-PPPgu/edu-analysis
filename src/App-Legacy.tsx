@@ -23,9 +23,9 @@ import HomeworkManagement from "./pages/HomeworkManagement";
 import HomeworkDetailPage from "./pages/HomeworkDetail";
 import ProfilePage from "./pages/ProfilePage";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
-import CascadeAnalysisTestPage from "./pages/test/cascade-analysis";
+// import CascadeAnalysisTestPage from "./pages/test/cascade-analysis"; // 文件已删除
 import { initDefaultAIConfig } from "./utils/userAuth";
-import StudentPortraitManagement from "./pages/StudentPortraitManagement";
+// import StudentPortraitManagement from "./pages/StudentPortraitManagement"; // 文件已删除
 import { DiagnosticsTool } from "./tools/diagnostics-ui";
 import InitTables from "./pages/InitTables";
 import CreateWarningTablePage from "./pages/tools/CreateWarningTable";
@@ -130,10 +130,11 @@ function App() {
                   <Route path="/privacy" element={<PrivacyPolicy />} />
                   <Route path="/icp-notice" element={<ICPNotice />} />
                   <Route path="/unauthorized" element={<UnauthorizedPage />} />
-                  <Route
+                  {/* 已删除的测试页面 */}
+                  {/* <Route
                     path="/test/cascade-analysis"
                     element={<CascadeAnalysisTestPage />}
-                  />
+                  /> */}
 
                   {/* 诊断工具路由（保持公开用于系统维护） */}
                   <Route
@@ -187,10 +188,11 @@ function App() {
                         path="/class-profile/:classId"
                         element={<ClassProfile />}
                       />
-                      <Route
+                      {/* 已删除的页面 */}
+                      {/* <Route
                         path="/student-portrait-management"
                         element={<StudentPortraitManagement />}
-                      />
+                      /> */}
                     </Route>
 
                     <Route

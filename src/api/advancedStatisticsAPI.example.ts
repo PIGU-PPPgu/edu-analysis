@@ -8,8 +8,8 @@ import {
   StatisticMetric,
   PredictionModelType,
   AnomalyAlgorithm,
-  Subject,
 } from "@/types/advancedAnalysisAPI";
+import { Subject } from "@/types/grade";
 
 /**
  * 示例1: 批量统计计算

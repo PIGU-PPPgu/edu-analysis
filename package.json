@@ -89,6 +89,9 @@
     "restore:config": "./scripts/backup-restore.sh restore config"
   },
   "dependencies": {
+    "@capacitor/cli": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/ios": "^8.0.0",
     "@hookform/resolvers": "^3.10.0",
     "@nivo/bar": "^0.87.0",
     "@nivo/core": "^0.87.0",

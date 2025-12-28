@@ -4,12 +4,7 @@
  * 确保学生画像、班级管理等功能使用真实数据
  */
 
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  "https://giluhqotfjpmofowvogn.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdpbHVocW90ZmpwbW9mb3d2b2duIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUzMDIwMDQsImV4cCI6MjA2MDg3ODAwNH0.NkVIqDlRM-qh8HoFR-nZMfXKWT0lDMeNSk5EPJiprZQ"
-);
+import { supabase } from "@/integrations/supabase/client";
 
 // ====== 数据接口定义 ======
 
