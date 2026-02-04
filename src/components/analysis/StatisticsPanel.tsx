@@ -310,11 +310,7 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = memo(
                         {count} 人 ({percentage.toFixed(1)}%)
                       </span>
                     </div>
-                    <Progress
-                      value={percentage}
-                      className="h-2"
-                      indicatorClassName={colors[grade as keyof typeof colors]}
-                    />
+                    <Progress value={percentage} className="h-2" />
                   </div>
                 );
               })}

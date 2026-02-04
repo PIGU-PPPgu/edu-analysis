@@ -11,7 +11,7 @@ import React, {
   useEffect,
   memo,
 } from "react";
-import { VariableSizeList as List } from "react-window";
+import { VariableSizeList as List, type ListOnScrollProps } from "react-window";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -51,7 +51,7 @@ import {
   FileText,
   Loader2,
 } from "lucide-react";
-import { GradeData } from "@/types/grade";
+import type { GradeData, GradeRecord } from "@/types/grade";
 import { useOptimizedGradeData } from "@/hooks/useOptimizedGradeData";
 import { usePerformanceOptimizer } from "@/services/performance/advancedAnalysisOptimizer";
 import { cn } from "@/lib/utils";
@@ -204,6 +204,26 @@ const OptimizedGradeDataTable: React.FC<OptimizedGradeDataTableProps> = ({
     enableRealTimeRefresh: false,
   });
 
+  const normalizedData = useMemo<GradeData[]>(
+    () =>
+      data.map((record: GradeRecord, index: number) => ({
+        id: record.id ?? `${record.student_id}-${index}`,
+        exam_id: record.exam_id,
+        student_id: record.student_id,
+        name: record.student_name,
+        class_name: record.class_name,
+        exam_title: record.exam_name,
+        exam_date: record.exam_date,
+        total_score: record.score,
+        total_rank_in_class: record["总分班名"],
+        total_rank_in_grade: record["总分级名"],
+        chinese_score: record.subject === "语文" ? record.score : undefined,
+        math_score: record.subject === "数学" ? record.score : undefined,
+        english_score: record.subject === "英语" ? record.score : undefined,
+      })),
+    [data]
+  );
+
   // 🎯 性能优化：延迟搜索术语
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
 
@@ -217,7 +237,7 @@ const OptimizedGradeDataTable: React.FC<OptimizedGradeDataTableProps> = ({
   // 🎯 性能优化：排序和过滤数据
   const processedData = useMemo(() => {
     console.time("processedData");
-    let result = [...data];
+    let result = [...normalizedData];
 
     // 🎯 搜索过滤 - 使用防抖的搜索术语
     if (debouncedSearchTerm) {
@@ -257,7 +277,12 @@ const OptimizedGradeDataTable: React.FC<OptimizedGradeDataTableProps> = ({
   }, [data, debouncedSearchTerm, sortColumn, sortDirection]);
 
   // 🎯 性能优化：虚拟化相关
-  const getItemSize = useCallback(() => 48, []); // 固定行高
+  const itemSize = 48;
+  const getItemSize = useCallback(() => itemSize, [itemSize]); // 固定行高
+  const listWidth = useMemo(
+    () => columns.reduce((sum, column) => sum + column.width, 0) + 96,
+    []
+  );
 
   // 🎯 性能优化：缓存选择行回调
   const handleSelectRow = useCallback((id: string, selected: boolean) => {
@@ -353,6 +378,20 @@ const OptimizedGradeDataTable: React.FC<OptimizedGradeDataTableProps> = ({
     [hasNextPage, isLoading, fetchNextPage]
   );
 
+  const handleVirtualScroll = useCallback(
+    (props: ListOnScrollProps) => {
+      const totalHeight = processedData.length * itemSize;
+      if (
+        totalHeight - props.scrollOffset <= 600 * 1.5 &&
+        hasNextPage &&
+        !isLoading
+      ) {
+        fetchNextPage();
+      }
+    },
+    [processedData.length, getItemSize, hasNextPage, isLoading, fetchNextPage]
+  );
+
   if (error) {
     return (
       <Card>
@@ -445,10 +484,10 @@ const OptimizedGradeDataTable: React.FC<OptimizedGradeDataTableProps> = ({
                   checked={
                     selectedRows.size === processedData.length &&
                     processedData.length > 0
-                  }
-                  indeterminate={
-                    selectedRows.size > 0 &&
-                    selectedRows.size < processedData.length
+                      ? true
+                      : selectedRows.size > 0
+                        ? "indeterminate"
+                        : false
                   }
                   onCheckedChange={handleSelectAll}
                 />
@@ -483,10 +522,11 @@ const OptimizedGradeDataTable: React.FC<OptimizedGradeDataTableProps> = ({
               <List
                 ref={listRef}
                 height={600}
+                width={listWidth}
                 itemCount={processedData.length}
                 itemSize={getItemSize}
                 itemData={itemData}
-                onScroll={handleScroll}
+                onScroll={handleVirtualScroll}
                 className="scrollbar-thin"
                 overscanCount={10} // 预渲染行数减少
                 useIsScrolling={false} // 禁用滚动状态追踪

@@ -61,7 +61,7 @@ import {
 // 类型定义
 // ============================================================================
 
-interface ScoreDistributionProps {
+export interface ScoreDistributionProps {
   /** 考试ID（可选，如果未提供将使用当前选择的考试） */
   examId?: string;
   /** 班级筛选（可选） */
@@ -99,15 +99,13 @@ interface SubjectStatistics {
 // 常量定义 - 符合UI规范的色彩系统
 // ============================================================================
 
-const DEFAULT_SCORE_RANGES: ScoreRangeConfig = {
-  ranges: [
-    { min: 90, max: 100, label: "优秀 (90-100)", color: "#10B981" }, // success color
-    { min: 80, max: 89, label: "良好 (80-89)", color: "#3B82F6" }, // primary color
-    { min: 70, max: 79, label: "中等 (70-79)", color: "#F59E0B" }, // warning color
-    { min: 60, max: 69, label: "及格 (60-69)", color: "#F97316" }, // orange
-    { min: 0, max: 59, label: "不及格 (0-59)", color: "#EF4444" }, // destructive color
-  ],
-};
+const DEFAULT_SCORE_RANGES = [
+  { min: 90, max: 100, label: "优秀 (90-100)", color: "#10B981" }, // success color
+  { min: 80, max: 89, label: "良好 (80-89)", color: "#3B82F6" }, // primary color
+  { min: 70, max: 79, label: "中等 (70-79)", color: "#F59E0B" }, // warning color
+  { min: 60, max: 69, label: "及格 (60-69)", color: "#F97316" }, // orange
+  { min: 0, max: 59, label: "不及格 (0-59)", color: "#EF4444" }, // destructive color
+];
 
 // ============================================================================
 // 工具函数
@@ -208,7 +206,7 @@ const ScoreDistribution: React.FC<ScoreDistributionProps> = ({
     selectedExam = context.selectedExam;
     gradeData = context.gradeData;
     isLoading = context.isLoading;
-    error = context.error;
+    error = context.parsingError ? { message: context.parsingError } : null;
   } catch (e) {
     // 如果没有Context，使用传入的数据
     gradeData = data || [];
@@ -278,7 +276,12 @@ const ScoreDistribution: React.FC<ScoreDistributionProps> = ({
     // 计算分数段分布
     const scoreRangeAnalysis = analyzeScoreRanges(
       validScores,
-      DEFAULT_SCORE_RANGES
+      { excellent: 90, good: 80, pass: 60 },
+      DEFAULT_SCORE_RANGES.map((range) => ({
+        name: range.label,
+        min: range.min,
+        max: range.max,
+      }))
     );
     const scoreRanges: ScoreRangeData[] = scoreRangeAnalysis.map(
       (item, index) => ({
@@ -286,10 +289,10 @@ const ScoreDistribution: React.FC<ScoreDistributionProps> = ({
         count: item.count,
         percentage: item.percentage,
         color:
-          DEFAULT_SCORE_RANGES.ranges[index]?.color ||
+          DEFAULT_SCORE_RANGES[index]?.color ||
           CHART_COLORS.primary[index % CHART_COLORS.primary.length],
-        minScore: DEFAULT_SCORE_RANGES.ranges[index]?.min || 0,
-        maxScore: DEFAULT_SCORE_RANGES.ranges[index]?.max || 100,
+        minScore: DEFAULT_SCORE_RANGES[index]?.min || 0,
+        maxScore: DEFAULT_SCORE_RANGES[index]?.max || 100,
       })
     );
 

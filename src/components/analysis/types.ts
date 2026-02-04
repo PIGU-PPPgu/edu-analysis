@@ -1,3 +1,8 @@
+import type {
+  FileDataForReview,
+  ExamInfo,
+} from "@/components/analysis/core/grade-importer/types";
+
 export interface PredefinedProvider {
   id: string;
   name: string;

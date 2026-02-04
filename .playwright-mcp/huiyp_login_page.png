@@ -1,0 +1,33 @@
+- generic [active] [ref=e1]:
+  - img
+  - generic [ref=e37]:
+    - generic [ref=e40]:
+      - generic [ref=e42] [cursor=pointer]: 汇优评 教育测评可以更简单
+      - menubar [ref=e43]:
+        - menuitem "首页" [ref=e44] [cursor=pointer]
+        - menuitem "用户登录" [ref=e45] [cursor=pointer]
+        - menuitem [ref=e46] [cursor=pointer]:
+          - generic [ref=e49]:
+            - img [ref=e50]
+            - img [ref=e52]
+    - main [ref=e54]:
+      - generic [ref=e57]:
+        - generic [ref=e58]: 登录到汇优评
+        - generic [ref=e59]:
+          - generic [ref=e63]:
+            - generic [ref=e65]: 
+            - textbox "请输入用户名/邮箱/手机号" [ref=e66]
+          - generic [ref=e70]:
+            - generic [ref=e72]: 
+            - textbox "请输入密码" [ref=e73]
+          - generic [ref=e75] [cursor=pointer]:
+            - generic [ref=e76]:
+              - checkbox "记住我"
+            - generic [ref=e78]: 记住我
+          - button "登录" [ref=e81] [cursor=pointer]:
+            - generic [ref=e82]: 登录
+    - generic [ref=e84]:
+      - text: Copyright @ 2023~2025 汇优评 版权所有
+      - link "粤ICP备2024177612号" [ref=e85] [cursor=pointer]:
+        - /url: http://beian.miit.gov.cn/
+  - img

@@ -346,7 +346,9 @@ export const ExamDialog: React.FC<ExamDialogProps> = ({
                 <Label htmlFor="status">考试状态</Label>
                 <Select
                   value={formData.status}
-                  onValueChange={(value) => updateField("status", value)}
+                  onValueChange={(value) =>
+                    updateField("status", value as ExamFormData["status"])
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />

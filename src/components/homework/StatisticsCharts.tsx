@@ -38,6 +38,7 @@ interface KnowledgeMasteryDistribution {
   level: string;
   count: number;
   percentage: number;
+  color?: string;
 }
 
 interface StatisticsChartsProps {

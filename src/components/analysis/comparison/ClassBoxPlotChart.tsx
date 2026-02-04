@@ -38,7 +38,7 @@ import type { GradeRecord } from "@/types/grade";
 // 类型定义
 // ============================================================================
 
-interface ClassBoxPlotChartProps {
+export interface ClassBoxPlotChartProps {
   /** 成绩数据 */
   gradeData: GradeRecord[];
   /** 考试ID（可选） */

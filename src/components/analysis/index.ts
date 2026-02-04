@@ -22,10 +22,10 @@ export * from "./comparison";
 export * from "./advanced";
 
 // 服务和工具库
-export * from "./services";
+export * as AnalysisServices from "./services";
 
 // 保持向后兼容性的类型导出
-export { default as GradeAnalysisTypes } from "./types";
+export * as GradeAnalysisTypes from "./types";
 
 // 已删除的组件：
 // export { default as HomeworkAnalysisDashboard } from './HomeworkAnalysisDashboard';
@@ -34,12 +34,4 @@ export { default as GradeAnalysisTypes } from "./types";
 // export { default as HomeworkQualityChart } from './HomeworkQualityChart';
 // export { default as KnowledgePointHeatmap } from './KnowledgePointHeatmap';
 
-// 保留的组件：
-export { default as StudentGradeTrend } from "./StudentGradeTrend";
-export { default as ScoreDistribution } from "./ScoreDistribution";
-export { default as ScoreBoxPlot } from "./ScoreBoxPlot";
-export { default as GradeOverview } from "./GradeOverview";
-export { default as ClassStudentsList } from "./ClassStudentsList";
-export { AIAnalysisController } from "./AIAnalysisController";
-export { default as GradeChangeFunnelChart } from "./GradeChangeFunnelChart";
-export { default as GradeSankeyChart } from "./GradeSankeyChart";
+// 旧的组件导出已迁移到对应子模块索引

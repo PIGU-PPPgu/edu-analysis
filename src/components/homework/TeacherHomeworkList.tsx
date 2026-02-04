@@ -80,7 +80,7 @@ import { formatDate } from "@/lib/utils";
 import { getAllHomeworks, deleteHomework } from "@/services/homeworkService";
 import {
   getKnowledgePointsByHomeworkId,
-  createKnowledgePoints,
+  createKnowledgePoint,
 } from "@/services/knowledgePointService";
 import { supabase } from "@/integrations/supabase/client";
 import { mockApi, knowledgePoints } from "@/data/mockData";
@@ -247,8 +247,14 @@ export default function TeacherHomeworkList() {
             })
           );
 
-          // 创建知识点
-          await createKnowledgePoints(newHomework.id, knowledgePointsToCreate);
+          await Promise.all(
+            knowledgePointsToCreate.map((knowledgePoint) =>
+              createKnowledgePoint({
+                ...knowledgePoint,
+                homework_id: newHomework.id,
+              })
+            )
+          );
         }
 
         toast({

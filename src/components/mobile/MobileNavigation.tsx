@@ -172,6 +172,15 @@ const NavigationItemComponent: React.FC<{
     }
   };
 
+  const badgeVariant =
+    item.badge?.variant === "error"
+      ? "destructive"
+      : item.badge?.variant === "success"
+        ? "default"
+        : item.badge?.variant === "warning"
+          ? "secondary"
+          : item.badge?.variant || "default";
+
   const itemContent = (
     <div
       className={cn(
@@ -205,7 +214,7 @@ const NavigationItemComponent: React.FC<{
 
       {/* 徽章 */}
       {item.badge && (
-        <Badge variant={item.badge.variant || "default"} className="text-xs">
+        <Badge variant={badgeVariant} className="text-xs">
           {item.badge.text}
         </Badge>
       )}

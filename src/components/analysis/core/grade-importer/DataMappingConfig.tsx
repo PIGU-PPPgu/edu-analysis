@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/table";
 import { Settings, Zap, CheckCircle } from "lucide-react";
 import {
-  FieldMapping,
+  FieldMappingMap,
   ParsedData,
   SYSTEM_FIELDS,
   DataMappingHandler,
@@ -47,7 +47,7 @@ const DataMappingConfig: React.FC<DataMappingConfigProps> = ({
   onMappingConfigured,
   enableAISuggestion = true,
 }) => {
-  const [fieldMappings, setFieldMappings] = useState<FieldMapping>({});
+  const [fieldMappings, setFieldMappings] = useState<FieldMappingMap>({});
   const [aiSuggestions, setAiSuggestions] = useState<Record<string, string>>(
     {}
   );
@@ -62,8 +62,8 @@ const DataMappingConfig: React.FC<DataMappingConfigProps> = ({
   }, [parsedData, enableAISuggestion]);
 
   // 生成AI建议映射
-  const generateAISuggestions = (headers: string[]): FieldMapping => {
-    const suggestions: FieldMapping = {};
+  const generateAISuggestions = (headers: string[]): FieldMappingMap => {
+    const suggestions: FieldMappingMap = {};
 
     // 科目映射表 - 支持全部9个科目
     const subjectMappings: Record<string, string> = {

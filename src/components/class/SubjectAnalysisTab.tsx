@@ -31,7 +31,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
-import { ClassData } from "@/types/database";
 import { toast } from "sonner";
 
 // 更新接口定义，添加错误状态和刷新函数

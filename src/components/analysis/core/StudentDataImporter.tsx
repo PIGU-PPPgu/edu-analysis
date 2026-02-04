@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   Upload,
@@ -12,6 +13,12 @@ import {
   XCircle,
   AlertCircle,
   ArrowRight,
+  Shield,
+  ShieldAlert,
+  AlertTriangle,
+  Building,
+  Check,
+  X,
 } from "lucide-react";
 import { studentService } from "@/services/education/students";
 import * as XLSX from "xlsx";
@@ -20,6 +27,21 @@ import UploadProgressIndicator, {
 } from "@/components/shared/UploadProgressIndicator";
 import { NotificationManager } from "@/services/NotificationManager";
 import { showErrorSmart } from "@/services/errorHandler";
+import {
+  autoSyncService,
+  type CreateOptions,
+  type PreviewResult,
+} from "@/services/autoSyncService";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 
 interface StudentDataImporterProps {
   onDataImported: (data: any[]) => void;
@@ -45,6 +67,17 @@ export default function StudentDataImporter({
   const [processingProgress, setProcessingProgress] = useState(0);
   const [processingError, setProcessingError] = useState<string | null>(null);
   const [uploadingFile, setUploadingFile] = useState<File | null>(null);
+  const [autoCreateMode, setAutoCreateMode] = useState(false); // 🔒 默认关闭自动创建（安全模式）
+
+  // 🔍 预览确认对话框状态 (Plan A)
+  const [showPreviewDialog, setShowPreviewDialog] = useState(false);
+  const [previewResult, setPreviewResult] = useState<PreviewResult | null>(
+    null
+  );
+  const [pendingData, setPendingData] = useState<any[] | null>(null);
+  const [pendingImportResult, setPendingImportResult] = useState<any | null>(
+    null
+  );
 
   const parseFileData = async (file: File): Promise<any[]> => {
     return new Promise((resolve, reject) => {
@@ -123,19 +156,227 @@ export default function StudentDataImporter({
       transformedRow.contact_email =
         row.contact_email || row["联系邮箱"] || row.联系邮箱 || "";
 
-      // 验证必填字段
-      if (!transformedRow.student_id) {
-        throw new Error(`第${index + 2}行：学号不能为空`);
-      }
-      if (!transformedRow.name) {
-        throw new Error(`第${index + 2}行：姓名不能为空`);
-      }
-      if (!transformedRow.class_name) {
-        throw new Error(`第${index + 2}行：班级不能为空`);
+      // 🔄 宽松验证：至少有姓名或学号其中之一即可（支持智能匹配和自动创建）
+      if (!transformedRow.name && !transformedRow.student_id) {
+        throw new Error(`第${index + 2}行：至少需要提供姓名或学号其中之一`);
       }
 
+      // ✅ 不再强制要求班级、学号，系统会自动创建或匹配
       return transformedRow;
     });
+  };
+
+  // 🔄 AutoSync 重试策略配置 - 跳过严格字段校验
+  const autoSyncAttempts = [
+    {
+      label: "宽松验证",
+      options: {
+        strictMode: false,
+        enableAutoFix: true,
+        enableDataCleaning: true,
+        skipWarnings: false,
+        skipInfo: true,
+        fieldBlacklist: ["class_name", "student_id", "name"] as string[], // ← KEY: 跳过严格必填检查
+        maxErrors: 2000,
+      },
+    },
+    {
+      label: "跳过清洗回退",
+      options: {
+        strictMode: false,
+        enableAutoFix: true,
+        enableDataCleaning: false, // 禁用数据清洗
+        skipWarnings: true,
+        skipInfo: true,
+        fieldBlacklist: ["class_name", "student_id", "name"] as string[],
+        maxErrors: 5000,
+      },
+    },
+  ];
+
+  /**
+   * 执行实际的同步操作（抽取公共逻辑）
+   */
+  const executeSync = async (
+    validatedData: any[],
+    importStats: {
+      imported: number;
+      updated: number;
+      skipped: number;
+      errors: any[];
+    }
+  ) => {
+    const { imported, updated, skipped, errors } = importStats;
+
+    // 🔄 智能同步：自动创建缺失的班级和学生（带重试和错误阻断）
+    setProcessingProgress(85);
+    try {
+      console.log("[学生导入] 开始自动同步班级和学生...");
+      const syncResult = await runAutoSyncWithRetry(validatedData);
+
+      console.log(
+        `[智能同步] 完成！自动创建了 ${syncResult.newClasses.length} 个班级和 ${syncResult.newStudents.length} 名学生`
+      );
+
+      // 如果创建了新的班级或学生，添加到通知中
+      if (
+        syncResult.newClasses.length > 0 ||
+        syncResult.newStudents.length > 0
+      ) {
+        NotificationManager.success("自动创建成功", {
+          description: `创建了 ${syncResult.newClasses.length} 个班级和 ${syncResult.newStudents.length} 名学生`,
+          duration: 5000,
+        });
+      }
+
+      // 如果有部分错误（但整体成功），显示警告
+      if (syncResult.errors && syncResult.errors.length > 0) {
+        toast.warning("学生同步部分失败", {
+          description: `错误: ${syncResult.errors.slice(0, 3).join("；")}`,
+          duration: 8000,
+        });
+        console.warn("[智能同步] 部分同步失败:", syncResult.errors);
+      }
+    } catch (syncError) {
+      // ✅ 关键修复: 同步失败时阻断成功流程
+      const syncErrorMessage =
+        syncError instanceof Error ? syncError.message : "自动同步失败";
+
+      console.error("[智能同步] 同步失败，流程已中断，未标记成功:", syncError);
+
+      setProcessingStage("error");
+      setProcessingError(syncErrorMessage);
+      setShowSuccessCard(false);
+
+      toast.error("自动同步失败", {
+        description: syncErrorMessage,
+        duration: 8000,
+      });
+      NotificationManager.error("自动同步失败", {
+        description: "学生/班级未完全创建，请修正后重试",
+        duration: 8000,
+      });
+
+      return;
+    }
+
+    // 完成
+    setProcessingStage("completed");
+    setProcessingProgress(100);
+
+    // 保存导入统计数据
+    setImportStats({ imported, updated, skipped, errors });
+    setShowSuccessCard(true);
+
+    // 保留: 最终成功通知
+    NotificationManager.success("学生数据导入完成", {
+      description:
+        errors.length > 0
+          ? `成功导入 ${imported + updated} 名学生，${errors.length} 个错误`
+          : `成功导入 ${imported + updated} 名学生`,
+      deduplicate: true,
+    });
+
+    // 详细错误记录在控制台
+    if (errors.length > 0) {
+      console.warn("导入错误详情:", errors);
+    }
+
+    // 通知父组件数据导入成功
+    onDataImported(validatedData);
+  };
+
+  /**
+   * 用户确认预览后执行创建
+   */
+  const handleConfirmCreate = async () => {
+    if (!pendingData || !pendingImportResult) return;
+
+    setShowPreviewDialog(false);
+    setIsUploading(true);
+    setProcessingStage("saving");
+
+    await executeSync(pendingData, pendingImportResult);
+
+    // 清理状态
+    setPendingData(null);
+    setPendingImportResult(null);
+    setPreviewResult(null);
+    setIsUploading(false);
+  };
+
+  /**
+   * 用户取消预览创建
+   */
+  const handleCancelCreate = () => {
+    setShowPreviewDialog(false);
+    setPendingData(null);
+    setPendingImportResult(null);
+    setPreviewResult(null);
+
+    // 显示成功信息但不创建新数据
+    if (pendingImportResult) {
+      const { imported, updated, errors } = pendingImportResult;
+      setImportStats({ ...pendingImportResult });
+      setShowSuccessCard(true);
+
+      NotificationManager.success("学生数据导入完成（安全模式）", {
+        description: `成功导入 ${imported + updated} 名学生，未创建新班级/学生`,
+        deduplicate: true,
+      });
+
+      if (pendingData) {
+        onDataImported(pendingData);
+      }
+    }
+  };
+
+  // 🔄 AutoSync 重试函数 - 自动降级策略
+  const runAutoSyncWithRetry = async (data: any[]) => {
+    let lastError: any = null;
+
+    for (let attempt = 0; attempt < autoSyncAttempts.length; attempt++) {
+      const { label, options } = autoSyncAttempts[attempt];
+      console.log(
+        `[学生导入][AutoSync] 尝试${attempt + 1}: ${label}（跳过班级/学号/姓名强校验）`,
+        options
+      );
+
+      setProcessingStage("analyzing");
+      setProcessingProgress(85 + attempt * 3);
+
+      try {
+        const syncResult = await autoSyncService.syncImportedData(
+          data,
+          undefined, // aiConfig
+          options, // ← 传递验证选项，跳过严格字段检查
+          {
+            createNewClasses: autoCreateMode,
+            createNewStudents: autoCreateMode,
+          } as CreateOptions // ← 传递创建选项，默认安全模式不创建
+        );
+
+        if (syncResult.success) {
+          console.log(`[学生导入][AutoSync] 尝试${attempt + 1}成功:`, {
+            newClasses: syncResult.newClasses.length,
+            newStudents: syncResult.newStudents.length,
+          });
+          return syncResult;
+        }
+
+        lastError = new Error(syncResult.errors?.join("；") || "自动同步失败");
+        console.warn(
+          `[学生导入][AutoSync] 尝试${attempt + 1}失败，错误:`,
+          syncResult.errors
+        );
+      } catch (error) {
+        lastError = error;
+        console.error(`[学生导入][AutoSync] 尝试${attempt + 1}异常:`, error);
+      }
+    }
+
+    // 所有尝试都失败，抛出最后的错误
+    throw lastError || new Error("自动同步失败");
   };
 
   const handleFileUpload = async (
@@ -182,36 +423,46 @@ export default function StudentDataImporter({
       setProcessingProgress(70);
       const importResult = await studentService.importStudents(validatedData, {
         skipDuplicates: true,
-        updateExisting: false,
+        updateExisting: true, // ✅ 修复: 更新现有学生而非跳过,避免班级变更时重复创建
       });
 
       if (importResult.success && importResult.data) {
         const { imported, updated, skipped, errors } = importResult.data;
 
-        // 完成
-        setProcessingStage("completed");
-        setProcessingProgress(100);
+        // 🔍 Plan A: 如果开启自动创建模式，先进行预览
+        if (autoCreateMode) {
+          setProcessingStage("analyzing");
+          setProcessingProgress(80);
+          console.log("[学生导入] 自动创建模式 - 正在生成预览...");
 
-        // 保存导入统计数据
-        setImportStats({ imported, updated, skipped, errors });
-        setShowSuccessCard(true);
+          try {
+            const preview = await autoSyncService.previewChanges(validatedData);
+            console.log("[学生导入] 预览结果:", preview.summary);
 
-        // 保留: 最终成功通知
-        NotificationManager.success("学生数据导入完成", {
-          description:
-            errors.length > 0
-              ? `成功导入 ${imported + updated} 名学生，${errors.length} 个错误`
-              : `成功导入 ${imported + updated} 名学生`,
-          deduplicate: true,
-        });
-
-        // 详细错误记录在控制台
-        if (errors.length > 0) {
-          console.warn("导入错误详情:", errors);
+            // 如果有新的班级或学生需要创建，显示确认对话框
+            if (
+              preview.summary.newClassCount > 0 ||
+              preview.summary.newStudentCount > 0
+            ) {
+              setPreviewResult(preview);
+              setPendingData(validatedData);
+              setPendingImportResult({ imported, updated, skipped, errors });
+              setShowPreviewDialog(true);
+              setIsUploading(false);
+              return; // 等待用户确认
+            }
+          } catch (previewError) {
+            console.warn("[学生导入] 预览生成失败，继续同步:", previewError);
+          }
         }
 
-        // 通知父组件数据导入成功
-        onDataImported(validatedData);
+        // 执行实际同步（安全模式或无需创建时直接执行）
+        await executeSync(validatedData, {
+          imported,
+          updated,
+          skipped,
+          errors,
+        });
       } else {
         throw new Error(importResult.error || "导入失败");
       }
@@ -295,6 +546,61 @@ export default function StudentDataImporter({
         </Card>
       )}
 
+      {/* 🔒 安全模式开关 */}
+      <Card
+        className={
+          autoCreateMode
+            ? "border-orange-300 bg-orange-50"
+            : "border-green-300 bg-green-50"
+        }
+      >
+        <CardContent className="pt-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                {autoCreateMode ? (
+                  <ShieldAlert className="h-5 w-5 text-orange-600" />
+                ) : (
+                  <Shield className="h-5 w-5 text-green-600" />
+                )}
+                <h3 className="font-medium text-base">
+                  {autoCreateMode
+                    ? "自动创建模式（已开启）"
+                    : "安全模式（推荐）"}
+                </h3>
+              </div>
+              <p className="text-sm text-gray-600 mb-3">
+                {autoCreateMode ? (
+                  <>
+                    <strong className="text-orange-700">注意：</strong>
+                    系统会自动创建文件中不存在的班级和学生。请确保数据准确，避免误创建。
+                  </>
+                ) : (
+                  <>
+                    <strong className="text-green-700">安全：</strong>
+                    系统仅匹配现有班级和学生，不会自动创建新数据。推荐用于初次导入或不确定数据准确性时使用。
+                  </>
+                )}
+              </p>
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="auto-create-mode"
+                  checked={autoCreateMode}
+                  onCheckedChange={setAutoCreateMode}
+                  disabled={isUploading}
+                />
+                <Label
+                  htmlFor="auto-create-mode"
+                  className="text-sm cursor-pointer"
+                >
+                  {autoCreateMode ? "关闭自动创建" : "开启自动创建"}
+                </Label>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* 文件上传区域 */}
       <Card className="border-dashed border-2">
         <CardContent className="pt-6">
@@ -366,16 +672,16 @@ export default function StudentDataImporter({
         <CardContent>
           <div className="space-y-4">
             <div>
-              <h4 className="font-medium mb-2">必填字段：</h4>
+              <h4 className="font-medium mb-2">建议提供的字段（宽松校验）：</h4>
               <ul className="text-sm text-gray-600 space-y-1">
                 <li>
-                  • <strong>学号 (student_id)</strong>: 学生唯一标识
+                  • <strong>姓名 (name)</strong> 或{" "}
+                  <strong>学号 (student_id)</strong>{" "}
+                  至少填一个，推荐都填以提升匹配准确度
                 </li>
                 <li>
-                  • <strong>姓名 (name)</strong>: 学生真实姓名
-                </li>
-                <li>
-                  • <strong>班级 (class_name)</strong>: 所属班级
+                  • <strong>班级 (class_name)</strong>:
+                  可留空，系统会自动匹配/创建
                 </li>
               </ul>
             </div>
@@ -407,6 +713,190 @@ export default function StudentDataImporter({
           </div>
         </CardContent>
       </Card>
+
+      {/* 🔍 预览确认对话框 (Plan A) */}
+      <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-orange-500" />
+              确认创建新数据
+            </DialogTitle>
+            <DialogDescription>
+              系统检测到以下数据不存在，将被自动创建。请仔细核对后确认。
+            </DialogDescription>
+          </DialogHeader>
+
+          {previewResult && (
+            <ScrollArea className="max-h-[50vh] pr-4">
+              <div className="space-y-4">
+                {/* 警告信息 */}
+                {previewResult.warnings.length > 0 && (
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                    <h4 className="font-medium text-orange-800 mb-2 flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4" />
+                      风险提示
+                    </h4>
+                    <ul className="text-sm text-orange-700 space-y-1">
+                      {previewResult.warnings.map((warning, idx) => (
+                        <li key={idx}>• {warning}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* 统计摘要 */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="text-center p-3 bg-gray-50 rounded-lg">
+                    <div className="text-xl font-bold text-gray-700">
+                      {previewResult.summary.totalRecords}
+                    </div>
+                    <div className="text-xs text-gray-500">总记录数</div>
+                  </div>
+                  <div className="text-center p-3 bg-green-50 rounded-lg">
+                    <div className="text-xl font-bold text-green-600">
+                      {previewResult.summary.matchedStudents}
+                    </div>
+                    <div className="text-xs text-gray-500">已匹配学生</div>
+                  </div>
+                  <div className="text-center p-3 bg-blue-50 rounded-lg">
+                    <div className="text-xl font-bold text-blue-600">
+                      {previewResult.summary.newClassCount}
+                    </div>
+                    <div className="text-xs text-gray-500">新建班级</div>
+                  </div>
+                  <div className="text-center p-3 bg-purple-50 rounded-lg">
+                    <div className="text-xl font-bold text-purple-600">
+                      {previewResult.summary.newStudentCount}
+                    </div>
+                    <div className="text-xs text-gray-500">新建学生</div>
+                  </div>
+                </div>
+
+                {/* 新班级列表 */}
+                {previewResult.newClasses.length > 0 && (
+                  <div className="border rounded-lg p-3">
+                    <h4 className="font-medium mb-2 flex items-center gap-2">
+                      <Building className="h-4 w-4 text-blue-500" />
+                      将创建 {previewResult.newClasses.length} 个新班级
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {previewResult.newClasses.slice(0, 10).map((cls, idx) => (
+                        <Badge key={idx} variant="secondary">
+                          {cls.name} ({cls.grade}, {cls.studentCount}人)
+                        </Badge>
+                      ))}
+                      {previewResult.newClasses.length > 10 && (
+                        <Badge variant="outline">
+                          +{previewResult.newClasses.length - 10} 更多
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 相似班级警告 */}
+                {previewResult.similarClasses.length > 0 && (
+                  <div className="border border-yellow-200 bg-yellow-50 rounded-lg p-3">
+                    <h4 className="font-medium mb-2 flex items-center gap-2 text-yellow-800">
+                      <AlertTriangle className="h-4 w-4" />
+                      发现相似班级（可能是拼写错误）
+                    </h4>
+                    <div className="space-y-1 text-sm">
+                      {previewResult.similarClasses
+                        .slice(0, 5)
+                        .map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-2 text-yellow-700"
+                          >
+                            <span className="font-medium">
+                              {item.inputName}
+                            </span>
+                            <span>≈</span>
+                            <span>{item.existingName}</span>
+                            <Badge variant="outline" className="text-xs">
+                              {item.similarity}% 相似
+                            </Badge>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 新学生列表 */}
+                {previewResult.newStudents.length > 0 && (
+                  <div className="border rounded-lg p-3">
+                    <h4 className="font-medium mb-2 flex items-center gap-2">
+                      <Users className="h-4 w-4 text-purple-500" />
+                      将创建 {previewResult.newStudents.length} 名新学生
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {previewResult.newStudents
+                        .slice(0, 15)
+                        .map((student, idx) => (
+                          <Badge key={idx} variant="secondary">
+                            {student.name} ({student.class_name})
+                          </Badge>
+                        ))}
+                      {previewResult.newStudents.length > 15 && (
+                        <Badge variant="outline">
+                          +{previewResult.newStudents.length - 15} 更多
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 相似学生警告 */}
+                {previewResult.similarStudents.length > 0 && (
+                  <div className="border border-yellow-200 bg-yellow-50 rounded-lg p-3">
+                    <h4 className="font-medium mb-2 flex items-center gap-2 text-yellow-800">
+                      <AlertTriangle className="h-4 w-4" />
+                      发现相似学生（请确认是否同一人）
+                    </h4>
+                    <div className="space-y-1 text-sm">
+                      {previewResult.similarStudents
+                        .slice(0, 5)
+                        .map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-2 text-yellow-700"
+                          >
+                            <span className="font-medium">
+                              {item.inputName} ({item.inputClass})
+                            </span>
+                            <span>≈</span>
+                            <span>
+                              {item.existingName} ({item.existingClass})
+                            </span>
+                            <Badge variant="outline" className="text-xs">
+                              {item.similarity}% 相似
+                            </Badge>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={handleCancelCreate}>
+              <X className="h-4 w-4 mr-2" />
+              取消创建（仅匹配）
+            </Button>
+            <Button
+              onClick={handleConfirmCreate}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Check className="h-4 w-4 mr-2" />
+              确认创建
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

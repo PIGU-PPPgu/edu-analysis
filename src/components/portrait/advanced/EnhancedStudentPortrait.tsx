@@ -908,7 +908,7 @@ const EnhancedStudentPortrait: React.FC = () => {
                       </p>
                       <div className="flex items-center mt-2 text-xs">
                         <span className="mr-2">趋势:</span>
-                        <Badge variant="outline" size="sm">
+                        <Badge variant="outline">
                           {ability.trend === "improving"
                             ? "📈 上升"
                             : ability.trend === "declining"
@@ -1191,7 +1191,7 @@ const EnhancedStudentPortrait: React.FC = () => {
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="font-medium">{insight.title}</h4>
                         <div className="flex items-center space-x-2">
-                          <Badge variant="outline" size="sm">
+                          <Badge variant="outline">
                             置信度: {(insight.confidence * 100).toFixed(0)}%
                           </Badge>
                           <Badge
@@ -1202,7 +1202,6 @@ const EnhancedStudentPortrait: React.FC = () => {
                                   ? "default"
                                   : "secondary"
                             }
-                            size="sm"
                           >
                             {insight.priority === "high"
                               ? "高优先级"

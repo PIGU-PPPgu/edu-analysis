@@ -99,7 +99,8 @@ const ClassStudentsList: React.FC<ClassStudentsListProps> = ({
   };
 
   const getTrendIcon = (trend: number) => {
-    const colors = getTrendColors(trend);
+    const trendDirection = trend > 0 ? "up" : trend < 0 ? "down" : "stable";
+    const colors = getTrendColors(trendDirection);
     if (trend > 0) return <TrendingUp className={`h-4 w-4 ${colors.icon}`} />;
     if (trend < 0) return <TrendingDown className={`h-4 w-4 ${colors.icon}`} />;
     return <Minus className={`h-4 w-4 ${colors.icon}`} />;
@@ -221,7 +222,13 @@ const ClassStudentsList: React.FC<ClassStudentsListProps> = ({
               {sortedStudents.map((student, index) => {
                 const scoreBadge = getScoreBadge(student.averageScore);
                 const scoreColors = getScoreColors(student.averageScore);
-                const trendColors = getTrendColors(student.trend);
+                const trendDirection =
+                  student.trend > 0
+                    ? "up"
+                    : student.trend < 0
+                      ? "down"
+                      : "stable";
+                const trendColors = getTrendColors(trendDirection);
 
                 return (
                   <TableRow
@@ -237,11 +244,11 @@ const ClassStudentsList: React.FC<ClassStudentsListProps> = ({
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <span
-                          className={`font-bold text-lg px-2 py-1 rounded ${scoreColors.text} ${scoreColors.background}`}
+                          className={`font-bold text-lg px-2 py-1 rounded ${scoreColors.text} ${scoreColors.bg}`}
                         >
                           {student.averageScore.toFixed(1)}
                         </span>
-                        <Badge variant={scoreBadge.variant} size="sm">
+                        <Badge variant={scoreBadge.variant}>
                           {scoreBadge.label}
                         </Badge>
                       </div>

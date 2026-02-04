@@ -184,6 +184,8 @@ export const SubjectScoreDialog: React.FC<SubjectScoreDialogProps> = ({
         total_score: score.total_score,
         passing_score: score.passing_score,
         excellent_score: score.excellent_score,
+        is_required: true,
+        weight: 1,
       }));
       onSave(examSubjectScores);
     }

@@ -95,7 +95,10 @@ import {
   type AcademicTerm,
   type ExamSubjectScore,
 } from "@/services/examService";
+import { buildDerivedExams } from "@/contexts/ModernGradeAnalysisContext";
+import { supabase } from "@/integrations/supabase/client";
 import ExamSubjectScoreDialog from "./ExamSubjectScoreDialog";
+import ReportViewer from "@/components/analysis/reports/ReportViewer";
 import SemesterFilter from "./SemesterFilter";
 
 // 本地类型定义（用于UI展示）
@@ -188,6 +191,7 @@ const ExamManagementCenter: React.FC = () => {
   const [currentExamSubjectScores, setCurrentExamSubjectScores] = useState<
     ExamSubjectScore[]
   >([]);
+  const [reportExamId, setReportExamId] = useState<string | null>(null);
   const [examForm, setExamForm] = useState<Partial<Exam>>({
     title: "",
     description: "",
@@ -278,6 +282,29 @@ const ExamManagementCenter: React.FC = () => {
     "高三(4)班",
   ];
 
+  // 从 grade_data 派生考试列表（兜底）
+  const loadDerivedExamsFromGrades = async (): Promise<Exam[]> => {
+    try {
+      const { data, error } = await supabase
+        .from("grade_data")
+        .select(
+          "exam_id, exam_title, exam_type, exam_date, created_at, updated_at"
+        )
+        .limit(500);
+
+      if (error) {
+        console.warn("[ExamManagementCenter] 派生考试列表失败:", error);
+        return [];
+      }
+
+      const derived = buildDerivedExams(data || []);
+      return derived.map(mapExam);
+    } catch (err) {
+      console.warn("[ExamManagementCenter] 派生考试列表异常:", err);
+      return [];
+    }
+  };
+
   // 真实数据加载
   useEffect(() => {
     const loadData = async () => {
@@ -299,7 +326,29 @@ const ExamManagementCenter: React.FC = () => {
         setExamTypes(mappedExamTypes);
 
         // 转换考试数据
-        const mappedExams = dbExams.map(mapExam);
+        let mappedExams = dbExams.map(mapExam).sort((a, b) => {
+          const aDate = a.date ? new Date(a.date).getTime() : 0;
+          const bDate = b.date ? new Date(b.date).getTime() : 0;
+          if (bDate !== aDate) return bDate - aDate;
+          const aCreated = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bCreated = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return bCreated - aCreated;
+        });
+
+        // 如果 exams 表为空，尝试从 grade_data 派生考试列表
+        if (mappedExams.length === 0) {
+          const derived = await loadDerivedExamsFromGrades();
+          const mergedMap = new Map(mappedExams.map((exam) => [exam.id, exam]));
+          derived.forEach((exam) => {
+            if (!mergedMap.has(exam.id)) {
+              mergedMap.set(exam.id, exam);
+            }
+          });
+          mappedExams = Array.from(mergedMap.values());
+          if (derived.length > 0) {
+            toast.info("已从成绩数据推断考试列表（exams 表为空）");
+          }
+        }
 
         // 异步加载参与人数
         const examsWithParticipants = await Promise.all(
@@ -344,6 +393,17 @@ const ExamManagementCenter: React.FC = () => {
           improvementRate: 0,
           riskExams: 0,
         });
+
+        // 在获取正式考试失败时尝试派生列表填充
+        try {
+          const derived = await loadDerivedExamsFromGrades();
+          if (derived.length > 0) {
+            setExams(derived);
+            toast.info("已从成绩数据推断考试列表（exams 表不可用）");
+          }
+        } catch {
+          // 忽略派生失败
+        }
       } finally {
         setIsLoading(false);
       }
@@ -383,11 +443,17 @@ const ExamManagementCenter: React.FC = () => {
         statusFilter === "all" || exam.status === statusFilter;
       const matchesType = typeFilter === "all" || exam.type === typeFilter;
 
-      return matchesSearch && matchesStatus && matchesType;
+      // 🔧 添加学期筛选（前端过滤，不替换数据源）
+      const matchesTerm =
+        selectedTermId === "all" ||
+        !selectedTermId ||
+        (exam as any).academic_term_id === selectedTermId;
+
+      return matchesSearch && matchesStatus && matchesType && matchesTerm;
     });
 
     return filtered;
-  }, [exams, searchDebounce, statusFilter, typeFilter]);
+  }, [exams, searchDebounce, statusFilter, typeFilter, selectedTermId]);
 
   // 🆕 分页计算
   const totalExams = filteredExams.length;
@@ -406,29 +472,18 @@ const ExamManagementCenter: React.FC = () => {
     totalItems: totalExams,
   };
 
-  // 处理学期筛选变化
+  // 处理学期筛选变化（🔧 改为前端过滤，不重新加载数据）
   const handleTermChange = async (termId: string) => {
     setSelectedTermId(termId);
-    setIsLoading(true);
 
-    try {
-      const filteredExams = await getExamsByTerm(termId, {
-        searchTerm: searchTerm || undefined,
-        type: typeFilter !== "all" ? typeFilter : undefined,
-      });
+    const termName =
+      termId === "all"
+        ? "全部学期"
+        : academicTerms.find((t) => t.id === termId)?.academic_year +
+          " " +
+          academicTerms.find((t) => t.id === termId)?.semester;
 
-      const mappedExams = filteredExams.map(mapExam);
-      setExams(mappedExams);
-
-      toast.success(
-        `已切换到${termId === "all" ? "全部学期" : academicTerms.find((t) => t.id === termId)?.academic_year + " " + academicTerms.find((t) => t.id === termId)?.semester}`
-      );
-    } catch (error) {
-      console.error("筛选学期考试失败:", error);
-      toast.error("筛选考试失败");
-    } finally {
-      setIsLoading(false);
-    }
+    toast.success(`已切换到${termName}`);
   };
 
   // 处理科目总分配置
@@ -671,11 +726,8 @@ const ExamManagementCenter: React.FC = () => {
   };
 
   // 跳转到分析页面
-  const handleAnalysisNavigation = (
-    exam: Exam,
-    analysisType: "basic" | "advanced"
-  ) => {
-    console.log("🚀 跳转到分析页面:", { exam, analysisType });
+  const handleAnalysisNavigation = (exam: Exam) => {
+    console.log("🚀 跳转到分析页面:", { exam });
     console.log("📊 考试数据详情:", {
       id: exam.id,
       title: exam.title,
@@ -693,9 +745,7 @@ const ExamManagementCenter: React.FC = () => {
       filterByTitle: "true",
     });
 
-    const route =
-      analysisType === "basic" ? "/grade-analysis" : "/advanced-analysis";
-    const fullUrl = `${route}?${params.toString()}`;
+    const fullUrl = `/analysis/${exam.id}?${params.toString()}`;
 
     console.log("🔗 完整URL:", fullUrl);
     console.log("🔗 URL参数字符串:", params.toString());
@@ -704,13 +754,10 @@ const ExamManagementCenter: React.FC = () => {
     // 直接跳转，不使用setTimeout
     navigate(fullUrl);
 
-    toast.success(
-      `正在跳转到${analysisType === "basic" ? "基础" : "高级"}分析...`,
-      {
-        description: `已选择考试: ${exam.title}`,
-        duration: 2000,
-      }
-    );
+    toast.success("正在跳转到分析...", {
+      description: `已选择考试: ${exam.title}`,
+      duration: 2000,
+    });
   };
 
   // 调试功能：输出可用数据概览
@@ -959,14 +1006,16 @@ const ExamManagementCenter: React.FC = () => {
           },
         });
         break;
+      case "analysis":
       case "basic-analysis":
-        handleAnalysisNavigation(exam, "basic");
-        break;
       case "advanced-analysis":
-        handleAnalysisNavigation(exam, "advanced");
+        handleAnalysisNavigation(exam);
         break;
       case "subject-score-config":
         handleSubjectScoreConfig(exam);
+        break;
+      case "generate-report":
+        setReportExamId(exam.id);
         break;
     }
   };
@@ -1480,34 +1529,18 @@ const ExamManagementCenter: React.FC = () => {
                               </div>
 
                               <div className="flex items-center gap-2 ml-4">
-                                {/* 分析按钮组 */}
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="gap-1 border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#000] hover:bg-[#B9FF66] transition-all duration-200 font-bold"
-                                    onClick={() =>
-                                      handleQuickAction(exam, "basic-analysis")
-                                    }
-                                  >
-                                    <BarChart3 className="h-4 w-4" />
-                                    基础分析
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="gap-1 border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#000] hover:bg-[#B9FF66] transition-all duration-200 font-bold"
-                                    onClick={() =>
-                                      handleQuickAction(
-                                        exam,
-                                        "advanced-analysis"
-                                      )
-                                    }
-                                  >
-                                    <TrendingUp className="h-4 w-4" />
-                                    高级分析
-                                  </Button>
-                                </div>
+                                {/* 分析按钮 */}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-1 border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#000] hover:bg-[#B9FF66] transition-all duration-200 font-bold"
+                                  onClick={() =>
+                                    handleQuickAction(exam, "analysis")
+                                  }
+                                >
+                                  <BarChart3 className="h-4 w-4" />
+                                  分析
+                                </Button>
 
                                 {exam.status === "completed" && (
                                   <Button
@@ -1583,6 +1616,17 @@ const ExamManagementCenter: React.FC = () => {
                                     >
                                       <Shield className="h-4 w-4 mr-2" />
                                       前往预警分析
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        handleQuickAction(
+                                          exam,
+                                          "generate-report"
+                                        )
+                                      }
+                                    >
+                                      <BarChart3 className="h-4 w-4 mr-2" />
+                                      生成分析报告
                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem
@@ -2481,6 +2525,24 @@ const ExamManagementCenter: React.FC = () => {
             onSave={handleSaveSubjectScores}
             initialScores={currentExamSubjectScores}
           />
+        )}
+
+        {/* 分析报告查看器 */}
+        {reportExamId && (
+          <Dialog
+            open={!!reportExamId}
+            onOpenChange={() => setReportExamId(null)}
+          >
+            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader className="sr-only">
+                <DialogTitle>分析报告</DialogTitle>
+              </DialogHeader>
+              <ReportViewer
+                examId={reportExamId}
+                onClose={() => setReportExamId(null)}
+              />
+            </DialogContent>
+          </Dialog>
         )}
       </div>
     </div>

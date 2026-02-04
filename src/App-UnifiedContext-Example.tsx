@@ -28,7 +28,7 @@ import StudentProfile from "./pages/StudentProfile";
 import StudentManagement from "./pages/StudentManagement";
 import ClassManagement from "./pages/ClassManagement";
 import ClassProfile from "./pages/ClassProfile";
-import AISettings from "./pages/AISettings";
+import AISettings from "./pages/settings/AISettingsPage-Enhanced";
 import WarningAnalysis from "./pages/WarningAnalysis";
 import NotFound from "./pages/NotFound";
 import { initializeDatabase, setupInitialData } from "./utils/dbSetup";
@@ -60,8 +60,6 @@ import PerformanceMonitoring from "./pages/PerformanceMonitoring";
 // 🚀 新增: UnifiedAppContext相关导入
 import { UnifiedAppProvider } from "./contexts/unified/UnifiedAppContext";
 import { useInitializeApp } from "./hooks/useInitializeApp";
-import { LoadingScreen } from "./components/ui/loading-screen";
-import { ErrorScreen } from "./components/ui/error-screen";
 import React from "react";
 
 // 全局配置QueryClient

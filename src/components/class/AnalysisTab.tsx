@@ -59,18 +59,14 @@ const AnalysisTab: React.FC<AnalysisTabProps> = ({
             </TabsList>
 
             <TabsContent value="detail" className="mt-4">
-              <DetailTab
-                selectedClass={selectedClass}
-                analysisData={analysisData}
-                loading={loading}
-              />
+              <DetailTab selectedClass={selectedClass} />
             </TabsContent>
 
             <TabsContent value="subject" className="mt-4">
               <SubjectAnalysisTab
                 selectedClass={selectedClass}
-                subjectAnalysisData={subjectAnalysisData}
-                loading={loading}
+                data={subjectAnalysisData}
+                isLoading={loading}
               />
             </TabsContent>
 

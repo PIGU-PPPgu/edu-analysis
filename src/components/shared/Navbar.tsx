@@ -32,6 +32,7 @@ import {
 } from "@/components/mobile/MobileNavigation";
 import { cn } from "@/lib/utils";
 import { useRoutePreloader } from "@/utils/routePreloader";
+import { toast } from "sonner";
 
 interface NavbarProps {
   showMainNav?: boolean;
@@ -128,16 +129,10 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
           onClick: () => navigate("/exam-management"),
         },
         {
-          id: "grade-analysis",
-          label: "基础分析",
-          icon: <BarChart3 className="w-5 h-5" />,
-          onClick: () => navigate("/grade-analysis"),
-        },
-        {
-          id: "advanced-analysis",
-          label: "高级分析",
-          icon: <Brain className="w-5 h-5" />,
-          onClick: () => navigate("/advanced-analysis"),
+          id: "value-added",
+          label: "增值评价",
+          icon: <Sparkles className="w-5 h-5" />,
+          onClick: () => navigate("/value-added"),
         },
         {
           id: "homework",
@@ -300,24 +295,14 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
                   考试管理
                 </Link>
                 <Link
-                  to="/grade-analysis"
+                  to="/value-added"
                   className={`font-medium transition-colors hover:text-primary ${
-                    isActive("/grade-analysis")
+                    isActive("/value-added")
                       ? "text-primary"
                       : "text-muted-foreground"
                   }`}
                 >
-                  基础分析
-                </Link>
-                <Link
-                  to="/advanced-analysis"
-                  className={`font-medium transition-colors hover:text-primary ${
-                    isActive("/advanced-analysis")
-                      ? "text-primary"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  高级分析
+                  增值评价
                 </Link>
                 <Link
                   to="/homework"

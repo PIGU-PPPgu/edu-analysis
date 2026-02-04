@@ -45,7 +45,7 @@ import {
   EmptyState,
 } from "@/components/shared/LoadingStates";
 import {
-  ResponsiveContainer,
+  ResponsiveContainer as LayoutContainer,
   ResponsiveGrid,
   MobileCard,
   ResponsiveTable,
@@ -358,7 +358,7 @@ const EnhancedGradeAnalysis: React.FC = () => {
 
   return (
     <ErrorBoundary>
-      <ResponsiveContainer maxWidth="full" className="space-y-6">
+      <LayoutContainer maxWidth="full" className="space-y-6">
         {/* 页面标题和操作 */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
           <div>
@@ -570,7 +570,7 @@ const EnhancedGradeAnalysis: React.FC = () => {
             icon={<BookOpen className="w-8 h-8 text-gray-400" />}
           />
         )}
-      </ResponsiveContainer>
+      </LayoutContainer>
     </ErrorBoundary>
   );
 };

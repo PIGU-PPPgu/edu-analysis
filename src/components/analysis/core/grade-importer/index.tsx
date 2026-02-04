@@ -31,7 +31,5 @@ export type {
   ImportOptions,
   ImportStep,
   StudentMatchResult,
-  GradeImporterState,
-  GradeImporterHook,
   GradeImporterProps,
 } from "./types";

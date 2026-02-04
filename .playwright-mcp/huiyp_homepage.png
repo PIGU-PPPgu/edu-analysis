@@ -1,0 +1,21 @@
+- generic [active] [ref=e1]:
+  - img
+  - generic [ref=e15]:
+    - banner [ref=e16]:
+      - generic [ref=e18]:
+        - generic [ref=e20] [cursor=pointer]: 汇优评 教育测评可以更简单
+        - menubar [ref=e21]:
+          - menuitem "首页" [ref=e22] [cursor=pointer]
+          - menuitem "用户登录" [ref=e23] [cursor=pointer]
+    - main [ref=e25]:
+      - generic [ref=e27]:
+        - generic [ref=e34]: 汇优评
+        - generic [ref=e28]: 让每一个学生看到自己前进的步伐，让每一位教师的付出得到社会认可，让每一所学校按教育规律办学，让每个区域教育均衡发展
+        - button "用户登录" [ref=e29] [cursor=pointer]:
+          - generic [ref=e30]: 用户登录
+    - contentinfo [ref=e32]:
+      - generic [ref=e33]:
+        - text: Copyright @ 2023~2025 汇优评 版权所有
+        - link "粤ICP备2024177612号" [ref=e35] [cursor=pointer]:
+          - /url: http://beian.miit.gov.cn/
+  - img

@@ -230,8 +230,8 @@ export default function StudentManagement() {
         description: `已删除学生 ${currentStudent.name}`,
       });
 
-      // 刷新学生列表
-      fetchStudents();
+      // 刷新学生列表，保持当前班级筛选状态
+      fetchStudents(selectedClassId);
     } catch (error) {
       console.error("删除学生失败:", error);
       toast.error("删除学生失败", {

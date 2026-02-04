@@ -36,6 +36,7 @@ import {
   Calendar,
   Clock,
   FileText,
+  BarChart2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
@@ -51,6 +52,7 @@ interface ExamListProps {
   onDuplicateExam: (exam: Exam) => void;
   onConfigureSubjectScores: (exam: Exam) => void;
   onExportExam: (exam: Exam) => void;
+  onGenerateReport?: (exam: Exam) => void;
   isLoading?: boolean;
 }
 
@@ -63,6 +65,7 @@ export const ExamList: React.FC<ExamListProps> = ({
   onDuplicateExam,
   onConfigureSubjectScores,
   onExportExam,
+  onGenerateReport,
   isLoading = false,
 }) => {
   const [deleteExamId, setDeleteExamId] = useState<string | null>(null);
@@ -173,8 +176,9 @@ export const ExamList: React.FC<ExamListProps> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <Checkbox
-                  checked={allSelected}
-                  indeterminate={someSelected}
+                  checked={
+                    allSelected ? true : someSelected ? "indeterminate" : false
+                  }
                   onCheckedChange={handleSelectAll}
                 />
                 <span className="text-sm text-gray-600">
@@ -309,6 +313,17 @@ export const ExamList: React.FC<ExamListProps> = ({
                           <Download className="h-4 w-4 mr-2" />
                           导出数据
                         </DropdownMenuItem>
+                        {onGenerateReport && (
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onGenerateReport(exam);
+                            }}
+                          >
+                            <BarChart2 className="h-4 w-4 mr-2" />
+                            生成分析报告
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           onClick={(e) => {
@@ -392,7 +407,12 @@ export const ExamList: React.FC<ExamListProps> = ({
                     {/* 创建信息 */}
                     <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t">
                       <span>创建者: {exam.createdBy}</span>
-                      <span>创建时间: {formatDate(exam.createdAt)}</span>
+                      <span>
+                        创建时间:{" "}
+                        {formatDate(
+                          (exam as any).createdAt ?? (exam as any).created_at
+                        )}
+                      </span>
                     </div>
                   </div>
                 </CardContent>

@@ -54,25 +54,25 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center text-center",
+        "flex flex-col items-center justify-center text-center rounded-lg border-2 border-dashed border-gray-300 bg-gradient-to-br from-gray-50 to-gray-100/50",
         currentSize.container,
         className
       )}
     >
       {Icon && (
-        <div className="mb-4">
-          <Icon className={cn("text-muted-foreground/50", currentSize.icon)} />
+        <div className="mb-4 p-4 bg-white rounded-full shadow-sm border border-gray-100">
+          <Icon className={cn("text-gray-400", currentSize.icon)} />
         </div>
       )}
 
-      <h3 className={cn("font-semibold text-gray-900 mb-2", currentSize.title)}>
+      <h3 className={cn("font-bold text-gray-900 mb-2", currentSize.title)}>
         {title}
       </h3>
 
       {description && (
         <p
           className={cn(
-            "text-muted-foreground mb-6 max-w-md",
+            "text-gray-500 mb-6 max-w-md leading-relaxed",
             currentSize.description
           )}
         >
@@ -81,7 +81,15 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       )}
 
       {action && (
-        <Button onClick={action.onClick} variant={action.variant || "default"}>
+        <Button
+          onClick={action.onClick}
+          variant={action.variant || "default"}
+          className={cn(
+            action.variant === "outline"
+              ? "bg-white border-2 border-gray-200 hover:bg-gray-50 text-gray-700"
+              : "bg-[#B9FF66] text-black hover:bg-[#B9FF66]/90 font-bold border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+          )}
+        >
           {action.label}
         </Button>
       )}

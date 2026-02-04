@@ -50,12 +50,6 @@ const GradeLevelDistribution: React.FC<GradeLevelDistributionProps> = ({
   const distributionData = useMemo((): SubjectDistribution[] => {
     if (!gradeData || gradeData.length === 0) return [];
 
-    // 🔧 调试：打印输入数据结构
-    console.log(
-      "📊 GradeLevelDistribution输入数据样本:",
-      gradeData.slice(0, 3)
-    );
-
     // 按科目分组，收集实际等级数据
     const subjectGroups = gradeData.reduce(
       (acc, record) => {
@@ -80,7 +74,6 @@ const GradeLevelDistribution: React.FC<GradeLevelDistributionProps> = ({
         ) {
           const cleanGrade = gradeValue.trim();
           acc[subject].grades.push(cleanGrade);
-          console.log(`📈 收集等级数据: ${subject} -> ${cleanGrade}`);
         }
 
         // 收集分数数据作为备用
@@ -104,25 +97,10 @@ const GradeLevelDistribution: React.FC<GradeLevelDistributionProps> = ({
       >
     );
 
-    // 🔧 调试：打印科目分组结果
-    Object.entries(subjectGroups).forEach(([subject, data]) => {
-      console.log(
-        `📋 科目 ${subject}: ${data.grades.length} 个等级, ${data.scores.length} 个分数`
-      );
-      if (data.grades.length > 0) {
-        console.log(`  - 等级样本:`, data.grades.slice(0, 5));
-      }
-      if (data.grades.length === 0 && data.records.length > 0) {
-        console.log(`  - 无等级数据的记录样本:`, data.records.slice(0, 3));
-      }
-    });
-
     // 计算每个科目的等级分布
     const distributions = Object.entries(subjectGroups)
       .map(([subject, data]) => {
         const hasGradeData = data.grades.length > 0;
-
-        console.log(`🎯 科目 ${subject}: hasGradeData = ${hasGradeData}`);
 
         if (hasGradeData) {
           // 使用实际等级数据
@@ -130,8 +108,6 @@ const GradeLevelDistribution: React.FC<GradeLevelDistributionProps> = ({
           data.grades.forEach((grade) => {
             gradeCounts[grade] = (gradeCounts[grade] || 0) + 1;
           });
-
-          console.log(`✅ ${subject} 使用实际等级数据:`, gradeCounts);
 
           return {
             subject,
@@ -147,11 +123,6 @@ const GradeLevelDistribution: React.FC<GradeLevelDistributionProps> = ({
             "及格(60-79)": data.scores.filter((s) => s >= 60 && s < 80).length,
             "不及格(<60)": data.scores.filter((s) => s < 60).length,
           };
-
-          console.warn(
-            `⚠️ ${subject} 强制使用预设等级 (这是需要修复的问题):`,
-            gradeCounts
-          );
 
           return {
             subject,
@@ -220,6 +191,11 @@ const GradeLevelDistribution: React.FC<GradeLevelDistributionProps> = ({
       allGrades: [...sortedGrades, ...otherGrades],
     };
   }, [gradeData, distributionData]);
+
+  const fallbackUsed = useMemo(
+    () => distributionData.some((item) => !item.hasGradeData),
+    [distributionData]
+  );
 
   // 动态等级颜色映射（按照A+、A、B+、B、C+、C、缺考顺序）
   const getLevelColor = (level: string) => {
@@ -349,6 +325,25 @@ const GradeLevelDistribution: React.FC<GradeLevelDistributionProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent className="p-8 bg-white">
+          {fallbackUsed && (
+            <div className="mb-6 p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg flex items-start gap-3">
+              <div className="p-2 bg-yellow-100 rounded-full mt-0.5">
+                <Target className="h-4 w-4 text-yellow-700" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-yellow-800 mb-1">
+                  数据精度提示
+                </h4>
+                <p className="text-sm text-yellow-700 leading-relaxed">
+                  当前数据缺少具体的等级字段，系统已根据分数区间自动估算等级分布。
+                  <br />
+                  <span className="text-xs opacity-80">
+                    建议上传包含准确等级（A/B/C等）的数据以获得更精确的分析结果。
+                  </span>
+                </p>
+              </div>
+            </div>
+          )}
           <div className="h-96 mb-6">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart

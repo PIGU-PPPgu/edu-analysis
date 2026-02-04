@@ -33,7 +33,7 @@ import {
 import { Subject } from "@/types/grade";
 import type { GradeRecord, ClassFilterState } from "@/types/grade";
 
-interface ClassComparisonChartProps {
+export interface ClassComparisonChartProps {
   data: GradeRecord[];
   filterState: ClassFilterState;
   selectedSubject?: Subject;

@@ -11,15 +11,6 @@ export { default as EnhancedStudentPortrait } from "./EnhancedStudentPortrait";
 // 学生画像对比分析组件
 export { default as StudentPortraitComparison } from "./StudentPortraitComparison";
 
-// 类型导出
-export type {
-  Student,
-  AbilityData,
-  LearningStyle,
-  PersonalityTrait,
-  PortraitAnalysisResult,
-} from "./IntelligentPortraitAnalysis";
-
 // 其他高级画像分析组件可以在这里添加
 // export { default as AdvancedClassPortrait } from './AdvancedClassPortrait';
 // export { default as GroupComparisonAnalysis } from './GroupComparisonAnalysis';

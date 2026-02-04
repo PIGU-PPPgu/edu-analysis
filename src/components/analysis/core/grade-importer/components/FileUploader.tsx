@@ -39,11 +39,11 @@ export interface FileDataForReview {
   // AI解析结果
   aiAnalysis?: {
     examInfo?: {
-      title: string;
-      type: string;
-      date: string;
+      title?: string;
+      type?: string;
+      date?: string;
       grade?: string;
-      scope: "class" | "grade" | "school";
+      scope?: "class" | "grade" | "school";
     };
     fieldMappings?: Record<string, string>;
     subjects?: string[];
@@ -407,9 +407,9 @@ const FileUploader: React.FC<FileUploaderProps> = ({
   const handleTemplateDownload = (type: "excel" | "csv") => {
     const templateData = [
       ["学号", "姓名", "班级", "语文", "数学", "英语", "物理", "化学", "总分"],
-      ["001", "张三", "高三1班", "85", "92", "78", "88", "90", "433"],
-      ["002", "李四", "高三1班", "78", "85", "92", "76", "83", "414"],
-      ["003", "王五", "高三2班", "92", "88", "85", "90", "87", "442"],
+      ["001", "张三", "高一1班", "85", "92", "78", "88", "90", "433"],
+      ["002", "李四", "高一1班", "78", "85", "92", "76", "83", "414"],
+      ["003", "王五", "高一2班", "92", "88", "85", "90", "87", "442"],
     ];
 
     if (type === "excel") {
@@ -557,9 +557,14 @@ const FileUploader: React.FC<FileUploaderProps> = ({
             <strong>导入提示：</strong>
             <ul className="mt-2 space-y-1 text-sm list-disc list-inside">
               <li>确保第一行为表头（字段名称）</li>
-              <li>必须包含：学号、姓名、班级</li>
+              <li>
+                <strong>完整导入模式</strong>：学号、姓名、班级（将创建新学生）
+              </li>
+              <li>
+                <strong>仅成绩模式</strong>：只需学号（关联现有学生）
+              </li>
+              <li>班级格式：高一1班、高二3班（必须含年级，禁用括号）</li>
               <li>科目成绩可以是分数或等级</li>
-              <li>支持多科目的宽表格格式</li>
             </ul>
           </AlertDescription>
         </Alert>

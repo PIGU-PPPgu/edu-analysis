@@ -412,7 +412,7 @@ const UserFriendlyDataMapper: React.FC<UserFriendlyDataMapperProps> = ({
               onMappingUpdate={(mapping) => {
                 setWorkingMapping(mapping);
               }}
-              onConfirm={handleDataConfirmed}
+              onConfirm={() => handleDataConfirmed(workingMapping)}
             />
           </div>
         )}

@@ -33,7 +33,10 @@ import {
   saveExamSubjectScores,
   getExamActiveSubjects,
   duplicateExam as originalDuplicateExam,
+  type CreateExamInput,
 } from "@/services/examService";
+import { supabase } from "@/integrations/supabase/client";
+import { buildDerivedExams } from "@/contexts/ModernGradeAnalysisContext";
 
 // 导入子组件
 import {
@@ -148,6 +151,29 @@ const ExamManagementCenterNew: React.FC = () => {
     return "scheduled";
   };
 
+  // 兜底：从 grade_data 派生考试列表
+  const loadDerivedExamsFromGrades = async (): Promise<Exam[]> => {
+    try {
+      const { data, error } = await supabase
+        .from("grade_data")
+        .select(
+          "exam_id, exam_title, exam_type, exam_date, created_at, updated_at"
+        )
+        .limit(500);
+
+      if (error) {
+        console.warn("[ExamManagementCenterNew] 派生考试失败:", error);
+        return [];
+      }
+
+      const derived = buildDerivedExams(data || []);
+      return derived.map(mapExam);
+    } catch (err) {
+      console.warn("[ExamManagementCenterNew] 派生考试异常:", err);
+      return [];
+    }
+  };
+
   // 加载考试列表
   const loadExams = async () => {
     try {
@@ -169,7 +195,28 @@ const ExamManagementCenterNew: React.FC = () => {
 
       // 使用新的统一数据服务
       const examData = await examDataService.getExams(filter);
-      const mappedExams = examData.map(mapExam);
+      let mappedExams = examData.map(mapExam).sort((a, b) => {
+        const aDate = a.date ? new Date(a.date).getTime() : 0;
+        const bDate = b.date ? new Date(b.date).getTime() : 0;
+        if (bDate !== aDate) return bDate - aDate;
+        const aCreated = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const bCreated = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return bCreated - aCreated;
+      });
+
+      if (mappedExams.length === 0) {
+        const derived = await loadDerivedExamsFromGrades();
+        const mergedMap = new Map(mappedExams.map((exam) => [exam.id, exam]));
+        derived.forEach((exam) => {
+          if (!mergedMap.has(exam.id)) {
+            mergedMap.set(exam.id, exam);
+          }
+        });
+        mappedExams = Array.from(mergedMap.values());
+        if (derived.length > 0) {
+          toast.info("已从成绩数据推断考试列表（exams 表为空）");
+        }
+      }
 
       // 异步更新参与人数
       const examsWithParticipants = await Promise.all(
@@ -268,7 +315,11 @@ const ExamManagementCenterNew: React.FC = () => {
         }
       } else {
         // 创建考试
-        const newExam = await examDataService.createExam(examData);
+        const createPayload: CreateExamInput = {
+          ...examData,
+          status: examData.status === "scheduled" ? "scheduled" : "draft",
+        };
+        const newExam = await examDataService.createExam(createPayload);
         if (newExam) {
           toast.success("考试创建成功");
           await loadExams(); // 重新加载列表
@@ -352,7 +403,15 @@ const ExamManagementCenterNew: React.FC = () => {
     try {
       console.log("[ExamManagementCenter] 保存科目分数配置");
 
-      await saveExamSubjectScores(scores);
+      if (!dialogStates.selectedExamForScoreConfig) {
+        toast.error("未选择考试，无法保存科目配置");
+        return;
+      }
+
+      await saveExamSubjectScores(
+        dialogStates.selectedExamForScoreConfig.id,
+        scores
+      );
       toast.success("科目分数配置保存成功");
 
       setDialogStates((prev) => ({

@@ -115,6 +115,37 @@ export class ReportGenerator {
       let aiInsights = undefined;
       if (finalOptions.includeAIAnalysis) {
         console.log("正在生成AI洞察...");
+        // 🔍 调试：检查传给AI的数据
+        console.log(`📊 传给AI的数据: ${gradeData.length} 条记录`);
+        if (gradeData.length > 0) {
+          const allFields = Object.keys(gradeData[0]);
+          const scoreFields = allFields.filter(
+            (f) => f.includes("score") || f.includes("分")
+          );
+
+          // 🔍 新增：检查所有记录的 total_score 字段
+          const totalScoreStats = {
+            总记录数: gradeData.length,
+            有效总分记录数: gradeData.filter(
+              (r) => r.total_score != null && r.total_score > 0
+            ).length,
+            空值记录数: gradeData.filter((r) => r.total_score == null).length,
+            零分记录数: gradeData.filter((r) => r.total_score === 0).length,
+          };
+
+          // 采样：显示前5条记录的总分和排名
+          const scoreSamples = gradeData.slice(0, 5).map((r, idx) => ({
+            序号: idx,
+            姓名: r.name,
+            总分: r.total_score,
+            班级排名: r.total_rank_in_class,
+          }));
+
+          console.log("📋 总分字段统计:", totalScoreStats);
+          console.log("📋 前5条记录样本:", scoreSamples);
+          console.log("📋 完整字段列表（前30个）:", allFields.slice(0, 30));
+          console.log("📋 分数相关字段:", scoreFields);
+        }
         try {
           aiInsights = await aiReportAnalyzer.analyzeGradeData(gradeData);
           console.log("AI洞察生成成功");
@@ -438,6 +469,17 @@ export class ReportGenerator {
 
     // 计算总分满分
     const totalMaxScore = parseFloat(gradeData[0]?.total_max_score) || 523;
+    console.log(
+      `📊 总分满分: ${totalMaxScore} (来源: ${gradeData[0]?.total_max_score ? "数据" : "默认值"})`
+    );
+
+    // 🔍 调试：检查排名数据的实际分布
+    const rankSample = gradeData.slice(0, 5).map((r) => ({
+      name: r.name,
+      score: r.total_score,
+      rank: r.total_rank_in_class,
+    }));
+    console.log("📋 排名数据样本:", rankSample);
 
     // 生成绩效漏斗图数据
     const funnelData = this.generatePerformanceFunnelData(
@@ -451,59 +493,234 @@ export class ReportGenerator {
     // 🆕 生成SBI雷达图数据
     const sbiRadarData = this.generateSBIRadarData(gradeData);
 
-    // 计算API和SBI指标样例（针对所有学生）
-    const studentMetrics = gradeData.map((record) => {
-      const totalStudents = gradeData.length;
-      const currentScore = parseFloat(record.total_score) || 0;
-      const currentRank = record.total_rank_in_class || 0;
-
-      // 提取各科成绩计算SBI
-      const subjectScores = [
-        {
-          subject: "语文",
-          score: parseFloat(record.chinese_score) || 0,
-          fullScore: 120,
-        },
-        {
-          subject: "数学",
-          score: parseFloat(record.math_score) || 0,
-          fullScore: 100,
-        },
-        {
-          subject: "英语",
-          score: parseFloat(record.english_score) || 0,
-          fullScore: 100,
-        },
-        {
-          subject: "物理",
-          score: parseFloat(record.physics_score) || 0,
-          fullScore: 100,
-        },
-        {
-          subject: "化学",
-          score: parseFloat(record.chemistry_score) || 0,
-          fullScore: 100,
-        },
-      ].filter((s) => s.score > 0);
-
-      const api = this.calculateAPI(
-        currentScore,
-        totalMaxScore,
-        currentRank,
-        totalStudents
-      );
-      const sbi = this.calculateSBI(subjectScores);
-
+    // 🔧 自动计算排名：如果数据中缺少排名，根据总分自动计算
+    // ⚠️ 关键修复：只对有总分的学生计算排名，过滤掉 total_score 为 null 的记录
+    const gradeDataWithRank = gradeData.map((record, index) => {
+      const parsedScore = parseFloat(record.total_score);
       return {
-        studentId: record.student_id,
-        studentName: record.name,
-        className: record.class_name,
-        api,
-        sbi,
-        score: currentScore,
-        rank: currentRank,
+        ...record,
+        _originalIndex: index,
+        _parsedScore: isNaN(parsedScore) ? -1 : parsedScore, // null 或 NaN 设为 -1，排到最后
+        _hasValidScore: !isNaN(parsedScore) && parsedScore > 0,
       };
     });
+
+    // 按总分降序排序计算排名（只对有效分数的学生排名）
+    const validStudents = gradeDataWithRank.filter((r) => r._hasValidScore);
+    const sortedByScore = [...validStudents].sort(
+      (a, b) => b._parsedScore - a._parsedScore
+    );
+
+    // 🔍 检查数据中有哪种排名
+    const hasClassRank = gradeData.some(
+      (r) => r.total_rank_in_class != null && r.total_rank_in_class > 0
+    );
+    const hasGradeRank = gradeData.some(
+      (r) => r.total_rank_in_grade != null && r.total_rank_in_grade > 0
+    );
+    const hasSchoolRank = gradeData.some(
+      (r) => r.total_rank_in_school != null && r.total_rank_in_school > 0
+    );
+
+    console.log(
+      `📊 排名数据检查: 班级排名=${hasClassRank ? "有" : "无"}, 年级排名=${hasGradeRank ? "有" : "无"}, 学校排名=${hasSchoolRank ? "有" : "无"}`
+    );
+
+    // 决定使用哪种排名字段（优先级：班级 > 年级 > 学校）
+    const rankField = hasClassRank
+      ? "total_rank_in_class"
+      : hasGradeRank
+        ? "total_rank_in_grade"
+        : hasSchoolRank
+          ? "total_rank_in_school"
+          : null;
+
+    console.log(`📊 将使用的排名字段: ${rankField || "无（需自动计算）"}`);
+
+    // 🔧 计算排名总人数（关键修复：避免 API 倒置）
+    // 如果使用原数据排名，totalStudents = 该排名字段的最大值
+    // 如果使用自动计算排名，totalStudents = 有效学生数
+    let totalStudentsForRanking: number;
+    if (rankField) {
+      // 从原数据推断总人数（取排名的最大值）
+      const maxRank = Math.max(
+        ...gradeData
+          .map((r) => r[rankField])
+          .filter((rank): rank is number => rank != null && rank > 0)
+      );
+      totalStudentsForRanking = maxRank > 0 ? maxRank : validStudents.length;
+      console.log(
+        `📊 从${rankField}推断总人数: ${totalStudentsForRanking}人（最大排名=${maxRank}）`
+      );
+    } else {
+      totalStudentsForRanking = validStudents.length;
+      console.log(`📊 使用有效学生数作为总人数: ${totalStudentsForRanking}人`);
+    }
+
+    const calculatedRanks = new Map<number, number>();
+    sortedByScore.forEach((record, idx) => {
+      calculatedRanks.set(record._originalIndex, idx + 1);
+    });
+
+    // 🔧 不再给无效分数的学生分配排名（Codex 建议）
+    // 无效学生的排名将保持 undefined，避免被误用
+
+    // 🔍 调试：检查有多少学生缺少排名数据
+    const missingRankCount = rankField
+      ? gradeData.filter((r) => !r[rankField] || r[rankField] <= 0).length
+      : gradeData.length;
+    const invalidScoreCount = gradeData.filter((r) => {
+      const score = parseFloat(r.total_score);
+      return isNaN(score) || score <= 0;
+    }).length;
+
+    if (rankField && missingRankCount > 0) {
+      console.log(
+        `📊 检测到 ${missingRankCount}/${gradeData.length} 名学生缺少${rankField}数据，将使用自动计算排名`
+      );
+    } else if (!rankField) {
+      console.log(`📊 数据中无任何排名字段，将根据总分自动计算排名`);
+    }
+    if (invalidScoreCount > 0) {
+      console.warn(
+        `⚠️ 检测到 ${invalidScoreCount}/${gradeData.length} 名学生总分无效（null或0），这些学生将被排到最后`
+      );
+    }
+
+    // 计算API和SBI指标样例（针对所有学生）
+    // ⚠️ 关键修复：只对有有效总分的学生计算 API/SBI
+    const studentMetrics = gradeData
+      .map((record, index) => {
+        const parsedScore = parseFloat(record.total_score);
+
+        // 🔧 跳过无效分数的学生
+        if (isNaN(parsedScore) || parsedScore <= 0) {
+          console.warn(
+            `⏭️ 跳过无效分数的学生: ${record.name} (总分=${record.total_score})`
+          );
+          return null;
+        }
+
+        const currentScore = parsedScore;
+
+        // 🔧 优先使用原数据的排名（班级/年级/学校），如果没有才使用自动计算的排名
+        let currentRank: number;
+        if (rankField && record[rankField] && record[rankField] > 0) {
+          // 使用原数据中的排名
+          currentRank = record[rankField];
+        } else {
+          // 使用自动计算的排名
+          currentRank = calculatedRanks.get(index) || totalStudentsForRanking;
+        }
+
+        // 提取各科成绩计算SBI
+        const subjectScores = [
+          {
+            subject: "语文",
+            score: parseFloat(record.chinese_score) || 0,
+            fullScore: 120,
+          },
+          {
+            subject: "数学",
+            score: parseFloat(record.math_score) || 0,
+            fullScore: 100,
+          },
+          {
+            subject: "英语",
+            score: parseFloat(record.english_score) || 0,
+            fullScore: 100,
+          },
+          {
+            subject: "物理",
+            score: parseFloat(record.physics_score) || 0,
+            fullScore: 100,
+          },
+          {
+            subject: "化学",
+            score: parseFloat(record.chemistry_score) || 0,
+            fullScore: 100,
+          },
+        ].filter((s) => s.score > 0);
+
+        // 🔧 使用正确的 totalStudents（Codex 关键建议）
+        const api = this.calculateAPI(
+          currentScore,
+          totalMaxScore,
+          currentRank,
+          totalStudentsForRanking // 🔧 关键修复：使用推断的总人数
+        );
+        const sbi = this.calculateSBI(subjectScores);
+
+        // 🔍 调试：输出前5名有效学生的详细信息
+        const validIndex = validStudents.findIndex(
+          (s) => s._originalIndex === index
+        );
+        if (validIndex >= 0 && validIndex < 5) {
+          const rankSource =
+            rankField && record[rankField] && record[rankField] > 0
+              ? `原数据(${rankField})`
+              : "自动计算";
+          console.log(
+            `🎯 有效学生[${validIndex + 1}/${validStudents.length}] ${record.name}:`,
+            {
+              原始总分: record.total_score,
+              解析后分数: currentScore,
+              排名来源: rankSource,
+              使用排名: currentRank,
+              总人数: totalStudentsForRanking,
+              原班级排名: record.total_rank_in_class,
+              原年级排名: record.total_rank_in_grade,
+              计算得出排名: calculatedRanks.get(index),
+              API: api.toFixed(1),
+              SBI: sbi.toFixed(1),
+              科目数: subjectScores.length,
+            }
+          );
+        }
+
+        return {
+          studentId: record.student_id,
+          studentName: record.name,
+          className: record.class_name,
+          api,
+          sbi,
+          score: currentScore,
+          rank: currentRank,
+        };
+      })
+      .filter((m): m is NonNullable<typeof m> => m !== null); // 过滤掉 null 值
+
+    console.log(
+      `📊 有效学生指标: ${studentMetrics.length}/${gradeData.length} 名学生参与API/SBI计算`
+    );
+
+    // 🔧 除以零保护（Codex 建议）
+    if (studentMetrics.length === 0) {
+      console.warn(`⚠️ 无有效学生数据，跳过排名相关图表生成`);
+      const emptyRankings: ReportSection = {
+        id: "rankings",
+        title: "多维度排名与综合指标分析",
+        order: 4,
+        chartComponent: "MultiDimensionalRanking",
+        insights: [
+          `⚠️ 数据异常：所有学生的总分数据缺失，无法生成排名分析`,
+          `建议：请核实并补充学生成绩数据后重新导入`,
+        ],
+        highlights: [],
+        aiGenerated: false,
+        rawData: {},
+      };
+      return emptyRankings;
+    }
+
+    // 🔍 统计数据缺失情况
+    const missingScoreStudents = gradeData.filter((r) => {
+      const score = parseFloat(r.total_score);
+      return isNaN(score) || score <= 0;
+    });
+    const missingScoreNames = missingScoreStudents
+      .map((s) => s.name)
+      .join("、");
 
     // 计算平均API和SBI
     const avgAPI =
@@ -515,20 +732,41 @@ export class ReportGenerator {
       `✅ 排名图表数据生成完成: API平均=${avgAPI.toFixed(1)}, SBI平均=${avgSBI.toFixed(1)}`
     );
 
+    // 🔍 构建数据完整性说明
+    const dataCompletenessInsights: string[] = [];
+    if (missingScoreStudents.length > 0) {
+      dataCompletenessInsights.push(
+        `⚠️ 数据缺失：${missingScoreStudents.length}名学生总分缺失（${missingScoreNames}），未计入本次分析`
+      );
+    }
+    if (!rankField) {
+      dataCompletenessInsights.push(
+        `ℹ️ 数据说明：原始数据无排名信息，已根据总分自动计算排名`
+      );
+    } else if (missingRankCount > 0 && missingRankCount < gradeData.length) {
+      dataCompletenessInsights.push(
+        `ℹ️ 数据说明：${missingRankCount}名学生缺少原始排名，已根据总分自动计算排名`
+      );
+    }
+
     const rankings: ReportSection = {
       id: "rankings",
       title: "多维度排名与综合指标分析",
       order: 4,
       chartComponent: "MultiDimensionalRanking",
       insights: [
+        `📊 参与分析：${studentMetrics.length}名学生（总记录${gradeData.length}名）`,
+        ...dataCompletenessInsights, // 数据完整性说明
         `📊 学业表现指数(API)平均值：${avgAPI.toFixed(1)}分（满分100分）`,
         `📐 学科均衡度(SBI)平均值：${avgSBI.toFixed(1)}分（100分表示完全均衡）`,
         `🏆 绩效分布：优秀${funnelData[0].count}人、良好${funnelData[1].count}人、中等${funnelData[2].count}人、待提高${funnelData[3].count}人`,
-        `📍 排名分段：${rankDistributionData.map((r) => `${r.segment}${r.count}人`).join("、")}`,
+        rankDistributionData.length > 0
+          ? `📍 排名分段：${rankDistributionData.map((r) => `${r.segment}${r.count}人`).join("、")}`
+          : null,
         avgSBI < 60
           ? "⚠️ 学科发展不够均衡，建议关注薄弱科目"
           : "✅ 学科发展较为均衡",
-      ],
+      ].filter(Boolean) as string[], // 过滤掉 null 值
       highlights: [],
       aiGenerated: false,
       rawData: {
@@ -1065,6 +1303,35 @@ export class ReportGenerator {
     subjectScores?: any[]
   ): any[] {
     const warnings: any[] = [];
+
+    // 0. 🔍 数据完整性检查（优先诊断）
+    const missingScoreStudents = gradeData.filter((r) => {
+      const score = parseFloat(r.total_score);
+      return isNaN(score) || score <= 0;
+    });
+
+    if (missingScoreStudents.length > 0) {
+      const names = missingScoreStudents.map((s) => s.name).join("、");
+      const validStudents = gradeData.length - missingScoreStudents.length;
+
+      warnings.push({
+        id: "data-completeness-issue",
+        severity: missingScoreStudents.length > 5 ? "high" : "medium",
+        message: `${missingScoreStudents.length}名学生成绩数据缺失`,
+        details: `以下学生总分数据缺失，未计入本次分析：${names}。\n有效学生数：${validStudents}名（总记录${gradeData.length}名）`,
+        affectedStudents: missingScoreStudents.length,
+        relatedMetrics: [
+          {
+            metric: "数据完整率",
+            value: ((validStudents / gradeData.length) * 100).toFixed(1),
+            threshold: 95,
+          },
+        ],
+        suggestedAction:
+          "请核实这些学生的成绩数据，补充完整后重新导入以获得更准确的分析结果",
+      });
+    }
+
     const subjectData = this.calculateSubjectData(gradeData, subjectScores);
     const classData = this.calculateClassData(gradeData);
 
@@ -1543,8 +1810,10 @@ export class ReportGenerator {
     const scoreComponent = scoreRatio * 0.4;
 
     // 2. 排名维度（权重40%）：排名越靠前分数越高
+    // 🔧 安全检查：确保 currentRank 在有效范围内 [1, totalStudents]
+    const validRank = Math.max(1, Math.min(currentRank, totalStudents));
     const rankPercentile =
-      ((totalStudents - currentRank + 1) / totalStudents) * 100;
+      ((totalStudents - validRank + 1) / totalStudents) * 100;
     const rankComponent = rankPercentile * 0.4;
 
     // 3. 进步维度（权重20%）：与上次考试对比
@@ -1623,10 +1892,15 @@ export class ReportGenerator {
       },
     ];
 
-    const totalStudents = gradeData.length;
+    // 🔧 只统计有效分数的学生（Codex 建议：对齐分母）
+    const validGradeData = gradeData.filter((r) => {
+      const score = parseFloat(r.total_score);
+      return !isNaN(score) && score > 0;
+    });
+    const totalStudents = validGradeData.length;
 
     return levels.map((level) => {
-      const count = gradeData.filter((r) => {
+      const count = validGradeData.filter((r) => {
         const score = parseFloat(r.total_score);
         const ratio = score / maxScore;
         return ratio >= level.min && ratio < level.max;
@@ -1635,7 +1909,7 @@ export class ReportGenerator {
       return {
         level: level.name,
         count,
-        percentage: (count / totalStudents) * 100,
+        percentage: totalStudents > 0 ? (count / totalStudents) * 100 : 0,
         scoreRange: level.scoreRange,
       };
     });
@@ -1664,13 +1938,17 @@ export class ReportGenerator {
       { segment: "600名后", min: 601, max: 99999, range: "600+" },
     ];
 
-    const totalStudents = gradeData.length;
+    // 🔧 只统计有年级排名的学生（Codex 建议：对齐分母）
+    const validRankedData = gradeData.filter(
+      (r) => r.total_rank_in_grade != null && r.total_rank_in_grade > 0
+    );
+    const totalStudents = validRankedData.length;
 
     return segments
       .map((seg) => {
-        const count = gradeData.filter((r) => {
-          const rank = r.total_rank_in_grade; // 只使用年级排名
-          return rank && rank >= seg.min && rank <= seg.max;
+        const count = validRankedData.filter((r) => {
+          const rank = r.total_rank_in_grade;
+          return rank >= seg.min && rank <= seg.max;
         }).length;
 
         return {

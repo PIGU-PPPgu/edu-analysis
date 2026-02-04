@@ -12,7 +12,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { FileUp, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertTitle } from "@/components/ui/alert";
-import { filesize } from "filesize";
 
 // 导入Supabase服务
 import {

@@ -11,7 +11,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, Suspense, lazy } from "react";
 import { initializeDatabase, setupInitialData } from "./utils/dbSetup";
 // import { AuthProvider } from "./contexts/AuthContext"; // 🔧 移除：现在使用UnifiedAppProvider中的AuthModule
@@ -30,8 +30,8 @@ import NotFound from "./pages/NotFound";
 
 // 主要业务页面 - 懒加载
 const Index = lazy(() => import("./pages/Index"));
-const GradeAnalysis = lazy(() => import("./pages/GradeAnalysis"));
-const AdvancedAnalysis = lazy(() => import("./pages/AdvancedAnalysis"));
+const GradeAnalysisLayout = lazy(() => import("./pages/GradeAnalysisLayout"));
+const ValueAddedAnalysis = lazy(() => import("./pages/ValueAddedAnalysis"));
 const StudentProfile = lazy(() => import("./pages/StudentProfile"));
 const StudentManagement = lazy(() => import("./pages/StudentManagement"));
 const ClassManagement = lazy(() => import("./pages/ClassManagement"));
@@ -46,6 +46,9 @@ const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const ClassAnalytics = lazy(() => import("./pages/ClassAnalytics"));
 const ExamManagement = lazy(() => import("./pages/ExamManagement"));
 const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
+const ConfigurationManagement = lazy(
+  () => import("./pages/ConfigurationManagement")
+);
 
 // 工具和测试页面 - 懒加载
 // 已删除测试文件: CascadeAnalysisTestPage, AnalysisDashboardComparison
@@ -304,12 +307,23 @@ function App() {
                               }
                             >
                               <Route
-                                path="/grade-analysis"
-                                element={<GradeAnalysis />}
+                                path="/analysis/:examId"
+                                element={<GradeAnalysisLayout />}
                               />
                               <Route
-                                path="/advanced-analysis"
-                                element={<AdvancedAnalysis />}
+                                path="/value-added"
+                                element={<ValueAddedAnalysis />}
+                              />
+                              {/* 配置管理已移至增值评价系统内 */}
+                              {/* <Route
+                                path="/configuration-management"
+                                element={<ConfigurationManagement />}
+                              /> */}
+                              <Route
+                                path="/grade-analysis"
+                                element={
+                                  <Navigate to="/exam-management" replace />
+                                }
                               />
                               <Route
                                 path="/warning-analysis"

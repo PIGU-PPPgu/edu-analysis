@@ -34,6 +34,14 @@
 
     --radius: 0.5rem;
 
+    /* Chart colors for data visualization */
+    --chart-1: 221 83% 53%; /* blue - primary chart color */
+    --chart-2: 142 71% 45%; /* green - success/positive */
+    --chart-3: 38 92% 50%; /* amber - warning/attention */
+    --chart-4: 262 83% 58%; /* purple - secondary */
+    --chart-5: 346 77% 50%; /* red - danger/negative */
+    --chart-gray: 215 16% 47%; /* gray - neutral */
+
     --sidebar-background: 0 0% 98%;
 
     --sidebar-foreground: 240 5.3% 26.1%;

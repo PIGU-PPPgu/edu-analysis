@@ -265,7 +265,7 @@ export const ResponsiveDataTable = <T extends Record<string, any>>({
     (key: string) => {
       if (!sortable) return;
 
-      const newDirection =
+      const newDirection: "asc" | "desc" =
         sortConfig?.key === key && sortConfig.direction === "asc"
           ? "desc"
           : "asc";

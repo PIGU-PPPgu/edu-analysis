@@ -42,7 +42,6 @@ export interface CompleteGradeRecord {
   student_id: string;
   name: string;
   class_name: string;
-  grade?: string;
 
   // 考试信息
   exam_id: string;
@@ -329,6 +328,8 @@ const SPECIAL_FIELD_PATTERNS = {
     "总分",
     "总成绩",
     "total",
+    "total_score", // 英文格式
+    "totalscore",
     "合计",
     "总分数",
     "总计",
@@ -404,22 +405,56 @@ export function analyzeCSVHeaders(headers: string[]): {
     }
   });
 
+  // 🔧 BUG修复：按目标字段去重（保留置信度最高的映射）
+  // 避免同一个系统字段被多个源字段映射
+  const dedupedMap = new Map<string, FieldMapping>();
+  mappings.forEach((mapping) => {
+    // 生成唯一key：对于科目字段使用 "科目:字段"，非科目字段直接使用字段名
+    const key = mapping.subject
+      ? `${mapping.subject}:${mapping.mappedField}`
+      : mapping.mappedField;
+
+    const existing = dedupedMap.get(key);
+    if (!existing || mapping.confidence > existing.confidence) {
+      dedupedMap.set(key, mapping);
+    } else {
+      console.log(
+        `[去重] 丢弃低置信度映射: ${mapping.originalField} → ${mapping.mappedField} (${mapping.confidence.toFixed(2)} < ${existing.confidence.toFixed(2)})`
+      );
+    }
+  });
+
+  const dedupedMappings = Array.from(dedupedMap.values());
+
+  // 重新计算subjects和studentFields
+  const dedupedSubjects = new Set<string>();
+  const dedupedStudentFields: FieldMapping[] = [];
+  dedupedMappings.forEach((mapping) => {
+    if (mapping.subject) dedupedSubjects.add(mapping.subject);
+    if (mapping.dataType === "student_info") dedupedStudentFields.push(mapping);
+  });
+
+  console.log(
+    `[去重] 映射数量: ${mappings.length} → ${dedupedMappings.length}`
+  );
+
   // ✅ 增强整体置信度计算 - 考虑匹配质量而非仅仅数量
   const totalFields = headers.length;
-  const mappedFields = mappings.length;
+  const mappedFields = dedupedMappings.length;
 
   // 基础覆盖率
   const coverageRatio = mappedFields / totalFields;
 
   // 质量加权置信度 - 考虑每个映射的置信度
   const weightedConfidence =
-    mappings.length > 0
-      ? mappings.reduce((sum, mapping) => sum + mapping.confidence, 0) /
-        mappings.length
+    dedupedMappings.length > 0
+      ? dedupedMappings.reduce((sum, mapping) => sum + mapping.confidence, 0) /
+        dedupedMappings.length
       : 0;
 
   // 必要字段检查加成
-  const hasRequiredFields = studentFields.length >= 2 && subjects.size >= 1;
+  const hasRequiredFields =
+    dedupedStudentFields.length >= 2 && dedupedSubjects.size >= 1;
   const requiredFieldsBonus = hasRequiredFields ? 0.1 : -0.2;
 
   // 综合置信度计算
@@ -436,16 +471,16 @@ export function analyzeCSVHeaders(headers: string[]): {
     已映射字段数: mappedFields,
     覆盖率: `${Math.round(coverageRatio * 100)}%`,
     加权置信度: `${Math.round(weightedConfidence * 100)}%`,
-    识别的科目: Array.from(subjects),
-    学生字段数: studentFields.length,
+    识别的科目: Array.from(dedupedSubjects),
+    学生字段数: dedupedStudentFields.length,
     综合置信度: `${Math.round(confidence * 100)}%`,
     "达到98%目标": confidence >= 0.98 ? "✅" : "❌",
   });
 
   return {
-    mappings,
-    subjects: Array.from(subjects),
-    studentFields,
+    mappings: dedupedMappings,
+    subjects: Array.from(dedupedSubjects),
+    studentFields: dedupedStudentFields,
     confidence,
   };
 }
@@ -491,36 +526,93 @@ function identifyField(header: string): FieldMapping | null {
     }
   }
 
-  // 1.2 特殊字段识别 - 总分、排名、等级等
+  // 1.2 特殊字段识别 - 总分、排名、等级等 (使用候选评分机制)
+  const specialCandidates: Array<{
+    field: string;
+    dataType: FieldMapping["dataType"];
+    confidence: number;
+    patternLength: number;
+  }> = [];
+
   for (const [field, patterns] of Object.entries(SPECIAL_FIELD_PATTERNS)) {
     for (const pattern of patterns) {
       const normalizedPattern = pattern.toLowerCase();
 
-      if (
-        normalizedHeader === normalizedPattern ||
-        normalizedHeader.includes(normalizedPattern)
-      ) {
-        // 确定数据类型
-        let dataType: FieldMapping["dataType"] = "score";
-        if (field.includes("rank")) {
-          if (field === "rank_in_class") dataType = "rank_class";
-          else if (field === "rank_in_grade") dataType = "rank_grade";
-          else if (field === "rank_in_school") dataType = "rank_school";
-          else dataType = "rank_class";
-        } else if (field === "total_grade") {
-          dataType = "grade";
-        }
-
-        console.log(`[算法识别] ✅ 特殊字段确定匹配: ${field}, 置信度: 1.0`);
-
-        return {
-          originalField: header,
-          mappedField: field,
-          dataType,
-          confidence: 1.0,
-        };
+      // 确定匹配类型
+      let matchType: "exact" | "prefix" | "suffix" | "contains" | "none" =
+        "none";
+      if (normalizedHeader === normalizedPattern) {
+        matchType = "exact";
+      } else if (normalizedHeader.startsWith(normalizedPattern)) {
+        matchType = "prefix";
+      } else if (normalizedHeader.endsWith(normalizedPattern)) {
+        matchType = "suffix";
+      } else if (normalizedHeader.includes(normalizedPattern)) {
+        matchType = "contains";
       }
+
+      if (matchType === "none") continue;
+
+      // 确定数据类型
+      let dataType: FieldMapping["dataType"] = "score";
+      if (field.includes("rank")) {
+        if (field === "rank_in_class") dataType = "rank_class";
+        else if (field === "rank_in_grade") dataType = "rank_grade";
+        else if (field === "rank_in_school") dataType = "rank_school";
+        else dataType = "rank_class";
+      } else if (field === "total_grade") {
+        dataType = "grade";
+      }
+
+      // 计算置信度
+      let confidence =
+        matchType === "exact"
+          ? 1.0
+          : matchType === "prefix" || matchType === "suffix"
+            ? 0.95
+            : 0.9;
+
+      // 模式长度加成（越长越精确）
+      const lengthBoost = Math.min(
+        0.05,
+        (normalizedPattern.length / Math.max(1, normalizedHeader.length)) * 0.05
+      );
+      confidence = Math.min(1.0, confidence + lengthBoost);
+
+      // 🔧 BUG修复：对 total_score 的"排名/等级/班名/校名/级名"特征降权
+      // 避免"总分班名"、"总分校名"等被误判为 total_score
+      if (
+        field === "total_score" &&
+        /班|级|校|排名|等级|名次/.test(normalizedHeader)
+      ) {
+        confidence = Math.max(0.1, confidence - 0.3);
+      }
+
+      specialCandidates.push({
+        field,
+        dataType,
+        confidence,
+        patternLength: normalizedPattern.length,
+      });
     }
+  }
+
+  // 从候选中选择最佳匹配（置信度最高，相同时选模式最长的）
+  if (specialCandidates.length > 0) {
+    const best = specialCandidates.sort(
+      (a, b) => b.confidence - a.confidence || b.patternLength - a.patternLength
+    )[0];
+
+    console.log(
+      `[算法识别] ✅ 特殊字段最佳匹配: ${best.field}, 置信度: ${best.confidence.toFixed(2)}`
+    );
+
+    return {
+      originalField: header,
+      mappedField: best.field,
+      dataType: best.dataType,
+      confidence: best.confidence,
+    };
   }
 
   // 🎯 第二层：算法标准科目识别 - 高置信度科目字段
@@ -637,11 +729,11 @@ function identifyField(header: string): FieldMapping | null {
         if (matched) {
           // 将排名类型映射到正确的数据库字段
           if (type === "rank_in_class") {
-            dataType = "rank_in_class";
+            dataType = "rank_class";
           } else if (type === "rank_in_grade") {
-            dataType = "rank_in_grade";
+            dataType = "rank_grade";
           } else if (type === "rank_in_school") {
-            dataType = "rank_in_school";
+            dataType = "rank_school";
           } else {
             dataType = type as FieldMapping["dataType"];
           }

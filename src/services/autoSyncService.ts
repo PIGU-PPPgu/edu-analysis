@@ -41,6 +41,54 @@ export interface StudentInfo {
   class_id?: string;
 }
 
+export interface CreateOptions {
+  createNewClasses?: boolean;
+  createNewStudents?: boolean;
+}
+
+/**
+ * 预览结果接口 - 用于在执行前展示将要创建的数据
+ */
+export interface PreviewResult {
+  // 将要创建的新班级
+  newClasses: Array<{
+    name: string;
+    grade: string;
+    studentCount: number;
+  }>;
+  // 将要创建的新学生
+  newStudents: Array<{
+    name: string;
+    class_name: string;
+  }>;
+  // 相似班级匹配建议（可能是拼写错误）
+  similarClasses: Array<{
+    inputName: string;
+    existingName: string;
+    similarity: number;
+  }>;
+  // 相似学生匹配建议（可能是拼写错误）
+  similarStudents: Array<{
+    inputName: string;
+    inputClass: string;
+    existingName: string;
+    existingClass: string;
+    similarity: number;
+  }>;
+  // 统计摘要
+  summary: {
+    totalRecords: number;
+    matchedClasses: number;
+    matchedStudents: number;
+    newClassCount: number;
+    newStudentCount: number;
+    similarClassCount: number;
+    similarStudentCount: number;
+  };
+  // 风险警告
+  warnings: string[];
+}
+
 export interface SyncResult {
   success: boolean;
   newClasses: ClassInfo[];
@@ -59,11 +107,13 @@ export interface SyncResult {
 export class AutoSyncService {
   /**
    * 主要同步方法：处理导入的成绩数据，自动创建班级和学生
+   * @param createOptions 控制是否自动创建新班级和学生（默认都启用）
    */
   async syncImportedData(
     gradeData: any[],
     aiConfig?: AITagsGenerationConfig,
-    validationOptions?: ValidationOptions
+    validationOptions?: ValidationOptions,
+    createOptions?: CreateOptions
   ): Promise<SyncResult> {
     console.log(
       "🤖 [AutoSync] 开始智能数据同步，处理",
@@ -117,15 +167,25 @@ export class AutoSyncService {
       // 使用校验后的清洗数据（如果有的话）
       const processedData = validationReport.cleanedData || gradeData;
 
-      // 步骤1: 检测和创建新班级
+      // 步骤1: 检测和创建新班级（可选）
       console.log("📚 [AutoSync] 步骤1: 检测新班级...");
-      const newClasses = await this.detectAndCreateClasses(processedData);
-      result.newClasses = newClasses;
+      let newClasses: ClassInfo[] = [];
+      if (createOptions?.createNewClasses !== false) {
+        newClasses = await this.detectAndCreateClasses(processedData);
+        result.newClasses = newClasses;
+      } else {
+        console.log("⏭️  [AutoSync] 跳过创建新班级（安全模式）");
+      }
 
-      // 步骤2: 检测和创建新学生
+      // 步骤2: 检测和创建新学生（可选）
       console.log("👥 [AutoSync] 步骤2: 检测新学生...");
-      const newStudents = await this.detectAndCreateStudents(processedData);
-      result.newStudents = newStudents;
+      let newStudents: StudentInfo[] = [];
+      if (createOptions?.createNewStudents !== false) {
+        newStudents = await this.detectAndCreateStudents(processedData);
+        result.newStudents = newStudents;
+      } else {
+        console.log("⏭️  [AutoSync] 跳过创建新学生（安全模式）");
+      }
 
       // 步骤3: 同步学生-班级关联
       console.log("🔗 [AutoSync] 步骤3: 同步关联关系...");
@@ -136,7 +196,7 @@ export class AutoSyncService {
       result.updatedRecords = await this.updateClassStatistics();
 
       // 步骤5: 自动生成AI标签（如果有新学生且配置了AI）
-      if (result.newStudents.length > 0 && aiConfig) {
+      if (newStudents.length > 0 && aiConfig) {
         console.log("🧠 [AutoSync] 步骤5: 自动生成AI标签...");
         await this.generateAITagsForNewStudents(result, aiConfig);
       }
@@ -162,7 +222,259 @@ export class AutoSyncService {
   }
 
   /**
+   * 预览变更 - 在执行前展示将要创建的班级和学生
+   * 这是 Plan A 的核心实现，支持 dryRun 模式
+   */
+  async previewChanges(gradeData: any[]): Promise<PreviewResult> {
+    console.log("🔍 [AutoSync] 预览模式：分析数据变更...");
+
+    const result: PreviewResult = {
+      newClasses: [],
+      newStudents: [],
+      similarClasses: [],
+      similarStudents: [],
+      summary: {
+        totalRecords: gradeData.length,
+        matchedClasses: 0,
+        matchedStudents: 0,
+        newClassCount: 0,
+        newStudentCount: 0,
+        similarClassCount: 0,
+        similarStudentCount: 0,
+      },
+      warnings: [],
+    };
+
+    try {
+      // 1. 清理数据
+      const cleanedData = this.cleanStudentData(gradeData);
+
+      // 2. 提取所有班级名称（标准化后）
+      const classNamesFromData = [
+        ...new Set(
+          cleanedData.map((record) =>
+            this.normalizeClassName(record.class_name)
+          )
+        ),
+      ].filter((name) => name && name !== "未知班级");
+
+      // 3. 查询现有班级
+      const { data: existingClasses } = await supabase
+        .from("classes")
+        .select("name");
+
+      const existingClassNames = new Set(
+        existingClasses?.map((c) => this.normalizeClassName(c.name)) || []
+      );
+      const existingClassNamesList = existingClasses?.map((c) => c.name) || [];
+
+      // 4. 识别新班级和相似班级
+      const newClassNames: string[] = [];
+      for (const className of classNamesFromData) {
+        const normalizedInput = this.normalizeClassName(className);
+        const normalizedExisting = [...existingClassNames];
+
+        if (!normalizedExisting.includes(normalizedInput)) {
+          // 检查是否有相似的班级（可能是拼写错误）
+          let foundSimilar = false;
+          for (const existingName of existingClassNamesList) {
+            const similarity = this.calculateNameSimilarity(
+              normalizedInput,
+              this.normalizeClassName(existingName)
+            );
+            if (similarity >= 0.7 && similarity < 1.0) {
+              result.similarClasses.push({
+                inputName: className,
+                existingName: existingName,
+                similarity: Math.round(similarity * 100),
+              });
+              foundSimilar = true;
+            }
+          }
+
+          if (!foundSimilar) {
+            newClassNames.push(className);
+          }
+        } else {
+          result.summary.matchedClasses++;
+        }
+      }
+
+      // 5. 统计每个新班级的学生数量
+      for (const className of newClassNames) {
+        const studentCount = cleanedData.filter(
+          (r) =>
+            this.normalizeClassName(r.class_name) ===
+            this.normalizeClassName(className)
+        ).length;
+        const classInfo = this.analyzeClassName(className);
+        result.newClasses.push({
+          name: className,
+          grade: classInfo.grade,
+          studentCount,
+        });
+      }
+
+      // 6. 提取所有学生信息
+      const studentsFromData = new Map<
+        string,
+        { name: string; class_name: string }
+      >();
+      cleanedData.forEach((record) => {
+        if (record.name && record.class_name) {
+          const key = `${record.name}_${this.normalizeClassName(record.class_name)}`;
+          if (!studentsFromData.has(key)) {
+            studentsFromData.set(key, {
+              name: record.name,
+              class_name: record.class_name,
+            });
+          }
+        }
+      });
+
+      // 7. 查询现有学生
+      const { data: existingStudents } = (await supabase.from("students")
+        .select(`
+        id, student_id, name, class_id, classes(id, name)
+      `)) as {
+        data: Array<{
+          id: string;
+          student_id: string;
+          name: string;
+          class_id: string;
+          classes: { id: string; name: string } | null;
+        }> | null;
+      };
+
+      // 8. 构建现有学生的精确匹配键（标准化后）
+      const existingStudentKeys = new Set<string>();
+      const existingStudentList: Array<{ name: string; className: string }> =
+        [];
+
+      existingStudents?.forEach((student) => {
+        if (student.name && student.classes?.name) {
+          const normalizedKey = `${student.name}_${this.normalizeClassName(student.classes.name)}`;
+          existingStudentKeys.add(normalizedKey);
+          existingStudentList.push({
+            name: student.name,
+            className: student.classes.name,
+          });
+        }
+      });
+
+      // 9. 识别新学生和相似学生
+      for (const [key, studentData] of studentsFromData.entries()) {
+        const normalizedKey = `${studentData.name}_${this.normalizeClassName(studentData.class_name)}`;
+
+        if (!existingStudentKeys.has(normalizedKey)) {
+          // 检查是否有相似的学生（可能是同名不同班或拼写错误）
+          let foundSimilar = false;
+          for (const existing of existingStudentList) {
+            const nameSimilarity = this.calculateNameSimilarity(
+              studentData.name,
+              existing.name
+            );
+            if (nameSimilarity >= 0.8 && nameSimilarity < 1.0) {
+              result.similarStudents.push({
+                inputName: studentData.name,
+                inputClass: studentData.class_name,
+                existingName: existing.name,
+                existingClass: existing.className,
+                similarity: Math.round(nameSimilarity * 100),
+              });
+              foundSimilar = true;
+              break;
+            }
+            // 同名但不同班级
+            if (
+              nameSimilarity === 1.0 &&
+              existing.className !== studentData.class_name
+            ) {
+              result.similarStudents.push({
+                inputName: studentData.name,
+                inputClass: studentData.class_name,
+                existingName: existing.name,
+                existingClass: existing.className,
+                similarity: 100,
+              });
+              foundSimilar = true;
+              break;
+            }
+          }
+
+          if (!foundSimilar) {
+            result.newStudents.push({
+              name: studentData.name,
+              class_name: studentData.class_name,
+            });
+          }
+        } else {
+          result.summary.matchedStudents++;
+        }
+      }
+
+      // 10. 更新统计摘要
+      result.summary.newClassCount = result.newClasses.length;
+      result.summary.newStudentCount = result.newStudents.length;
+      result.summary.similarClassCount = result.similarClasses.length;
+      result.summary.similarStudentCount = result.similarStudents.length;
+
+      // 11. 生成风险警告
+      if (result.similarClasses.length > 0) {
+        result.warnings.push(
+          `发现 ${result.similarClasses.length} 个相似班级名称，可能是拼写错误`
+        );
+      }
+      if (result.similarStudents.length > 0) {
+        result.warnings.push(
+          `发现 ${result.similarStudents.length} 个相似学生，请确认是否为同一人`
+        );
+      }
+      // 创建比例过高警告
+      const newRatio =
+        (result.newStudents.length / Math.max(1, studentsFromData.size)) * 100;
+      if (newRatio > 50 && result.newStudents.length > 10) {
+        result.warnings.push(
+          `新学生比例高达 ${Math.round(newRatio)}%，请确认数据正确`
+        );
+      }
+      if (result.newClasses.length > 5) {
+        result.warnings.push(
+          `将创建 ${result.newClasses.length} 个新班级，请确认班级名称正确`
+        );
+      }
+
+      console.log("✅ [AutoSync] 预览分析完成:", result.summary);
+      return result;
+    } catch (error) {
+      console.error("❌ [AutoSync] 预览分析失败:", error);
+      result.warnings.push(
+        `预览分析出错: ${error instanceof Error ? error.message : "未知错误"}`
+      );
+      return result;
+    }
+  }
+
+  /**
+   * 标准化班级名称 - 统一格式以便精确匹配
+   * 解决 "高一(3)班" vs "高一3班" 等不一致问题
+   */
+  private normalizeClassName(className: string): string {
+    if (!className || typeof className !== "string") return "";
+
+    return className
+      .trim()
+      .replace(/\s+/g, "") // 去除空格
+      .replace(/[（(]/g, "") // 去除左括号
+      .replace(/[）)]/g, "") // 去除右括号
+      .replace(/班$/g, "") // 去除末尾"班"字
+      .replace(/级$/g, "") // 去除末尾"级"字
+      .toLowerCase(); // 统一小写
+  }
+
+  /**
    * 检测新班级并自动创建
+   * 使用标准化班级名称进行匹配，解决"高一(3)班"与"高一3班"不一致问题
    */
   private async detectAndCreateClasses(gradeData: any[]): Promise<ClassInfo[]> {
     // 1. 提取所有班级名称
@@ -182,14 +494,17 @@ export class AutoSyncService {
       throw new Error("查询现有班级失败");
     }
 
-    const existingClassNames = new Set(
-      existingClasses?.map((c) => c.name) || []
+    // ✅ 使用标准化名称进行匹配
+    const existingClassNamesNormalized = new Set(
+      existingClasses?.map((c) => this.normalizeClassName(c.name)) || []
     );
-    console.log("📚 [AutoSync] 现有班级:", [...existingClassNames]);
+    console.log("📚 [AutoSync] 现有班级（标准化后）:", [
+      ...existingClassNamesNormalized,
+    ]);
 
-    // 3. 识别新班级
+    // 3. 识别新班级（使用标准化名称比较）
     const newClassNames = classNamesFromData.filter(
-      (name) => !existingClassNames.has(name)
+      (name) => !existingClassNamesNormalized.has(this.normalizeClassName(name))
     );
     console.log("🆕 [AutoSync] 需要创建的新班级:", newClassNames);
 
@@ -275,7 +590,14 @@ export class AutoSyncService {
     console.log("👥 [AutoSync] 从数据中发现学生:", studentsFromData.size, "名");
 
     // 3. 查询现有学生（优化查询，包含更多信息用于精确匹配）
-    const { data: existingStudents, error: queryError } = await supabase.from(
+    type StudentWithClass = {
+      id: string;
+      student_id: string;
+      name: string;
+      class_id: string;
+      classes: { id: string; name: string } | null;
+    };
+    const { data: existingStudents, error: queryError } = (await supabase.from(
       "students"
     ).select(`
         id,
@@ -283,7 +605,7 @@ export class AutoSyncService {
         name,
         class_id,
         classes(id, name)
-      `);
+      `)) as { data: StudentWithClass[] | null; error: any };
 
     if (queryError) {
       console.error("❌ 查询现有学生失败:", queryError);
@@ -297,13 +619,14 @@ export class AutoSyncService {
     );
     console.log("🔍 [AutoSync] 重复检测分析结果:", duplicateAnalysis.summary);
 
-    // 5. 构建现有学生的精确匹配键（姓名+班级名）
-    const existingStudentKeys = new Set();
+    // 5. 构建现有学生的精确匹配键（姓名+标准化班级名）
+    const existingStudentKeys = new Set<string>();
     const existingStudentMap = new Map<string, any>();
 
     existingStudents?.forEach((student) => {
       if (student.name && student.classes?.name) {
-        const key = `${student.name}_${student.classes.name}`;
+        // ✅ 使用标准化班级名称构建键
+        const key = `${student.name}_${this.normalizeClassName(student.classes.name)}`;
         existingStudentKeys.add(key);
         existingStudentMap.set(key, student);
       }
@@ -315,10 +638,12 @@ export class AutoSyncService {
       [...existingStudentKeys].slice(0, 5)
     );
 
-    // 6. 识别真正的新学生（不存在姓名+班级组合的学生）
+    // 6. 识别真正的新学生（使用标准化班级名称比较）
     const newStudentsData = [...studentsFromData.entries()]
-      .filter(([key]) => {
-        const exists = existingStudentKeys.has(key);
+      .filter(([key, data]) => {
+        // ✅ 使用标准化键进行比较
+        const normalizedKey = `${data.name}_${this.normalizeClassName(data.class_name)}`;
+        const exists = existingStudentKeys.has(normalizedKey);
         if (exists) {
           console.log(`👤 [AutoSync] 学生已存在，跳过: ${key}`);
         }
@@ -433,10 +758,17 @@ export class AutoSyncService {
 
     // 3. 查询所有相关学生的当前状态
     const studentNames = [...studentClassMap.keys()];
-    const { data: existingStudents } = await supabase
+    type StudentRecord = {
+      id: string;
+      student_id: string;
+      name: string;
+      class_id: string;
+      classes: { name: string } | null;
+    };
+    const { data: existingStudents } = (await supabase
       .from("students")
       .select("id, student_id, name, class_id, classes(name)")
-      .in("name", studentNames);
+      .in("name", studentNames)) as { data: StudentRecord[] | null };
 
     if (!existingStudents) {
       console.log("⚠️ [AutoSync] 未找到需要同步的学生记录");
@@ -1001,13 +1333,21 @@ export class AutoSyncService {
 
     try {
       // 获取学生数据
+      type StudentData = {
+        id: string;
+        student_id: string;
+        name: string;
+        class_id: string;
+        classes: { name: string } | null;
+      };
       const studentsQuery = supabase
         .from("students")
         .select("id, student_id, name, class_id, classes(name)");
       if (classId) {
         studentsQuery.eq("class_id", classId);
       }
-      const { data: students, error: studentsError } = await studentsQuery;
+      const { data: students, error: studentsError } =
+        (await studentsQuery) as { data: StudentData[] | null; error: any };
 
       if (studentsError) throw studentsError;
 

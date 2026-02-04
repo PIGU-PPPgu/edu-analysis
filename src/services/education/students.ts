@@ -872,7 +872,7 @@ export class StudentService {
   }
 
   /**
-   * 验证学生数据
+   * 验证学生数据（宽松模式：支持智能匹配和自动创建）
    */
   private validateStudentData(data: Omit<Student, "id" | "created_at">): {
     valid: boolean;
@@ -880,12 +880,9 @@ export class StudentService {
   } {
     const errors: string[] = [];
 
-    if (!data.student_id?.trim()) {
-      errors.push("学号不能为空");
-    }
-
-    if (!data.name?.trim()) {
-      errors.push("姓名不能为空");
+    // 🔄 宽松验证：至少有姓名或学号其中之一即可
+    if (!data.student_id?.trim() && !data.name?.trim()) {
+      errors.push("至少需要提供姓名或学号其中之一");
     }
 
     if (

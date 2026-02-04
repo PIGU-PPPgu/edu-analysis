@@ -137,6 +137,80 @@ export class SupabaseAdapter implements DataAdapter {
     try {
       console.log("[SupabaseAdapter] 获取考试数据，筛选条件:", filter);
 
+      const deriveExamsFromGrades = async () => {
+        try {
+          const { data, error } = await supabase
+            .from("grade_data")
+            .select(
+              "exam_id, exam_title, exam_type, exam_date, created_at, updated_at"
+            )
+            .limit(filter.limit || 500);
+
+          if (error) {
+            console.warn("[SupabaseAdapter] 派生考试列表失败:", error);
+            return [];
+          }
+
+          const map = new Map<string, any>();
+          (data || []).forEach((g) => {
+            const id =
+              g.exam_id ||
+              (g.exam_title
+                ? `${g.exam_title}-${g.exam_date || "unknown"}`
+                : undefined);
+            if (!id) return;
+            if (!map.has(id)) {
+              map.set(id, {
+                id,
+                title: g.exam_title || "未命名考试",
+                type: g.exam_type || "",
+                date: g.exam_date || "",
+                subject: "",
+                created_at: g.created_at || new Date().toISOString(),
+                updated_at: g.updated_at || new Date().toISOString(),
+              });
+            }
+          });
+
+          let list = Array.from(map.values());
+
+          // 简单应用过滤器
+          if (filter.title) {
+            list = list.filter((e) =>
+              e.title?.toLowerCase().includes(filter.title!.toLowerCase())
+            );
+          }
+          if (filter.type) {
+            list = list.filter((e) => e.type === filter.type);
+          }
+          if (filter.dateRange?.from) {
+            list = list.filter(
+              (e) => e.date && e.date >= filter.dateRange!.from
+            );
+          }
+          if (filter.dateRange?.to) {
+            list = list.filter((e) => e.date && e.date <= filter.dateRange!.to);
+          }
+
+          // 按考试日期降序，再按创建时间降序
+          return list.sort((a, b) => {
+            const aDate = a.date ? new Date(a.date).getTime() : 0;
+            const bDate = b.date ? new Date(b.date).getTime() : 0;
+            if (bDate !== aDate) return bDate - aDate;
+            const aCreated = a.created_at
+              ? new Date(a.created_at).getTime()
+              : 0;
+            const bCreated = b.created_at
+              ? new Date(b.created_at).getTime()
+              : 0;
+            return bCreated - aCreated;
+          });
+        } catch (err) {
+          console.warn("[SupabaseAdapter] 派生考试列表异常:", err);
+          return [];
+        }
+      };
+
       let query = supabase.from("exams").select("*", { count: "exact" });
 
       // 应用筛选条件
@@ -188,12 +262,27 @@ export class SupabaseAdapter implements DataAdapter {
       const { data, error, count } = await query;
 
       if (error) {
-        console.error("[SupabaseAdapter] 获取考试数据失败:", error);
-        throw error;
+        console.error("[SupabaseAdapter] 获取考试数据失败，尝试派生:", error);
+        const derived = await deriveExamsFromGrades();
+        return { data: derived, total: derived.length, hasMore: false };
       }
 
+      if (!data || data.length === 0) {
+        const derived = await deriveExamsFromGrades();
+        return { data: derived, total: derived.length, hasMore: false };
+      }
+
+      const sorted = (data || []).sort((a, b) => {
+        const aDate = a.date ? new Date(a.date).getTime() : 0;
+        const bDate = b.date ? new Date(b.date).getTime() : 0;
+        if (bDate !== aDate) return bDate - aDate;
+        const aCreated = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const bCreated = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return bCreated - aCreated;
+      });
+
       return {
-        data: data || [],
+        data: sorted,
         total: count || 0,
         hasMore: filter.limit
           ? (count || 0) > (filter.offset || 0) + (filter.limit || 0)

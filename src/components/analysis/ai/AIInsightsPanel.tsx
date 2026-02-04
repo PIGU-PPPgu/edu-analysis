@@ -28,6 +28,10 @@ import {
   usePerformanceOptimizer,
   ComputeTask,
 } from "@/services/performance/advancedAnalysisOptimizer";
+import { AdvancedAnalysisEngine } from "@/services/ai/advancedAnalysisEngine";
+import { cn } from "@/lib/utils";
+import { InsightType, InsightPriority } from "@/types/aiInsights";
+import type { AIInsight as EngineInsight } from "@/types/aiInsights";
 
 interface AIInsightsPanelProps {
   data: GradeData[];
@@ -45,8 +49,10 @@ interface AIInsight {
   type: "trend" | "anomaly" | "recommendation" | "prediction";
   title: string;
   description: string;
+  summary?: string;
   confidence: number;
   impact: "high" | "medium" | "low";
+  priority?: "high" | "medium" | "low";
   data?: any;
   actions?: {
     label: string;
@@ -470,7 +476,19 @@ export const AIInsightsMini: React.FC<{
   data?: any[];
   maxInsights?: number;
   className?: string;
-}> = ({ data = [], maxInsights = 3, className = "" }) => {
+  context?: {
+    examId?: string;
+    className?: string;
+    subject?: string;
+  };
+  onInsightClick?: (insight: AIInsight) => void;
+}> = ({
+  data = [],
+  maxInsights = 3,
+  className = "",
+  context,
+  onInsightClick,
+}) => {
   const [insights, setInsights] = useState<AIInsight[]>([]);
 
   useEffect(() => {
@@ -479,19 +497,59 @@ export const AIInsightsMini: React.FC<{
     const generateMiniInsights = async () => {
       try {
         const engine = AdvancedAnalysisEngine.getInstance();
-        const generatedInsights = await engine.generateInsights(data, {
-          maxInsights,
-          priority: ["high"],
-          types: ["trend", "anomaly", "recommendation"],
+        const mapType = (type: InsightType): AIInsight["type"] => {
+          switch (type) {
+            case InsightType.TREND:
+              return "trend";
+            case InsightType.ANOMALY:
+              return "anomaly";
+            case InsightType.SUGGESTION:
+              return "recommendation";
+            default:
+              return "prediction";
+          }
+        };
+        const mapImpact = (priority: InsightPriority): AIInsight["impact"] => {
+          if (priority === InsightPriority.HIGH) return "high";
+          if (priority === InsightPriority.MEDIUM) return "medium";
+          return "low";
+        };
+        const generatedInsights = await engine.generateInsights({
+          data,
+          context: context ?? {},
+          options: {
+            maxInsights,
+            focusAreas: [
+              InsightType.TREND,
+              InsightType.ANOMALY,
+              InsightType.SUGGESTION,
+            ],
+          },
         });
-        setInsights(generatedInsights.slice(0, maxInsights));
+        const mappedInsights = generatedInsights.insights.map(
+          (insight: EngineInsight): AIInsight => ({
+            id: insight.id,
+            type: mapType(insight.type),
+            title: insight.title,
+            description: insight.description,
+            summary: insight.detail ?? insight.description,
+            confidence: insight.confidence,
+            impact: mapImpact(insight.priority),
+            data: insight.relatedData,
+            actions: insight.actions?.map((action) => ({
+              label: action.label,
+              action: () => {},
+            })),
+          })
+        );
+        setInsights(mappedInsights.slice(0, maxInsights));
       } catch (error) {
         console.error("生成迷你洞察失败:", error);
       }
     };
 
     generateMiniInsights();
-  }, [data, maxInsights]);
+  }, [data, maxInsights, context]);
 
   if (insights.length === 0) {
     return null;
@@ -503,6 +561,8 @@ export const AIInsightsMini: React.FC<{
         <div
           key={insight.id}
           className="flex items-start gap-2 p-2 bg-gray-50 rounded-lg text-sm"
+          onClick={() => onInsightClick?.(insight)}
+          role={onInsightClick ? "button" : undefined}
         >
           <div
             className={cn(
@@ -518,7 +578,9 @@ export const AIInsightsMini: React.FC<{
             <p className="font-medium text-gray-900 truncate">
               {insight.title}
             </p>
-            <p className="text-gray-600 text-xs">{insight.summary}</p>
+            <p className="text-gray-600 text-xs">
+              {insight.summary ?? insight.description}
+            </p>
           </div>
         </div>
       ))}

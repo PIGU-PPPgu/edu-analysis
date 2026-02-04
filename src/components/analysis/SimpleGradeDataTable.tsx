@@ -47,6 +47,35 @@ interface SimpleGradeDataTableProps {
   pageSize?: number;
 }
 
+interface WideSubjectData {
+  score?: number;
+  grade?: string;
+  rank?: number;
+}
+
+interface WideStudentRecord {
+  student_id: string;
+  name?: string;
+  class_name?: string;
+  exam_date?: string;
+  subjects: Record<string, WideSubjectData>;
+}
+
+interface LongGradeRecord {
+  id?: string;
+  student_id: string;
+  name?: string;
+  class_name?: string;
+  subject?: string;
+  score?: number;
+  total_score?: number;
+  grade?: string;
+  rank_in_class?: number;
+  exam_date?: string;
+}
+
+type TableRow = WideStudentRecord | LongGradeRecord;
+
 // 成绩等级获取函数
 const getGradeLevel = (score: number): { level: string; color: string } => {
   if (score >= 90)
@@ -98,8 +127,8 @@ export const SimpleGradeDataTable: React.FC<SimpleGradeDataTableProps> = ({
   });
 
   // 将长表格数据转换为宽表格格式（每个学生一行）
-  const transformToWideFormat = (data: any[]) => {
-    const studentGroups = data.reduce(
+  const transformToWideFormat = (data: LongGradeRecord[]) => {
+    const studentGroups = data.reduce<Record<string, WideStudentRecord>>(
       (acc, record) => {
         const studentKey = record.student_id;
         if (!acc[studentKey]) {
@@ -122,15 +151,20 @@ export const SimpleGradeDataTable: React.FC<SimpleGradeDataTableProps> = ({
 
         return acc;
       },
-      {} as Record<string, any>
+      {}
     );
 
     return Object.values(studentGroups);
   };
 
   // 应用筛选逻辑
-  const filteredAndPaginatedData = useMemo(() => {
-    let filtered = [...filteredGradeData];
+  const filteredAndPaginatedData = useMemo<{
+    data: TableRow[];
+    total: number;
+    totalPages: number;
+    isWideFormat: boolean;
+  }>(() => {
+    let filtered = [...filteredGradeData] as LongGradeRecord[];
 
     // 搜索筛选
     if (filters.search) {
@@ -242,18 +276,24 @@ export const SimpleGradeDataTable: React.FC<SimpleGradeDataTableProps> = ({
           "考试日期",
         ],
         // 数据行
-        ...filteredAndPaginatedData.data.map((record) => [
-          record.student_id || "",
-          record.name || "",
-          record.class_name || "",
-          record.subject || "",
-          record.score || record.total_score || "",
-          record.grade || "",
-          record.rank_in_class || "",
-          record.exam_date
-            ? new Date(record.exam_date).toLocaleDateString("zh-CN")
-            : "",
-        ]),
+        ...filteredAndPaginatedData.data.map((record) => {
+          const isLongRecord = "subject" in record;
+          const score = isLongRecord
+            ? record.score || record.total_score
+            : undefined;
+          return [
+            record.student_id || "",
+            record.name || "",
+            record.class_name || "",
+            isLongRecord ? record.subject || "" : "",
+            score || "",
+            isLongRecord ? record.grade || "" : "",
+            isLongRecord ? record.rank_in_class || "" : "",
+            record.exam_date
+              ? new Date(record.exam_date).toLocaleDateString("zh-CN")
+              : "",
+          ];
+        }),
       ]
         .map((row) => row.join(","))
         .join("\n");
@@ -522,7 +562,8 @@ export const SimpleGradeDataTable: React.FC<SimpleGradeDataTableProps> = ({
                 {data.map((record, index) => {
                   if (isWideFormat) {
                     // 宽格式渲染：每个学生一行
-                    const scores = Object.values(record.subjects)
+                    const wideRecord = record as WideStudentRecord;
+                    const scores = Object.values(wideRecord.subjects)
                       .map((subject: any) => subject.score)
                       .filter(Boolean);
                     const avgScore =
@@ -535,25 +576,25 @@ export const SimpleGradeDataTable: React.FC<SimpleGradeDataTableProps> = ({
 
                     return (
                       <TableRow
-                        key={record.student_id}
+                        key={wideRecord.student_id}
                         className={cn(
                           "border-b border-gray-200 hover:bg-[#F3F3F3] transition-colors",
                           index % 2 === 0 && "bg-white"
                         )}
                       >
                         <TableCell className="font-mono text-sm font-medium border-r border-gray-200">
-                          {record.student_id}
+                          {wideRecord.student_id}
                         </TableCell>
                         <TableCell className="font-bold text-[#191A23] border-r border-gray-200">
-                          {record.name}
+                          {wideRecord.name}
                         </TableCell>
                         <TableCell className="border-r border-gray-200">
                           <Badge className="bg-[#F3F3F3] text-[#191A23] border-2 border-black font-bold">
-                            {record.class_name}
+                            {wideRecord.class_name}
                           </Badge>
                         </TableCell>
                         {allSubjects.map((subject) => {
-                          const subjectData = record.subjects[subject];
+                          const subjectData = wideRecord.subjects[subject];
                           const score = subjectData?.score;
                           const grade = subjectData?.grade;
                           const gradeLevel = score
@@ -607,31 +648,32 @@ export const SimpleGradeDataTable: React.FC<SimpleGradeDataTableProps> = ({
                     );
                   } else {
                     // 长格式渲染：原有的显示方式
-                    const score = record.score || record.total_score;
+                    const longRecord = record as LongGradeRecord;
+                    const score = longRecord.score || longRecord.total_score;
                     const gradeLevel = score ? getGradeLevel(score) : null;
 
                     return (
                       <TableRow
-                        key={record.id}
+                        key={longRecord.id}
                         className={cn(
                           "border-b border-gray-200 hover:bg-[#F3F3F3] transition-colors",
                           index % 2 === 0 && "bg-white"
                         )}
                       >
                         <TableCell className="font-mono text-sm font-medium border-r border-gray-200">
-                          {record.student_id}
+                          {longRecord.student_id}
                         </TableCell>
                         <TableCell className="font-bold text-[#191A23] border-r border-gray-200">
-                          {record.name}
+                          {longRecord.name}
                         </TableCell>
                         <TableCell className="border-r border-gray-200">
                           <Badge className="bg-[#F3F3F3] text-[#191A23] border-2 border-black font-bold">
-                            {record.class_name}
+                            {longRecord.class_name}
                           </Badge>
                         </TableCell>
                         <TableCell className="border-r border-gray-200">
                           <Badge className="bg-[#9C88FF] text-white border-2 border-black font-bold">
-                            {record.subject}
+                            {longRecord.subject}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-center border-r border-gray-200">
@@ -650,8 +692,8 @@ export const SimpleGradeDataTable: React.FC<SimpleGradeDataTableProps> = ({
                         </TableCell>
                         <TableCell className="text-center">
                           <span className="font-bold text-[#191A23]">
-                            {record.rank_in_class
-                              ? `第${record.rank_in_class}名`
+                            {longRecord.rank_in_class
+                              ? `第${longRecord.rank_in_class}名`
                               : "-"}
                           </span>
                         </TableCell>

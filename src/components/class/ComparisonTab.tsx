@@ -7,7 +7,6 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ClassData } from "@/types/database";
 
 // 定义班级类型
 interface ClassSummary {

@@ -68,7 +68,7 @@ export interface ExamFormData extends Partial<Exam> {
   totalScore: number;
   passingScore: number;
   classes: string[];
-  status: string;
+  status: Exam["status"];
 }
 
 // 对话框状态接口

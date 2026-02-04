@@ -556,3 +556,50 @@ export function calculatePercentile(
   const upper = sorted[Math.ceil(index)];
   return lower + (upper - lower) * (index % 1);
 }
+
+// ============================================================================
+// 分数分布分析
+// ============================================================================
+
+export interface ScoreDistribution {
+  range: string;
+  count: number;
+  color: string;
+}
+
+/**
+ * 计算分数分布
+ */
+export function calculateScoreDistribution(
+  scores: number[]
+): ScoreDistribution[] {
+  if (!scores || scores.length === 0) return [];
+
+  const validScores = scores.filter(
+    (score) => typeof score === "number" && !isNaN(score) && score > 0
+  );
+
+  // 分数段定义
+  const ranges = [
+    { range: "90-100分", min: 90, max: 100, color: "#82ca9d" },
+    { range: "80-89分", min: 80, max: 89, color: "#8884d8" },
+    { range: "70-79分", min: 70, max: 79, color: "#ffc658" },
+    { range: "60-69分", min: 60, max: 69, color: "#ff8042" },
+    { range: "<60分", min: 0, max: 59, color: "#f55656" },
+  ];
+
+  // 统计各分数段数量
+  const distribution = ranges.map((range) => {
+    const count = validScores.filter(
+      (score) => score >= range.min && score <= range.max
+    ).length;
+
+    return {
+      range: range.range,
+      count,
+      color: range.color,
+    };
+  });
+
+  return distribution;
+}

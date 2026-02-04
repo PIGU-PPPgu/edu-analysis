@@ -255,7 +255,9 @@ export default function GradeCardView({
 
       if (error) {
         console.error("加载详情错误:", error);
-        toast.error("无法获取最新的提交详情", {
+        toast({
+          variant: "destructive",
+          title: "无法获取最新的提交详情",
           description: "加载数据失败",
         });
         return;
@@ -291,7 +293,9 @@ export default function GradeCardView({
       }
     } catch (error) {
       console.error("打开评分对话框时发生错误:", error);
-      toast.error("打开评分对话框时发生错误", {
+      toast({
+        variant: "destructive",
+        title: "打开评分对话框时发生错误",
         description: "加载错误",
       });
     } finally {

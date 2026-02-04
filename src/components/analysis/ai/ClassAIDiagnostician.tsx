@@ -31,6 +31,7 @@ interface GradeRecord {
   id: string;
   student_id: string;
   name: string;
+  exam_id?: string;
   class_name?: string;
   subject?: string;
   score?: number;
@@ -61,31 +62,33 @@ const ClassAIDiagnostician: React.FC<ClassAIDiagnosticianProps> = ({
   const dataHash = useMemo(() => {
     if (!gradeData || gradeData.length === 0) return "";
     try {
-      // 基于数据内容生成简单的哈希
-      const dataString = JSON.stringify(
-        gradeData
-          .map((r) => ({
-            student_id: r.student_id,
-            subject: r.subject,
-            score: r.score,
-            exam_date: r.exam_date,
-          }))
-          .sort()
-      );
+      const length = gradeData.length;
+      const first = gradeData[0];
+      const mid = gradeData[Math.floor(length / 2)];
+      const last = gradeData[length - 1];
 
-      // 使用安全的编码方式处理中文字符
-      const encoder = new TextEncoder();
-      const data = encoder.encode(dataString);
-
-      // 简单哈希算法
-      let hash = 0;
-      for (let i = 0; i < data.length; i++) {
-        const char = data[i];
-        hash = (hash << 5) - hash + char;
-        hash = hash & hash; // 转换为32位整数
+      // 取少量关键信息生成轻量指纹，避免 O(n) 序列化
+      let latestExamTs = 0;
+      const sampleSpan = Math.min(length, 500);
+      for (let i = 0; i < sampleSpan; i++) {
+        const item = gradeData[i];
+        const ts = item.exam_date ? Date.parse(item.exam_date) || 0 : 0;
+        if (ts > latestExamTs) latestExamTs = ts;
       }
 
-      return Math.abs(hash).toString(36).slice(0, 16);
+      const fingerprintParts = [
+        length,
+        first?.exam_id || "",
+        last?.exam_id || "",
+        first?.class_name || "",
+        last?.class_name || "",
+        latestExamTs,
+        first?.score ?? first?.total_score ?? "",
+        mid?.score ?? mid?.total_score ?? "",
+        last?.score ?? last?.total_score ?? "",
+      ];
+
+      return fingerprintParts.join("-");
     } catch (error) {
       console.warn("生成数据哈希失败:", error);
       return `fallback_${Date.now()}`;

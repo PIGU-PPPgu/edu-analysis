@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Loader2, AlertTriangle, Lightbulb } from "lucide-react";
-import type { StudentToImport, SystemField } from "@/types/gradeImport";
 
 interface ImportReviewDialogProps {
   isOpen: boolean;

@@ -6,7 +6,9 @@
  */
 
 import { z } from "zod";
-import { AIAnalysisResult } from "@/services/aiEnhancedFileParser";
+import type { AIAnalysisResult as AIEnhancedAnalysisResult } from "@/services/aiEnhancedFileParser";
+import type { FieldMapping as MapperFieldMapping } from "@/services/intelligentFieldMapper";
+import type { MatchType } from "@/services/enhancedStudentMatcher";
 
 // ==================== 基础数据类型 ====================
 
@@ -22,6 +24,8 @@ export interface ExamInfo {
   date: string;
   subject?: string;
   scope?: "class" | "grade" | "school";
+  exam_id?: string;
+  className?: string;
 }
 
 // 解析后的数据结构
@@ -58,13 +62,20 @@ export interface CustomField {
 
 // ==================== 状态类型 ====================
 
+export type ImportStep =
+  | "upload"
+  | "mapping"
+  | "validation"
+  | "import"
+  | "complete";
+
 // AI解析状态
 export interface AIParsingStatus {
   isActive: boolean;
   status: "idle" | "parsing" | "analyzing" | "success" | "error";
   message: string;
   confidence?: number;
-  aiResult?: AIAnalysisResult;
+  aiResult?: AIEnhancedAnalysisResult;
 }
 
 // 分析日志状态
@@ -165,6 +176,8 @@ export interface FieldMapping {
     | "student_info";
 }
 
+export type FieldMappingMap = Record<string, string>;
+
 // 字段分析结果
 export interface FieldAnalysisResult {
   header: string;
@@ -196,7 +209,7 @@ export interface ValidationError {
   row: number;
   field: string;
   value: any;
-  message: string;
+  message?: string;
   severity: "error" | "warning";
   error?: string; // 添加缺少的error属性
 }
@@ -205,7 +218,7 @@ export interface ValidationWarning {
   row: number;
   field: string;
   value: any;
-  message: string;
+  message?: string;
   suggestion?: string;
   warning?: string; // 添加缺少的warning属性
 }
@@ -238,7 +251,7 @@ export interface ImportProcessResult {
 export type FileUploadHandler = (files: File[]) => Promise<void>;
 
 // 数据映射事件
-export type DataMappingHandler = (mappings: FieldMapping) => void;
+export type DataMappingHandler = (mappings: FieldMappingMap) => void;
 
 // 数据验证事件
 export type DataValidationHandler = (
@@ -315,6 +328,18 @@ export const DEFAULT_IMPORT_CONFIG: ImportConfigState = {
 export interface MappingConfig {
   fieldMappings: Record<string, string>;
   customFields: Record<string, string>;
+  examInfo?: ExamInfo;
+  options?: {
+    skipEmptyRows?: boolean;
+    validateData?: boolean;
+    createMissingStudents?: boolean;
+  };
+  headerAnalysis?: {
+    mappings: MapperFieldMapping[];
+    subjects: string[];
+    studentFields: MapperFieldMapping[];
+    confidence: number;
+  };
   aiSuggestions?: {
     confidence: number;
     suggestions: Record<string, string>;
@@ -330,13 +355,14 @@ export interface MappingConfig {
 // AI分析结果接口
 export interface AIAnalysisResult {
   examInfo?: {
-    title: string;
-    type: string;
-    date: string;
+    title?: string;
+    type?: string;
+    date?: string;
     grade?: string;
-    scope: "class" | "grade" | "school";
+    scope?: "class" | "grade" | "school";
   };
   fieldMappings: Record<string, string>;
+  mappings?: FieldMapping[];
   subjects: string[];
   dataStructure: "wide" | "long" | "mixed";
   confidence: number;
@@ -387,6 +413,7 @@ export interface ImportOptions {
   batchSize: number;
   createMissingStudents: boolean;
   updateExistingData: boolean;
+  updateExisting?: boolean;
   skipDuplicates: boolean;
   enableBackup: boolean;
   enableRollback: boolean;
@@ -404,6 +431,7 @@ export interface ImportProgress {
   processed: number;
   successful: number;
   failed: number;
+  skipped?: number;
   percentage: number;
   currentBatch: number;
   totalBatches: number;
@@ -423,7 +451,13 @@ export interface ImportProgress {
 // 导入结果接口
 export interface ImportResult {
   success: boolean;
-  summary: {
+  totalCount?: number;
+  successCount?: number;
+  failedCount?: number;
+  failCount?: number;
+  skippedCount?: number;
+  processedIds?: string[];
+  summary?: {
     totalRows: number;
     importedRows: number;
     skippedRows: number;
@@ -431,8 +465,8 @@ export interface ImportResult {
     createdStudents: number;
     updatedGrades: number;
   };
-  errors: ImportError[];
-  warnings: ImportWarning[];
+  errors: Array<ImportError | string>;
+  warnings: Array<ImportWarning | string>;
   examId?: string;
   duration: number; // 毫秒
 }
@@ -457,10 +491,10 @@ export interface ImportWarning {
 
 // 学生匹配结果接口
 export interface StudentMatchResult {
-  student_id: string;
-  name: string;
+  student_id?: string;
+  name?: string;
   class_name?: string;
-  matchType: "exact" | "fuzzy" | "new" | "conflict";
+  matchType: MatchType;
   confidence: number;
   conflicts?: StudentMatchResult[];
   suggestions?: StudentMatchResult[];
@@ -538,3 +572,34 @@ export const EXAM_TYPES = [
   { value: "diagnostic", label: "诊断性考试" },
   { value: "other", label: "其他" },
 ] as const;
+
+// ==================== 导入模式相关 ====================
+
+// 导入模式类型
+export type ImportMode = "full" | "grades-only";
+
+// 导入模式配置
+export interface ImportModeConfig {
+  mode: ImportMode;
+  autoDetected: boolean;
+  confidence: number;
+  description: string;
+}
+
+// 核心必需字段（仅成绩模式）
+export const CORE_REQUIRED_FIELDS = ["student_id"] as const;
+
+// 完整必需字段（完整导入模式）
+export const FULL_REQUIRED_FIELDS = [
+  "student_id",
+  "name",
+  "class_name",
+] as const;
+
+// 跳过记录信息
+export interface SkippedRecord {
+  row: number;
+  student_id: string;
+  reason: string;
+  data?: any;
+}

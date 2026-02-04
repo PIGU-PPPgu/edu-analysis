@@ -3,8 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle, FileText, BarChart, Plus } from "lucide-react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { KnowledgePoint } from "./AIKnowledgePointAnalyzer";
-import AIKnowledgePointAnalyzer from "./AIKnowledgePointAnalyzer";
+import {
+  KnowledgePoint,
+  AIKnowledgePointAnalyzer,
+} from "./AIKnowledgePointAnalyzer";
 import { getAllKnowledgePoints } from "@/services/knowledgePointService";
 
 interface KnowledgePointAnalysisProps {

@@ -101,8 +101,7 @@ const EditHomeworkDialog: React.FC<EditHomeworkDialogProps> = ({
       const { success } = await updateHomework(homework.id, {
         title: formData.title,
         description: formData.description,
-        class_name: formData.classId, // ✅ 新增主字段（值实际是班级名称）
-        class_id: formData.classId, // ⚠️ 过渡期兼容字段
+        class_id: formData.classId,
         due_date: formData.dueDate || null,
         grading_scale_id:
           formData.gradingScaleId === "default"

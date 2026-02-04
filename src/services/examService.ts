@@ -229,46 +229,119 @@ export const getExams = async (filter?: ExamFilter): Promise<Exam[]> => {
   // 暂时禁用缓存以确保删除后能立即看到变化
   console.log("[ExamService] 获取考试列表...");
 
-  let query = supabase
-    .from("exams")
-    .select(
-      `
+  const deriveExamsFromGrades = async (): Promise<Exam[]> => {
+    try {
+      const { data, error } = await supabase
+        .from("grade_data")
+        .select(
+          "exam_id, exam_title, exam_type, exam_date, created_at, updated_at"
+        )
+        .limit(500);
+
+      if (error) {
+        console.warn("[ExamService] 派生考试列表失败:", error);
+        return [];
+      }
+
+      const map = new Map<string, Exam>();
+      (data || []).forEach((g) => {
+        const id =
+          g.exam_id ||
+          (g.exam_title
+            ? `${g.exam_title}-${g.exam_date || "unknown"}`
+            : undefined);
+        if (!id) return;
+        if (!map.has(id)) {
+          map.set(id, {
+            id,
+            title: g.exam_title || "未命名考试",
+            type: g.exam_type || "",
+            date: g.exam_date || "",
+            subject: "", // grade_data 无 subject 列，留空
+            created_at: g.created_at || new Date().toISOString(),
+            updated_at: g.updated_at || new Date().toISOString(),
+          } as Exam);
+        }
+      });
+
+      return Array.from(map.values());
+    } catch (err) {
+      console.warn("[ExamService] 派生考试列表异常:", err);
+      return [];
+    }
+  };
+
+  try {
+    let query = supabase
+      .from("exams")
+      .select(
+        `
       id,
       title,
       date,
       type,
       subject,
-      created_at
+      created_at,
+      updated_at
     `
-    )
-    .order("date", { ascending: false });
+      )
+      .order("date", { ascending: false })
+      .order("created_at", { ascending: false });
 
-  // 应用过滤器
-  if (filter?.dateFrom) {
-    query = query.gte("date", filter.dateFrom);
-  }
-  if (filter?.dateTo) {
-    query = query.lte("date", filter.dateTo);
-  }
-  if (filter?.type) {
-    query = query.eq("type", filter.type);
-  }
-  if (filter?.subject) {
-    query = query.eq("subject", filter.subject);
-  }
-  if (filter?.searchTerm) {
-    query = query.ilike("title", `%${filter.searchTerm}%`);
-  }
+    // 应用过滤器
+    if (filter?.dateFrom) {
+      query = query.gte("date", filter.dateFrom);
+    }
+    if (filter?.dateTo) {
+      query = query.lte("date", filter.dateTo);
+    }
+    if (filter?.type) {
+      query = query.eq("type", filter.type);
+    }
+    if (filter?.subject) {
+      query = query.eq("subject", filter.subject);
+    }
+    if (filter?.searchTerm) {
+      query = query.ilike("title", `%${filter.searchTerm}%`);
+    }
 
-  const { data, error } = await query;
+    const { data, error } = await query;
 
-  if (error) {
-    console.error("[ExamService] 获取考试列表失败:", error);
-    throw error;
+    if (error) {
+      console.error("[ExamService] 获取考试列表失败:", error);
+      throw error;
+    }
+
+    console.log("[ExamService] 获取到考试数据:", data?.length, "条");
+
+    if (!data || data.length === 0) {
+      const derived = await deriveExamsFromGrades();
+      if (derived.length > 0) {
+        toast.info("已从成绩数据推断考试列表（exams 表为空）");
+        return derived;
+      }
+    }
+
+    const sorted = (data || []).sort((a, b) => {
+      const aDate = a.date ? new Date(a.date).getTime() : 0;
+      const bDate = b.date ? new Date(b.date).getTime() : 0;
+      if (bDate !== aDate) return bDate - aDate;
+      const aCreated = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bCreated = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return bCreated - aCreated;
+    });
+
+    return sorted;
+  } catch (err) {
+    console.error("[ExamService] 获取考试列表失败，尝试派生:", err);
+    const derived = await deriveExamsFromGrades();
+    if (derived.length > 0) {
+      toast.info("已从成绩数据推断考试列表（exams 查询失败）");
+      return derived;
+    }
+    toast.error("获取考试列表失败");
+    return [];
   }
-
-  console.log("[ExamService] 获取到考试数据:", data?.length, "条");
-  return data || [];
 };
 
 /**

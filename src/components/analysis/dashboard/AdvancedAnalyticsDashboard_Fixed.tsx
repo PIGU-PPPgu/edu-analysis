@@ -5,6 +5,8 @@
  */
 
 import React, { useState, useMemo } from "react";
+import { cn } from "@/lib/utils";
+import ModernGradeFilters from "@/components/analysis/filters/ModernGradeFilters";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +35,8 @@ import {
   CheckCircle,
   X,
   Eye,
+  ChevronDown,
+  BookOpen,
 } from "lucide-react";
 
 import { useModernGradeAnalysis } from "@/contexts/ModernGradeAnalysisContext";
@@ -66,19 +70,19 @@ const StatCard: React.FC<StatCardProps> = ({
   const colorClasses = {
     primary: {
       bg: "bg-[#B9FF66]",
-      border: "border-[#B9FF66]",
+      border: "border-[#191A23]",
       text: "text-[#191A23]",
       iconBg: "bg-[#191A23]",
       iconText: "text-[#B9FF66]",
       accent: "text-[#191A23]",
     },
     secondary: {
-      bg: "bg-[#6B7280]",
-      border: "border-[#6B7280]",
-      text: "text-white",
-      iconBg: "bg-white",
-      iconText: "text-[#6B7280]",
-      accent: "text-white",
+      bg: "bg-white",
+      border: "border-[#191A23]",
+      text: "text-[#191A23]",
+      iconBg: "bg-[#F3F3F3]",
+      iconText: "text-[#191A23]",
+      accent: "text-[#191A23]",
     },
   };
 
@@ -94,24 +98,26 @@ const StatCard: React.FC<StatCardProps> = ({
   // 方案A: 减轻视觉装饰
   return (
     <Card
-      className={`${styles.bg} border border-black shadow-[4px_4px_0px_0px_#191A23] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] rounded-xl overflow-hidden`}
+      className={`${styles.bg} border-2 border-[#191A23] shadow-[4px_4px_0px_0px_#191A23] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] rounded-xl overflow-hidden`}
     >
-      <CardContent className="p-8">
+      <CardContent className="p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
             <p
-              className={`text-sm font-black uppercase tracking-wide ${styles.text} opacity-80 mb-2`}
+              className={`text-xs font-black uppercase tracking-wider ${styles.text} opacity-70 mb-2`}
             >
               {title}
             </p>
             <div className="flex items-baseline gap-3 mb-2">
-              <p className={`text-4xl font-black ${styles.text}`}>
+              <p
+                className={`text-4xl font-black ${styles.text} tracking-tight`}
+              >
                 {typeof value === "number" ? value.toLocaleString() : value}
               </p>
               {trendIcon}
             </div>
             {subtitle && (
-              <p className={`text-sm font-medium ${styles.text} opacity-70`}>
+              <p className={`text-xs font-bold ${styles.text} opacity-60`}>
                 {subtitle}
               </p>
             )}
@@ -119,9 +125,9 @@ const StatCard: React.FC<StatCardProps> = ({
 
           {icon && (
             <div
-              className={`p-3 ${styles.iconBg} rounded-full border-2 border-black shadow-[3px_3px_0px_0px_#191A23]`}
+              className={`p-3 ${styles.iconBg} rounded-md border-2 border-[#191A23] shadow-[2px_2px_0px_0px_#191A23]`}
             >
-              <div className={`w-6 h-6 ${styles.iconText}`}>{icon}</div>
+              <div className={`w-5 h-5 ${styles.iconText}`}>{icon}</div>
             </div>
           )}
         </div>
@@ -241,285 +247,62 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
     <div className="container mx-auto px-4">
       <div className="min-h-screen bg-white flex">
         {/* 侧边筛选栏 */}
+        <div
+          className={cn(
+            "fixed inset-y-0 left-0 z-50 w-80 bg-[#F3F3F3] border-r-2 border-[#191A23] p-6 overflow-y-auto transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0",
+            showSidebar ? "translate-x-0" : "-translate-x-full lg:hidden"
+          )}
+        >
+          {/* 移动端关闭按钮由 ModernGradeFilters 内部处理或通过点击遮罩关闭 */}
+
+          <ModernGradeFilters
+            filter={filter}
+            onFilterChange={setFilter}
+            availableExams={examList}
+            availableSubjects={availableSubjects}
+            availableClasses={availableClasses}
+            availableGrades={availableGrades}
+            availableExamTypes={availableExamTypes}
+            totalCount={allGradeData.length}
+            filteredCount={safeGradeData.length}
+            onClose={() => setShowSidebar(false)}
+            compact={false}
+            className="h-full shadow-none border-none bg-transparent hover:shadow-none hover:translate-x-0 hover:translate-y-0 p-0"
+          />
+        </div>
+
+        {/* 移动端背景遮罩 */}
         {showSidebar && (
-          <>
-            {/* 移动端背景遮罩 */}
-            <div
-              className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-              onClick={() => setShowSidebar(false)}
-            />
-
-            {/* 筛选栏 - 移动端为覆盖层，桌面端为侧边栏 */}
-            <div className="fixed lg:static inset-y-0 left-0 z-50 w-80 bg-[#F8F8F8] border-r-2 border-black shadow-[4px_0px_0px_0px_#191A23] p-6 overflow-y-auto transform lg:transform-none transition-transform lg:transition-none">
-              {/* 筛选栏标题 */}
-              <div className="mb-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-[#B9FF66] rounded-full border-2 border-black">
-                    <Filter className="w-5 h-5 text-[#191A23]" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-black text-[#191A23] uppercase tracking-wide">
-                      筛选条件
-                    </h2>
-                    <p className="text-sm text-gray-600">
-                      {safeGradeData.length} / {allGradeData.length} 条记录
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* 搜索框 */}
-              <div className="mb-6">
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 w-4 h-4 text-[#191A23]" />
-                  <input
-                    type="text"
-                    placeholder="搜索学生、班级..."
-                    value={filter.searchKeyword || ""}
-                    onChange={(e) =>
-                      setFilter({ ...filter, searchKeyword: e.target.value })
-                    }
-                    className="w-full pl-10 pr-4 py-2 bg-white border-2 border-black rounded-lg font-medium text-[#191A23] placeholder:text-[#191A23]/60 focus:border-[#B9FF66] focus:ring-2 focus:ring-[#B9FF66] focus:shadow-[2px_2px_0px_0px_#B9FF66] transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* 🔧 考试选择（带搜索） */}
-              <div className="mb-6">
-                <label className="block text-sm font-black text-[#191A23] uppercase tracking-wide mb-3">
-                  考试
-                  {examList.length > 10 && (
-                    <span className="text-xs font-normal text-gray-500 normal-case ml-2">
-                      ({examList.length} 个选项)
-                    </span>
-                  )}
-                </label>
-                {examList.length > 10 ? (
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-3 w-4 h-4 text-[#191A23]" />
-                      <input
-                        type="text"
-                        placeholder="搜索考试标题..."
-                        className="w-full pl-10 pr-4 py-2 bg-white border-2 border-black rounded-lg font-medium text-[#191A23] placeholder:text-[#191A23]/60 focus:border-[#B9FF66] focus:ring-2 focus:ring-[#B9FF66] transition-all text-sm"
-                        onChange={(e) => {
-                          const searchTerm = e.target.value.toLowerCase();
-                          // 这里实现考试搜索逻辑
-                        }}
-                      />
-                    </div>
-                    <select
-                      value={filter.examIds?.[0] || ""}
-                      onChange={(e) =>
-                        setFilter({
-                          ...filter,
-                          examIds: e.target.value
-                            ? [e.target.value]
-                            : undefined,
-                        })
-                      }
-                      className="w-full p-3 bg-white border-2 border-black rounded-lg font-medium text-[#191A23] focus:border-[#B9FF66] focus:ring-2 focus:ring-[#B9FF66] transition-all"
-                      size={Math.min(6, examList.length)}
-                    >
-                      <option value="">全部考试</option>
-                      {examList.map((exam) => (
-                        <option key={exam.id} value={exam.id}>
-                          {exam.title} ({exam.type})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : (
-                  <select
-                    value={filter.examIds?.[0] || ""}
-                    onChange={(e) =>
-                      setFilter({
-                        ...filter,
-                        examIds: e.target.value ? [e.target.value] : undefined,
-                      })
-                    }
-                    className="w-full p-3 bg-white border-2 border-black rounded-lg font-medium text-[#191A23] focus:border-[#B9FF66] focus:ring-2 focus:ring-[#B9FF66] transition-all"
-                  >
-                    <option value="">全部考试</option>
-                    {examList.map((exam) => (
-                      <option key={exam.id} value={exam.id}>
-                        {exam.title} ({exam.type})
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-
-              {/* 科目选择 */}
-              <div className="mb-6">
-                <label className="block text-sm font-black text-[#191A23] uppercase tracking-wide mb-3">
-                  科目
-                </label>
-                <select
-                  value={filter.subjects?.[0] || ""}
-                  onChange={(e) =>
-                    setFilter({
-                      ...filter,
-                      subjects: e.target.value ? [e.target.value] : undefined,
-                    })
-                  }
-                  className="w-full p-3 bg-white border-2 border-black rounded-lg font-medium text-[#191A23] focus:border-[#F7931E] focus:ring-2 focus:ring-[#F7931E] transition-all"
-                >
-                  <option value="">全部科目</option>
-                  {availableSubjects.map((subject) => (
-                    <option key={subject} value={subject}>
-                      {subject}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* 🔧 班级选择（带搜索） */}
-              <div className="mb-6">
-                <label className="block text-sm font-black text-[#191A23] uppercase tracking-wide mb-3">
-                  班级
-                  {availableClasses.length > 10 && (
-                    <span className="text-xs font-normal text-gray-500 normal-case ml-2">
-                      ({availableClasses.length} 个选项)
-                    </span>
-                  )}
-                </label>
-                {availableClasses.length > 10 ? (
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-3 w-4 h-4 text-[#191A23]" />
-                      <input
-                        type="text"
-                        placeholder="搜索班级名称..."
-                        className="w-full pl-10 pr-4 py-2 bg-white border-2 border-black rounded-lg font-medium text-[#191A23] placeholder:text-[#191A23]/60 focus:border-[#9C88FF] focus:ring-2 focus:ring-[#9C88FF] transition-all text-sm"
-                      />
-                    </div>
-                    <select
-                      value={filter.classNames?.[0] || ""}
-                      onChange={(e) =>
-                        setFilter({
-                          ...filter,
-                          classNames: e.target.value
-                            ? [e.target.value]
-                            : undefined,
-                        })
-                      }
-                      className="w-full p-3 bg-white border-2 border-black rounded-lg font-medium text-[#191A23] focus:border-[#9C88FF] focus:ring-2 focus:ring-[#9C88FF] transition-all"
-                      size={Math.min(6, availableClasses.length)}
-                    >
-                      <option value="">全部班级</option>
-                      {availableClasses.map((className) => (
-                        <option key={className} value={className}>
-                          {className}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : (
-                  <select
-                    value={filter.classNames?.[0] || ""}
-                    onChange={(e) =>
-                      setFilter({
-                        ...filter,
-                        classNames: e.target.value
-                          ? [e.target.value]
-                          : undefined,
-                      })
-                    }
-                    className="w-full p-3 bg-white border-2 border-black rounded-lg font-medium text-[#191A23] focus:border-[#9C88FF] focus:ring-2 focus:ring-[#9C88FF] transition-all"
-                  >
-                    <option value="">全部班级</option>
-                    {availableClasses.map((className) => (
-                      <option key={className} value={className}>
-                        {className}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-
-              {/* 分数范围 */}
-              <div className="mb-6">
-                <label className="block text-sm font-black text-[#191A23] uppercase tracking-wide mb-3">
-                  分数范围
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <input
-                    type="number"
-                    placeholder="最低分"
-                    value={filter.scoreRange?.min || ""}
-                    onChange={(e) =>
-                      setFilter({
-                        ...filter,
-                        scoreRange: {
-                          ...filter.scoreRange,
-                          min: e.target.value
-                            ? Number(e.target.value)
-                            : undefined,
-                        },
-                      })
-                    }
-                    className="w-full p-3 bg-white border-2 border-black rounded-lg font-medium text-[#191A23] focus:border-[#B9FF66] focus:ring-2 focus:ring-[#B9FF66] transition-all"
-                  />
-                  <input
-                    type="number"
-                    placeholder="最高分"
-                    value={filter.scoreRange?.max || ""}
-                    onChange={(e) =>
-                      setFilter({
-                        ...filter,
-                        scoreRange: {
-                          ...filter.scoreRange,
-                          max: e.target.value
-                            ? Number(e.target.value)
-                            : undefined,
-                        },
-                      })
-                    }
-                    className="w-full p-3 bg-white border-2 border-black rounded-lg font-medium text-[#191A23] focus:border-[#B9FF66] focus:ring-2 focus:ring-[#B9FF66] transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* 清除筛选按钮 */}
-              <button
-                onClick={() => setFilter({})}
-                className="w-full p-3 bg-[#6B7280] text-white border-2 border-black rounded-lg font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all duration-200"
-              >
-                <RefreshCw className="w-4 h-4 mr-2 inline" />
-                清除所有筛选
-              </button>
-            </div>
-          </>
+          <div
+            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+            onClick={() => setShowSidebar(false)}
+          />
         )}
 
         {/* 主内容区域 - 方案A: 增加呼吸空间 p-6 → p-8 */}
-        <div className="flex-1 p-8 overflow-y-auto">
+        <div className="flex-1 p-8 overflow-y-auto bg-gray-50/50">
           {/* 页头 */}
-          <div className="mb-6">
+          <div className="mb-8">
             <div className="flex items-center justify-between">
-              <div className="space-y-3">
-                <h1 className="text-5xl font-black text-[#191A23] leading-tight">
-                  高级分析
-                  <span className="inline-block ml-3 px-4 py-2 bg-[#B9FF66] text-[#191A23] text-xl font-black border-2 border-black rounded-lg shadow-[4px_4px_0px_0px_#191A23]">
-                    ADVANCED
-                  </span>
+              <div className="space-y-2">
+                <h1 className="text-4xl md:text-5xl font-black text-[#191A23] leading-tight tracking-tight">
+                  高级分析中心
                 </h1>
-                <p className="text-lg text-[#6B7280] font-medium max-w-2xl">
-                  深度数据洞察和AI驱动的智能教学决策支持
+                <p className="text-lg font-medium text-gray-500 max-w-2xl flex items-center gap-2">
+                  <span className="w-2 h-2 bg-[#B9FF66] rounded-full inline-block"></span>
+                  深度数据洞察与智能决策支持系统
                 </p>
               </div>
 
               <div className="flex items-center space-x-3">
                 <Button
                   onClick={() => setShowSidebar(!showSidebar)}
-                  className="flex items-center gap-2 border-2 border-black bg-white hover:bg-[#F3F3F3] text-black font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all"
+                  className="h-10 px-4 bg-white text-[#191A23] border-2 border-[#191A23] font-bold shadow-[4px_4px_0px_0px_#191A23] hover:shadow-[2px_2px_0px_0px_#191A23] hover:translate-x-[2px] hover:translate-y-[2px] hover:bg-gray-50 transition-all"
                 >
-                  <Filter className="w-4 h-4" />
+                  <Filter className="w-4 h-4 mr-2" />
                   <span className="hidden sm:inline">
-                    {showSidebar ? "隐藏筛选栏" : "显示筛选栏"}
+                    {showSidebar ? "收起筛选" : "展开筛选"}
                   </span>
-                  <span className="sm:hidden">筛选</span>
                 </Button>
 
                 <Button
@@ -528,83 +311,76 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
                       selectedComplexity === "simple" ? "advanced" : "simple"
                     )
                   }
-                  className="flex items-center gap-2 border-2 border-black bg-white hover:bg-[#F3F3F3] text-black font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all"
+                  className="h-10 px-4 bg-white text-[#191A23] border-2 border-[#191A23] font-bold shadow-[4px_4px_0px_0px_#191A23] hover:shadow-[2px_2px_0px_0px_#191A23] hover:translate-x-[2px] hover:translate-y-[2px] hover:bg-gray-50 transition-all"
                 >
-                  <Settings className="w-4 h-4" />
-                  {selectedComplexity === "simple" ? "简化模式" : "高级模式"}
+                  <Settings className="w-4 h-4 mr-2" />
+                  {selectedComplexity === "simple" ? "精简视图" : "专家视图"}
                 </Button>
 
                 <Button
                   onClick={handleRefresh}
                   disabled={isLoading}
-                  className="flex items-center gap-2 border-2 border-black bg-[#B9FF66] hover:bg-[#B9FF66] text-black font-bold shadow-[4px_4px_0px_0px_#191A23] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] transition-all disabled:opacity-50"
+                  className="h-10 px-6 bg-[#B9FF66] text-[#191A23] border-2 border-[#191A23] font-black shadow-[4px_4px_0px_0px_#191A23] hover:shadow-[2px_2px_0px_0px_#191A23] hover:translate-x-[2px] hover:translate-y-[2px] hover:bg-[#a3e659] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <RefreshCw
-                    className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
+                    className={`w-4 h-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
                   />
-                  刷新数据
+                  刷新
                 </Button>
               </div>
             </div>
           </div>
 
-          {/* 筛选状态显示 */}
+          {/* 筛选状态显示 - 优化版 */}
           {hasActiveFilters && (
-            <div className="mb-6">
-              <Card className="border-l-4 border-l-[#B9FF66] bg-[#B9FF66]/5">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="h-5 w-5 text-[#B9FF66]" />
-                        <span className="font-medium text-gray-800">
-                          当前筛选状态
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {getCurrentExamNames.length > 0 && (
-                          <Badge
-                            variant="outline"
-                            className="border-[#B9FF66] text-[#B9FF66]"
-                          >
-                            <Eye className="h-3 w-3 mr-1" />
-                            考试: {getCurrentExamNames.join(", ")}
-                          </Badge>
-                        )}
-
-                        {filter.subjects?.length && (
-                          <Badge
-                            variant="outline"
-                            className="border-blue-500 text-blue-700"
-                          >
-                            科目: {filter.subjects.join(", ")}
-                          </Badge>
-                        )}
-
-                        {filter.classNames?.length && (
-                          <Badge
-                            variant="outline"
-                            className="border-purple-500 text-purple-700"
-                          >
-                            班级: {filter.classNames.join(", ")}
-                          </Badge>
-                        )}
-
-                        <Badge
-                          variant="secondary"
-                          className="bg-gray-100 text-gray-700"
-                        >
-                          显示 {safeGradeData.length} 条记录 (共{" "}
-                          {allGradeData.length} 条)
-                        </Badge>
-                      </div>
+            <div className="mb-8 animate-in fade-in slide-in-from-top-4 duration-300">
+              <div className="bg-white border-2 border-[#191A23] shadow-[4px_4px_0px_0px_#B9FF66] rounded-lg p-4 flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 text-[#191A23] font-bold">
+                    <div className="w-8 h-8 bg-[#B9FF66] rounded-full border-2 border-[#191A23] flex items-center justify-center">
+                      <Filter className="w-4 h-4" />
                     </div>
-
-                    <div className="text-xs text-gray-500">筛选已应用 ✓</div>
+                    <span>已应用筛选:</span>
                   </div>
-                </CardContent>
-              </Card>
+
+                  <div className="flex flex-wrap gap-2">
+                    {getCurrentExamNames.length > 0 && (
+                      <div className="flex items-center gap-1 px-3 py-1 bg-[#F3F3F3] border border-[#191A23] rounded-md text-sm font-bold text-[#191A23]">
+                        <BookOpen className="w-3 h-3 text-gray-500" />
+                        考试: {getCurrentExamNames.join(", ")}
+                      </div>
+                    )}
+
+                    {filter.subjects?.length && (
+                      <div className="flex items-center gap-1 px-3 py-1 bg-[#F3F3F3] border border-[#191A23] rounded-md text-sm font-bold text-[#191A23]">
+                        <Layers className="w-3 h-3 text-gray-500" />
+                        科目: {filter.subjects.join(", ")}
+                      </div>
+                    )}
+
+                    {filter.classNames?.length && (
+                      <div className="flex items-center gap-1 px-3 py-1 bg-[#F3F3F3] border border-[#191A23] rounded-md text-sm font-bold text-[#191A23]">
+                        <User className="w-3 h-3 text-gray-500" />
+                        班级: {filter.classNames.join(", ")}
+                      </div>
+                    )}
+
+                    {(filter.scoreRange?.min !== undefined ||
+                      filter.scoreRange?.max !== undefined) && (
+                      <div className="flex items-center gap-1 px-3 py-1 bg-[#F3F3F3] border border-[#191A23] rounded-md text-sm font-bold text-[#191A23]">
+                        <Target className="w-3 h-3 text-gray-500" />
+                        分数: {filter.scoreRange.min || 0} -{" "}
+                        {filter.scoreRange.max || 100}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 text-sm font-bold text-gray-500">
+                  <CheckCircle className="w-4 h-4 text-[#B9FF66]" />
+                  <span>找到 {safeGradeData.length} 条匹配记录</span>
+                </div>
+              </div>
             </div>
           )}
 
@@ -729,7 +505,7 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
                 </Card>
 
                 <Card className="bg-white border border-black shadow-[4px_4px_0px_0px_#191A23] transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#191A23] rounded-xl overflow-hidden">
-                  <CardHeader className="bg-[#6B7280] border-b-2 border-black">
+                  <CardHeader className="bg-[#191A23] border-b-2 border-black">
                     <CardTitle className="flex items-center text-white font-black uppercase tracking-wide">
                       <AlertTriangle className="w-5 h-5 mr-2" />
                       异常检测分析
@@ -779,7 +555,7 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6">
-                  <PredictiveAnalysis gradeData={safeGradeData} />
+                  <PredictiveAnalysis />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -793,7 +569,7 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6">
-                  <LearningBehaviorAnalysis gradeData={safeGradeData} />
+                  <LearningBehaviorAnalysis />
                 </CardContent>
               </Card>
             </TabsContent>

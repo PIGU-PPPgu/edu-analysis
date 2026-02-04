@@ -13,7 +13,7 @@ import StudentProfile from "./pages/StudentProfile";
 import StudentManagement from "./pages/StudentManagement";
 import ClassManagement from "./pages/ClassManagement";
 import ClassProfile from "./pages/ClassProfile";
-import AISettings from "./pages/AISettings";
+import AISettings from "./pages/settings/AISettingsPage-Enhanced";
 import WarningAnalysis from "./pages/WarningAnalysis";
 import NotFound from "./pages/NotFound";
 import { initializeDatabase, setupInitialData } from "./utils/dbSetup";

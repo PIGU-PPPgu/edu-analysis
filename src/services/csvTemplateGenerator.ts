@@ -136,7 +136,8 @@ export function generateCSVHeaders(config: TemplateConfig = {}): {
   description.name = "姓名 (必填, 用于验证)";
 
   headers.push("class_name");
-  description.class_name = "班级 (必填, 如: 高一1班)";
+  description.class_name =
+    "班级 (必填, 格式: 高一1班、高二3班，必须含年级，禁用括号)";
 
   // Exam metadata
   headers.push("exam_title");

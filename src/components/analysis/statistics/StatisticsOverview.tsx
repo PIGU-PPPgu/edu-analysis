@@ -47,7 +47,7 @@ import {
 // 类型定义
 // ============================================================================
 
-interface StatisticsOverviewProps {
+export interface StatisticsOverviewProps {
   /** 考试ID（可选，如果未提供将使用当前选择的考试） */
   examId?: string;
   /** 班级筛选（可选） */
@@ -197,7 +197,7 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
   showAIAnalysis = false,
   className = "",
 }) => {
-  const { filteredGradeData, statistics, isLoading, error } =
+  const { filteredGradeData, statistics, loading, error } =
     useModernGradeAnalysis();
 
   // AI洞察相关状态
@@ -383,7 +383,7 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
         .filter((record) => record.subject === "总分")
         .map((record) => ({
           student_id: record.student_id,
-          student_name: record.student_name,
+          student_name: record.name,
           class_name: record.class_name,
           total_score: record.score,
           exam_id: examId,
@@ -393,7 +393,7 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
   }, [filteredGradeData, examId]);
 
   // 加载状态
-  if (isLoading) {
+  if (loading) {
     return <StatisticsOverviewSkeleton />;
   }
 
@@ -410,7 +410,7 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
           <p className="text-2xl font-black text-[#191A23] uppercase tracking-wide mb-3">
             加载统计数据失败
           </p>
-          <p className="text-[#191A23]/70 font-medium">{error.message}</p>
+          <p className="text-[#191A23]/70 font-medium">{error}</p>
         </CardContent>
       </Card>
     );
@@ -683,7 +683,6 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
                 className: classFilter?.[0],
               }}
               autoAnalyze={true}
-              maxInsights={10}
             />
           </div>
         </DialogContent>

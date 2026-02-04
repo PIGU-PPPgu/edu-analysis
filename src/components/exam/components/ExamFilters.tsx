@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
+import type { DateRange } from "react-day-picker";
 import {
   Popover,
   PopoverContent,
@@ -97,18 +98,16 @@ export const ExamFiltersComponent: React.FC<ExamFiltersComponentProps> = ({
   };
 
   // 更新日期范围
-  const handleDateRangeChange = (range: {
-    from: Date | undefined;
-    to: Date | undefined;
-  }) => {
-    setDateRange(range);
+  const handleDateRangeChange = (range?: DateRange) => {
+    const nextRange = range ?? { from: undefined, to: undefined };
+    setDateRange({ from: nextRange.from, to: nextRange.to });
     onFiltersChange({
       ...filters,
       dateRange:
-        range.from && range.to
+        nextRange.from && nextRange.to
           ? {
-              from: format(range.from, "yyyy-MM-dd"),
-              to: format(range.to, "yyyy-MM-dd"),
+              from: format(nextRange.from, "yyyy-MM-dd"),
+              to: format(nextRange.to, "yyyy-MM-dd"),
             }
           : undefined,
     });
@@ -299,11 +298,7 @@ export const ExamFiltersComponent: React.FC<ExamFiltersComponentProps> = ({
                       mode="range"
                       defaultMonth={dateRange.from}
                       selected={dateRange}
-                      onSelect={(range) =>
-                        handleDateRangeChange(
-                          range || { from: undefined, to: undefined }
-                        )
-                      }
+                      onSelect={(range) => handleDateRangeChange(range)}
                       numberOfMonths={2}
                     />
                     {(dateRange.from || dateRange.to) && (

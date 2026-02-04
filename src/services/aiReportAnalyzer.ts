@@ -163,6 +163,16 @@ export class AIReportAnalyzer {
    * 分析成绩数据并生成AI洞察
    */
   async analyzeGradeData(gradeData: any[]): Promise<AIInsights> {
+    // 🔍 调试：检查输入数据
+    console.log(`🔍 aiReportAnalyzer 收到 ${gradeData.length} 条数据`);
+    if (gradeData.length > 0) {
+      const sampleNames = gradeData
+        .slice(0, 5)
+        .map((r) => r.name)
+        .filter(Boolean);
+      console.log(`📝 学生姓名样本: ${sampleNames.join(", ") || "无姓名数据"}`);
+    }
+
     // 尝试初始化AI
     const aiAvailable = await this.initialize();
 
@@ -208,15 +218,50 @@ export class AIReportAnalyzer {
   }
 
   /**
+   * 获取空摘要（安全降级）
+   */
+  private getEmptySummary(): GradeDataSummary {
+    return {
+      totalStudents: 0,
+      averageScore: 0,
+      passRate: 0,
+      excellentRate: 0,
+      lowestScore: 0,
+      highestScore: 0,
+      classSummaries: [],
+      subjectSummaries: [],
+      rankingData: {
+        topStudentsCount: 0,
+        bottomStudentsCount: 0,
+        subjectRankingAnalysis: [],
+        unbalancedStudents: [],
+      },
+    };
+  }
+
+  /**
    * 计算数据摘要
    */
   private calculateDataSummary(gradeData: any[]): GradeDataSummary {
     const totalStudents = gradeData.length;
 
+    // 🔧 安全检查：如果没有数据，返回空摘要
+    if (totalStudents === 0) {
+      console.warn("⚠️ calculateDataSummary: 没有成绩数据");
+      return this.getEmptySummary();
+    }
+
     // 计算总分相关统计
     const totalScores = gradeData
       .map((r) => parseFloat(r.total_score))
       .filter((s) => !isNaN(s));
+
+    // 🔧 安全检查：如果没有有效分数
+    if (totalScores.length === 0) {
+      console.warn("⚠️ calculateDataSummary: 没有有效的总分数据");
+      return this.getEmptySummary();
+    }
+
     const averageScore =
       totalScores.reduce((a, b) => a + b, 0) / totalScores.length;
 
@@ -359,6 +404,12 @@ export class AIReportAnalyzer {
    */
   private calculateRankingData(gradeData: any[]): any {
     const totalStudents = gradeData.length;
+
+    // 🔍 调试：检查排名数据
+    const hasRankData = gradeData.filter(
+      (r) => r.total_rank_in_class || r.total_rank_in_school
+    ).length;
+    console.log(`🔍 排名数据检查: ${hasRankData}/${totalStudents} 条有排名`);
 
     // 1. 计算前10%和后20%学生数
     const topStudentsCount = Math.ceil(totalStudents * 0.1);
@@ -658,6 +709,70 @@ ${unbalancedStudentsList}
   }
 
   /**
+   * 清洗 JSON 字符串，处理字符串内部的控制字符
+   * 问题：AI 返回的 JSON 字符串值内部可能包含原始换行符，而不是转义的 \n
+   */
+  private sanitizeJsonString(jsonStr: string): string {
+    // 方案1：先尝试直接解析，如果成功就不需要清洗
+    try {
+      JSON.parse(jsonStr);
+      return jsonStr; // 能解析就直接返回
+    } catch {
+      // 继续清洗
+    }
+
+    // 方案2：处理 JSON 字符串字面量内的原始换行符
+    // 策略：在字符串内部将原始 \n \r \t 转换为转义序列
+    let result = "";
+    let inString = false;
+    let escape = false;
+
+    for (let i = 0; i < jsonStr.length; i++) {
+      const char = jsonStr[i];
+
+      if (escape) {
+        // 前一个字符是反斜杠，当前字符是转义序列的一部分
+        result += char;
+        escape = false;
+        continue;
+      }
+
+      if (char === "\\") {
+        result += char;
+        escape = true;
+        continue;
+      }
+
+      if (char === '"') {
+        inString = !inString;
+        result += char;
+        continue;
+      }
+
+      if (inString) {
+        // 在字符串内部，需要转义控制字符
+        if (char === "\n") {
+          result += "\\n";
+        } else if (char === "\r") {
+          result += "\\r";
+        } else if (char === "\t") {
+          result += "\\t";
+        } else if (char.charCodeAt(0) < 32) {
+          // 其他控制字符，移除或转义
+          result += "\\u" + char.charCodeAt(0).toString(16).padStart(4, "0");
+        } else {
+          result += char;
+        }
+      } else {
+        // 不在字符串内部，直接保留（包括格式化用的换行）
+        result += char;
+      }
+    }
+
+    return result;
+  }
+
+  /**
    * 解析AI返回的分析结果
    */
   private parseAIResponse(
@@ -674,9 +789,22 @@ ${unbalancedStudentsList}
           "";
       }
 
+      // 🔍 调试：打印AI原始返回内容
+      console.log("🤖 AI原始返回内容（前500字符）:", aiText.substring(0, 500));
+
       // 尝试解析JSON（AI可能返回包含```json```的markdown格式）
       const jsonMatch = aiText.match(/```json\s*([\s\S]*?)\s*```/);
-      const jsonStr = jsonMatch ? jsonMatch[1] : aiText;
+      let jsonStr = jsonMatch ? jsonMatch[1] : aiText;
+
+      // 🔍 调试：打印提取后的JSON字符串
+      console.log("📋 提取的JSON（前300字符）:", jsonStr.substring(0, 300));
+      console.log("📋 是否匹配到```json```格式:", !!jsonMatch);
+
+      // 🔧 清洗 JSON 字符串，移除控制字符避免解析失败
+      jsonStr = this.sanitizeJsonString(jsonStr);
+
+      // 🔍 调试：打印清洗后的JSON
+      console.log("🧹 清洗后JSON（前300字符）:", jsonStr.substring(0, 300));
 
       const parsed = JSON.parse(jsonStr);
 
@@ -717,11 +845,168 @@ ${unbalancedStudentsList}
       return insights;
     } catch (error) {
       console.error("解析AI响应失败:", error);
-      // 返回默认分析
-      return this.generateDefaultInsights(
-        [] // 这里传空数组，因为已经有summary了
-      );
+      // 🔧 修复：使用已有的 summary 生成默认分析，避免数据丢失
+      return this.generateDefaultInsightsFromSummary(summary);
     }
+  }
+
+  /**
+   * 从已有的 summary 生成默认分析（AI解析失败时的降级方案）
+   * 与 generateDefaultInsights 类似，但直接使用已计算的 summary
+   */
+  private generateDefaultInsightsFromSummary(
+    summary: GradeDataSummary
+  ): AIInsights {
+    const keyFindings: KeyFinding[] = [];
+
+    // 1. 及格率分析
+    if (summary.passRate < 70) {
+      keyFindings.push({
+        id: "finding-passrate",
+        severity: "high",
+        category: "performance",
+        message: `整体及格率为${summary.passRate.toFixed(1)}%，低于目标水平`,
+        data: { passRate: summary.passRate, target: 85 },
+        relatedCharts: ["ScoreDistributionChart"],
+        actionRequired: true,
+      });
+    } else {
+      keyFindings.push({
+        id: "finding-passrate",
+        severity: "low",
+        category: "performance",
+        message: `整体及格率${summary.passRate.toFixed(1)}%，达到基本要求`,
+        data: { passRate: summary.passRate },
+        relatedCharts: ["ScoreDistributionChart"],
+        actionRequired: false,
+      });
+    }
+
+    // 2. 班级差异分析
+    if (summary.classSummaries.length > 1) {
+      const sortedClasses = [...summary.classSummaries].sort(
+        (a, b) => b.avgScore - a.avgScore
+      );
+      const topClass = sortedClasses[0];
+      const bottomClass = sortedClasses[sortedClasses.length - 1];
+      const gap = topClass.avgScore - bottomClass.avgScore;
+
+      if (gap > 10) {
+        keyFindings.push({
+          id: "finding-classgap",
+          severity: gap > 15 ? "high" : "medium",
+          category: "comparison",
+          message: `班级间差异显著，${topClass.className}(${topClass.avgScore.toFixed(1)}分)与${bottomClass.className}(${bottomClass.avgScore.toFixed(1)}分)相差${gap.toFixed(1)}分`,
+          data: { topClass, bottomClass, gap },
+          relatedCharts: ["ClassComparisonChart"],
+          actionRequired: gap > 15,
+        });
+      }
+    }
+
+    // 3. 优秀率分析
+    if (summary.excellentRate >= 15) {
+      keyFindings.push({
+        id: "finding-excellent",
+        severity: "low",
+        category: "excellence",
+        message: `优秀率达${summary.excellentRate.toFixed(1)}%，共${summary.rankingData.topStudentsCount}名优秀学生`,
+        data: { excellentRate: summary.excellentRate },
+        relatedCharts: ["ScoreDistributionChart"],
+        actionRequired: false,
+      });
+    }
+
+    // 4. 添加排名数据相关分析
+    if (summary.rankingData.topStudentsCount > 0) {
+      const topSubjectData = summary.rankingData.subjectRankingAnalysis[0];
+      if (topSubjectData && topSubjectData.topStudents.length > 0) {
+        keyFindings.push({
+          id: "finding-top-students",
+          severity: "low",
+          category: "excellence",
+          message: `前${summary.rankingData.topStudentsCount}名优秀学生表现突出，${topSubjectData.subject}科目领先者: ${topSubjectData.topStudents.slice(0, 3).join("、")}`,
+          data: { topStudents: topSubjectData.topStudents },
+          relatedCharts: [],
+          actionRequired: false,
+        });
+      }
+    }
+
+    // 5. 偏科学生分析
+    if (summary.rankingData.unbalancedStudents.length > 0) {
+      const unbalanced = summary.rankingData.unbalancedStudents.slice(0, 3);
+      const names = unbalanced.map((s) => s.name).join("、");
+      keyFindings.push({
+        id: "finding-unbalanced",
+        severity: "medium",
+        category: "warning", // 使用有效的 FindingCategory
+        message: `发现${summary.rankingData.unbalancedStudents.length}名偏科学生需关注: ${names}等`,
+        data: { unbalancedStudents: unbalanced },
+        relatedCharts: [],
+        actionRequired: true,
+      });
+    }
+
+    const recommendations: Recommendation[] = [
+      {
+        id: "rec-1",
+        category: "教学改进",
+        title: "加强薄弱班级辅导",
+        description: "针对平均分较低的班级，开展专题辅导和个性化教学",
+        targetGroup: "薄弱班级",
+        aiGenerated: false,
+      },
+      {
+        id: "rec-2",
+        category: "学生辅导",
+        title: "关注学困生群体",
+        description: "建立学困生档案，安排一对一辅导",
+        targetGroup: "学困生",
+        aiGenerated: false,
+      },
+    ];
+
+    // 添加针对偏科学生的建议
+    if (summary.rankingData.unbalancedStudents.length > 0) {
+      recommendations.push({
+        id: "rec-3",
+        category: "偏科辅导",
+        title: "针对性补弱辅导",
+        description: `为${summary.rankingData.unbalancedStudents
+          .slice(0, 3)
+          .map((s) => s.name)
+          .join("、")}等偏科学生制定专项辅导计划`,
+        targetGroup: "偏科学生",
+        aiGenerated: false,
+      });
+    }
+
+    const warnings: Warning[] = [];
+    const failedCount = Math.round(
+      (summary.totalStudents * (100 - summary.passRate)) / 100
+    );
+    if (failedCount > 0) {
+      warnings.push({
+        id: "warning-failed",
+        severity: summary.passRate < 60 ? "high" : "medium",
+        message: `有${failedCount}名学生不及格，需要重点关注`,
+        affectedStudents: failedCount,
+        relatedMetrics: [
+          { metric: "passRate", value: summary.passRate, threshold: 60 },
+        ],
+      });
+    }
+
+    return {
+      keyFindings,
+      recommendations,
+      warnings,
+      summary: `【AI分析暂不可用，以下为基础统计】共${summary.totalStudents}名学生参加考试，平均分${summary.averageScore.toFixed(1)}分，及格率${summary.passRate.toFixed(1)}%，优秀率${summary.excellentRate.toFixed(1)}%。最高分${summary.highestScore}分，最低分${summary.lowestScore}分。`,
+      confidence: 0.6,
+      generatedAt: new Date(),
+      modelUsed: "Fallback (AI解析失败)",
+    };
   }
 
   /**

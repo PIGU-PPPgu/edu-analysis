@@ -431,52 +431,54 @@ const ClassManagement: React.FC = () => {
 
     setSmartPortraitLoading(true);
     try {
-      // 优化：使用JOIN一次性获取学生及其最新成绩
-      const { data: studentsWithGrades, error: studentsError } = await supabase
+      // 🔧 修复：获取班级所有学生数据（支持学生→小组→班级三级聚合）
+      // 1️⃣ 先获取班级所有学生
+      const { data: students, error: studentsError } = await supabase
         .from("students")
-        .select(
-          `
-          student_id, 
-          name, 
-          class_name,
-          grade_data!inner(total_score, exam_date)
-        `
-        )
-        .eq("class_name", selectedClass.name)
-        .order("grade_data(exam_date)", { ascending: false })
-        .limit(1);
+        .select("student_id, name, class_name")
+        .eq("class_name", selectedClass.name);
 
-      if (studentsError) {
-        // 如果JOIN查询失败，回退到简单查询
-        console.warn("JOIN查询失败，使用简单查询:", studentsError);
-        const { data: simpleStudentsData, error: simpleError } = await supabase
-          .from("students")
-          .select("student_id, name, class_name")
-          .eq("class_name", selectedClass.name);
+      if (studentsError) throw studentsError;
 
-        if (simpleError) throw simpleError;
+      // 2️⃣ 批量获取学生的最新成绩（用于小组和班级聚合分析）
+      const studentIds = (students || []).map((s) => s.student_id);
 
-        // 简化版：不查询成绩，设置默认值
-        const studentsWithScoresData = (simpleStudentsData || []).map(
-          (student) => ({
-            ...student,
-            overall_score: 0,
-          })
-        );
-
-        setStudentsWithScores(studentsWithScoresData);
+      if (studentIds.length === 0) {
+        setStudentsWithScores([]);
       } else {
-        // 处理JOIN查询结果
-        const studentsWithScoresData = (studentsWithGrades || []).map(
-          (student: any) => ({
-            student_id: student.student_id,
-            name: student.name,
-            class_name: student.class_name,
-            overall_score: student.grade_data?.[0]?.total_score || 0,
-          })
-        );
+        const { data: latestGrades, error: gradesError } = await supabase
+          .from("grade_data")
+          .select("student_id, total_score, exam_date")
+          .in("student_id", studentIds)
+          .order("exam_date", { ascending: false });
+
+        if (gradesError) {
+          console.warn("加载成绩数据失败，使用默认值:", gradesError);
+        }
+
+        // 3️⃣ 为每个学生匹配其最新成绩（性能优化：O(n²) → O(n)）
+        // 先构建成绩映射，避免重复遍历
+        const gradesByStudent = new Map<string, { total_score: number }>();
+        latestGrades?.forEach((grade) => {
+          // 只保存每个学生的第一条记录（已按日期降序排列）
+          if (!gradesByStudent.has(grade.student_id)) {
+            gradesByStudent.set(grade.student_id, {
+              total_score: grade.total_score,
+            });
+          }
+        });
+
+        // 然后直接从 Map 查找，O(1) 复杂度
+        const studentsWithScoresData = (students || []).map((student) => ({
+          ...student,
+          overall_score:
+            gradesByStudent.get(student.student_id)?.total_score || 0,
+        }));
 
         setStudentsWithScores(studentsWithScoresData);
+        console.log(
+          `✅ 加载智能画像数据: ${studentsWithScoresData.length} 个学生`
+        );
       }
 
       // 加载现有分组 - 添加错误处理

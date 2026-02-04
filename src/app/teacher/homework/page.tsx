@@ -1,7 +1,11 @@
 import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HomeworkTable } from "@/components/homework/HomeworkTable";
-import { HomeworkAnalysisDashboard } from "@/components/analysis";
+const HomeworkAnalysisPlaceholder = () => (
+  <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+    暂无作业分析组件，请先完善作业分析模块。
+  </div>
+);
 
 export default function TeacherHomeworkPage() {
   return (
@@ -20,7 +24,7 @@ export default function TeacherHomeworkPage() {
           <HomeworkTable />
         </TabsContent>
         <TabsContent value="analysis" className="pt-4">
-          <HomeworkAnalysisDashboard />
+          <HomeworkAnalysisPlaceholder />
         </TabsContent>
       </Tabs>
     </div>

@@ -251,20 +251,17 @@ export const useGradeImporter = (): GradeImporterHook => {
       updateState({ loading: true, parseError: null, parseProgress: 0 });
 
       try {
-        let data: any[];
+        let parsed: { data: any[]; headers: string[] };
 
         if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
-          data = await parseExcelFile(file, (progress) => {
-            updateState({ parseProgress: progress });
-          });
+          parsed = await parseExcelFile(file);
         } else if (file.name.endsWith(".csv")) {
-          data = await parseCSVFile(file, (progress) => {
-            updateState({ parseProgress: progress });
-          });
+          parsed = await parseCSVFile(file);
         } else {
           throw new Error("不支持的文件格式，请上传 Excel 或 CSV 文件");
         }
 
+        const data = parsed.data || [];
         if (data.length === 0) {
           throw new Error("文件中没有发现有效数据");
         }
@@ -344,15 +341,12 @@ export const useGradeImporter = (): GradeImporterHook => {
     try {
       // 分析文件头部
       const headers = Object.keys(state.fileData[0]);
-      const analysisResult = await analyzeCSVHeaders(
-        headers,
-        state.fileData.slice(0, 5)
-      );
+      const analysisResult = analyzeCSVHeaders(headers);
 
       updateState({ mappingProgress: 50 });
 
       // 生成映射建议
-      const suggestions = await generateMappingSuggestions(analysisResult);
+      const suggestions = generateMappingSuggestions(headers);
 
       updateState({
         mappingSuggestions: suggestions,

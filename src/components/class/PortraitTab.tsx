@@ -51,18 +51,15 @@ const PortraitTab: React.FC<PortraitTabProps> = ({ selectedClass }) => {
             </TabsList>
 
             <TabsContent value="smart" className="mt-4">
-              <ClassPortraitDashboard
-                classId={selectedClass.id}
-                className={selectedClass.name}
-              />
+              <ClassPortraitDashboard className={selectedClass.name} />
             </TabsContent>
 
             <TabsContent value="enhanced" className="mt-4">
-              <EnhancedStudentPortrait classId={selectedClass.id} />
+              <EnhancedStudentPortrait />
             </TabsContent>
 
             <TabsContent value="ai-analysis" className="mt-4">
-              <IntelligentPortraitAnalysis classId={selectedClass.id} />
+              <IntelligentPortraitAnalysis />
             </TabsContent>
           </Tabs>
         </CardContent>

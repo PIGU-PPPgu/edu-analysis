@@ -42,6 +42,7 @@ import {
   Users,
   BookOpen,
   Clock,
+  Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -50,8 +51,10 @@ import {
   ImportOptions,
   ExamInfo,
   ValidationResult,
+  ImportMode,
+  ImportModeConfig,
+  SkippedRecord,
 } from "../types";
-import { saveExamData } from "@/services/examDataService";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
 import {
@@ -177,7 +180,7 @@ const insertGradeDataSafe = async (gradeRecord: any) => {
     };
 
     // 构建单行宽表记录 - 每个学生每次考试只有一行记录，包含所有科目
-    const wideRecord = {
+    const wideRecord: Record<string, any> = {
       exam_id: gradeRecord.exam_id,
       student_id: gradeRecord.student_id,
       name: gradeRecord.name,
@@ -590,6 +593,15 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
     useState<Record<string, string>>(currentMapping);
   const [activeTab, setActiveTab] = useState("config");
 
+  // 导入模式状态
+  const [importMode, setImportMode] = useState<ImportModeConfig>({
+    mode: "full",
+    autoDetected: false,
+    confidence: 1.0,
+    description: "完整导入模式",
+  });
+  const [skippedRecords, setSkippedRecords] = useState<SkippedRecord[]>([]);
+
   // 考试信息确认对话框状态
   const [showExamDialog, setShowExamDialog] = useState(false);
   const [tempExamInfo, setTempExamInfo] = useState({
@@ -597,6 +609,7 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
     type: examInfo.type || "月考",
     date: examInfo.date || new Date().toISOString().split("T")[0],
     subject: examInfo.subject || "",
+    className: examInfo.className || "",
   });
 
   // 导入控制
@@ -667,9 +680,10 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
       if (result.successCount > 0) {
         setShowPostImportReview(true);
         setActiveTab("review");
-        toast.success(
-          `导入完成！成功 ${result.successCount} 条，失败 ${result.failedCount} 条。请检查字段映射。`
-        );
+
+        // 生成包含跳过信息的消息
+        const resultMessage = `导入完成！成功 ${result.successCount} 条，失败 ${result.failedCount} 条${skippedRecords.length > 0 ? `，跳过 ${skippedRecords.length} 条（学号不存在）` : ""}。请检查字段映射。`;
+        toast.success(resultMessage);
       } else {
         onImportComplete(result);
         toast.error("导入失败，没有成功导入任何记录");
@@ -693,6 +707,14 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
   const performImport = async (): Promise<ImportResult> => {
     const { batchSize, parallelImport, enableBackup } = importConfig;
     const totalBatches = Math.ceil(validData.length / batchSize);
+
+    // 检测导入模式
+    const headers = validData.length > 0 ? Object.keys(validData[0]) : [];
+    const detectedMode = detectImportMode(headers);
+    setImportMode(detectedMode);
+    const localSkippedRecords: SkippedRecord[] = [];
+
+    console.log(`[导入模式] ${detectedMode.description}`);
 
     // 初始化进度状态
     setImportProgress((prev) => ({
@@ -753,10 +775,21 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
 
         if (parallelImport) {
           // 并行处理批次
-          batchResult = await processBatchParallel(batch, examId);
+          batchResult = await processBatchParallel(
+            batch,
+            examId,
+            detectedMode,
+            localSkippedRecords,
+            successCount + failedCount
+          );
         } else {
           // 顺序处理批次
-          batchResult = await processBatchSequential(batch, examId);
+          batchResult = await processBatchSequential(
+            batch,
+            examId,
+            detectedMode,
+            localSkippedRecords
+          );
         }
 
         successCount += batchResult.successCount;
@@ -796,6 +829,14 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
       endTime,
     }));
 
+    // 更新跳过记录的状态
+    setSkippedRecords(localSkippedRecords);
+
+    // 生成导入结果消息
+    console.log(
+      `[导入完成] 成功: ${successCount}, 失败: ${failedCount}, 跳过: ${localSkippedRecords.length}`
+    );
+
     return {
       success: true,
       examId,
@@ -813,19 +854,49 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
   };
 
   // 顺序处理批次
-  const processBatchSequential = async (batch: any[], examId: string) => {
+  const processBatchSequential = async (
+    batch: any[],
+    examId: string,
+    detectedMode: ImportModeConfig,
+    localSkippedRecords: SkippedRecord[]
+  ) => {
     let successCount = 0;
     let failedCount = 0;
     const errors: string[] = [];
     const warnings: string[] = [];
     const processedIds: string[] = [];
+    let processedCount = 0;
 
     for (const record of batch) {
       try {
         // 处理学生信息 - 获取匹配或创建的学生记录
         let studentRecord = null;
-        if (importConfig.createMissingStudents) {
-          studentRecord = await ensureStudentExists(record);
+
+        // 根据导入模式处理学生记录
+        if (detectedMode.mode === "grades-only") {
+          // 仅成绩模式：只查询，不创建
+          studentRecord = await findStudentByIdOnly(record.student_id);
+
+          if (!studentRecord) {
+            // 学号不存在，跳过该记录
+            localSkippedRecords.push({
+              row: processedCount + 1,
+              student_id: record.student_id,
+              reason: "学号不存在于系统中",
+              data: record,
+            });
+
+            console.log(
+              `[跳过记录] 第${processedCount + 1}行: 学号 ${record.student_id} 不存在`
+            );
+            processedCount++;
+            continue; // 跳过该行
+          }
+        } else {
+          // 完整导入模式：查询或创建
+          if (importConfig.createMissingStudents) {
+            studentRecord = await ensureStudentExists(record);
+          }
         }
 
         // 使用智能匹配返回的学生UUID，如果没有则使用原始记录中的student_id
@@ -880,13 +951,40 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
   };
 
   // 并行处理批次
-  const processBatchParallel = async (batch: any[], examId: string) => {
-    const promises = batch.map(async (record) => {
+  const processBatchParallel = async (
+    batch: any[],
+    examId: string,
+    detectedMode: ImportModeConfig,
+    localSkippedRecords: SkippedRecord[],
+    processedCount: number
+  ) => {
+    const promises = batch.map(async (record, index) => {
       try {
         // 处理学生信息 - 获取匹配或创建的学生记录
         let studentRecord = null;
-        if (importConfig.createMissingStudents) {
-          studentRecord = await ensureStudentExists(record);
+
+        // 根据导入模式处理学生记录
+        if (detectedMode.mode === "grades-only") {
+          // 仅成绩模式：只查询，不创建
+          studentRecord = await findStudentByIdOnly(record.student_id);
+
+          if (!studentRecord) {
+            // 学号不存在，跳过该记录
+            localSkippedRecords.push({
+              row: processedCount + index + 1,
+              student_id: record.student_id,
+              reason: "学号不存在于系统中",
+              data: record,
+            });
+
+            console.log(`[跳过记录] 学号 ${record.student_id} 不存在`);
+            return { success: false, skipped: true }; // 标记为跳过
+          }
+        } else {
+          // 完整导入模式：查询或创建
+          if (importConfig.createMissingStudents) {
+            studentRecord = await ensureStudentExists(record);
+          }
         }
 
         // 使用智能匹配返回的学生UUID，如果没有则使用原始记录中的student_id
@@ -1021,6 +1119,70 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
       }
 
       throw error;
+    }
+  };
+
+  // 自动检测导入模式
+  const detectImportMode = (headers: string[]): ImportModeConfig => {
+    const studentInfoPatterns = [
+      "姓名",
+      "name",
+      "学生姓名",
+      "student_name",
+      "studentname",
+      "班级",
+      "class",
+      "class_name",
+      "classname",
+      "班级名称",
+    ];
+
+    const hasStudentInfo = headers.some((header) =>
+      studentInfoPatterns.some((pattern) =>
+        header.toLowerCase().includes(pattern.toLowerCase())
+      )
+    );
+
+    if (hasStudentInfo) {
+      return {
+        mode: "full",
+        autoDetected: true,
+        confidence: 0.95,
+        description: "完整导入模式 - 将自动创建不存在的学生",
+      };
+    } else {
+      return {
+        mode: "grades-only",
+        autoDetected: true,
+        confidence: 0.9,
+        description:
+          "仅成绩模式 - 将通过学号关联现有学生，不存在的学号将被跳过",
+      };
+    }
+  };
+
+  // 仅查询学生（不创建）
+  const findStudentByIdOnly = async (studentId: string) => {
+    try {
+      const { data: student, error } = await supabase
+        .from("students")
+        .select("id, student_id, name, class_name")
+        .eq("student_id", studentId)
+        .single();
+
+      if (error) {
+        if (error.code === "PGRST116") {
+          // 没有找到记录
+          return null;
+        }
+        console.error("查询学生失败:", error);
+        return null;
+      }
+
+      return student;
+    } catch (err) {
+      console.error("查询学生异常:", err);
+      return null;
     }
   };
 
@@ -1856,7 +2018,9 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
                                     key={index}
                                     className="text-sm text-red-600"
                                   >
-                                    {error}
+                                    {typeof error === "string"
+                                      ? error
+                                      : error.error || error.code}
                                   </p>
                                 ))}
                               </div>
@@ -1876,7 +2040,9 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
                                     key={index}
                                     className="text-sm text-yellow-600"
                                   >
-                                    {warning}
+                                    {typeof warning === "string"
+                                      ? warning
+                                      : warning.warning || warning.code}
                                   </p>
                                 ))}
                               </div>
@@ -1924,6 +2090,69 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
                 }}
               />
             </div>
+          )}
+
+          {/* 导入模式提示 */}
+          {importMode.autoDetected && !importing && !importResult && (
+            <Alert className="mb-4">
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <strong>
+                      检测到
+                      {importMode.mode === "full" ? "完整导入" : "仅成绩导入"}
+                      模式
+                    </strong>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {importMode.description}
+                    </p>
+                  </div>
+                  <Badge
+                    variant={
+                      importMode.mode === "full" ? "default" : "secondary"
+                    }
+                  >
+                    {importMode.mode === "full" ? "完整模式" : "仅成绩模式"}
+                  </Badge>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* 跳过记录警告 */}
+          {skippedRecords.length > 0 && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>
+                  跳过 {skippedRecords.length} 条记录（学号不存在）
+                </strong>
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-sm">查看详情</summary>
+                  <ul className="mt-2 space-y-1 text-sm">
+                    {skippedRecords.slice(0, 10).map((record, idx) => (
+                      <li key={idx}>
+                        第{record.row}行: 学号{" "}
+                        <code className="bg-muted px-1 rounded">
+                          {record.student_id}
+                        </code>{" "}
+                        - {record.reason}
+                      </li>
+                    ))}
+                    {skippedRecords.length > 10 && (
+                      <li className="text-muted-foreground">
+                        ... 还有 {skippedRecords.length - 10} 条记录
+                      </li>
+                    )}
+                  </ul>
+                </details>
+                <p className="text-sm mt-2 text-muted-foreground">
+                  💡
+                  提示：如需导入新学生成绩，请使用包含"姓名"和"班级"列的完整表格
+                </p>
+              </AlertDescription>
+            </Alert>
           )}
 
           {/* 操作按钮 */}

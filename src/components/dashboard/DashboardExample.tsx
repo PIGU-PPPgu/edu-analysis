@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { AdvancedAnalyticsDashboard } from "./AdvancedAnalyticsDashboard";
+import AdvancedAnalyticsDashboard from "@/components/analysis/dashboard/AdvancedAnalyticsDashboard_Fixed";
 import {
   BookOpen,
   Users,
@@ -130,11 +130,7 @@ export const DashboardExample: React.FC = () => {
         </div>
 
         {/* 仪表板主体 */}
-        <AdvancedAnalyticsDashboard
-          classId={selectedClass}
-          studentId={selectedStudent}
-          subjectId={selectedSubject}
-        />
+        <AdvancedAnalyticsDashboard />
       </div>
     );
   }

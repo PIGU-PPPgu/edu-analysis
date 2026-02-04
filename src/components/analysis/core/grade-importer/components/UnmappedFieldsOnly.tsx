@@ -216,6 +216,7 @@ const UnmappedFieldsOnly: React.FC<UnmappedFieldsOnlyProps> = ({
   const handleComplete = () => {
     const mappingConfig: MappingConfig = {
       fieldMappings: currentMapping,
+      customFields: {},
       examInfo: {
         title: "未命名考试",
         type: "月考",

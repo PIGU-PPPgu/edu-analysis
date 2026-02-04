@@ -64,10 +64,19 @@ import {
 import { autoSyncService } from "@/services/autoSyncService";
 import { showError } from "@/services/errorHandler";
 
+type TableStatus =
+  | "idle"
+  | "checking"
+  | "ready"
+  | "missing"
+  | "initializing"
+  | "error";
+
 const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
-  const [isInitializingTables, setIsInitializingTables] = useState(false);
-  const [tablesExist, setTablesExist] = useState<boolean>(true);
+  const [tableStatus, setTableStatus] = useState<TableStatus>("checking");
+  const [tableError, setTableError] = useState<string | null>(null);
+  const [lastCheckTime, setLastCheckTime] = useState<string | null>(null);
   const navigate = useNavigate();
   const { user, isAuthReady } = useAuth();
 
@@ -91,69 +100,73 @@ const Index = () => {
   // 统一使用智能导入模式
   // 移除了旧的导入方式选择，简化用户体验
 
-  // 检查必要的数据表是否存在，并在需要时创建
-  useEffect(() => {
-    const checkAndInitializeTables = async () => {
-      try {
-        setIsInitializingTables(true);
+  const checkTables = useCallback(async () => {
+    setTableStatus("checking");
+    setTableError(null);
+    try {
+      const { error } = await supabase
+        .from("grade_data")
+        .select("*", { count: "exact", head: true })
+        .limit(1);
 
-        // 检查数据表是否存在
-        const requiredTables = [
-          "exams",
-          "grade_data",
-          "grade_tags",
-          "grade_data_tags",
-        ];
-        let allTablesExist = true;
-
-        for (const table of requiredTables) {
-          const { count, error } = await supabase
-            .from(table)
-            .select("*", { count: "exact", head: true });
-
-          if (error && error.code === "42P01") {
-            // 表不存在的错误代码
-            allTablesExist = false;
-            break;
-          }
-        }
-
-        // 如果有表不存在，初始化所有表
-        if (!allTablesExist) {
-          console.log("检测到数据表不完整，准备初始化...");
-          const result = await gradeAnalysisService.initializeTables();
-
-          if (result.success) {
-            toast.success("数据表初始化成功", {
-              description: "成绩分析所需的数据表已成功创建",
-            });
-          } else if (result.needsManualExecution) {
-            toast.warning("无法自动创建数据表", {
-              description: "请联系管理员在Supabase控制台手动执行SQL脚本",
-            });
-            console.error("需要手动执行的SQL:", result.manualSqlScripts);
-          } else {
-            toast.error("数据表初始化失败", {
-              description: result.message || "请查看控制台了解详情",
-            });
-          }
+      if (error) {
+        if (error.code === "42P01") {
+          setTableStatus("missing");
+          setTableError("缺少成绩数据表，请初始化");
         } else {
-          console.log("所有必要的数据表已存在");
+          setTableStatus("error");
+          setTableError(error.message || "检查数据表失败");
         }
-      } catch (error) {
-        console.error("检查和初始化数据表时出错:", error);
-        toast.error("数据表检查失败", {
-          description: "无法确认必要的数据表是否存在",
-        });
-      } finally {
-        setIsInitializingTables(false);
+      } else {
+        setTableStatus("ready");
+        setLastCheckTime(new Date().toLocaleString());
       }
-    };
-
-    if (isAuthReady && user) {
-      checkAndInitializeTables();
+    } catch (err) {
+      setTableStatus("error");
+      setTableError(err instanceof Error ? err.message : "检查数据表失败");
     }
-  }, [isAuthReady, user]);
+  }, []);
+
+  const initializeTables = useCallback(async () => {
+    setTableStatus("initializing");
+    setTableError(null);
+    try {
+      const result = await gradeAnalysisService.initializeTables();
+      if (result.success) {
+        toast.success("数据表初始化成功", {
+          description: "成绩分析所需的数据表已创建",
+        });
+        await checkTables();
+      } else if (result.needsManualExecution) {
+        setTableStatus("missing");
+        setTableError("无法自动创建数据表，请在 Supabase 控制台执行 SQL");
+        toast.warning("需要手动执行初始化 SQL", {
+          description: "请联系管理员处理",
+        });
+      } else {
+        setTableStatus("error");
+        setTableError(result.message || "数据表初始化失败");
+        toast.error("数据表初始化失败", {
+          description: result.message || "请查看控制台了解详情",
+        });
+      }
+    } catch (error) {
+      setTableStatus("error");
+      setTableError(
+        error instanceof Error ? error.message : "数据表初始化失败"
+      );
+      toast.error("数据表初始化失败", {
+        description:
+          error instanceof Error ? error.message : "请查看控制台了解详情",
+      });
+    }
+  }, [checkTables]);
+
+  useEffect(() => {
+    if (isAuthReady && user) {
+      checkTables();
+    }
+  }, [isAuthReady, user, checkTables]);
 
   useEffect(() => {
     // 用AuthContext统一处理认证状态，避免重复逻辑
@@ -190,6 +203,9 @@ const Index = () => {
 
   // 整合GradeDataImport的处理函数
   const handleDataImported = (data: any[]) => {
+    // 重置校验状态
+    setValidationReport(null);
+    setShowValidationPanel(false);
     setImportedData(data);
     setGradesActiveTab("preview");
 
@@ -207,37 +223,37 @@ const Index = () => {
   // 处理简化导入完成
   const handleSimpleImportComplete = async (result: any) => {
     console.log("简化导入完成:", result);
+    setValidationReport(null);
+    setShowValidationPanel(false);
+
+    const imported = result?.importedData || [];
+    const recordCount = result?.successRecords || imported.length || 0;
+
+    if (recordCount === 0) {
+      toast.warning("导入完成", {
+        description: "未检测到可预览的数据，请检查文件格式或映射配置",
+      });
+      return;
+    }
+
+    setImportedData(imported);
+    setGradesActiveTab("preview");
+
     toast.success("导入完成", {
-      description: `成功导入 ${result.successRecords} 条记录`,
+      description: `成功导入 ${recordCount} 条记录`,
     });
 
-    // 可以在这里添加跳转到分析页面的逻辑
-    if (result.success && result.successRecords > 0) {
-      // 设置预览数据以便显示统计信息
-      const mockData = Array.from(
-        { length: result.successRecords },
-        (_, i) => ({
-          id: i + 1,
-          student_name: `学生${i + 1}`,
-          class_name: "示例班级",
-          subject: "数学",
-        })
-      );
-      setImportedData(mockData);
-      setGradesActiveTab("preview");
-
-      // 如果有实际导入的数据，进行数据校验
-      if (result.importedData && result.importedData.length > 0) {
-        console.log("📋 开始对导入的数据进行校验...");
-        await handleValidateData(result.importedData, {
-          enableAutoFix: true,
-          skipWarnings: false,
-          skipInfo: true,
-          enableDataCleaning: true,
-          strictMode: false,
-          maxErrors: 500,
-        });
-      }
+    // 如果有实际导入的数据，进行数据校验
+    if (imported.length > 0) {
+      console.log("📋 开始对导入的数据进行校验...");
+      await handleValidateData(imported, {
+        enableAutoFix: true,
+        skipWarnings: false,
+        skipInfo: true,
+        enableDataCleaning: true,
+        strictMode: false,
+        maxErrors: 500,
+      });
     }
   };
 
@@ -246,6 +262,10 @@ const Index = () => {
     data: any[],
     options?: ValidationOptions
   ) => {
+    if (!data || data.length === 0) {
+      toast.error("没有可校验的数据");
+      return;
+    }
     setIsValidating(true);
     try {
       console.log("🔍 开始数据校验:", data.length, "条记录");
@@ -347,29 +367,23 @@ const Index = () => {
     }
   };
 
-  useEffect(() => {
-    // 检查数据库表是否存在
-    const checkTablesExist = async () => {
-      try {
-        // 尝试获取考试列表，如果失败可能是表不存在
-        const { data, error } = await gradeAnalysisService.getExamList();
-        if (error) {
-          console.error("检查表是否存在出错:", error);
-          // 如果错误消息包含表不存在的提示，则设置状态
-          if (error.message.includes("不存在")) {
-            setTablesExist(false);
-          }
-        } else {
-          setTablesExist(true);
-        }
-      } catch (error) {
-        console.error("检查表是否存在时发生异常:", error);
-        setTablesExist(false);
-      }
-    };
+  const actionsDisabled =
+    tableStatus === "checking" ||
+    tableStatus === "initializing" ||
+    tableStatus === "missing" ||
+    tableStatus === "error" ||
+    isValidating;
 
-    checkTablesExist();
-  }, []);
+  const statusLabel =
+    tableStatus === "ready"
+      ? "数据库就绪"
+      : tableStatus === "checking"
+        ? "正在检查数据库..."
+        : tableStatus === "initializing"
+          ? "正在初始化数据表..."
+          : tableStatus === "missing"
+            ? "缺少必需数据表"
+            : "数据库状态异常";
 
   if (isLoading) {
     return (
@@ -403,21 +417,67 @@ const Index = () => {
                 <strong>一键上传 → AI智能识别 → 快速完成</strong>
                 ，让数据导入变得更简单！
               </p>
+              <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
+                <Badge
+                  className={`border ${tableStatus === "ready" ? "bg-green-100 text-green-800 border-green-300" : "bg-amber-100 text-amber-800 border-amber-300"}`}
+                >
+                  {statusLabel}
+                </Badge>
+                {lastCheckTime && (
+                  <span className="text-gray-600">
+                    上次检查：{lastCheckTime}
+                  </span>
+                )}
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={checkTables}
+                    disabled={tableStatus === "checking"}
+                  >
+                    重新检查
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={initializeTables}
+                    disabled={tableStatus === "initializing"}
+                  >
+                    初始化表
+                  </Button>
+                </div>
+              </div>
             </div>
 
-            {!tablesExist && (
+            {tableStatus !== "ready" && (
               <Alert variant="destructive" className="mb-4">
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>数据库表不存在</AlertTitle>
+                <AlertTitle>数据库未就绪</AlertTitle>
                 <AlertDescription>
-                  成绩分析系统需要的数据库表尚未创建。请先
-                  <Link
-                    to="/tools/init-tables"
-                    className="ml-1 font-medium underline"
-                  >
-                    初始化数据库表
-                  </Link>
-                  ，然后再继续操作。
+                  {tableError ||
+                    "成绩分析系统需要的数据库表尚未创建或检查失败，请先初始化。"}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={checkTables}
+                      disabled={tableStatus === "checking"}
+                    >
+                      重新检查
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={initializeTables}
+                      disabled={tableStatus === "initializing"}
+                    >
+                      初始化数据表
+                    </Button>
+                    <Link
+                      to="/tools/init-tables"
+                      className="text-sm underline font-medium"
+                    >
+                      手动初始化指南
+                    </Link>
+                  </div>
                 </AlertDescription>
               </Alert>
             )}

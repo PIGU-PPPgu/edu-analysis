@@ -55,7 +55,7 @@ import {
 } from "@/lib/enhanced-warning-system";
 
 // 导入UX组件
-import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
+import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import {
   LoadingSpinner,
   PageLoading,

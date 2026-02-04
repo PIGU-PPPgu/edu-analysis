@@ -17,9 +17,9 @@ export { default as SmartConfirmationDialog } from "./SmartConfirmationDialog";
 export { default as MissingDataDetector } from "./MissingDataDetector";
 export { default as QuickFixSuggestions } from "./QuickFixSuggestions";
 
-// 零干预导入系统
-export { default as OneClickImporter } from "./OneClickImporter";
-export { default as PostImportCompletion } from "./PostImportCompletion";
+// 🔧 强制确认对话框组件（Phase 2 新增）
+export { default as UnknownFieldsBlockDialog } from "./UnknownFieldsBlockDialog";
+export { default as LowConfidenceWarningDialog } from "./LowConfidenceWarningDialog";
 
 // 导出组件接口
 export type { FileDataForReview } from "./FileUploader";

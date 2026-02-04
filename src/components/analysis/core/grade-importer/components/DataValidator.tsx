@@ -90,9 +90,9 @@ const DataValidator: React.FC<DataValidatorProps> = ({
     validateDuplicates: true,
     validateStudentMatch: true,
     requireScores: false,
-    requireStudentId: false, // 默认不要求学号
-    autoGenerateStudentId: true, // 默认自动生成学号
-    allowShortStudentId: true, // 默认允许短学号
+    requireStudentId: true, // 改为 true，学号始终必需
+    autoGenerateStudentId: false, // 改为 false，不自动生成
+    allowShortStudentId: true,
   });
   const [previewData, setPreviewData] = useState<any[]>([]);
   const [studentMatches, setStudentMatches] = useState<
@@ -173,6 +173,9 @@ const DataValidator: React.FC<DataValidatorProps> = ({
             mappedRow[mappedField] = row[originalField];
           }
         );
+      } else {
+        // 如果没有映射配置，使用原始数据
+        Object.assign(mappedRow, row);
       }
 
       // 补充考试信息
@@ -183,59 +186,56 @@ const DataValidator: React.FC<DataValidatorProps> = ({
       }
 
       try {
-        // 验证必需字段 - 根据配置决定是否要求学号
-        const requiredFields = ["name", "class_name"];
-        if (validationConfig.requireStudentId) {
-          requiredFields.push("student_id");
-        }
-
-        requiredFields.forEach((field) => {
-          const value = mappedRow[field];
-          if (!value || String(value).trim() === "") {
-            errors.push({
-              row: rowNumber,
-              field: field,
-              value: value,
-              error: `${field}字段不能为空`,
-              severity: "error",
-            });
-            hasError = true;
-          }
-        });
-
-        // 处理学号 - 如果没有学号且启用自动生成
+        // 验证必需字段 - 学号始终必需
         if (
           !mappedRow.student_id ||
           String(mappedRow.student_id).trim() === ""
         ) {
-          if (validationConfig.autoGenerateStudentId) {
-            // 生成临时学号：temp_行号_时间戳后4位
-            const timestamp = Date.now().toString().slice(-4);
-            mappedRow.student_id = `temp_${rowNumber}_${timestamp}`;
-            warnings.push({
-              row: rowNumber,
-              field: "student_id",
-              value: mappedRow.student_id,
-              warning: "已自动生成临时学号",
-              suggestion: "建议后续更新为正式学号",
-            });
-            hasWarning = true;
-          } else if (!validationConfig.requireStudentId) {
-            // 如果不要求学号，生成一个基于姓名和班级的临时学号
-            const name = String(mappedRow.name || "").trim();
-            const className = String(mappedRow.class_name || "").trim();
-            if (name && className) {
-              mappedRow.student_id = `${className}_${name}_${rowNumber}`;
-              warnings.push({
-                row: rowNumber,
-                field: "student_id",
-                value: mappedRow.student_id,
-                warning: "已基于姓名和班级生成临时学号",
-                suggestion: "建议后续更新为正式学号",
-              });
-              hasWarning = true;
-            }
-          }
+          errors.push({
+            row: rowNumber,
+            field: "student_id",
+            value: mappedRow.student_id,
+            error: "学号不能为空",
+            severity: "error",
+          });
+          hasError = true;
+        }
+
+        // 如果有姓名和班级字段，则验证它们（完整导入模式）
+        // 如果没有这些字段，则跳过验证（仅成绩模式）
+        const hasNameField = mappingConfig?.fieldMappings
+          ? Object.values(mappingConfig.fieldMappings).includes("name")
+          : "name" in mappedRow; // 如果没有映射配置，检查原始数据
+        const hasClassField = mappingConfig?.fieldMappings
+          ? Object.values(mappingConfig.fieldMappings).includes("class_name")
+          : "class_name" in mappedRow; // 如果没有映射配置，检查原始数据
+
+        if (
+          hasNameField &&
+          (!mappedRow.name || String(mappedRow.name).trim() === "")
+        ) {
+          errors.push({
+            row: rowNumber,
+            field: "name",
+            value: mappedRow.name,
+            error: "姓名不能为空（完整导入模式）",
+            severity: "error",
+          });
+          hasError = true;
+        }
+
+        if (
+          hasClassField &&
+          (!mappedRow.class_name || String(mappedRow.class_name).trim() === "")
+        ) {
+          errors.push({
+            row: rowNumber,
+            field: "class_name",
+            value: mappedRow.class_name,
+            error: "班级不能为空（完整导入模式）",
+            severity: "error",
+          });
+          hasError = true;
         }
 
         // 验证分数字段
@@ -1161,26 +1161,35 @@ const DataValidator: React.FC<DataValidatorProps> = ({
                             <TableCell>{match.name}</TableCell>
                             <TableCell>{match.class_name}</TableCell>
                             <TableCell>
-                              <Badge
-                                variant={
-                                  match.matchType === "exact"
-                                    ? "default"
-                                    : match.matchType === "fuzzy"
-                                      ? "secondary"
-                                      : match.matchType === "new"
-                                        ? "outline"
-                                        : "destructive"
-                                }
-                                className="text-xs"
-                              >
-                                {match.matchType === "exact"
-                                  ? "精确匹配"
-                                  : match.matchType === "fuzzy"
-                                    ? "模糊匹配"
-                                    : match.matchType === "new"
-                                      ? "新学生"
-                                      : "冲突"}
-                              </Badge>
+                              {(() => {
+                                const isExact =
+                                  match.matchType.startsWith("exact");
+                                const isFuzzy =
+                                  match.matchType.startsWith("fuzzy");
+                                const isNew = match.matchType === "none";
+                                return (
+                                  <Badge
+                                    variant={
+                                      isExact
+                                        ? "default"
+                                        : isFuzzy
+                                          ? "secondary"
+                                          : isNew
+                                            ? "outline"
+                                            : "destructive"
+                                    }
+                                    className="text-xs"
+                                  >
+                                    {isExact
+                                      ? "精确匹配"
+                                      : isFuzzy
+                                        ? "模糊匹配"
+                                        : isNew
+                                          ? "新学生"
+                                          : "冲突"}
+                                  </Badge>
+                                );
+                              })()}
                             </TableCell>
                             <TableCell>
                               {Math.round(match.confidence * 100)}%

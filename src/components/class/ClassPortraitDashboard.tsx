@@ -65,6 +65,30 @@ interface ClassPortraitDashboardProps {
   className: string;
 }
 
+type ClassPortraitView = ClassPortraitAnalysis & {
+  average_score?: number;
+  excellent_rate?: number;
+  progress_rate?: number;
+  student_count?: number;
+  subject_stats?: Array<{
+    subject_name?: string;
+    name?: string;
+    average_score?: number;
+    avg_score?: number;
+    excellent_rate?: number;
+    excellent_count?: number;
+    total_count?: number;
+  }>;
+  gender_distribution?: {
+    male?: number;
+    female?: number;
+    other?: number;
+  };
+  data_quality_score?: number;
+  updated_at?: string;
+  expires_at?: string;
+};
+
 const COLORS = [
   "#0088FE",
   "#00C49F",
@@ -78,8 +102,9 @@ const COLORS = [
 export function ClassPortraitDashboard({
   className,
 }: ClassPortraitDashboardProps) {
-  const [classPortrait, setClassPortrait] =
-    useState<ClassPortraitAnalysis | null>(null);
+  const [classPortrait, setClassPortrait] = useState<ClassPortraitView | null>(
+    null
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [selectedAnalysis, setSelectedAnalysis] = useState<
@@ -146,16 +171,37 @@ export function ClassPortraitDashboard({
     );
   }
 
+  const averageScore =
+    classPortrait.average_score ?? classPortrait.averageScore ?? 0;
+  const excellentRate =
+    classPortrait.excellent_rate ?? classPortrait.excellentRate ?? 0;
+  const progressRate =
+    classPortrait.progress_rate ?? classPortrait.progressRate ?? 0;
+  const studentCount =
+    classPortrait.student_count ?? classPortrait.studentCount ?? 0;
+  const subjectStats =
+    classPortrait.subject_stats ?? classPortrait.subjectStats ?? [];
+  const genderDistribution =
+    classPortrait.gender_distribution ?? classPortrait.gender;
+  const dataQualityScore =
+    classPortrait.data_quality_score ??
+    (classPortrait as any).dataQualityScore ??
+    0;
+  const updatedAt =
+    classPortrait.updated_at ?? (classPortrait as any).updatedAt ?? "";
+  const expiresAt =
+    classPortrait.expires_at ?? (classPortrait as any).expiresAt ?? "";
+
   // 准备学术分布雷达图数据
   const academicRadarData = [
     {
       subject: "优秀率",
-      value: classPortrait.excellent_rate || 0,
+      value: excellentRate || 0,
       maxValue: 100,
     },
     {
       subject: "进步率",
-      value: classPortrait.progress_rate || 0,
+      value: progressRate || 0,
       maxValue: 100,
     },
     {
@@ -165,7 +211,7 @@ export function ClassPortraitDashboard({
     },
     {
       subject: "平均成绩",
-      value: ((classPortrait.average_score || 0) / 100) * 100,
+      value: (averageScore / 100) * 100,
       maxValue: 100,
     },
   ];
@@ -195,16 +241,14 @@ export function ClassPortraitDashboard({
   ];
 
   // 准备科目统计数据
-  const subjectStatsData = (classPortrait.subject_stats || []).map(
-    (subject: any) => ({
-      name: subject.subject_name || subject.name,
-      average: subject.average_score || subject.avg_score || 0,
-      excellent_rate:
-        subject.excellent_rate ||
-        (subject.excellent_count / subject.total_count) * 100 ||
-        0,
-    })
-  );
+  const subjectStatsData = subjectStats.map((subject: any) => ({
+    name: subject.subject_name || subject.name,
+    average: subject.average_score || subject.avg_score || 0,
+    excellent_rate:
+      subject.excellent_rate ||
+      (subject.excellent_count / subject.total_count) * 100 ||
+      0,
+  }));
 
   return (
     <div className="space-y-6">
@@ -217,9 +261,7 @@ export function ClassPortraitDashboard({
               {className} - 班级画像
             </CardTitle>
             <div className="flex items-center gap-2">
-              <Badge variant="outline">
-                {classPortrait.student_count}名学生
-              </Badge>
+              <Badge variant="outline">{studentCount}名学生</Badge>
               <Button
                 variant="outline"
                 size="sm"
@@ -235,19 +277,19 @@ export function ClassPortraitDashboard({
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">
-                {Math.round(classPortrait.average_score || 0)}
+                {Math.round(averageScore)}
               </div>
               <div className="text-sm text-muted-foreground">班级平均分</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">
-                {Math.round(classPortrait.excellent_rate || 0)}%
+                {Math.round(excellentRate)}%
               </div>
               <div className="text-sm text-muted-foreground">优秀率</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-orange-600">
-                {Math.round(classPortrait.progress_rate || 0)}%
+                {Math.round(progressRate)}%
               </div>
               <div className="text-sm text-muted-foreground">进步率</div>
             </div>
@@ -343,7 +385,7 @@ export function ClassPortraitDashboard({
                   <CardContent className="space-y-4">
                     <div className="flex justify-between items-center">
                       <span>班级规模</span>
-                      <Badge>{classPortrait.student_count}人</Badge>
+                      <Badge>{studentCount}人</Badge>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>性别比例</span>
@@ -351,8 +393,7 @@ export function ClassPortraitDashboard({
                         <Badge variant="outline">
                           男{" "}
                           {Math.round(
-                            ((classPortrait.gender_distribution?.male || 0) /
-                              classPortrait.student_count) *
+                            ((genderDistribution?.male || 0) / studentCount) *
                               100
                           )}
                           %
@@ -360,8 +401,7 @@ export function ClassPortraitDashboard({
                         <Badge variant="outline">
                           女{" "}
                           {Math.round(
-                            ((classPortrait.gender_distribution?.female || 0) /
-                              classPortrait.student_count) *
+                            ((genderDistribution?.female || 0) / studentCount) *
                               100
                           )}
                           %
@@ -391,12 +431,10 @@ export function ClassPortraitDashboard({
                       <span>数据质量评分</span>
                       <Badge
                         variant={
-                          classPortrait.data_quality_score > 80
-                            ? "default"
-                            : "secondary"
+                          dataQualityScore > 80 ? "default" : "secondary"
                         }
                       >
-                        {classPortrait.data_quality_score}分
+                        {dataQualityScore}分
                       </Badge>
                     </div>
                   </CardContent>
@@ -713,13 +751,13 @@ export function ClassPortraitDashboard({
                 <div className="space-y-3 text-sm">
                   <p>
                     <strong>班级整体水平：</strong>
-                    该班级共有{classPortrait.student_count}名学生，平均成绩
-                    {Math.round(classPortrait.average_score || 0)}分， 优秀率
-                    {Math.round(classPortrait.excellent_rate || 0)}%，进步率
-                    {Math.round(classPortrait.progress_rate || 0)}%。 整体表现
-                    {classPortrait.average_score > 80
+                    该班级共有{studentCount}名学生，平均成绩
+                    {Math.round(averageScore)}分， 优秀率
+                    {Math.round(excellentRate)}%，进步率
+                    {Math.round(progressRate)}%。 整体表现
+                    {averageScore > 80
                       ? "优秀"
-                      : classPortrait.average_score > 70
+                      : averageScore > 70
                         ? "良好"
                         : "有待提升"}
                     。
@@ -745,7 +783,7 @@ export function ClassPortraitDashboard({
                     名需要支持的学生。 学生分布
                     {classPortrait.class_characteristics.academic_distribution
                       .high_achievers >
-                    classPortrait.student_count * 0.3
+                    studentCount * 0.3
                       ? "偏向优秀"
                       : "相对均衡"}
                     。
@@ -789,28 +827,21 @@ export function ClassPortraitDashboard({
                   <div className="flex justify-between items-center">
                     <span>数据完整性</span>
                     <div className="flex items-center gap-2">
-                      <Progress
-                        value={classPortrait.data_quality_score}
-                        className="w-20"
-                      />
-                      <span className="text-sm">
-                        {classPortrait.data_quality_score}%
-                      </span>
+                      <Progress value={dataQualityScore} className="w-20" />
+                      <span className="text-sm">{dataQualityScore}%</span>
                     </div>
                   </div>
                   <div className="flex justify-between items-center">
                     <span>数据更新时间</span>
                     <span className="text-sm text-muted-foreground">
-                      {new Date(classPortrait.updated_at).toLocaleString()}
+                      {updatedAt ? new Date(updatedAt).toLocaleString() : "-"}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span>画像有效期</span>
                     <span className="text-sm text-muted-foreground">
-                      {classPortrait.expires_at
-                        ? new Date(
-                            classPortrait.expires_at
-                          ).toLocaleDateString()
+                      {expiresAt
+                        ? new Date(expiresAt).toLocaleDateString()
                         : "长期有效"}
                     </span>
                   </div>

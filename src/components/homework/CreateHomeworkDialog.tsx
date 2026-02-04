@@ -130,10 +130,9 @@ const CreateHomeworkDialog: React.FC<CreateHomeworkDialogProps> = ({
       const result = await createHomework({
         title: formData.title,
         description: formData.description,
-        class_name: formData.classId, // ✅ 新增主字段（值实际是班级名称）
-        class_id: formData.classId, // ⚠️ 过渡期兼容字段
+        class_id: formData.classId,
         due_date: formData.dueDate || null,
-        grading_scale_id: finalGradingScaleId, // 使用处理后的 finalGradingScaleId
+        grading_scale_id: finalGradingScaleId,
         created_by: user.id,
       });
 

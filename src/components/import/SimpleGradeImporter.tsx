@@ -47,19 +47,35 @@ import {
   saveMappingToCache,
   diagnoseMappingIssues,
 } from "@/services/intelligentFieldMapper";
-import { autoSyncService } from "@/services/autoSyncService";
+import {
+  autoSyncService,
+  type CreateOptions,
+} from "@/services/autoSyncService";
 import { intelligentStudentMatcher } from "@/services/intelligentStudentMatcher";
 import type { MatchResult } from "@/services/intelligentStudentMatcher";
 import {
   ManualMatchReview,
   type StudentDecision,
 } from "@/components/import/ManualMatchReview";
+import {
+  useAutoFieldDetection,
+  type AutoDetectionResult,
+} from "@/hooks/useAutoFieldDetection";
+// 🔧 Phase 3: 导入强制确认对话框组件
+import {
+  UnknownFieldsBlockDialog,
+  LowConfidenceWarningDialog,
+} from "@/components/analysis/core/grade-importer/components";
 
 // 简化的用户流程：上传 → 智能确认 → 导入完成
 
 interface SimpleGradeImporterProps {
   onComplete?: (result: ImportResult) => void;
   onCancel?: () => void;
+  // 自动模式：fast 默认自动应用高置信度映射；safe 要求人工确认
+  autoMode?: "fast" | "safe";
+  confidenceThreshold?: number; // 映射置信度阈值
+  conflictThreshold?: number; // 未识别/冲突字段数超过该值则需人工确认
 }
 
 interface ImportResult {
@@ -106,6 +122,9 @@ interface ExamInfo {
 export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
   onComplete,
   onCancel,
+  autoMode = "fast",
+  confidenceThreshold = 0.8,
+  conflictThreshold = 5,
 }) => {
   const [step, setStep] = useState<
     | "upload"
@@ -137,6 +156,21 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
     date: new Date().toISOString().split("T")[0],
   });
 
+  // 🎯 满分配置状态 - 支持智能默认值
+  const [subjectMaxScores, setSubjectMaxScores] = useState<
+    Record<string, number>
+  >({
+    total: 523,
+    chinese: 120,
+    math: 100,
+    english: 75,
+    physics: 63,
+    chemistry: 45,
+    politics: 50,
+    history: 70,
+  });
+  const [showMaxScoreConfig, setShowMaxScoreConfig] = useState(true); // ⚠️ 默认展开，确保用户看到满分设置
+
   // 📚 班级选择相关状态
   const [classScope, setClassScope] = useState<
     "specific" | "wholeGrade" | "unknown"
@@ -145,11 +179,29 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
   const [availableClasses, setAvailableClasses] = useState<string[]>([]);
   const [newClassName, setNewClassName] = useState<string>("");
   const [unmatchedStudents, setUnmatchedStudents] = useState<any[]>([]);
+  const [detectedHeaders, setDetectedHeaders] = useState<string[]>([]);
+  const [detectedMapping, setDetectedMapping] = useState<
+    Record<string, { field: string; confidence: number }>
+  >({});
+  const [lowConfidenceFields, setLowConfidenceFields] = useState<
+    Array<{ header: string; confidence: number }>
+  >([]);
+  const [lowConfidenceCount, setLowConfidenceCount] = useState(0);
 
   // 🤖 AI辅助选项
   const [useAI, setUseAI] = useState(false); // 是否启用AI辅助
   const [aiMode, setAIMode] = useState<"auto" | "force" | "disabled">("auto"); // AI模式
   const [autoCreateStudents, setAutoCreateStudents] = useState(true); // 自动创建新学生（默认开启）
+
+  const { detect } = useAutoFieldDetection({ confidenceThreshold });
+
+  // 🔧 Phase 3: 强制确认对话框状态
+  const [showUnknownFieldsDialog, setShowUnknownFieldsDialog] = useState(false);
+  const [showLowConfidenceDialog, setShowLowConfidenceDialog] = useState(false);
+  const [unknownFieldsList, setUnknownFieldsList] = useState<
+    Array<{ name: string; sampleValues: string[] }>
+  >([]);
+  const [currentParseResult, setCurrentParseResult] = useState<any>(null);
 
   // 加载可用班级列表
   React.useEffect(() => {
@@ -170,6 +222,46 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
 
     loadClasses();
   }, []);
+
+  // 🎯 获取推荐的满分配置（共享函数）
+  const getRecommendedMaxScores = useCallback(
+    (examType: string): Record<string, number> => {
+      const highStakesExams = ["期中考试", "期末考试", "模拟考试"];
+      const isHighStakes = highStakesExams.includes(examType);
+
+      if (isHighStakes) {
+        // 正式考试：使用标准满分配置
+        return {
+          total: 523,
+          chinese: 120,
+          math: 100,
+          english: 75,
+          physics: 63,
+          chemistry: 45,
+          politics: 50,
+          history: 70,
+        };
+      } else {
+        // 月考/单元测试：使用简化满分配置
+        return {
+          total: 100,
+          chinese: 100,
+          math: 100,
+          english: 100,
+          physics: 100,
+          chemistry: 100,
+          politics: 100,
+          history: 100,
+        };
+      }
+    },
+    []
+  );
+
+  // 🎯 智能调整满分：根据考试类型推荐不同的满分配置
+  React.useEffect(() => {
+    setSubjectMaxScores(getRecommendedMaxScores(examInfo.type));
+  }, [examInfo.type, getRecommendedMaxScores]);
 
   // 从文件名智能推断考试信息
   const inferExamInfoFromFileName = useCallback(
@@ -235,11 +327,16 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
 
   // 一键智能上传 - 支持Web Workers大文件处理
   const handleFileUpload = useCallback(async (file: File) => {
+    setDetectedHeaders([]);
+    setDetectedMapping({});
+    setLowConfidenceFields([]);
     setIsProcessing(true);
     setProgress(0);
     setProgressMessage("");
     setProcessingStage("uploading");
     setProcessingError(null);
+
+    let detectionResult: AutoDetectionResult | null = null;
 
     try {
       // 检查是否应该使用Web Worker
@@ -335,6 +432,26 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
             aiMode: useAI ? aiMode : "disabled",
             minConfidenceForAI: 0.8,
           });
+
+          // 自动字段检测（用于快速确认）
+          detectionResult = await detect(file);
+          if (detectionResult) {
+            setDetectedHeaders(detectionResult.headers);
+            setDetectedMapping(detectionResult.mapping);
+            const lowConfidence: Array<{ header: string; confidence: number }> =
+              [];
+            detectionResult.headers.forEach((h) => {
+              const m = detectionResult?.mapping[h];
+              if (!m || m.confidence < confidenceThreshold) {
+                lowConfidence.push({
+                  header: h,
+                  confidence: m?.confidence || 0,
+                });
+              }
+            });
+            setLowConfidenceFields(lowConfidence);
+            setLowConfidenceCount(lowConfidence.length);
+          }
           console.log("[SimpleGradeImporter] 智能解析结果:", parseResult);
           console.log(
             `[SimpleGradeImporter] 使用的解析方法: ${parseResult.metadata.parseMethod}`
@@ -359,22 +476,107 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
             },
           };
 
+          // 合并自动检测映射（仅填充缺失字段）
+          if (detectionResult?.mapping) {
+            Object.entries(detectionResult.mapping).forEach(([raw, info]) => {
+              const existing = Object.entries(parsedData.mapping).find(
+                ([sysField, fileField]) =>
+                  sysField === info.field || fileField === raw
+              );
+              if (!existing) {
+                parsedData.mapping[info.field] = raw;
+              }
+            });
+          }
+
           // 添加检测到的问题和建议
-          if (
-            parseResult.metadata.unknownFields &&
-            parseResult.metadata.unknownFields.length > 0
-          ) {
-            parsedData.issues.push(
-              `发现 ${parseResult.metadata.unknownFields.length} 个未识别字段`
-            );
+          const unknownCount = parseResult.metadata.unknownFields?.length || 0;
+          if (unknownCount > 0) {
+            parsedData.issues.push(`发现 ${unknownCount} 个未识别字段`);
+          }
+          if (parseResult.metadata.confidence < confidenceThreshold) {
+            parsedData.issues.push("字段识别置信度较低，请检查映射");
           }
 
-          if (parseResult.metadata.confidence < 0.8) {
-            parsedData.issues.push(
-              "部分字段识别置信度较低，请确认映射是否正确"
+          // 🔧 Phase 3: 强制中止检查逻辑
+          const mustConfirm = parseResult.metadata.mustConfirmMapping || false;
+          const blockReasons = parseResult.metadata.blockReasons || [];
+
+          console.log("[SimpleGradeImporter] 强制确认检查:", {
+            mustConfirm,
+            blockReasonsCount: blockReasons.length,
+            unknownFieldsCount: unknownCount,
+            confidence: parseResult.metadata.confidence,
+          });
+
+          // 保存当前解析结果供对话框使用
+          setCurrentParseResult(parseResult);
+
+          // 条件1: 有未识别字段 → 强制中止，显示未识别字段对话框
+          if (unknownCount > 0 && parseResult.metadata.unknownFields) {
+            console.warn(
+              `[SimpleGradeImporter] ⚠️ 检测到${unknownCount}个未识别字段，中止流程`
             );
+            setUnknownFieldsList(parseResult.metadata.unknownFields);
+            setShowUnknownFieldsDialog(true);
+            setParsedData(parsedData); // 保存数据但不继续流程
+            setIsProcessing(false);
+            setProcessingStage("validating");
+            return; // 中止后续流程
           }
 
+          // 条件2: 置信度低 → 强制中止，显示低置信度警告对话框
+          if (mustConfirm && blockReasons.length > 0) {
+            console.warn(
+              `[SimpleGradeImporter] ⚠️ 识别置信度低或缺少必需字段，中止流程`
+            );
+            setShowLowConfidenceDialog(true);
+            setParsedData(parsedData); // 保存数据但不继续流程
+            setIsProcessing(false);
+            setProcessingStage("validating");
+            return; // 中止后续流程
+          }
+
+          // 没有需要强制确认的问题，继续正常流程
+          console.log("[SimpleGradeImporter] ✅ 所有检查通过，继续正常流程");
+
+          // 应用自动映射到预览数据
+          if (detectionResult?.mapping) {
+            parsedData.preview = parsedData.preview.map((row) => {
+              const mapped: Record<string, any> = { ...row };
+              Object.entries(detectionResult.mapping).forEach(([raw, info]) => {
+                if (raw in row) {
+                  const value: any = (row as any)[raw];
+                  switch (info.field) {
+                    case "name":
+                      mapped.name = value;
+                      break;
+                    case "student_id":
+                      mapped.student_id = value;
+                      break;
+                    case "class_name":
+                      mapped.class_name = value;
+                      break;
+                    case "subject":
+                      mapped.subject = value;
+                      break;
+                    case "score":
+                      mapped.score = Number(value);
+                      break;
+                    case "exam_title":
+                      mapped.exam_title = value;
+                      break;
+                    case "exam_date":
+                      mapped.exam_date = value;
+                      break;
+                    default:
+                      break;
+                  }
+                }
+              });
+              return mapped;
+            });
+          }
           // 自动推断考试信息
           if (parseResult.metadata.examInfo) {
             setExamInfo((prev) => ({
@@ -424,13 +626,60 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
               parseTime: 1000,
             },
           };
+
+          // 应用自动映射到预览数据
+          if (detectionResult?.mapping) {
+            parsedData.preview = parsedData.preview.map((row) => {
+              const mapped: Record<string, any> = { ...row };
+              Object.entries(detectionResult.mapping).forEach(([raw, info]) => {
+                if (raw in row) {
+                  const value: any = (row as any)[raw];
+                  switch (info.field) {
+                    case "name":
+                      mapped.name = value;
+                      break;
+                    case "student_id":
+                      mapped.student_id = value;
+                      break;
+                    case "class_name":
+                      mapped.class_name = value;
+                      break;
+                    case "subject":
+                      mapped.subject = value;
+                      break;
+                    case "score":
+                      mapped.score = Number(value);
+                      break;
+                    case "exam_title":
+                      mapped.exam_title = value;
+                      break;
+                    case "exam_date":
+                      mapped.exam_date = value;
+                      break;
+                    default:
+                      break;
+                  }
+                }
+              });
+              return mapped;
+            });
+          }
         }
       }
 
       setProgress(100);
       setProgressMessage("解析完成！");
       setParsedData(parsedData);
-      setStep("selectClass"); // 先选择班级再确认数据
+      const lowConfCount = Math.max(
+        lowConfidenceCount,
+        lowConfidenceFields.length
+      );
+      const needReview =
+        autoMode === "safe" ||
+        parsedData.confidence < confidenceThreshold ||
+        lowConfCount > conflictThreshold;
+      setShowFieldMapping(needReview);
+      setStep(parsedData.preview.length > 0 ? "selectClass" : "upload"); // 先选择班级再确认数据
 
       const processingMode = useWorker ? "高性能模式" : "标准模式";
       const processingTime = parsedData.metadata?.parseTime
@@ -482,6 +731,7 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
         useAI,
         aiMode: useAI ? aiMode : "disabled",
         minConfidenceForAI: 0.8,
+        originalFileName: parsedData.file.name, // 传递原始文件名
       });
       console.log("[真实导入] 完整解析结果:", fullParseResult);
       console.log(
@@ -707,6 +957,15 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
       const recordsToInsert = allGradeRecords.map((record) => ({
         ...record,
         exam_id: examId,
+        // 🎯 添加各科目满分信息
+        total_max_score: subjectMaxScores.total,
+        chinese_max_score: subjectMaxScores.chinese,
+        math_max_score: subjectMaxScores.math,
+        english_max_score: subjectMaxScores.english,
+        physics_max_score: subjectMaxScores.physics,
+        chemistry_max_score: subjectMaxScores.chemistry,
+        politics_max_score: subjectMaxScores.politics,
+        history_max_score: subjectMaxScores.history,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }));
@@ -792,8 +1051,17 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
           );
           setProgressMessage("正在自动创建学生和班级...");
 
-          const syncResult =
-            await autoSyncService.syncImportedData(allGradeRecords);
+          // ✅ 传递 CreateOptions，根据用户设置决定是否创建新数据
+          const createOptions: CreateOptions = {
+            createNewClasses: autoCreateStudents,
+            createNewStudents: autoCreateStudents,
+          };
+          const syncResult = await autoSyncService.syncImportedData(
+            allGradeRecords,
+            undefined,
+            undefined,
+            createOptions
+          );
 
           console.log("[智能同步] 同步结果:", syncResult);
 
@@ -820,7 +1088,7 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
           const { data: existingStudents, error: studentsError } =
             await supabase
               .from("students")
-              .select("student_id, name, class_name");
+              .select("id, student_id, name, class_name");
 
           if (studentsError) {
             console.error("[智能匹配] 查询学生失败:", studentsError);
@@ -828,6 +1096,7 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
           }
 
           const systemStudents = (existingStudents || []).map((s: any) => ({
+            id: s.id,
             student_id: s.student_id,
             name: s.name,
             class_name: s.class_name,
@@ -865,8 +1134,16 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
 
           // 所有学生都已匹配,继续自动同步流程
           console.log("[智能匹配] 所有学生已成功匹配,开始自动同步...");
-          const syncResult =
-            await autoSyncService.syncImportedData(allGradeRecords);
+          // ✅ 匹配完成后的同步，不创建新数据（已全部匹配）
+          const syncResult = await autoSyncService.syncImportedData(
+            allGradeRecords,
+            undefined,
+            undefined,
+            {
+              createNewClasses: false,
+              createNewStudents: false,
+            }
+          );
 
           console.log("[智能同步] 同步结果:", syncResult);
 
@@ -895,8 +1172,16 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
 
         // 处理失败时回退到自动同步
         try {
-          const syncResult =
-            await autoSyncService.syncImportedData(allGradeRecords);
+          // ✅ 回退同步也尊重用户的创建设置
+          const syncResult = await autoSyncService.syncImportedData(
+            allGradeRecords,
+            undefined,
+            undefined,
+            {
+              createNewClasses: autoCreateStudents,
+              createNewStudents: autoCreateStudents,
+            }
+          );
           console.log("[智能同步] 回退同步完成:", syncResult);
 
           if (!syncResult.success) {
@@ -1068,6 +1353,97 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
     },
     []
   );
+
+  // 🔧 Phase 3: 未识别字段对话框 - 确认处理
+  const handleUnknownFieldsConfirm = useCallback(
+    (mappings: Record<string, string>) => {
+      console.log("[UnknownFields] 用户确认了字段映射:", mappings);
+
+      if (!parsedData || !currentParseResult) {
+        console.error("[UnknownFields] 缺少解析数据");
+        return;
+      }
+
+      // 合并用户映射到现有映射
+      const updatedMapping = {
+        ...parsedData.mapping,
+        ...mappings,
+      };
+
+      // 更新解析数据
+      setParsedData({
+        ...parsedData,
+        mapping: updatedMapping,
+        issues: parsedData.issues.filter(
+          (issue) => !issue.includes("未识别字段")
+        ),
+      });
+
+      // 关闭对话框
+      setShowUnknownFieldsDialog(false);
+      setUnknownFieldsList([]);
+
+      // 继续下一步
+      setStep("selectClass");
+      setProcessingStage("completed");
+
+      toast.success("字段映射已确认，请继续选择班级");
+    },
+    [parsedData, currentParseResult]
+  );
+
+  // 🔧 Phase 3: 未识别字段对话框 - 取消处理
+  const handleUnknownFieldsCancel = useCallback(() => {
+    console.log("[UnknownFields] 用户取消了导入");
+    setShowUnknownFieldsDialog(false);
+    setUnknownFieldsList([]);
+    setParsedData(null);
+    setCurrentParseResult(null);
+    setStep("upload");
+    setIsProcessing(false);
+    setProgress(0); // 重置进度
+    setProgressMessage(""); // 重置进度消息
+    setProcessingStage("uploading"); // 重置处理阶段
+    toast.info("已取消导入");
+  }, []);
+
+  // 🔧 Phase 3: 低置信度对话框 - 进入字段映射界面
+  const handleEnterMapping = useCallback(() => {
+    console.log("[LowConfidence] 用户选择进入字段映射界面");
+    setShowLowConfidenceDialog(false);
+    setShowFieldMapping(true); // 显示字段映射UI
+    toast.info("请手动检查并调整字段映射");
+  }, []);
+
+  // 🔧 Phase 3: 低置信度对话框 - 信任并继续
+  const handleTrustAndContinue = useCallback(() => {
+    console.log("[LowConfidence] 用户选择信任AI并继续");
+    setShowLowConfidenceDialog(false);
+
+    if (!parsedData) {
+      console.error("[LowConfidence] 缺少解析数据");
+      return;
+    }
+
+    // 继续下一步
+    setStep("selectClass");
+    setProcessingStage("completed");
+    toast.success("已继续导入流程，请选择班级");
+  }, [parsedData]);
+
+  // 🔧 Phase 3: 低置信度对话框 - 取消处理
+  const handleLowConfidenceCancel = useCallback(() => {
+    console.log("[LowConfidence] 用户取消了导入");
+    setShowLowConfidenceDialog(false);
+    setParsedData(null);
+    setCurrentParseResult(null);
+    setStep("upload");
+    setIsProcessing(false);
+    setProgress(0); // 重置进度
+    setProgressMessage(""); // 重置进度消息
+    setProcessingStage("uploading"); // 重置处理阶段
+    toast.info("已取消导入");
+  }, []);
 
   // 重新开始
   const handleRestart = useCallback(() => {
@@ -1524,6 +1900,232 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
               )}
             </div>
 
+            {/* 🎯 科目满分设置 - 可折叠 */}
+            <Collapsible
+              open={showMaxScoreConfig}
+              onOpenChange={setShowMaxScoreConfig}
+            >
+              <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                <CollapsibleTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full flex items-center justify-between font-semibold text-amber-900 hover:text-amber-700 p-2"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Settings2 className="w-5 h-5" />
+                      科目满分设置
+                      <Badge className="bg-red-500 text-white text-xs">
+                        重要
+                      </Badge>
+                      <span className="text-xs text-gray-600">
+                        (
+                        {examInfo.type === "期中考试" ||
+                        examInfo.type === "期末考试" ||
+                        examInfo.type === "模拟考试"
+                          ? "标准考试"
+                          : "简化考试"}
+                        )
+                      </span>
+                    </span>
+                    {showMaxScoreConfig ? (
+                      <ChevronDown className="w-4 h-4" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4" />
+                    )}
+                  </Button>
+                </CollapsibleTrigger>
+
+                <Alert className="mt-2 mb-3 bg-blue-50 border-blue-200">
+                  <AlertCircle className="h-4 w-4 text-blue-600" />
+                  <AlertDescription className="text-sm text-blue-900">
+                    <strong>⚠️ 请仔细检查满分设置！</strong>
+                    满分直接影响及格率、优秀率和等级计算。
+                    <br />
+                    <div className="mt-2 space-y-1 font-mono text-xs">
+                      <div>
+                        • 当前总分满分：
+                        <strong>{subjectMaxScores.total}</strong> 分
+                      </div>
+                      <div>
+                        • 及格线 = {subjectMaxScores.total} × 60% ={" "}
+                        <strong>
+                          {Math.round(subjectMaxScores.total * 0.6)}
+                        </strong>{" "}
+                        分
+                      </div>
+                      <div>
+                        • 优秀线 = {subjectMaxScores.total} × 90% ={" "}
+                        <strong>
+                          {Math.round(subjectMaxScores.total * 0.9)}
+                        </strong>{" "}
+                        分
+                      </div>
+                    </div>
+                    <div className="mt-2 text-xs text-blue-800">
+                      系统已根据考试类型（{examInfo.type}
+                      ）自动推荐满分配置，请根据实际试卷调整。
+                    </div>
+                  </AlertDescription>
+                </Alert>
+
+                <CollapsibleContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        总分满分
+                      </label>
+                      <input
+                        type="number"
+                        value={subjectMaxScores.total}
+                        onChange={(e) =>
+                          setSubjectMaxScores((prev) => ({
+                            ...prev,
+                            total: parseInt(e.target.value) || 0,
+                          }))
+                        }
+                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        语文满分
+                      </label>
+                      <input
+                        type="number"
+                        value={subjectMaxScores.chinese}
+                        onChange={(e) =>
+                          setSubjectMaxScores((prev) => ({
+                            ...prev,
+                            chinese: parseInt(e.target.value) || 0,
+                          }))
+                        }
+                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        数学满分
+                      </label>
+                      <input
+                        type="number"
+                        value={subjectMaxScores.math}
+                        onChange={(e) =>
+                          setSubjectMaxScores((prev) => ({
+                            ...prev,
+                            math: parseInt(e.target.value) || 0,
+                          }))
+                        }
+                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        英语满分
+                      </label>
+                      <input
+                        type="number"
+                        value={subjectMaxScores.english}
+                        onChange={(e) =>
+                          setSubjectMaxScores((prev) => ({
+                            ...prev,
+                            english: parseInt(e.target.value) || 0,
+                          }))
+                        }
+                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        物理满分
+                      </label>
+                      <input
+                        type="number"
+                        value={subjectMaxScores.physics}
+                        onChange={(e) =>
+                          setSubjectMaxScores((prev) => ({
+                            ...prev,
+                            physics: parseInt(e.target.value) || 0,
+                          }))
+                        }
+                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        化学满分
+                      </label>
+                      <input
+                        type="number"
+                        value={subjectMaxScores.chemistry}
+                        onChange={(e) =>
+                          setSubjectMaxScores((prev) => ({
+                            ...prev,
+                            chemistry: parseInt(e.target.value) || 0,
+                          }))
+                        }
+                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        道法满分
+                      </label>
+                      <input
+                        type="number"
+                        value={subjectMaxScores.politics}
+                        onChange={(e) =>
+                          setSubjectMaxScores((prev) => ({
+                            ...prev,
+                            politics: parseInt(e.target.value) || 0,
+                          }))
+                        }
+                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        历史满分
+                      </label>
+                      <input
+                        type="number"
+                        value={subjectMaxScores.history}
+                        onChange={(e) =>
+                          setSubjectMaxScores((prev) => ({
+                            ...prev,
+                            history: parseInt(e.target.value) || 0,
+                          }))
+                        }
+                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 恢复推荐值按钮 */}
+                  <div className="mt-4 flex items-center justify-between pt-3 border-t border-amber-200">
+                    <div className="text-xs text-gray-600">
+                      根据考试类型自动推荐满分，您可以随时恢复
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSubjectMaxScores(
+                          getRecommendedMaxScores(examInfo.type)
+                        );
+                        toast.success("已恢复推荐满分配置");
+                      }}
+                      className="border-2 border-amber-500 text-amber-700 hover:bg-amber-50"
+                    >
+                      <RefreshCw className="w-3 h-3 mr-1" />
+                      恢复推荐值
+                    </Button>
+                  </div>
+                </CollapsibleContent>
+              </div>
+            </Collapsible>
+
             {/* 数据类型统计 */}
             <div className="flex flex-wrap gap-2">
               {Object.keys(parsedData.mapping).filter((field) =>
@@ -1566,6 +2168,45 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
                 </Badge>
               )}
             </div>
+
+            {detectedHeaders.length > 0 && (
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                <div className="flex flex-col gap-1 text-sm text-gray-700">
+                  <div>
+                    🤖 自动检测：识别到 {detectedHeaders.length} 列，自动映射{" "}
+                    <span className="font-semibold text-green-700">
+                      {Object.keys(detectedMapping).length}
+                    </span>{" "}
+                    个字段
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    置信度阈值 {Math.round(confidenceThreshold * 100)}%，
+                    冲突阈值 {conflictThreshold} 个
+                  </div>
+                  {lowConfidenceFields.length > 0 && (
+                    <div className="mt-2 text-amber-700 text-sm">
+                      低置信度字段（请确认）：{lowConfidenceFields.length} 个
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        {lowConfidenceFields.slice(0, 5).map((item) => (
+                          <Badge
+                            key={item.header}
+                            variant="secondary"
+                            className="bg-amber-50 text-amber-800 border border-amber-200"
+                          >
+                            {item.header} ({Math.round(item.confidence * 100)}%)
+                          </Badge>
+                        ))}
+                        {lowConfidenceFields.length > 5 && (
+                          <span className="text-xs text-gray-500">
+                            其余 {lowConfidenceFields.length - 5} 项省略
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* 高级选项 - 可折叠 */}
             <Collapsible>
@@ -1659,6 +2300,160 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
                 </div>
               </CollapsibleContent>
             </Collapsible>
+
+            {/* 智能检测：满分配置与数据不匹配警告 */}
+            {(() => {
+              // 从预览数据中检测总分
+              const totalScoreFields = [
+                "总分",
+                "总成绩",
+                "total_score",
+                "总分数",
+                "合计",
+              ];
+              let maxTotalScore = 0;
+
+              parsedData.preview.forEach((row) => {
+                totalScoreFields.forEach((field) => {
+                  const score = parseFloat(row[field]);
+                  if (!isNaN(score) && score > maxTotalScore) {
+                    maxTotalScore = score;
+                  }
+                });
+              });
+
+              // 计算差异百分比
+              const configuredMax = subjectMaxScores.total;
+              const difference = Math.abs(maxTotalScore - configuredMax);
+
+              // 改进：当配置为0或检测到有效总分时都计算差异
+              let diffPercent = 0;
+              if (maxTotalScore > 0 && configuredMax > 0) {
+                diffPercent =
+                  (difference / Math.max(configuredMax, maxTotalScore)) * 100;
+              } else if (maxTotalScore > 0 && configuredMax === 0) {
+                // 配置为0但数据有分数，视为100%差异
+                diffPercent = 100;
+              }
+
+              // 如果差异>15%，显示警告
+              if (maxTotalScore > 0 && diffPercent > 15) {
+                return (
+                  <Alert className="bg-yellow-50 border-yellow-300 border-2">
+                    <AlertCircle className="h-5 w-5 text-yellow-600" />
+                    <AlertDescription className="text-sm">
+                      <strong className="text-yellow-900">
+                        ⚠️ 检测到满分配置可能不匹配
+                      </strong>
+                      <div className="mt-2 space-y-1 text-yellow-800">
+                        <div>
+                          • 数据中检测到的最高总分：
+                          <strong className="text-yellow-900">
+                            {maxTotalScore}
+                          </strong>{" "}
+                          分
+                        </div>
+                        <div>
+                          • 当前配置的总分满分：
+                          <strong className="text-yellow-900">
+                            {configuredMax}
+                          </strong>{" "}
+                          分
+                        </div>
+                        <div>
+                          • 差异：
+                          <strong className="text-red-600">
+                            {difference.toFixed(0)}
+                          </strong>{" "}
+                          分（{diffPercent.toFixed(1)}%）
+                        </div>
+                        <div className="text-xs text-yellow-700 mt-1">
+                          💡 提示：基于前{parsedData.preview.length}
+                          行样本数据检测，实际满分可能更高
+                        </div>
+                      </div>
+                      <div className="mt-3 flex items-center gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            // 按比例调整各科满分（处理配置为0的情况）
+                            if (configuredMax === 0) {
+                              // 配置为0时，使用推荐配置并按比例缩放
+                              const recommended = getRecommendedMaxScores(
+                                examInfo.type
+                              );
+
+                              // 计算推荐配置的科目实际总和（而非total字段）
+                              const recommendedSubjectSum =
+                                recommended.chinese +
+                                recommended.math +
+                                recommended.english +
+                                recommended.physics +
+                                recommended.chemistry +
+                                recommended.politics +
+                                recommended.history;
+
+                              // 使用实际总和计算比例，避免"月考"时所有科目都变成总分
+                              const ratio =
+                                maxTotalScore / recommendedSubjectSum;
+
+                              setSubjectMaxScores({
+                                total: maxTotalScore,
+                                chinese: Math.round(
+                                  recommended.chinese * ratio
+                                ),
+                                math: Math.round(recommended.math * ratio),
+                                english: Math.round(
+                                  recommended.english * ratio
+                                ),
+                                physics: Math.round(
+                                  recommended.physics * ratio
+                                ),
+                                chemistry: Math.round(
+                                  recommended.chemistry * ratio
+                                ),
+                                politics: Math.round(
+                                  recommended.politics * ratio
+                                ),
+                                history: Math.round(
+                                  recommended.history * ratio
+                                ),
+                              });
+                            } else {
+                              // 按当前配置比例调整
+                              const ratio = maxTotalScore / configuredMax;
+                              setSubjectMaxScores((prev) => ({
+                                total: maxTotalScore,
+                                chinese: Math.round(prev.chinese * ratio),
+                                math: Math.round(prev.math * ratio),
+                                english: Math.round(prev.english * ratio),
+                                physics: Math.round(prev.physics * ratio),
+                                chemistry: Math.round(prev.chemistry * ratio),
+                                politics: Math.round(prev.politics * ratio),
+                                history: Math.round(prev.history * ratio),
+                              }));
+                            }
+                            setShowMaxScoreConfig(true);
+                            toast.success(
+                              `已将总分满分调整为 ${maxTotalScore} 分，并按比例调整各科满分`
+                            );
+                          }}
+                          className="border-2 border-yellow-600 bg-yellow-100 text-yellow-900 hover:bg-yellow-200"
+                        >
+                          快速调整为 {maxTotalScore} 分（含各科）
+                        </Button>
+                        <span className="text-xs text-yellow-700">
+                          或手动调整上方的满分设置
+                        </span>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                );
+              }
+              return null;
+            })()}
 
             {/* 高性能数据预览 */}
             <div>
@@ -1883,14 +2678,41 @@ export const SimpleGradeImporter: React.FC<SimpleGradeImporterProps> = ({
                 继续导入其他文件
               </Button>
               <Button
-                onClick={() => (window.location.href = "/grade-analysis")}
+                onClick={() => {
+                  if (importResult?.examId) {
+                    window.location.href = `/exam-management?highlightExam=${importResult.examId}`;
+                  } else {
+                    window.location.href = "/exam-management";
+                  }
+                }}
               >
-                查看分析结果
+                返回考试管理
               </Button>
             </div>
           </CardContent>
         </Card>
       )}
+
+      {/* 🔧 Phase 3: 未识别字段强制确认对话框 */}
+      <UnknownFieldsBlockDialog
+        open={showUnknownFieldsDialog}
+        onOpenChange={setShowUnknownFieldsDialog}
+        unknownFields={unknownFieldsList}
+        onConfirm={handleUnknownFieldsConfirm}
+        onCancel={handleUnknownFieldsCancel}
+      />
+
+      {/* 🔧 Phase 3: 低置信度警告对话框 */}
+      <LowConfidenceWarningDialog
+        open={showLowConfidenceDialog}
+        onOpenChange={setShowLowConfidenceDialog}
+        confidence={currentParseResult?.metadata?.confidence || 0}
+        mappingQuality={currentParseResult?.metadata?.mappingQuality || 0}
+        blockReasons={currentParseResult?.metadata?.blockReasons || []}
+        onEnterMapping={handleEnterMapping}
+        onTrustAndContinue={handleTrustAndContinue}
+        onCancel={handleLowConfidenceCancel}
+      />
     </div>
   );
 };

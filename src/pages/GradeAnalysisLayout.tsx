@@ -7,7 +7,7 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ModernGradeAnalysisProvider } from "@/contexts/ModernGradeAnalysisContext";
-import CompleteAnalyticsDashboard from "@/components/analysis/dashboard/CompleteAnalyticsDashboard_Safe";
+import BasicAnalyticsDashboard from "@/components/analysis/dashboard/BasicAnalyticsDashboard";
 import Navbar from "@/components/shared/Navbar";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -176,7 +176,7 @@ const GradeAnalysisLayout: React.FC = () => {
             : undefined
         }
       >
-        <CompleteAnalyticsDashboard />
+        <BasicAnalyticsDashboard />
       </ModernGradeAnalysisProvider>
     </div>
   );

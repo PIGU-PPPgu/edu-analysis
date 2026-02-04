@@ -230,7 +230,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               <AlertTriangle className="w-3 h-3" />
               <span>{task.errors.length} 个错误</span>
             </div>
-            <p className="text-red-600 truncate">{task.errors[0].message}</p>
+            <p className="text-red-600 truncate">{task.errors[0].error}</p>
           </div>
         )}
 

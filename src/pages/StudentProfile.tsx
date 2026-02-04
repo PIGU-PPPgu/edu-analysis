@@ -10,7 +10,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Navbar from "@/components/shared/Navbar";
-import StudentGradeTrend from "../components/analysis/StudentGradeTrend";
 import ClassComparisonChart from "../components/analysis/comparison/ClassComparisonChart";
 import ScoreSummary from "../components/profile/ScoreSummary";
 import ScoreChart from "../components/profile/ScoreChart";
