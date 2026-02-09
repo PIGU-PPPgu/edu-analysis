@@ -5,7 +5,7 @@
  * 展示单个学生的增值详情和历史追踪
  */
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -35,14 +35,7 @@ import { toast } from "sonner";
 import { exportStudentReportToExcel } from "@/services/reportExportService";
 import { valueAddedPdfExporter } from "@/services/valueAddedPdfExporter";
 import type { StudentValueAdded } from "@/types/valueAddedTypes";
-
-// ✅ 添加防御性辅助函数
-const safeToFixed = (value: any, decimals: number = 2): string => {
-  if (value == null || value === undefined || isNaN(Number(value))) {
-    return "0." + "0".repeat(decimals);
-  }
-  return Number(value).toFixed(decimals);
-};
+import { safeToFixed, safePercent, safeNumber } from "@/utils/formatUtils";
 
 interface StudentValueAddedReportProps {
   /** 所有学生的增值数据 */
@@ -207,20 +200,31 @@ export function StudentValueAddedReport({
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
                         <span
-                          className={
-                            student.score_value_added_rate > 0
-                              ? "text-green-600 font-semibold"
-                              : student.score_value_added_rate < 0
-                                ? "text-red-600 font-semibold"
-                                : ""
-                          }
+                          style={{
+                            color:
+                              student.score_value_added_rate > 0
+                                ? "#B9FF66"
+                                : student.score_value_added_rate < 0
+                                  ? "#f87171"
+                                  : undefined,
+                            fontWeight:
+                              student.score_value_added_rate !== 0
+                                ? 600
+                                : undefined,
+                          }}
                         >
                           {safeToFixed(student.score_value_added_rate, 3)}
                         </span>
                         {student.score_value_added_rate > 0 ? (
-                          <TrendingUp className="h-4 w-4 text-green-500" />
+                          <TrendingUp
+                            className="h-4 w-4"
+                            style={{ color: "#B9FF66" }}
+                          />
                         ) : student.score_value_added_rate < 0 ? (
-                          <TrendingDown className="h-4 w-4 text-red-500" />
+                          <TrendingDown
+                            className="h-4 w-4"
+                            style={{ color: "#f87171" }}
+                          />
                         ) : null}
                       </div>
                     </TableCell>
@@ -270,14 +274,22 @@ interface StudentDetailViewProps {
   student: StudentValueAdded;
   subjectData: Record<string, StudentValueAdded>;
   onBack: () => void;
+  initialTab?: string;
 }
 
 function StudentDetailView({
   student,
   subjectData,
   onBack,
+  initialTab = "scores",
 }: StudentDetailViewProps) {
+  const [activeTab, setActiveTab] = useState(initialTab);
   const subjects = Object.keys(subjectData);
+
+  // 同步外部 initialTab 变化
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
   // 计算总体统计
   const summary = useMemo(() => {
@@ -366,7 +378,7 @@ function StudentDetailView({
 
       {/* 各科目详情 */}
       <Card>
-        <Tabs defaultValue="scores">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <div className="border-b px-6 pt-4">
             <TabsList>
               <TabsTrigger value="scores">分数增值</TabsTrigger>
@@ -401,20 +413,23 @@ function StudentDetailView({
                       </TableCell>
                       <TableCell className="text-right">
                         <span
-                          className={
-                            data.score_value_added > 0
-                              ? "text-green-600 font-semibold"
-                              : data.score_value_added < 0
-                                ? "text-red-600 font-semibold"
-                                : ""
-                          }
+                          style={{
+                            color:
+                              data.score_value_added > 0
+                                ? "#B9FF66"
+                                : data.score_value_added < 0
+                                  ? "#f87171"
+                                  : undefined,
+                            fontWeight:
+                              data.score_value_added !== 0 ? 600 : undefined,
+                          }}
                         >
                           {data.score_value_added > 0 ? "+" : ""}
                           {safeToFixed(data.score_value_added, 1)}
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        {data.score_value_added_rate.toFixed(3)}
+                        {safeToFixed(data.score_value_added_rate, 3)}
                       </TableCell>
                       <TableCell className="text-right">
                         {safeToFixed(
@@ -501,15 +516,18 @@ function StudentDetailView({
                     <div className="flex items-center justify-between">
                       <span className="font-medium">{subject}</span>
                       <span
-                        className={
-                          data.score_value_added_rate > 0
-                            ? "text-green-600 font-semibold"
-                            : data.score_value_added_rate < 0
-                              ? "text-red-600 font-semibold"
-                              : ""
-                        }
+                        style={{
+                          color:
+                            data.score_value_added_rate > 0
+                              ? "#B9FF66"
+                              : data.score_value_added_rate < 0
+                                ? "#f87171"
+                                : undefined,
+                          fontWeight:
+                            data.score_value_added_rate !== 0 ? 600 : undefined,
+                        }}
                       >
-                        {data.score_value_added_rate.toFixed(3)}
+                        {safeToFixed(data.score_value_added_rate, 3)}
                       </span>
                     </div>
                     <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
