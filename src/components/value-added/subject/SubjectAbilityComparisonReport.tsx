@@ -198,10 +198,10 @@ export function SubjectAbilityComparisonReport({
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-2">
-                <Award className="h-4 w-4 text-green-600" />
+                <Award className="h-4 w-4" style={{ color: "#B9FF66" }} />
                 <div className="text-sm text-muted-foreground">平均巩固率</div>
               </div>
-              <div className="text-2xl font-bold text-green-600">
+              <div className="text-2xl font-bold" style={{ color: "#B9FF66" }}>
                 {statistics.avgConsolidation}%
               </div>
               <div className="text-xs text-muted-foreground mt-1">
@@ -291,7 +291,7 @@ export function SubjectAbilityComparisonReport({
                 <Bar
                   dataKey="consolidation_rate"
                   name="巩固率"
-                  fill="#22c55e"
+                  fill="#B9FF66"
                 />
                 <Bar
                   dataKey="transformation_rate"
@@ -310,8 +310,8 @@ export function SubjectAbilityComparisonReport({
                 <Radar
                   name="巩固率"
                   dataKey="巩固率"
-                  stroke="#22c55e"
-                  fill="#22c55e"
+                  stroke="#B9FF66"
+                  fill="#B9FF66"
                   fillOpacity={0.3}
                 />
                 <Radar
@@ -364,7 +364,10 @@ export function SubjectAbilityComparisonReport({
                     {subject.subject}
                   </TableCell>
                   <TableCell className="text-right">
-                    <span className="text-green-600 font-semibold">
+                    <span
+                      className="font-semibold"
+                      style={{ color: "#B9FF66" }}
+                    >
                       {safeToFixed(subject.consolidation_rate * 100, 1)}%
                     </span>
                   </TableCell>
@@ -386,13 +389,16 @@ export function SubjectAbilityComparisonReport({
                   </TableCell>
                   <TableCell className="text-right">
                     <span
-                      className={
-                        subject.excellent_gain > 0
-                          ? "text-green-600 font-semibold"
-                          : subject.excellent_gain < 0
-                            ? "text-red-600 font-semibold"
-                            : ""
-                      }
+                      style={{
+                        color:
+                          subject.excellent_gain > 0
+                            ? "#B9FF66"
+                            : subject.excellent_gain < 0
+                              ? "#f87171"
+                              : undefined,
+                        fontWeight:
+                          subject.excellent_gain !== 0 ? 600 : undefined,
+                      }}
                     >
                       {subject.excellent_gain > 0 ? "+" : ""}
                       {subject.excellent_gain}

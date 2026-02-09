@@ -5,7 +5,7 @@
  * 展示班级学科发展的均衡性分析
  */
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -38,6 +38,7 @@ import {
   identifyStrengthsAndWeaknesses,
   generateBalanceSuggestions,
 } from "@/services/subjectBalanceService";
+import { safeToFixed, safePercent, safeNumber } from "@/utils/formatUtils";
 
 interface SubjectBalanceReportProps {
   /** 班级学科均衡数据 */
@@ -194,19 +195,27 @@ export function SubjectBalanceReport({
                         </TableCell>
                         <TableCell className="text-right">
                           <span
-                            className={
-                              classData.total_score_value_added_rate > 0
-                                ? "text-green-600 font-semibold"
-                                : classData.total_score_value_added_rate < 0
-                                  ? "text-red-600 font-semibold"
-                                  : ""
-                            }
+                            style={{
+                              color:
+                                classData.total_score_value_added_rate > 0
+                                  ? "#B9FF66"
+                                  : classData.total_score_value_added_rate < 0
+                                    ? "#f87171"
+                                    : undefined,
+                              fontWeight:
+                                classData.total_score_value_added_rate !== 0
+                                  ? 600
+                                  : undefined,
+                            }}
                           >
-                            {classData.total_score_value_added_rate.toFixed(3)}
+                            {safeToFixed(
+                              classData.total_score_value_added_rate,
+                              3
+                            )}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
-                          {classData.subject_deviation.toFixed(3)}
+                          {safeToFixed(classData.subject_deviation, 3)}
                         </TableCell>
                         <TableCell className="text-right">
                           <Badge
@@ -280,14 +289,25 @@ export function SubjectBalanceReport({
 interface ClassBalanceDetailProps {
   classData: SubjectBalanceAnalysis;
   onBack: () => void;
+  initialTab?: string;
 }
 
-function ClassBalanceDetail({ classData, onBack }: ClassBalanceDetailProps) {
+function ClassBalanceDetail({
+  classData,
+  onBack,
+  initialTab = "table",
+}: ClassBalanceDetailProps) {
+  const [activeTab, setActiveTab] = useState(initialTab);
   const balanceLevel = getBalanceLevel(classData.subject_deviation);
   const { strengths, weaknesses } = identifyStrengthsAndWeaknesses(
     classData.subjects
   );
   const suggestions = generateBalanceSuggestions(classData);
+
+  // 同步外部 initialTab 变化
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
   return (
     <div className="space-y-6">
@@ -320,11 +340,11 @@ function ClassBalanceDetail({ classData, onBack }: ClassBalanceDetailProps) {
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">总分增值率</div>
           <div className="text-2xl font-bold flex items-center gap-2">
-            {classData.total_score_value_added_rate.toFixed(3)}
+            {safeToFixed(classData.total_score_value_added_rate, 3)}
             {classData.total_score_value_added_rate > 0 ? (
-              <TrendingUp className="h-5 w-5 text-green-500" />
+              <TrendingUp className="h-5 w-5" style={{ color: "#B9FF66" }} />
             ) : classData.total_score_value_added_rate < 0 ? (
-              <TrendingDown className="h-5 w-5 text-red-500" />
+              <TrendingDown className="h-5 w-5" style={{ color: "#f87171" }} />
             ) : null}
           </div>
         </Card>
@@ -352,7 +372,7 @@ function ClassBalanceDetail({ classData, onBack }: ClassBalanceDetailProps) {
 
       {/* 各科目详情 */}
       <Card>
-        <Tabs defaultValue="table">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <div className="border-b px-6 pt-4">
             <TabsList>
               <TabsTrigger value="table">数据表格</TabsTrigger>
@@ -387,29 +407,33 @@ function ClassBalanceDetail({ classData, onBack }: ClassBalanceDetailProps) {
                       </TableCell>
                       <TableCell className="text-right">
                         <span
-                          className={
-                            subject.value_added_rate > 0
-                              ? "text-green-600 font-semibold"
-                              : subject.value_added_rate < 0
-                                ? "text-red-600 font-semibold"
-                                : ""
-                          }
+                          style={{
+                            color:
+                              subject.value_added_rate > 0
+                                ? "#B9FF66"
+                                : subject.value_added_rate < 0
+                                  ? "#f87171"
+                                  : undefined,
+                            fontWeight:
+                              subject.value_added_rate !== 0 ? 600 : undefined,
+                          }}
                         >
-                          {subject.value_added_rate.toFixed(3)}
+                          {safeToFixed(subject.value_added_rate, 3)}
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
                         <span
-                          className={
-                            subject.deviation_from_avg > 0
-                              ? "text-green-600"
-                              : subject.deviation_from_avg < 0
-                                ? "text-red-600"
-                                : ""
-                          }
+                          style={{
+                            color:
+                              subject.deviation_from_avg > 0
+                                ? "#B9FF66"
+                                : subject.deviation_from_avg < 0
+                                  ? "#f87171"
+                                  : undefined,
+                          }}
                         >
                           {subject.deviation_from_avg > 0 ? "+" : ""}
-                          {subject.deviation_from_avg.toFixed(3)}
+                          {safeToFixed(subject.deviation_from_avg, 3)}
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
@@ -449,15 +473,18 @@ function ClassBalanceDetail({ classData, onBack }: ClassBalanceDetailProps) {
                     <div className="flex items-center justify-between">
                       <span className="font-medium">{subject.subject}</span>
                       <span
-                        className={
-                          subject.value_added_rate > 0
-                            ? "text-green-600 font-semibold"
-                            : subject.value_added_rate < 0
-                              ? "text-red-600 font-semibold"
-                              : ""
-                        }
+                        style={{
+                          color:
+                            subject.value_added_rate > 0
+                              ? "#B9FF66"
+                              : subject.value_added_rate < 0
+                                ? "#f87171"
+                                : undefined,
+                          fontWeight:
+                            subject.value_added_rate !== 0 ? 600 : undefined,
+                        }}
                       >
-                        {subject.value_added_rate.toFixed(3)}
+                        {safeToFixed(subject.value_added_rate, 3)}
                       </span>
                     </div>
                     <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -496,7 +523,7 @@ function ClassBalanceDetail({ classData, onBack }: ClassBalanceDetailProps) {
                   key={s.subject}
                   className="text-sm text-green-800 dark:text-green-200"
                 >
-                  • {s.subject}：增值率 {s.value_added_rate.toFixed(3)}
+                  • {s.subject}：增值率 {safeToFixed(s.value_added_rate, 3)}
                 </li>
               ))}
             </ul>
@@ -521,7 +548,7 @@ function ClassBalanceDetail({ classData, onBack }: ClassBalanceDetailProps) {
                   key={s.subject}
                   className="text-sm text-red-800 dark:text-red-200"
                 >
-                  • {s.subject}：增值率 {s.value_added_rate.toFixed(3)}
+                  • {s.subject}：增值率 {safeToFixed(s.value_added_rate, 3)}
                 </li>
               ))}
             </ul>
