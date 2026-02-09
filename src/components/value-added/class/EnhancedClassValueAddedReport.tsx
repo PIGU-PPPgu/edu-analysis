@@ -184,11 +184,11 @@ export function EnhancedClassValueAddedReport({
             <CardContent className="p-4">
               <div className="text-sm text-muted-foreground">平均增值率</div>
               <div
-                className={`text-2xl font-bold ${
-                  statistics.avgValueAddedRate >= 0
-                    ? "text-green-600"
-                    : "text-red-600"
-                }`}
+                className="text-2xl font-bold"
+                style={{
+                  color:
+                    statistics.avgValueAddedRate >= 0 ? "#B9FF66" : "#F7931E",
+                }}
               >
                 {(statistics.avgValueAddedRate * 100).toFixed(2)}%
               </div>
@@ -201,11 +201,13 @@ export function EnhancedClassValueAddedReport({
                 正/负增值班级数
               </div>
               <div className="text-2xl font-bold">
-                <span className="text-green-600">
+                <span style={{ color: "#B9FF66" }}>
                   {statistics.positiveCount}
                 </span>
                 <span className="mx-1 text-muted-foreground">/</span>
-                <span className="text-red-600">{statistics.negativeCount}</span>
+                <span style={{ color: "#F7931E" }}>
+                  {statistics.negativeCount}
+                </span>
               </div>
             </CardContent>
           </Card>
@@ -246,13 +248,13 @@ export function EnhancedClassValueAddedReport({
                   <Bar
                     dataKey="positiveRate"
                     name="正增值(%)"
-                    fill="#22c55e"
+                    fill="#B9FF66"
                     stackId="valueAdded"
                   />
                   <Bar
                     dataKey="negativeRate"
                     name="负增值(%)"
-                    fill="#ef4444"
+                    fill="#F7931E"
                     stackId="valueAdded"
                   />
                 </BarChart>
@@ -283,12 +285,12 @@ export function EnhancedClassValueAddedReport({
                   <Bar
                     dataKey="entryStandardScore"
                     name="入口标准分"
-                    fill="#3b82f6"
+                    fill="#191A23"
                   />
                   <Bar
                     dataKey="exitStandardScore"
                     name="出口标准分"
-                    fill="#a855f7"
+                    fill="#B9FF66"
                   />
                 </BarChart>
               </ResponsiveContainer>
@@ -320,13 +322,13 @@ export function EnhancedClassValueAddedReport({
                   <Bar
                     dataKey="progressRate"
                     name="进步人数占比"
-                    fill="#10b981"
+                    fill="#B9FF66"
                     stackId="progress"
                   />
                   <Bar
                     dataKey="nonProgressRate"
                     name="未进步人数占比"
-                    fill="#94a3b8"
+                    fill="#191A23"
                     stackId="progress"
                   />
                 </BarChart>
@@ -381,13 +383,18 @@ export function EnhancedClassValueAddedReport({
                         <td className="py-3 px-4 text-right">
                           <div className="flex items-center justify-end gap-1">
                             <span
-                              className={
-                                item.avg_score_value_added_rate > 0
-                                  ? "text-green-600 font-semibold"
-                                  : item.avg_score_value_added_rate < 0
-                                    ? "text-red-600 font-semibold"
-                                    : ""
-                              }
+                              style={{
+                                color:
+                                  item.avg_score_value_added_rate > 0
+                                    ? "#B9FF66"
+                                    : item.avg_score_value_added_rate < 0
+                                      ? "#F7931E"
+                                      : undefined,
+                                fontWeight:
+                                  item.avg_score_value_added_rate !== 0
+                                    ? 600
+                                    : undefined,
+                              }}
                             >
                               {(item.avg_score_value_added_rate * 100).toFixed(
                                 2
@@ -395,9 +402,15 @@ export function EnhancedClassValueAddedReport({
                               %
                             </span>
                             {item.avg_score_value_added_rate > 0 ? (
-                              <TrendingUp className="h-3 w-3 text-green-500" />
+                              <TrendingUp
+                                className="h-3 w-3"
+                                style={{ color: "#B9FF66" }}
+                              />
                             ) : item.avg_score_value_added_rate < 0 ? (
-                              <TrendingDown className="h-3 w-3 text-red-500" />
+                              <TrendingDown
+                                className="h-3 w-3"
+                                style={{ color: "#F7931E" }}
+                              />
                             ) : null}
                           </div>
                         </td>
@@ -432,11 +445,11 @@ export function EnhancedClassValueAddedReport({
               <h4 className="font-semibold text-sm mb-2">📊 如何解读增值率</h4>
               <ul className="text-sm space-y-1 text-muted-foreground ml-4">
                 <li>
-                  • <strong className="text-green-600">正增值（绿色）</strong>
+                  • <strong style={{ color: "#B9FF66" }}>正增值（绿色）</strong>
                   ：班级出口表现优于入口表现，说明教学效果良好
                 </li>
                 <li>
-                  • <strong className="text-red-600">负增值（红色）</strong>
+                  • <strong style={{ color: "#F7931E" }}>负增值（橙色）</strong>
                   ：班级出口表现不如入口表现，需要分析原因并改进
                 </li>
                 <li>
