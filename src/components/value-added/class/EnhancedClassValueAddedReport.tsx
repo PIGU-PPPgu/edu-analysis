@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Select,
   SelectContent,
@@ -20,6 +21,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
+import { Info, TrendingUp, TrendingDown } from "lucide-react";
 import type { ClassValueAdded } from "@/types/valueAddedTypes";
 
 interface EnhancedClassValueAddedReportProps {
@@ -131,7 +133,7 @@ export function EnhancedClassValueAddedReport({
         <CardHeader>
           <CardTitle>班级分数增值报告</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <div className="w-full md:w-72">
             <Select value={selectedSubject} onValueChange={setSelectedSubject}>
               <SelectTrigger>
@@ -147,6 +149,13 @@ export function EnhancedClassValueAddedReport({
               </SelectContent>
             </Select>
           </div>
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription>
+              💡 <strong>提示</strong>
+              ：请筛选科目查看各班各科增值情况，便于对比分析
+            </AlertDescription>
+          </Alert>
         </CardContent>
       </Card>
 
@@ -211,10 +220,124 @@ export function EnhancedClassValueAddedReport({
         </Card>
       ) : (
         <>
-          {/* 3. 核心表格 */}
+          {/* 图表1：增值率双向条形图 */}
           <Card>
             <CardHeader>
-              <CardTitle>班级增值明细</CardTitle>
+              <CardTitle>增值率对比图（正负分开）</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer
+                width="100%"
+                height={Math.max(360, valueAddedChartData.length * 34)}
+              >
+                <BarChart
+                  data={valueAddedChartData}
+                  layout="vertical"
+                  margin={{ top: 8, right: 24, left: 80, bottom: 8 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" tickFormatter={(v) => `${v}%`} />
+                  <YAxis type="category" dataKey="className" width={80} />
+                  <Tooltip
+                    formatter={(v: number) => `${Number(v).toFixed(2)}%`}
+                  />
+                  <Legend />
+                  <ReferenceLine x={0} stroke="#64748b" strokeWidth={2} />
+                  <Bar
+                    dataKey="positiveRate"
+                    name="正增值(%)"
+                    fill="#22c55e"
+                    stackId="valueAdded"
+                  />
+                  <Bar
+                    dataKey="negativeRate"
+                    name="负增值(%)"
+                    fill="#ef4444"
+                    stackId="valueAdded"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* 图表2：入口出口标准分对比 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>入口/出口标准分对比图</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer
+                width="100%"
+                height={Math.max(360, standardScoreChartData.length * 34)}
+              >
+                <BarChart
+                  data={standardScoreChartData}
+                  layout="vertical"
+                  margin={{ top: 8, right: 24, left: 80, bottom: 8 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" />
+                  <YAxis type="category" dataKey="className" width={80} />
+                  <Tooltip formatter={(v: number) => Number(v).toFixed(2)} />
+                  <Legend />
+                  <Bar
+                    dataKey="entryStandardScore"
+                    name="入口标准分"
+                    fill="#3b82f6"
+                  />
+                  <Bar
+                    dataKey="exitStandardScore"
+                    name="出口标准分"
+                    fill="#a855f7"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* 图表3：进步人数占比 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>进步人数占比堆叠图</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer
+                width="100%"
+                height={Math.max(360, progressChartData.length * 34)}
+              >
+                <BarChart
+                  data={progressChartData}
+                  layout="vertical"
+                  margin={{ top: 8, right: 24, left: 80, bottom: 8 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" tickFormatter={(v) => `${v}%`} />
+                  <YAxis type="category" dataKey="className" width={80} />
+                  <Tooltip
+                    formatter={(v: number) => `${Number(v).toFixed(1)}%`}
+                  />
+                  <Legend />
+                  <Bar
+                    dataKey="progressRate"
+                    name="进步人数占比"
+                    fill="#10b981"
+                    stackId="progress"
+                  />
+                  <Bar
+                    dataKey="nonProgressRate"
+                    name="未进步人数占比"
+                    fill="#94a3b8"
+                    stackId="progress"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* 明细表格 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>班级增值明细数据</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -256,18 +379,27 @@ export function EnhancedClassValueAddedReport({
                             : "-"}
                         </td>
                         <td className="py-3 px-4 text-right">
-                          <span
-                            className={
-                              item.avg_score_value_added_rate > 0
-                                ? "text-green-600 font-semibold"
-                                : item.avg_score_value_added_rate < 0
-                                  ? "text-red-600 font-semibold"
-                                  : ""
-                            }
-                          >
-                            {(item.avg_score_value_added_rate * 100).toFixed(2)}
-                            %
-                          </span>
+                          <div className="flex items-center justify-end gap-1">
+                            <span
+                              className={
+                                item.avg_score_value_added_rate > 0
+                                  ? "text-green-600 font-semibold"
+                                  : item.avg_score_value_added_rate < 0
+                                    ? "text-red-600 font-semibold"
+                                    : ""
+                              }
+                            >
+                              {(item.avg_score_value_added_rate * 100).toFixed(
+                                2
+                              )}
+                              %
+                            </span>
+                            {item.avg_score_value_added_rate > 0 ? (
+                              <TrendingUp className="h-3 w-3 text-green-500" />
+                            ) : item.avg_score_value_added_rate < 0 ? (
+                              <TrendingDown className="h-3 w-3 text-red-500" />
+                            ) : null}
+                          </div>
                         </td>
                         <td className="py-3 px-4 text-right">
                           {toPercentValue(
@@ -283,138 +415,85 @@ export function EnhancedClassValueAddedReport({
               </div>
             </CardContent>
           </Card>
-
-          {/* 图表1 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>图表1：增值率双向条形图（正负分开）</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer
-                width="100%"
-                height={Math.max(360, valueAddedChartData.length * 34)}
-              >
-                <BarChart
-                  data={valueAddedChartData}
-                  layout="vertical"
-                  margin={{ top: 8, right: 24, left: 80, bottom: 8 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" tickFormatter={(v) => `${v}%`} />
-                  <YAxis type="category" dataKey="className" width={80} />
-                  <Tooltip
-                    formatter={(v: number) => `${Number(v).toFixed(2)}%`}
-                  />
-                  <Legend />
-                  <ReferenceLine x={0} stroke="#64748b" strokeWidth={2} />
-                  <Bar
-                    dataKey="positiveRate"
-                    name="正增值(%)"
-                    fill="#22c55e"
-                    stackId="valueAdded"
-                  />
-                  <Bar
-                    dataKey="negativeRate"
-                    name="负增值(%)"
-                    fill="#ef4444"
-                    stackId="valueAdded"
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* 图表2 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>图表2：入口/出口标准分对比图</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer
-                width="100%"
-                height={Math.max(360, standardScoreChartData.length * 34)}
-              >
-                <BarChart
-                  data={standardScoreChartData}
-                  layout="vertical"
-                  margin={{ top: 8, right: 24, left: 80, bottom: 8 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis type="category" dataKey="className" width={80} />
-                  <Tooltip formatter={(v: number) => Number(v).toFixed(2)} />
-                  <Legend />
-                  <Bar
-                    dataKey="entryStandardScore"
-                    name="入口标准分"
-                    fill="#3b82f6"
-                  />
-                  <Bar
-                    dataKey="exitStandardScore"
-                    name="出口标准分"
-                    fill="#a855f7"
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* 图表3 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>图表3：进步人数占比堆叠条形图</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer
-                width="100%"
-                height={Math.max(360, progressChartData.length * 34)}
-              >
-                <BarChart
-                  data={progressChartData}
-                  layout="vertical"
-                  margin={{ top: 8, right: 24, left: 80, bottom: 8 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" tickFormatter={(v) => `${v}%`} />
-                  <YAxis type="category" dataKey="className" width={80} />
-                  <Tooltip
-                    formatter={(v: number) => `${Number(v).toFixed(1)}%`}
-                  />
-                  <Legend />
-                  <Bar
-                    dataKey="progressRate"
-                    name="进步人数占比"
-                    fill="#10b981"
-                    stackId="progress"
-                  />
-                  <Bar
-                    dataKey="nonProgressRate"
-                    name="未进步人数占比"
-                    fill="#94a3b8"
-                    stackId="progress"
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
         </>
       )}
 
-      {/* 7. 帮助说明 */}
-      <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200">
-        <CardContent className="p-4">
-          <div className="text-sm space-y-2">
-            <p className="font-semibold">报告说明：</p>
-            <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-              <li>
-                <strong>增值率</strong>
-                ：出口标准分相对入口标准分的变化比例，正值表示整体进步。
-              </li>
-              <li>
-                <strong>进步人数占比</strong>：出口表现优于入口表现的学生占比。
-              </li>
-              <li>标准分为空时图表按 0 展示，建议结合表格明细共同判断。</li>
-            </ul>
+      {/* 报告解读 */}
+      <Card className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950 border-blue-200">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Info className="h-5 w-5" />
+            报告解读指南
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-3">
+            <div>
+              <h4 className="font-semibold text-sm mb-2">📊 如何解读增值率</h4>
+              <ul className="text-sm space-y-1 text-muted-foreground ml-4">
+                <li>
+                  • <strong className="text-green-600">正增值（绿色）</strong>
+                  ：班级出口表现优于入口表现，说明教学效果良好
+                </li>
+                <li>
+                  • <strong className="text-red-600">负增值（红色）</strong>
+                  ：班级出口表现不如入口表现，需要分析原因并改进
+                </li>
+                <li>
+                  •{" "}
+                  <strong>
+                    增值率 = (出口标准分 - 入口标准分) / 入口标准分
+                  </strong>
+                  ，反映班级整体进步幅度
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-semibold text-sm mb-2">
+                🎯 进步人数占比的意义
+              </h4>
+              <ul className="text-sm space-y-1 text-muted-foreground ml-4">
+                <li>
+                  • 表示班级中<strong>出口成绩优于入口成绩的学生比例</strong>
+                </li>
+                <li>• 高占比（≥60%）说明班级整体教学效果显著</li>
+                <li>• 低占比（&lt;40%）提示需要关注教学方法和学生个体差异</li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-semibold text-sm mb-2">
+                💡 如何使用这份报告
+              </h4>
+              <ul className="text-sm space-y-1 text-muted-foreground ml-4">
+                <li>
+                  1. <strong>横向对比</strong>
+                  ：对比不同班级同一科目的增值情况，找出优秀班级经验
+                </li>
+                <li>
+                  2. <strong>纵向分析</strong>
+                  ：结合入口分和出口分，分析班级学生基础和最终成果
+                </li>
+                <li>
+                  3. <strong>重点关注</strong>
+                  ：负增值班级需要深入分析原因，正增值高的班级值得推广经验
+                </li>
+                <li>
+                  4.{" "}
+                  <strong>
+                    筛选科目查看：切换不同科目，可以发现各班在不同学科的增值表现
+                  </strong>
+                </li>
+              </ul>
+            </div>
+
+            <div className="pt-2 border-t">
+              <p className="text-xs text-muted-foreground">
+                💭 <strong>提示</strong>：标准分为空时图表按 0
+                展示，建议结合明细表格共同判断。增值评价是过程性评价，应结合多次考试数据综合分析。
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
