@@ -187,7 +187,7 @@ export function EnhancedClassValueAddedReport({
                 className="text-2xl font-bold"
                 style={{
                   color:
-                    statistics.avgValueAddedRate >= 0 ? "#B9FF66" : "#F7931E",
+                    statistics.avgValueAddedRate >= 0 ? "#B9FF66" : "#f87171",
                 }}
               >
                 {(statistics.avgValueAddedRate * 100).toFixed(2)}%
@@ -205,7 +205,7 @@ export function EnhancedClassValueAddedReport({
                   {statistics.positiveCount}
                 </span>
                 <span className="mx-1 text-muted-foreground">/</span>
-                <span style={{ color: "#F7931E" }}>
+                <span style={{ color: "#f87171" }}>
                   {statistics.negativeCount}
                 </span>
               </div>
@@ -254,7 +254,7 @@ export function EnhancedClassValueAddedReport({
                   <Bar
                     dataKey="negativeRate"
                     name="负增值(%)"
-                    fill="#F7931E"
+                    fill="#f87171"
                     stackId="valueAdded"
                   />
                 </BarChart>
@@ -285,7 +285,7 @@ export function EnhancedClassValueAddedReport({
                   <Bar
                     dataKey="entryStandardScore"
                     name="入口标准分"
-                    fill="#191A23"
+                    fill="#94a3b8"
                   />
                   <Bar
                     dataKey="exitStandardScore"
@@ -328,7 +328,7 @@ export function EnhancedClassValueAddedReport({
                   <Bar
                     dataKey="nonProgressRate"
                     name="未进步人数占比"
-                    fill="#191A23"
+                    fill="#94a3b8"
                     stackId="progress"
                   />
                 </BarChart>
@@ -388,7 +388,7 @@ export function EnhancedClassValueAddedReport({
                                   item.avg_score_value_added_rate > 0
                                     ? "#B9FF66"
                                     : item.avg_score_value_added_rate < 0
-                                      ? "#F7931E"
+                                      ? "#f87171"
                                       : undefined,
                                 fontWeight:
                                   item.avg_score_value_added_rate !== 0
@@ -409,7 +409,7 @@ export function EnhancedClassValueAddedReport({
                             ) : item.avg_score_value_added_rate < 0 ? (
                               <TrendingDown
                                 className="h-3 w-3"
-                                style={{ color: "#F7931E" }}
+                                style={{ color: "#f87171" }}
                               />
                             ) : null}
                           </div>
@@ -449,7 +449,7 @@ export function EnhancedClassValueAddedReport({
                   ：班级出口表现优于入口表现，说明教学效果良好
                 </li>
                 <li>
-                  • <strong style={{ color: "#F7931E" }}>负增值（橙色）</strong>
+                  • <strong style={{ color: "#f87171" }}>负增值（红色）</strong>
                   ：班级出口表现不如入口表现，需要分析原因并改进
                 </li>
                 <li>
