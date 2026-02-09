@@ -173,7 +173,7 @@ export function parseGradeScores(workbook: XLSX.WorkBook): GradeScores[] {
       physics_score: scores["物理"] ?? undefined,
       chemistry_score: scores["化学"] ?? undefined,
       biology_score: scores["生物"] ?? undefined,
-      politics_score: scores["政治"] ?? undefined,
+      politics_score: scores["道法"] ?? scores["政治"] ?? undefined,
       history_score: scores["历史"] ?? undefined,
       geography_score: scores["地理"] ?? undefined,
     };

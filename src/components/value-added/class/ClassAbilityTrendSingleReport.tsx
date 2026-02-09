@@ -51,18 +51,12 @@ import {
   fetchClassHistoricalData,
 } from "@/services/historicalTrackingService";
 import type { HistoricalTracking } from "@/types/valueAddedTypes";
+import { safeToFixed } from "@/utils/formatUtils"; // 🔧 P1修复：使用统一的格式化函数
 
 interface ClassAbilityTrendSingleReportProps {
   /** 是否显示加载状态 */
   loading?: boolean;
 }
-
-const safeToFixed = (value: any, decimals: number = 2): string => {
-  if (value == null || value === undefined || isNaN(Number(value))) {
-    return "0." + "0".repeat(decimals);
-  }
-  return Number(value).toFixed(decimals);
-};
 
 export function ClassAbilityTrendSingleReport({
   loading: externalLoading = false,

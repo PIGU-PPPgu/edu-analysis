@@ -32,6 +32,11 @@ import NotFound from "./pages/NotFound";
 const Index = lazy(() => import("./pages/Index"));
 const GradeAnalysisLayout = lazy(() => import("./pages/GradeAnalysisLayout"));
 const ValueAddedAnalysis = lazy(() => import("./pages/ValueAddedAnalysis"));
+const AIAnalysisPage = lazy(() =>
+  import("./components/value-added/analysis/AIAnalysisPage").then((module) => ({
+    default: module.AIAnalysisPage,
+  }))
+);
 const StudentProfile = lazy(() => import("./pages/StudentProfile"));
 const StudentManagement = lazy(() => import("./pages/StudentManagement"));
 const ClassManagement = lazy(() => import("./pages/ClassManagement"));
@@ -313,6 +318,10 @@ function App() {
                               <Route
                                 path="/value-added"
                                 element={<ValueAddedAnalysis />}
+                              />
+                              <Route
+                                path="/value-added/ai-analysis"
+                                element={<AIAnalysisPage />}
                               />
                               {/* 配置管理已移至增值评价系统内 */}
                               {/* <Route

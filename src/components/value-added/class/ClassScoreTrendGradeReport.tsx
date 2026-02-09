@@ -147,22 +147,35 @@ export function ClassScoreTrendGradeReport({
 
     if (classesWithData.length === 0) return [];
 
-    // 收集所有考试时间点
-    const examTitles = new Set<string>();
+    // 🔧 P0修复：使用exam_id作为唯一键，避免相同标题的考试数据错乱
+    const examMap = new Map<
+      string,
+      { exam_id: string; exam: string; fullExamTitle: string }
+    >();
     classesWithData.forEach(([, data]) => {
-      data.score_trend.forEach((point) => examTitles.add(point.exam_title));
+      data.score_trend.forEach((point) => {
+        if (!examMap.has(point.exam_id)) {
+          examMap.set(point.exam_id, {
+            exam_id: point.exam_id,
+            exam:
+              point.exam_title.slice(0, 10) +
+              (point.exam_title.length > 10 ? "..." : ""),
+            fullExamTitle: point.exam_title,
+          });
+        }
+      });
     });
 
     // 为每个考试时间点构建数据
-    return Array.from(examTitles).map((examTitle) => {
+    return Array.from(examMap.values()).map((exam) => {
       const dataPoint: any = {
-        exam: examTitle.slice(0, 10) + (examTitle.length > 10 ? "..." : ""),
-        fullExamTitle: examTitle,
+        exam: exam.exam,
+        fullExamTitle: exam.fullExamTitle,
       };
 
       // 为每个选中的班级添加数据
       classesWithData.forEach(([className, data]) => {
-        const point = data.score_trend.find((p) => p.exam_title === examTitle);
+        const point = data.score_trend.find((p) => p.exam_id === exam.exam_id);
         if (point) {
           dataPoint[className] = point.avg_score;
           dataPoint[`${className}_增值率`] = point.value_added_rate * 100;

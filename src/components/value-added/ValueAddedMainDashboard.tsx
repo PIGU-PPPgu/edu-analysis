@@ -155,34 +155,66 @@ export function ValueAddedMainDashboard() {
         targetActivityId
       );
 
-      // ✅ 分别查询不同维度的数据，避免1000条限制
-      const [classResult, teacherResult, studentResult, subjectResult] =
+      // ✅ 分别查询不同维度的数据，使用分页查询避免1000条限制
+      // 定义分页查询辅助函数
+      const fetchAllData = async (
+        dimension?: string,
+        reportType?: string
+      ): Promise<any[]> => {
+        let allData: any[] = [];
+        let from = 0;
+        const batchSize = 1000;
+        let hasMore = true;
+
+        while (hasMore) {
+          let query = supabase
+            .from("value_added_cache")
+            .select("*")
+            .eq("activity_id", targetActivityId)
+            .range(from, from + batchSize - 1);
+
+          if (dimension) {
+            query = query.eq("dimension", dimension);
+          }
+          if (reportType) {
+            query = query.eq("report_type", reportType);
+          }
+
+          const { data, error } = await query;
+
+          if (error) {
+            console.warn(
+              `⚠️ 查询value_added_cache失败 (offset ${from}):`,
+              error
+            );
+            break;
+          }
+
+          if (data && data.length > 0) {
+            allData = allData.concat(data);
+            from += batchSize;
+            hasMore = data.length === batchSize;
+          } else {
+            hasMore = false;
+          }
+        }
+
+        return allData;
+      };
+
+      // 并行查询所有维度的数据
+      const [classData_raw, teacherData_raw, studentData_raw, subjectData_raw] =
         await Promise.all([
-          supabase
-            .from("value_added_cache")
-            .select("*")
-            .eq("activity_id", targetActivityId)
-            .eq("dimension", "class"),
-
-          supabase
-            .from("value_added_cache")
-            .select("*")
-            .eq("activity_id", targetActivityId)
-            .eq("dimension", "teacher"),
-
-          supabase
-            .from("value_added_cache")
-            .select("*")
-            .eq("activity_id", targetActivityId)
-            .eq("dimension", "student")
-            .limit(5000), // 学生数据可能很多，设置更大的限制
-
-          supabase
-            .from("value_added_cache")
-            .select("*")
-            .eq("activity_id", targetActivityId)
-            .eq("report_type", "subject_balance"),
+          fetchAllData("class"),
+          fetchAllData("teacher"),
+          fetchAllData("student"),
+          fetchAllData(undefined, "subject_balance"),
         ]);
+
+      const classResult = { data: classData_raw, error: null };
+      const teacherResult = { data: teacherData_raw, error: null };
+      const studentResult = { data: studentData_raw, error: null };
+      const subjectResult = { data: subjectData_raw, error: null };
 
       console.log("🔍 [ValueAddedMainDashboard] Query results:", {
         classCount: classResult.data?.length || 0,

@@ -113,6 +113,17 @@ export function TeacherScoreTrendReport({
     loadHistoricalData();
   }, [selectedTeacherId, selectedSubject]);
 
+  // 🔧 P0修复：教师切换时自动同步科目选择
+  useEffect(() => {
+    const teacher = teachers.find((t) => t.teacher_id === selectedTeacherId);
+    if (teacher && teacher.subjects.length > 0) {
+      // 如果当前选中的科目不在新教师的科目列表中，自动切换到第一个可用科目
+      if (!teacher.subjects.includes(selectedSubject)) {
+        setSelectedSubject(teacher.subjects[0]);
+      }
+    }
+  }, [selectedTeacherId, teachers, selectedSubject]);
+
   // 当前选中教师的科目列表
   const availableSubjects = useMemo(() => {
     const teacher = teachers.find((t) => t.teacher_id === selectedTeacherId);

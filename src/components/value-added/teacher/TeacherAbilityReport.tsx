@@ -24,7 +24,6 @@ interface TeacherAbilityReportProps {
  * 复用TeacherValueAddedReport，但默认聚焦于能力维度
  */
 export function TeacherAbilityReport(props: TeacherAbilityReportProps) {
-  // 直接复用TeacherValueAddedReport
-  // 用户可以通过Tab切换到能力增值视图
-  return <TeacherValueAddedReport {...props} />;
+  // 直接复用TeacherValueAddedReport，但默认显示能力增值tab
+  return <TeacherValueAddedReport {...props} initialTab="ability" />;
 }

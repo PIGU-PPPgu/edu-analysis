@@ -22,27 +22,60 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  Cell,
 } from "recharts";
 import type {
   ClassValueAdded,
   TeacherValueAdded,
 } from "@/types/valueAddedTypes";
 
+/**
+ * 获取唯一标识键（组合键，避免重名问题）
+ */
+function getUniqueKey(
+  item: ClassValueAdded | TeacherValueAdded,
+  type: "class" | "teacher"
+): string {
+  if (type === "class") {
+    const classItem = item as ClassValueAdded;
+    return `${classItem.class_name}-${classItem.subject}`;
+  }
+  const teacherItem = item as TeacherValueAdded;
+  return `${teacherItem.teacher_name}-${teacherItem.subject}`;
+}
+
+export interface ThreeRatesClickData {
+  name: string;
+  consolidation: number;
+  transformation: number;
+  contribution: number;
+  rawData: ClassValueAdded | TeacherValueAdded;
+}
+
 interface ThreeRatesComparisonProps {
   data: (ClassValueAdded | TeacherValueAdded)[];
   type: "class" | "teacher";
+  onItemClick?: (data: ThreeRatesClickData) => void;
 }
 
 export function ThreeRatesComparison({
   data,
   type,
+  onItemClick,
 }: ThreeRatesComparisonProps) {
   const [showAllHeatmap, setShowAllHeatmap] = useState(false);
   const HEATMAP_PAGE_SIZE = 10;
 
   if (data.length === 0) {
-    return null;
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>三率对比分析</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-gray-500 text-center py-8">暂无数据</p>
+        </CardContent>
+      </Card>
+    );
   }
 
   // 准备雷达图数据 - 取前5名 (使用 useMemo 优化)
@@ -59,10 +92,10 @@ export function ThreeRatesComparison({
                 type === "class"
                   ? (item as ClassValueAdded).class_name
                   : (item as TeacherValueAdded).teacher_name;
-              acc[name] = (item.consolidation_rate * 100).toFixed(1);
+              acc[name] = item.consolidation_rate * 100; // 保持数值，交给图表格式化
               return acc;
             },
-            {} as Record<string, string>
+            {} as Record<string, number>
           ),
         },
         {
@@ -73,10 +106,10 @@ export function ThreeRatesComparison({
                 type === "class"
                   ? (item as ClassValueAdded).class_name
                   : (item as TeacherValueAdded).teacher_name;
-              acc[name] = (item.transformation_rate * 100).toFixed(1);
+              acc[name] = item.transformation_rate * 100; // 保持数值
               return acc;
             },
-            {} as Record<string, string>
+            {} as Record<string, number>
           ),
         },
         {
@@ -88,14 +121,12 @@ export function ThreeRatesComparison({
                   ? (item as ClassValueAdded).class_name
                   : (item as TeacherValueAdded).teacher_name;
               // 贡献率可能为负，转换为0-100区间
-              const contributionNormalized = (
-                (item.contribution_rate + 0.5) *
-                100
-              ).toFixed(1);
-              acc[name] = contributionNormalized;
+              const contributionNormalized =
+                (item.contribution_rate + 0.5) * 100;
+              acc[name] = contributionNormalized; // 保持数值
               return acc;
             },
-            {} as Record<string, string>
+            {} as Record<string, number>
           ),
         },
       ],
@@ -113,6 +144,7 @@ export function ThreeRatesComparison({
       return {
         name: name.length > 10 ? name.substring(0, 10) + "..." : name,
         fullName: name,
+        uniqueKey: getUniqueKey(item, type), // 添加唯一键
         consolidation: item.consolidation_rate * 100,
         transformation: item.transformation_rate * 100,
         contribution: item.contribution_rate * 100,
@@ -128,6 +160,24 @@ export function ThreeRatesComparison({
 
   // 颜色配置
   const colors = ["#3b82f6", "#8b5cf6", "#f59e0b", "#10b981", "#ef4444"];
+
+  // 统一的点击处理函数
+  const handleBarClick = (clickData: any) => {
+    if (!onItemClick) return;
+    const payload = clickData as any;
+    // 使用唯一键查找，避免重名问题
+    const rawDataItem = data.find(
+      (item) => getUniqueKey(item, type) === payload.uniqueKey
+    );
+    if (!rawDataItem) return;
+    onItemClick({
+      name: payload.fullName,
+      consolidation: payload.consolidation,
+      transformation: payload.transformation,
+      contribution: payload.contribution,
+      rawData: rawDataItem,
+    });
+  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -219,18 +269,24 @@ export function ThreeRatesComparison({
                   name="巩固率"
                   fill="#10b981"
                   radius={[4, 4, 0, 0]}
+                  onClick={handleBarClick}
+                  style={{ cursor: "pointer" }}
                 />
                 <Bar
                   dataKey="transformation"
                   name="转化率"
                   fill="#3b82f6"
                   radius={[4, 4, 0, 0]}
+                  onClick={handleBarClick}
+                  style={{ cursor: "pointer" }}
                 />
                 <Bar
                   dataKey="contribution"
                   name="贡献率"
                   fill="#f59e0b"
                   radius={[4, 4, 0, 0]}
+                  onClick={handleBarClick}
+                  style={{ cursor: "pointer" }}
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -247,8 +303,24 @@ export function ThreeRatesComparison({
           <div className="grid grid-cols-1 gap-4">
             {displayedHeatmapData.map((item, index) => (
               <div
-                key={item.fullName}
-                className="p-4 border rounded-lg hover:shadow-md transition-shadow"
+                key={item.uniqueKey}
+                className="p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => {
+                  if (!onItemClick) return;
+                  // 使用唯一键查找，避免重名问题
+                  const rawDataItem = data.find(
+                    (dataItem) =>
+                      getUniqueKey(dataItem, type) === item.uniqueKey
+                  );
+                  if (!rawDataItem) return;
+                  onItemClick({
+                    name: item.fullName,
+                    consolidation: item.consolidation,
+                    transformation: item.transformation,
+                    contribution: item.contribution,
+                    rawData: rawDataItem,
+                  });
+                }}
               >
                 <div className="flex items-center justify-between mb-3">
                   <span className="font-semibold text-lg">{item.fullName}</span>

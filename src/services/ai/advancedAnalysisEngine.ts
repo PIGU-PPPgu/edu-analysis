@@ -22,6 +22,29 @@ import {
   calculateTrend,
   type BasicStatistics,
 } from "@/components/analysis/services/calculationUtils";
+import {
+  detectAnomaliesZScore,
+  detectOutliersIQR,
+  calculateMean,
+  calculateStandardDeviation,
+  analyzeDistribution,
+  detectTrend,
+  type AnomalyResult,
+  type OutlierDetectionResult,
+} from "./statisticalAnalysis";
+import {
+  linearRegressionPredict,
+  ensemblePredict,
+  evaluatePredictionAccuracy,
+  type TrendPredictionResult,
+  type PredictionPoint,
+} from "./trendPrediction";
+import {
+  diagnosticEngine,
+  DiagnosticLevel,
+  type DiagnosticResult,
+  type TeachingStrategy,
+} from "./diagnosticRules";
 import { v4 as uuidv4 } from "uuid";
 
 export class AdvancedAnalysisEngine {
@@ -58,7 +81,7 @@ export class AdvancedAnalysisEngine {
       insights.push(...trendInsights);
 
       // 3. 异常检测
-      const anomalyInsights = this.detectAnomalies(
+      const anomalyInsights = this.detectValueAddedAnomalies(
         request.data,
         request.context
       );
@@ -194,8 +217,19 @@ export class AdvancedAnalysisEngine {
   ): TrendPrediction[] {
     const predictions: TrendPrediction[] = [];
 
-    // 按科目分组分析
-    const subjects = ["总分", "语文", "数学", "英语", "物理", "化学"];
+    // 按科目分组分析 (扩展到所有实际存在数据的科目)
+    const subjects = [
+      "总分",
+      "语文",
+      "数学",
+      "英语",
+      "物理",
+      "化学",
+      "生物",
+      "道法",
+      "历史",
+      "地理", // 道法（政治）
+    ];
 
     for (const subject of subjects) {
       const trend = this.analyzeSubjectTrend(
@@ -209,6 +243,65 @@ export class AdvancedAnalysisEngine {
     }
 
     return predictions;
+  }
+
+  /**
+   * 简单趋势预测
+   * 基于历史数据数组进行预测
+   */
+  public simplePredict(
+    historicalData: number[],
+    options?: {
+      futureSteps?: number;
+      includeEnsemble?: boolean;
+    }
+  ): {
+    prediction: TrendPredictionResult;
+    insights: string[];
+  } {
+    const futureSteps = options?.futureSteps || 3;
+    const prediction = linearRegressionPredict(historicalData, futureSteps);
+
+    const insights: string[] = [];
+
+    // 生成洞察文本
+    const trendText =
+      prediction.trend === "increasing"
+        ? "上升"
+        : prediction.trend === "decreasing"
+          ? "下降"
+          : "稳定";
+    const strengthText =
+      prediction.trendStrength === "strong"
+        ? "强烈"
+        : prediction.trendStrength === "moderate"
+          ? "中等"
+          : "微弱";
+
+    insights.push(
+      `检测到${strengthText}${trendText}趋势（R²=${prediction.rSquared.toFixed(3)}）`
+    );
+
+    if (prediction.predictions.length > 0) {
+      const nextPrediction = prediction.predictions[0];
+      insights.push(
+        `预测下次成绩约为${nextPrediction.predicted.toFixed(1)}分（95%置信区间：${nextPrediction.lowerBound.toFixed(1)}-${nextPrediction.upperBound.toFixed(1)}分）`
+      );
+    }
+
+    if (prediction.rSquared > 0.7) {
+      insights.push("历史数据规律性强，预测结果较为可靠");
+    } else if (prediction.rSquared < 0.4) {
+      insights.push("历史数据波动较大，预测结果仅供参考");
+    }
+
+    // 评估预测准确度（如果数据足够）
+    if (historicalData.length >= 6) {
+      const accuracy = evaluatePredictionAccuracy(historicalData, 3);
+      insights.push(`历史预测平均误差：±${accuracy.mae.toFixed(1)}分`);
+    }
+
+    return { prediction, insights };
   }
 
   /**
@@ -295,8 +388,66 @@ export class AdvancedAnalysisEngine {
   private analyzeTrends(data: any[], context: any): AIInsight[] {
     const insights: AIInsight[] = [];
 
-    // 这里需要历史数据进行趋势分析
-    // 暂时返回基于当前数据的简单分析
+    // 1. 检测数据中是否包含历史趋势信息
+    if (data.length > 0 && Array.isArray(data[0].historicalScores)) {
+      // 如果有历史数据，进行预测分析
+      data.slice(0, 5).forEach((item) => {
+        const historicalScores = item.historicalScores as number[];
+        if (historicalScores.length >= 3) {
+          const prediction = linearRegressionPredict(historicalScores, 2);
+
+          if (prediction.rSquared > 0.5) {
+            const name = item.class_name || item.student_name || "未知";
+            const trendText =
+              prediction.trend === "increasing"
+                ? "上升"
+                : prediction.trend === "decreasing"
+                  ? "下降"
+                  : "稳定";
+
+            insights.push({
+              id: uuidv4(),
+              type: InsightType.TREND,
+              priority:
+                prediction.trendStrength === "strong"
+                  ? InsightPriority.HIGH
+                  : InsightPriority.MEDIUM,
+              sentiment:
+                prediction.trend === "increasing"
+                  ? InsightSentiment.POSITIVE
+                  : prediction.trend === "decreasing"
+                    ? InsightSentiment.NEGATIVE
+                    : InsightSentiment.NEUTRAL,
+              title: `${name}呈现${prediction.trendStrength === "strong" ? "明显" : ""}${trendText}趋势`,
+              description: `基于最近${historicalScores.length}次数据分析，预测未来2次的分数约为${prediction.predictions.map((p) => p.predicted.toFixed(1)).join("、")}分`,
+              detail: `趋势强度：${prediction.trendStrength}（R²=${prediction.rSquared.toFixed(3)}），斜率=${prediction.slope.toFixed(2)}。95%置信区间：${prediction.predictions[0].lowerBound.toFixed(1)}-${prediction.predictions[0].upperBound.toFixed(1)}分。`,
+              metric: {
+                value: prediction.predictions[0].predicted.toFixed(1),
+                unit: "分",
+                trend:
+                  prediction.trend === "increasing"
+                    ? "up"
+                    : prediction.trend === "decreasing"
+                      ? "down"
+                      : "stable",
+              },
+              confidence: prediction.rSquared,
+              actions: this.generateTrendActions({
+                id: uuidv4(),
+                type: InsightType.TREND,
+                priority: InsightPriority.MEDIUM,
+                sentiment: InsightSentiment.NEUTRAL,
+                title: "",
+                description: "",
+                confidence: prediction.rSquared,
+              }),
+            });
+          }
+        }
+      });
+    }
+
+    // 2. 原有的班级趋势分析（基于当前数据）
     const classGroups = this.groupByClass(data);
 
     for (const [className, students] of Object.entries(classGroups)) {
@@ -309,14 +460,95 @@ export class AdvancedAnalysisEngine {
     return insights;
   }
 
-  private detectAnomalies(data: any[], context: any): AIInsight[] {
+  private detectValueAddedAnomalies(data: any[], context: any): AIInsight[] {
     const insights: AIInsight[] = [];
 
-    // 检测极端分数
+    // 1. 使用Z-score方法检测增值率异常
+    if (data.length > 0 && data[0].avg_score_value_added_rate !== undefined) {
+      const valueAddedRates = data.map(
+        (d) => d.avg_score_value_added_rate || 0
+      );
+      const anomalyResults = detectAnomaliesZScore(valueAddedRates, 2);
+
+      anomalyResults.forEach((result, index) => {
+        if (result.isAnomaly) {
+          const item = data[index];
+          const name =
+            item.class_name ||
+            item.teacher_name ||
+            item.student_name ||
+            `项目${index + 1}`;
+
+          insights.push({
+            id: uuidv4(),
+            type: InsightType.ANOMALY,
+            priority:
+              result.severity === "severe"
+                ? InsightPriority.HIGH
+                : result.severity === "moderate"
+                  ? InsightPriority.MEDIUM
+                  : InsightPriority.LOW,
+            sentiment:
+              result.value > 0
+                ? InsightSentiment.POSITIVE
+                : InsightSentiment.NEGATIVE,
+            title: `${name}增值率异常`,
+            description: `增值率为${(result.value * 100).toFixed(2)}%（Z-score: ${result.zScore.toFixed(2)}），偏离均值${Math.abs(result.zScore).toFixed(1)}个标准差`,
+            detail: `该${result.value > 0 ? "优秀" : "落后"}表现在统计学上具有${result.severity === "severe" ? "极高" : result.severity === "moderate" ? "较高" : "一定"}的显著性，属于${result.severity === "severe" ? "严重" : result.severity === "moderate" ? "中度" : "轻微"}异常。建议重点${result.value > 0 ? "总结经验" : "分析原因"}。`,
+            metric: {
+              value: (result.value * 100).toFixed(2),
+              unit: "%",
+              trend: result.value > 0 ? "up" : "down",
+            },
+            confidence: Math.min(0.95, 0.7 + Math.abs(result.zScore) * 0.1),
+            actions: this.generateAnomalyActions({
+              id: uuidv4(),
+              type: InsightType.ANOMALY,
+              priority: InsightPriority.HIGH,
+              sentiment:
+                result.value > 0
+                  ? InsightSentiment.POSITIVE
+                  : InsightSentiment.NEGATIVE,
+              title: "",
+              description: "",
+              confidence: 0.8,
+            }),
+          });
+        }
+      });
+    }
+
+    // 2. 使用IQR方法检测成绩分布离群值
+    if (data.length > 0 && data[0].avg_score_entry !== undefined) {
+      const entryScores = data.map((d) => d.avg_score_entry || 0);
+      const outlierDetection = detectOutliersIQR(entryScores);
+
+      if (outlierDetection.outliers.length > 0) {
+        insights.push({
+          id: uuidv4(),
+          type: InsightType.ANOMALY,
+          priority: InsightPriority.MEDIUM,
+          sentiment: InsightSentiment.NEUTRAL,
+          title: `发现${outlierDetection.outliers.length}个成绩分布离群值`,
+          description: `使用IQR方法检测到${outlierDetection.outliers.length}个显著偏离正常范围的数据点（正常范围：${outlierDetection.lowerBound.toFixed(1)}-${outlierDetection.upperBound.toFixed(1)}分）`,
+          detail: `离群值：${outlierDetection.outliers.map((v) => v.toFixed(1)).join(", ")}。这些数据点可能代表特殊情况，需要进一步调查。`,
+          confidence: 0.85,
+          actions: [
+            {
+              label: "查看详情",
+              type: "navigate",
+              data: { outlierIndices: outlierDetection.outlierIndices },
+            },
+          ],
+        });
+      }
+    }
+
+    // 3. 原有的极端分数检测
     const extremeScores = this.findExtremeScores(data);
     insights.push(...extremeScores);
 
-    // 检测不平衡表现
+    // 4. 原有的不平衡表现检测
     const imbalances = this.findSubjectImbalances(data);
     insights.push(...imbalances);
 
@@ -360,7 +592,7 @@ export class AdvancedAnalysisEngine {
   ): AIInsight[] {
     const suggestions: AIInsight[] = [];
 
-    // 基于已有洞察生成建议
+    // 1. 基于已有洞察生成基础建议
     for (const insight of insights) {
       if (
         insight.type === InsightType.WARNING ||
@@ -373,7 +605,335 @@ export class AdvancedAnalysisEngine {
       }
     }
 
+    // 2. 使用诊断引擎生成精准建议
+    const diagnosticSuggestions = this.generateDiagnosticSuggestions(
+      data,
+      context
+    );
+    suggestions.push(...diagnosticSuggestions);
+
+    // 3. 去重和优先级排序
+    const uniqueSuggestions = this.deduplicateSuggestions(suggestions);
+    return this.prioritizeSuggestions(uniqueSuggestions);
+  }
+
+  /**
+   * 使用诊断引擎生成精准建议
+   */
+  private generateDiagnosticSuggestions(
+    data: any[],
+    context: any
+  ): AIInsight[] {
+    const suggestions: AIInsight[] = [];
+
+    // 确定诊断层级
+    const level = this.inferDiagnosticLevel(data, context);
+
+    if (level === DiagnosticLevel.STUDENT) {
+      // 学生层面诊断
+      for (const student of data.slice(0, 20)) {
+        // 限制诊断数量
+        const diagnosticResults = diagnosticEngine.diagnose(
+          student,
+          DiagnosticLevel.STUDENT
+        );
+        suggestions.push(
+          ...this.convertDiagnosticToInsights(diagnosticResults, student, level)
+        );
+      }
+    } else if (level === DiagnosticLevel.CLASS) {
+      // 班级层面诊断
+      for (const classData of data) {
+        const diagnosticResults = diagnosticEngine.diagnose(
+          classData,
+          DiagnosticLevel.CLASS
+        );
+        suggestions.push(
+          ...this.convertDiagnosticToInsights(
+            diagnosticResults,
+            classData,
+            level
+          )
+        );
+      }
+    } else if (level === DiagnosticLevel.TEACHER) {
+      // 教师层面诊断
+      for (const teacherData of data) {
+        const diagnosticResults = diagnosticEngine.diagnose(
+          teacherData,
+          DiagnosticLevel.TEACHER
+        );
+        suggestions.push(
+          ...this.convertDiagnosticToInsights(
+            diagnosticResults,
+            teacherData,
+            level
+          )
+        );
+      }
+    }
+
     return suggestions;
+  }
+
+  /**
+   * 推断诊断层级
+   */
+  private inferDiagnosticLevel(data: any[], context: any): DiagnosticLevel {
+    if (!data || data.length === 0) return DiagnosticLevel.CLASS;
+
+    const sample = data[0];
+
+    // 根据数据字段判断层级
+    if (sample.student_name || sample.student_id) {
+      return DiagnosticLevel.STUDENT;
+    } else if (sample.class_name || sample.class_id) {
+      return DiagnosticLevel.CLASS;
+    } else if (sample.teacher_name || sample.teacher_id) {
+      return DiagnosticLevel.TEACHER;
+    } else if (sample.subject_code || sample.subject_name) {
+      return DiagnosticLevel.SCHOOL;
+    }
+
+    // 从context推断
+    if (context?.type === "student") return DiagnosticLevel.STUDENT;
+    if (context?.type === "class") return DiagnosticLevel.CLASS;
+    if (context?.type === "teacher") return DiagnosticLevel.TEACHER;
+
+    // 默认班级层级
+    return DiagnosticLevel.CLASS;
+  }
+
+  /**
+   * 将诊断结果转换为AIInsight格式
+   */
+  private convertDiagnosticToInsights(
+    diagnosticResults: DiagnosticResult[],
+    entity: any,
+    level: DiagnosticLevel
+  ): AIInsight[] {
+    const insights: AIInsight[] = [];
+
+    for (const result of diagnosticResults) {
+      // 主建议
+      const mainInsight: AIInsight = {
+        id: uuidv4(),
+        type: InsightType.SUGGESTION,
+        priority:
+          result.severity === "critical"
+            ? InsightPriority.HIGH
+            : result.severity === "warning"
+              ? InsightPriority.MEDIUM
+              : InsightPriority.LOW,
+        sentiment: InsightSentiment.NEUTRAL,
+        title: this.formatDiagnosticTitle(result, entity, level),
+        description: result.description,
+        detail: this.formatDiagnosticDetail(result),
+        confidence: 0.9,
+        actions: this.createDiagnosticActions(result),
+        metadata: {
+          diagnosticType: result.weaknessType,
+          entity: this.getEntityName(entity, level),
+          level: level,
+        },
+        timestamp: new Date(),
+      };
+
+      if (result.metrics) {
+        mainInsight.metric = {
+          value: result.metrics.currentValue.toFixed(1),
+          unit: "%",
+          trend:
+            result.metrics.currentValue < result.metrics.targetValue
+              ? "down"
+              : "up",
+        };
+      }
+
+      insights.push(mainInsight);
+
+      // 为每个教学策略创建额外的洞察
+      for (const strategy of result.strategies) {
+        const strategyInsight: AIInsight = {
+          id: uuidv4(),
+          type: InsightType.SUGGESTION,
+          priority: InsightPriority.LOW,
+          sentiment: InsightSentiment.POSITIVE,
+          title: `💡 ${strategy.name}`,
+          description: strategy.description,
+          detail: this.formatStrategyDetail(strategy),
+          confidence: 0.85,
+          metadata: {
+            strategyType: strategy.targetGroup,
+            timeFrame: strategy.timeFrame,
+            expectedOutcome: strategy.expectedOutcome,
+          },
+          timestamp: new Date(),
+        };
+        insights.push(strategyInsight);
+      }
+    }
+
+    return insights;
+  }
+
+  /**
+   * 格式化诊断标题
+   */
+  private formatDiagnosticTitle(
+    result: DiagnosticResult,
+    entity: any,
+    level: DiagnosticLevel
+  ): string {
+    const entityName = this.getEntityName(entity, level);
+    const severityIcon =
+      result.severity === "critical"
+        ? "🚨"
+        : result.severity === "warning"
+          ? "⚠️"
+          : "ℹ️";
+
+    if (result.metrics) {
+      return `${severityIcon} ${entityName}：${result.weaknessType}（当前${result.metrics.currentValue.toFixed(1)}%，目标${result.metrics.targetValue}%）`;
+    }
+
+    return `${severityIcon} ${entityName}：需要改进`;
+  }
+
+  /**
+   * 格式化诊断详情
+   */
+  private formatDiagnosticDetail(result: DiagnosticResult): string {
+    let detail = "**可能原因：**\n";
+    result.causes.forEach((cause, i) => {
+      detail += `${i + 1}. ${cause}\n`;
+    });
+
+    detail += "\n**改进建议：**\n";
+    result.suggestions.slice(0, 5).forEach((suggestion, i) => {
+      detail += `${i + 1}. ${suggestion}\n`;
+    });
+
+    if (result.metrics) {
+      detail += `\n**改进目标：**\n提升${result.metrics.gap.toFixed(1)}个百分点，达到${result.metrics.targetValue}%`;
+    }
+
+    return detail;
+  }
+
+  /**
+   * 格式化策略详情
+   */
+  private formatStrategyDetail(strategy: TeachingStrategy): string {
+    let detail = `**实施对象：**${this.getTargetGroupLabel(strategy.targetGroup)}\n\n`;
+    detail += "**行动计划：**\n";
+    strategy.actions.forEach((action, i) => {
+      detail += `${i + 1}. ${action}\n`;
+    });
+    detail += `\n**预期效果：**${strategy.expectedOutcome}`;
+    detail += `\n**实施周期：**${strategy.timeFrame}`;
+    return detail;
+  }
+
+  /**
+   * 获取目标群体标签
+   */
+  private getTargetGroupLabel(targetGroup: string): string {
+    const labels: Record<string, string> = {
+      advanced: "优等生",
+      intermediate: "中等生",
+      struggling: "后进生",
+      all: "全体学生",
+    };
+    return labels[targetGroup] || targetGroup;
+  }
+
+  /**
+   * 创建诊断行动
+   */
+  private createDiagnosticActions(result: DiagnosticResult): InsightAction[] {
+    const actions: InsightAction[] = [];
+
+    // 查看详情行动
+    actions.push({
+      id: uuidv4(),
+      label: "查看详细建议",
+      actionType: "navigate",
+      description: "查看完整的诊断报告和改进建议",
+    });
+
+    // 生成行动计划
+    if (result.strategies.length > 0) {
+      actions.push({
+        id: uuidv4(),
+        label: "生成行动计划",
+        actionType: "generate",
+        description: "基于诊断结果生成具体的行动计划",
+        actionData: { strategies: result.strategies },
+      });
+    }
+
+    // 导出建议
+    actions.push({
+      id: uuidv4(),
+      label: "导出诊断报告",
+      actionType: "export",
+      description: "导出完整的诊断报告和建议",
+    });
+
+    return actions;
+  }
+
+  /**
+   * 获取实体名称
+   */
+  private getEntityName(entity: any, level: DiagnosticLevel): string {
+    switch (level) {
+      case DiagnosticLevel.STUDENT:
+        return entity.student_name || entity.name || "学生";
+      case DiagnosticLevel.CLASS:
+        return entity.class_name || entity.name || "班级";
+      case DiagnosticLevel.TEACHER:
+        return entity.teacher_name || entity.name || "教师";
+      case DiagnosticLevel.SCHOOL:
+        return entity.subject_name || entity.name || "学科";
+      default:
+        return "未知";
+    }
+  }
+
+  /**
+   * 去重建议
+   */
+  private deduplicateSuggestions(suggestions: AIInsight[]): AIInsight[] {
+    const seen = new Set<string>();
+    const unique: AIInsight[] = [];
+
+    for (const suggestion of suggestions) {
+      // 基于标题去重
+      const key = suggestion.title.toLowerCase().trim();
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(suggestion);
+      }
+    }
+
+    return unique;
+  }
+
+  /**
+   * 按优先级排序建议
+   */
+  private prioritizeSuggestions(suggestions: AIInsight[]): AIInsight[] {
+    const priorityOrder = {
+      [InsightPriority.HIGH]: 0,
+      [InsightPriority.MEDIUM]: 1,
+      [InsightPriority.LOW]: 2,
+    };
+
+    return suggestions.sort(
+      (a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]
+    );
   }
 
   // ============================================================================
@@ -588,11 +1148,17 @@ export class AdvancedAnalysisEngine {
   private compareSubjects(data: any[]): AIInsight[] {
     const insights: AIInsight[] = [];
 
-    // 计算各科目平均分
+    // 计算各科目平均分 (扩展到所有实际存在数据的科目)
     const subjects = [
       { name: "语文", field: "chinese_score" },
       { name: "数学", field: "math_score" },
       { name: "英语", field: "english_score" },
+      { name: "物理", field: "physics_score" },
+      { name: "化学", field: "chemistry_score" },
+      { name: "生物", field: "biology_score" },
+      { name: "道法", field: "politics_score" }, // 道法（也叫政治）
+      { name: "历史", field: "history_score" },
+      { name: "地理", field: "geography_score" },
     ];
 
     const subjectStats = subjects.map((subject) => {
@@ -916,14 +1482,30 @@ export class AdvancedAnalysisEngine {
   private detectScoreAnomalies(data: any[]): AnomalyDetection[] {
     const anomalies: AnomalyDetection[] = [];
 
-    // 检测各科目的异常分数
-    const subjects = ["语文", "数学", "英语"];
+    // 检测各科目的异常分数 (扩展到所有实际存在数据的科目)
+    const subjects = [
+      "语文",
+      "数学",
+      "英语",
+      "物理",
+      "化学",
+      "生物",
+      "道法",
+      "历史",
+      "地理",
+    ];
 
     for (const subject of subjects) {
       const fieldMap: Record<string, string> = {
         语文: "chinese_score",
         数学: "math_score",
         英语: "english_score",
+        物理: "physics_score",
+        化学: "chemistry_score",
+        生物: "biology_score",
+        道法: "politics_score", // 道法（也叫政治）
+        历史: "history_score",
+        地理: "geography_score",
       };
 
       const field = fieldMap[subject];

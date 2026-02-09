@@ -428,7 +428,7 @@ export function EnhancedTeacherValueAddedReport({
                         </span>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        {item.exit_excellent_rate
+                        {item.exit_excellent_rate != null
                           ? `${(item.exit_excellent_rate * 100).toFixed(1)}%`
                           : "-"}
                       </td>

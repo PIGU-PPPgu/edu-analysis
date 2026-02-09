@@ -359,28 +359,46 @@ export async function executeValueAddedCalculation(
     // 4. 获取教师映射关系（从teacher_student_subjects表）
     console.log("🔍 查询教师映射关系...");
 
-    // ✅ 修复：使用config_id查询，而不是student_id，确保获取所有班级-科目-教师映射
-    const configId = entryData[0]?.config_id;
+    // ✅ 修复：使用班级名称查询，不依赖可能不一致的config_id
+    const uniqueClasses = Array.from(
+      new Set(entryData.map((d) => d.class_name))
+    );
 
-    if (!configId) {
-      console.warn("⚠️ 无法获取config_id，将使用student_id查询（可能不完整）");
+    console.log(
+      `📚 涉及班级: ${uniqueClasses.length}个`,
+      uniqueClasses.slice(0, 5)
+    );
+
+    // 直接用班级名称查询所有教学关系
+    // ⚠️ 重要：Supabase的.in()结合查询会被限制在1000条，需要分页查询
+    let teacherMappingData: any[] = [];
+    let from = 0;
+    const batchSize = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from("teacher_student_subjects")
+        .select("class_name, subject, teacher_id, teacher_name, student_id")
+        .in("class_name", uniqueClasses)
+        .range(from, from + batchSize - 1);
+
+      if (error) {
+        console.warn(`⚠️ 查询教师映射失败 (offset ${from}):`, error);
+        break;
+      }
+
+      if (data && data.length > 0) {
+        teacherMappingData = teacherMappingData.concat(data);
+        from += batchSize;
+        hasMore = data.length === batchSize; // 如果返回数据少于batchSize，说明已经到末尾
+        console.log(`  已获取 ${teacherMappingData.length} 条记录...`);
+      } else {
+        hasMore = false;
+      }
     }
 
-    const teacherQuery = supabase
-      .from("teacher_student_subjects")
-      .select("class_name, subject, teacher_id, teacher_name, student_id");
-
-    // 优先使用config_id查询，如果没有则用student_id
-    const { data: teacherMappingData, error: teacherMappingError } = configId
-      ? await teacherQuery.eq("config_id", configId)
-      : await teacherQuery.in(
-          "student_id",
-          entryData.map((d) => d.student_id)
-        );
-
-    if (teacherMappingError) {
-      console.warn("⚠️ 查询教师映射失败:", teacherMappingError);
-    }
+    console.log(`✅ 查询到 ${teacherMappingData?.length || 0} 条教师映射记录`);
 
     // 建立 class_name + subject -> teacher_name 的映射
     const teacherMap = new Map<
@@ -471,6 +489,62 @@ export async function executeValueAddedCalculation(
 
     if (subjects.length === 0) {
       throw new Error("未识别到任何科目数据，请检查数据导入");
+    }
+
+    // 🔍 数据完整性校验：检查班级-科目组合是否都有教师信息
+    console.log("\n🔍 开始数据完整性校验...");
+    // uniqueClasses 已在前面声明，此处直接使用
+
+    const missingTeachers: Array<{ class: string; subject: string }> = [];
+    const expectedMappings: Array<{ class: string; subject: string }> = [];
+
+    for (const className of uniqueClasses) {
+      for (const subject of Array.from(availableSubjects)) {
+        const key = `${className}_${subject}`;
+        expectedMappings.push({ class: className, subject });
+
+        if (!teacherMap.has(key)) {
+          missingTeachers.push({ class: className, subject });
+        }
+      }
+    }
+
+    console.log(`📊 校验结果:`);
+    console.log(
+      `   期望映射数: ${expectedMappings.length} (${uniqueClasses.length}个班级 × ${availableSubjects.size}个科目)`
+    );
+    console.log(`   实际映射数: ${teacherMap.size}`);
+    console.log(`   缺失映射数: ${missingTeachers.length}`);
+
+    if (missingTeachers.length > 0) {
+      console.warn(
+        `\n⚠️ 数据完整性警告：${missingTeachers.length}个班级-科目组合缺少教师信息`
+      );
+
+      // 按科目分组显示缺失情况
+      const missingBySubject = new Map<string, string[]>();
+      missingTeachers.forEach(({ class: cls, subject }) => {
+        if (!missingBySubject.has(subject)) {
+          missingBySubject.set(subject, []);
+        }
+        missingBySubject.get(subject)!.push(cls);
+      });
+
+      console.warn(`\n缺失详情（按科目）:`);
+      Array.from(missingBySubject.entries()).forEach(([subject, classes]) => {
+        console.warn(
+          `   ${subject}: ${classes.length}个班级 - ${classes.slice(0, 3).join(", ")}${classes.length > 3 ? "..." : ""}`
+        );
+      });
+
+      console.warn(
+        `\n💡 建议：请检查教学编排数据（TeachingArrangement）是否完整导入`
+      );
+      console.warn(
+        `   这些班级-科目组合将使用"未知教师"标识，但不影响增值计算\n`
+      );
+    } else {
+      console.log(`✅ 数据完整性检查通过：所有班级-科目组合都有教师信息\n`);
     }
 
     // 7. 按科目计算班级和学生增值
@@ -567,23 +641,6 @@ export async function executeValueAddedCalculation(
           const teacherKey = `${classResult.class_name}_${subjectKeyToName[subject]}`;
           const teacherInfo = teacherMap.get(teacherKey);
 
-          // 🔍 调试日志：对比查询key和实际存储的key
-          if (!teacherInfo && teacherMap.size > 0) {
-            console.warn(`⚠️ [教师映射调试] 未找到匹配:`, {
-              查询Key: teacherKey,
-              班级: classResult.class_name,
-              科目英文: subject,
-              科目中文: subjectKeyToName[subject],
-              Map中的相关keys: Array.from(teacherMap.keys())
-                .filter(
-                  (k) =>
-                    k.includes(classResult.class_name) ||
-                    k.includes(subjectKeyToName[subject])
-                )
-                .slice(0, 5),
-            });
-          }
-
           // 如果找到真实教师，使用真实信息；否则使用班级+科目作为唯一标识
           let teacherId: string;
           let teacherName: string;
@@ -592,16 +649,10 @@ export async function executeValueAddedCalculation(
             // 有真实教师信息
             teacherId = teacherInfo.teacher_id;
             teacherName = teacherInfo.teacher_name;
-            console.log(
-              `✅ [教师映射成功] ${classResult.class_name} ${subjectKeyToName[subject]} -> ${teacherName}`
-            );
           } else {
-            // 没有教师信息，使用唯一标识避免错误聚合
+            // 没有教师信息，使用唯一标识避免错误聚合（已在前面统一提示）
             teacherId = `unknown_${classResult.class_name}_${subjectKeyToName[subject]}`;
             teacherName = `${classResult.class_name} ${subjectKeyToName[subject]}教师`;
-            console.warn(
-              `⚠️ [教师信息缺失] ${classResult.class_name} ${subjectKeyToName[subject]}，使用默认标识`
-            );
           }
 
           allTeacherResults.push({

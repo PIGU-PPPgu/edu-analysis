@@ -12,6 +12,60 @@ import type {
 } from "@/types/valueAddedTypes";
 
 /**
+ * 🔧 P1修复：分页查询辅助函数，解除Supabase 1000条限制
+ */
+async function fetchAllData<T = any>(
+  table: string,
+  filters: Record<string, any> = {},
+  orderBy?: { column: string; ascending?: boolean }
+): Promise<T[]> {
+  let allData: T[] = [];
+  let from = 0;
+  const batchSize = 1000;
+  let hasMore = true;
+
+  while (hasMore) {
+    let query = supabase
+      .from(table)
+      .select("*")
+      .range(from, from + batchSize - 1);
+
+    // 应用过滤条件
+    Object.entries(filters).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        query = query.in(key, value);
+      } else {
+        query = query.eq(key, value);
+      }
+    });
+
+    // 应用排序
+    if (orderBy) {
+      query = query.order(orderBy.column, {
+        ascending: orderBy.ascending ?? true,
+      });
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.warn(`⚠️ 分页查询失败 (offset ${from}):`, error);
+      break;
+    }
+
+    if (data && data.length > 0) {
+      allData = allData.concat(data as T[]);
+      from += batchSize;
+      hasMore = data.length === batchSize;
+    } else {
+      hasMore = false;
+    }
+  }
+
+  return allData;
+}
+
+/**
  * 查询教师历次表现
  */
 export async function fetchTeacherHistoricalData(
@@ -19,15 +73,16 @@ export async function fetchTeacherHistoricalData(
   subject: string
 ): Promise<HistoricalTracking | null> {
   try {
-    // 1. 查询该教师该科目的所有增值活动缓存
-    const { data: cacheData, error: cacheError } = await supabase
-      .from("value_added_cache")
-      .select("*")
-      .eq("dimension", "teacher")
-      .eq("target_id", teacherId)
-      .order("created_at", { ascending: true });
+    // 1. 🔧 使用分页查询获取该教师该科目的所有增值活动缓存
+    const cacheData = await fetchAllData(
+      "value_added_cache",
+      {
+        dimension: "teacher",
+        target_id: teacherId,
+      },
+      { column: "created_at", ascending: true }
+    );
 
-    if (cacheError) throw cacheError;
     if (!cacheData || cacheData.length === 0) return null;
 
     // 2. 筛选该科目的数据
@@ -38,16 +93,17 @@ export async function fetchTeacherHistoricalData(
 
     if (subjectData.length === 0) return null;
 
-    // 3. 获取关联的活动信息
+    // 3. 🔧 使用分页查询获取关联的活动信息
     const activityIds = subjectData.map((d) => d.activity_id);
-    const { data: activities, error: actError } = await supabase
-      .from("value_added_activities")
-      .select("*")
-      .in("id", activityIds)
-      .order("created_at", { ascending: true });
+    const activities = await fetchAllData(
+      "value_added_activities",
+      {
+        id: activityIds,
+      },
+      { column: "created_at", ascending: true }
+    );
 
-    if (actError) throw actError;
-    if (!activities) return null;
+    if (!activities || activities.length === 0) return null;
 
     // 4. 创建活动Map缓存(性能优化)
     const activityById = new Map(activities.map((a) => [a.id, a]));
@@ -122,14 +178,16 @@ export async function fetchClassHistoricalData(
   subject: string
 ): Promise<HistoricalTracking | null> {
   try {
-    const { data: cacheData, error: cacheError } = await supabase
-      .from("value_added_cache")
-      .select("*")
-      .eq("dimension", "class")
-      .eq("target_name", className)
-      .order("created_at", { ascending: true });
+    // 🔧 使用分页查询
+    const cacheData = await fetchAllData(
+      "value_added_cache",
+      {
+        dimension: "class",
+        target_name: className,
+      },
+      { column: "created_at", ascending: true }
+    );
 
-    if (cacheError) throw cacheError;
     if (!cacheData || cacheData.length === 0) return null;
 
     const subjectData = cacheData.filter((cache) => {
@@ -139,15 +197,17 @@ export async function fetchClassHistoricalData(
 
     if (subjectData.length === 0) return null;
 
+    // 🔧 使用分页查询
     const activityIds = subjectData.map((d) => d.activity_id);
-    const { data: activities, error: actError } = await supabase
-      .from("value_added_activities")
-      .select("*")
-      .in("id", activityIds)
-      .order("created_at", { ascending: true });
+    const activities = await fetchAllData(
+      "value_added_activities",
+      {
+        id: activityIds,
+      },
+      { column: "created_at", ascending: true }
+    );
 
-    if (actError) throw actError;
-    if (!activities) return null;
+    if (!activities || activities.length === 0) return null;
 
     // 创建活动Map缓存
     const activityById = new Map(activities.map((a) => [a.id, a]));
@@ -215,14 +275,16 @@ export async function fetchStudentHistoricalData(
   subject: string
 ): Promise<HistoricalTracking | null> {
   try {
-    const { data: cacheData, error: cacheError } = await supabase
-      .from("value_added_cache")
-      .select("*")
-      .eq("dimension", "student")
-      .eq("target_id", studentId)
-      .order("created_at", { ascending: true });
+    // 🔧 使用分页查询
+    const cacheData = await fetchAllData(
+      "value_added_cache",
+      {
+        dimension: "student",
+        target_id: studentId,
+      },
+      { column: "created_at", ascending: true }
+    );
 
-    if (cacheError) throw cacheError;
     if (!cacheData || cacheData.length === 0) return null;
 
     // 从结果中筛选该科目的数据
@@ -237,15 +299,17 @@ export async function fetchStudentHistoricalData(
 
     if (subjectData.length === 0) return null;
 
+    // 🔧 使用分页查询
     const activityIds = subjectData.map((d) => d.activity_id);
-    const { data: activities, error: actError } = await supabase
-      .from("value_added_activities")
-      .select("*")
-      .in("id", activityIds)
-      .order("created_at", { ascending: true });
+    const activities = await fetchAllData(
+      "value_added_activities",
+      {
+        id: activityIds,
+      },
+      { column: "created_at", ascending: true }
+    );
 
-    if (actError) throw actError;
-    if (!activities) return null;
+    if (!activities || activities.length === 0) return null;
 
     // 创建活动Map缓存
     const activityById = new Map(activities.map((a) => [a.id, a]));
@@ -339,13 +403,12 @@ export async function fetchTeachersWithHistory(): Promise<
   }>
 > {
   try {
-    const { data: cacheData, error } = await supabase
-      .from("value_added_cache")
-      .select("target_id, result")
-      .eq("dimension", "teacher");
+    // 🔧 使用分页查询
+    const cacheData = await fetchAllData("value_added_cache", {
+      dimension: "teacher",
+    });
 
-    if (error) throw error;
-    if (!cacheData) return [];
+    if (!cacheData || cacheData.length === 0) return [];
 
     const teacherMap = new Map<
       string,
@@ -388,13 +451,12 @@ export async function fetchClassesWithHistory(): Promise<
   }>
 > {
   try {
-    const { data: cacheData, error } = await supabase
-      .from("value_added_cache")
-      .select("target_name, result")
-      .eq("dimension", "class");
+    // 🔧 使用分页查询
+    const cacheData = await fetchAllData("value_added_cache", {
+      dimension: "class",
+    });
 
-    if (error) throw error;
-    if (!cacheData) return [];
+    if (!cacheData || cacheData.length === 0) return [];
 
     const classMap = new Map<string, Set<string>>();
 

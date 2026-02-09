@@ -70,6 +70,37 @@ export async function saveTeachingArrangement(
   configId?: string
 ) {
   try {
+    // 🔍 添加诊断日志
+    console.log(
+      `[教学编排] 开始保存，共 ${arrangements.length} 条教学编排记录`
+    );
+    console.log(`[教学编排] 学生信息：${studentInfo.length} 人`);
+
+    if (arrangements.length === 0) {
+      console.warn("⚠️ [教学编排] arrangements为空数组，无数据可保存");
+      return {
+        success: true,
+        count: 0,
+        message: "教学编排数据为空，请检查Excel文件是否正确上传",
+        skippedRecords: [],
+        createdTeachers: 0,
+      };
+    }
+
+    if (studentInfo.length === 0) {
+      console.warn("⚠️ [教学编排] studentInfo为空，无法展开教学关联");
+      return {
+        success: true,
+        count: 0,
+        message: "学生信息为空，无法保存教学编排",
+        skippedRecords: [],
+        createdTeachers: 0,
+      };
+    }
+
+    // 打印前3条样本数据
+    console.log("[教学编排] 样本数据:", arrangements.slice(0, 3));
+
     // 构建 class_name -> students 映射
     const classStudentsMap = new Map<string, StudentInfo[]>();
     studentInfo.forEach((student) => {
@@ -77,6 +108,8 @@ export async function saveTeachingArrangement(
       students.push(student);
       classStudentsMap.set(student.class_name, students);
     });
+
+    console.log(`[教学编排] 班级映射：${classStudentsMap.size} 个班级`);
 
     // 🔍 通过教师姓名查询或创建教师
     const teacherNameToIdMap = new Map<string, string>();
@@ -162,14 +195,21 @@ export async function saveTeachingArrangement(
     }
 
     if (insertData.length === 0) {
+      console.warn("⚠️ [教学编排] 展开后的数据为空！");
+      console.warn("   可能原因：班级名称不匹配，或教师UUID获取失败");
+      console.warn("   跳过的记录：", skippedRecords);
       return {
         success: true,
         count: 0,
-        message: "没有需要保存的教学编排数据",
+        message: "没有需要保存的教学编排数据（展开后为空）",
         skippedRecords,
         createdTeachers,
       };
     }
+
+    console.log(
+      `[教学编排] 准备插入 ${insertData.length} 条记录到teacher_student_subjects表`
+    );
 
     // 使用upsert - 修复冲突键
     const { data, error } = await supabase
@@ -181,12 +221,16 @@ export async function saveTeachingArrangement(
       .select();
 
     if (error) {
-      console.error("保存教学编排失败:", error);
+      console.error("❌ [教学编排] 保存失败:", error);
+      console.error("   错误详情:", error.message);
+      console.error("   尝试插入的数据量:", insertData.length);
       throw new Error(`保存教学编排失败: ${error.message}`);
     }
 
+    console.log(`✅ [教学编排] 成功保存 ${data?.length || 0} 条记录`);
+
     if (skippedRecords.length > 0) {
-      console.warn("[教学编排] 跳过的记录:", skippedRecords);
+      console.warn("⚠️ [教学编排] 跳过的记录:", skippedRecords);
     }
 
     return {

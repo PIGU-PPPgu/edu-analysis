@@ -25,6 +25,11 @@ export interface BoxPlotData {
   fullScore: number;
 }
 
+export interface BoxPlotClickData {
+  subject: string;
+  stats: BoxPlotData;
+}
+
 interface BoxPlotChartProps {
   data: BoxPlotData[];
   title?: string;
@@ -32,6 +37,7 @@ interface BoxPlotChartProps {
   showOutliers?: boolean;
   showMean?: boolean;
   normalizeByPercent?: boolean;
+  onBoxClick?: (data: BoxPlotClickData) => void;
 }
 
 // 计算箱线图数据的工具函数
@@ -102,6 +108,7 @@ const BoxPlotChart = memo<BoxPlotChartProps>(
     showOutliers = true,
     showMean = true,
     normalizeByPercent = false,
+    onBoxClick,
   }) => {
     // 去重和验证
     const validatedData = useMemo(() => {
@@ -116,11 +123,6 @@ const BoxPlotChart = memo<BoxPlotChartProps>(
         result.push(item);
       });
 
-      console.log(
-        "📊 BoxPlotChart (性能优化版) - 数据验证完成:",
-        result.length,
-        "个科目"
-      );
       return result;
     }, [data]);
 
@@ -165,14 +167,17 @@ const BoxPlotChart = memo<BoxPlotChartProps>(
 
     // 🚀 优化: 使用 useCallback 缓存坐标转换函数
     const toPercent = useCallback(
-      (value: number, fullScore: number) =>
-        normalizeByPercent ? (value / fullScore) * 100 : value,
+      (value: number, fullScore: number) => {
+        const safe = fullScore || 1; // 防止除零
+        return normalizeByPercent ? (value / safe) * 100 : value;
+      },
       [normalizeByPercent]
     );
 
     const scaleY = useCallback(
       (value: number) => {
-        const normalized = (value - yMin) / (yMax - yMin);
+        const range = yMax - yMin || 1; // 防止除零
+        const normalized = (value - yMin) / range;
         return (
           svgConfig.plotHeight -
           normalized * svgConfig.plotHeight +
@@ -411,6 +416,14 @@ const BoxPlotChart = memo<BoxPlotChartProps>(
                         `tooltip-${index}`
                       );
                       if (tooltip) tooltip.style.display = "none";
+                    }}
+                    onClick={() => {
+                      if (onBoxClick) {
+                        onBoxClick({
+                          subject: item.subject,
+                          stats: item,
+                        });
+                      }
                     }}
                   />
                 </g>

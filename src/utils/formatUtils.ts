@@ -87,3 +87,34 @@ export const formatDate = (
       return `${year}-${month}-${day}`;
   }
 };
+
+/**
+ * 🔧 P1修复：安全的数值格式化，处理null/undefined/NaN情况
+ * 避免多个组件重复定义相同的工具函数
+ */
+export const safeToFixed = (value: any, decimals: number = 2): string => {
+  if (value == null || value === undefined || isNaN(Number(value))) {
+    return "0." + "0".repeat(decimals);
+  }
+  return Number(value).toFixed(decimals);
+};
+
+/**
+ * 安全的百分比格式化
+ */
+export const safePercent = (value: any, decimals: number = 1): string => {
+  if (value == null || value === undefined || isNaN(Number(value))) {
+    return "-";
+  }
+  return `${Number(value * 100).toFixed(decimals)}%`;
+};
+
+/**
+ * 安全的数值显示，null/undefined显示为"-"
+ */
+export const safeNumber = (value: any, decimals: number = 2): string => {
+  if (value == null || value === undefined || isNaN(Number(value))) {
+    return "-";
+  }
+  return Number(value).toFixed(decimals);
+};

@@ -1,0 +1,131 @@
+{
+  "timestamp": "2026-02-07T15:05:50.286Z",
+  "subjects": {
+    "inDatabase": [],
+    "inTeacherStudentSubjects": [],
+    "inValueAddedCache": []
+  },
+  "teachers": {
+    "total": 47,
+    "withSubject": 0,
+    "list": [
+      {
+        "id": "c60599fb-ff0c-4014-bf67-0ca92ee78bcd",
+        "name": "伍梦君",
+        "subject": null
+      },
+      {
+        "id": "b432d310-6671-454a-bb10-59c48a60f99b",
+        "name": "何惠婷",
+        "subject": null
+      },
+      {
+        "id": "863e6170-83ac-4d45-bfb9-8af5c90e9926",
+        "name": "何沛榆",
+        "subject": null
+      },
+      {
+        "id": "363c6201-9c6b-4b86-ac80-586cf18c382c",
+        "name": "侯春杰",
+        "subject": null
+      },
+      {
+        "id": "7b150686-d918-453c-87d9-d1bb65117341",
+        "name": "冯潇",
+        "subject": null
+      },
+      {
+        "id": "8920a920-5ca9-4e42-917b-909411b1fae1",
+        "name": "刘思宇",
+        "subject": null
+      },
+      {
+        "id": "c8d595d9-b256-4e80-8019-c1cacf2831da",
+        "name": "刘悦",
+        "subject": null
+      },
+      {
+        "id": "e3a973d1-3d92-4b26-9d59-57bba37dc419",
+        "name": "刘敏",
+        "subject": null
+      },
+      {
+        "id": "72bc6373-17b1-40d6-9933-8fa346668f0e",
+        "name": "刘源泉",
+        "subject": null
+      },
+      {
+        "id": "75dad597-ccf6-41cd-bb42-738042522ae1",
+        "name": "刘美辛",
+        "subject": null
+      },
+      {
+        "id": "46f578ef-5a58-4a32-83a0-ee4f4819a610",
+        "name": "刘贵族",
+        "subject": null
+      },
+      {
+        "id": "fdfe93a6-a089-4835-b9bf-219623c6978e",
+        "name": "叶明霞",
+        "subject": null
+      },
+      {
+        "id": "a1ed846c-36bd-4bb2-b0d9-abffc10deab8",
+        "name": "吴敏玲",
+        "subject": null
+      },
+      {
+        "id": "61718f2c-309e-467a-aba2-d87cc2049323",
+        "name": "吴林璋",
+        "subject": null
+      },
+      {
+        "id": "435081ac-7f05-422d-adff-36ac923743c3",
+        "name": "吴红婷",
+        "subject": null
+      },
+      {
+        "id": "a706a34f-ff0c-4da6-aad7-67f22edea385",
+        "name": "孟明",
+        "subject": null
+      },
+      {
+        "id": "e7851712-319c-4498-97ca-b4f7dd1eed07",
+        "name": "廖玲玉",
+        "subject": null
+      },
+      {
+        "id": "392a5961-a3bd-4e01-b3d0-d502b8d71a5a",
+        "name": "张楚珠",
+        "subject": null
+      },
+      {
+        "id": "4ec2f6dd-3626-4e85-9779-7ece6169e10b",
+        "name": "张泽华",
+        "subject": null
+      },
+      {
+        "id": "c6af008c-7536-49c9-9b1a-8987ce6b0e15",
+        "name": "张海英",
+        "subject": null
+      }
+    ]
+  },
+  "dataCompleteness": {
+    "missingSubjects": [
+      "语文",
+      "数学",
+      "英语",
+      "物理",
+      "化学",
+      "生物",
+      "政治",
+      "历史",
+      "地理"
+    ],
+    "subjectsWithoutTeachers": [],
+    "warnings": [
+      "未找到增值活动记录"
+    ]
+  }
+}

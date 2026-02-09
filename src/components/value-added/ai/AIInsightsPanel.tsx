@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * AI洞察面板 - 增值报告专用
- * 集成advancedAnalysisEngine提供智能分析
+ * 算法洞察面板 - 增值报告专用
+ * 集成advancedAnalysisEngine提供智能分析（统计算法，非AI）
  */
 
 import { useState, useEffect, useMemo } from "react";
@@ -16,6 +16,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   Sparkles,
   TrendingUp,
   TrendingDown,
@@ -25,7 +33,9 @@ import {
   Info,
   X,
   RefreshCw,
+  FileText,
 } from "lucide-react";
+import { AIReportViewer } from "../reports/AIReportViewer";
 import { AdvancedAnalysisEngine } from "@/services/ai/advancedAnalysisEngine";
 import {
   InsightType,
@@ -62,13 +72,34 @@ export function AIInsightsPanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [dataHash, setDataHash] = useState<string>("");
+
+  // 生成数据特征哈希
+  const generateDataHash = (data: any[]) => {
+    const items = data
+      .slice(0, 5)
+      .map(
+        (d) =>
+          `${d.class_name || d.teacher_name || ""}-${d.subject || ""}-${d.avg_score_value_added_rate || ""}`
+      );
+    return `${data.length}-${items.join("|")}`;
+  };
 
   // 执行AI分析
   const analyzeData = async () => {
     if (data.length === 0) {
       setError("暂无数据可供分析");
+      setAnalysisResult(null);
       return;
     }
+
+    const newHash = generateDataHash(data);
+    console.log("🔍 [AIInsightsPanel] 数据哈希:", {
+      oldHash: dataHash,
+      newHash,
+      dataLength: data.length,
+    });
 
     setLoading(true);
     setError(null);
@@ -86,8 +117,15 @@ export function AIInsightsPanel({
         },
       };
 
+      console.log("🔍 [AIInsightsPanel] 开始分析，数据量:", data.length);
       const result = await engine.generateInsights(request);
+      console.log(
+        "🔍 [AIInsightsPanel] 分析完成，洞察数量:",
+        result.insights.length
+      );
+
       setAnalysisResult(result);
+      setDataHash(newHash);
     } catch (err) {
       console.error("AI分析失败:", err);
       setError("AI分析失败，请重试");
@@ -96,9 +134,11 @@ export function AIInsightsPanel({
     }
   };
 
-  // 自动分析
+  // 自动分析 - 当数据内容变化时重新分析
   useEffect(() => {
-    if (data.length > 0) {
+    const newHash = generateDataHash(data);
+    if (data.length > 0 && newHash !== dataHash) {
+      console.log("🔄 [AIInsightsPanel] 检测到数据变化，重新分析");
       analyzeData();
     }
   }, [data, context, maxInsights]);
@@ -296,11 +336,11 @@ export function AIInsightsPanel({
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-blue-600" />
-                AI智能洞察
+                算法洞察
               </CardTitle>
               <CardDescription className="mt-1">
-                基于 {analysisResult.metadata.dataPoints} 条数据生成 • 分析耗时{" "}
-                {analysisResult.metadata.analysisTime}ms
+                基于统计算法分析 {analysisResult.metadata.dataPoints} 条数据 •
+                分析耗时 {analysisResult.metadata.analysisTime}ms
               </CardDescription>
             </div>
 
@@ -346,6 +386,42 @@ export function AIInsightsPanel({
       <div className="space-y-3">
         {visibleInsights.map((insight) => renderInsightCard(insight))}
       </div>
+
+      {/* AI报告生成按钮 */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-semibold text-sm">生成完整AI分析报告</h4>
+              <p className="text-xs text-muted-foreground mt-1">
+                包含深度诊断、趋势预测和改进建议
+              </p>
+            </div>
+            <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <FileText className="w-4 h-4 mr-2" />
+                  生成报告
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>AI分析报告</DialogTitle>
+                  <DialogDescription>
+                    基于当前数据的综合分析报告
+                  </DialogDescription>
+                </DialogHeader>
+                <AIReportViewer
+                  insights={analysisResult?.insights || []}
+                  rawData={data}
+                  context={context}
+                  title="增值评价分析报告"
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* 底部说明 */}
       {dismissed.size > 0 && (

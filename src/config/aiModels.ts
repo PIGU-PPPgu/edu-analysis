@@ -314,6 +314,18 @@ export const AI_MODELS: Record<string, AIModel> = {
   },
 
   // 豆包(火山引擎)系列
+  "doubao-seed-1-8-251228": {
+    id: "doubao-seed-1-8-251228",
+    name: "doubao-seed-1-8-251228",
+    displayName: "豆包 Seed 1.8 (最新)",
+    provider: "doubao",
+    contextWindow: 128000,
+    maxOutputTokens: 4096,
+    pricing: { input: 0.3, output: 0.6 },
+    capabilities: ["long-context", "chinese-optimized", "reasoning"],
+    releaseDate: "2024-12-28",
+    description: "火山引擎豆包最新版本，针对中文优化，增强推理能力",
+  },
   "doubao-seed-1-6-251015": {
     id: "doubao-seed-1-6-251015",
     name: "doubao-seed-1-6-251015",
@@ -323,8 +335,8 @@ export const AI_MODELS: Record<string, AIModel> = {
     maxOutputTokens: 4096,
     pricing: { input: 0.3, output: 0.6 },
     capabilities: ["long-context", "chinese-optimized"],
-    releaseDate: "2025-10",
-    description: "火山引擎豆包最新版本，针对中文优化",
+    releaseDate: "2024-10-15",
+    description: "火山引擎豆包1.6版本，针对中文优化",
   },
   "doubao-pro-32k": {
     id: "doubao-pro-32k",
@@ -489,6 +501,7 @@ export const RECOMMENDED_MODELS = {
   ],
   代码生成: ["deepseek-coder", "gpt-4o", "claude-3-5-sonnet-20241022"],
   中文优化: [
+    "doubao-seed-1-8-251228",
     "doubao-seed-1-6-251015",
     "moonshot-v1-128k",
     "glm-4",

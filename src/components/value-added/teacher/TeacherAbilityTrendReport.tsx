@@ -118,6 +118,17 @@ export function TeacherAbilityTrendReport({
     loadHistoricalData();
   }, [selectedTeacherId, selectedSubject]);
 
+  // 🔧 P0修复：教师切换时自动同步科目选择
+  useEffect(() => {
+    const teacher = teachers.find((t) => t.teacher_id === selectedTeacherId);
+    if (teacher && teacher.subjects.length > 0) {
+      // 如果当前选中的科目不在新教师的科目列表中，自动切换到第一个可用科目
+      if (!teacher.subjects.includes(selectedSubject)) {
+        setSelectedSubject(teacher.subjects[0]);
+      }
+    }
+  }, [selectedTeacherId, teachers, selectedSubject]);
+
   // 当前选中教师的科目列表
   const availableSubjects = useMemo(() => {
     const teacher = teachers.find((t) => t.teacher_id === selectedTeacherId);
@@ -131,10 +142,19 @@ export function TeacherAbilityTrendReport({
     return historicalData.ability_trend.map((point, index) => ({
       exam: point.exam_title.slice(0, 8) + "...",
       fullExamTitle: point.exam_title,
-      excellentRate: (point.excellent_rate || 0) * 100,
-      consolidationRate: (point.consolidation_rate || 0) * 100,
-      transformationRate: (point.transformation_rate || 0) * 100,
-      contributionRate: (point.contribution_rate || 0) * 100,
+      // 🔧 P0修复：区分null/undefined和真实的0值
+      excellentRate:
+        point.excellent_rate != null ? point.excellent_rate * 100 : null,
+      consolidationRate:
+        point.consolidation_rate != null
+          ? point.consolidation_rate * 100
+          : null,
+      transformationRate:
+        point.transformation_rate != null
+          ? point.transformation_rate * 100
+          : null,
+      contributionRate:
+        point.contribution_rate != null ? point.contribution_rate * 100 : null,
       sequence: index + 1,
     }));
   }, [historicalData]);

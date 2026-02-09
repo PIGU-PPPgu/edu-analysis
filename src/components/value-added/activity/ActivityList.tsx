@@ -43,6 +43,7 @@ import {
   XCircle,
   Loader2,
   RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import type {
@@ -296,49 +297,66 @@ export function ActivityList() {
                         )}
 
                         {activity.status === "completed" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              console.log(
-                                "🔍 [ActivityList] Button clicked, navigating to:",
-                                activity.id
-                              );
-                              console.log(
-                                "🔍 [ActivityList] Current location:",
-                                window.location.pathname,
-                                window.location.search
-                              );
-
-                              // 强制刷新导航
-                              const targetUrl = `/value-added?activity_id=${activity.id}`;
-
-                              // 如果已经在目标URL，先清空再导航
-                              if (window.location.pathname === "/value-added") {
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
                                 console.log(
-                                  "🔄 [ActivityList] Already on /value-added, forcing navigation"
+                                  "🔍 [ActivityList] Button clicked, navigating to:",
+                                  activity.id
                                 );
-                                // 先清空activity_id
-                                navigate("/value-added", { replace: true });
-                                // 然后导航到带activity_id的URL
-                                setTimeout(() => {
+                                console.log(
+                                  "🔍 [ActivityList] Current location:",
+                                  window.location.pathname,
+                                  window.location.search
+                                );
+
+                                // 强制刷新导航
+                                const targetUrl = `/value-added?activity_id=${activity.id}`;
+
+                                // 如果已经在目标URL，先清空再导航
+                                if (
+                                  window.location.pathname === "/value-added"
+                                ) {
                                   console.log(
-                                    "🔄 [ActivityList] Navigating with activity_id:",
-                                    activity.id
+                                    "🔄 [ActivityList] Already on /value-added, forcing navigation"
+                                  );
+                                  // 先清空activity_id
+                                  navigate("/value-added", { replace: true });
+                                  // 然后导航到带activity_id的URL
+                                  setTimeout(() => {
+                                    console.log(
+                                      "🔄 [ActivityList] Navigating with activity_id:",
+                                      activity.id
+                                    );
+                                    navigate(targetUrl, { replace: false });
+                                  }, 50);
+                                } else {
+                                  console.log(
+                                    "🔄 [ActivityList] Direct navigation"
                                   );
                                   navigate(targetUrl, { replace: false });
-                                }, 50);
-                              } else {
-                                console.log(
-                                  "🔄 [ActivityList] Direct navigation"
+                                }
+                              }}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              查看报告
+                            </Button>
+
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => {
+                                navigate(
+                                  `/value-added/ai-analysis?activity_id=${activity.id}`
                                 );
-                                navigate(targetUrl, { replace: false });
-                              }
-                            }}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            查看报告
-                          </Button>
+                              }}
+                            >
+                              <Sparkles className="h-4 w-4 mr-1" />
+                              AI分析
+                            </Button>
+                          </>
                         )}
 
                         <DropdownMenu>

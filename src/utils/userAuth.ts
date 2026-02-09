@@ -250,7 +250,8 @@ export async function initDefaultAIConfig(
     // 创建默认配置
     const defaultConfig: UserAIConfig = {
       provider: "doubao",
-      version: "doubao-1-5-vision-pro-32k-250115", // 使用与测试组件相同的豆包视觉模型ID
+      version: "doubao-seed-1-8-251228", // 使用最新的豆包Seed 1.8模型（2024-12-28发布）
+      model: "doubao-seed-1-8-251228", // 同时设置model字段以确保兼容性
       enabled: true,
       customSettings: {
         debugMode: false,

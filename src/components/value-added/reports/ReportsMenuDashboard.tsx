@@ -31,6 +31,7 @@ import {
   Info,
 } from "lucide-react";
 import { ClassValueAddedReport } from "../class/ClassValueAddedReport";
+import { EnhancedClassValueAddedReport } from "../class/EnhancedClassValueAddedReport";
 import { ClassAbilityReport } from "../class/ClassAbilityReport";
 import { ClassScoreTrendSingleReport } from "../class/ClassScoreTrendSingleReport";
 import { ClassScoreTrendGradeReport } from "../class/ClassScoreTrendGradeReport";
@@ -349,11 +350,7 @@ export function ReportsMenuDashboard({
         </Button>
 
         {selectedReport === "class-score" && (
-          <ClassValueAddedReport
-            data={classData}
-            subject="全科"
-            loading={loading}
-          />
+          <EnhancedClassValueAddedReport data={classData} loading={loading} />
         )}
         {selectedReport === "class-ability" && (
           <ClassAbilityReport
