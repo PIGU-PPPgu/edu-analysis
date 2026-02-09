@@ -47,6 +47,7 @@ import {
   Radar,
 } from "recharts";
 import type { ClassValueAdded } from "@/types/valueAddedTypes";
+import { safeToFixed, safePercent, safeNumber } from "@/utils/formatUtils";
 
 interface SubjectAbilityComparisonReportProps {
   /** 班级增值数据 */
@@ -55,13 +56,6 @@ interface SubjectAbilityComparisonReportProps {
   /** 是否显示加载状态 */
   loading?: boolean;
 }
-
-const safeToFixed = (value: any, decimals: number = 2): string => {
-  if (value == null || value === undefined || isNaN(Number(value))) {
-    return "0." + "0".repeat(decimals);
-  }
-  return Number(value).toFixed(decimals);
-};
 
 export function SubjectAbilityComparisonReport({
   classData,

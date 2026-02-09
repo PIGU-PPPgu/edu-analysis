@@ -54,6 +54,7 @@ import type {
   ClassValueAdded,
   SubjectBalanceAnalysis,
 } from "@/types/valueAddedTypes";
+import { safeToFixed, safePercent, safeNumber } from "@/utils/formatUtils";
 
 interface SubjectScoreComparisonReportProps {
   /** 班级增值数据 */
@@ -65,13 +66,6 @@ interface SubjectScoreComparisonReportProps {
   /** 是否显示加载状态 */
   loading?: boolean;
 }
-
-const safeToFixed = (value: any, decimals: number = 2): string => {
-  if (value == null || value === undefined || isNaN(Number(value))) {
-    return "0." + "0".repeat(decimals);
-  }
-  return Number(value).toFixed(decimals);
-};
 
 export function SubjectScoreComparisonReport({
   classData,
@@ -168,8 +162,8 @@ export function SubjectScoreComparisonReport({
     ).length;
 
     return [
-      { name: "增值", value: positive, color: "#22c55e" },
-      { name: "退步", value: negative, color: "#ef4444" },
+      { name: "增值", value: positive, color: "#B9FF66" },
+      { name: "退步", value: negative, color: "#f87171" },
       { name: "持平", value: neutral, color: "#94a3b8" },
     ].filter((item) => item.value > 0);
   }, [selectedClassData]);
@@ -233,7 +227,7 @@ export function SubjectScoreComparisonReport({
           <Card>
             <CardContent className="p-4">
               <div className="text-sm text-muted-foreground">增值科目占比</div>
-              <div className="text-2xl font-bold text-green-600">
+              <div className="text-2xl font-bold" style={{ color: "#B9FF66" }}>
                 {statistics.positiveRate}%
               </div>
               <div className="text-xs text-muted-foreground">
@@ -245,7 +239,7 @@ export function SubjectScoreComparisonReport({
           <Card>
             <CardContent className="p-4">
               <div className="text-sm text-muted-foreground">增值最高科目</div>
-              <div className="text-lg font-bold text-green-600">
+              <div className="text-lg font-bold" style={{ color: "#B9FF66" }}>
                 {statistics.maxSubject.name}
               </div>
               <div className="text-sm text-muted-foreground">
@@ -257,7 +251,7 @@ export function SubjectScoreComparisonReport({
           <Card>
             <CardContent className="p-4">
               <div className="text-sm text-muted-foreground">需关注科目</div>
-              <div className="text-lg font-bold text-red-600">
+              <div className="text-lg font-bold" style={{ color: "#f87171" }}>
                 {statistics.minSubject.name}
               </div>
               <div className="text-sm text-muted-foreground">
@@ -300,7 +294,7 @@ export function SubjectScoreComparisonReport({
                   {barData.map((entry, index) => (
                     <Cell
                       key={`cell-${index}`}
-                      fill={entry.isPositive ? "#22c55e" : "#ef4444"}
+                      fill={entry.isPositive ? "#B9FF66" : "#f87171"}
                     />
                   ))}
                 </Bar>
@@ -373,13 +367,18 @@ export function SubjectScoreComparisonReport({
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
                         <span
-                          className={
-                            subject.avg_score_value_added_rate > 0
-                              ? "text-green-600 font-semibold"
-                              : subject.avg_score_value_added_rate < 0
-                                ? "text-red-600 font-semibold"
-                                : ""
-                          }
+                          style={{
+                            color:
+                              subject.avg_score_value_added_rate > 0
+                                ? "#B9FF66"
+                                : subject.avg_score_value_added_rate < 0
+                                  ? "#f87171"
+                                  : undefined,
+                            fontWeight:
+                              subject.avg_score_value_added_rate !== 0
+                                ? 600
+                                : undefined,
+                          }}
                         >
                           {safeToFixed(
                             subject.avg_score_value_added_rate * 100,
@@ -388,9 +387,15 @@ export function SubjectScoreComparisonReport({
                           %
                         </span>
                         {subject.avg_score_value_added_rate > 0 ? (
-                          <TrendingUp className="h-4 w-4 text-green-500" />
+                          <TrendingUp
+                            className="h-4 w-4"
+                            style={{ color: "#B9FF66" }}
+                          />
                         ) : subject.avg_score_value_added_rate < 0 ? (
-                          <TrendingDown className="h-4 w-4 text-red-500" />
+                          <TrendingDown
+                            className="h-4 w-4"
+                            style={{ color: "#f87171" }}
+                          />
                         ) : null}
                       </div>
                     </TableCell>
@@ -472,11 +477,17 @@ export function SubjectScoreComparisonReport({
                       增值率: {safeToFixed(subject.value_added_rate * 100, 2)}%
                     </span>
                     <span
-                      className={`text-sm ${
-                        Math.abs(subject.deviation_from_avg) > 0.05
-                          ? "text-red-600 font-semibold"
-                          : "text-green-600"
-                      }`}
+                      className="text-sm"
+                      style={{
+                        color:
+                          Math.abs(subject.deviation_from_avg) > 0.05
+                            ? "#f87171"
+                            : "#B9FF66",
+                        fontWeight:
+                          Math.abs(subject.deviation_from_avg) > 0.05
+                            ? 600
+                            : undefined,
+                      }}
                     >
                       偏离: {subject.deviation_from_avg > 0 ? "+" : ""}
                       {safeToFixed(subject.deviation_from_avg * 100, 2)}%
