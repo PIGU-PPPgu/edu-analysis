@@ -108,6 +108,8 @@ export function ComparisonAnalysisTool({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [classComparisonTab, setClassComparisonTab] =
+    useState("value-added-rate");
 
   // 加载活动列表
   useEffect(() => {
@@ -294,25 +296,28 @@ export function ComparisonAnalysisTool({
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">平均分</span>
                           <span className="font-semibold">
-                            {period.avgScore}
+                            {safeToFixed(period.avgScore, 1)}
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">增值率</span>
-                          <span className="font-semibold text-green-600">
-                            {period.valueAddedRate}%
+                          <span
+                            className="font-semibold"
+                            style={{ color: "#B9FF66" }}
+                          >
+                            {safeToFixed(period.valueAddedRate, 1)}%
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">优秀率</span>
                           <span className="font-semibold">
-                            {period.excellentRate}%
+                            {safeToFixed(period.excellentRate, 1)}%
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">及格率</span>
                           <span className="font-semibold">
-                            {period.passRate}%
+                            {safeToFixed(period.passRate, 1)}%
                           </span>
                         </div>
                       </div>
@@ -379,7 +384,11 @@ export function ComparisonAnalysisTool({
 
             {/* 增值分析图表 - Tabs切换 */}
             <div>
-              <Tabs defaultValue="value-added-rate" className="w-full">
+              <Tabs
+                value={classComparisonTab}
+                onValueChange={setClassComparisonTab}
+                className="w-full"
+              >
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="value-added-rate">增值率排名</TabsTrigger>
                   <TabsTrigger value="score-comparison">分数对比</TabsTrigger>
@@ -433,10 +442,10 @@ export function ComparisonAnalysisTool({
                             key={`cell-${index}`}
                             fill={
                               entry.valueAddedRate >= 12
-                                ? "hsl(142, 71%, 45%)" // green
+                                ? "#B9FF66" // green
                                 : entry.valueAddedRate >= 10
-                                  ? "hsl(221, 83%, 53%)" // blue
-                                  : "hsl(215, 16%, 47%)" // gray
+                                  ? "#3b82f6" // blue
+                                  : "#94a3b8" // gray
                             }
                           />
                         ))}
@@ -447,21 +456,21 @@ export function ComparisonAnalysisTool({
                     <div className="flex items-center gap-1">
                       <div
                         className="w-3 h-3 rounded"
-                        style={{ backgroundColor: "hsl(142, 71%, 45%)" }}
+                        style={{ backgroundColor: "#B9FF66" }}
                       ></div>
                       <span>优秀 (增值≥12%)</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <div
                         className="w-3 h-3 rounded"
-                        style={{ backgroundColor: "hsl(221, 83%, 53%)" }}
+                        style={{ backgroundColor: "#3b82f6" }}
                       ></div>
                       <span>良好 (增值≥10%)</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <div
                         className="w-3 h-3 rounded"
-                        style={{ backgroundColor: "hsl(215, 16%, 47%)" }}
+                        style={{ backgroundColor: "#94a3b8" }}
                       ></div>
                       <span>一般 ({"<"}10%)</span>
                     </div>
@@ -494,13 +503,13 @@ export function ComparisonAnalysisTool({
                       <Bar
                         dataKey="entryScore"
                         name="入口分"
-                        fill="hsl(215, 16%, 47%)"
+                        fill="#94a3b8"
                         radius={[4, 4, 0, 0]}
                       />
                       <Bar
                         dataKey="exitScore"
                         name="出口分"
-                        fill="hsl(142, 71%, 45%)"
+                        fill="#B9FF66"
                         radius={[4, 4, 0, 0]}
                       />
                     </BarChart>
@@ -540,52 +549,61 @@ export function ComparisonAnalysisTool({
                       </td>
                       <td className="px-3 py-3 font-medium">{cls.className}</td>
                       <td className="px-3 py-3 text-right text-muted-foreground">
-                        {cls.entryScore}
+                        {safeToFixed(cls.entryScore, 1)}
                       </td>
                       <td className="px-3 py-3 text-right font-semibold">
-                        {cls.exitScore}
+                        {safeToFixed(cls.exitScore, 1)}
                       </td>
                       <td className="px-3 py-3 text-right">
                         <span
-                          className={
-                            cls.valueAddedRate >= 12
-                              ? "text-green-600 font-bold"
-                              : cls.valueAddedRate >= 10
-                                ? "text-blue-600 font-semibold"
-                                : ""
-                          }
+                          style={{
+                            color:
+                              cls.valueAddedRate >= 12
+                                ? "#B9FF66"
+                                : cls.valueAddedRate >= 10
+                                  ? "#3b82f6"
+                                  : undefined,
+                            fontWeight:
+                              cls.valueAddedRate >= 12
+                                ? 700
+                                : cls.valueAddedRate >= 10
+                                  ? 600
+                                  : undefined,
+                          }}
                         >
-                          {cls.valueAddedRate}%
+                          {safeToFixed(cls.valueAddedRate, 1)}%
                         </span>
                       </td>
                       <td className="px-3 py-3 text-right text-xs text-muted-foreground">
-                        {cls.entryStandardScore}
+                        {safeToFixed(cls.entryStandardScore, 2)}
                       </td>
                       <td className="px-3 py-3 text-right text-xs text-muted-foreground">
-                        {cls.exitStandardScore}
+                        {safeToFixed(cls.exitStandardScore, 2)}
                       </td>
                       <td className="px-3 py-3 text-right">
                         <span
-                          className={
-                            cls.excellentRate >= 30
-                              ? "text-green-600 font-semibold"
-                              : ""
-                          }
+                          style={{
+                            color:
+                              cls.excellentRate >= 30 ? "#B9FF66" : undefined,
+                            fontWeight:
+                              cls.excellentRate >= 30 ? 600 : undefined,
+                          }}
                         >
-                          {cls.excellentRate}%
+                          {safeToFixed(cls.excellentRate, 1)}%
                         </span>
                       </td>
                       <td className="px-3 py-3 text-right">
                         <span
-                          className={
-                            cls.passRate >= 90
-                              ? "text-green-600"
-                              : cls.passRate >= 80
-                                ? "text-blue-600"
-                                : ""
-                          }
+                          style={{
+                            color:
+                              cls.passRate >= 90
+                                ? "#B9FF66"
+                                : cls.passRate >= 80
+                                  ? "#3b82f6"
+                                  : undefined,
+                          }}
                         >
-                          {cls.passRate}%
+                          {safeToFixed(cls.passRate, 1)}%
                         </span>
                       </td>
                       <td className="px-3 py-3 text-right">{cls.students}</td>
@@ -714,30 +732,31 @@ export function ComparisonAnalysisTool({
                     >
                       <td className="px-3 py-3 font-medium">{sub.subject}</td>
                       <td className="px-3 py-3 text-right text-muted-foreground">
-                        {sub.entryScore}
+                        {safeToFixed(sub.entryScore, 1)}
                       </td>
                       <td className="px-3 py-3 text-right font-semibold">
-                        {sub.exitScore}
+                        {safeToFixed(sub.exitScore, 1)}
                       </td>
                       <td className="px-3 py-3 text-right">
                         <span
-                          className={
-                            sub.valueAddedRate >= 12
-                              ? "text-green-600 font-bold"
-                              : ""
-                          }
+                          style={{
+                            color:
+                              sub.valueAddedRate >= 12 ? "#B9FF66" : undefined,
+                            fontWeight:
+                              sub.valueAddedRate >= 12 ? 700 : undefined,
+                          }}
                         >
-                          {sub.valueAddedRate}%
+                          {safeToFixed(sub.valueAddedRate, 1)}%
                         </span>
                       </td>
                       <td className="px-3 py-3 text-right">
-                        {sub.excellentRate}%
+                        {safeToFixed(sub.excellentRate, 1)}%
                       </td>
                       <td className="px-3 py-3 text-right text-xs text-muted-foreground">
-                        {sub.entryStandardScore}
+                        {safeToFixed(sub.entryStandardScore, 2)}
                       </td>
                       <td className="px-3 py-3 text-right text-xs text-muted-foreground">
-                        {sub.exitStandardScore}
+                        {safeToFixed(sub.exitStandardScore, 2)}
                       </td>
                     </tr>
                   ))}
@@ -817,27 +836,30 @@ export function ComparisonAnalysisTool({
                         {teacher.teacherName}
                       </td>
                       <td className="px-3 py-3 text-right">
-                        {teacher.avgScore}
+                        {safeToFixed(teacher.avgScore, 1)}
                       </td>
                       <td className="px-3 py-3 text-right">
                         <span
-                          className={
-                            teacher.valueAddedRate >= 12
-                              ? "text-green-600 font-bold"
-                              : ""
-                          }
+                          style={{
+                            color:
+                              teacher.valueAddedRate >= 12
+                                ? "#B9FF66"
+                                : undefined,
+                            fontWeight:
+                              teacher.valueAddedRate >= 12 ? 700 : undefined,
+                          }}
                         >
-                          {teacher.valueAddedRate}%
+                          {safeToFixed(teacher.valueAddedRate, 1)}%
                         </span>
                       </td>
                       <td className="px-3 py-3 text-right">
-                        {teacher.consolidationRate}%
+                        {safeToFixed(teacher.consolidationRate, 1)}%
                       </td>
                       <td className="px-3 py-3 text-right">
-                        {teacher.transformationRate}%
+                        {safeToFixed(teacher.transformationRate, 1)}%
                       </td>
                       <td className="px-3 py-3 text-right font-semibold">
-                        {teacher.contributionRate}%
+                        {safeToFixed(teacher.contributionRate, 1)}%
                       </td>
                       <td className="px-3 py-3 text-right">
                         {teacher.students}
