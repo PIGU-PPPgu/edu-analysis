@@ -659,13 +659,13 @@ export async function executeValueAddedCalculation(
             activity_id: activityId,
             report_type: "teacher_value_added",
             dimension: "teacher",
-            target_id: teacherId,
+            target_id: `${teacherId}_${classResult.class_name}_${subjectKeyToName[subject]}`, // 包含班级，确保细粒度存储
             target_name: teacherName,
             result: {
               teacher_id: teacherId,
               teacher_name: teacherName,
               subject: classResult.subject,
-              class_names: [classResult.class_name], // 教师所教班级列表
+              class_name: classResult.class_name, // 单个班级名称（细粒度存储）
               ...classResult,
             } as any,
           });
@@ -706,67 +706,10 @@ export async function executeValueAddedCalculation(
       });
     }
 
-    // 7. 聚合教师数据（一个教师可能教多个班级）
-    console.log("🔍 聚合教师数据...");
-    const teacherAggregation = new Map<string, any>();
-
-    for (const teacherResult of allTeacherResults) {
-      const result = teacherResult.result;
-      const key = `${result.teacher_name}_${result.subject}`;
-
-      if (teacherAggregation.has(key)) {
-        // 合并多个班级的数据
-        const existing = teacherAggregation.get(key);
-        const existingResult = existing.result;
-
-        // 合并班级列表
-        existingResult.class_names = [
-          ...existingResult.class_names,
-          ...result.class_names,
-        ];
-
-        // 合并学生数
-        existingResult.total_students += result.total_students;
-
-        // 重新计算加权平均
-        const totalStudents = existingResult.total_students;
-        const weight1 =
-          (existingResult.total_students - result.total_students) /
-          totalStudents;
-        const weight2 = result.total_students / totalStudents;
-
-        existingResult.avg_score_value_added_rate =
-          existingResult.avg_score_value_added_rate * weight1 +
-          result.avg_score_value_added_rate * weight2;
-        existingResult.progress_student_ratio =
-          existingResult.progress_student_ratio * weight1 +
-          result.progress_student_ratio * weight2;
-        existingResult.consolidation_rate =
-          existingResult.consolidation_rate * weight1 +
-          result.consolidation_rate * weight2;
-        existingResult.transformation_rate =
-          existingResult.transformation_rate * weight1 +
-          result.transformation_rate * weight2;
-        existingResult.contribution_rate =
-          existingResult.contribution_rate * weight1 +
-          result.contribution_rate * weight2;
-
-        // 合并优秀人数变化
-        existingResult.excellent_gain += result.excellent_gain;
-        existingResult.entry_excellent_count += result.entry_excellent_count;
-        existingResult.exit_excellent_count += result.exit_excellent_count;
-
-        console.log(
-          `合并教师 ${result.teacher_name} ${result.subject}: ${result.class_names.join(", ")}`
-        );
-      } else {
-        teacherAggregation.set(key, teacherResult);
-      }
-    }
-
-    const aggregatedTeacherResults = Array.from(teacherAggregation.values());
+    // 7. 【已移除聚合逻辑】保持细粒度存储：每个(教师, 班级, 科目)组合一条记录
+    // 教师数据将以原始细粒度形式存储，不再聚合
     console.log(
-      `✅ 教师数据聚合完成: ${allTeacherResults.length} -> ${aggregatedTeacherResults.length}`
+      `✅ 教师数据准备完成: ${allTeacherResults.length} 条记录（细粒度存储）`
     );
 
     // 8. 计算学科均衡（新增）
@@ -841,13 +784,13 @@ export async function executeValueAddedCalculation(
       message: "保存教师增值结果...",
     });
 
-    if (aggregatedTeacherResults.length > 0) {
+    if (allTeacherResults.length > 0) {
       console.log(
-        `批量插入 ${aggregatedTeacherResults.length} 条教师结果（已聚合）`
+        `批量插入 ${allTeacherResults.length} 条教师结果（细粒度存储：每个教师-班级-科目组合一条）`
       );
       const { error: teacherError } = await supabase
         .from("value_added_cache")
-        .insert(aggregatedTeacherResults);
+        .insert(allTeacherResults);
 
       if (teacherError) {
         console.error("保存教师结果失败:", teacherError);

@@ -569,26 +569,9 @@ export function TeacherValueAddedReport({
                           {teacher.teacher_name}
                         </TableCell>
                         <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {teacher.class_names &&
-                            teacher.class_names.length > 0 ? (
-                              teacher.class_names.map(
-                                (className: string, idx: number) => (
-                                  <Badge
-                                    key={idx}
-                                    variant="outline"
-                                    className="text-xs"
-                                  >
-                                    {className}
-                                  </Badge>
-                                )
-                              )
-                            ) : (
-                              <span className="text-xs text-muted-foreground">
-                                -
-                              </span>
-                            )}
-                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            {teacher.class_name || "-"}
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-right">
                           {teacher.total_students}
@@ -663,26 +646,9 @@ export function TeacherValueAddedReport({
                           {teacher.teacher_name}
                         </TableCell>
                         <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {teacher.class_names &&
-                            teacher.class_names.length > 0 ? (
-                              teacher.class_names.map(
-                                (className: string, idx: number) => (
-                                  <Badge
-                                    key={idx}
-                                    variant="outline"
-                                    className="text-xs"
-                                  >
-                                    {className}
-                                  </Badge>
-                                )
-                              )
-                            ) : (
-                              <span className="text-xs text-muted-foreground">
-                                -
-                              </span>
-                            )}
-                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            {teacher.class_name || "-"}
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-right">
                           {teacher.total_students}
@@ -773,26 +739,9 @@ export function TeacherValueAddedReport({
                       {teacher.teacher_name}
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {teacher.class_names &&
-                        teacher.class_names.length > 0 ? (
-                          teacher.class_names.map(
-                            (className: string, idx: number) => (
-                              <Badge
-                                key={idx}
-                                variant="outline"
-                                className="text-xs"
-                              >
-                                {className}
-                              </Badge>
-                            )
-                          )
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            -
-                          </span>
-                        )}
-                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {teacher.class_name || "-"}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       {teacher.total_students}

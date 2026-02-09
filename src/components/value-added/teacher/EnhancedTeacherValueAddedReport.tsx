@@ -71,8 +71,8 @@ export function EnhancedTeacherValueAddedReport({
   const classes = useMemo(() => {
     const classSet = new Set<string>();
     data.forEach((d) => {
-      if (d.class_names && Array.isArray(d.class_names)) {
-        d.class_names.forEach((c) => classSet.add(c));
+      if (d.class_name) {
+        classSet.add(d.class_name);
       }
     });
     return Array.from(classSet).sort();
@@ -88,7 +88,7 @@ export function EnhancedTeacherValueAddedReport({
 
       // 班级筛选
       if (selectedClass !== "all") {
-        if (!item.class_names || !item.class_names.includes(selectedClass)) {
+        if (item.class_name !== selectedClass) {
           return false;
         }
       }
@@ -113,9 +113,7 @@ export function EnhancedTeacherValueAddedReport({
         ),
         avgScore: item.avg_score_exit,
         studentCount: item.total_students,
-        classes: Array.isArray(item.class_names)
-          ? item.class_names.join(", ")
-          : "",
+        classes: item.class_name || "",
       }))
       .sort((a, b) => b.valueAddedRate - a.valueAddedRate)
       .slice(0, 15); // 只显示前15个教师
@@ -400,13 +398,11 @@ export function EnhancedTeacherValueAddedReport({
                       </td>
                       <td className="py-3 px-4">{item.subject}</td>
                       <td className="py-3 px-4 text-sm">
-                        {Array.isArray(item.class_names)
-                          ? item.class_names.map((c) => (
-                              <Badge key={c} variant="outline" className="mr-1">
-                                {c}
-                              </Badge>
-                            ))
-                          : "-"}
+                        {item.class_name ? (
+                          <Badge variant="outline">{item.class_name}</Badge>
+                        ) : (
+                          "-"
+                        )}
                       </td>
                       <td className="py-3 px-4 text-right">
                         {item.total_students}

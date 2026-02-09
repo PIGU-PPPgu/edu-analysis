@@ -168,6 +168,7 @@ export interface TeacherValueAdded {
   teacher_id: string;
   teacher_name: string;
   subject: string;
+  class_name: string; // 所教班级（细粒度存储：每个教师-班级-科目组合一条记录）
 
   // 分数增值
   avg_score_value_added_rate: number;
