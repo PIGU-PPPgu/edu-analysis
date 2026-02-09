@@ -66,6 +66,7 @@ import {
   type TeacherComparisonData,
   type ActivityInfo,
 } from "@/services/comparisonAnalysisService";
+import { safeToFixed, safePercent, safeNumber } from "@/utils/formatUtils";
 
 interface ComparisonAnalysisToolProps {
   loading?: boolean;
