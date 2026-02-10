@@ -491,3 +491,63 @@ export function groupBy<T>(
     {} as Record<string, T[]>
   );
 }
+
+// ============================================
+// 异常值检测
+// ============================================
+
+/**
+ * 检测Z分数异常值
+ * @param zScores Z分数数组
+ * @param threshold 异常值阈值（默认3，表示3倍标准差）
+ * @returns 异常值的索引数组
+ */
+export function detectOutliers(
+  zScores: number[],
+  threshold: number = 3
+): number[] {
+  return zScores
+    .map((z, index) => ({ z, index }))
+    .filter(({ z }) => Math.abs(z) > threshold)
+    .map(({ index }) => index);
+}
+
+/**
+ * 过滤掉Z分数异常值
+ * @param values 原始数值数组
+ * @param threshold 异常值阈值（默认3）
+ * @returns 过滤后的数值数组
+ */
+export function filterOutliers(
+  values: number[],
+  threshold: number = 3
+): number[] {
+  if (values.length === 0) return [];
+
+  const zScores = calculateZScores(values);
+  const outlierIndices = new Set(detectOutliers(zScores, threshold));
+
+  return values.filter((_, index) => !outlierIndices.has(index));
+}
+
+/**
+ * 获取异常值信息
+ * @param values 原始数值数组
+ * @param threshold 异常值阈值
+ * @returns 异常值及其索引
+ */
+export function getOutlierInfo(
+  values: number[],
+  threshold: number = 3
+): Array<{ index: number; value: number; zScore: number }> {
+  if (values.length === 0) return [];
+
+  const zScores = calculateZScores(values);
+  const outlierIndices = detectOutliers(zScores, threshold);
+
+  return outlierIndices.map((index) => ({
+    index,
+    value: values[index],
+    zScore: zScores[index],
+  }));
+}

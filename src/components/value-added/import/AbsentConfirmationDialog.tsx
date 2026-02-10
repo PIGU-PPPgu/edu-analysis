@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * 缺考确认对话框
- * 检测到0分时，询问用户是否为缺考
+ * 缺考确认对话框 - 横向表格布局
+ * 一行显示一个学生的所有科目，避免列表过长
  */
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -44,6 +44,27 @@ interface AbsentConfirmationDialogProps {
   onConfirm: (absentRecords: ZeroScoreRecord[]) => Promise<void>;
 }
 
+// 学生维度的数据结构
+interface StudentZeroScores {
+  student_id: string;
+  student_name: string;
+  class_name: string;
+  subjects: Map<string, ZeroScoreRecord>; // 科目名 -> 原始记录
+}
+
+// 支持的科目列表（固定顺序）
+const ALL_SUBJECTS = [
+  "语文",
+  "数学",
+  "英语",
+  "物理",
+  "化学",
+  "生物",
+  "政治",
+  "历史",
+  "地理",
+];
+
 export function AbsentConfirmationDialog({
   open,
   onOpenChange,
@@ -55,12 +76,42 @@ export function AbsentConfirmationDialog({
   );
   const [submitting, setSubmitting] = useState(false);
 
-  // 生成唯一key
-  const getRecordKey = (record: ZeroScoreRecord) =>
-    `${record.student_id}_${record.subject}`;
+  // 转换数据：按学生分组
+  const studentData = useMemo(() => {
+    const studentMap = new Map<string, StudentZeroScores>();
 
-  const handleToggle = (record: ZeroScoreRecord) => {
-    const key = getRecordKey(record);
+    zeroScores.forEach((record) => {
+      if (!studentMap.has(record.student_id)) {
+        studentMap.set(record.student_id, {
+          student_id: record.student_id,
+          student_name: record.student_name,
+          class_name: record.class_name,
+          subjects: new Map(),
+        });
+      }
+      const student = studentMap.get(record.student_id)!;
+      student.subjects.set(record.subject, record);
+    });
+
+    return Array.from(studentMap.values()).sort((a, b) =>
+      a.class_name.localeCompare(b.class_name)
+    );
+  }, [zeroScores]);
+
+  // 获取实际出现的科目（用于表头）
+  const presentSubjects = useMemo(() => {
+    const subjectSet = new Set<string>();
+    zeroScores.forEach((record) => subjectSet.add(record.subject));
+    return ALL_SUBJECTS.filter((subject) => subjectSet.has(subject));
+  }, [zeroScores]);
+
+  // 生成唯一key
+  const getRecordKey = (student_id: string, subject: string) =>
+    `${student_id}_${subject}`;
+
+  // 切换单个科目
+  const handleToggleSubject = (student_id: string, subject: string) => {
+    const key = getRecordKey(student_id, subject);
     const newSet = new Set(selectedRecords);
     if (newSet.has(key)) {
       newSet.delete(key);
@@ -70,11 +121,51 @@ export function AbsentConfirmationDialog({
     setSelectedRecords(newSet);
   };
 
+  // 切换整个学生
+  const handleToggleStudent = (student: StudentZeroScores) => {
+    const studentKeys = Array.from(student.subjects.keys()).map((subject) =>
+      getRecordKey(student.student_id, subject)
+    );
+
+    const allSelected = studentKeys.every((key) => selectedRecords.has(key));
+    const newSet = new Set(selectedRecords);
+
+    if (allSelected) {
+      // 全部取消选择
+      studentKeys.forEach((key) => newSet.delete(key));
+    } else {
+      // 全部选择
+      studentKeys.forEach((key) => newSet.add(key));
+    }
+
+    setSelectedRecords(newSet);
+  };
+
+  // 检查学生是否全部选中
+  const isStudentFullySelected = (student: StudentZeroScores) => {
+    return Array.from(student.subjects.keys()).every((subject) =>
+      selectedRecords.has(getRecordKey(student.student_id, subject))
+    );
+  };
+
+  // 检查学生是否部分选中
+  const isStudentPartiallySelected = (student: StudentZeroScores) => {
+    const keys = Array.from(student.subjects.keys()).map((subject) =>
+      getRecordKey(student.student_id, subject)
+    );
+    const selectedCount = keys.filter((key) => selectedRecords.has(key)).length;
+    return selectedCount > 0 && selectedCount < keys.length;
+  };
+
+  // 全选/取消全选
   const handleSelectAll = () => {
     if (selectedRecords.size === zeroScores.length) {
       setSelectedRecords(new Set());
     } else {
-      setSelectedRecords(new Set(zeroScores.map(getRecordKey)));
+      const allKeys = zeroScores.map((record) =>
+        getRecordKey(record.student_id, record.subject)
+      );
+      setSelectedRecords(new Set(allKeys));
     }
   };
 
@@ -82,7 +173,7 @@ export function AbsentConfirmationDialog({
     setSubmitting(true);
     try {
       const absentRecords = zeroScores.filter((record) =>
-        selectedRecords.has(getRecordKey(record))
+        selectedRecords.has(getRecordKey(record.student_id, record.subject))
       );
 
       await onConfirm(absentRecords);
@@ -105,14 +196,15 @@ export function AbsentConfirmationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertCircle className="h-5 w-5 text-orange-500" />
             检测到0分成绩
           </DialogTitle>
           <DialogDescription>
-            系统检测到 <strong>{zeroScores.length}</strong> 条0分成绩记录。
+            系统检测到 <strong>{studentData.length}</strong> 名学生共{" "}
+            <strong>{zeroScores.length}</strong> 科次0分成绩记录。
             请确认哪些是缺考，哪些是真实成绩。
             <br />
             <span className="text-orange-600 text-sm">
@@ -126,53 +218,103 @@ export function AbsentConfirmationDialog({
           <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
             <div className="text-sm">
               已选择 <strong>{selectedRecords.size}</strong> /{" "}
-              {zeroScores.length} 条记录标记为缺考
+              {zeroScores.length} 科次标记为缺考
             </div>
             <Button variant="outline" size="sm" onClick={handleSelectAll}>
               {selectedRecords.size === zeroScores.length ? "取消全选" : "全选"}
             </Button>
           </div>
 
-          {/* 数据表格 */}
-          <div className="border rounded-lg">
+          {/* 横向表格 */}
+          <div className="border rounded-lg overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12">缺考</TableHead>
-                  <TableHead>学号</TableHead>
-                  <TableHead>姓名</TableHead>
-                  <TableHead>班级</TableHead>
-                  <TableHead>科目</TableHead>
-                  <TableHead>分数</TableHead>
+                  <TableHead className="w-12">全选</TableHead>
+                  <TableHead className="min-w-[100px]">班级</TableHead>
+                  <TableHead className="min-w-[80px]">学号</TableHead>
+                  <TableHead className="min-w-[80px]">姓名</TableHead>
+                  {presentSubjects.map((subject) => (
+                    <TableHead
+                      key={subject}
+                      className="text-center min-w-[70px]"
+                    >
+                      {subject}
+                    </TableHead>
+                  ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {zeroScores.map((record) => {
-                  const key = getRecordKey(record);
-                  const isSelected = selectedRecords.has(key);
+                {studentData.map((student) => {
+                  const fullySelected = isStudentFullySelected(student);
+                  const partiallySelected = isStudentPartiallySelected(student);
 
                   return (
                     <TableRow
-                      key={key}
-                      className={isSelected ? "bg-orange-50" : ""}
+                      key={student.student_id}
+                      className={fullySelected ? "bg-orange-50" : ""}
                     >
+                      {/* 学生全选复选框 */}
                       <TableCell>
                         <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => handleToggle(record)}
+                          checked={fullySelected}
+                          // @ts-ignore - indeterminate is a valid prop
+                          indeterminate={partiallySelected}
+                          onCheckedChange={() => handleToggleStudent(student)}
                         />
                       </TableCell>
+
+                      {/* 基本信息 */}
+                      <TableCell className="text-sm">
+                        {student.class_name}
+                      </TableCell>
                       <TableCell className="font-mono text-sm">
-                        {record.student_id}
+                        {student.student_id}
                       </TableCell>
-                      <TableCell>{record.student_name}</TableCell>
-                      <TableCell>{record.class_name}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{record.subject}</Badge>
+                      <TableCell className="font-medium">
+                        {student.student_name}
                       </TableCell>
-                      <TableCell>
-                        <Badge variant="destructive">{record.score}</Badge>
-                      </TableCell>
+
+                      {/* 各科目 */}
+                      {presentSubjects.map((subject) => {
+                        const record = student.subjects.get(subject);
+                        if (!record) {
+                          return (
+                            <TableCell
+                              key={subject}
+                              className="text-center text-gray-400"
+                            >
+                              -
+                            </TableCell>
+                          );
+                        }
+
+                        const isSelected = selectedRecords.has(
+                          getRecordKey(student.student_id, subject)
+                        );
+
+                        return (
+                          <TableCell key={subject} className="text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={() =>
+                                  handleToggleSubject(
+                                    student.student_id,
+                                    subject
+                                  )
+                                }
+                              />
+                              <Badge
+                                variant={isSelected ? "destructive" : "outline"}
+                                className="text-xs"
+                              >
+                                0
+                              </Badge>
+                            </div>
+                          </TableCell>
+                        );
+                      })}
                     </TableRow>
                   );
                 })}
@@ -183,9 +325,13 @@ export function AbsentConfirmationDialog({
           {/* 说明 */}
           <div className="text-xs text-gray-500 space-y-1 p-3 bg-gray-50 rounded">
             <div>
-              💡 <strong>建议</strong>：
+              💡 <strong>使用说明</strong>：
             </div>
             <ul className="list-disc list-inside ml-2 space-y-1">
+              <li>
+                勾选"全选"列的复选框，可以一次性标记该学生的所有0分科目为缺考
+              </li>
+              <li>勾选科目列的复选框，可以单独标记该科目为缺考</li>
               <li>如果学生因病假、事假等原因未参加考试，请勾选标记为"缺考"</li>
               <li>
                 如果学生参加了考试但得分为0，请<strong>不要勾选</strong>

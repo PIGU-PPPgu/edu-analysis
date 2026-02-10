@@ -187,6 +187,10 @@ export interface TeacherValueAdded {
   entry_excellent_count: number;
   exit_excellent_count: number;
 
+  // 统计有效性（新增）
+  warnings?: string[]; // 统计警告信息
+  is_statistically_significant?: boolean; // 是否统计显著
+
   // 排名
   rank_in_subject?: number;
   total_teachers?: number;
@@ -219,6 +223,11 @@ export interface ClassValueAdded {
   entry_excellent_count: number;
   exit_excellent_count: number;
   excellent_gain: number;
+
+  // 统计有效性（新增）
+  warnings?: string[]; // 统计警告信息
+  is_statistically_significant?: boolean; // 是否统计显著（无警告）
+  valid_sample_count?: number; // 有效样本数（过滤缺考后）
 
   // 排名
   rank_in_grade?: number;

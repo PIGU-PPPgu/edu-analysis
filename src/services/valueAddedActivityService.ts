@@ -579,20 +579,24 @@ export async function executeValueAddedCalculation(
           const entryAbsent = entryRecord[absentField]; // ✅ 入口是否缺考
           const exitAbsent = exitRecord[absentField]; // ✅ 出口是否缺考
 
-          // ✅ 跳过无效数据：null/undefined 或标记为缺考的记录
+          // ✅ 跳过无效数据：null/undefined
           if (entryScore == null || exitScore == null) {
             return null;
           }
 
-          // ✅ 跳过标记为缺考的学生
-          if (entryAbsent === true || exitAbsent === true) {
+          // ✅ 强化缺考判断：absent字段 OR 0分（混合模式）
+          // 理由：K12教育场景中，真实考0分几乎不存在，0分基本等同缺考
+          const isEntryAbsent = entryAbsent === true || entryScore === 0;
+          const isExitAbsent = exitAbsent === true || exitScore === 0;
+
+          if (isEntryAbsent || isExitAbsent) {
             console.log(
-              `跳过缺考学生: ${entryRecord.name} (${subjectKeyToName[subject]})`
+              `跳过缺考/0分学生: ${entryRecord.name} (${subjectKeyToName[subject]}, 入口:${entryScore}, 出口:${exitScore})`
             );
             return null;
           }
 
-          // ✅ 保留真实的0分成绩
+          // ✅ 此时所有进入计算的成绩都是有效分数
           return {
             student_id: entryRecord.student_id,
             student_name: entryRecord.name,

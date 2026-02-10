@@ -331,18 +331,45 @@ export async function saveGradeScores(
         // 总分信息 - 保留 0 分
         total_score: score.total_score ?? null,
 
-        // 各科成绩 - 使用展开后的字段或从scores提取
-        chinese_score: score.chinese_score ?? score.scores?.["语文"] ?? null,
-        math_score: score.math_score ?? score.scores?.["数学"] ?? null,
-        english_score: score.english_score ?? score.scores?.["英语"] ?? null,
-        physics_score: score.physics_score ?? score.scores?.["物理"] ?? null,
-        chemistry_score:
-          score.chemistry_score ?? score.scores?.["化学"] ?? null,
-        biology_score: score.biology_score ?? score.scores?.["生物"] ?? null,
-        politics_score: score.politics_score ?? score.scores?.["政治"] ?? null,
-        history_score: score.history_score ?? score.scores?.["历史"] ?? null,
-        geography_score:
-          score.geography_score ?? score.scores?.["地理"] ?? null,
+        // ✅ 各科成绩 - 缺考标记的科目设为null（防御性过滤）
+        chinese_score: (score as any).chinese_absent
+          ? null
+          : (score.chinese_score ?? score.scores?.["语文"] ?? null),
+        math_score: (score as any).math_absent
+          ? null
+          : (score.math_score ?? score.scores?.["数学"] ?? null),
+        english_score: (score as any).english_absent
+          ? null
+          : (score.english_score ?? score.scores?.["英语"] ?? null),
+        physics_score: (score as any).physics_absent
+          ? null
+          : (score.physics_score ?? score.scores?.["物理"] ?? null),
+        chemistry_score: (score as any).chemistry_absent
+          ? null
+          : (score.chemistry_score ?? score.scores?.["化学"] ?? null),
+        biology_score: (score as any).biology_absent
+          ? null
+          : (score.biology_score ?? score.scores?.["生物"] ?? null),
+        politics_score: (score as any).politics_absent
+          ? null
+          : (score.politics_score ?? score.scores?.["政治"] ?? null),
+        history_score: (score as any).history_absent
+          ? null
+          : (score.history_score ?? score.scores?.["历史"] ?? null),
+        geography_score: (score as any).geography_absent
+          ? null
+          : (score.geography_score ?? score.scores?.["地理"] ?? null),
+
+        // ✅ 保存缺考标记字段
+        chinese_absent: (score as any).chinese_absent || false,
+        math_absent: (score as any).math_absent || false,
+        english_absent: (score as any).english_absent || false,
+        physics_absent: (score as any).physics_absent || false,
+        chemistry_absent: (score as any).chemistry_absent || false,
+        biology_absent: (score as any).biology_absent || false,
+        politics_absent: (score as any).politics_absent || false,
+        history_absent: (score as any).history_absent || false,
+        geography_absent: (score as any).geography_absent || false,
 
         config_id: configId || null,
       };

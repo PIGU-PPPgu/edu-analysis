@@ -150,17 +150,25 @@ export function parseGradeScores(workbook: XLSX.WorkBook): GradeScores[] {
     Object.keys(row).forEach((key) => {
       if (!fixedFields.includes(key)) {
         const value = row[key];
+
+        // ✅ 优先处理空值：Excel空单元格 → null
+        if (value === undefined || value === null || value === "") {
+          scores[key] = null;
+        }
         // 处理缺考(Q)、未参加(N)等特殊标记
-        if (
+        else if (
           value === "Q" ||
           value === "N" ||
           value === "缺考" ||
           value === "未参加"
         ) {
           scores[key] = value;
-        } else {
+        }
+        // 处理数字分数
+        else {
           const numValue = Number(value);
-          scores[key] = isNaN(numValue) ? 0 : numValue;
+          // ✅ 修复：非数字 → null（而不是0）
+          scores[key] = isNaN(numValue) ? null : numValue;
         }
       }
     });

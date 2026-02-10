@@ -224,7 +224,7 @@ export function DataImportWorkflowWithConfig() {
 
     setValidationResults(results);
 
-    // ✅ 检测单科0分记录
+    // ✅ 检测缺考记录（包括0分、Q、N、"缺考"等标记）
     const zeroScores: ZeroScoreRecord[] = [];
 
     const subjectMap: Record<string, string> = {
@@ -239,33 +239,54 @@ export function DataImportWorkflowWithConfig() {
       politics_score: "政治",
     };
 
-    // 检测入口成绩的0分
+    // 判断是否为疑似缺考
+    const isSuspectedAbsent = (value: any): boolean => {
+      if (value === 0 || value === 0.0) return true;
+      if (typeof value === "string") {
+        const normalized = value.trim().toUpperCase();
+        return (
+          normalized === "Q" ||
+          normalized === "N" ||
+          normalized === "缺考" ||
+          normalized === "未参加"
+        );
+      }
+      return false;
+    };
+
+    // 获取分数值（用于显示）
+    const getDisplayScore = (value: any): number => {
+      if (typeof value === "number") return value;
+      return 0; // Q/N/缺考等显示为0
+    };
+
+    // 检测入口成绩的疑似缺考记录
     entryGrades.forEach((grade) => {
       Object.entries(subjectMap).forEach(([field, subjectName]) => {
         const score = (grade as any)[field];
-        if (score === 0 || score === 0.0) {
+        if (isSuspectedAbsent(score)) {
           zeroScores.push({
             student_id: grade.student_id,
             student_name: grade.student_name,
             class_name: grade.class_name || "未知班级",
             subject: subjectName,
-            score: 0,
+            score: getDisplayScore(score),
           });
         }
       });
     });
 
-    // 检测出口成绩的0分
+    // 检测出口成绩的疑似缺考记录
     exitGrades.forEach((grade) => {
       Object.entries(subjectMap).forEach(([field, subjectName]) => {
         const score = (grade as any)[field];
-        if (score === 0 || score === 0.0) {
+        if (isSuspectedAbsent(score)) {
           zeroScores.push({
             student_id: grade.student_id,
             student_name: grade.student_name,
             class_name: grade.class_name || "未知班级",
             subject: subjectName,
-            score: 0,
+            score: getDisplayScore(score),
           });
         }
       });
@@ -279,7 +300,9 @@ export function DataImportWorkflowWithConfig() {
     if (hasFatalErrors) {
       toast.error("数据校验失败，请查看详细错误");
     } else if (hasZeroScores) {
-      toast.warning(`检测到 ${zeroScores.length} 条0分记录，请确认是否为缺考`);
+      toast.warning(
+        `检测到 ${zeroScores.length} 条疑似缺考记录（0分/Q/N/缺考），请确认`
+      );
       setShowAbsentDialog(true);
     } else {
       toast.success("数据校验通过！");

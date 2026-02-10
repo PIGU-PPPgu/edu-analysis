@@ -10,6 +10,7 @@ import * as React from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Table,
   TableBody,
@@ -41,6 +42,7 @@ import {
   Search,
   Filter,
   X,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { exportTeacherReportToExcel } from "@/services/reportExportService";
@@ -83,6 +85,14 @@ export function TeacherValueAddedReport({
   const reportRef = useRef<HTMLDivElement>(null);
 
   const PAGE_SIZE = 20;
+
+  // 🎯 异常值检测阈值（与@calc-architect确认）
+  const ANOMALY_THRESHOLDS = {
+    moderate: 0.2, // >20% 显示警告
+    severe: 0.3, // >30% 显示严重警告
+    negative_moderate: -0.15, // <-15% 显示警告
+    negative_severe: -0.25, // <-25% 显示严重警告
+  };
 
   // 🔧 P0修复：initialTab变化时重置activeTab
   useEffect(() => {
@@ -509,6 +519,104 @@ export function TeacherValueAddedReport({
           </Card>
         </div>
       )}
+
+      {/* 🚨 异常值警告 */}
+      {summary &&
+        (() => {
+          const rate = summary.avgValueAddedRate;
+          const absRate = Math.abs(rate);
+
+          // 判断异常级别
+          let alertVariant: "default" | "destructive" = "default";
+          let alertTitle = "";
+          let alertIcon = null;
+
+          if (absRate >= ANOMALY_THRESHOLDS.severe) {
+            alertVariant = "destructive";
+            alertTitle =
+              rate > 0
+                ? `严重异常：增值率达到${(rate * 100).toFixed(1)}%`
+                : `严重异常：增值率为${(rate * 100).toFixed(1)}%`;
+            alertIcon = <AlertTriangle className="h-4 w-4" />;
+          } else if (absRate >= ANOMALY_THRESHOLDS.moderate) {
+            alertVariant = "default";
+            alertTitle = `异常提醒：增值率达到${(rate * 100).toFixed(1)}%`;
+            alertIcon = <AlertTriangle className="h-4 w-4 text-orange-500" />;
+          } else if (rate <= ANOMALY_THRESHOLDS.negative_severe) {
+            alertVariant = "destructive";
+            alertTitle = `严重异常：增值率为${(rate * 100).toFixed(1)}%`;
+            alertIcon = <AlertTriangle className="h-4 w-4" />;
+          } else if (rate <= ANOMALY_THRESHOLDS.negative_moderate) {
+            alertVariant = "default";
+            alertTitle = `异常提醒：增值率为${(rate * 100).toFixed(1)}%`;
+            alertIcon = <AlertTriangle className="h-4 w-4 text-orange-500" />;
+          }
+
+          if (!alertTitle) return null;
+
+          const isSevere = alertVariant === "destructive";
+
+          return (
+            <Alert variant={alertVariant} className="border-2">
+              <div className="flex items-start gap-3">
+                {alertIcon}
+                <div className="flex-1 space-y-3">
+                  <AlertTitle className="text-base font-semibold mb-2">
+                    {alertTitle}
+                  </AlertTitle>
+                  <AlertDescription className="space-y-3">
+                    <p className="text-sm">
+                      {isSevere
+                        ? "在统计学上属于极端异常（超过±3个标准差），强烈建议检查数据质量。"
+                        : "这个数值超出正常范围（通常为±15%），建议检查数据质量。"}
+                    </p>
+
+                    <div className="space-y-2">
+                      <p className="text-sm font-semibold">可能原因：</p>
+                      <ul className="list-disc list-inside text-sm space-y-1 ml-2">
+                        <li>
+                          入口/出口考试难度差异{isSevere ? "过大" : "较大"}
+                        </li>
+                        <li>存在未标记的缺考学生（0分误当真实成绩）</li>
+                        <li>
+                          样本量{isSevere ? "过小" : "偏小"}（建议≥30人，当前
+                          {summary.totalStudents}人）
+                        </li>
+                        {isSevere && <li>数据录入错误或异常值</li>}
+                      </ul>
+                    </div>
+
+                    {isSevere && (
+                      <div className="space-y-2">
+                        <p className="text-sm font-semibold">建议行动：</p>
+                        <ol className="list-decimal list-inside text-sm space-y-1 ml-2">
+                          <li>查看数据质量报告，检查缺考率和0分占比</li>
+                          <li>对比入口/出口考试的平均分和标准差</li>
+                          <li>确认样本量是否足够（建议≥30人）</li>
+                        </ol>
+                      </div>
+                    )}
+
+                    <div className="flex gap-2 mt-3">
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0 text-sm"
+                        onClick={() => {
+                          toast.info(
+                            "数据质量报告功能开发中，请先检查原始数据"
+                          );
+                        }}
+                      >
+                        查看数据质量报告 →
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </div>
+              </div>
+            </Alert>
+          );
+        })()}
 
       {/* 主数据表格 */}
       <Card>
