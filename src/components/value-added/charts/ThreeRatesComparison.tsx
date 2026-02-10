@@ -158,8 +158,19 @@ export function ThreeRatesComparison({
     return showAllHeatmap ? barData : barData.slice(0, HEATMAP_PAGE_SIZE);
   }, [barData, showAllHeatmap]);
 
-  // 颜色配置
-  const colors = ["#3b82f6", "#8b5cf6", "#f59e0b", "#10b981", "#ef4444"];
+  // 颜色配置 - 使用Tableau10配色方案（更具区分度）
+  const colors = [
+    "#4E79A7", // 蓝色
+    "#F28E2B", // 橙色
+    "#E15759", // 红色
+    "#76B7B2", // 青色
+    "#59A14F", // 绿色
+    "#EDC948", // 黄色
+    "#B07AA1", // 紫色
+    "#FF9DA7", // 粉色
+    "#9C755F", // 棕色
+    "#BAB0AC", // 灰色
+  ];
 
   // 统一的点击处理函数
   const handleBarClick = (clickData: any) => {
@@ -192,15 +203,16 @@ export function ThreeRatesComparison({
           <div className="h-[400px]">
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart data={radarData}>
-                <PolarGrid />
+                <PolarGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <PolarAngleAxis
                   dataKey="metric"
-                  tick={{ fontSize: 14, fontWeight: 600 }}
+                  tick={{ fontSize: 14, fontWeight: 600, fill: "#374151" }}
                 />
                 <PolarRadiusAxis
                   angle={90}
                   domain={[0, 100]}
-                  tick={{ fontSize: 12 }}
+                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                  tickFormatter={(value) => `${value}%`}
                 />
                 {topData.map((item, index) => {
                   const name =
@@ -214,14 +226,31 @@ export function ThreeRatesComparison({
                       dataKey={name}
                       stroke={colors[index % colors.length]}
                       fill={colors[index % colors.length]}
-                      fillOpacity={0.3}
-                      strokeWidth={2}
+                      fillOpacity={0.25}
+                      strokeWidth={2.5}
+                      dot={{ r: 4, strokeWidth: 2, fill: "#fff" }}
+                      activeDot={{ r: 6, strokeWidth: 2 }}
                     />
                   );
                 })}
-                <Legend />
+                <Legend
+                  wrapperStyle={{
+                    paddingTop: "20px",
+                  }}
+                  iconType="circle"
+                />
                 <Tooltip
                   formatter={(value) => `${Number(value).toFixed(1)}%`}
+                  contentStyle={{
+                    backgroundColor: "rgba(255, 255, 255, 0.95)",
+                    border: "2px solid #e5e7eb",
+                    borderRadius: "8px",
+                    boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+                  }}
+                  labelStyle={{
+                    fontWeight: 600,
+                    color: "#111827",
+                  }}
                 />
               </RadarChart>
             </ResponsiveContainer>
@@ -402,6 +431,32 @@ export function ThreeRatesComparison({
               </Button>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* 说明文字 */}
+      <Card className="lg:col-span-2 bg-blue-50 dark:bg-blue-950">
+        <CardContent className="p-4">
+          <div className="text-sm space-y-2">
+            <p className="font-semibold text-blue-900 dark:text-blue-100">
+              📊 指标说明
+            </p>
+            <ul className="list-disc list-inside space-y-1 text-blue-800 dark:text-blue-200">
+              <li>
+                <strong>巩固率</strong>：保持最高等级（A+）的学生比例
+              </li>
+              <li>
+                <strong>转化率</strong>：等级提升的学生比例
+              </li>
+              <li>
+                <strong>贡献率</strong>：对优秀人数增长的贡献百分比
+              </li>
+            </ul>
+            <p className="text-xs text-blue-700 dark:text-blue-300 italic pt-2 border-t border-blue-200 dark:border-blue-800">
+              ℹ️
+              各科目数据独立计算，不提供跨科目聚合。如需查看整体表现，请使用"总分增值"功能。
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

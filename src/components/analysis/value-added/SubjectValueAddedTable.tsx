@@ -190,38 +190,27 @@ const SubjectValueAddedTable: React.FC<SubjectValueAddedTableProps> = ({
         </div>
 
         {/* 汇总统计 */}
-        <div className="p-4 border-t-2 border-black bg-gray-50 grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center">
-            <p className="text-xs text-gray-600 mb-1">优势科目</p>
-            <p className="text-lg font-black text-green-600">
-              {strengths.length}
-            </p>
+        <div className="p-4 border-t-2 border-black bg-gray-50 space-y-3">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="text-center">
+              <p className="text-xs text-gray-600 mb-1">优势科目</p>
+              <p className="text-lg font-black text-green-600">
+                {strengths.length}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-gray-600 mb-1">薄弱科目</p>
+              <p className="text-lg font-black text-orange-600">
+                {weaknesses.length}
+              </p>
+            </div>
           </div>
-          <div className="text-center">
-            <p className="text-xs text-gray-600 mb-1">薄弱科目</p>
-            <p className="text-lg font-black text-orange-600">
-              {weaknesses.length}
-            </p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs text-gray-600 mb-1">整体均分进步</p>
-            <p className="text-lg font-black text-black">
-              {(
-                subjectMetrics.reduce((sum, s) => sum + s.avgImprovement, 0) /
-                subjectMetrics.length
-              ).toFixed(1)}
-            </p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs text-gray-600 mb-1">整体进步率</p>
-            <p className="text-lg font-black text-black">
-              {(
-                subjectMetrics.reduce(
-                  (sum, s) => sum + s.avgImprovementRate,
-                  0
-                ) / subjectMetrics.length
-              ).toFixed(1)}
-              %
+
+          {/* 说明文字 */}
+          <div className="pt-2 border-t border-gray-300">
+            <p className="text-xs text-gray-600 italic">
+              ℹ️
+              各科目数据独立计算，不提供整体聚合。如需查看整体表现，请使用"总分增值"功能。
             </p>
           </div>
         </div>
