@@ -14,6 +14,22 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   Upload,
   FileSpreadsheet,
   Users,
@@ -25,6 +41,7 @@ import {
   ArrowRight,
   ArrowLeft,
   Download,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -514,11 +531,25 @@ function StepOneUpload({
         {files.map((file) => (
           <FileUploadCard
             key={file.key}
+            fileKey={file.key}
             icon={file.icon}
             title={file.title}
             description={file.description}
             required={file.required}
             state={fileStates[file.key]}
+            parsedData={
+              file.key === "studentInfo"
+                ? importData.studentInfo
+                : file.key === "teachingArrangement"
+                  ? importData.teachingArrangement
+                  : file.key === "electiveCourse"
+                    ? importData.electiveCourse
+                    : file.key === "entryGrades"
+                      ? importData.entryGrades
+                      : file.key === "exitGrades"
+                        ? importData.exitGrades
+                        : undefined
+            }
             onFileSelect={(f) => onFileSelect(file.key, f)}
           />
         ))}
@@ -538,22 +569,32 @@ function StepOneUpload({
  * 文件上传卡片
  */
 interface FileUploadCardProps {
+  fileKey: string;
   icon: React.ElementType;
   title: string;
   description: string;
   required: boolean;
   state: FileUploadState;
+  parsedData?: any[];
   onFileSelect: (file: File | null) => void;
 }
 
 function FileUploadCard({
+  fileKey,
   icon: Icon,
   title,
   description,
   required,
   state,
+  parsedData,
   onFileSelect,
 }: FileUploadCardProps) {
+  const [showPreview, setShowPreview] = useState(false);
+
+  // 获取预览数据（前5行）
+  const previewData = parsedData?.slice(0, 5) || [];
+  const previewColumns =
+    previewData.length > 0 ? Object.keys(previewData[0]) : [];
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardContent className="p-4">
@@ -590,21 +631,100 @@ function FileUploadCard({
         )}
 
         {state.status === "success" && state.file && (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="flex items-center gap-2 text-sm">
               <CheckCircle className="h-4 w-4 text-green-600" />
               <span className="text-green-600 font-medium">
                 {state.file.name}
               </span>
-              <span className="text-gray-500">({state.rowCount}条)</span>
+              <Badge variant="outline">{state.rowCount}条</Badge>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onFileSelect(null)}
-            >
-              重新上传
-            </Button>
+
+            {/* 数据预览卡片 */}
+            {previewData.length > 0 && (
+              <Card className="bg-gray-50 border-gray-200">
+                <CardHeader className="py-2 px-3">
+                  <CardTitle className="text-xs flex items-center gap-1 text-gray-700">
+                    <Eye className="h-3 w-3" />
+                    数据预览（前5行）
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="py-2 px-3">
+                  <div className="overflow-x-auto max-h-32 overflow-y-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          {previewColumns.map((col) => (
+                            <TableHead key={col} className="text-xs py-1">
+                              {col}
+                            </TableHead>
+                          ))}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {previewData.map((row, i) => (
+                          <TableRow key={i}>
+                            {previewColumns.map((col) => (
+                              <TableCell key={col} className="text-xs py-1">
+                                {row[col]}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            <div className="flex gap-2">
+              {parsedData && parsedData.length > 5 && (
+                <Dialog open={showPreview} onOpenChange={setShowPreview}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Eye className="h-3 w-3 mr-1" />
+                      查看全部
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-5xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>{title} - 完整数据</DialogTitle>
+                      <DialogDescription>
+                        共 {parsedData.length} 条记录
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            {previewColumns.map((col) => (
+                              <TableHead key={col}>{col}</TableHead>
+                            ))}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {parsedData.map((row, i) => (
+                            <TableRow key={i}>
+                              {previewColumns.map((col) => (
+                                <TableCell key={col}>{row[col]}</TableCell>
+                              ))}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onFileSelect(null)}
+              >
+                重新上传
+              </Button>
+            </div>
           </div>
         )}
 
@@ -720,6 +840,8 @@ function StepTwoValidation({
  * 校验结果项
  */
 function ValidationResultItem({ result }: { result: ValidationResult }) {
+  const [showAllErrors, setShowAllErrors] = useState(false);
+
   const getIcon = () => {
     switch (result.status) {
       case "passed":
@@ -742,30 +864,141 @@ function ValidationResultItem({ result }: { result: ValidationResult }) {
     }
   };
 
+  // 导出错误清单为Excel（模拟功能）
+  const downloadErrorReport = () => {
+    if (!result.detailedErrors || result.detailedErrors.length === 0) return;
+
+    const csvContent = [
+      ["行号", "字段", "问题", "当前值", "修复建议"].join(","),
+      ...result.detailedErrors.map((err) =>
+        [
+          err.row,
+          err.field,
+          err.message,
+          err.currentValue ?? "空",
+          err.suggestion || "",
+        ].join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob(["\ufeff" + csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${result.rule}-错误清单.csv`;
+    link.click();
+  };
+
   return (
     <div className={`border rounded-lg p-4 ${getColor()}`}>
       <div className="flex items-start gap-3">
         {getIcon()}
         <div className="flex-1">
-          <div className="font-semibold mb-2">{result.rule}</div>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="font-semibold">{result.rule}</div>
+              {result.error_count > 0 && (
+                <div className="text-sm text-muted-foreground mt-1">
+                  发现 {result.error_count} 个问题
+                </div>
+              )}
+            </div>
+            {result.detailedErrors && result.detailedErrors.length > 0 && (
+              <Button size="sm" variant="outline" onClick={downloadErrorReport}>
+                <Download className="h-3 w-3 mr-1" />
+                导出错误清单
+              </Button>
+            )}
+          </div>
 
-          {result.errors.length > 0 && (
-            <div className="space-y-1">
-              {result.errors.slice(0, 5).map((error, i) => (
-                <div key={i} className="text-sm text-red-700">
-                  • {error}
-                </div>
-              ))}
-              {result.errors.length > 5 && (
-                <div className="text-sm text-red-600">
-                  还有 {result.errors.length - 5} 个错误...
-                </div>
+          {/* 详细错误表格 */}
+          {result.detailedErrors && result.detailedErrors.length > 0 && (
+            <div className="space-y-3">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-20">行号</TableHead>
+                      <TableHead className="w-24">字段</TableHead>
+                      <TableHead className="w-32">问题</TableHead>
+                      <TableHead className="w-24">当前值</TableHead>
+                      <TableHead>修复建议</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(showAllErrors
+                      ? result.detailedErrors
+                      : result.detailedErrors.slice(0, 5)
+                    ).map((err, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="font-mono">
+                          第{err.row}行
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{err.field}</Badge>
+                        </TableCell>
+                        <TableCell className="text-red-700">
+                          {err.message}
+                        </TableCell>
+                        <TableCell className="text-red-600 font-mono">
+                          {err.currentValue ?? "空"}
+                        </TableCell>
+                        <TableCell className="text-blue-600 text-sm">
+                          {err.suggestion}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {result.detailedErrors.length > 5 && !showAllErrors && (
+                <Button
+                  variant="link"
+                  size="sm"
+                  onClick={() => setShowAllErrors(true)}
+                  className="h-auto p-0"
+                >
+                  显示全部 {result.detailedErrors.length} 个错误 ▼
+                </Button>
+              )}
+
+              {showAllErrors && result.detailedErrors.length > 5 && (
+                <Button
+                  variant="link"
+                  size="sm"
+                  onClick={() => setShowAllErrors(false)}
+                  className="h-auto p-0"
+                >
+                  收起 ▲
+                </Button>
               )}
             </div>
           )}
 
+          {/* 如果没有详细错误，降级显示简单错误列表 */}
+          {(!result.detailedErrors || result.detailedErrors.length === 0) &&
+            result.errors.length > 0 && (
+              <div className="space-y-1">
+                {result.errors.slice(0, 5).map((error, i) => (
+                  <div key={i} className="text-sm text-red-700">
+                    • {error}
+                  </div>
+                ))}
+                {result.errors.length > 5 && (
+                  <div className="text-sm text-red-600">
+                    还有 {result.errors.length - 5} 个错误...
+                  </div>
+                )}
+              </div>
+            )}
+
           {result.warnings && result.warnings.length > 0 && (
-            <div className="space-y-1 mt-2">
+            <div className="space-y-1 mt-3 pt-3 border-t">
+              <div className="text-sm font-medium text-yellow-700 mb-2">
+                ⚠️ 警告信息：
+              </div>
               {result.warnings.slice(0, 3).map((warning, i) => (
                 <div key={i} className="text-sm text-yellow-700">
                   • {warning}

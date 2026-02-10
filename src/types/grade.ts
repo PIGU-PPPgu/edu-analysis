@@ -13,6 +13,8 @@ export enum Subject {
   CHEMISTRY = "化学",
   POLITICS = "政治",
   HISTORY = "历史",
+  BIOLOGY = "生物",
+  GEOGRAPHY = "地理",
 }
 
 // 等级枚举

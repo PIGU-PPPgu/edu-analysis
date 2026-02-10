@@ -329,10 +329,18 @@ export async function executeValueAddedCalculation(
 
     // 2. 更新状态为计算中
     await updateActivityStatus(activityId, "analyzing");
-    onProgress?.({ step: "start", progress: 0, message: "开始计算..." });
+    onProgress?.({
+      step: "start",
+      progress: 5,
+      message: "正在准备计算环境...",
+    });
 
     // 3. 获取入口和出口考试数据
-    onProgress?.({ step: "fetch", progress: 10, message: "获取考试数据..." });
+    onProgress?.({
+      step: "fetch",
+      progress: 10,
+      message: "正在读取考试数据...",
+    });
 
     const { data: entryData, error: entryError } = await supabase
       .from("grade_data")
@@ -354,7 +362,11 @@ export async function executeValueAddedCalculation(
       return { success: false, error: "获取出口考试数据失败或无数据" };
     }
 
-    onProgress?.({ step: "prepare", progress: 20, message: "准备计算数据..." });
+    onProgress?.({
+      step: "prepare",
+      progress: 20,
+      message: "正在分析教师和班级信息...",
+    });
 
     // 4. 获取教师映射关系（从teacher_student_subjects表）
     console.log("🔍 查询教师映射关系...");
@@ -465,6 +477,7 @@ export async function executeValueAddedCalculation(
 
     // 英文key -> 中文名称（用于显示）
     const subjectKeyToName: Record<string, string> = {
+      total: "总分", // ✅ 新增总分
       chinese: "语文",
       math: "数学",
       english: "英语",
@@ -481,7 +494,10 @@ export async function executeValueAddedCalculation(
       .map((chineseName) => subjectNameToKey[chineseName])
       .filter((key) => key !== undefined); // 过滤未知科目
 
-    console.log(`✅ 动态识别科目: ${availableSubjects.size}个`, {
+    // ✅ 新增：总分增值评价（始终计算，不依赖teacher_student_subjects）
+    subjects.unshift("total"); // 总分置于首位
+
+    console.log(`✅ 动态识别科目: ${availableSubjects.size}个（含总分）`, {
       中文: Array.from(availableSubjects),
       英文: subjects,
       映射: subjects.map((key) => `${key} -> ${subjectKeyToName[key]}`),
@@ -551,7 +567,7 @@ export async function executeValueAddedCalculation(
     onProgress?.({
       step: "calculate",
       progress: 30,
-      message: "计算增值数据...",
+      message: `开始分析 ${subjects.length} 个科目的增值情况...`,
     });
 
     let progressStep = 30;
@@ -563,8 +579,11 @@ export async function executeValueAddedCalculation(
     const allStudentResults: any[] = [];
 
     for (const subject of subjects) {
-      const scoreField = `${subject}_score`;
-      const absentField = `${subject}_absent`; // ✅ 缺考标记字段
+      // ✅ 总分特殊处理：直接使用total_score字段
+      const scoreField =
+        subject === "total" ? "total_score" : `${subject}_score`;
+      const absentField =
+        subject === "total" ? "total_absent" : `${subject}_absent`; // ✅ 缺考标记字段
 
       // 构建学生成绩数据
       const studentGrades = entryData
@@ -641,38 +660,42 @@ export async function executeValueAddedCalculation(
             result: classResult as any,
           });
 
-          // ✅ 保存教师增值（使用真实教师信息）
-          const teacherKey = `${classResult.class_name}_${subjectKeyToName[subject]}`;
-          const teacherInfo = teacherMap.get(teacherKey);
+          // ✅ 保存教师增值（总分跳过教师映射）
+          if (subject !== "total") {
+            // 单科：使用真实教师信息
+            const teacherKey = `${classResult.class_name}_${subjectKeyToName[subject]}`;
+            const teacherInfo = teacherMap.get(teacherKey);
 
-          // 如果找到真实教师，使用真实信息；否则使用班级+科目作为唯一标识
-          let teacherId: string;
-          let teacherName: string;
+            // 如果找到真实教师，使用真实信息；否则使用班级+科目作为唯一标识
+            let teacherId: string;
+            let teacherName: string;
 
-          if (teacherInfo) {
-            // 有真实教师信息
-            teacherId = teacherInfo.teacher_id;
-            teacherName = teacherInfo.teacher_name;
-          } else {
-            // 没有教师信息，使用唯一标识避免错误聚合（已在前面统一提示）
-            teacherId = `unknown_${classResult.class_name}_${subjectKeyToName[subject]}`;
-            teacherName = `${classResult.class_name} ${subjectKeyToName[subject]}教师`;
+            if (teacherInfo) {
+              // 有真实教师信息
+              teacherId = teacherInfo.teacher_id;
+              teacherName = teacherInfo.teacher_name;
+            } else {
+              // 没有教师信息，使用唯一标识避免错误聚合（已在前面统一提示）
+              teacherId = `unknown_${classResult.class_name}_${subjectKeyToName[subject]}`;
+              teacherName = `${classResult.class_name} ${subjectKeyToName[subject]}教师`;
+            }
+
+            allTeacherResults.push({
+              activity_id: activityId,
+              report_type: "teacher_value_added",
+              dimension: "teacher",
+              target_id: `${teacherId}_${classResult.class_name}_${subjectKeyToName[subject]}`, // 包含班级，确保细粒度存储
+              target_name: teacherName,
+              result: {
+                teacher_id: teacherId,
+                teacher_name: teacherName,
+                subject: classResult.subject,
+                class_name: classResult.class_name, // 单个班级名称（细粒度存储）
+                ...classResult,
+              } as any,
+            });
           }
-
-          allTeacherResults.push({
-            activity_id: activityId,
-            report_type: "teacher_value_added",
-            dimension: "teacher",
-            target_id: `${teacherId}_${classResult.class_name}_${subjectKeyToName[subject]}`, // 包含班级，确保细粒度存储
-            target_name: teacherName,
-            result: {
-              teacher_id: teacherId,
-              teacher_name: teacherName,
-              subject: classResult.subject,
-              class_name: classResult.class_name, // 单个班级名称（细粒度存储）
-              ...classResult,
-            } as any,
-          });
+          // 总分：不保存到教师维度（班主任功能Phase 2实现）
         }
 
         // ✅ 计算学生增值（使用正确的Z分数和等级计算）
@@ -706,7 +729,7 @@ export async function executeValueAddedCalculation(
       onProgress?.({
         step: "calculate",
         progress: Math.min(progressStep, 80),
-        message: `计算${subjectKeyToName[subject]}增值...`,
+        message: `正在分析${subjectKeyToName[subject]}的班级、教师和学生表现...`,
       });
     }
 
@@ -721,7 +744,7 @@ export async function executeValueAddedCalculation(
     onProgress?.({
       step: "calculate",
       progress: 82,
-      message: "计算学科均衡...",
+      message: "正在分析各科目发展均衡度...",
     });
 
     const subjectBalanceResults: any[] = [];
@@ -767,7 +790,7 @@ export async function executeValueAddedCalculation(
     onProgress?.({
       step: "save",
       progress: 85,
-      message: "保存班级增值结果...",
+      message: "正在保存班级增值分析结果...",
     });
 
     if (allClassResults.length > 0) {
@@ -785,7 +808,7 @@ export async function executeValueAddedCalculation(
     onProgress?.({
       step: "save",
       progress: 87,
-      message: "保存教师增值结果...",
+      message: "正在保存教师增值分析结果...",
     });
 
     if (allTeacherResults.length > 0) {
@@ -805,7 +828,7 @@ export async function executeValueAddedCalculation(
     onProgress?.({
       step: "save",
       progress: 90,
-      message: "保存学生增值结果...",
+      message: "正在保存学生增值分析结果...",
     });
 
     if (allStudentResults.length > 0) {
@@ -823,7 +846,7 @@ export async function executeValueAddedCalculation(
     onProgress?.({
       step: "save",
       progress: 95,
-      message: "保存学科均衡结果...",
+      message: "正在保存学科均衡分析结果...",
     });
 
     if (subjectBalanceResults.length > 0) {
@@ -840,7 +863,11 @@ export async function executeValueAddedCalculation(
 
     // 10. 更新活动状态为完成
     await updateActivityStatus(activityId, "completed");
-    onProgress?.({ step: "complete", progress: 100, message: "计算完成！" });
+    onProgress?.({
+      step: "complete",
+      progress: 100,
+      message: "✓ 所有分析已完成！",
+    });
 
     return { success: true, activityId };
   } catch (error) {

@@ -284,7 +284,17 @@ function StudentDetailView({
   initialTab = "scores",
 }: StudentDetailViewProps) {
   const [activeTab, setActiveTab] = useState(initialTab);
-  const subjects = Object.keys(subjectData);
+
+  // ✅ 总分置顶排序
+  const subjects = useMemo(() => {
+    const allSubjects = Object.keys(subjectData);
+    const totalIndex = allSubjects.indexOf("总分");
+    if (totalIndex > -1) {
+      allSubjects.splice(totalIndex, 1);
+      allSubjects.unshift("总分"); // 总分置于首位
+    }
+    return allSubjects;
+  }, [subjectData]);
 
   // 同步外部 initialTab 变化
   useEffect(() => {
@@ -402,9 +412,16 @@ function StudentDetailView({
               <TableBody>
                 {subjects.map((subject) => {
                   const data = subjectData[subject];
+                  const isTotalScore = subject === "总分"; // ✅ 总分标识
                   return (
-                    <TableRow key={subject}>
-                      <TableCell className="font-medium">{subject}</TableCell>
+                    <TableRow
+                      key={subject}
+                      className={isTotalScore ? "bg-blue-50 font-semibold" : ""}
+                    >
+                      <TableCell className="font-medium">
+                        {isTotalScore && "📊 "}
+                        {subject}
+                      </TableCell>
                       <TableCell className="text-right">
                         {safeToFixed(data.entry_score, 1)}
                       </TableCell>
@@ -458,9 +475,16 @@ function StudentDetailView({
               <TableBody>
                 {subjects.map((subject) => {
                   const data = subjectData[subject];
+                  const isTotalScore = subject === "总分";
                   return (
-                    <TableRow key={subject}>
-                      <TableCell className="font-medium">{subject}</TableCell>
+                    <TableRow
+                      key={subject}
+                      className={isTotalScore ? "bg-blue-50 font-semibold" : ""}
+                    >
+                      <TableCell className="font-medium">
+                        {isTotalScore && "📊 "}
+                        {subject}
+                      </TableCell>
                       <TableCell className="text-right">
                         <Badge variant="outline">{data.entry_level}</Badge>
                       </TableCell>

@@ -368,15 +368,36 @@ export interface GradeScores {
   politics_score?: number | string;
   history_score?: number | string;
   geography_score?: number | string;
+
+  // ✅ Task #21: 等级字段（可选，从Excel导入）
+  chinese_grade?: string;
+  math_grade?: string;
+  english_grade?: string;
+  physics_grade?: string;
+  chemistry_grade?: string;
+  biology_grade?: string;
+  politics_grade?: string;
+  history_grade?: string;
+  geography_grade?: string;
 }
 
 /** 数据校验结果 */
+/** 详细错误信息 */
+export interface DetailedError {
+  row: number; // 行号（从1开始）
+  field: string; // 字段名
+  message: string; // 错误描述
+  currentValue: string | number | null; // 当前值
+  suggestion?: string; // 修复建议
+}
+
 export interface ValidationResult {
   rule: string;
   status: "passed" | "failed" | "warning";
-  errors: string[];
+  errors: string[]; // 保留向后兼容
   error_count: number;
   warnings?: string[];
+  detailedErrors?: DetailedError[]; // 新增详细错误
 }
 
 // ============================================

@@ -10,11 +10,18 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom"; // ✅ 添加 URL 参数读取
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Upload, ListChecks, BarChart3, Settings } from "lucide-react";
+import {
+  Upload,
+  ListChecks,
+  BarChart3,
+  Settings,
+  X,
+  Sparkles,
+} from "lucide-react";
 import { toast } from "sonner";
 import { ReportsMenuDashboard } from "./reports/ReportsMenuDashboard";
 import { ActivityList } from "./activity/ActivityList";
@@ -34,6 +41,11 @@ export function ValueAddedMainDashboard() {
   const previousActivityIdRef = useRef<string | null>(null); // ✅ 跟踪上一次的活动ID
 
   const [activeTab, setActiveTab] = useState("import");
+
+  // ✅ 首次使用引导状态
+  const [showWelcome, setShowWelcome] = useState(() => {
+    return !localStorage.getItem("value_added_welcome_dismissed");
+  });
 
   // 真实数据状态
   const [classData, setClassData] = useState<ClassValueAdded[]>([]);
@@ -320,8 +332,122 @@ export function ValueAddedMainDashboard() {
     }
   }, [activeTab]); // ✅ 只依赖activeTab，有activityId时由第一个useEffect处理
 
+  const handleDismissWelcome = () => {
+    setShowWelcome(false);
+    localStorage.setItem("value_added_welcome_dismissed", "true");
+  };
+
+  const handleStartGuide = () => {
+    setActiveTab("import");
+    handleDismissWelcome();
+  };
+
   return (
     <div className="space-y-6">
+      {/* ✅ 首次使用欢迎引导 */}
+      {showWelcome && (
+        <Card className="border-blue-500 bg-gradient-to-r from-blue-50 to-indigo-50 relative">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="absolute top-4 right-4"
+            onClick={handleDismissWelcome}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-blue-900">
+              <Sparkles className="h-6 w-6" />
+              欢迎使用增值评价系统
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-gray-700">
+              增值评价是科学衡量教学效果的重要工具，可以客观评估学生在一段时间内的成长情况。
+              <br />
+              请按照以下步骤开始使用：
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+              <div className="flex items-start gap-3 p-3 bg-white rounded-lg border border-blue-200">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm">
+                  1
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm mb-1">下载模板</h4>
+                  <p className="text-xs text-gray-600">
+                    在"数据导入"标签下载Excel模板
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 bg-white rounded-lg border border-blue-200">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm">
+                  2
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm mb-1">准备数据</h4>
+                  <p className="text-xs text-gray-600">
+                    填写学生信息、教学编排和两次考试成绩
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 bg-white rounded-lg border border-blue-200">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm">
+                  3
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm mb-1">导入数据</h4>
+                  <p className="text-xs text-gray-600">
+                    上传填好的Excel文件，系统会自动校验
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 bg-white rounded-lg border border-blue-200">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm">
+                  4
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm mb-1">创建活动</h4>
+                  <p className="text-xs text-gray-600">
+                    在"增值活动"标签创建分析任务
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 bg-white rounded-lg border border-blue-200">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm">
+                  5
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm mb-1">查看报告</h4>
+                  <p className="text-xs text-gray-600">
+                    计算完成后查看班级、教师、学生报告
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <Button
+                onClick={handleStartGuide}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                开始使用
+              </Button>
+              <Button variant="outline" onClick={handleDismissWelcome}>
+                我知道了
+              </Button>
+              <span className="text-xs text-gray-500 ml-auto">
+                💡 提示：预计需要30分钟完成首次配置
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* 页面头部 */}
       <div className="flex items-center justify-between">
         <div>

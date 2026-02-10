@@ -371,6 +371,17 @@ export async function saveGradeScores(
         history_absent: (score as any).history_absent || false,
         geography_absent: (score as any).geography_absent || false,
 
+        // ✅ Task #21: 保存等级字段（从Excel导入的可选数据）
+        chinese_grade: score.chinese_grade ?? null,
+        math_grade: score.math_grade ?? null,
+        english_grade: score.english_grade ?? null,
+        physics_grade: score.physics_grade ?? null,
+        chemistry_grade: score.chemistry_grade ?? null,
+        biology_grade: score.biology_grade ?? null,
+        politics_grade: score.politics_grade ?? null,
+        history_grade: score.history_grade ?? null,
+        geography_grade: score.geography_grade ?? null,
+
         config_id: configId || null,
       };
     });

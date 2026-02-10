@@ -1,10 +1,16 @@
 /**
  * 及格率计算服务
  * 根据科目配置动态计算及格率，替代硬编码的60分及格线
+ * ✨ 新增：支持基于等级的及格率/优秀率计算
  */
 
 import { SUBJECT_MAX_SCORES } from "@/utils/gradeUtils";
 import { Subject } from "@/types/grade";
+import {
+  assignGradesWithFallback,
+  GradeLevel,
+  type GradeLevelInfo,
+} from "@/utils/gradeUtils";
 
 // 科目配置接口
 interface SubjectConfig {
@@ -35,14 +41,16 @@ export class PassRateCalculator {
   // 初始化默认配置
   private initializeDefaultConfigs() {
     const defaultSubjects = [
-      { key: Subject.TOTAL, name: "总分", maxScore: 523 },
+      { key: Subject.TOTAL, name: "总分", maxScore: 660 },
       { key: Subject.CHINESE, name: "语文", maxScore: 120 },
       { key: Subject.MATH, name: "数学", maxScore: 100 },
-      { key: Subject.ENGLISH, name: "英语", maxScore: 75 },
-      { key: Subject.PHYSICS, name: "物理", maxScore: 63 },
-      { key: Subject.CHEMISTRY, name: "化学", maxScore: 45 },
+      { key: Subject.ENGLISH, name: "英语", maxScore: 100 },
+      { key: Subject.PHYSICS, name: "物理", maxScore: 70 },
+      { key: Subject.CHEMISTRY, name: "化学", maxScore: 50 },
       { key: Subject.POLITICS, name: "道法", maxScore: 50 },
       { key: Subject.HISTORY, name: "历史", maxScore: 70 },
+      { key: "biology", name: "生物", maxScore: 50 },
+      { key: "geography", name: "地理", maxScore: 50 },
     ];
 
     defaultSubjects.forEach((subject) => {
@@ -301,6 +309,156 @@ export const isExcellent = (score: number, subject: string): boolean =>
   passRateCalculator.isExcellent(score, subject);
 export const getGradeLevel = (score: number, subject: string): string =>
   passRateCalculator.getGradeLevel(score, subject);
+
+// ============================================
+// ✨ 新增：基于等级的及格率/优秀率计算
+// 决策：采用等级定义方案
+// - 优秀率 = A+ + A（前25%）
+// - 及格率 = A+ 到 C+（前95%）
+// - 不及格率 = C（后5%）
+// ============================================
+
+/**
+ * 基于等级计算及格率
+ * ✅ 新方法：优先使用导入等级，缺失时基于排名计算
+ * @param records 成绩记录数组（需包含分数和可选的等级字段）
+ * @param subject 科目
+ * @param scoreField 分数字段名
+ * @param gradeField 等级字段名（可选）
+ * @returns 及格率（0-100）
+ */
+export function calculatePassRateByGrade<T extends { [key: string]: any }>(
+  records: T[],
+  subject: string,
+  scoreField: string = "total_score",
+  gradeField?: string
+): number {
+  if (records.length === 0) return 0;
+
+  // 使用 assignGradesWithFallback 分配等级
+  const recordsWithGrades = assignGradesWithFallback(
+    records,
+    subject,
+    scoreField,
+    gradeField
+  );
+
+  // 及格 = A+ 到 C+（前95%）
+  const passGrades = [
+    GradeLevel.A_PLUS,
+    GradeLevel.A,
+    GradeLevel.B_PLUS,
+    GradeLevel.B,
+    GradeLevel.C_PLUS,
+  ];
+
+  const passCount = recordsWithGrades.filter((record) =>
+    passGrades.includes(record.resolvedGrade.level)
+  ).length;
+
+  return Number(((passCount / records.length) * 100).toFixed(2));
+}
+
+/**
+ * 基于等级计算优秀率
+ * ✅ 新方法：优秀 = A+ + A（前25%）
+ * @param records 成绩记录数组
+ * @param subject 科目
+ * @param scoreField 分数字段名
+ * @param gradeField 等级字段名（可选）
+ * @returns 优秀率（0-100）
+ */
+export function calculateExcellentRateByGrade<T extends { [key: string]: any }>(
+  records: T[],
+  subject: string,
+  scoreField: string = "total_score",
+  gradeField?: string
+): number {
+  if (records.length === 0) return 0;
+
+  // 使用 assignGradesWithFallback 分配等级
+  const recordsWithGrades = assignGradesWithFallback(
+    records,
+    subject,
+    scoreField,
+    gradeField
+  );
+
+  // 优秀 = A+ + A（前25%）
+  const excellentGrades = [GradeLevel.A_PLUS, GradeLevel.A];
+
+  const excellentCount = recordsWithGrades.filter((record) =>
+    excellentGrades.includes(record.resolvedGrade.level)
+  ).length;
+
+  return Number(((excellentCount / records.length) * 100).toFixed(2));
+}
+
+/**
+ * 基于等级计算不及格率
+ * ✅ 新方法：不及格 = C（后5%）
+ * @param records 成绩记录数组
+ * @param subject 科目
+ * @param scoreField 分数字段名
+ * @param gradeField 等级字段名（可选）
+ * @returns 不及格率（0-100）
+ */
+export function calculateFailRateByGrade<T extends { [key: string]: any }>(
+  records: T[],
+  subject: string,
+  scoreField: string = "total_score",
+  gradeField?: string
+): number {
+  if (records.length === 0) return 0;
+
+  const recordsWithGrades = assignGradesWithFallback(
+    records,
+    subject,
+    scoreField,
+    gradeField
+  );
+
+  // 不及格 = C（后5%）
+  const failCount = recordsWithGrades.filter(
+    (record) => record.resolvedGrade.level === GradeLevel.C
+  ).length;
+
+  return Number(((failCount / records.length) * 100).toFixed(2));
+}
+
+/**
+ * 批量计算基于等级的及格率/优秀率
+ * @param records 成绩记录数组
+ * @param subjects 科目列表
+ * @returns 各科目的及格率和优秀率
+ */
+export function calculateBatchRatesByGrade<T extends { [key: string]: any }>(
+  records: T[],
+  subjects: Array<{ name: string; scoreField: string; gradeField?: string }>
+): Record<
+  string,
+  { passRate: number; excellentRate: number; failRate: number }
+> {
+  const result: Record<
+    string,
+    { passRate: number; excellentRate: number; failRate: number }
+  > = {};
+
+  subjects.forEach(({ name, scoreField, gradeField }) => {
+    result[name] = {
+      passRate: calculatePassRateByGrade(records, name, scoreField, gradeField),
+      excellentRate: calculateExcellentRateByGrade(
+        records,
+        name,
+        scoreField,
+        gradeField
+      ),
+      failRate: calculateFailRateByGrade(records, name, scoreField, gradeField),
+    };
+  });
+
+  return result;
+}
 
 // 初始化时从本地存储加载配置
 passRateCalculator.loadConfigsFromStorage();

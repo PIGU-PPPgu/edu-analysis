@@ -110,8 +110,23 @@ export function parseElectiveCourse(workbook: XLSX.WorkBook): ElectiveCourse[] {
   }));
 }
 
+// ✅ Task #21: 科目名称到等级字段的映射
+const SUBJECT_GRADE_FIELD_MAP: Record<string, string> = {
+  语文: "chinese_grade",
+  数学: "math_grade",
+  英语: "english_grade",
+  物理: "physics_grade",
+  化学: "chemistry_grade",
+  生物: "biology_grade",
+  政治: "politics_grade",
+  道法: "politics_grade", // 别名
+  历史: "history_grade",
+  地理: "geography_grade",
+};
+
 /**
  * 解析成绩数据表
+ * ✅ Task #21: 支持解析等级列（如"语文等级"）
  */
 export function parseGradeScores(workbook: XLSX.WorkBook): GradeScores[] {
   const sheetName = workbook.SheetNames[0];
@@ -133,6 +148,9 @@ export function parseGradeScores(workbook: XLSX.WorkBook): GradeScores[] {
 
     // 提取所有科目成绩（动态列）
     const scores: Record<string, number | string> = {};
+    // ✅ Task #21: 提取等级数据
+    const grades: Record<string, string> = {};
+
     const fixedFields = [
       "学校名称",
       "school_name",
@@ -148,28 +166,43 @@ export function parseGradeScores(workbook: XLSX.WorkBook): GradeScores[] {
     ];
 
     Object.keys(row).forEach((key) => {
-      if (!fixedFields.includes(key)) {
-        const value = row[key];
+      if (fixedFields.includes(key)) return;
 
-        // ✅ 优先处理空值：Excel空单元格 → null
-        if (value === undefined || value === null || value === "") {
-          scores[key] = null;
+      // ✅ Task #21: 检查是否是等级列
+      if (key.endsWith("等级")) {
+        const subjectName = key.replace("等级", "");
+        const gradeField = SUBJECT_GRADE_FIELD_MAP[subjectName];
+        if (gradeField) {
+          const value = row[key];
+          // 只保存非空的等级值
+          if (value !== undefined && value !== null && value !== "") {
+            grades[gradeField] = String(value).trim();
+          }
         }
-        // 处理缺考(Q)、未参加(N)等特殊标记
-        else if (
-          value === "Q" ||
-          value === "N" ||
-          value === "缺考" ||
-          value === "未参加"
-        ) {
-          scores[key] = value;
-        }
-        // 处理数字分数
-        else {
-          const numValue = Number(value);
-          // ✅ 修复：非数字 → null（而不是0）
-          scores[key] = isNaN(numValue) ? null : numValue;
-        }
+        return;
+      }
+
+      // 处理分数列
+      const value = row[key];
+
+      // ✅ 优先处理空值：Excel空单元格 → null
+      if (value === undefined || value === null || value === "") {
+        scores[key] = null;
+      }
+      // 处理缺考(Q)、未参加(N)等特殊标记
+      else if (
+        value === "Q" ||
+        value === "N" ||
+        value === "缺考" ||
+        value === "未参加"
+      ) {
+        scores[key] = value;
+      }
+      // 处理数字分数
+      else {
+        const numValue = Number(value);
+        // ✅ 修复：非数字 → null（而不是0）
+        scores[key] = isNaN(numValue) ? null : numValue;
       }
     });
 
@@ -197,6 +230,7 @@ export function parseGradeScores(workbook: XLSX.WorkBook): GradeScores[] {
       ...baseInfo,
       scores,
       ...flattenedScores,
+      ...grades, // ✅ Task #21: 包含等级字段
       total_score: totalScore as number,
     };
   });
@@ -211,19 +245,56 @@ export function parseGradeScores(workbook: XLSX.WorkBook): GradeScores[] {
  */
 export function validateStudentInfo(data: StudentInfo[]): ValidationResult {
   const errors: string[] = [];
+  const detailedErrors: import("@/types/valueAddedTypes").DetailedError[] = [];
 
   // 1. 检查必填字段
   data.forEach((row, index) => {
-    if (!row.student_id) errors.push(`第${index + 1}行: 学号不能为空`);
-    if (!row.student_name) errors.push(`第${index + 1}行: 姓名不能为空`);
-    if (!row.class_name) errors.push(`第${index + 1}行: 班级不能为空`);
+    const rowNum = index + 1;
+    if (!row.student_id) {
+      errors.push(`第${rowNum}行: 学号不能为空`);
+      detailedErrors.push({
+        row: rowNum,
+        field: "学号",
+        message: "不能为空",
+        currentValue: null,
+        suggestion: "请填写学生的学号（如：2024001）",
+      });
+    }
+    if (!row.student_name) {
+      errors.push(`第${rowNum}行: 姓名不能为空`);
+      detailedErrors.push({
+        row: rowNum,
+        field: "姓名",
+        message: "不能为空",
+        currentValue: null,
+        suggestion: "请填写学生的真实姓名",
+      });
+    }
+    if (!row.class_name) {
+      errors.push(`第${rowNum}行: 班级不能为空`);
+      detailedErrors.push({
+        row: rowNum,
+        field: "班级",
+        message: "不能为空",
+        currentValue: null,
+        suggestion: "请填写班级名称（如：高一1班）",
+      });
+    }
   });
 
   // 2. 检查学号唯一性
   const studentIds = new Set<string>();
   data.forEach((row, index) => {
+    const rowNum = index + 1;
     if (studentIds.has(row.student_id)) {
-      errors.push(`第${index + 1}行: 学号 ${row.student_id} 重复`);
+      errors.push(`第${rowNum}行: 学号 ${row.student_id} 重复`);
+      detailedErrors.push({
+        row: rowNum,
+        field: "学号",
+        message: "与其他行重复",
+        currentValue: row.student_id,
+        suggestion: "每个学生的学号必须唯一，请检查是否有重复录入",
+      });
     }
     studentIds.add(row.student_id);
   });
@@ -233,6 +304,7 @@ export function validateStudentInfo(data: StudentInfo[]): ValidationResult {
     status: errors.length === 0 ? "passed" : "failed",
     errors,
     error_count: errors.length,
+    detailedErrors,
   };
 }
 
@@ -243,11 +315,40 @@ export function validateTeachingArrangement(
   data: TeachingArrangement[]
 ): ValidationResult {
   const errors: string[] = [];
+  const detailedErrors: import("@/types/valueAddedTypes").DetailedError[] = [];
 
   data.forEach((row, index) => {
-    if (!row.class_name) errors.push(`第${index + 1}行: 班级不能为空`);
-    if (!row.teacher_name) errors.push(`第${index + 1}行: 教师姓名不能为空`);
-    if (!row.subject) errors.push(`第${index + 1}行: 科目不能为空`);
+    const rowNum = index + 1;
+    if (!row.class_name) {
+      errors.push(`第${rowNum}行: 班级不能为空`);
+      detailedErrors.push({
+        row: rowNum,
+        field: "班级",
+        message: "不能为空",
+        currentValue: null,
+        suggestion: "请填写班级名称（如：高一1班）",
+      });
+    }
+    if (!row.teacher_name) {
+      errors.push(`第${rowNum}行: 教师姓名不能为空`);
+      detailedErrors.push({
+        row: rowNum,
+        field: "教师姓名",
+        message: "不能为空",
+        currentValue: null,
+        suggestion: "请填写任课教师的真实姓名",
+      });
+    }
+    if (!row.subject) {
+      errors.push(`第${rowNum}行: 科目不能为空`);
+      detailedErrors.push({
+        row: rowNum,
+        field: "科目",
+        message: "不能为空",
+        currentValue: null,
+        suggestion: "请填写科目名称（如：数学、语文）",
+      });
+    }
   });
 
   return {
@@ -255,6 +356,7 @@ export function validateTeachingArrangement(
     status: errors.length === 0 ? "passed" : "failed",
     errors,
     error_count: errors.length,
+    detailedErrors,
   };
 }
 
@@ -264,24 +366,31 @@ export function validateTeachingArrangement(
 export function validateGradeScores(data: GradeScores[]): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
+  const detailedErrors: import("@/types/valueAddedTypes").DetailedError[] = [];
 
   data.forEach((row, index) => {
+    const rowNum = index + 1;
     // ✅ 必填字段：只有学号是必须的
     if (!row.student_id) {
-      errors.push(`第${index + 1}行: 学号不能为空`);
+      errors.push(`第${rowNum}行: 学号不能为空`);
+      detailedErrors.push({
+        row: rowNum,
+        field: "学号",
+        message: "不能为空",
+        currentValue: null,
+        suggestion: "学号是关联学生信息的关键字段，必须填写",
+      });
     }
 
     // ⚠️ 姓名为空：警告（增值计算时会自动跳过）
     if (!row.student_name || String(row.student_name).trim() === "") {
-      warnings.push(`第${index + 1}行: 姓名为空，增值计算时将跳过此记录`);
+      warnings.push(`第${rowNum}行: 姓名为空，增值计算时将跳过此记录`);
     }
 
     // ⚠️ 成绩数据检查：所有科目都为空时警告
     const scoreCount = Object.keys(row.scores || {}).length;
     if (scoreCount === 0) {
-      warnings.push(
-        `第${index + 1}行: 没有任何科目成绩，增值计算时将跳过此记录`
-      );
+      warnings.push(`第${rowNum}行: 没有任何科目成绩，增值计算时将跳过此记录`);
     }
 
     // 检查成绩值的合理性
@@ -289,8 +398,15 @@ export function validateGradeScores(data: GradeScores[]): ValidationResult {
       if (typeof score === "number") {
         if (score < 0 || score > 150) {
           warnings.push(
-            `第${index + 1}行: ${subject}成绩(${score})超出常规范围(0-150)`
+            `第${rowNum}行: ${subject}成绩(${score})超出常规范围(0-150)`
           );
+          detailedErrors.push({
+            row: rowNum,
+            field: subject,
+            message: "成绩超出常规范围",
+            currentValue: score,
+            suggestion: "常规科目成绩应在0-150分之间，请检查是否录入错误",
+          });
         }
       }
     });
@@ -300,13 +416,14 @@ export function validateGradeScores(data: GradeScores[]): ValidationResult {
     rule: "成绩数据表校验",
     status:
       errors.length === 0
-        ? warnings.length === 0
-          ? "passed"
-          : "warning"
+        ? warnings.length > 0
+          ? "warning"
+          : "passed"
         : "failed",
     errors,
-    warnings,
     error_count: errors.length,
+    warnings,
+    detailedErrors,
   };
 }
 

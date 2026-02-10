@@ -272,8 +272,67 @@ export function ActivityList() {
                     <TableCell>
                       {getStatusBadge(activity.status)}
                       {calculatingId === activity.id && progress && (
-                        <div className="mt-1 text-xs text-muted-foreground">
-                          {progress.message} ({progress.progress}%)
+                        <div className="mt-2 space-y-1">
+                          {/* 进度条 */}
+                          <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                            <div
+                              className="h-full bg-blue-600 transition-all duration-300 ease-out"
+                              style={{ width: `${progress.progress}%` }}
+                            />
+                          </div>
+
+                          {/* 详细阶段说明 */}
+                          <div className="text-xs text-muted-foreground space-y-0.5">
+                            <div className="font-medium">
+                              {progress.message}
+                            </div>
+                            <div className="flex items-center gap-2 text-[10px]">
+                              <span
+                                className={
+                                  progress.progress >= 30
+                                    ? "text-green-600"
+                                    : "text-gray-400"
+                                }
+                              >
+                                {progress.progress >= 30 ? "✓" : "○"} 班级分析
+                              </span>
+                              <span
+                                className={
+                                  progress.progress >= 50
+                                    ? "text-green-600"
+                                    : "text-gray-400"
+                                }
+                              >
+                                {progress.progress >= 50 ? "✓" : "○"} 教师分析
+                              </span>
+                              <span
+                                className={
+                                  progress.progress >= 70
+                                    ? "text-green-600"
+                                    : "text-gray-400"
+                                }
+                              >
+                                {progress.progress >= 70 ? "✓" : "○"} 学生分析
+                              </span>
+                              <span
+                                className={
+                                  progress.progress >= 90
+                                    ? "text-green-600"
+                                    : "text-gray-400"
+                                }
+                              >
+                                {progress.progress >= 90 ? "✓" : "○"} 数据保存
+                              </span>
+                            </div>
+                            <div className="text-gray-500">
+                              预计还需{" "}
+                              {Math.max(
+                                0,
+                                Math.ceil((100 - progress.progress) / 10)
+                              )}{" "}
+                              分钟
+                            </div>
+                          </div>
                         </div>
                       )}
                     </TableCell>
@@ -291,8 +350,17 @@ export function ActivityList() {
                             onClick={() => handleStartCalculation(activity)}
                             disabled={calculatingId !== null}
                           >
-                            <Play className="h-4 w-4 mr-1" />
-                            开始计算
+                            {calculatingId === activity.id ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                计算中...
+                              </>
+                            ) : (
+                              <>
+                                <Play className="h-4 w-4 mr-1" />
+                                开始计算
+                              </>
+                            )}
                           </Button>
                         )}
 
