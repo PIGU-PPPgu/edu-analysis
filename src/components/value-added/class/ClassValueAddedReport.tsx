@@ -435,9 +435,12 @@ export function ClassValueAddedReport({
   const boxPlotData = useMemo((): BoxPlotData[] => {
     if (filteredData.length === 0) return [];
 
-    // 按科目分组
+    // 按科目分组（排除总分，避免数值范围差异过大压缩其他科目显示）
     const subjectGroups = new Map<string, ClassValueAdded[]>();
     filteredData.forEach((item) => {
+      // 排除总分：总分数值范围（如660分）远大于单科（如100分），会压缩箱线图
+      if (item.subject === "总分") return;
+
       if (!subjectGroups.has(item.subject)) {
         subjectGroups.set(item.subject, []);
       }

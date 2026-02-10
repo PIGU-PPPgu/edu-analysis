@@ -197,6 +197,110 @@ export function ComparisonAnalysisTool({
     setError(null);
   };
 
+  // P1修复：导出报告功能
+  const handleExport = () => {
+    if (!hasSearched) {
+      toast.error("请先筛选数据再导出");
+      return;
+    }
+
+    try {
+      let exportData: any[] = [];
+      let filename = "";
+
+      switch (comparisonType) {
+        case "time":
+          exportData = timeData.map((item, idx) => ({
+            序号: idx + 1,
+            时间段: item.name,
+            平均分: safeToFixed(item.avgScore, 1),
+            增值率: safeToFixed(item.valueAddedRate, 1) + "%",
+            优秀率: safeToFixed(item.excellentRate, 1) + "%",
+            及格率: safeToFixed(item.passRate, 1) + "%",
+          }));
+          filename = "时间段对比分析.csv";
+          break;
+
+        case "class":
+          exportData = classData.map((item, idx) => ({
+            排名: idx + 1,
+            班级: item.className,
+            入口分: safeToFixed(item.entryScore, 1),
+            出口分: safeToFixed(item.exitScore, 1),
+            增值率: safeToFixed(item.valueAddedRate, 1) + "%",
+            入口标准分: safeToFixed(item.entryStandardScore, 2),
+            出口标准分: safeToFixed(item.exitStandardScore, 2),
+            优秀率: safeToFixed(item.excellentRate, 1) + "%",
+            及格率: safeToFixed(item.passRate, 1) + "%",
+            学生数: item.students,
+          }));
+          filename = "班级对比分析.csv";
+          break;
+
+        case "subject":
+          exportData = subjectData.map((item, idx) => ({
+            序号: idx + 1,
+            科目: item.subject,
+            入口分: safeToFixed(item.entryScore, 1),
+            出口分: safeToFixed(item.exitScore, 1),
+            增值率: safeToFixed(item.valueAddedRate, 1) + "%",
+            优秀率: safeToFixed(item.excellentRate, 1) + "%",
+            入口标准分: safeToFixed(item.entryStandardScore, 2),
+            出口标准分: safeToFixed(item.exitStandardScore, 2),
+          }));
+          filename = "学科对比分析.csv";
+          break;
+
+        case "teacher":
+          exportData = teacherData.map((item, idx) => ({
+            序号: idx + 1,
+            教师: item.teacherName,
+            平均分: safeToFixed(item.avgScore, 1),
+            增值率: safeToFixed(item.valueAddedRate, 1) + "%",
+            巩固率: safeToFixed(item.consolidationRate, 1) + "%",
+            转化率: safeToFixed(item.transformationRate, 1) + "%",
+            贡献率: safeToFixed(item.contributionRate, 1) + "%",
+            学生数: item.students,
+          }));
+          filename = "教师对比分析.csv";
+          break;
+      }
+
+      if (exportData.length === 0) {
+        toast.error("没有可导出的数据");
+        return;
+      }
+
+      // 生成CSV
+      const headers = Object.keys(exportData[0]);
+      const csvRows = [
+        headers.join(","),
+        ...exportData.map((row) =>
+          headers.map((header) => `"${row[header]}"`).join(",")
+        ),
+      ];
+      const csvContent = csvRows.join("\n");
+
+      // 下载文件
+      const blob = new Blob(["\uFEFF" + csvContent], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success(`成功导出 ${exportData.length} 条记录`);
+    } catch (error) {
+      console.error("导出失败:", error);
+      toast.error("导出失败，请重试");
+    }
+  };
+
   // ===== 渲染函数 =====
   const renderTimeComparison = () => {
     if (timeData.length === 0) return renderEmptyState();
@@ -1023,6 +1127,7 @@ export function ComparisonAnalysisTool({
                 variant="outline"
                 className="ml-auto"
                 disabled={!hasSearched || loading}
+                onClick={handleExport}
               >
                 <Download className="h-4 w-4 mr-2" />
                 导出报告

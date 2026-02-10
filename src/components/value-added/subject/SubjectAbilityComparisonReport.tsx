@@ -49,6 +49,32 @@ import {
 import type { ClassValueAdded } from "@/types/valueAddedTypes";
 import { safeToFixed, safePercent, safeNumber } from "@/utils/formatUtils";
 
+// P1修复：标准科目排序
+const SUBJECT_ORDER = [
+  "总分",
+  "语文",
+  "数学",
+  "英语",
+  "物理",
+  "化学",
+  "生物",
+  "政治",
+  "道法",
+  "历史",
+  "地理",
+];
+
+function sortBySubject<T extends { subject: string }>(data: T[]): T[] {
+  return data.sort((a, b) => {
+    const indexA = SUBJECT_ORDER.indexOf(a.subject);
+    const indexB = SUBJECT_ORDER.indexOf(b.subject);
+    if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+    if (indexA !== -1) return -1;
+    if (indexB !== -1) return 1;
+    return a.subject.localeCompare(b.subject, "zh-CN");
+  });
+}
+
 interface SubjectAbilityComparisonReportProps {
   /** 班级增值数据 */
   classData: ClassValueAdded[];
@@ -85,24 +111,26 @@ export function SubjectAbilityComparisonReport({
     return classData.filter((d) => d.class_name === selectedClass);
   }, [classData, selectedClass]);
 
-  // 准备柱状图数据
+  // 准备柱状图数据（P1修复：添加标准排序）
   const barData = useMemo(() => {
-    return selectedClassData.map((d) => ({
+    const data = selectedClassData.map((d) => ({
       subject: d.subject,
       consolidation_rate: d.consolidation_rate * 100,
       transformation_rate: d.transformation_rate * 100,
       contribution_rate: d.contribution_rate * 100,
     }));
+    return sortBySubject(data);
   }, [selectedClassData]);
 
-  // 准备雷达图数据
+  // 准备雷达图数据（P1修复：添加标准排序）
   const radarData = useMemo(() => {
-    return selectedClassData.map((d) => ({
+    const data = selectedClassData.map((d) => ({
       subject: d.subject,
       巩固率: d.consolidation_rate * 100,
       转化率: d.transformation_rate * 100,
       贡献率: d.contribution_rate * 100,
     }));
+    return sortBySubject(data);
   }, [selectedClassData]);
 
   // 统计数据

@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { GradeLevelExplanation } from "@/components/common/GradeLevelExplanation";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -476,6 +477,7 @@ export function TeacherAbilityTrendReport({
               </li>
             </ul>
           </div>
+          <GradeLevelExplanation className="mt-4" />
         </CardContent>
       </Card>
     </div>

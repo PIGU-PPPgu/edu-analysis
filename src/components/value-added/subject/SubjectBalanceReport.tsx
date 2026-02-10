@@ -40,6 +40,37 @@ import {
 } from "@/services/subjectBalanceService";
 import { safeToFixed, safePercent, safeNumber } from "@/utils/formatUtils";
 
+// P0修复：标准科目列表（用于完整性检查）
+const STANDARD_SUBJECTS = [
+  "总分",
+  "语文",
+  "数学",
+  "英语",
+  "物理",
+  "化学",
+  "生物",
+  "政治",
+  "历史",
+  "地理",
+];
+
+// P0修复：科目完整性检查函数
+function checkSubjectCompleteness(classData: SubjectBalanceAnalysis) {
+  const existingSubjects = new Set(classData.subjects.map((s) => s.subject));
+  const missingSubjects = STANDARD_SUBJECTS.filter(
+    (s) => !existingSubjects.has(s)
+  );
+
+  return {
+    total: STANDARD_SUBJECTS.length,
+    existing: existingSubjects.size,
+    missing: missingSubjects,
+    coverage: Math.round(
+      (existingSubjects.size / STANDARD_SUBJECTS.length) * 100
+    ),
+  };
+}
+
 interface SubjectBalanceReportProps {
   /** 班级学科均衡数据 */
   data: SubjectBalanceAnalysis[];
@@ -125,7 +156,7 @@ export function SubjectBalanceReport({
       {!selectedClass ? (
         <>
           {/* 统计摘要 */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
             <Card className="p-4">
               <div className="text-sm text-muted-foreground">班级总数</div>
               <div className="text-2xl font-bold">{data.length}</div>
@@ -151,6 +182,28 @@ export function SubjectBalanceReport({
                   ).length
                 }
               </div>
+            </Card>
+
+            {/* P0修复：科目覆盖率卡片 */}
+            <Card className="p-4">
+              <div className="text-sm text-muted-foreground flex items-center gap-1">
+                科目覆盖率
+                {data.length > 0 &&
+                  checkSubjectCompleteness(data[0]).coverage < 90 && (
+                    <AlertCircle className="h-4 w-4 text-orange-500" />
+                  )}
+              </div>
+              <div className="text-2xl font-bold">
+                {data.length > 0
+                  ? `${checkSubjectCompleteness(data[0]).existing}/${STANDARD_SUBJECTS.length}`
+                  : "N/A"}
+              </div>
+              {data.length > 0 &&
+                checkSubjectCompleteness(data[0]).missing.length > 0 && (
+                  <div className="text-xs text-orange-600 mt-1">
+                    缺失: {checkSubjectCompleteness(data[0]).missing.join("、")}
+                  </div>
+                )}
             </Card>
           </div>
 
@@ -355,7 +408,7 @@ function ClassBalanceDetail({
             {classData.subject_deviation.toFixed(3)}
           </div>
           <div className="text-xs text-muted-foreground mt-1">
-            数值越小越均衡
+            基于 {classData.subjects.length} 个科目计算
           </div>
         </Card>
 

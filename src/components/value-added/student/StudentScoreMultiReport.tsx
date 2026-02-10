@@ -201,7 +201,11 @@ export function StudentScoreMultiReport({
               <SelectValue placeholder="选择学生" />
             </SelectTrigger>
             <SelectContent>
-              {filteredStudents.slice(0, 100).map((student) => (
+              {/* P1修复：搜索时显示全部结果，未搜索时限制100条避免卡顿 */}
+              {(searchTerm
+                ? filteredStudents
+                : filteredStudents.slice(0, 100)
+              ).map((student) => (
                 <SelectItem key={student.student_id} value={student.student_id}>
                   {student.student_name} - {student.class_name} (平均增值率:{" "}
                   {safeToFixed(student.avg_value_added_rate, 3)})
@@ -210,9 +214,15 @@ export function StudentScoreMultiReport({
             </SelectContent>
           </Select>
 
-          {filteredStudents.length > 100 && (
+          {!searchTerm && filteredStudents.length > 100 && (
             <p className="text-sm text-muted-foreground">
-              仅显示前100个结果，请使用搜索功能缩小范围
+              共{filteredStudents.length}
+              个学生，当前显示前100个。请使用搜索功能查找特定学生。
+            </p>
+          )}
+          {searchTerm && filteredStudents.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              未找到匹配的学生，请尝试其他关键词
             </p>
           )}
         </CardContent>

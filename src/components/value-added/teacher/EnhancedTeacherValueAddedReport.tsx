@@ -13,6 +13,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { GradeLevelExplanation } from "@/components/common/GradeLevelExplanation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -463,6 +464,7 @@ export function EnhancedTeacherValueAddedReport({
               </li>
             </ul>
           </div>
+          <GradeLevelExplanation className="mt-4" />
         </CardContent>
       </Card>
     </div>

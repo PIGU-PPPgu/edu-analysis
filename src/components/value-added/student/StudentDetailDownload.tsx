@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { GradeLevelExplanation } from "@/components/common/GradeLevelExplanation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -70,20 +71,43 @@ export function StudentDetailDownload({
   }, [data, selectedClass, selectedSubject]);
 
   // 导出Excel
-  const handleExport = () => {
+  const handleExport = async () => {
     if (filteredData.length === 0) {
       toast.error("没有可导出的数据");
       return;
     }
 
+    // P0修复：添加数据量限制和警告
+    if (filteredData.length > 2000) {
+      toast.error("数据量过大（超过2000条），请使用筛选功能缩小范围");
+      return;
+    }
+
+    if (filteredData.length > 500) {
+      const estimatedTime = Math.ceil(filteredData.length / 200);
+      const confirmed = window.confirm(
+        `当前数据量较大（${filteredData.length}条），导出可能需要较长时间（约${estimatedTime}秒），是否继续？`
+      );
+      if (!confirmed) return;
+    }
+
     const fileName = `学生增值明细${selectedClass !== "all" ? `_${selectedClass}` : ""}${selectedSubject !== "all" ? `_${selectedSubject}` : ""}.xlsx`;
 
-    const result = exportStudentReportToExcel(filteredData, { fileName });
+    // P0修复：添加导出进度提示
+    const toastId = toast.loading("正在生成Excel文件，请稍候...");
 
-    if (result.success) {
-      toast.success(`成功导出 ${filteredData.length} 条学生数据`);
-    } else {
-      toast.error(`导出失败: ${result.error}`);
+    try {
+      const result = exportStudentReportToExcel(filteredData, { fileName });
+
+      if (result.success) {
+        toast.success(`成功导出 ${filteredData.length} 条学生数据`, {
+          id: toastId,
+        });
+      } else {
+        toast.error(`导出失败: ${result.error}`, { id: toastId });
+      }
+    } catch (error) {
+      toast.error("导出失败，请重试", { id: toastId });
     }
   };
 
@@ -232,6 +256,7 @@ export function StudentDetailDownload({
                   </li>
                 </ul>
               </div>
+              <GradeLevelExplanation className="mt-4" />
             </CardContent>
           </Card>
         </CardContent>

@@ -5,7 +5,7 @@
  * 查看学生单科出入口等级、等级变化情况
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -93,6 +93,10 @@ export function StudentAbilitySingleReport({
   const [searchTerm, setSearchTerm] = useState("");
   const [filterLevel, setFilterLevel] = useState<string>("all");
 
+  // P1修复：添加分页支持
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 50;
+
   // 提取可用科目列表
   const availableSubjects = useMemo(() => {
     const subjects = Array.from(new Set(data.map((d) => d.subject))).sort();
@@ -142,6 +146,21 @@ export function StudentAbilitySingleReport({
 
     return result;
   }, [subjectData, searchTerm, filterLevel]);
+
+  // P1修复：分页数据计算
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return filteredData.slice(startIndex, endIndex);
+  }, [filteredData, currentPage]);
+
+  // P1修复：总页数
+  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
+
+  // P1修复：搜索或筛选变化时重置到第1页
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterLevel, selectedSubject]);
 
   // 统计数据
   const statistics = useMemo(() => {
@@ -447,7 +466,7 @@ export function StudentAbilitySingleReport({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredData.map((student, index) => (
+              {paginatedData.map((student, index) => (
                 <TableRow key={`${student.student_id}-${index}`}>
                   <TableCell className="font-medium">
                     {student.student_name}
@@ -530,6 +549,36 @@ export function StudentAbilitySingleReport({
           {filteredData.length === 0 && (
             <div className="text-center text-muted-foreground py-8">
               没有符合筛选条件的学生
+            </div>
+          )}
+
+          {/* P1修复：分页UI */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t mt-4">
+              <div className="text-sm text-muted-foreground">
+                共 {filteredData.length} 条记录，第 {currentPage} / {totalPages}{" "}
+                页
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  上一页
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(totalPages, p + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                >
+                  下一页
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

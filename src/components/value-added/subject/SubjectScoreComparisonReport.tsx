@@ -56,6 +56,21 @@ import type {
 } from "@/types/valueAddedTypes";
 import { safeToFixed, safePercent, safeNumber } from "@/utils/formatUtils";
 
+// P1修复：标准科目满分映射
+const SUBJECT_FULL_SCORES: Record<string, number> = {
+  总分: 523,
+  语文: 120,
+  数学: 120,
+  英语: 100,
+  物理: 70,
+  化学: 50,
+  生物: 50,
+  政治: 50,
+  道法: 50,
+  历史: 50,
+  地理: 50,
+};
+
 interface SubjectScoreComparisonReportProps {
   /** 班级增值数据 */
   classData: ClassValueAdded[];
@@ -344,6 +359,7 @@ export function SubjectScoreComparisonReport({
             <TableHeader>
               <TableRow>
                 <TableHead>科目</TableHead>
+                <TableHead className="text-right">满分</TableHead>
                 <TableHead className="text-right">平均增值率</TableHead>
                 <TableHead className="text-right">进步学生占比</TableHead>
                 <TableHead className="text-right">平均Z分变化</TableHead>
@@ -363,6 +379,9 @@ export function SubjectScoreComparisonReport({
                   <TableRow key={subject.subject}>
                     <TableCell className="font-medium">
                       {subject.subject}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {SUBJECT_FULL_SCORES[subject.subject] || "-"}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">

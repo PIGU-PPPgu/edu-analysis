@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { GradeLevelExplanation } from "@/components/common/GradeLevelExplanation";
 import {
   Select,
   SelectContent,
@@ -51,6 +52,32 @@ const COLORS = [
   "#f97316",
   "#ec4899",
 ];
+
+// P1修复：标准科目排序
+const SUBJECT_ORDER = [
+  "总分",
+  "语文",
+  "数学",
+  "英语",
+  "物理",
+  "化学",
+  "生物",
+  "政治",
+  "道法",
+  "历史",
+  "地理",
+];
+
+function sortSubjects(subjects: string[]): string[] {
+  return subjects.sort((a, b) => {
+    const indexA = SUBJECT_ORDER.indexOf(a);
+    const indexB = SUBJECT_ORDER.indexOf(b);
+    if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+    if (indexA !== -1) return -1;
+    if (indexB !== -1) return 1;
+    return a.localeCompare(b, "zh-CN");
+  });
+}
 
 type MetricType = "consolidation" | "transformation" | "contribution";
 
@@ -157,6 +184,56 @@ export function ClassAbilityTrendMultiReport({
     });
   }, [historicalDataMap, selectedMetric]);
 
+  // P1修复：统计摘要数据
+  const statistics = useMemo(() => {
+    if (historicalDataMap.size === 0 || chartData.length === 0) return null;
+
+    const latestExam = chartData[chartData.length - 1];
+    const subjects = Array.from(historicalDataMap.keys());
+
+    // 计算最新考试的平均指标值
+    let totalRate = 0;
+    let validCount = 0;
+    subjects.forEach((subject) => {
+      const rate = latestExam[subject];
+      if (typeof rate === "number" && !isNaN(rate)) {
+        totalRate += rate;
+        validCount++;
+      }
+    });
+    const avgRate = validCount > 0 ? totalRate / validCount : 0;
+
+    // 找出最高和最低指标科目
+    let maxSubject = "";
+    let maxRate = -Infinity;
+    let minSubject = "";
+    let minRate = Infinity;
+
+    subjects.forEach((subject) => {
+      const rate = latestExam[subject];
+      if (typeof rate === "number" && !isNaN(rate)) {
+        if (rate > maxRate) {
+          maxRate = rate;
+          maxSubject = subject;
+        }
+        if (rate < minRate) {
+          minRate = rate;
+          minSubject = subject;
+        }
+      }
+    });
+
+    return {
+      subjectCount: subjects.length,
+      avgRate: avgRate.toFixed(1),
+      maxSubject,
+      maxRate: maxRate.toFixed(1),
+      minSubject,
+      minRate: minRate.toFixed(1),
+      examCount: chartData.length,
+    };
+  }, [historicalDataMap, chartData, selectedMetric]);
+
   if (externalLoading || loading) {
     return (
       <div className="flex items-center justify-center p-12">加载中...</div>
@@ -230,6 +307,57 @@ export function ClassAbilityTrendMultiReport({
         </CardContent>
       </Card>
 
+      {/* P1修复：统计摘要卡片 */}
+      {statistics && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-sm text-muted-foreground">科目总数</div>
+              <div className="text-2xl font-bold">
+                {statistics.subjectCount}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                共{statistics.examCount}次考试数据
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-sm text-muted-foreground">
+                平均{metricLabels[selectedMetric]}
+              </div>
+              <div className="text-2xl font-bold">{statistics.avgRate}%</div>
+              <div className="text-xs text-muted-foreground">最新考试数据</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-sm text-muted-foreground">表现最佳科目</div>
+              <div className="text-lg font-bold text-green-600">
+                {statistics.maxSubject}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {statistics.maxRate}%
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-sm text-muted-foreground">需关注科目</div>
+              <div className="text-lg font-bold text-orange-600">
+                {statistics.minSubject}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {statistics.minRate}%
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {chartData.length > 0 && (
         <Card>
           <CardHeader>
@@ -251,16 +379,19 @@ export function ClassAbilityTrendMultiReport({
                   }
                 />
                 <Legend />
-                {Array.from(historicalDataMap.keys()).map((subject, index) => (
-                  <Line
-                    key={subject}
-                    type="monotone"
-                    dataKey={subject}
-                    stroke={COLORS[index % COLORS.length]}
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                  />
-                ))}
+                {/* P1修复：使用标准科目排序 */}
+                {sortSubjects(Array.from(historicalDataMap.keys())).map(
+                  (subject, index) => (
+                    <Line
+                      key={subject}
+                      type="monotone"
+                      dataKey={subject}
+                      stroke={COLORS[index % COLORS.length]}
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                    />
+                  )
+                )}
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -283,6 +414,7 @@ export function ClassAbilityTrendMultiReport({
               </li>
             </ul>
           </div>
+          <GradeLevelExplanation className="mt-4" />
         </CardContent>
       </Card>
     </div>

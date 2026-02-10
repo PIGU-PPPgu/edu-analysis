@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { GradeLevelExplanation } from "@/components/common/GradeLevelExplanation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -471,6 +472,7 @@ export function ClassScoreTrendGradeReport({
               </li>
             </ul>
           </div>
+          <GradeLevelExplanation className="mt-4" />
         </CardContent>
       </Card>
     </div>

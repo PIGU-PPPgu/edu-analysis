@@ -52,7 +52,10 @@ export function StudentValueAddedReport({
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStudent, setSelectedStudent] =
     useState<StudentValueAdded | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const reportRef = useRef<HTMLDivElement>(null);
+
+  const ITEMS_PER_PAGE = 50;
 
   // 导出Excel
   const handleExport = () => {
@@ -98,6 +101,21 @@ export function StudentValueAddedReport({
         s.class_name.toLowerCase().includes(term)
     );
   }, [data, searchTerm]);
+
+  // 分页数据
+  const paginatedStudents = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return filteredStudents.slice(startIndex, endIndex);
+  }, [filteredStudents, currentPage]);
+
+  // 总页数
+  const totalPages = Math.ceil(filteredStudents.length / ITEMS_PER_PAGE);
+
+  // 搜索时重置到第一页
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   // 按学科分组学生数据
   const studentsBySubject = useMemo(() => {
@@ -187,7 +205,7 @@ export function StudentValueAddedReport({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredStudents.slice(0, 50).map((student, index) => (
+                {paginatedStudents.map((student, index) => (
                   <TableRow
                     key={`${student.student_id}-${student.subject}-${index}`}
                   >
@@ -249,9 +267,33 @@ export function StudentValueAddedReport({
               </TableBody>
             </Table>
 
-            {filteredStudents.length > 50 && (
-              <div className="text-center text-sm text-muted-foreground mt-4">
-                仅显示前50条结果，请使用搜索功能查找特定学生
+            {/* 分页控制 */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t">
+                <div className="text-sm text-muted-foreground">
+                  共 {filteredStudents.length} 条记录，第 {currentPage} /{" "}
+                  {totalPages} 页
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    上一页
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setCurrentPage((p) => Math.min(totalPages, p + 1))
+                    }
+                    disabled={currentPage === totalPages}
+                  >
+                    下一页
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>
