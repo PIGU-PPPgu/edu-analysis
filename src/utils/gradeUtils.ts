@@ -13,6 +13,11 @@ import {
   normalizeGradeLevel,
 } from "@/utils/gradeFieldUtils";
 
+// ============================================
+// 重新导出类型，便于其他模块使用
+// ============================================
+export { GradeLevel, type GradeLevelInfo } from "@/types/grade";
+
 // 学科满分配置 - 根据用户反馈修正
 export const SUBJECT_MAX_SCORES: Record<Subject | string, number> = {
   [Subject.TOTAL]: 660,
@@ -450,9 +455,22 @@ export function assignGradesWithFallback<T extends { [key: string]: any }>(
     return [];
   }
 
-  // 推断排名字段名
-  // 例如：total_score → total_rank, chinese_score → chinese_rank_in_class
-  const rankField = scoreField.replace("_score", "_rank_in_class");
+  // 推断排名字段名（尝试多种可能的格式）
+  // 例如：total_score → total_rank 或 total_rank_in_class
+  const baseFieldName = scoreField.replace("_score", "");
+  const possibleRankFields = [
+    `${baseFieldName}_rank`, // total_rank
+    `${baseFieldName}_rank_in_class`, // total_rank_in_class
+    `${baseFieldName}_rank_in_grade`, // total_rank_in_grade
+    `${baseFieldName}_rank_in_school`, // total_rank_in_school
+  ];
+
+  // 找到第一个存在的排名字段
+  const firstRecord = records[0];
+  const rankField = possibleRankFields.find(
+    (field) => firstRecord && firstRecord[field] !== undefined
+  );
+
   const totalStudents = records.length;
 
   return records.map((record) => {
@@ -470,11 +488,13 @@ export function assignGradesWithFallback<T extends { [key: string]: any }>(
     }
 
     // 优先级2：根据排名计算等级
-    const rank = record[rankField];
-    if (rank && typeof rank === "number" && rank > 0) {
-      resolvedGrade = calculateGradeByRank(rank, totalStudents);
-      gradeSource = "calculated";
-      return { ...record, resolvedGrade, gradeSource };
+    if (rankField) {
+      const rank = record[rankField];
+      if (rank && typeof rank === "number" && rank > 0) {
+        resolvedGrade = calculateGradeByRank(rank, totalStudents);
+        gradeSource = "calculated";
+        return { ...record, resolvedGrade, gradeSource };
+      }
     }
 
     // 优先级3：默认等级C

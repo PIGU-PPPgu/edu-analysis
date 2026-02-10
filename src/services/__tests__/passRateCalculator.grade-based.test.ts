@@ -84,9 +84,10 @@ describe("基于等级的及格率/优秀率计算", () => {
         { name: "语文", scoreField: "chinese_score" },
       ];
 
-      const mockData = mock100Students.map((s) => ({
+      const mockData = mock100Students.map((s, index) => ({
         ...s,
         chinese_score: s.total_score * 0.3, // 模拟语文分数
+        chinese_rank: index + 1, // 添加语文排名
       }));
 
       const result = calculateBatchRatesByGrade(mockData, subjects);
