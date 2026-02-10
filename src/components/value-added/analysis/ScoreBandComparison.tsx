@@ -16,43 +16,16 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ArrowUp, ArrowDown, Minus } from "lucide-react";
+import type {
+  ScoreBandAnalysis as UIScoreBandAnalysis,
+  ScoreBandStats as UIScoreBandStats,
+  ChangeStats as UIChangeStats,
+} from "@/services/scoreBandAnalysisAdapter";
 
-// ============================================
-// 类型定义
-// ============================================
-
-/** 等级统计 */
-interface GradeStats {
-  count: number; // 人数
-  percentage: number; // 比例（0-1）
-}
-
-/** 单科目分数段统计 */
-export interface ScoreBandStats {
-  subject: string; // 学科名称
-  totalCount: number; // 分析人数
-  avgScore: number; // 平均分
-  avgScoreRank?: number; // 平均分排名（可选）
-
-  // 各等级统计（A+, A, B+, B, C+, C）
-  gradeStats: Record<string, GradeStats>;
-
-  // 累计统计（A以上 = A+ + A）
-  cumulativeStats?: Record<string, GradeStats>;
-}
-
-/** 变化统计 */
-interface ChangeStats {
-  countChange: number; // 人数变化
-  percentageChange: number; // 比例变化
-}
-
-/** 分数段分析完整数据 */
-export interface ScoreBandAnalysis {
-  entryExam: ScoreBandStats[]; // 入口考试
-  exitExam: ScoreBandStats[]; // 出口考试
-  changes: Record<string, Record<string, ChangeStats>>; // 变化统计
-}
+// 重新导出类型以保持向后兼容
+export type ScoreBandAnalysis = UIScoreBandAnalysis;
+export type ScoreBandStats = UIScoreBandStats;
+export type ChangeStats = UIChangeStats;
 
 // ============================================
 // 组件参数
