@@ -2,10 +2,11 @@
 
 /**
  * 增值报告菜单仪表板
- * 参照汇优评系统，提供19个报告维度的卡片式导航
+ * 提供19个报告维度的卡片式导航
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Card,
   CardContent,
@@ -88,6 +89,37 @@ export function ReportsMenuDashboard({
   loading,
 }: ReportsMenuDashboardProps) {
   const [selectedReport, setSelectedReport] = useState<string | null>(null);
+  const [exitExamId, setExitExamId] = useState<string | null>(null);
+
+  // 从activity获取exit_exam_id
+  useEffect(() => {
+    const fetchExitExamId = async () => {
+      if (!currentActivity?.id) {
+        setExitExamId(null);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("value_added_activities")
+          .select("exit_exam_id")
+          .eq("id", currentActivity.id)
+          .single();
+
+        if (error) {
+          console.error("查询exit_exam_id失败:", error);
+          setExitExamId(null);
+        } else {
+          setExitExamId(data.exit_exam_id);
+        }
+      } catch (err) {
+        console.error("获取exit_exam_id异常:", err);
+        setExitExamId(null);
+      }
+    };
+
+    fetchExitExamId();
+  }, [currentActivity]);
 
   // 数据统计（调试用）
   console.log("📊 [ReportsMenuDashboard] Data stats:", {
@@ -95,6 +127,7 @@ export function ReportsMenuDashboard({
     teacherData: teacherData.length,
     studentData: studentData.length,
     subjectBalanceData: subjectBalanceData.length,
+    exitExamId,
   });
 
   // 19个报告维度定义
@@ -102,7 +135,7 @@ export function ReportsMenuDashboard({
     // 教师增值评价
     {
       id: "teacher-score",
-      title: "科目教师分数增值",
+      title: "教师成绩进步排名",
       description: "分析教师所教班级的分数增值率、进步人数占比、标准分变化",
       badge: "总体",
       icon: Award,
@@ -111,7 +144,7 @@ export function ReportsMenuDashboard({
     },
     {
       id: "teacher-ability",
-      title: "科目教师能力增值",
+      title: "教师教学能力评估",
       description: "评估教师的巩固率、转化率、贡献率等能力培养指标",
       badge: "总体",
       icon: Target,
@@ -122,7 +155,7 @@ export function ReportsMenuDashboard({
     // 班级增值评价
     {
       id: "class-score",
-      title: "班级分数增值",
+      title: "班级成绩进步分析",
       description: "展示班级入口/出口分、标准分、排名、增值率、进步人数占比",
       badge: "教学班",
       icon: TrendingUp,
@@ -131,7 +164,7 @@ export function ReportsMenuDashboard({
     },
     {
       id: "class-ability",
-      title: "班级能力增值",
+      title: "班级整体能力分析",
       description: "分析班级的巩固率、转化率、贡献率等能力提升情况",
       badge: "教学班",
       icon: BarChart3,
@@ -139,164 +172,164 @@ export function ReportsMenuDashboard({
       available: classData.length > 0,
     },
 
-    // 教学排优
+    // 学科均衡分析
     {
       id: "subject-balance",
-      title: "学科发展均衡",
+      title: "各科目均衡度分析",
       description: "分析行政班总分增值和各学科偏离度，识别薄弱学科",
       badge: "行政班",
       icon: PieChart,
-      category: "教学排优",
+      category: "学科均衡分析",
       available: subjectBalanceData.length > 0,
     },
     {
       id: "subject-score-comparison",
-      title: "各学科分数增值",
+      title: "各科目成绩对比",
       description: "横向对比行政班各学科的分数增值表现",
       badge: "行政班",
       icon: BarChart3,
-      category: "教学排优",
+      category: "学科均衡分析",
       available: classData.length > 0, // 放宽条件：只要有班级数据就可以对比
     },
     {
       id: "subject-ability-comparison",
-      title: "各学科能力增值",
+      title: "各科目能力对比",
       description: "横向对比行政班各学科的能力增值表现",
       badge: "行政班",
       icon: Activity,
-      category: "教学排优",
+      category: "学科均衡分析",
       available: classData.length > 0,
     },
 
-    // 教师历次追踪
+    // 教师趋势分析
     {
       id: "teacher-score-trend",
-      title: "历次分数走势",
+      title: "教师成绩趋势",
       description: "追踪教师历次均分、标准分、分数增值率的变化趋势",
       badge: "总体",
       icon: LineChart,
-      category: "教师历次追踪",
+      category: "教师趋势分析",
       available: true,
     },
     {
       id: "teacher-ability-trend",
-      title: "历次能力走势",
+      title: "教师能力趋势",
       description: "追踪教师历次优秀率、贡献率、巩固率、转化率的变化",
       badge: "总体",
       icon: LineChart,
-      category: "教师历次追踪",
+      category: "教师趋势分析",
       available: true,
     },
 
-    // 班级历次追踪
+    // 班级趋势分析
     {
       id: "class-score-trend-grade",
-      title: "全年级班级对比",
+      title: "年级班级成绩对比",
       description: "同一科目所有班级的历次走势对比，支持筛选班级",
       badge: "总体",
       icon: GitCompare,
-      category: "班级历次追踪",
+      category: "班级趋势分析",
       available: true,
     },
     {
       id: "class-score-trend-single",
-      title: "历次分数分析（单科）",
+      title: "单科成绩趋势",
       description: "教学班单科目历次得分表现分析",
       badge: "教学班",
       icon: LineChart,
-      category: "班级历次追踪",
+      category: "班级趋势分析",
       available: true,
     },
     {
       id: "class-ability-trend-single",
-      title: "历次能力分析（单科）",
+      title: "单科能力趋势",
       description: "教学班单科目历次能力表现分析",
       badge: "教学班",
       icon: LineChart,
-      category: "班级历次追踪",
+      category: "班级趋势分析",
       available: true,
     },
     {
       id: "class-score-trend-multi",
-      title: "历次分数分析（多科）",
+      title: "多科成绩趋势",
       description: "行政班各学科历次得分表现分析",
       badge: "行政班",
       icon: LineChart,
-      category: "班级历次追踪",
+      category: "班级趋势分析",
       available: true,
     },
     {
       id: "class-ability-trend-multi",
-      title: "历次能力分析（多科）",
+      title: "多科能力趋势",
       description: "行政班各学科历次能力表现分析",
       badge: "行政班",
       icon: LineChart,
-      category: "班级历次追踪",
+      category: "班级趋势分析",
       available: true,
     },
 
-    // 学生增值结果
+    // 学生成绩详情
     {
       id: "student-detail-download",
-      title: "学生增值明细",
+      title: "学生成绩明细下载",
       description: "下载查看所有学生的详细增值数据",
       badge: "个人",
       icon: Download,
-      category: "学生增值结果",
+      category: "学生成绩详情",
       available: studentData.length > 0,
     },
     {
       id: "student-score-single",
-      title: "单科学生分数增值",
+      title: "学生单科成绩分析",
       description: "查看学生单科出入口原始分、标准分、增值率",
       badge: "个人",
       icon: Users,
-      category: "学生增值结果",
+      category: "学生成绩详情",
       available: studentData.length > 0,
     },
     {
       id: "student-ability-single",
-      title: "单科学生能力增值",
+      title: "学生单科能力分析",
       description: "查看学生单科出入口等级、等级变化情况",
       badge: "个人",
       icon: Target,
-      category: "学生增值结果",
+      category: "学生成绩详情",
       available: studentData.length > 0,
     },
     {
       id: "student-score-multi",
-      title: "学生各学科分数增值",
+      title: "学生多科成绩对比",
       description: "对比学生各学科的分数增值表现",
       badge: "个人",
       icon: BarChart3,
-      category: "学生增值结果",
+      category: "学生成绩详情",
       available: studentData.length > 0,
     },
     {
       id: "student-ability-multi",
-      title: "学生各学科能力增值",
+      title: "学生多科能力对比",
       description: "对比学生各学科的能力增值表现",
       badge: "个人",
       icon: Activity,
-      category: "学生增值结果",
+      category: "学生成绩详情",
       available: studentData.length > 0,
     },
 
-    // 学生历次追踪
+    // 学生趋势分析
     {
       id: "student-trend",
-      title: "单科学生历次表现",
+      title: "学生成绩趋势",
       description: "追踪学生单科历次原始分、标准分、等级变化",
       badge: "个人",
       icon: LineChart,
-      category: "学生历次追踪",
+      category: "学生趋势分析",
       available: true,
     },
 
     // 数据对比分析
     {
       id: "comparison-tool",
-      title: "数据对比分析工具",
+      title: "数据对比工具",
       description: "支持时间段、班级、科目、教师四维度对比分析",
       badge: "总体",
       icon: GitCompare,
@@ -309,11 +342,11 @@ export function ReportsMenuDashboard({
   const categories = [
     "教师增值评价",
     "班级增值评价",
-    "教学排优",
-    "教师历次追踪",
-    "班级历次追踪",
-    "学生增值结果",
-    "学生历次追踪",
+    "学科均衡分析",
+    "教师趋势分析",
+    "班级趋势分析",
+    "学生成绩详情",
+    "学生趋势分析",
     "数据对比分析",
   ];
 
@@ -350,7 +383,11 @@ export function ReportsMenuDashboard({
         </Button>
 
         {selectedReport === "class-score" && (
-          <EnhancedClassValueAddedReport data={classData} loading={loading} />
+          <EnhancedClassValueAddedReport
+            data={classData}
+            loading={loading}
+            exitExamId={exitExamId}
+          />
         )}
         {selectedReport === "class-ability" && (
           <ClassAbilityReport
