@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { warningAnalysisCache } from "../utils/performanceCache";
+import { retryableSelect, retryableWrite } from "@/utils/apiRetry";
 
 // 考试接口定义
 export interface Exam {
@@ -694,18 +695,22 @@ export const createExam = async (
   examData: CreateExamInput
 ): Promise<Exam | null> => {
   try {
-    const { data, error } = await supabase
-      .from("exams")
-      .insert([
-        {
-          title: examData.title,
-          type: examData.type,
-          date: examData.date,
-          subject: examData.subject,
-        },
-      ])
-      .select()
-      .single();
+    const { data, error } = (await retryableWrite(
+      async () =>
+        await supabase
+          .from("exams")
+          .insert([
+            {
+              title: examData.title,
+              type: examData.type,
+              date: examData.date,
+              subject: examData.subject,
+            },
+          ])
+          .select()
+          .single(),
+      "创建考试"
+    )) as any;
 
     if (error) throw error;
 
@@ -726,18 +731,22 @@ export const updateExam = async (
   examData: UpdateExamInput
 ): Promise<Exam | null> => {
   try {
-    const { data, error } = await supabase
-      .from("exams")
-      .update({
-        title: examData.title,
-        type: examData.type,
-        date: examData.date,
-        subject: examData.subject,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", examId)
-      .select()
-      .single();
+    const { data, error } = (await retryableWrite(
+      async () =>
+        await supabase
+          .from("exams")
+          .update({
+            title: examData.title,
+            type: examData.type,
+            date: examData.date,
+            subject: examData.subject,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", examId)
+          .select()
+          .single(),
+      "更新考试"
+    )) as any;
 
     if (error) throw error;
 

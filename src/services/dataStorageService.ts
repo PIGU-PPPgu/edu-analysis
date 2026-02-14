@@ -10,6 +10,13 @@ import type {
   ElectiveCourse,
   GradeScores,
 } from "@/types/valueAddedTypes";
+import {
+  validateStudentData,
+  validateGradeData,
+  validateTeachingArrangement,
+  formatValidationReport,
+} from "@/utils/dataValidator";
+import { retryableWrite, retryableSelect } from "@/utils/apiRetry";
 
 /**
  * 保存学生信息
@@ -20,6 +27,16 @@ export async function saveStudentInfo(
   configId?: string
 ) {
   try {
+    // ✅ 数据完整性校验
+    const validationReport = await validateStudentData(students);
+    if (!validationReport.isValid) {
+      const reportText = formatValidationReport(validationReport);
+      console.error("学生信息校验失败:\n", reportText);
+      throw new Error(
+        `学生信息校验失败: ${validationReport.summary.errorRows}行存在错误\n${reportText}`
+      );
+    }
+
     // 准备插入数据 - 修复字段映射
     const insertData = students.map((student) => ({
       student_id: student.student_id,
@@ -32,14 +49,18 @@ export async function saveStudentInfo(
       config_id: configId || null, // ✅ 添加配置ID
     }));
 
-    // 使用upsert避免重复
-    const { data, error } = await supabase
-      .from("students")
-      .upsert(insertData, {
-        onConflict: "student_id",
-        ignoreDuplicates: false,
-      })
-      .select();
+    // 使用upsert避免重复 - 添加重试保护
+    const { data, error } = (await retryableWrite(
+      async () =>
+        await supabase
+          .from("students")
+          .upsert(insertData, {
+            onConflict: "student_id",
+            ignoreDuplicates: false,
+          })
+          .select(),
+      "保存学生信息"
+    )) as any;
 
     if (error) {
       console.error("保存学生信息失败:", error);
@@ -70,6 +91,19 @@ export async function saveTeachingArrangement(
   configId?: string
 ) {
   try {
+    // ✅ 数据完整性校验
+    const validationReport = await validateTeachingArrangement(
+      arrangements,
+      studentInfo
+    );
+    if (!validationReport.isValid) {
+      const reportText = formatValidationReport(validationReport);
+      console.error("教学编排校验失败:\n", reportText);
+      throw new Error(
+        `教学编排校验失败: ${validationReport.summary.errorRows}行存在错误\n${reportText}`
+      );
+    }
+
     // 🔍 添加诊断日志
     console.log(
       `[教学编排] 开始保存，共 ${arrangements.length} 条教学编排记录`
@@ -111,55 +145,70 @@ export async function saveTeachingArrangement(
 
     console.log(`[教学编排] 班级映射：${classStudentsMap.size} 个班级`);
 
-    // 🔍 通过教师姓名查询或创建教师
+    // P0安全修复: 批量处理教师创建以提供事务保护
     const teacherNameToIdMap = new Map<string, string>();
     const uniqueTeacherNames = [
       ...new Set(arrangements.map((a) => a.teacher_name)),
-    ];
-    let createdTeachers = 0;
+    ].filter((name) => name && name.trim() !== "");
 
-    for (const teacherName of uniqueTeacherNames) {
-      if (!teacherName || teacherName.trim() === "") continue;
-
-      // 1. 先查询教师是否存在
-      const { data: existingTeacher } = await supabase
+    // 1. 批量查询所有教师 - 添加重试保护
+    const { data: existingTeachers } = await retryableSelect(async () => {
+      return await supabase
         .from("teachers")
         .select("id, name")
-        .eq("name", teacherName)
-        .limit(1)
-        .single();
+        .in("name", uniqueTeacherNames);
+    }, "查询已存在教师");
 
-      if (existingTeacher) {
-        // ✅ 教师已存在，使用现有UUID
-        teacherNameToIdMap.set(teacherName, existingTeacher.id);
-        console.log(`✅ 找到现有教师: ${teacherName} → ${existingTeacher.id}`);
-      } else {
-        // 🆕 教师不存在，自动创建
-        const { data: newTeacher, error: createError } = await supabase
-          .from("teachers")
-          .insert({
-            name: teacherName,
-            email: null, // 邮箱可选
-            subject: null, // 科目可选
-          })
-          .select("id, name")
-          .single();
-
-        if (createError) {
-          console.error(`❌ 创建教师"${teacherName}"失败:`, createError);
-          continue; // 创建失败则跳过
-        }
-
-        if (newTeacher) {
-          teacherNameToIdMap.set(teacherName, newTeacher.id);
-          createdTeachers++;
-          console.log(`🆕 自动创建教师: ${teacherName} → ${newTeacher.id}`);
-        }
-      }
+    // 2. 建立已存在教师的映射
+    const existingTeacherNames = new Set<string>();
+    if (existingTeachers) {
+      existingTeachers.forEach((teacher) => {
+        teacherNameToIdMap.set(teacher.name, teacher.id);
+        existingTeacherNames.add(teacher.name);
+      });
+      console.log(`[教学编排] 找到 ${existingTeachers.length} 个现有教师`);
     }
 
-    if (createdTeachers > 0) {
-      console.log(`[教学编排] 自动创建了 ${createdTeachers} 个教师账号`);
+    // 3. 批量创建不存在的教师(使用upsert提供原子性)
+    const teachersToCreate = uniqueTeacherNames.filter(
+      (name) => !existingTeacherNames.has(name)
+    );
+
+    if (teachersToCreate.length > 0) {
+      console.log(
+        `[教学编排] 需要创建 ${teachersToCreate.length} 个新教师账号`
+      );
+
+      const newTeachersData = teachersToCreate.map((name) => ({
+        name,
+        email: null,
+        subject: null,
+      }));
+
+      // P0修复: 使用upsert批量创建,提供事务保护 - 添加重试保护
+      const { data: newTeachers, error: createError } = (await retryableWrite(
+        async () =>
+          await supabase
+            .from("teachers")
+            .upsert(newTeachersData, {
+              onConflict: "name",
+              ignoreDuplicates: false,
+            })
+            .select("id, name"),
+        "批量创建教师账号"
+      )) as any;
+
+      if (createError) {
+        console.error("[教学编排] 批量创建教师失败:", createError);
+        throw new Error(`创建教师账号失败: ${createError.message}`);
+      }
+
+      if (newTeachers) {
+        newTeachers.forEach((teacher) => {
+          teacherNameToIdMap.set(teacher.name, teacher.id);
+        });
+        console.log(`[教学编排] 成功创建 ${newTeachers.length} 个教师账号`);
+      }
     }
 
     // 展开为 teacher-student-subject 记录
@@ -203,7 +252,7 @@ export async function saveTeachingArrangement(
         count: 0,
         message: "没有需要保存的教学编排数据（展开后为空）",
         skippedRecords,
-        createdTeachers,
+        createdTeachers: teachersToCreate?.length || 0,
       };
     }
 
@@ -211,14 +260,22 @@ export async function saveTeachingArrangement(
       `[教学编排] 准备插入 ${insertData.length} 条记录到teacher_student_subjects表`
     );
 
-    // 使用upsert - 修复冲突键
-    const { data, error } = await supabase
-      .from("teacher_student_subjects")
-      .upsert(insertData, {
-        onConflict: "student_id,subject,academic_year,semester",
-        ignoreDuplicates: false,
-      })
-      .select();
+    // P0安全修复: 添加事务保护注释
+    // Supabase的upsert天然提供原子性保证
+    // 但教师创建循环(138-158行)存在部分失败风险
+    // 建议: 收集所有需要创建的教师,统一upsert而非循环insert
+    // 使用upsert - 修复冲突键 - 添加重试保护
+    const { data, error } = (await retryableWrite(
+      async () =>
+        await supabase
+          .from("teacher_student_subjects")
+          .upsert(insertData, {
+            onConflict: "student_id,subject,academic_year,semester",
+            ignoreDuplicates: false,
+          })
+          .select(),
+      "保存教学编排"
+    )) as any;
 
     if (error) {
       console.error("❌ [教学编排] 保存失败:", error);
@@ -238,7 +295,7 @@ export async function saveTeachingArrangement(
       count: data?.length || 0,
       data,
       skippedRecords,
-      createdTeachers,
+      createdTeachers: teachersToCreate?.length || 0,
     };
   } catch (error) {
     console.error("保存教学编排异常:", error);
@@ -281,6 +338,16 @@ export async function saveGradeScores(
   configId?: string
 ) {
   try {
+    // ✅ 数据完整性校验
+    const validationReport = await validateGradeData(scores, examInfo.exam_id);
+    if (!validationReport.isValid) {
+      const reportText = formatValidationReport(validationReport);
+      console.error("成绩数据校验失败:\n", reportText);
+      throw new Error(
+        `成绩数据校验失败: ${validationReport.summary.errorRows}行存在错误\n${reportText}`
+      );
+    }
+
     const isUuid = (value: string) =>
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
         value
@@ -292,15 +359,19 @@ export async function saveGradeScores(
       );
     }
 
-    // ✅ 如果有 configId，从配置中加载学生信息（包含班级）
+    // ✅ 如果有 configId，从配置中加载学生信息（包含班级）- 添加重试保护
     let studentInfoMap: Map<string, { name: string; class_name: string }> =
       new Map();
 
     if (configId) {
-      const { data: students, error: studentError } = await supabase
-        .from("students")
-        .select("student_id, name, class_name")
-        .eq("config_id", configId);
+      const { data: students, error: studentError } = (await retryableSelect(
+        async () =>
+          await supabase
+            .from("students")
+            .select("student_id, name, class_name")
+            .eq("config_id", configId),
+        "查询学生信息"
+      )) as any;
 
       if (studentError) {
         console.error("获取学生信息失败:", studentError);
@@ -391,14 +462,18 @@ export async function saveGradeScores(
       delete (row as { id?: unknown }).id;
     });
 
-    // ✅ 使用 upsert 并指定 (exam_id, student_id) 唯一约束
+    // ✅ 使用 upsert 并指定 (exam_id, student_id) 唯一约束 - 添加重试保护
     // 注意：数据库中已修复了重复主键问题，现在应该可以正常工作
-    const { data, error } = await supabase
-      .from("grade_data")
-      .upsert(insertData, {
-        onConflict: "exam_id,student_id",
-      })
-      .select();
+    const { data, error } = (await retryableWrite(
+      async () =>
+        await supabase
+          .from("grade_data")
+          .upsert(insertData, {
+            onConflict: "exam_id,student_id",
+          })
+          .select(),
+      "保存成绩数据"
+    )) as any;
 
     if (error) {
       console.error("保存成绩数据失败:", error);
@@ -433,14 +508,18 @@ export async function createExamRecord(examInfo: {
     const selectFields =
       "id, business_id, title, type, date, grade_level, academic_year, semester, original_filename"; // ✅ 包含文件名
 
-    // 1. 先检查是否已存在（基于唯一约束：title + date + type）
-    const { data: existingByConstraint } = await supabase
-      .from("exams")
-      .select(selectFields)
-      .eq("title", examInfo.exam_title)
-      .eq("date", examInfo.exam_date)
-      .eq("type", examInfo.exam_type)
-      .maybeSingle();
+    // 1. 先检查是否已存在（基于唯一约束：title + date + type）- 添加重试保护
+    const { data: existingByConstraint } = (await retryableSelect(
+      async () =>
+        await supabase
+          .from("exams")
+          .select(selectFields)
+          .eq("title", examInfo.exam_title)
+          .eq("date", examInfo.exam_date)
+          .eq("type", examInfo.exam_type)
+          .maybeSingle(),
+      "查询已存在考试记录"
+    )) as any;
 
     if (existingByConstraint) {
       console.log(
@@ -454,32 +533,40 @@ export async function createExamRecord(examInfo: {
       };
     }
 
-    // 2. 创建新考试记录
-    const { data, error } = await supabase
-      .from("exams")
-      .insert({
-        business_id: examInfo.business_id, // ✅ 更新字段名
-        title: examInfo.exam_title,
-        type: examInfo.exam_type,
-        date: examInfo.exam_date,
-        grade_level: examInfo.grade_level,
-        academic_year: examInfo.academic_year,
-        semester: examInfo.semester,
-        original_filename: examInfo.original_filename, // ✅ 保存文件名
-      })
-      .select(selectFields)
-      .single();
+    // 2. 创建新考试记录 - 添加重试保护
+    const { data, error } = (await retryableWrite(
+      async () =>
+        await supabase
+          .from("exams")
+          .insert({
+            business_id: examInfo.business_id, // ✅ 更新字段名
+            title: examInfo.exam_title,
+            type: examInfo.exam_type,
+            date: examInfo.exam_date,
+            grade_level: examInfo.grade_level,
+            academic_year: examInfo.academic_year,
+            semester: examInfo.semester,
+            original_filename: examInfo.original_filename, // ✅ 保存文件名
+          })
+          .select(selectFields)
+          .single(),
+      "创建考试记录"
+    )) as any;
 
     if (error) {
-      // 并发插入时可能触发唯一约束，回读已有记录
+      // 并发插入时可能触发唯一约束，回读已有记录 - 添加重试保护
       if (error.code === "23505") {
-        const { data: conflictData } = await supabase
-          .from("exams")
-          .select(selectFields)
-          .eq("title", examInfo.exam_title)
-          .eq("date", examInfo.exam_date)
-          .eq("type", examInfo.exam_type)
-          .maybeSingle();
+        const { data: conflictData } = (await retryableSelect(
+          async () =>
+            await supabase
+              .from("exams")
+              .select(selectFields)
+              .eq("title", examInfo.exam_title)
+              .eq("date", examInfo.exam_date)
+              .eq("type", examInfo.exam_type)
+              .maybeSingle(),
+          "查询冲突考试记录"
+        )) as any;
 
         if (conflictData) {
           return {
@@ -567,7 +654,15 @@ export async function importAllData(params: {
 
     // 4. 创建入口考试记录
     params.onProgress?.("entry_exam", 50, "创建入口考试记录...");
-    await createExamRecord(params.entryExamInfo);
+    await createExamRecord({
+      business_id: params.entryExamInfo.exam_id, // ✅ 映射 exam_id -> business_id
+      exam_title: params.entryExamInfo.exam_title,
+      exam_type: params.entryExamInfo.exam_type,
+      exam_date: params.entryExamInfo.exam_date,
+      grade_level: params.entryExamInfo.grade_level,
+      academic_year: params.entryExamInfo.academic_year,
+      semester: params.entryExamInfo.semester,
+    });
 
     // 5. 保存入口成绩
     params.onProgress?.("entry_scores", 60, "保存入口考试成绩...");
@@ -579,7 +674,15 @@ export async function importAllData(params: {
 
     // 6. 创建出口考试记录
     params.onProgress?.("exit_exam", 80, "创建出口考试记录...");
-    await createExamRecord(params.exitExamInfo);
+    await createExamRecord({
+      business_id: params.exitExamInfo.exam_id, // ✅ 映射 exam_id -> business_id
+      exam_title: params.exitExamInfo.exam_title,
+      exam_type: params.exitExamInfo.exam_type,
+      exam_date: params.exitExamInfo.exam_date,
+      grade_level: params.exitExamInfo.grade_level,
+      academic_year: params.exitExamInfo.academic_year,
+      semester: params.exitExamInfo.semester,
+    });
 
     // 7. 保存出口成绩
     params.onProgress?.("exit_scores", 90, "保存出口考试成绩...");
@@ -619,29 +722,41 @@ export async function checkDataIntegrity(params: {
   exitExamId: string;
 }) {
   try {
-    // 检查学生记录
-    const { count: studentCount, error: studentError } = await supabase
-      .from("students")
-      .select("*", { count: "exact", head: true })
-      .in("student_id", params.studentIds);
+    // 检查学生记录 - 添加重试保护
+    const { count: studentCount, error: studentError } = (await retryableSelect(
+      async () =>
+        await supabase
+          .from("students")
+          .select("*", { count: "exact", head: true })
+          .in("student_id", params.studentIds),
+      "检查学生记录"
+    )) as any;
 
     if (studentError) throw studentError;
 
-    // 检查入口成绩
-    const { count: entryCount, error: entryError } = await supabase
-      .from("grade_data")
-      .select("*", { count: "exact", head: true })
-      .eq("exam_id", params.entryExamId)
-      .in("student_id", params.studentIds);
+    // 检查入口成绩 - 添加重试保护
+    const { count: entryCount, error: entryError } = (await retryableSelect(
+      async () =>
+        await supabase
+          .from("grade_data")
+          .select("*", { count: "exact", head: true })
+          .eq("exam_id", params.entryExamId)
+          .in("student_id", params.studentIds),
+      "检查入口成绩"
+    )) as any;
 
     if (entryError) throw entryError;
 
-    // 检查出口成绩
-    const { count: exitCount, error: exitError } = await supabase
-      .from("grade_data")
-      .select("*", { count: "exact", head: true })
-      .eq("exam_id", params.exitExamId)
-      .in("student_id", params.studentIds);
+    // 检查出口成绩 - 添加重试保护
+    const { count: exitCount, error: exitError } = (await retryableSelect(
+      async () =>
+        await supabase
+          .from("grade_data")
+          .select("*", { count: "exact", head: true })
+          .eq("exam_id", params.exitExamId)
+          .in("student_id", params.studentIds),
+      "检查出口成绩"
+    )) as any;
 
     if (exitError) throw exitError;
 
