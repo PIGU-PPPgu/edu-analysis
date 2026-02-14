@@ -18,6 +18,19 @@ import {
 // ============================================
 export { GradeLevel, type GradeLevelInfo } from "@/types/grade";
 
+// ============================================
+// 导出动态等级计算器（支持9段评价）
+// ============================================
+export {
+  calculateGradeByDynamicConfig,
+  loadGradeLevelConfig,
+  batchCalculateGrades,
+  calculateGradeTransitionMatrix,
+  calculateLevelRetentionAndTransformation,
+  clearConfigCache,
+  type GradeLevelInDB,
+} from "@/utils/dynamicGradeCalculator";
+
 // 学科满分配置 - 根据用户反馈修正
 export const SUBJECT_MAX_SCORES: Record<Subject | string, number> = {
   [Subject.TOTAL]: 660,
