@@ -24,9 +24,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle, Info } from "lucide-react";
 import { toast } from "sonner";
 import { createValueAddedActivity } from "@/services/valueAddedActivityService";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  GradeLevelConfigDialog,
+  type GradeLevelConfig,
+} from "./GradeLevelConfigDialog";
+import { saveGradeLevelConfig } from "@/services/gradeLevelConfigService";
 
 interface CreateActivityDialogProps {
   open: boolean;
@@ -50,6 +57,9 @@ export function CreateActivityDialog({
   const [loading, setLoading] = useState(false);
   const [exams, setExams] = useState<ExamOption[]>([]);
   const [loadingExams, setLoadingExams] = useState(false);
+  const [showGradeLevelConfig, setShowGradeLevelConfig] = useState(false);
+  const [gradeLevelConfig, setGradeLevelConfig] =
+    useState<GradeLevelConfig | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -122,9 +132,28 @@ export function CreateActivityDialog({
       return;
     }
 
+    // 高中学段必须配置九段评价
+    const isHighSchool = ["高一", "高二", "高三"].includes(formData.gradeLevel);
+    if (isHighSchool && !gradeLevelConfig) {
+      toast.error("高中学段需要配置九段评价比例");
+      return;
+    }
+
     setLoading(true);
 
     try {
+      // 如果是高中学段，先保存等级配置
+      let configId: string | undefined = undefined;
+      if (isHighSchool && gradeLevelConfig) {
+        const saveResult = await saveGradeLevelConfig(gradeLevelConfig);
+        if (!saveResult.success) {
+          toast.error(`保存等级配置失败: ${saveResult.error}`);
+          setLoading(false);
+          return;
+        }
+        configId = saveResult.configId;
+      }
+
       const result = await createValueAddedActivity({
         name: formData.name,
         description: formData.description,
@@ -136,6 +165,7 @@ export function CreateActivityDialog({
         studentYear: formData.studentYear,
         academicYear: formData.academicYear,
         semester: formData.semester,
+        gradeLevelConfigId: configId,
       });
 
       if (result.success) {
@@ -156,6 +186,7 @@ export function CreateActivityDialog({
           academicYear: "",
           semester: "",
         });
+        setGradeLevelConfig(null); // 清空配置
       } else {
         toast.error(result.error || "创建失败");
       }
@@ -184,6 +215,22 @@ export function CreateActivityDialog({
         }));
       }
     }
+  };
+
+  const handleGradeLevelChange = (value: string) => {
+    setFormData((prev) => ({ ...prev, gradeLevel: value }));
+
+    // 如果选择了高中学段，弹出九段评价配置对话框
+    const isHighSchool = ["高一", "高二", "高三"].includes(value);
+    if (isHighSchool && !gradeLevelConfig) {
+      setShowGradeLevelConfig(true);
+    }
+  };
+
+  const handleGradeLevelConfigConfirm = (config: GradeLevelConfig) => {
+    setGradeLevelConfig(config);
+    setShowGradeLevelConfig(false);
+    toast.success("九段评价配置已保存，将用于本次增值活动");
   };
 
   return (
@@ -292,9 +339,7 @@ export function CreateActivityDialog({
               <Label htmlFor="gradeLevel">年级 *</Label>
               <Select
                 value={formData.gradeLevel}
-                onValueChange={(value) =>
-                  setFormData((prev) => ({ ...prev, gradeLevel: value }))
-                }
+                onValueChange={handleGradeLevelChange}
               >
                 <SelectTrigger id="gradeLevel">
                   <SelectValue placeholder="选择年级" />
@@ -308,6 +353,56 @@ export function CreateActivityDialog({
                   <SelectItem value="高三">高三</SelectItem>
                 </SelectContent>
               </Select>
+
+              {/* 高中学段显示九段配置信息 */}
+              {["高一", "高二", "高三"].includes(formData.gradeLevel) && (
+                <div className="mt-2">
+                  {gradeLevelConfig ? (
+                    <Alert className="bg-green-50 border-green-200">
+                      <Info className="h-4 w-4 text-green-600" />
+                      <AlertDescription className="text-sm">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <strong className="text-green-900">
+                              {gradeLevelConfig.configName}
+                            </strong>
+                            <div className="text-xs text-green-700 mt-1">
+                              {gradeLevelConfig.segments
+                                .map((s) => `${s.percentage}%`)
+                                .join("-")}
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowGradeLevelConfig(true)}
+                            className="ml-2"
+                          >
+                            修改配置
+                          </Button>
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    <Alert className="bg-amber-50 border-amber-200">
+                      <AlertCircle className="h-4 w-4 text-amber-600" />
+                      <AlertDescription className="text-sm text-amber-800">
+                        高中学段需要配置九段评价比例
+                        <Button
+                          type="button"
+                          variant="link"
+                          size="sm"
+                          onClick={() => setShowGradeLevelConfig(true)}
+                          className="ml-2 p-0 h-auto text-amber-900 underline"
+                        >
+                          立即配置
+                        </Button>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              )}
             </div>
 
             <div>
@@ -377,6 +472,14 @@ export function CreateActivityDialog({
           </DialogFooter>
         </form>
       </DialogContent>
+
+      {/* 高中九段评价配置对话框 */}
+      <GradeLevelConfigDialog
+        open={showGradeLevelConfig}
+        onOpenChange={setShowGradeLevelConfig}
+        onConfirm={handleGradeLevelConfigConfirm}
+        initialConfig={gradeLevelConfig || undefined}
+      />
     </Dialog>
   );
 }
