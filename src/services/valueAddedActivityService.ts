@@ -13,6 +13,14 @@ import { calculateClassValueAdded } from "./classValueAddedService";
 import { calculateTeacherValueAdded } from "./teacherValueAddedService";
 import { calculateSubjectBalance } from "./subjectBalanceService";
 import { calculateStudentValueAdded } from "./studentValueAddedService";
+import {
+  generateOverallDiagnostics,
+  generateSubjectDiagnostics,
+  generateClassDiagnostics,
+  detectAnomalies,
+  type AIAnalysisSummary,
+  type AnalysisStats,
+} from "./ai/diagnosticEngine";
 
 // ============================================
 // 活动创建和管理
@@ -861,7 +869,48 @@ export async function executeValueAddedCalculation(
       }
     }
 
-    // 10. 更新活动状态为完成
+    // 10. AI智能分析摘要预计算（Phase 1新增）
+    console.log("🤖 开始预计算AI智能分析摘要...");
+    onProgress?.({
+      step: "ai_analysis",
+      progress: 97,
+      message: "正在生成AI智能分析摘要...",
+    });
+
+    try {
+      const aiSummary = await generateAIAnalysisSummary(
+        activityId,
+        allStudentResults,
+        allClassResults
+      );
+
+      if (aiSummary) {
+        const { error: aiError } = await supabase
+          .from("value_added_cache")
+          .insert({
+            activity_id: activityId,
+            report_type: "ai_analysis_summary",
+            dimension: "activity",
+            target_id: activityId,
+            target_name: activity.name,
+            result: aiSummary as any,
+          });
+
+        if (aiError) {
+          console.error("保存AI分析摘要失败:", aiError);
+          // 不阻断流程，仅记录错误
+        } else {
+          console.log(
+            `✅ AI分析摘要保存成功，耗时: ${aiSummary.performanceMetrics.calculationTime}ms`
+          );
+        }
+      }
+    } catch (error) {
+      console.error("生成AI分析摘要失败:", error);
+      // 不阻断流程，仅记录错误
+    }
+
+    // 11. 更新活动状态为完成
     await updateActivityStatus(activityId, "completed");
     onProgress?.({
       step: "complete",
@@ -987,5 +1036,258 @@ export async function getActivityStatistics() {
       completed: 0,
       failed: 0,
     };
+  }
+}
+
+// ============================================
+// AI智能分析摘要生成（Phase 1新增）
+// ============================================
+
+/**
+ * 生成AI智能分析摘要
+ * 从已缓存的学生和班级结果中提取统计数据，生成诊断建议
+ */
+async function generateAIAnalysisSummary(
+  activityId: string,
+  allStudentResults: any[],
+  allClassResults: any[]
+): Promise<AIAnalysisSummary | null> {
+  const startTime = Date.now();
+
+  try {
+    if (allStudentResults.length === 0) {
+      console.warn("学生结果为空，跳过AI分析摘要生成");
+      return null;
+    }
+
+    // 1. 提取所有学生数据（从result字段）
+    const students = allStudentResults.map((item) => item.result);
+
+    // 2. 计算整体统计
+    const totalStudents = new Set(students.map((s) => s.student_id)).size;
+    const progressCount = students.filter(
+      (s) => s.score_value_added > 0
+    ).length;
+    const consolidatedCount = students.filter((s) => s.is_consolidated).length;
+    const transformedCount = students.filter((s) => s.is_transformed).length;
+    const avgScoreChange =
+      students.reduce((sum, s) => sum + (s.score_value_added || 0), 0) /
+      students.length;
+
+    const overallStats = {
+      totalStudents,
+      avgScoreChange,
+      progressRate: (progressCount / students.length) * 100,
+      consolidationRate: (consolidatedCount / students.length) * 100,
+      transformationRate: (transformedCount / students.length) * 100,
+    };
+
+    // 3. 按科目统计
+    const subjectMap = new Map<string, any[]>();
+    students.forEach((s) => {
+      if (!subjectMap.has(s.subject)) {
+        subjectMap.set(s.subject, []);
+      }
+      subjectMap.get(s.subject)!.push(s);
+    });
+
+    const subjectStats: AnalysisStats["subjectStats"] = [];
+    const subjectSummaries: AIAnalysisSummary["subjectSummaries"] = [];
+
+    for (const [subject, subjectStudents] of subjectMap) {
+      const subjectProgressCount = subjectStudents.filter(
+        (s) => s.score_value_added > 0
+      ).length;
+      const subjectAvgChange =
+        subjectStudents.reduce(
+          (sum, s) => sum + (s.score_value_added || 0),
+          0
+        ) / subjectStudents.length;
+
+      // 计算优秀生和后进生占比
+      const highAchieverCount = subjectStudents.filter(
+        (s) => s.exit_level === "A+" || s.exit_level === "A"
+      ).length;
+      const lowAchieverCount = subjectStudents.filter(
+        (s) => s.exit_level === "C+" || s.exit_level === "C"
+      ).length;
+
+      const stats = {
+        subject,
+        studentCount: subjectStudents.length,
+        avgScoreChange: subjectAvgChange,
+        progressRate: (subjectProgressCount / subjectStudents.length) * 100,
+        highAchieverRate: (highAchieverCount / subjectStudents.length) * 100,
+        lowAchieverRate: (lowAchieverCount / subjectStudents.length) * 100,
+      };
+
+      subjectStats.push(stats);
+
+      // 找出该科目进步最快的班级（Top 3）
+      const classBySubject = new Map<string, any[]>();
+      subjectStudents.forEach((s) => {
+        if (!classBySubject.has(s.class_name)) {
+          classBySubject.set(s.class_name, []);
+        }
+        classBySubject.get(s.class_name)!.push(s);
+      });
+
+      const classAvgChanges = Array.from(classBySubject.entries())
+        .map(([className, classStudents]) => ({
+          className,
+          avgChange:
+            classStudents.reduce((sum, s) => sum + s.score_value_added, 0) /
+            classStudents.length,
+        }))
+        .sort((a, b) => b.avgChange - a.avgChange);
+
+      const topClasses = classAvgChanges.slice(0, 3).map((c) => c.className);
+
+      // 生成科目诊断建议
+      const diagnostics = generateSubjectDiagnostics(stats);
+
+      subjectSummaries.push({
+        subject,
+        studentCount: subjectStudents.length,
+        avgScoreChange: subjectAvgChange,
+        progressRate: stats.progressRate,
+        topClasses,
+        diagnostics,
+      });
+    }
+
+    // 4. 按班级统计
+    const classMap = new Map<string, any[]>();
+    students.forEach((s) => {
+      if (!classMap.has(s.class_name)) {
+        classMap.set(s.class_name, []);
+      }
+      classMap.get(s.class_name)!.push(s);
+    });
+
+    const classStats: AnalysisStats["classStats"] = [];
+    const classSummaries: AIAnalysisSummary["classSummaries"] = [];
+
+    for (const [className, classStudents] of classMap) {
+      const classProgressCount = classStudents.filter(
+        (s) => s.score_value_added > 0
+      ).length;
+      const classAvgChange =
+        classStudents.reduce((sum, s) => sum + (s.score_value_added || 0), 0) /
+        classStudents.length;
+
+      // 计算学科均衡度（使用标准差倒数）
+      const subjectAvgs = Array.from(
+        new Set(classStudents.map((s) => s.subject))
+      ).map((subject) => {
+        const subjectStudents = classStudents.filter(
+          (s) => s.subject === subject
+        );
+        return (
+          subjectStudents.reduce((sum, s) => sum + s.score_value_added, 0) /
+          subjectStudents.length
+        );
+      });
+
+      const mean =
+        subjectAvgs.reduce((sum, v) => sum + v, 0) / subjectAvgs.length;
+      const variance =
+        subjectAvgs.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) /
+        subjectAvgs.length;
+      const stdDev = Math.sqrt(variance);
+      const subjectBalance = stdDev === 0 ? 1 : 1 / (1 + stdDev);
+
+      const stats = {
+        className,
+        studentCount: new Set(classStudents.map((s) => s.student_id)).size,
+        avgScoreChange: classAvgChange,
+        progressRate: (classProgressCount / classStudents.length) * 100,
+        subjectBalance,
+      };
+
+      classStats.push(stats);
+
+      // 找出该班级表现最好的科目（Top 3）
+      const subjectByClass = new Map<string, any[]>();
+      classStudents.forEach((s) => {
+        if (!subjectByClass.has(s.subject)) {
+          subjectByClass.set(s.subject, []);
+        }
+        subjectByClass.get(s.subject)!.push(s);
+      });
+
+      const subjectAvgChanges = Array.from(subjectByClass.entries())
+        .map(([subject, subjectStudents]) => ({
+          subject,
+          avgChange:
+            subjectStudents.reduce((sum, s) => sum + s.score_value_added, 0) /
+            subjectStudents.length,
+        }))
+        .sort((a, b) => b.avgChange - a.avgChange);
+
+      const topSubjects = subjectAvgChanges.slice(0, 3).map((s) => s.subject);
+
+      // 生成班级诊断建议
+      const diagnostics = generateClassDiagnostics(stats);
+
+      classSummaries.push({
+        className,
+        studentCount: stats.studentCount,
+        avgScoreChange: classAvgChange,
+        progressRate: stats.progressRate,
+        subjectBalance,
+        topSubjects,
+        diagnostics,
+      });
+    }
+
+    // 5. 异常检测
+    const analysisStats: AnalysisStats = {
+      ...overallStats,
+      subjectStats,
+      classStats,
+    };
+    const anomalies = detectAnomalies(analysisStats);
+    analysisStats.anomalies = anomalies;
+
+    // 6. 生成整体诊断建议
+    const overallDiagnostics = generateOverallDiagnostics(analysisStats);
+
+    // 7. 计算性能指标
+    const calculationTime = Date.now() - startTime;
+    const dataPoints = students.length;
+    const cacheSize = JSON.stringify({
+      overallStats,
+      subjectSummaries,
+      classSummaries,
+      overallDiagnostics,
+    }).length;
+
+    const aiSummary: AIAnalysisSummary = {
+      activityId,
+      generatedAt: new Date().toISOString(),
+      overallStats,
+      subjectSummaries,
+      classSummaries,
+      overallDiagnostics,
+      performanceMetrics: {
+        calculationTime,
+        dataPoints,
+        cacheSize,
+      },
+    };
+
+    console.log(`✅ AI分析摘要生成完成:`, {
+      科目数: subjectSummaries.length,
+      班级数: classSummaries.length,
+      诊断建议数: overallDiagnostics.length,
+      耗时: `${calculationTime}ms`,
+      缓存大小: `${(cacheSize / 1024).toFixed(2)}KB`,
+    });
+
+    return aiSummary;
+  } catch (error) {
+    console.error("生成AI分析摘要失败:", error);
+    return null;
   }
 }

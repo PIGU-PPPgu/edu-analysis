@@ -1,6 +1,7 @@
 /**
  * AI智能分析报告
  * 整合趋势预测、进步排行、AI诊断建议
+ * Phase 1优化：优先读取预计算的AI分析摘要缓存
  */
 
 import { useState, useEffect, useMemo } from "react";
@@ -24,6 +25,7 @@ import type {
   ValueAddedMetrics,
   StudentValueAdded,
 } from "@/types/valueAddedTypes";
+import type { AIAnalysisSummary } from "@/services/ai/diagnosticEngine";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -43,9 +45,43 @@ export function AIAnalysisReport({
   const [studentData, setStudentData] = useState<StudentValueAdded[]>(
     externalStudentData || [] // 优先使用传入的数据
   );
+  const [aiSummary, setAiSummary] = useState<AIAnalysisSummary | null>(null); // Phase 1新增：缓存的AI摘要
   const [loading, setLoading] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<string>("全部科目");
   const [selectedClass, setSelectedClass] = useState<string>("全部班级");
+
+  // Phase 1新增：加载AI分析摘要缓存（优先级最高）
+  useEffect(() => {
+    const loadAISummary = async () => {
+      if (!activityId) return;
+
+      try {
+        const { data, error } = await supabase
+          .from("value_added_cache")
+          .select("result")
+          .eq("activity_id", activityId)
+          .eq("report_type", "ai_analysis_summary")
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (data?.result) {
+          setAiSummary(data.result as AIAnalysisSummary);
+          console.log(
+            "✅ [AIAnalysisReport] 加载AI分析摘要缓存成功:",
+            data.result.performanceMetrics
+          );
+        } else {
+          console.log("⏭️ [AIAnalysisReport] 未找到AI摘要缓存，将使用实时计算");
+        }
+      } catch (err) {
+        console.error("❌ [AIAnalysisReport] 加载AI摘要缓存失败:", err);
+        // 不阻断流程，fallback到实时计算
+      }
+    };
+
+    loadAISummary();
+  }, [activityId]);
 
   // 当外部数据变化时，更新本地状态
   useEffect(() => {
@@ -203,6 +239,17 @@ export function AIAnalysisReport({
 
   // 统计数据
   const stats = useMemo(() => {
+    // Phase 1优化：优先使用缓存的AI摘要统计
+    if (
+      aiSummary &&
+      selectedSubject === "全部科目" &&
+      selectedClass === "全部班级"
+    ) {
+      console.log("✅ [AIAnalysisReport] 使用缓存的统计数据");
+      return aiSummary.overallStats;
+    }
+
+    // Fallback：实时计算（筛选时使用）
     if (filteredData.length === 0) {
       return {
         totalStudents: 0,
@@ -232,10 +279,26 @@ export function AIAnalysisReport({
       consolidationRate: (consolidatedCount / filteredData.length) * 100,
       transformationRate: (transformedCount / filteredData.length) * 100,
     };
-  }, [filteredData]);
+  }, [filteredData, aiSummary, selectedSubject, selectedClass]); // Phase 1：添加aiSummary依赖
 
   // AI诊断建议（基于统计数据生成）
   const aiDiagnostics = useMemo(() => {
+    // Phase 1优化：优先使用缓存的诊断建议
+    if (
+      aiSummary &&
+      selectedSubject === "全部科目" &&
+      selectedClass === "全部班级"
+    ) {
+      console.log("✅ [AIAnalysisReport] 使用缓存的诊断建议");
+      // 将diagnosticEngine的格式转换为组件所需格式
+      return aiSummary.overallDiagnostics.map((d) => ({
+        type: d.type,
+        title: d.title,
+        description: d.description,
+      }));
+    }
+
+    // Fallback：实时生成（筛选时使用）
     const suggestions: Array<{
       type: "success" | "warning" | "info";
       title: string;
@@ -308,7 +371,7 @@ export function AIAnalysisReport({
     }
 
     return suggestions;
-  }, [stats]);
+  }, [stats, aiSummary, selectedSubject, selectedClass]); // Phase 1：添加aiSummary依赖
 
   const isLoading = loading || externalLoading;
 
