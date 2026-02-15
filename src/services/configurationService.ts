@@ -512,3 +512,476 @@ export async function getConfigurationDataStatus(id: string): Promise<{
     };
   }
 }
+
+// ============================================
+// Phase 2: 高级功能
+// ============================================
+
+/**
+ * 复制配置（深拷贝）
+ */
+export async function copyConfiguration(
+  id: string,
+  newName?: string
+): Promise<ConfigurationImportResult> {
+  try {
+    // 1. 获取原配置
+    const { data: originalConfig, error: configError } = await supabase
+      .from("import_configurations")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (configError || !originalConfig) {
+      throw new Error("原配置不存在");
+    }
+
+    // 2. 生成新配置名称
+    const baseName = newName || `${originalConfig.name} 副本`;
+    const uniqueName = await ensureUniqueName(baseName);
+
+    // 3. 创建新配置记录
+    const { data: newConfig, error: newConfigError } = await supabase
+      .from("import_configurations")
+      .insert({
+        name: uniqueName,
+        description: originalConfig.description,
+        academic_year: originalConfig.academic_year,
+        semester: originalConfig.semester,
+        grade_levels: originalConfig.grade_levels,
+        student_count: originalConfig.student_count,
+        class_count: originalConfig.class_count,
+        teacher_count: originalConfig.teacher_count,
+        subject_count: originalConfig.subject_count,
+        is_active: false, // 新配置默认未激活
+      })
+      .select()
+      .single();
+
+    if (newConfigError || !newConfig) {
+      throw new Error(`创建配置失败: ${newConfigError?.message}`);
+    }
+
+    const newConfigId = newConfig.id;
+
+    // 4. 复制学生数据
+    const { data: students, error: studentsError } = await supabase
+      .from("students")
+      .select("*")
+      .eq("config_id", id);
+
+    if (studentsError) {
+      throw new Error(`获取学生数据失败: ${studentsError.message}`);
+    }
+
+    let copiedStudentsCount = 0;
+    if (students && students.length > 0) {
+      const newStudents = students.map((student) => ({
+        student_id: student.student_id,
+        name: student.name,
+        class_id: student.class_id,
+        class_name: student.class_name,
+        gender: student.gender,
+        contact_phone: student.contact_phone,
+        contact_email: student.contact_email,
+        admission_year: student.admission_year,
+        config_id: newConfigId,
+      }));
+
+      const { error: insertStudentsError, count } = await supabase
+        .from("students")
+        .insert(newStudents)
+        .select("id", { count: "exact" });
+
+      if (insertStudentsError) {
+        throw new Error(`复制学生数据失败: ${insertStudentsError.message}`);
+      }
+      copiedStudentsCount = count || 0;
+    }
+
+    // 5. 复制教学编排数据
+    const { data: teacherSubjects, error: tsError } = await supabase
+      .from("teacher_student_subjects")
+      .select("*")
+      .eq("config_id", id);
+
+    if (tsError) {
+      throw new Error(`获取教学编排失败: ${tsError.message}`);
+    }
+
+    let copiedTeachersCount = 0;
+    if (teacherSubjects && teacherSubjects.length > 0) {
+      const newTeacherSubjects = teacherSubjects.map((ts) => ({
+        teacher_id: ts.teacher_id,
+        teacher_name: ts.teacher_name,
+        student_id: ts.student_id,
+        student_name: ts.student_name,
+        subject: ts.subject,
+        class_name: ts.class_name,
+        class_type: ts.class_type,
+        academic_year: ts.academic_year,
+        semester: ts.semester,
+        is_elective: ts.is_elective,
+        config_id: newConfigId,
+      }));
+
+      const { error: insertTsError } = await supabase
+        .from("teacher_student_subjects")
+        .insert(newTeacherSubjects);
+
+      if (insertTsError) {
+        throw new Error(`复制教学编排失败: ${insertTsError.message}`);
+      }
+
+      // 统计去重的教师数量
+      const uniqueTeachers = new Set(
+        teacherSubjects.map((ts) => ts.teacher_id)
+      );
+      copiedTeachersCount = uniqueTeachers.size;
+    }
+
+    return {
+      success: true,
+      config_id: newConfigId,
+      students_created: copiedStudentsCount,
+      teachers_created: copiedTeachersCount,
+    };
+  } catch (error) {
+    console.error("复制配置失败:", error);
+    return {
+      success: false,
+      config_id: "",
+      students_created: 0,
+      teachers_created: 0,
+      errors: [error instanceof Error ? error.message : "未知错误"],
+    };
+  }
+}
+
+/**
+ * 批量更新配置
+ */
+export async function batchUpdateConfigurations(
+  ids: string[],
+  updates: Partial<Pick<ImportConfiguration, "is_active">>
+): Promise<{ success: number; failed: number; errors: string[] }> {
+  const results = {
+    success: 0,
+    failed: 0,
+    errors: [] as string[],
+  };
+
+  for (const id of ids) {
+    const { error } = await supabase
+      .from("import_configurations")
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+
+    if (error) {
+      results.failed++;
+      results.errors.push(`配置 ${id} 更新失败: ${error.message}`);
+    } else {
+      results.success++;
+    }
+  }
+
+  return results;
+}
+
+/**
+ * 批量删除配置
+ */
+export async function batchDeleteConfigurations(
+  ids: string[],
+  cascade: boolean = true
+): Promise<{ success: number; failed: number; errors: string[] }> {
+  const results = {
+    success: 0,
+    failed: 0,
+    errors: [] as string[],
+  };
+
+  for (const id of ids) {
+    const result = await deleteConfiguration(id, { cascade });
+
+    if (result.success) {
+      results.success++;
+    } else {
+      results.failed++;
+      results.errors.push(result.error || `删除配置 ${id} 失败`);
+    }
+  }
+
+  return results;
+}
+
+/**
+ * 导出配置为JSON
+ */
+export async function exportConfiguration(id: string): Promise<{
+  success: boolean;
+  data?: any;
+  error?: string;
+}> {
+  try {
+    // 1. 获取配置基本信息
+    const { data: config, error: configError } = await supabase
+      .from("import_configurations")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (configError || !config) {
+      return { success: false, error: "配置不存在" };
+    }
+
+    // 2. 获取学生数据
+    const { data: students, error: studentsError } = await supabase
+      .from("students")
+      .select("*")
+      .eq("config_id", id);
+
+    if (studentsError) {
+      return {
+        success: false,
+        error: `获取学生数据失败: ${studentsError.message}`,
+      };
+    }
+
+    // 3. 获取教学编排数据
+    const { data: teacherSubjects, error: tsError } = await supabase
+      .from("teacher_student_subjects")
+      .select("*")
+      .eq("config_id", id);
+
+    if (tsError) {
+      return {
+        success: false,
+        error: `获取教学编排失败: ${tsError.message}`,
+      };
+    }
+
+    // 4. 组装导出数据
+    const exportData = {
+      version: "1.0",
+      exported_at: new Date().toISOString(),
+      configuration: config,
+      students: students || [],
+      teacher_student_subjects: teacherSubjects || [],
+      metadata: {
+        student_count: students?.length || 0,
+        teacher_count: new Set(
+          teacherSubjects?.map((ts) => ts.teacher_id) || []
+        ).size,
+        class_count: new Set(students?.map((s) => s.class_name) || []).size,
+      },
+    };
+
+    return { success: true, data: exportData };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "导出失败",
+    };
+  }
+}
+
+/**
+ * 批量导出配置
+ */
+export async function exportConfigurations(ids: string[]): Promise<{
+  success: boolean;
+  data?: any[];
+  error?: string;
+}> {
+  try {
+    const exports = await Promise.all(ids.map((id) => exportConfiguration(id)));
+
+    const failedExports = exports.filter((e) => !e.success);
+    if (failedExports.length > 0) {
+      return {
+        success: false,
+        error: `${failedExports.length} 个配置导出失败`,
+      };
+    }
+
+    return {
+      success: true,
+      data: exports.map((e) => e.data),
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "批量导出失败",
+    };
+  }
+}
+
+/**
+ * 导入配置
+ */
+export async function importConfiguration(
+  data: any,
+  mode: "overwrite" | "rename" = "rename"
+): Promise<ConfigurationImportResult> {
+  try {
+    // 1. 验证数据格式
+    if (!data.version || !data.configuration) {
+      throw new Error("无效的配置文件格式");
+    }
+
+    const originalConfig = data.configuration;
+    let configName = originalConfig.name;
+
+    // 2. 处理重名冲突
+    if (mode === "rename") {
+      configName = await ensureUniqueName(configName);
+    } else {
+      // overwrite模式：删除同名配置
+      const { data: existing } = await supabase
+        .from("import_configurations")
+        .select("id")
+        .eq("name", configName)
+        .maybeSingle();
+
+      if (existing) {
+        await deleteConfiguration(existing.id, { cascade: true });
+      }
+    }
+
+    // 3. 创建新配置
+    const { data: newConfig, error: configError } = await supabase
+      .from("import_configurations")
+      .insert({
+        name: configName,
+        description: originalConfig.description,
+        academic_year: originalConfig.academic_year,
+        semester: originalConfig.semester,
+        grade_levels: originalConfig.grade_levels,
+        student_count: data.metadata.student_count,
+        class_count: data.metadata.class_count,
+        teacher_count: data.metadata.teacher_count,
+        subject_count: originalConfig.subject_count,
+        is_active: false,
+      })
+      .select()
+      .single();
+
+    if (configError || !newConfig) {
+      throw new Error(`创建配置失败: ${configError?.message}`);
+    }
+
+    const newConfigId = newConfig.id;
+
+    // 4. 导入学生数据
+    let studentsCount = 0;
+    if (data.students && data.students.length > 0) {
+      const newStudents = data.students.map((student: any) => ({
+        ...student,
+        config_id: newConfigId,
+        id: undefined, // 移除原ID，让数据库生成新ID
+        created_at: undefined,
+        updated_at: undefined,
+      }));
+
+      const { error: studentsError, count } = await supabase
+        .from("students")
+        .insert(newStudents)
+        .select("id", { count: "exact" });
+
+      if (studentsError) {
+        throw new Error(`导入学生数据失败: ${studentsError.message}`);
+      }
+      studentsCount = count || 0;
+    }
+
+    // 5. 导入教学编排数据
+    let teachersCount = 0;
+    if (
+      data.teacher_student_subjects &&
+      data.teacher_student_subjects.length > 0
+    ) {
+      const newTeacherSubjects = data.teacher_student_subjects.map(
+        (ts: any) => ({
+          ...ts,
+          config_id: newConfigId,
+          id: undefined,
+          created_at: undefined,
+          updated_at: undefined,
+        })
+      );
+
+      const { error: tsError } = await supabase
+        .from("teacher_student_subjects")
+        .insert(newTeacherSubjects);
+
+      if (tsError) {
+        throw new Error(`导入教学编排失败: ${tsError.message}`);
+      }
+
+      teachersCount = new Set(
+        data.teacher_student_subjects.map((ts: any) => ts.teacher_id)
+      ).size;
+    }
+
+    return {
+      success: true,
+      config_id: newConfigId,
+      students_created: studentsCount,
+      teachers_created: teachersCount,
+    };
+  } catch (error) {
+    console.error("导入配置失败:", error);
+    return {
+      success: false,
+      config_id: "",
+      students_created: 0,
+      teachers_created: 0,
+      errors: [error instanceof Error ? error.message : "未知错误"],
+    };
+  }
+}
+
+/**
+ * 获取配置使用统计
+ */
+export async function getConfigurationUsageStats(id: string): Promise<{
+  usage_count: number;
+  last_usage_date?: string;
+  exams_count: number;
+}> {
+  try {
+    const { data, error } = await supabase
+      .from("grade_data")
+      .select("exam_id, created_at")
+      .eq("config_id", id);
+
+    if (error) {
+      console.error("获取使用统计失败:", error);
+      return { usage_count: 0, exams_count: 0 };
+    }
+
+    if (!data || data.length === 0) {
+      return { usage_count: 0, exams_count: 0 };
+    }
+
+    // 统计不同考试数量
+    const uniqueExams = new Set(data.map((d) => d.exam_id));
+
+    // 获取最后使用时间
+    const dates = data.map((d) => new Date(d.created_at).getTime());
+    const lastUsageDate = new Date(Math.max(...dates)).toISOString();
+
+    return {
+      usage_count: data.length,
+      last_usage_date: lastUsageDate,
+      exams_count: uniqueExams.size,
+    };
+  } catch (error) {
+    console.error("获取使用统计异常:", error);
+    return { usage_count: 0, exams_count: 0 };
+  }
+}

@@ -54,14 +54,29 @@ import {
   CheckCircle,
   Search,
   Filter,
+  Copy,
+  Download,
+  Upload,
+  BarChart3,
+  CheckSquare,
+  Square,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { saveAs } from "file-saver";
 import {
   listConfigurations,
   getConfiguration,
   updateConfiguration,
   deleteConfiguration,
   getConfigurationDataStatus,
+  copyConfiguration,
+  batchUpdateConfigurations,
+  batchDeleteConfigurations,
+  exportConfiguration,
+  exportConfigurations,
+  importConfiguration,
+  getConfigurationUsageStats,
 } from "@/services/configurationService";
 import type {
   ImportConfiguration,
@@ -74,6 +89,13 @@ interface DataStatus {
   teachingArrangement: boolean;
   electiveCourse: boolean;
   gradeScores: boolean;
+}
+
+// 使用统计类型
+interface UsageStats {
+  usage_count: number;
+  last_usage_date?: string;
+  exams_count: number;
 }
 
 export function ConfigurationManager() {
@@ -104,6 +126,17 @@ export function ConfigurationManager() {
   // 分页状态
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
+
+  // Phase 2: 批量操作状态
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBatchToolbar, setShowBatchToolbar] = useState(false);
+  const [showCopyDialog, setShowCopyDialog] = useState(false);
+  const [copyingConfigId, setCopyingConfigId] = useState<string | null>(null);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [usageStatsMap, setUsageStatsMap] = useState<Map<string, UsageStats>>(
+    new Map()
+  );
 
   useEffect(() => {
     loadConfigurations();
@@ -258,6 +291,203 @@ export function ConfigurationManager() {
     }
   };
 
+  // Phase 2: 批量选择
+  const toggleSelectAll = () => {
+    if (selectedIds.size === paginatedConfigurations.length) {
+      setSelectedIds(new Set());
+      setShowBatchToolbar(false);
+    } else {
+      setSelectedIds(new Set(paginatedConfigurations.map((c) => c.id)));
+      setShowBatchToolbar(true);
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+    setShowBatchToolbar(newSelected.size > 0);
+  };
+
+  // Phase 2: 复制配置
+  const handleCopy = (id: string) => {
+    setCopyingConfigId(id);
+    setShowCopyDialog(true);
+  };
+
+  const handleConfirmCopy = async () => {
+    if (!copyingConfigId) return;
+
+    try {
+      toast.info("正在复制配置...");
+      const result = await copyConfiguration(copyingConfigId);
+
+      if (result.success) {
+        toast.success(
+          `配置复制成功！复制了 ${result.students_created} 名学生，${result.teachers_created} 名教师`
+        );
+        setShowCopyDialog(false);
+        loadConfigurations();
+      } else {
+        toast.error(result.errors?.[0] || "复制失败");
+      }
+    } catch (error) {
+      console.error("复制配置失败:", error);
+      toast.error("复制配置失败");
+    }
+  };
+
+  // Phase 2: 批量激活/停用
+  const handleBatchToggleActive = async (activate: boolean) => {
+    try {
+      toast.info(`正在批量${activate ? "激活" : "停用"}...`);
+      const result = await batchUpdateConfigurations(Array.from(selectedIds), {
+        is_active: activate,
+      });
+
+      toast.success(`成功 ${result.success} 个，失败 ${result.failed} 个`);
+      setSelectedIds(new Set());
+      setShowBatchToolbar(false);
+      loadConfigurations();
+    } catch (error) {
+      console.error("批量操作失败:", error);
+      toast.error("批量操作失败");
+    }
+  };
+
+  // Phase 2: 批量删除
+  const handleBatchDelete = async () => {
+    if (
+      !confirm(
+        `确定要删除选中的 ${selectedIds.size} 个配置吗？这将同时删除关联的所有数据。`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      toast.info("正在批量删除...");
+      const result = await batchDeleteConfigurations(
+        Array.from(selectedIds),
+        true
+      );
+
+      toast.success(`成功删除 ${result.success} 个，失败 ${result.failed} 个`);
+      if (result.errors.length > 0) {
+        console.error("删除错误:", result.errors);
+      }
+      setSelectedIds(new Set());
+      setShowBatchToolbar(false);
+      loadConfigurations();
+    } catch (error) {
+      console.error("批量删除失败:", error);
+      toast.error("批量删除失败");
+    }
+  };
+
+  // Phase 2: 单个导出
+  const handleExport = async (id: string) => {
+    try {
+      toast.info("正在导出配置...");
+      const result = await exportConfiguration(id);
+
+      if (result.success && result.data) {
+        const config = configurations.find((c) => c.id === id);
+        const fileName = `config_${config?.name || "unnamed"}_${new Date().toISOString().split("T")[0]}.json`;
+        const blob = new Blob([JSON.stringify(result.data, null, 2)], {
+          type: "application/json",
+        });
+        saveAs(blob, fileName);
+        toast.success("配置导出成功");
+      } else {
+        toast.error(result.error || "导出失败");
+      }
+    } catch (error) {
+      console.error("导出配置失败:", error);
+      toast.error("导出配置失败");
+    }
+  };
+
+  // Phase 2: 批量导出
+  const handleBatchExport = async () => {
+    try {
+      toast.info("正在批量导出配置...");
+      const result = await exportConfigurations(Array.from(selectedIds));
+
+      if (result.success && result.data) {
+        const fileName = `configs_batch_${new Date().toISOString().split("T")[0]}.json`;
+        const blob = new Blob([JSON.stringify(result.data, null, 2)], {
+          type: "application/json",
+        });
+        saveAs(blob, fileName);
+        toast.success(`成功导出 ${result.data.length} 个配置`);
+      } else {
+        toast.error(result.error || "批量导出失败");
+      }
+    } catch (error) {
+      console.error("批量导出失败:", error);
+      toast.error("批量导出失败");
+    }
+  };
+
+  // Phase 2: 导入配置
+  const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setImportFile(file);
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    if (!importFile) return;
+
+    try {
+      toast.info("正在导入配置...");
+      const text = await importFile.text();
+      const data = JSON.parse(text);
+
+      const result = await importConfiguration(data, "rename");
+
+      if (result.success) {
+        toast.success(
+          `配置导入成功！导入了 ${result.students_created} 名学生，${result.teachers_created} 名教师`
+        );
+        setShowImportDialog(false);
+        setImportFile(null);
+        loadConfigurations();
+      } else {
+        toast.error(result.errors?.[0] || "导入失败");
+      }
+    } catch (error) {
+      console.error("导入配置失败:", error);
+      toast.error(error instanceof Error ? error.message : "导入配置失败");
+    }
+  };
+
+  // Phase 2: 加载使用统计
+  useEffect(() => {
+    const loadUsageStats = async () => {
+      const statsPromises = configurations.map((config) =>
+        getConfigurationUsageStats(config.id)
+      );
+      const stats = await Promise.all(statsPromises);
+
+      const statsMap = new Map<string, UsageStats>();
+      configurations.forEach((config, index) => {
+        statsMap.set(config.id, stats[index]);
+      });
+      setUsageStatsMap(statsMap);
+    };
+
+    if (configurations.length > 0) {
+      loadUsageStats();
+    }
+  }, [configurations]);
+
   if (loading) {
     return <div className="p-6">加载中...</div>;
   }
@@ -266,9 +496,19 @@ export function ConfigurationManager() {
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">配置管理</h1>
-        <Badge variant="outline">
-          {filteredConfigurations.length} / {configurations.length} 个配置
-        </Badge>
+        <div className="flex items-center gap-4">
+          <Badge variant="outline">
+            {filteredConfigurations.length} / {configurations.length} 个配置
+          </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowImportDialog(true)}
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            导入配置
+          </Button>
+        </div>
       </div>
 
       {/* 搜索和筛选区域 */}
@@ -297,8 +537,58 @@ export function ConfigurationManager() {
               <SelectItem value="inactive">仅停用</SelectItem>
             </SelectContent>
           </Select>
+          {paginatedConfigurations.length > 0 && (
+            <Button variant="outline" size="sm" onClick={toggleSelectAll}>
+              {selectedIds.size === paginatedConfigurations.length ? (
+                <CheckSquare className="h-4 w-4 mr-2" />
+              ) : (
+                <Square className="h-4 w-4 mr-2" />
+              )}
+              全选
+            </Button>
+          )}
         </div>
       </div>
+
+      {/* 批量操作工具栏 */}
+      {showBatchToolbar && (
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-primary text-primary-foreground rounded-lg shadow-lg p-4 flex items-center gap-4 z-50">
+          <span className="font-medium">已选择 {selectedIds.size} 个配置</span>
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => handleBatchToggleActive(true)}
+            >
+              批量激活
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => handleBatchToggleActive(false)}
+            >
+              批量停用
+            </Button>
+            <Button variant="secondary" size="sm" onClick={handleBatchExport}>
+              <Download className="h-4 w-4 mr-1" />
+              批量导出
+            </Button>
+            <Button variant="destructive" size="sm" onClick={handleBatchDelete}>
+              批量删除
+            </Button>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setSelectedIds(new Set());
+              setShowBatchToolbar(false);
+            }}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
 
       {filteredConfigurations.length === 0 ? (
         <Alert>
@@ -312,206 +602,275 @@ export function ConfigurationManager() {
       ) : (
         <>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {paginatedConfigurations.map((config) => (
-              <Card
-                key={config.id}
-                className={
-                  !config.is_active
-                    ? "opacity-60 border-red-200 bg-red-50/30"
-                    : ""
-                }
-              >
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <CardTitle className="text-lg">{config.name}</CardTitle>
-                    <Badge
-                      variant={config.is_active ? "default" : "destructive"}
-                    >
-                      {config.is_active ? "活跃" : "已停用"}
-                    </Badge>
-                  </div>
-                  {config.description && (
-                    <p className="text-sm text-muted-foreground mt-2">
-                      {config.description}
-                    </p>
-                  )}
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* 统计信息 */}
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                      <span>{config.student_count} 名学生</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <GraduationCap className="h-4 w-4 text-muted-foreground" />
-                      <span>{config.class_count} 个班级</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                      <span>{config.teacher_count} 名教师</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <BookOpen className="h-4 w-4 text-muted-foreground" />
-                      <span>{config.subject_count} 个科目</span>
-                    </div>
-                  </div>
+            {paginatedConfigurations.map((config) => {
+              const stats = usageStatsMap.get(config.id);
+              const isIdle = stats?.last_usage_date
+                ? (new Date().getTime() -
+                    new Date(stats.last_usage_date).getTime()) /
+                    (1000 * 60 * 60 * 24) >
+                  30
+                : false;
 
-                  {/* 数据导入状态 */}
-                  {dataStatuses.has(config.id) && (
-                    <div className="pt-3 border-t">
-                      <div className="text-xs font-medium text-muted-foreground mb-2">
-                        数据导入状态
+              return (
+                <Card
+                  key={config.id}
+                  className={
+                    !config.is_active
+                      ? "opacity-60 border-red-200 bg-red-50/30"
+                      : selectedIds.has(config.id)
+                        ? "border-primary ring-2 ring-primary/20"
+                        : ""
+                  }
+                >
+                  <CardHeader>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => toggleSelect(config.id)}
+                        >
+                          {selectedIds.has(config.id) ? (
+                            <CheckSquare className="h-4 w-4 text-primary" />
+                          ) : (
+                            <Square className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <CardTitle className="text-lg">{config.name}</CardTitle>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="flex flex-col gap-1 items-end">
                         <Badge
-                          variant={
-                            dataStatuses.get(config.id)?.studentInfo
-                              ? "default"
-                              : "outline"
-                          }
-                          className="justify-center"
+                          variant={config.is_active ? "default" : "destructive"}
                         >
-                          {dataStatuses.get(config.id)?.studentInfo ? (
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                          ) : (
-                            <AlertCircle className="h-3 w-3 mr-1" />
-                          )}
-                          学生信息
+                          {config.is_active ? "活跃" : "已停用"}
                         </Badge>
-                        <Badge
-                          variant={
-                            dataStatuses.get(config.id)?.teachingArrangement
-                              ? "default"
-                              : "outline"
-                          }
-                          className="justify-center"
-                        >
-                          {dataStatuses.get(config.id)?.teachingArrangement ? (
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                          ) : (
-                            <AlertCircle className="h-3 w-3 mr-1" />
-                          )}
-                          教学编排
-                        </Badge>
-                        <Badge
-                          variant={
-                            dataStatuses.get(config.id)?.gradeScores
-                              ? "default"
-                              : "outline"
-                          }
-                          className="justify-center"
-                        >
-                          {dataStatuses.get(config.id)?.gradeScores ? (
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                          ) : (
-                            <AlertCircle className="h-3 w-3 mr-1" />
-                          )}
-                          各科成绩
-                        </Badge>
-                        <Badge
-                          variant={
-                            dataStatuses.get(config.id)?.electiveCourse
-                              ? "default"
-                              : "outline"
-                          }
-                          className="justify-center"
-                        >
-                          {dataStatuses.get(config.id)?.electiveCourse ? (
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                          ) : (
-                            <AlertCircle className="h-3 w-3 mr-1" />
-                          )}
-                          走班信息
-                        </Badge>
+                        {stats && stats.exams_count > 0 && (
+                          <Badge variant="secondary" className="text-xs">
+                            <BarChart3 className="h-3 w-3 mr-1" />
+                            {stats.exams_count} 次使用
+                          </Badge>
+                        )}
+                        {isIdle && (
+                          <Badge variant="outline" className="text-xs">
+                            30天未用
+                          </Badge>
+                        )}
                       </div>
                     </div>
-                  )}
-
-                  {/* 时间信息 */}
-                  <div className="text-xs text-muted-foreground space-y-1">
-                    {config.academic_year && (
+                    {config.description && (
+                      <p className="text-sm text-muted-foreground mt-2">
+                        {config.description}
+                      </p>
+                    )}
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* 统计信息 */}
+                    <div className="grid grid-cols-2 gap-2 text-sm">
                       <div className="flex items-center gap-2">
-                        <Calendar className="h-3 w-3" />
-                        {config.academic_year} {config.semester}
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <span>{config.student_count} 名学生</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                        <span>{config.class_count} 个班级</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <span>{config.teacher_count} 名教师</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <BookOpen className="h-4 w-4 text-muted-foreground" />
+                        <span>{config.subject_count} 个科目</span>
+                      </div>
+                    </div>
+
+                    {/* 数据导入状态 */}
+                    {dataStatuses.has(config.id) && (
+                      <div className="pt-3 border-t">
+                        <div className="text-xs font-medium text-muted-foreground mb-2">
+                          数据导入状态
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Badge
+                            variant={
+                              dataStatuses.get(config.id)?.studentInfo
+                                ? "default"
+                                : "outline"
+                            }
+                            className="justify-center"
+                          >
+                            {dataStatuses.get(config.id)?.studentInfo ? (
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                            ) : (
+                              <AlertCircle className="h-3 w-3 mr-1" />
+                            )}
+                            学生信息
+                          </Badge>
+                          <Badge
+                            variant={
+                              dataStatuses.get(config.id)?.teachingArrangement
+                                ? "default"
+                                : "outline"
+                            }
+                            className="justify-center"
+                          >
+                            {dataStatuses.get(config.id)
+                              ?.teachingArrangement ? (
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                            ) : (
+                              <AlertCircle className="h-3 w-3 mr-1" />
+                            )}
+                            教学编排
+                          </Badge>
+                          <Badge
+                            variant={
+                              dataStatuses.get(config.id)?.gradeScores
+                                ? "default"
+                                : "outline"
+                            }
+                            className="justify-center"
+                          >
+                            {dataStatuses.get(config.id)?.gradeScores ? (
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                            ) : (
+                              <AlertCircle className="h-3 w-3 mr-1" />
+                            )}
+                            各科成绩
+                          </Badge>
+                          <Badge
+                            variant={
+                              dataStatuses.get(config.id)?.electiveCourse
+                                ? "default"
+                                : "outline"
+                            }
+                            className="justify-center"
+                          >
+                            {dataStatuses.get(config.id)?.electiveCourse ? (
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                            ) : (
+                              <AlertCircle className="h-3 w-3 mr-1" />
+                            )}
+                            走班信息
+                          </Badge>
+                        </div>
                       </div>
                     )}
-                    <div>
-                      创建于 {new Date(config.created_at).toLocaleDateString()}
-                    </div>
-                    {config.last_used_at && (
+
+                    {/* 时间信息 */}
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      {config.academic_year && (
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-3 w-3" />
+                          {config.academic_year} {config.semester}
+                        </div>
+                      )}
                       <div>
-                        最后使用{" "}
-                        {new Date(config.last_used_at).toLocaleDateString()}
+                        创建于{" "}
+                        {new Date(config.created_at).toLocaleDateString()}
                       </div>
-                    )}
-                  </div>
-
-                  {/* 操作按钮 */}
-                  <TooltipProvider>
-                    <div className="flex gap-2 pt-2 flex-wrap">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewDetail(config.id)}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            查看
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>查看配置详情</TooltipContent>
-                      </Tooltip>
-
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(config)}
-                          >
-                            <Edit className="h-4 w-4 mr-1" />
-                            编辑
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>编辑配置名称和描述</TooltipContent>
-                      </Tooltip>
-
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant={config.is_active ? "outline" : "default"}
-                            size="sm"
-                            onClick={() => handleToggleActive(config)}
-                          >
-                            <Settings className="h-4 w-4 mr-1" />
-                            {config.is_active ? "停用" : "启用"}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {config.is_active ? "停用此配置" : "启用此配置"}
-                        </TooltipContent>
-                      </Tooltip>
-
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleDelete(config)}
-                          >
-                            <Trash2 className="h-4 w-4 mr-1" />
-                            删除
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>删除此配置及关联数据</TooltipContent>
-                      </Tooltip>
+                      {config.last_used_at && (
+                        <div>
+                          最后使用{" "}
+                          {new Date(config.last_used_at).toLocaleDateString()}
+                        </div>
+                      )}
                     </div>
-                  </TooltipProvider>
-                </CardContent>
-              </Card>
-            ))}
+
+                    {/* 操作按钮 */}
+                    <TooltipProvider>
+                      <div className="flex gap-2 pt-2 flex-wrap">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewDetail(config.id)}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              查看
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>查看配置详情</TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEdit(config)}
+                            >
+                              <Edit className="h-4 w-4 mr-1" />
+                              编辑
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>编辑配置名称和描述</TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleCopy(config.id)}
+                            >
+                              <Copy className="h-4 w-4 mr-1" />
+                              复制
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>复制配置</TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleExport(config.id)}
+                            >
+                              <Download className="h-4 w-4 mr-1" />
+                              导出
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>导出配置为JSON</TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant={config.is_active ? "outline" : "default"}
+                              size="sm"
+                              onClick={() => handleToggleActive(config)}
+                            >
+                              <Settings className="h-4 w-4 mr-1" />
+                              {config.is_active ? "停用" : "启用"}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {config.is_active ? "停用此配置" : "启用此配置"}
+                          </TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDelete(config)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              删除
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>删除此配置及关联数据</TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </TooltipProvider>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
 
           {/* 分页组件 */}
@@ -742,6 +1101,70 @@ export function ConfigurationManager() {
             </Button>
             <Button variant="destructive" onClick={handleConfirmDelete}>
               确认删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 复制配置对话框 */}
+      <Dialog open={showCopyDialog} onOpenChange={setShowCopyDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>复制配置</DialogTitle>
+            <DialogDescription>
+              将创建配置的完整副本，包括学生信息和教学编排。
+              新配置将自动命名为"原名称 副本"，且默认为未激活状态。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCopyDialog(false)}>
+              取消
+            </Button>
+            <Button onClick={handleConfirmCopy}>确认复制</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 导入配置对话框 */}
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>导入配置</DialogTitle>
+            <DialogDescription>
+              选择一个JSON配置文件进行导入。如果配置名称重复，将自动重命名。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="import-file">选择文件</Label>
+              <Input
+                id="import-file"
+                type="file"
+                accept=".json"
+                onChange={handleImportFile}
+              />
+            </div>
+            {importFile && (
+              <Alert>
+                <CheckCircle className="h-4 w-4" />
+                <AlertDescription>
+                  已选择文件: {importFile.name}
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowImportDialog(false);
+                setImportFile(null);
+              }}
+            >
+              取消
+            </Button>
+            <Button onClick={handleConfirmImport} disabled={!importFile}>
+              导入
             </Button>
           </DialogFooter>
         </DialogContent>
