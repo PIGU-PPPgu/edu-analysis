@@ -32,25 +32,27 @@ interface TrendForecastProps {
     string,
     Array<{ exam: string; score: number; date: string }>
   >;
+  useManualSelection?: boolean; // 新增：是否使用用户手动选择（不自动选Top/Bottom）
 }
 
 const TrendForecast: React.FC<TrendForecastProps> = ({
   metrics,
   topN = 5,
   historicalScores,
+  useManualSelection = false, // 默认使用自动选择
 }) => {
-  // 获取进步最大和退步最大的学生
-  const topStudents = useMemo(() => {
-    return getTopImprovers(metrics, topN);
-  }, [metrics, topN]);
-
-  const bottomStudents = useMemo(() => {
-    return getBottomImprovers(metrics, topN);
-  }, [metrics, topN]);
-
+  // 获取要展示的学生列表
   const studentsToForecast = useMemo(() => {
+    // 如果是用户手动选择，直接使用传入的metrics
+    if (useManualSelection) {
+      return metrics;
+    }
+
+    // 否则使用原来的Top/Bottom逻辑
+    const topStudents = getTopImprovers(metrics, topN);
+    const bottomStudents = getBottomImprovers(metrics, topN);
     return [...topStudents, ...bottomStudents];
-  }, [topStudents, bottomStudents]);
+  }, [metrics, topN, useManualSelection]);
 
   // 为每个学生生成预测
   const forecasts = useMemo(() => {

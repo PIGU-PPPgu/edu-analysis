@@ -660,117 +660,132 @@ export function AIAnalysisReport({
         </div>
       </div>
 
-      {/* 科目筛选 */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <BookOpen className="h-4 w-4 text-gray-600" />
-          <span className="text-sm font-medium text-gray-700">科目筛选</span>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          {subjects.map((subject) => (
-            <Badge
-              key={subject}
-              variant={selectedSubject === subject ? "default" : "outline"}
-              className={cn(
-                "cursor-pointer transition-all",
-                selectedSubject === subject
-                  ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 shadow-md"
-                  : "hover:bg-gray-100 hover:border-gray-400"
-              )}
-              onClick={() => {
-                setSelectedSubject(subject);
-                setSelectedClass("全部班级"); // 切换科目时重置班级筛选
-                setSelectedStudents([]); // 切换科目时清空学生选择
-              }}
-            >
-              {subject} ({subjectCounts[subject] || 0})
-            </Badge>
-          ))}
-        </div>
-      </div>
-
-      {/* 班级筛选 */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-gray-600" />
-          <span className="text-sm font-medium text-gray-700">班级筛选</span>
-          <span className="text-xs text-gray-500">
-            （选择具体班级查看学生个人预测）
-          </span>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          {classes.map((className) => (
-            <Badge
-              key={className}
-              variant={selectedClass === className ? "default" : "outline"}
-              className={cn(
-                "cursor-pointer transition-all",
-                selectedClass === className
-                  ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white border-0 shadow-md"
-                  : "hover:bg-gray-100 hover:border-gray-400"
-              )}
-              onClick={() => {
-                setSelectedClass(className);
-                setSelectedStudents([]); // 切换班级时清空学生选择
-              }}
-            >
-              {className} ({classCounts[className] || 0}人)
-            </Badge>
-          ))}
-        </div>
-      </div>
-
-      {/* 学生筛选（新增） */}
-      {selectedClass !== "全部班级" && availableStudents.length > 0 && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-gray-600" />
-            <span className="text-sm font-medium text-gray-700">
-              学生筛选（可多选）
-            </span>
-            <span className="text-xs text-gray-500">
-              {selectedStudents.length > 0
-                ? `已选${selectedStudents.length}人`
-                : "点击选择学生"}
-            </span>
-            {selectedStudents.length > 0 && (
-              <button
-                onClick={() => setSelectedStudents([])}
-                className="text-xs text-blue-600 hover:text-blue-800 underline"
-              >
-                清空选择
-              </button>
-            )}
+      {/* 筛选器区域 - 统一样式 */}
+      <Card className="border-2 border-gray-200">
+        <CardContent className="p-4 space-y-4">
+          {/* 科目筛选 */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-gray-600" />
+              <span className="text-sm font-bold text-gray-700">科目</span>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {subjects.map((subject) => (
+                <Badge
+                  key={subject}
+                  variant={selectedSubject === subject ? "default" : "outline"}
+                  className={cn(
+                    "cursor-pointer transition-all",
+                    selectedSubject === subject
+                      ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 shadow-md"
+                      : "hover:bg-gray-100 hover:border-gray-400"
+                  )}
+                  onClick={() => {
+                    setSelectedSubject(subject);
+                    setSelectedClass("全部班级"); // 切换科目时重置班级筛选
+                    setSelectedStudents([]); // 切换科目时清空学生选择
+                  }}
+                >
+                  {subject} ({subjectCounts[subject] || 0})
+                </Badge>
+              ))}
+            </div>
           </div>
-          <div className="flex gap-2 flex-wrap max-h-48 overflow-y-auto p-2 border rounded-lg bg-gray-50">
-            {availableStudents.map((student) => (
-              <Badge
-                key={student.student_id}
-                variant={
-                  selectedStudents.includes(student.student_id)
-                    ? "default"
-                    : "outline"
-                }
-                className={cn(
-                  "cursor-pointer transition-all",
-                  selectedStudents.includes(student.student_id)
-                    ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 shadow-md"
-                    : "hover:bg-gray-100 hover:border-gray-400"
-                )}
-                onClick={() => {
-                  setSelectedStudents((prev) =>
-                    prev.includes(student.student_id)
-                      ? prev.filter((id) => id !== student.student_id)
-                      : [...prev, student.student_id]
-                  );
-                }}
-              >
-                {student.student_name} ({student.student_id})
-              </Badge>
-            ))}
+
+          <div className="border-t border-gray-200"></div>
+
+          {/* 班级筛选 */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-gray-600" />
+              <span className="text-sm font-bold text-gray-700">班级</span>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {classes.map((className) => (
+                <Badge
+                  key={className}
+                  variant={selectedClass === className ? "default" : "outline"}
+                  className={cn(
+                    "cursor-pointer transition-all",
+                    selectedClass === className
+                      ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white border-0 shadow-md"
+                      : "hover:bg-gray-100 hover:border-gray-400"
+                  )}
+                  onClick={() => {
+                    setSelectedClass(className);
+                    setSelectedStudents([]); // 切换班级时清空学生选择
+                  }}
+                >
+                  {className} ({classCounts[className] || 0}人)
+                </Badge>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+
+          {/* 学生筛选 */}
+          {selectedClass !== "全部班级" && availableStudents.length > 0 && (
+            <>
+              <div className="border-t border-gray-200"></div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-gray-600" />
+                    <span className="text-sm font-bold text-gray-700">
+                      学生（可多选）
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {selectedStudents.length > 0 ? (
+                      <>
+                        <span className="text-xs text-green-600 font-medium">
+                          已选{selectedStudents.length}人，仅显示所选学生
+                        </span>
+                        <button
+                          onClick={() => setSelectedStudents([])}
+                          className="text-xs text-blue-600 hover:text-blue-800 underline"
+                        >
+                          清空
+                        </button>
+                      </>
+                    ) : (
+                      <span className="text-xs text-gray-500">
+                        未选择（自动显示进步/退步Top 5）
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-2 flex-wrap max-h-40 overflow-y-auto p-2 border rounded-lg bg-gray-50">
+                  {availableStudents.map((student) => (
+                    <Badge
+                      key={student.student_id}
+                      variant={
+                        selectedStudents.includes(student.student_id)
+                          ? "default"
+                          : "outline"
+                      }
+                      className={cn(
+                        "cursor-pointer transition-all",
+                        selectedStudents.includes(student.student_id)
+                          ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-md"
+                          : "hover:bg-gray-100 hover:border-gray-400"
+                      )}
+                      onClick={() => {
+                        setSelectedStudents((prev) =>
+                          prev.includes(student.student_id)
+                            ? prev.filter((id) => id !== student.student_id)
+                            : [...prev, student.student_id]
+                        );
+                      }}
+                    >
+                      {student.student_name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {/* 统计卡片 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -985,6 +1000,7 @@ export function AIAnalysisReport({
               metrics={metricsData}
               topN={5}
               historicalScores={historicalScores}
+              useManualSelection={selectedStudents.length > 0} // 用户选择了学生时使用手动模式
             />
           ) : (
             <p className="text-center text-gray-500 py-8">
