@@ -401,6 +401,7 @@ export function ReportsMenuDashboard({
             activityId={currentActivity?.id || null}
             activityName={currentActivity?.name || ""}
             loading={loading}
+            studentData={studentData}
           />
         )}
         {selectedReport === "class-score" && (

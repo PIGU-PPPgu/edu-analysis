@@ -31,20 +31,44 @@ interface AIAnalysisReportProps {
   activityId: string | null;
   activityName: string;
   loading: boolean;
+  studentData?: StudentValueAdded[]; // 可选：优先使用传入的数据，避免重复查询
 }
 
 export function AIAnalysisReport({
   activityId,
   activityName,
   loading: externalLoading,
+  studentData: externalStudentData, // 从父组件接收的数据
 }: AIAnalysisReportProps) {
-  const [studentData, setStudentData] = useState<StudentValueAdded[]>([]);
+  const [studentData, setStudentData] = useState<StudentValueAdded[]>(
+    externalStudentData || [] // 优先使用传入的数据
+  );
   const [loading, setLoading] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<string>("全部科目");
 
-  // 加载学生增值数据
+  // 当外部数据变化时，更新本地状态
+  useEffect(() => {
+    if (externalStudentData && externalStudentData.length > 0) {
+      console.log(
+        "✅ [AIAnalysisReport] 使用外部传入数据:",
+        externalStudentData.length
+      );
+      setStudentData(externalStudentData);
+    }
+  }, [externalStudentData]);
+
+  // 加载学生增值数据（仅在没有外部数据时查询）
   useEffect(() => {
     const loadData = async () => {
+      // 如果有外部数据，跳过查询
+      if (externalStudentData && externalStudentData.length > 0) {
+        console.log(
+          "⏭️ [AIAnalysisReport] 已有外部数据，跳过查询:",
+          externalStudentData.length
+        );
+        return;
+      }
+
       if (!activityId) {
         setStudentData([]);
         return;
@@ -69,7 +93,7 @@ export function AIAnalysisReport({
 
         if (students.length > 0) {
           console.log(
-            "✅ [AIAnalysisReport] 加载学生数据成功:",
+            "✅ [AIAnalysisReport] 自主查询加载学生数据成功:",
             students.length
           );
         }
@@ -82,7 +106,7 @@ export function AIAnalysisReport({
     };
 
     loadData();
-  }, [activityId]);
+  }, [activityId, externalStudentData]);
 
   // 获取所有科目及数量
   const subjects = useMemo(() => {
