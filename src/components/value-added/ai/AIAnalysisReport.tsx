@@ -50,6 +50,9 @@ export function AIAnalysisReport({
   const [loading, setLoading] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<string>("全部科目");
   const [selectedClass, setSelectedClass] = useState<string>("全部班级");
+  const [historicalScores, setHistoricalScores] = useState<
+    Map<string, Array<{ exam: string; score: number; date: string }>>
+  >(new Map());
 
   // Phase 1新增：加载AI分析摘要缓存（优先级最高）
   useEffect(() => {
@@ -145,6 +148,62 @@ export function AIAnalysisReport({
 
     loadData();
   }, [activityId, externalStudentData]);
+
+  // 加载学生历史成绩数据（用于多点线性拟合）
+  useEffect(() => {
+    const loadHistoricalScores = async () => {
+      if (
+        !activityId ||
+        studentData.length === 0 ||
+        selectedClass === "全部班级"
+      ) {
+        return;
+      }
+
+      try {
+        // 获取当前筛选学生的student_id列表
+        const studentIds = filteredData.map((s) => s.student_id);
+
+        // 从grade_data表查询这些学生的所有历史考试
+        const { data, error } = await supabase
+          .from("grade_data")
+          .select("student_id, exam_title, exam_date, total_score")
+          .in("student_id", studentIds)
+          .eq("class_name", filteredData[0]?.class_name || selectedClass)
+          .not("total_score", "is", null)
+          .order("exam_date");
+
+        if (error) throw error;
+
+        // 按学生分组历史成绩
+        const scoreMap = new Map<
+          string,
+          Array<{ exam: string; score: number; date: string }>
+        >();
+
+        data?.forEach((row: any) => {
+          if (!scoreMap.has(row.student_id)) {
+            scoreMap.set(row.student_id, []);
+          }
+          scoreMap.get(row.student_id)!.push({
+            exam: row.exam_title,
+            score: row.total_score,
+            date: row.exam_date,
+          });
+        });
+
+        setHistoricalScores(scoreMap);
+
+        console.log(
+          `✅ [AIAnalysisReport] 加载历史成绩成功: ${scoreMap.size}名学生`
+        );
+      } catch (err) {
+        console.error("❌ [AIAnalysisReport] 加载历史成绩失败:", err);
+      }
+    };
+
+    loadHistoricalScores();
+  }, [activityId, filteredData, selectedClass, selectedSubject, studentData]);
 
   // 获取所有科目及数量
   const subjects = useMemo(() => {
@@ -809,7 +868,11 @@ export function AIAnalysisReport({
             )
           ) : // 学生个人模式
           metricsData.length > 0 ? (
-            <TrendForecast metrics={metricsData} topN={5} />
+            <TrendForecast
+              metrics={metricsData}
+              topN={5}
+              historicalScores={historicalScores}
+            />
           ) : (
             <p className="text-center text-gray-500 py-8">
               暂无足够数据进行趋势预测
