@@ -70,6 +70,7 @@ export interface TeacherStudentSubject {
   academic_year: string;
   semester: string;
   is_elective: boolean;
+  school_id?: string; // 学校ID（多学校支持）
   created_at: Date;
   updated_at: Date;
 }
@@ -105,6 +106,7 @@ export interface ValueAddedCache {
   target_id: string;
   target_name?: string;
   result: any; // JSONB
+  school_id?: string; // 学校ID（多学校支持）
   created_at: Date;
   expires_at: Date;
 }
@@ -141,6 +143,7 @@ export interface StudentValueAdded {
   student_name: string;
   class_name: string;
   subject: string;
+  school_id?: string; // 学校ID（多学校支持）
 
   // 分数数据
   entry_score: number;
@@ -163,12 +166,45 @@ export interface StudentValueAdded {
   rank_change?: number;
 }
 
+/** 增值评价指标数据（用于趋势预测和分析） */
+export interface ValueAddedMetrics {
+  studentId: string;
+  studentName: string;
+  className: string;
+  subject?: string;
+
+  // 基准考试（入口）
+  baselineExam: {
+    examId: string;
+    examTitle: string;
+    score: number;
+    rank?: number;
+    level?: AbilityLevel;
+  };
+
+  // 目标考试（出口）
+  targetExam: {
+    examId: string;
+    examTitle: string;
+    score: number;
+    rank?: number;
+    level?: AbilityLevel;
+  };
+
+  // 增值指标
+  scoreChange: number;
+  scoreChangeRate: number;
+  zScoreChange?: number;
+  levelChange?: number;
+}
+
 /** 教师增值评价 */
 export interface TeacherValueAdded {
   teacher_id: string;
   teacher_name: string;
   subject: string;
   class_name: string; // 所教班级（细粒度存储：每个教师-班级-科目组合一条记录）
+  school_id?: string; // 学校ID（多学校支持）
 
   // 分数增值
   avg_score_value_added_rate: number;
@@ -201,6 +237,7 @@ export interface ClassValueAdded {
   class_id?: string;
   class_name: string;
   subject: string;
+  school_id?: string; // 学校ID（多学校支持）
 
   // 原始分数（参照汇优评）
   avg_score_entry?: number; // 入口平均分
