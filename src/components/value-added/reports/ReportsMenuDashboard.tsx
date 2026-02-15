@@ -30,6 +30,7 @@ import {
   ArrowRight,
   GitCompare,
   Info,
+  Sparkles,
 } from "lucide-react";
 import { ClassValueAddedReport } from "../class/ClassValueAddedReport";
 import { EnhancedClassValueAddedReport } from "../class/EnhancedClassValueAddedReport";
@@ -54,6 +55,7 @@ import { SubjectBalanceReport } from "../subject/SubjectBalanceReport";
 import { SubjectScoreComparisonReport } from "../subject/SubjectScoreComparisonReport";
 import { SubjectAbilityComparisonReport } from "../subject/SubjectAbilityComparisonReport";
 import { ComparisonAnalysisTool } from "../comparison/ComparisonAnalysisTool";
+import { AIAnalysisReport } from "../ai/AIAnalysisReport";
 import type {
   ClassValueAdded,
   TeacherValueAdded,
@@ -132,6 +134,17 @@ export function ReportsMenuDashboard({
 
   // 19个报告维度定义
   const reportCards: ReportCard[] = [
+    // AI智能分析
+    {
+      id: "ai-analysis",
+      title: "AI智能分析",
+      description: "基于趋势预测算法，自动生成进步排行、诊断建议和未来表现预测",
+      badge: "总体",
+      icon: Sparkles,
+      category: "AI智能分析",
+      available: studentData.length > 0,
+    },
+
     // 教师增值评价
     {
       id: "teacher-score",
@@ -340,6 +353,7 @@ export function ReportsMenuDashboard({
 
   // 按类别分组
   const categories = [
+    "AI智能分析",
     "教师增值评价",
     "班级增值评价",
     "学科均衡分析",
@@ -382,6 +396,13 @@ export function ReportsMenuDashboard({
           返回报告菜单
         </Button>
 
+        {selectedReport === "ai-analysis" && (
+          <AIAnalysisReport
+            activityId={currentActivity?.id || null}
+            activityName={currentActivity?.name || ""}
+            loading={loading}
+          />
+        )}
         {selectedReport === "class-score" && (
           <EnhancedClassValueAddedReport
             data={classData}
@@ -470,6 +491,7 @@ export function ReportsMenuDashboard({
 
         {/* 其他报告组件待实现 */}
         {![
+          "ai-analysis",
           "class-score",
           "class-ability",
           "class-score-trend-single",
