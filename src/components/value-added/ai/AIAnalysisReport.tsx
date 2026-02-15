@@ -995,13 +995,23 @@ export function AIAnalysisReport({
               <p className="text-center text-gray-500 py-8">暂无班级数据</p>
             )
           ) : // 学生个人模式
-          metricsData.length > 0 ? (
+          selectedStudents.length > 0 && metricsData.length > 0 ? (
             <TrendForecast
               metrics={metricsData}
               topN={5}
               historicalScores={historicalScores}
-              useManualSelection={selectedStudents.length > 0} // 用户选择了学生时使用手动模式
+              useManualSelection={true} // 用户选择了学生时使用手动模式
             />
+          ) : selectedStudents.length === 0 ? (
+            <div className="text-center py-12">
+              <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500 text-sm">
+                请在上方"学生筛选"区域选择要分析的学生
+              </p>
+              <p className="text-gray-400 text-xs mt-2">
+                可多选学生进行趋势对比
+              </p>
+            </div>
           ) : (
             <p className="text-center text-gray-500 py-8">
               暂无足够数据进行趋势预测
