@@ -25,6 +25,7 @@ import type {
   StudentValueAdded,
 } from "@/types/valueAddedTypes";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface AIAnalysisReportProps {
   activityId: string | null;
