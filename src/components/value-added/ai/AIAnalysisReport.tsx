@@ -149,6 +149,23 @@ export function AIAnalysisReport({
     loadData();
   }, [activityId, externalStudentData]);
 
+  // 过滤数据（必须在历史成绩加载之前定义）
+  const filteredData = useMemo(() => {
+    let filtered = studentData;
+
+    // 科目筛选
+    if (selectedSubject !== "全部科目") {
+      filtered = filtered.filter((s) => s.subject === selectedSubject);
+    }
+
+    // 班级筛选
+    if (selectedClass !== "全部班级") {
+      filtered = filtered.filter((s) => s.class_name === selectedClass);
+    }
+
+    return filtered;
+  }, [studentData, selectedSubject, selectedClass]);
+
   // 加载学生历史成绩数据（用于多点线性拟合）
   useEffect(() => {
     const loadHistoricalScores = async () => {
@@ -251,23 +268,6 @@ export function AIAnalysisReport({
     });
     return counts;
   }, [studentData, selectedSubject]);
-
-  // 过滤数据
-  const filteredData = useMemo(() => {
-    let filtered = studentData;
-
-    // 科目筛选
-    if (selectedSubject !== "全部科目") {
-      filtered = filtered.filter((s) => s.subject === selectedSubject);
-    }
-
-    // 班级筛选
-    if (selectedClass !== "全部班级") {
-      filtered = filtered.filter((s) => s.class_name === selectedClass);
-    }
-
-    return filtered;
-  }, [studentData, selectedSubject, selectedClass]);
 
   // 转换为ValueAddedMetrics格式用于趋势预测
   const metricsData: ValueAddedMetrics[] = useMemo(() => {
