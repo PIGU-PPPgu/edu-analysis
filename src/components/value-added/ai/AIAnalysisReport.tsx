@@ -18,6 +18,7 @@ import {
   Target,
   Users,
   BookOpen,
+  Activity,
 } from "lucide-react";
 import TrendForecast from "@/components/analysis/value-added/TrendForecast";
 import { supabase } from "@/integrations/supabase/client";
@@ -211,6 +212,17 @@ export function AIAnalysisReport({
 
   // 转换为ValueAddedMetrics格式用于趋势预测
   const metricsData: ValueAddedMetrics[] = useMemo(() => {
+    console.log("🔍 [AIAnalysisReport] 筛选条件:", {
+      selectedSubject,
+      selectedClass,
+      filteredDataCount: filteredData.length,
+      filteredDataSample: filteredData.slice(0, 3).map((s) => ({
+        student: s.student_name,
+        class: s.class_name,
+        subject: s.subject,
+      })),
+    });
+
     return filteredData.map((student) => ({
       studentId: student.student_id,
       studentName: student.student_name,
@@ -235,7 +247,63 @@ export function AIAnalysisReport({
       zScoreChange: student.exit_z_score - student.entry_z_score,
       levelChange: student.level_change,
     }));
-  }, [filteredData]);
+  }, [filteredData, selectedSubject, selectedClass]);
+
+  // 按班级聚合数据（用于"全部班级"模式）
+  const classAggregatedData = useMemo(() => {
+    if (selectedClass !== "全部班级") {
+      return [];
+    }
+
+    // 按班级分组
+    const classCMap = new Map<
+      string,
+      {
+        className: string;
+        students: ValueAddedMetrics[];
+        avgScoreChange: number;
+        avgScoreChangeRate: number;
+      }
+    >();
+
+    metricsData.forEach((student) => {
+      if (!classCMap.has(student.className)) {
+        classCMap.set(student.className, {
+          className: student.className,
+          students: [],
+          avgScoreChange: 0,
+          avgScoreChangeRate: 0,
+        });
+      }
+      classCMap.get(student.className)!.students.push(student);
+    });
+
+    // 计算每个班级的平均增值
+    const classStats = Array.from(classCMap.values()).map((cls) => {
+      const avgScoreChange =
+        cls.students.reduce((sum, s) => sum + s.scoreChange, 0) /
+        cls.students.length;
+      const avgScoreChangeRate =
+        cls.students.reduce((sum, s) => sum + s.scoreChangeRate, 0) /
+        cls.students.length;
+
+      return {
+        className: cls.className,
+        studentCount: cls.students.length,
+        avgScoreChange,
+        avgScoreChangeRate,
+        avgBaselineScore:
+          cls.students.reduce((sum, s) => sum + s.baselineExam.score, 0) /
+          cls.students.length,
+        avgTargetScore:
+          cls.students.reduce((sum, s) => sum + s.targetExam.score, 0) /
+          cls.students.length,
+      };
+    });
+
+    // 按平均增值排序
+    return classStats.sort((a, b) => b.avgScoreChange - a.avgScoreChange);
+  }, [metricsData, selectedClass]);
 
   // 统计数据
   const stats = useMemo(() => {
@@ -645,26 +713,102 @@ export function AIAnalysisReport({
             <TrendingUp className="h-5 w-5 text-primary" />
             <CardTitle>
               {selectedClass === "全部班级"
-                ? "学生成绩趋势预测（全年级）"
-                : `${selectedClass} - 学生成绩趋势预测`}
+                ? `${selectedSubject} - 各班级整体趋势`
+                : `${selectedClass} - ${selectedSubject} 学生趋势预测`}
             </CardTitle>
           </div>
           <p className="text-sm text-gray-500 mt-1">
             {selectedClass === "全部班级" ? (
               <>
-                基于线性回归算法，预测学生未来考试的可能表现（全年级显示进步最快和退步最快的各5名学生）
+                展示各班级在
+                <strong className="text-primary">{selectedSubject}</strong>
+                科目的平均增值情况，按增值从高到低排序
                 <br />
                 <strong className="text-blue-600">
-                  💡 提示：选择具体班级可查看该班所有学生的详细预测
+                  💡 提示：点击具体班级可查看该班学生的详细预测
                 </strong>
               </>
             ) : (
-              `基于线性回归算法，预测${selectedClass}学生未来考试的可能表现（显示进步最快和退步最快的各5名）`
+              `基于线性回归算法，预测${selectedClass}在${selectedSubject}科目的学生未来表现（显示进步最快和退步最快的各5名）`
             )}
           </p>
         </CardHeader>
         <CardContent>
-          {metricsData.length > 0 ? (
+          {selectedClass === "全部班级" ? (
+            // 班级聚合模式
+            classAggregatedData.length > 0 ? (
+              <div className="space-y-3">
+                {classAggregatedData.map((cls) => (
+                  <Card
+                    key={cls.className}
+                    className="border-2 hover:shadow-md transition-shadow cursor-pointer"
+                    onClick={() => setSelectedClass(cls.className)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3">
+                            <h4 className="text-base font-bold text-gray-900">
+                              {cls.className}
+                            </h4>
+                            <Badge variant="outline" className="text-xs">
+                              {cls.studentCount}人
+                            </Badge>
+                          </div>
+                          <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <span className="text-gray-600">平均增值：</span>
+                              <span
+                                className={cn(
+                                  "font-bold ml-1",
+                                  cls.avgScoreChange > 0
+                                    ? "text-green-600"
+                                    : cls.avgScoreChange < 0
+                                      ? "text-red-600"
+                                      : "text-gray-600"
+                                )}
+                              >
+                                {cls.avgScoreChange > 0 ? "+" : ""}
+                                {cls.avgScoreChange.toFixed(1)}分
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">增值率：</span>
+                              <span
+                                className={cn(
+                                  "font-bold ml-1",
+                                  cls.avgScoreChangeRate > 0
+                                    ? "text-green-600"
+                                    : cls.avgScoreChangeRate < 0
+                                      ? "text-red-600"
+                                      : "text-gray-600"
+                                )}
+                              >
+                                {cls.avgScoreChangeRate > 0 ? "+" : ""}
+                                {(cls.avgScoreChangeRate * 100).toFixed(1)}%
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {cls.avgScoreChange > 0 ? (
+                            <TrendingUp className="h-6 w-6 text-green-600" />
+                          ) : cls.avgScoreChange < 0 ? (
+                            <TrendingDown className="h-6 w-6 text-red-600" />
+                          ) : (
+                            <Activity className="h-6 w-6 text-gray-400" />
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-gray-500 py-8">暂无班级数据</p>
+            )
+          ) : // 学生个人模式
+          metricsData.length > 0 ? (
             <TrendForecast metrics={metricsData} topN={5} />
           ) : (
             <p className="text-center text-gray-500 py-8">
