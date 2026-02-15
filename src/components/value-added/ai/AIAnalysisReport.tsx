@@ -30,6 +30,25 @@ import type { AIAnalysisSummary } from "@/services/ai/diagnosticEngine";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+// 科目名称到grade_data字段的映射
+const SUBJECT_FIELD_MAP: Record<string, string> = {
+  总分: "total_score",
+  语文: "chinese_score",
+  数学: "math_score",
+  英语: "english_score",
+  物理: "physics_score",
+  化学: "chemistry_score",
+  生物: "biology_score",
+  政治: "politics_score",
+  历史: "history_score",
+  地理: "geography_score",
+};
+
+// 根据科目名获取对应的分数字段
+function getSubjectScoreField(subjectName: string): string {
+  return SUBJECT_FIELD_MAP[subjectName] || "total_score";
+}
+
 interface AIAnalysisReportProps {
   activityId: string | null;
   activityName: string;
@@ -50,6 +69,7 @@ export function AIAnalysisReport({
   const [loading, setLoading] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<string>("全部科目");
   const [selectedClass, setSelectedClass] = useState<string>("全部班级");
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]); // 新增：选中的学生ID列表
   const [historicalScores, setHistoricalScores] = useState<
     Map<string, Array<{ exam: string; score: number; date: string }>>
   >(new Map());
@@ -163,8 +183,15 @@ export function AIAnalysisReport({
       filtered = filtered.filter((s) => s.class_name === selectedClass);
     }
 
+    // 学生筛选（新增）
+    if (selectedStudents.length > 0) {
+      filtered = filtered.filter((s) =>
+        selectedStudents.includes(s.student_id)
+      );
+    }
+
     return filtered;
-  }, [studentData, selectedSubject, selectedClass]);
+  }, [studentData, selectedSubject, selectedClass, selectedStudents]);
 
   // 加载学生历史成绩数据（用于多点线性拟合）
   useEffect(() => {
@@ -181,13 +208,21 @@ export function AIAnalysisReport({
         // 获取当前筛选学生的student_id列表
         const studentIds = filteredData.map((s) => s.student_id);
 
+        // 根据选中科目确定要查询的分数字段
+        const scoreField = getSubjectScoreField(selectedSubject);
+
+        console.log(
+          `🔍 [AIAnalysisReport] 加载历史成绩 - 科目:${selectedSubject}, 字段:${scoreField}`
+        );
+
         // 从grade_data表查询这些学生的所有历史考试
         const { data, error } = await supabase
           .from("grade_data")
-          .select("student_id, exam_title, exam_date, total_score")
+          .select(`student_id, exam_title, exam_date, ${scoreField}`)
           .in("student_id", studentIds)
           .eq("class_name", filteredData[0]?.class_name || selectedClass)
-          .not("total_score", "is", null)
+          .not(scoreField, "is", null)
+          .not("exam_date", "is", null) // 排除无日期记录
           .order("exam_date");
 
         if (error) throw error;
@@ -204,7 +239,7 @@ export function AIAnalysisReport({
           }
           scoreMap.get(row.student_id)!.push({
             exam: row.exam_title,
-            score: row.total_score,
+            score: row[scoreField], // 动态读取字段值
             date: row.exam_date,
           });
         });
@@ -212,7 +247,7 @@ export function AIAnalysisReport({
         setHistoricalScores(scoreMap);
 
         console.log(
-          `✅ [AIAnalysisReport] 加载历史成绩成功: ${scoreMap.size}名学生`
+          `✅ [AIAnalysisReport] 加载历史成绩成功: ${scoreMap.size}名学生, 字段: ${scoreField}`
         );
       } catch (err) {
         console.error("❌ [AIAnalysisReport] 加载历史成绩失败:", err);
@@ -268,6 +303,28 @@ export function AIAnalysisReport({
     });
     return counts;
   }, [studentData, selectedSubject]);
+
+  // 获取可选学生列表（根据当前筛选条件）
+  const availableStudents = useMemo(() => {
+    let filtered = studentData;
+
+    // 科目筛选
+    if (selectedSubject !== "全部科目") {
+      filtered = filtered.filter((s) => s.subject === selectedSubject);
+    }
+
+    // 班级筛选
+    if (selectedClass !== "全部班级") {
+      filtered = filtered.filter((s) => s.class_name === selectedClass);
+    }
+
+    // 去重并排序
+    const uniqueStudents = Array.from(
+      new Map(filtered.map((s) => [s.student_id, s])).values()
+    ).sort((a, b) => a.student_name.localeCompare(b.student_name));
+
+    return uniqueStudents;
+  }, [studentData, selectedSubject, selectedClass]);
 
   // 转换为ValueAddedMetrics格式用于趋势预测
   const metricsData: ValueAddedMetrics[] = useMemo(() => {
@@ -623,6 +680,7 @@ export function AIAnalysisReport({
               onClick={() => {
                 setSelectedSubject(subject);
                 setSelectedClass("全部班级"); // 切换科目时重置班级筛选
+                setSelectedStudents([]); // 切换科目时清空学生选择
               }}
             >
               {subject} ({subjectCounts[subject] || 0})
@@ -651,13 +709,68 @@ export function AIAnalysisReport({
                   ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white border-0 shadow-md"
                   : "hover:bg-gray-100 hover:border-gray-400"
               )}
-              onClick={() => setSelectedClass(className)}
+              onClick={() => {
+                setSelectedClass(className);
+                setSelectedStudents([]); // 切换班级时清空学生选择
+              }}
             >
               {className} ({classCounts[className] || 0}人)
             </Badge>
           ))}
         </div>
       </div>
+
+      {/* 学生筛选（新增） */}
+      {selectedClass !== "全部班级" && availableStudents.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-gray-600" />
+            <span className="text-sm font-medium text-gray-700">
+              学生筛选（可多选）
+            </span>
+            <span className="text-xs text-gray-500">
+              {selectedStudents.length > 0
+                ? `已选${selectedStudents.length}人`
+                : "点击选择学生"}
+            </span>
+            {selectedStudents.length > 0 && (
+              <button
+                onClick={() => setSelectedStudents([])}
+                className="text-xs text-blue-600 hover:text-blue-800 underline"
+              >
+                清空选择
+              </button>
+            )}
+          </div>
+          <div className="flex gap-2 flex-wrap max-h-48 overflow-y-auto p-2 border rounded-lg bg-gray-50">
+            {availableStudents.map((student) => (
+              <Badge
+                key={student.student_id}
+                variant={
+                  selectedStudents.includes(student.student_id)
+                    ? "default"
+                    : "outline"
+                }
+                className={cn(
+                  "cursor-pointer transition-all",
+                  selectedStudents.includes(student.student_id)
+                    ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 shadow-md"
+                    : "hover:bg-gray-100 hover:border-gray-400"
+                )}
+                onClick={() => {
+                  setSelectedStudents((prev) =>
+                    prev.includes(student.student_id)
+                      ? prev.filter((id) => id !== student.student_id)
+                      : [...prev, student.student_id]
+                  );
+                }}
+              >
+                {student.student_name} ({student.student_id})
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 统计卡片 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
