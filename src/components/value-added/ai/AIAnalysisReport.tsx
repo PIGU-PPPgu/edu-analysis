@@ -83,11 +83,20 @@ export function AIAnalysisReport({
     loadData();
   }, [activityId]);
 
-  // 获取所有科目
+  // 获取所有科目及数量
   const subjects = useMemo(() => {
     const subjectSet = new Set<string>();
     studentData.forEach((s) => subjectSet.add(s.subject));
     return ["全部科目", ...Array.from(subjectSet).sort()];
+  }, [studentData]);
+
+  // 计算每个科目的学生数量
+  const subjectCounts = useMemo(() => {
+    const counts: Record<string, number> = { 全部科目: studentData.length };
+    studentData.forEach((s) => {
+      counts[s.subject] = (counts[s.subject] || 0) + 1;
+    });
+    return counts;
   }, [studentData]);
 
   // 过滤数据
@@ -239,14 +248,66 @@ export function AIAnalysisReport({
 
   if (isLoading) {
     return (
-      <Card>
-        <CardContent className="p-12 text-center">
-          <div className="flex flex-col items-center gap-4">
-            <Brain className="h-12 w-12 text-primary animate-pulse" />
-            <p className="text-gray-500">AI正在分析数据...</p>
+      <div className="space-y-6">
+        {/* 标题骨架 */}
+        <div className="flex items-center gap-3">
+          <div className="h-12 w-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg animate-pulse" />
+          <div className="flex-1 space-y-2">
+            <div className="h-6 w-48 bg-gray-200 rounded animate-pulse" />
+            <div className="h-4 w-64 bg-gray-100 rounded animate-pulse" />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* 科目筛选骨架 */}
+        <div className="flex gap-2 flex-wrap">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div
+              key={i}
+              className="h-8 w-20 bg-gray-200 rounded-full animate-pulse"
+            />
+          ))}
+        </div>
+
+        {/* 统计卡片骨架 */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i}>
+              <CardHeader className="pb-3">
+                <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div className="h-8 w-20 bg-gray-300 rounded animate-pulse" />
+                  <div className="h-8 w-8 bg-gray-200 rounded-full animate-pulse" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* AI诊断骨架 */}
+        <Card>
+          <CardHeader>
+            <div className="h-5 w-32 bg-gray-200 rounded animate-pulse" />
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-20 bg-gray-100 rounded animate-pulse" />
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* 趋势预测骨架 */}
+        <Card>
+          <CardHeader>
+            <div className="h-5 w-40 bg-gray-200 rounded animate-pulse" />
+            <div className="h-4 w-full bg-gray-100 rounded animate-pulse mt-2" />
+          </CardHeader>
+          <CardContent>
+            <div className="h-64 bg-gray-100 rounded animate-pulse" />
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -264,7 +325,7 @@ export function AIAnalysisReport({
   return (
     <div className="space-y-6">
       {/* 标题区 */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg">
             <Sparkles className="h-6 w-6 text-white" />
@@ -276,9 +337,14 @@ export function AIAnalysisReport({
             </p>
           </div>
         </div>
-        <Badge variant="outline" className="text-sm">
-          分析样本: {stats.totalStudents} 名学生
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-sm font-medium px-3 py-1">
+            已分析 {Object.keys(subjectCounts).length - 1} 个科目
+          </Badge>
+          <Badge variant="outline" className="text-sm font-medium px-3 py-1">
+            共 {stats.totalStudents} 名学生
+          </Badge>
+        </div>
       </div>
 
       {/* 科目筛选 */}
@@ -287,16 +353,21 @@ export function AIAnalysisReport({
           <Badge
             key={subject}
             variant={selectedSubject === subject ? "default" : "outline"}
-            className="cursor-pointer"
+            className={cn(
+              "cursor-pointer transition-all",
+              selectedSubject === subject
+                ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 shadow-md"
+                : "hover:bg-gray-100 hover:border-gray-400"
+            )}
             onClick={() => setSelectedSubject(subject)}
           >
-            {subject}
+            {subject} ({subjectCounts[subject] || 0})
           </Badge>
         ))}
       </div>
 
       {/* 统计卡片 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-gray-600">
@@ -305,11 +376,11 @@ export function AIAnalysisReport({
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
-              <span className="text-2xl font-bold">
+              <span className="text-xl sm:text-2xl font-bold">
                 {stats.avgScoreChange > 0 ? "+" : ""}
                 {stats.avgScoreChange.toFixed(1)}分
               </span>
-              <Target className="h-8 w-8 text-blue-500" />
+              <Target className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
             </div>
           </CardContent>
         </Card>
@@ -322,10 +393,10 @@ export function AIAnalysisReport({
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
-              <span className="text-2xl font-bold">
+              <span className="text-xl sm:text-2xl font-bold">
                 {stats.progressRate.toFixed(1)}%
               </span>
-              <TrendingUp className="h-8 w-8 text-green-500" />
+              <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-green-500" />
             </div>
           </CardContent>
         </Card>
@@ -338,10 +409,10 @@ export function AIAnalysisReport({
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
-              <span className="text-2xl font-bold">
+              <span className="text-xl sm:text-2xl font-bold">
                 {stats.consolidationRate.toFixed(1)}%
               </span>
-              <Users className="h-8 w-8 text-purple-500" />
+              <Users className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500" />
             </div>
           </CardContent>
         </Card>
@@ -354,10 +425,10 @@ export function AIAnalysisReport({
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
-              <span className="text-2xl font-bold">
+              <span className="text-xl sm:text-2xl font-bold">
                 {stats.transformationRate.toFixed(1)}%
               </span>
-              <BookOpen className="h-8 w-8 text-orange-500" />
+              <BookOpen className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500" />
             </div>
           </CardContent>
         </Card>

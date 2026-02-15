@@ -5,7 +5,7 @@
  * 查看、编辑、删除导入配置
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,27 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
   Settings,
   Trash2,
   Edit,
@@ -31,6 +52,8 @@ import {
   Calendar,
   AlertCircle,
   CheckCircle,
+  Search,
+  Filter,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -72,9 +95,48 @@ export function ConfigurationManager() {
     description: string;
   } | null>(null);
 
+  // 搜索和筛选状态
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "active" | "inactive"
+  >("all");
+
+  // 分页状态
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12;
+
   useEffect(() => {
     loadConfigurations();
   }, []);
+
+  // 过滤和分页逻辑
+  const filteredConfigurations = useMemo(() => {
+    return configurations.filter((config) => {
+      const matchSearch =
+        config.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        config.academic_year
+          ?.toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        config.description?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchStatus =
+        statusFilter === "all" ||
+        (statusFilter === "active" ? config.is_active : !config.is_active);
+
+      return matchSearch && matchStatus;
+    });
+  }, [configurations, searchTerm, statusFilter]);
+
+  const totalPages = Math.ceil(filteredConfigurations.length / itemsPerPage);
+  const paginatedConfigurations = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredConfigurations.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredConfigurations, currentPage, itemsPerPage]);
+
+  // 重置页码当筛选条件变化
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
 
   const loadConfigurations = async () => {
     setLoading(true);
@@ -152,7 +214,7 @@ export function ConfigurationManager() {
 
   // 删除配置
   const handleDelete = (config: ImportConfiguration) => {
-    setSelectedConfig(config as any);
+    setSelectedConfig(config as ConfigurationDetail);
     setShowDeleteDialog(true);
   };
 
@@ -204,183 +266,320 @@ export function ConfigurationManager() {
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">配置管理</h1>
-        <Badge variant="outline">{configurations.length} 个配置</Badge>
+        <Badge variant="outline">
+          {filteredConfigurations.length} / {configurations.length} 个配置
+        </Badge>
       </div>
 
-      {configurations.length === 0 ? (
+      {/* 搜索和筛选区域 */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="搜索配置名称、学年或描述..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <div className="flex gap-2">
+          <Select
+            value={statusFilter}
+            onValueChange={(value: any) => setStatusFilter(value)}
+          >
+            <SelectTrigger className="w-[160px]">
+              <Filter className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="状态筛选" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部状态</SelectItem>
+              <SelectItem value="active">仅活跃</SelectItem>
+              <SelectItem value="inactive">仅停用</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {filteredConfigurations.length === 0 ? (
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            暂无配置，请在导入数据时创建新配置
+            {configurations.length === 0
+              ? "暂无配置，请在导入数据时创建新配置"
+              : "未找到匹配的配置，请调整搜索条件"}
           </AlertDescription>
         </Alert>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {configurations.map((config) => (
-            <Card
-              key={config.id}
-              className={!config.is_active ? "opacity-60" : ""}
-            >
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <CardTitle className="text-lg">{config.name}</CardTitle>
-                  <Badge variant={config.is_active ? "default" : "secondary"}>
-                    {config.is_active ? "活跃" : "已停用"}
-                  </Badge>
-                </div>
-                {config.description && (
-                  <p className="text-sm text-muted-foreground mt-2">
-                    {config.description}
-                  </p>
-                )}
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* 统计信息 */}
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    <span>{config.student_count} 名学生</span>
+        <>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {paginatedConfigurations.map((config) => (
+              <Card
+                key={config.id}
+                className={
+                  !config.is_active
+                    ? "opacity-60 border-red-200 bg-red-50/30"
+                    : ""
+                }
+              >
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <CardTitle className="text-lg">{config.name}</CardTitle>
+                    <Badge
+                      variant={config.is_active ? "default" : "destructive"}
+                    >
+                      {config.is_active ? "活跃" : "已停用"}
+                    </Badge>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <GraduationCap className="h-4 w-4 text-muted-foreground" />
-                    <span>{config.class_count} 个班级</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    <span>{config.teacher_count} 名教师</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <BookOpen className="h-4 w-4 text-muted-foreground" />
-                    <span>{config.subject_count} 个科目</span>
-                  </div>
-                </div>
-
-                {/* 数据导入状态 */}
-                {dataStatuses.has(config.id) && (
-                  <div className="pt-3 border-t">
-                    <div className="text-xs font-medium text-muted-foreground mb-2">
-                      数据导入状态
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Badge
-                        variant={
-                          dataStatuses.get(config.id)?.studentInfo
-                            ? "default"
-                            : "outline"
-                        }
-                        className="justify-center"
-                      >
-                        {dataStatuses.get(config.id)?.studentInfo ? (
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                        ) : (
-                          <AlertCircle className="h-3 w-3 mr-1" />
-                        )}
-                        学生信息
-                      </Badge>
-                      <Badge
-                        variant={
-                          dataStatuses.get(config.id)?.teachingArrangement
-                            ? "default"
-                            : "outline"
-                        }
-                        className="justify-center"
-                      >
-                        {dataStatuses.get(config.id)?.teachingArrangement ? (
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                        ) : (
-                          <AlertCircle className="h-3 w-3 mr-1" />
-                        )}
-                        教学编排
-                      </Badge>
-                      <Badge
-                        variant={
-                          dataStatuses.get(config.id)?.gradeScores
-                            ? "default"
-                            : "outline"
-                        }
-                        className="justify-center"
-                      >
-                        {dataStatuses.get(config.id)?.gradeScores ? (
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                        ) : (
-                          <AlertCircle className="h-3 w-3 mr-1" />
-                        )}
-                        各科成绩
-                      </Badge>
-                      <Badge
-                        variant={
-                          dataStatuses.get(config.id)?.electiveCourse
-                            ? "default"
-                            : "outline"
-                        }
-                        className="justify-center"
-                      >
-                        {dataStatuses.get(config.id)?.electiveCourse ? (
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                        ) : (
-                          <AlertCircle className="h-3 w-3 mr-1" />
-                        )}
-                        走班信息
-                      </Badge>
-                    </div>
-                  </div>
-                )}
-
-                {/* 时间信息 */}
-                <div className="text-xs text-muted-foreground space-y-1">
-                  {config.academic_year && (
+                  {config.description && (
+                    <p className="text-sm text-muted-foreground mt-2">
+                      {config.description}
+                    </p>
+                  )}
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* 统计信息 */}
+                  <div className="grid grid-cols-2 gap-2 text-sm">
                     <div className="flex items-center gap-2">
-                      <Calendar className="h-3 w-3" />
-                      {config.academic_year} {config.semester}
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span>{config.student_count} 名学生</span>
                     </div>
-                  )}
-                  <div>
-                    创建于 {new Date(config.created_at).toLocaleDateString()}
+                    <div className="flex items-center gap-2">
+                      <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                      <span>{config.class_count} 个班级</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span>{config.teacher_count} 名教师</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="h-4 w-4 text-muted-foreground" />
+                      <span>{config.subject_count} 个科目</span>
+                    </div>
                   </div>
-                  {config.last_used_at && (
-                    <div>
-                      最后使用{" "}
-                      {new Date(config.last_used_at).toLocaleDateString()}
+
+                  {/* 数据导入状态 */}
+                  {dataStatuses.has(config.id) && (
+                    <div className="pt-3 border-t">
+                      <div className="text-xs font-medium text-muted-foreground mb-2">
+                        数据导入状态
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Badge
+                          variant={
+                            dataStatuses.get(config.id)?.studentInfo
+                              ? "default"
+                              : "outline"
+                          }
+                          className="justify-center"
+                        >
+                          {dataStatuses.get(config.id)?.studentInfo ? (
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                          ) : (
+                            <AlertCircle className="h-3 w-3 mr-1" />
+                          )}
+                          学生信息
+                        </Badge>
+                        <Badge
+                          variant={
+                            dataStatuses.get(config.id)?.teachingArrangement
+                              ? "default"
+                              : "outline"
+                          }
+                          className="justify-center"
+                        >
+                          {dataStatuses.get(config.id)?.teachingArrangement ? (
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                          ) : (
+                            <AlertCircle className="h-3 w-3 mr-1" />
+                          )}
+                          教学编排
+                        </Badge>
+                        <Badge
+                          variant={
+                            dataStatuses.get(config.id)?.gradeScores
+                              ? "default"
+                              : "outline"
+                          }
+                          className="justify-center"
+                        >
+                          {dataStatuses.get(config.id)?.gradeScores ? (
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                          ) : (
+                            <AlertCircle className="h-3 w-3 mr-1" />
+                          )}
+                          各科成绩
+                        </Badge>
+                        <Badge
+                          variant={
+                            dataStatuses.get(config.id)?.electiveCourse
+                              ? "default"
+                              : "outline"
+                          }
+                          className="justify-center"
+                        >
+                          {dataStatuses.get(config.id)?.electiveCourse ? (
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                          ) : (
+                            <AlertCircle className="h-3 w-3 mr-1" />
+                          )}
+                          走班信息
+                        </Badge>
+                      </div>
                     </div>
                   )}
-                </div>
 
-                {/* 操作按钮 */}
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleViewDetail(config.id)}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleEdit(config)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleToggleActive(config)}
-                  >
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDelete(config)}
-                    className="text-red-600 hover:bg-red-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  {/* 时间信息 */}
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    {config.academic_year && (
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-3 w-3" />
+                        {config.academic_year} {config.semester}
+                      </div>
+                    )}
+                    <div>
+                      创建于 {new Date(config.created_at).toLocaleDateString()}
+                    </div>
+                    {config.last_used_at && (
+                      <div>
+                        最后使用{" "}
+                        {new Date(config.last_used_at).toLocaleDateString()}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 操作按钮 */}
+                  <TooltipProvider>
+                    <div className="flex gap-2 pt-2 flex-wrap">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewDetail(config.id)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            查看
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>查看配置详情</TooltipContent>
+                      </Tooltip>
+
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(config)}
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            编辑
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>编辑配置名称和描述</TooltipContent>
+                      </Tooltip>
+
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant={config.is_active ? "outline" : "default"}
+                            size="sm"
+                            onClick={() => handleToggleActive(config)}
+                          >
+                            <Settings className="h-4 w-4 mr-1" />
+                            {config.is_active ? "停用" : "启用"}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {config.is_active ? "停用此配置" : "启用此配置"}
+                        </TooltipContent>
+                      </Tooltip>
+
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDelete(config)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            删除
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>删除此配置及关联数据</TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </TooltipProvider>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* 分页组件 */}
+          {totalPages > 1 && (
+            <div className="flex justify-center mt-6">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      className={
+                        currentPage === 1
+                          ? "pointer-events-none opacity-50"
+                          : "cursor-pointer"
+                      }
+                    />
+                  </PaginationItem>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (page) => {
+                      // 只显示当前页前后2页
+                      if (
+                        page === 1 ||
+                        page === totalPages ||
+                        Math.abs(page - currentPage) <= 1
+                      ) {
+                        return (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              onClick={() => setCurrentPage(page)}
+                              isActive={currentPage === page}
+                              className="cursor-pointer"
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        );
+                      } else if (
+                        page === currentPage - 2 ||
+                        page === currentPage + 2
+                      ) {
+                        return (
+                          <PaginationItem key={page}>
+                            <span className="px-4">...</span>
+                          </PaginationItem>
+                        );
+                      }
+                      return null;
+                    }
+                  )}
+
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() =>
+                        setCurrentPage((p) => Math.min(totalPages, p + 1))
+                      }
+                      className={
+                        currentPage === totalPages
+                          ? "pointer-events-none opacity-50"
+                          : "cursor-pointer"
+                      }
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
+        </>
       )}
 
       {/* 详情对话框 */}
