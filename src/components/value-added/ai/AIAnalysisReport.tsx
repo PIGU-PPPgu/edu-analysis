@@ -45,6 +45,7 @@ export function AIAnalysisReport({
   );
   const [loading, setLoading] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<string>("全部科目");
+  const [selectedClass, setSelectedClass] = useState<string>("全部班级");
 
   // 当外部数据变化时，更新本地状态
   useEffect(() => {
@@ -115,6 +116,13 @@ export function AIAnalysisReport({
     return ["全部科目", ...Array.from(subjectSet).sort()];
   }, [studentData]);
 
+  // 获取所有班级及数量
+  const classes = useMemo(() => {
+    const classSet = new Set<string>();
+    studentData.forEach((s) => classSet.add(s.class_name));
+    return ["全部班级", ...Array.from(classSet).sort()];
+  }, [studentData]);
+
   // 计算每个科目的学生数量
   const subjectCounts = useMemo(() => {
     const counts: Record<string, number> = { 全部科目: studentData.length };
@@ -124,13 +132,46 @@ export function AIAnalysisReport({
     return counts;
   }, [studentData]);
 
+  // 计算每个班级的学生数量（针对当前选中科目）
+  const classCounts = useMemo(() => {
+    const filteredBySubject =
+      selectedSubject === "全部科目"
+        ? studentData
+        : studentData.filter((s) => s.subject === selectedSubject);
+
+    const counts: Record<string, number> = {
+      全部班级: new Set(filteredBySubject.map((s) => s.student_id)).size,
+    };
+    filteredBySubject.forEach((s) => {
+      const key = s.class_name;
+      if (!counts[key]) {
+        const studentsInClass = new Set(
+          filteredBySubject
+            .filter((x) => x.class_name === s.class_name)
+            .map((x) => x.student_id)
+        );
+        counts[key] = studentsInClass.size;
+      }
+    });
+    return counts;
+  }, [studentData, selectedSubject]);
+
   // 过滤数据
   const filteredData = useMemo(() => {
-    if (selectedSubject === "全部科目") {
-      return studentData;
+    let filtered = studentData;
+
+    // 科目筛选
+    if (selectedSubject !== "全部科目") {
+      filtered = filtered.filter((s) => s.subject === selectedSubject);
     }
-    return studentData.filter((s) => s.subject === selectedSubject);
-  }, [studentData, selectedSubject]);
+
+    // 班级筛选
+    if (selectedClass !== "全部班级") {
+      filtered = filtered.filter((s) => s.class_name === selectedClass);
+    }
+
+    return filtered;
+  }, [studentData, selectedSubject, selectedClass]);
 
   // 转换为ValueAddedMetrics格式用于趋势预测
   const metricsData: ValueAddedMetrics[] = useMemo(() => {
@@ -373,22 +414,59 @@ export function AIAnalysisReport({
       </div>
 
       {/* 科目筛选 */}
-      <div className="flex gap-2 flex-wrap">
-        {subjects.map((subject) => (
-          <Badge
-            key={subject}
-            variant={selectedSubject === subject ? "default" : "outline"}
-            className={cn(
-              "cursor-pointer transition-all",
-              selectedSubject === subject
-                ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 shadow-md"
-                : "hover:bg-gray-100 hover:border-gray-400"
-            )}
-            onClick={() => setSelectedSubject(subject)}
-          >
-            {subject} ({subjectCounts[subject] || 0})
-          </Badge>
-        ))}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <BookOpen className="h-4 w-4 text-gray-600" />
+          <span className="text-sm font-medium text-gray-700">科目筛选</span>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {subjects.map((subject) => (
+            <Badge
+              key={subject}
+              variant={selectedSubject === subject ? "default" : "outline"}
+              className={cn(
+                "cursor-pointer transition-all",
+                selectedSubject === subject
+                  ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 shadow-md"
+                  : "hover:bg-gray-100 hover:border-gray-400"
+              )}
+              onClick={() => {
+                setSelectedSubject(subject);
+                setSelectedClass("全部班级"); // 切换科目时重置班级筛选
+              }}
+            >
+              {subject} ({subjectCounts[subject] || 0})
+            </Badge>
+          ))}
+        </div>
+      </div>
+
+      {/* 班级筛选 */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <Users className="h-4 w-4 text-gray-600" />
+          <span className="text-sm font-medium text-gray-700">班级筛选</span>
+          <span className="text-xs text-gray-500">
+            （选择具体班级查看学生个人预测）
+          </span>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {classes.map((className) => (
+            <Badge
+              key={className}
+              variant={selectedClass === className ? "default" : "outline"}
+              className={cn(
+                "cursor-pointer transition-all",
+                selectedClass === className
+                  ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white border-0 shadow-md"
+                  : "hover:bg-gray-100 hover:border-gray-400"
+              )}
+              onClick={() => setSelectedClass(className)}
+            >
+              {className} ({classCounts[className] || 0}人)
+            </Badge>
+          ))}
+        </div>
       </div>
 
       {/* 统计卡片 */}
@@ -502,10 +580,24 @@ export function AIAnalysisReport({
         <CardHeader>
           <div className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-primary" />
-            <CardTitle>学生成绩趋势预测</CardTitle>
+            <CardTitle>
+              {selectedClass === "全部班级"
+                ? "学生成绩趋势预测（全年级）"
+                : `${selectedClass} - 学生成绩趋势预测`}
+            </CardTitle>
           </div>
           <p className="text-sm text-gray-500 mt-1">
-            基于线性回归算法，预测学生未来考试的可能表现（显示进步最快和退步最快的各5名学生）
+            {selectedClass === "全部班级" ? (
+              <>
+                基于线性回归算法，预测学生未来考试的可能表现（全年级显示进步最快和退步最快的各5名学生）
+                <br />
+                <strong className="text-blue-600">
+                  💡 提示：选择具体班级可查看该班所有学生的详细预测
+                </strong>
+              </>
+            ) : (
+              `基于线性回归算法，预测${selectedClass}学生未来考试的可能表现（显示进步最快和退步最快的各5名）`
+            )}
           </p>
         </CardHeader>
         <CardContent>
@@ -529,6 +621,10 @@ export function AIAnalysisReport({
             <li>趋势预测采用线性回归算法，预测准确度受历史数据影响</li>
             <li>建议结合实际教学情况和学生个体差异综合判断</li>
             <li>可切换不同科目查看分科分析结果，更精准定位教学改进方向</li>
+            <li>
+              <strong>班级筛选：</strong>
+              选择"全部班级"查看年级整体情况，选择具体班级深入分析该班学生表现
+            </li>
           </ul>
         </AlertDescription>
       </Alert>
