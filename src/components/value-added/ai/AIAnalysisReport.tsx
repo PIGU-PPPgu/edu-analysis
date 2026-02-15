@@ -18,7 +18,7 @@ import {
   Users,
   BookOpen,
 } from "lucide-react";
-import { TrendForecast } from "@/components/analysis/value-added/TrendForecast";
+import TrendForecast from "@/components/analysis/value-added/TrendForecast";
 import { supabase } from "@/integrations/supabase/client";
 import type {
   ValueAddedMetrics,
