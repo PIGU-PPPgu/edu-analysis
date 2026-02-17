@@ -67,17 +67,9 @@ const CreateWarningTablePage = lazy(
   () => import("./pages/tools/CreateWarningTable")
 );
 const DiagnosisPage = lazy(() => import("./pages/DiagnosisPage"));
-const TestDuplicateStudents = lazy(
-  () => import("./pages/TestDuplicateStudents")
-);
 const CleanDuplicateStudents = lazy(
   () => import("./pages/CleanDuplicateStudents")
 );
-const PerformanceTest = lazy(() => import("./pages/PerformanceTest"));
-const ChartPerformanceTest = lazy(() => import("./pages/ChartPerformanceTest"));
-const DemoModePage = lazy(() => import("./pages/DemoModePage"));
-const UIDemoPage = lazy(() => import("./pages/UIDemo"));
-const TrendPredictionDemo = lazy(() => import("./pages/TrendPredictionDemo"));
 import {
   initGlobalErrorHandlers,
   reduceBrowserWorkload,
@@ -245,7 +237,6 @@ function App() {
                           <Route path="/login" element={<Login />} />
                           <Route path="/privacy" element={<PrivacyPolicy />} />
                           <Route path="/icp-notice" element={<ICPNotice />} />
-                          <Route path="/ui-demo" element={<UIDemoPage />} />
                           <Route
                             path="/unauthorized"
                             element={<UnauthorizedPage />}
@@ -279,25 +270,8 @@ function App() {
                           />
                           <Route path="/test-theme" element={<ThemeTest />} />
                           <Route
-                            path="/test-duplicates"
-                            element={<TestDuplicateStudents />}
-                          />
-                          <Route
                             path="/clean-duplicates"
                             element={<CleanDuplicateStudents />}
-                          />
-                          <Route
-                            path="/performance-test"
-                            element={<PerformanceTest />}
-                          />
-                          <Route
-                            path="/chart-performance-test"
-                            element={<ChartPerformanceTest />}
-                          />
-                          <Route path="/demo-mode" element={<DemoModePage />} />
-                          <Route
-                            path="/trend-prediction-demo"
-                            element={<TrendPredictionDemo />}
                           />
 
                           {/* 受保护的路由 - 需要登录验证 */}
