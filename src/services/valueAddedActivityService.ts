@@ -707,6 +707,9 @@ export async function executeValueAddedCalculation(
         }
 
         // ✅ 计算学生增值（使用正确的Z分数和等级计算）
+        console.log(
+          `🔍 [学生计算] 开始 ${subjectKeyToName[subject]}，输入学生数: ${studentGrades.length}`
+        );
         const studentResults = await calculateStudentValueAdded({
           allStudents: studentGrades as any,
           subject: subjectKeyToName[subject],
@@ -714,7 +717,7 @@ export async function executeValueAddedCalculation(
         });
 
         console.log(
-          `${subjectKeyToName[subject]} 学生增值计算完成，学生数: ${studentResults.length}`
+          `✅ [学生计算] ${subjectKeyToName[subject]} 完成，输出学生数: ${studentResults.length}`
         );
 
         // 收集学生结果
@@ -729,7 +732,10 @@ export async function executeValueAddedCalculation(
           });
         }
       } catch (error) {
-        console.error(`计算 ${subjectKeyToName[subject]} 时出错:`, error);
+        console.error(
+          `❌ [学生计算] ${subjectKeyToName[subject]} 出错:`,
+          error
+        );
         // 继续处理其他科目
       }
 
@@ -840,14 +846,24 @@ export async function executeValueAddedCalculation(
     });
 
     if (allStudentResults.length > 0) {
-      console.log(`批量插入 ${allStudentResults.length} 条学生结果`);
-      const { error: studentError } = await supabase
-        .from("value_added_cache")
-        .insert(allStudentResults);
+      console.log(`批量插入 ${allStudentResults.length} 条学生结果（分批）`);
+      const BATCH_SIZE = 500;
+      for (let i = 0; i < allStudentResults.length; i += BATCH_SIZE) {
+        const batch = allStudentResults.slice(i, i + BATCH_SIZE);
+        const { error: studentError } = await supabase
+          .from("value_added_cache")
+          .insert(batch);
 
-      if (studentError) {
-        console.error("保存学生结果失败:", studentError);
-        throw new Error(`保存学生结果失败: ${studentError.message}`);
+        if (studentError) {
+          console.error(
+            `保存学生结果批次 ${i / BATCH_SIZE + 1} 失败:`,
+            studentError
+          );
+          throw new Error(`保存学生结果失败: ${studentError.message}`);
+        }
+        console.log(
+          `✅ 学生批次 ${i / BATCH_SIZE + 1}/${Math.ceil(allStudentResults.length / BATCH_SIZE)} 插入成功 (${batch.length}条)`
+        );
       }
     }
 

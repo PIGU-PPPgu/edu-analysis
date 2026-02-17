@@ -5,6 +5,13 @@
  * 包括基础统计、排名计算、分数段分析、趋势分析等
  */
 
+import {
+  calculateStatistics,
+  calculateStandardDeviation,
+  calculateMedian,
+  groupBy as groupByStats,
+} from "@/utils/statistics";
+
 // ============================================================================
 // 基础统计计算
 // ============================================================================
@@ -21,7 +28,7 @@ export interface BasicStatistics {
 }
 
 /**
- * 计算基础统计指标
+ * 计算基础统计指标（统一使用statistics.ts）
  */
 export function calculateBasicStatistics(scores: number[]): BasicStatistics {
   if (!scores || scores.length === 0) {
@@ -40,9 +47,8 @@ export function calculateBasicStatistics(scores: number[]): BasicStatistics {
   const validScores = scores.filter(
     (score) => typeof score === "number" && !isNaN(score)
   );
-  const count = validScores.length;
 
-  if (count === 0) {
+  if (validScores.length === 0) {
     return {
       count: 0,
       average: 0,
@@ -55,33 +61,19 @@ export function calculateBasicStatistics(scores: number[]): BasicStatistics {
     };
   }
 
-  const sum = validScores.reduce((acc, score) => acc + score, 0);
-  const average = sum / count;
-  const max = Math.max(...validScores);
-  const min = Math.min(...validScores);
-
-  // 计算中位数
-  const sortedScores = [...validScores].sort((a, b) => a - b);
-  const median =
-    count % 2 === 0
-      ? (sortedScores[count / 2 - 1] + sortedScores[count / 2]) / 2
-      : sortedScores[Math.floor(count / 2)];
-
-  // 计算方差和标准差
-  const variance =
-    validScores.reduce((acc, score) => acc + Math.pow(score - average, 2), 0) /
-    count;
-  const standardDeviation = Math.sqrt(variance);
+  const stats = calculateStatistics(validScores);
+  const stdDev = stats.std_dev;
+  const variance = stdDev * stdDev;
 
   return {
-    count,
-    average: Number(average.toFixed(2)),
-    max,
-    min,
-    median: Number(median.toFixed(2)),
-    standardDeviation: Number(standardDeviation.toFixed(2)),
+    count: stats.count,
+    average: Number(stats.mean.toFixed(2)),
+    max: stats.max,
+    min: stats.min,
+    median: Number(stats.median.toFixed(2)),
+    standardDeviation: Number(stdDev.toFixed(2)),
     variance: Number(variance.toFixed(2)),
-    sum,
+    sum: stats.sum,
   };
 }
 
@@ -517,27 +509,22 @@ export function validateNumericData(data: any[]): number[] {
 }
 
 /**
- * 分组计算
+ * 分组计算（直接导出statistics.ts的实现）
  */
-export function groupBy<T>(
-  array: T[],
-  keyFn: (item: T) => string
-): Record<string, T[]> {
-  return array.reduce(
-    (groups, item) => {
-      const key = keyFn(item);
-      if (!groups[key]) {
-        groups[key] = [];
-      }
-      groups[key].push(item);
-      return groups;
-    },
-    {} as Record<string, T[]>
-  );
-}
+export { groupByStats as groupBy };
 
 /**
- * 百分位数计算
+ * 百分位数计算（根据百分位获取对应的值）
+ *
+ * ⚠️ 注意：此函数与statistics.ts中的calculatePercentile语义不同：
+ * - 本函数：(values, percentile) => value  （给定百分位，返回对应的值）
+ * - statistics.ts: (value, values) => percentile （给定值，返回其百分位）
+ *
+ * 两者是互逆操作，不可混用！
+ *
+ * @param values 数值数组
+ * @param percentile 百分位（0-100）
+ * @returns 该百分位对应的值
  */
 export function calculatePercentile(
   values: number[],

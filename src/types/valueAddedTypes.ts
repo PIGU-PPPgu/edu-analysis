@@ -230,6 +230,13 @@ export interface TeacherValueAdded {
   // 排名
   rank_in_subject?: number;
   total_teachers?: number;
+
+  // 班级明细（聚合后填充）
+  class_details?: Array<{
+    class_name: string;
+    avg_rate: number;
+    student_count: number;
+  }>;
 }
 
 /** 班级增值评价 */

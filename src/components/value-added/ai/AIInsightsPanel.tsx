@@ -34,7 +34,13 @@ import {
   X,
   RefreshCw,
   FileText,
+  ChevronRight,
 } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "@/components/ui/collapsible";
 import { AIReportViewer } from "../reports/AIReportViewer";
 import { AdvancedAnalysisEngine } from "@/services/ai/advancedAnalysisEngine";
 import {
@@ -74,6 +80,13 @@ export function AIInsightsPanel({
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [dataHash, setDataHash] = useState<string>("");
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
+    {
+      [InsightPriority.HIGH]: true,
+      [InsightPriority.MEDIUM]: false,
+      [InsightPriority.LOW]: false,
+    }
+  );
 
   // 生成数据特征哈希
   const generateDataHash = (data: any[]) => {
@@ -150,6 +163,36 @@ export function AIInsightsPanel({
       (insight) => !dismissed.has(insight.id)
     );
   }, [analysisResult, dismissed]);
+
+  // 按优先级分组
+  const groupedInsights = useMemo(() => {
+    const groups = [
+      {
+        priority: InsightPriority.HIGH,
+        label: "高优先级",
+        bg: "bg-red-50",
+        border: "border-red-200",
+      },
+      {
+        priority: InsightPriority.MEDIUM,
+        label: "中优先级",
+        bg: "bg-yellow-50",
+        border: "border-yellow-200",
+      },
+      {
+        priority: InsightPriority.LOW,
+        label: "低优先级",
+        bg: "bg-blue-50",
+        border: "border-blue-200",
+      },
+    ];
+    return groups
+      .map((g) => ({
+        ...g,
+        items: visibleInsights.filter((i) => i.priority === g.priority),
+      }))
+      .filter((g) => g.items.length > 0);
+  }, [visibleInsights]);
 
   // 隐藏洞察
   const handleDismiss = (insightId: string) => {
@@ -382,9 +425,38 @@ export function AIInsightsPanel({
         </CardContent>
       </Card>
 
-      {/* 洞察列表 */}
+      {/* 洞察列表 - 按优先级分组 */}
       <div className="space-y-3">
-        {visibleInsights.map((insight) => renderInsightCard(insight))}
+        {groupedInsights.map((group) => (
+          <Collapsible
+            key={group.priority}
+            open={expandedGroups[group.priority]}
+            onOpenChange={(open) =>
+              setExpandedGroups((prev) => ({ ...prev, [group.priority]: open }))
+            }
+          >
+            <div className={`rounded-lg border ${group.border} ${group.bg}`}>
+              <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <ChevronRight
+                    className={`h-4 w-4 transition-transform ${
+                      expandedGroups[group.priority] ? "rotate-90" : ""
+                    }`}
+                  />
+                  <span className="text-sm font-medium">{group.label}</span>
+                  <Badge variant="secondary" className="text-xs">
+                    {group.items.length}
+                  </Badge>
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="space-y-3 px-4 pb-4">
+                  {group.items.map((insight) => renderInsightCard(insight))}
+                </div>
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
+        ))}
       </div>
 
       {/* AI报告生成按钮 */}

@@ -24,6 +24,62 @@ const POSITIVUS_COLORS = {
   white: "#FFFFFF",
 };
 
+// 将章节内容按【标题】拆分为独立渲染块
+// 每个【】标记和其后续内容组成一个卡片块，其余为普通文本块
+type ContentBlock =
+  | { type: "card"; title: string; content: string }
+  | { type: "text"; content: string };
+
+function splitIntoBlocks(content: string): ContentBlock[] {
+  const lines = content.split("\n");
+  const blocks: ContentBlock[] = [];
+  let currentCard: { title: string; lines: string[] } | null = null;
+  let textBuffer: string[] = [];
+
+  const flushText = () => {
+    const text = textBuffer.join("\n").trim();
+    if (text) blocks.push({ type: "text", content: text });
+    textBuffer = [];
+  };
+
+  const flushCard = () => {
+    if (currentCard) {
+      blocks.push({
+        type: "card",
+        title: currentCard.title,
+        content: currentCard.lines.join("\n").trim(),
+      });
+      currentCard = null;
+    }
+  };
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const bracketMatch = trimmed.match(/^【(.+?)】(.*)$/);
+    const isSectionTitle = /^[一二三四五六七八九十]+、/.test(trimmed);
+
+    if (isSectionTitle) {
+      flushCard();
+      flushText();
+      textBuffer.push(line);
+    } else if (bracketMatch) {
+      flushCard();
+      flushText();
+      currentCard = { title: bracketMatch[1], lines: [] };
+      if (bracketMatch[2]?.trim())
+        currentCard.lines.push(bracketMatch[2].trim());
+    } else if (currentCard) {
+      currentCard.lines.push(line);
+    } else {
+      textBuffer.push(line);
+    }
+  }
+  flushCard();
+  flushText();
+
+  return blocks;
+}
+
 interface ProfessionalReportViewerProps {
   insights: AIInsight[];
   rawData?: any[];
@@ -143,6 +199,125 @@ export function ProfessionalReportViewer({
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
+
+  const markdownComponents = useMemo(
+    () => ({
+      h2: ({ node, children, ...props }: any) => (
+        <h2
+          className="text-3xl font-black text-[#191A23] mt-16 mb-8 pb-4 border-b-4 border-[#B9FF66] uppercase tracking-wide"
+          {...props}
+        >
+          {children}
+        </h2>
+      ),
+      h3: ({ node, children, ...props }: any) => (
+        <h3
+          className="text-2xl font-bold text-[#191A23] mt-12 mb-6 flex items-center"
+          {...props}
+        >
+          <span className="w-2 h-8 bg-[#B9FF66] rounded-full mr-3"></span>
+          {children}
+        </h3>
+      ),
+      h4: ({ node, children, ...props }: any) => (
+        <h4 className="text-xl font-bold text-[#191A23] mt-8 mb-4" {...props}>
+          {children}
+        </h4>
+      ),
+      p: ({ node, children, ...props }: any) => (
+        <p
+          className="my-5 leading-relaxed text-[#191A23] text-base font-medium indent-[2em]"
+          {...props}
+        >
+          {children}
+        </p>
+      ),
+      ul: ({ node, ...props }: any) => (
+        <ul
+          className="my-8 space-y-3 ml-0 list-none page-break-avoid list-item-group"
+          {...props}
+        />
+      ),
+      ol: ({ node, ...props }: any) => (
+        <ol
+          className="my-8 space-y-3 ml-8 list-decimal list-outside font-bold page-break-avoid list-item-group"
+          {...props}
+        />
+      ),
+      li: ({ node, children, ...props }: any) => (
+        <li
+          className="flex items-start gap-3 text-[#191A23] leading-relaxed font-medium page-break-avoid [&_p]:my-0 [&_p]:indent-0"
+          {...props}
+        >
+          <span className="w-6 h-6 bg-[#B9FF66] rounded-full flex items-center justify-center text-[#191A23] font-black text-sm border-2 border-[#191A23] mt-0.5 shrink-0">
+            ✓
+          </span>
+          <div className="flex-1">{children}</div>
+        </li>
+      ),
+      strong: ({ node, ...props }: any) => (
+        <strong
+          className="text-[#191A23] font-black bg-[#B9FF66] px-1.5 py-0.5 rounded border border-[#191A23]"
+          {...props}
+        />
+      ),
+      em: ({ node, ...props }: any) => (
+        <em className="text-[#F7931E] not-italic font-bold" {...props} />
+      ),
+      hr: ({ node, ...props }: any) => (
+        <div className="my-16 flex items-center gap-4">
+          <div className="flex-1 h-1 bg-[#191A23] rounded-full"></div>
+          <div className="w-4 h-4 bg-[#B9FF66] rounded-full border-2 border-[#191A23]"></div>
+          <div className="flex-1 h-1 bg-[#191A23] rounded-full"></div>
+        </div>
+      ),
+      blockquote: ({ node, ...props }: any) => (
+        <blockquote
+          className="my-8 bg-[#F7931E]/10 border-l-8 border-[#F7931E] pl-8 pr-6 py-6 rounded-r-xl font-bold text-[#191A23] border-2 border-[#191A23] shadow-[4px_4px_0px_0px_#F7931E] page-break-avoid keep-together"
+          {...props}
+        />
+      ),
+      table: ({ node, ...props }: any) => (
+        <div className="my-10 overflow-hidden rounded-xl border-4 border-[#191A23] shadow-[6px_6px_0px_0px_#B9FF66] page-break-avoid keep-together">
+          <table className="w-full border-collapse" {...props} />
+        </div>
+      ),
+      thead: ({ node, ...props }: any) => (
+        <thead className="bg-[#191A23] text-white" {...props} />
+      ),
+      th: ({ node, ...props }: any) => (
+        <th
+          className="px-6 py-4 text-left font-black uppercase tracking-wide text-sm border-b-2 border-[#B9FF66]"
+          {...props}
+        />
+      ),
+      td: ({ node, ...props }: any) => (
+        <td
+          className="px-6 py-4 text-[#191A23] font-medium border-b-2 border-gray-200"
+          {...props}
+        />
+      ),
+      tbody: ({ node, ...props }: any) => (
+        <tbody className="bg-white" {...props} />
+      ),
+      tr: ({ node, ...props }: any) => (
+        <tr className="hover:bg-[#B9FF66]/10 transition-colors" {...props} />
+      ),
+      code: ({ node, inline, ...props }: any) =>
+        inline ? (
+          <code
+            className="bg-[#191A23] text-[#B9FF66] px-2 py-1 rounded font-mono text-sm font-bold border-2 border-[#191A23]"
+            {...props}
+          />
+        ) : (
+          <code
+            className="block bg-[#191A23] text-[#B9FF66] p-6 rounded-xl text-sm font-mono border-4 border-[#191A23] shadow-[4px_4px_0px_0px_#B9FF66] overflow-x-auto my-8 page-break-avoid keep-together"
+            {...props}
+          />
+        ),
+    }),
+    []
+  );
 
   return (
     <div className="positivus-report-wrapper bg-gray-50 min-h-screen py-8">
@@ -284,189 +459,36 @@ export function ProfessionalReportViewer({
 
             {/* 章节内容 - Positivus排版 */}
             <div className="prose prose-lg max-w-none positivus-content">
-              <ReactMarkdown
-                components={{
-                  // 二级标题
-                  h2: ({ node, children, ...props }) => (
-                    <h2
-                      className="text-3xl font-black text-[#191A23] mt-16 mb-8 pb-4 border-b-4 border-[#B9FF66] uppercase tracking-wide"
-                      {...props}
-                    >
-                      {children}
-                    </h2>
-                  ),
-                  // 三级标题
-                  h3: ({ node, children, ...props }) => (
-                    <h3
-                      className="text-2xl font-bold text-[#191A23] mt-12 mb-6 flex items-center"
-                      {...props}
-                    >
-                      <span className="w-2 h-8 bg-[#B9FF66] rounded-full mr-3"></span>
-                      {children}
-                    </h3>
-                  ),
-                  // 四级标题
-                  h4: ({ node, children, ...props }) => (
-                    <h4
-                      className="text-xl font-bold text-[#191A23] mt-8 mb-4"
-                      {...props}
-                    >
-                      {children}
-                    </h4>
-                  ),
-                  // 段落 - 【】标记段落用Positivus卡片
-                  p: ({ node, children, ...props }) => {
-                    const text = String(children);
-
-                    // 【】标记段落 - Positivus卡片样式
-                    if (text.startsWith("【") && text.includes("】")) {
-                      const match = text.match(/^【(.+?)】(.*)$/s);
-                      if (match) {
-                        return (
-                          <div className="my-10 page-break-avoid keep-together highlight-card">
-                            <div className="bg-white border-4 border-[#191A23] rounded-[20px] shadow-[6px_6px_0px_0px_#B9FF66] p-8 hover:translate-x-1 hover:translate-y-1 hover:shadow-[4px_4px_0px_0px_#B9FF66] transition-all duration-200 positivus-card">
-                              {/* 标题栏 */}
-                              <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-[#191A23] page-break-avoid">
-                                <span className="w-10 h-10 bg-[#B9FF66] text-[#191A23] rounded-lg flex items-center justify-center font-black text-xl border-2 border-[#191A23] shadow-[2px_2px_0px_0px_#191A23]">
-                                  📌
-                                </span>
-                                <h4 className="text-xl font-black text-[#191A23] uppercase">
-                                  {match[1]}
-                                </h4>
-                              </div>
-                              {/* 内容 */}
-                              <div className="space-y-4 text-[#191A23] leading-relaxed pl-2">
-                                {match[2]
-                                  .trim()
-                                  .split("\n")
-                                  .map((line, i) => (
-                                    <p
-                                      key={i}
-                                      className="text-base font-medium"
-                                    >
-                                      {line}
-                                    </p>
-                                  ))}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      }
-                    }
-
-                    // 普通段落
-                    return (
-                      <p
-                        className="my-5 leading-relaxed text-[#191A23] text-base font-medium"
-                        style={{ textIndent: "2em" }}
-                        {...props}
-                      >
-                        {children}
-                      </p>
-                    );
-                  },
-                  // 无序列表
-                  ul: ({ node, ...props }) => (
-                    <ul
-                      className="my-8 space-y-3 ml-0 list-none page-break-avoid list-item-group"
-                      {...props}
-                    />
-                  ),
-                  // 有序列表
-                  ol: ({ node, ...props }) => (
-                    <ol
-                      className="my-8 space-y-3 ml-8 list-decimal list-outside font-bold page-break-avoid list-item-group"
-                      {...props}
-                    />
-                  ),
-                  // 列表项 - Positivus风格
-                  li: ({ node, children, ...props }) => (
-                    <li
-                      className="flex items-start gap-3 text-[#191A23] leading-relaxed font-medium page-break-avoid"
-                      {...props}
-                    >
-                      <span className="w-6 h-6 bg-[#B9FF66] rounded-full flex items-center justify-center text-[#191A23] font-black text-sm border-2 border-[#191A23] mt-0.5 shrink-0">
-                        ✓
-                      </span>
-                      <span className="flex-1">{children}</span>
-                    </li>
-                  ),
-                  // 强调文本 - 荧光绿高亮
-                  strong: ({ node, ...props }) => (
-                    <strong
-                      className="text-[#191A23] font-black bg-[#B9FF66] px-1.5 py-0.5 rounded border border-[#191A23]"
-                      {...props}
-                    />
-                  ),
-                  // 斜体
-                  em: ({ node, ...props }) => (
-                    <em
-                      className="text-[#F7931E] not-italic font-bold"
-                      {...props}
-                    />
-                  ),
-                  // 分隔线 - Positivus风格
-                  hr: ({ node, ...props }) => (
-                    <div className="my-16 flex items-center gap-4">
-                      <div className="flex-1 h-1 bg-[#191A23] rounded-full"></div>
-                      <div className="w-4 h-4 bg-[#B9FF66] rounded-full border-2 border-[#191A23]"></div>
-                      <div className="flex-1 h-1 bg-[#191A23] rounded-full"></div>
+              {splitIntoBlocks(section.content).map((block, blockIdx) =>
+                block.type === "card" ? (
+                  <div
+                    key={blockIdx}
+                    className="my-10 page-break-avoid keep-together highlight-card"
+                  >
+                    <div className="bg-white border-4 border-[#191A23] rounded-[20px] shadow-[6px_6px_0px_0px_#B9FF66] p-8 hover:translate-x-1 hover:translate-y-1 hover:shadow-[4px_4px_0px_0px_#B9FF66] transition-all duration-200 positivus-card">
+                      {/* 标题栏 */}
+                      <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-[#191A23] page-break-avoid">
+                        <span className="w-10 h-10 bg-[#B9FF66] text-[#191A23] rounded-lg flex items-center justify-center font-black text-xl border-2 border-[#191A23] shadow-[2px_2px_0px_0px_#191A23]">
+                          📌
+                        </span>
+                        <h4 className="text-xl font-black text-[#191A23] uppercase">
+                          {block.title}
+                        </h4>
+                      </div>
+                      {/* 卡片内容 - 用ReactMarkdown渲染以保留格式 */}
+                      <div className="space-y-2 text-[#191A23] leading-relaxed pl-2">
+                        <ReactMarkdown components={markdownComponents}>
+                          {block.content}
+                        </ReactMarkdown>
+                      </div>
                     </div>
-                  ),
-                  // 引用块 - Positivus卡片
-                  blockquote: ({ node, ...props }) => (
-                    <blockquote
-                      className="my-8 bg-[#F7931E]/10 border-l-8 border-[#F7931E] pl-8 pr-6 py-6 rounded-r-xl font-bold text-[#191A23] border-2 border-[#191A23] shadow-[4px_4px_0px_0px_#F7931E] page-break-avoid keep-together"
-                      {...props}
-                    />
-                  ),
-                  // 表格 - Positivus风格
-                  table: ({ node, ...props }) => (
-                    <div className="my-10 overflow-hidden rounded-xl border-4 border-[#191A23] shadow-[6px_6px_0px_0px_#B9FF66] page-break-avoid keep-together">
-                      <table className="w-full border-collapse" {...props} />
-                    </div>
-                  ),
-                  thead: ({ node, ...props }) => (
-                    <thead className="bg-[#191A23] text-white" {...props} />
-                  ),
-                  th: ({ node, ...props }) => (
-                    <th
-                      className="px-6 py-4 text-left font-black uppercase tracking-wide text-sm border-b-2 border-[#B9FF66]"
-                      {...props}
-                    />
-                  ),
-                  td: ({ node, ...props }) => (
-                    <td
-                      className="px-6 py-4 text-[#191A23] font-medium border-b-2 border-gray-200"
-                      {...props}
-                    />
-                  ),
-                  tbody: ({ node, ...props }) => (
-                    <tbody className="bg-white" {...props} />
-                  ),
-                  tr: ({ node, ...props }) => (
-                    <tr
-                      className="hover:bg-[#B9FF66]/10 transition-colors"
-                      {...props}
-                    />
-                  ),
-                  // 代码块 - Positivus风格
-                  code: ({ node, inline, ...props }: any) =>
-                    inline ? (
-                      <code
-                        className="bg-[#191A23] text-[#B9FF66] px-2 py-1 rounded font-mono text-sm font-bold border-2 border-[#191A23]"
-                        {...props}
-                      />
-                    ) : (
-                      <code
-                        className="block bg-[#191A23] text-[#B9FF66] p-6 rounded-xl text-sm font-mono border-4 border-[#191A23] shadow-[4px_4px_0px_0px_#B9FF66] overflow-x-auto my-8 page-break-avoid keep-together"
-                        {...props}
-                      />
-                    ),
-                }}
-              >
-                {section.content}
-              </ReactMarkdown>
+                  </div>
+                ) : (
+                  <ReactMarkdown key={blockIdx} components={markdownComponents}>
+                    {block.content}
+                  </ReactMarkdown>
+                )
+              )}
             </div>
 
             {/* 页脚 */}

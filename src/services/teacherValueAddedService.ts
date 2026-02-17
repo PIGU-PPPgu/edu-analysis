@@ -94,6 +94,7 @@ export async function calculateTeacherValueAdded(
     const teacherResult = await calculateSingleTeacherValueAdded({
       teacherId,
       teacherName: students[0].teacher_name,
+      className: students[0].class_name,
       students,
       subject,
       levelDefinitions,
@@ -115,6 +116,7 @@ export async function calculateTeacherValueAdded(
 async function calculateSingleTeacherValueAdded(params: {
   teacherId: string;
   teacherName: string;
+  className: string;
   students: StudentGradeData[];
   subject: string;
   levelDefinitions: GradeLevelDefinition[];
@@ -123,6 +125,7 @@ async function calculateSingleTeacherValueAdded(params: {
   const {
     teacherId,
     teacherName,
+    className,
     students,
     subject,
     levelDefinitions,
@@ -196,6 +199,7 @@ async function calculateSingleTeacherValueAdded(params: {
   return {
     teacher_id: teacherId,
     teacher_name: teacherName,
+    class_name: className,
     subject,
 
     // 分数增值

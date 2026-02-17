@@ -28,13 +28,21 @@ export function calculateMean(values: number[]): number {
 }
 
 /**
- * 计算标准差
+ * 计算标准差（P0修复：使用样本标准差公式）
+ *
+ * 样本标准差公式：σ = sqrt(Σ(x-μ)² / (n-1))
+ * 使用n-1而非n，提供无偏估计
  */
 export function calculateStandardDeviation(values: number[]): number {
   if (values.length === 0) return 0;
+  if (values.length === 1) return 0; // 单个样本标准差为0
+
   const mean = calculateMean(values);
   const squaredDiffs = values.map((val) => Math.pow(val - mean, 2));
-  const variance = calculateMean(squaredDiffs);
+  const sumSquaredDiffs = squaredDiffs.reduce((sum, val) => sum + val, 0);
+
+  // P0修复：使用样本标准差公式（除以n-1而非n）
+  const variance = sumSquaredDiffs / (values.length - 1);
   return Math.sqrt(variance);
 }
 

@@ -2,7 +2,7 @@
 
 /**
  * 增值评价主仪表板
- * 参照汇优评系统设计，包含三个标签页：
+ * 包含三个标签页：
  * 1. 数据导入
  * 2. 增值活动管理
  * 3. 增值报告
@@ -27,6 +27,7 @@ import { ReportsMenuDashboard } from "./reports/ReportsMenuDashboard";
 import { ActivityList } from "./activity/ActivityList";
 import { DataImportWorkflowWithConfig } from "./import/DataImportWorkflowWithConfig";
 import { ConfigurationManager } from "./config/ConfigurationManager";
+import { FormulaExplanation } from "./FormulaExplanation";
 import { supabase } from "@/integrations/supabase/client";
 import type {
   ClassValueAdded,
@@ -456,9 +457,12 @@ export function ValueAddedMainDashboard() {
             全面评估教学成效，科学衡量学生成长
           </p>
         </div>
-        <Badge variant="outline" className="text-sm px-3 py-1">
-          核心功能完成 (90%)
-        </Badge>
+        <div className="flex items-center gap-3">
+          <FormulaExplanation />
+          <Badge variant="outline" className="text-sm px-3 py-1">
+            核心功能完成 (90%)
+          </Badge>
+        </div>
       </div>
 
       {/* 主内容区 - 四个标签页 */}

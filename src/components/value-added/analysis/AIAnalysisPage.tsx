@@ -31,13 +31,21 @@ import {
   AlertTriangle,
   Users,
   BarChart3,
+  ChevronDown,
+  FileDown,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { AIInsightsPanel } from "../ai/AIInsightsPanel";
 import { AnomalyDetailView, type AnomalyDetail } from "../ai/AnomalyDetailView";
 import { AIReportViewer } from "../reports/AIReportViewer";
 import { chatWithModel } from "@/services/aiService";
+import { exportToPPT } from "@/services/pptExportService";
 import { getUserAIConfig } from "@/utils/userAuth";
 import type {
   ClassValueAdded,
@@ -134,12 +142,11 @@ const generateAnomalies = (
 
   // 检测学生异常（限制数量）
   if (students.length > 0) {
-    const valueAddedRates = students.map((s) => s.avg_score_value_added_rate);
+    const valueAddedRates = students.map((s) => s.score_value_added_rate);
     const stats = calculateStats(valueAddedRates);
 
     students.slice(0, 200).forEach((student) => {
-      const zScore =
-        (student.avg_score_value_added_rate - stats.mean) / stats.std;
+      const zScore = (student.score_value_added_rate - stats.mean) / stats.std;
       if (Math.abs(zScore) > 2.5) {
         // 学生阈值提高到2.5σ
         anomalies.push({
@@ -147,14 +154,14 @@ const generateAnomalies = (
           name: student.student_name,
           className: student.class_name,
           subject: student.subject,
-          reason: `增值率${student.avg_score_value_added_rate > 0 ? "+" : ""}${(student.avg_score_value_added_rate * 100).toFixed(1)}%，${zScore > 0 ? "显著高于" : "显著低于"}平均水平`,
+          reason: `增值率${student.score_value_added_rate > 0 ? "+" : ""}${(student.score_value_added_rate * 100).toFixed(1)}%，${zScore > 0 ? "显著高于" : "显著低于"}平均水平`,
           severity:
             Math.abs(zScore) > 3
               ? "high"
               : Math.abs(zScore) > 2.5
                 ? "medium"
                 : "low",
-          value: student.avg_score_value_added_rate,
+          value: student.score_value_added_rate,
           standardDeviation: zScore,
           type: "student",
         });
@@ -184,6 +191,9 @@ export function AIAnalysisPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [teacherSubjectFilter, setTeacherSubjectFilter] =
     useState<string>("all"); // 教师排行的科目筛选
+  const [expandedTeachers, setExpandedTeachers] = useState<Set<string>>(
+    new Set()
+  );
 
   // 获取可用的筛选选项
   const { subjects, classes } = useMemo(() => {
@@ -221,14 +231,10 @@ export function AIAnalysisPage() {
   }, [classData, selectedSubject, selectedClass, searchTerm]);
 
   const filteredTeacherData = useMemo(() => {
-    // 如果选择了特定班级，不包含教师数据（因为教师数据没有班级字段）
-    if (selectedClass !== "all") {
-      console.log("🔍 [筛选] 选择了班级，跳过教师数据");
-      return [];
-    }
-
     return teacherData.filter((t) => {
       if (selectedSubject !== "all" && t.subject !== selectedSubject)
+        return false;
+      if (selectedClass !== "all" && t.class_name !== selectedClass)
         return false;
       if (
         searchTerm &&
@@ -238,6 +244,59 @@ export function AIAnalysisPage() {
       return true;
     });
   }, [teacherData, selectedSubject, selectedClass, searchTerm]);
+
+  // 按 teacher_id + subject 聚合教师数据，合并同一教师同科目多班级的记录
+  const aggregatedTeacherData = useMemo(() => {
+    const groupMap = new Map<
+      string,
+      {
+        teacher: TeacherValueAdded;
+        totalWeightedRate: number;
+        totalStudents: number;
+        classDetails: Array<{
+          class_name: string;
+          avg_rate: number;
+          student_count: number;
+        }>;
+      }
+    >();
+
+    filteredTeacherData.forEach((t) => {
+      const key = `${t.teacher_id}__${t.subject}`;
+      const students = t.total_students || 1;
+      if (!groupMap.has(key)) {
+        groupMap.set(key, {
+          teacher: { ...t },
+          totalWeightedRate: t.avg_score_value_added_rate * students,
+          totalStudents: students,
+          classDetails: [
+            {
+              class_name: t.class_name,
+              avg_rate: t.avg_score_value_added_rate,
+              student_count: students,
+            },
+          ],
+        });
+      } else {
+        const group = groupMap.get(key)!;
+        group.totalWeightedRate += t.avg_score_value_added_rate * students;
+        group.totalStudents += students;
+        group.classDetails.push({
+          class_name: t.class_name,
+          avg_rate: t.avg_score_value_added_rate,
+          student_count: students,
+        });
+      }
+    });
+
+    return Array.from(groupMap.values()).map((g) => ({
+      ...g.teacher,
+      avg_score_value_added_rate:
+        g.totalStudents > 0 ? g.totalWeightedRate / g.totalStudents : 0,
+      total_students: g.totalStudents,
+      class_details: g.classDetails,
+    }));
+  }, [filteredTeacherData]);
 
   const filteredStudentData = useMemo(() => {
     return studentData.filter((s) => {
@@ -253,6 +312,95 @@ export function AIAnalysisPage() {
       return true;
     });
   }, [studentData, selectedSubject, selectedClass, searchTerm]);
+
+  // 统一去重计数（筛选后 + 全量），用于摘要和卡片
+  const filteredStats = useMemo(
+    () => ({
+      classes: new Set(filteredClassData.map((c) => c.class_name)).size,
+      teachers: new Set(filteredTeacherData.map((t) => t.teacher_name)).size,
+      students: new Set(filteredStudentData.map((s) => s.student_name)).size,
+    }),
+    [filteredClassData, filteredTeacherData, filteredStudentData]
+  );
+
+  // 筛选条件变化时清空AI报告，避免展示过期结果
+  useEffect(() => {
+    setAiInsights([]);
+  }, [selectedClass, selectedSubject, searchTerm]);
+
+  const totalStats = useMemo(
+    () => ({
+      classes: new Set(classData.map((c) => c.class_name)).size,
+      teachers: new Set(teacherData.map((t) => t.teacher_name)).size,
+      students: new Set(studentData.map((s) => s.student_name)).size,
+    }),
+    [classData, teacherData, studentData]
+  );
+
+  // 聚合班级总体数据（供导出和图表复用）
+  const classOverallData = useMemo(() => {
+    // 筛选了具体班级 + 全部科目时，展示该班级各科目的增值率
+    if (selectedClass !== "all" && selectedSubject === "all") {
+      return filteredClassData
+        .filter(
+          (cls) =>
+            cls.avg_score_value_added_rate != null &&
+            !isNaN(cls.avg_score_value_added_rate)
+        )
+        .map((cls) => ({
+          class_name: cls.subject,
+          avgRate: cls.avg_score_value_added_rate,
+          subjectCount: 1,
+        }));
+    }
+    // 默认：按班级聚合所有科目的平均增值率
+    const agg: Record<string, { totalRate: number; count: number }> = {};
+    for (const cls of filteredClassData) {
+      const rate = cls.avg_score_value_added_rate;
+      if (rate == null || isNaN(rate)) continue;
+      if (!agg[cls.class_name])
+        agg[cls.class_name] = { totalRate: 0, count: 0 };
+      agg[cls.class_name].totalRate += rate;
+      agg[cls.class_name].count++;
+    }
+    return Object.entries(agg).map(([class_name, v]) => ({
+      class_name,
+      avgRate: v.count > 0 ? v.totalRate / v.count : 0,
+      subjectCount: v.count,
+    }));
+  }, [filteredClassData, selectedClass, selectedSubject]);
+
+  // PPT导出
+  const handleExportPPT = async () => {
+    try {
+      toast.loading("\u6B63\u5728\u751F\u6210PPT\u62A5\u544A...");
+      await exportToPPT({
+        activityName: activityName || "\u589E\u503C\u8BC4\u4EF7",
+        date: new Date().toLocaleDateString("zh-CN"),
+        classData: classOverallData,
+        teacherData: aggregatedTeacherData.map((t) => ({
+          teacher_name: t.teacher_name,
+          subject: t.subject,
+          avg_score_value_added_rate: t.avg_score_value_added_rate,
+          total_students: t.total_students,
+          class_details: t.class_details,
+        })),
+        insights: aiInsights.map((ins) => ({
+          title: ins.title,
+          description: ins.description,
+          priority: ins.priority,
+          confidence: ins.confidence,
+        })),
+        aiReportText:
+          aiInsights.length > 0 ? aiInsights[0].description : undefined,
+      });
+      toast.dismiss();
+      toast.success("PPT\u62A5\u544A\u5BFC\u51FA\u6210\u529F\uFF01");
+    } catch (error) {
+      toast.dismiss();
+      toast.error("PPT\u5BFC\u51FA\u5931\u8D25: " + (error as Error).message);
+    }
+  };
 
   // 根据筛选后的数据动态生成异常检测
   const anomalyData = useMemo(() => {
@@ -288,8 +436,8 @@ export function AIAnalysisPage() {
         setActivityName(activity.name);
       }
 
-      // 查询增值数据
-      const [classResult, teacherResult, studentResult] = await Promise.all([
+      // 查询增值数据（班级/教师数据量小，学生需要分页突破1000条限制）
+      const [classResult, teacherResult] = await Promise.all([
         supabase
           .from("value_added_cache")
           .select("*")
@@ -301,19 +449,33 @@ export function AIAnalysisPage() {
           .select("*")
           .eq("activity_id", activityId)
           .eq("dimension", "teacher"),
+      ]);
 
-        supabase
+      // 分页查询学生数据（可能超过1000条）
+      let allStudentRows: any[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      let hasMore = true;
+      while (hasMore) {
+        const { data } = await supabase
           .from("value_added_cache")
           .select("*")
           .eq("activity_id", activityId)
           .eq("dimension", "student")
-          .limit(1000),
-      ]);
+          .range(from, from + batchSize - 1);
+        if (data && data.length > 0) {
+          allStudentRows = allStudentRows.concat(data);
+          from += batchSize;
+          hasMore = data.length === batchSize;
+        } else {
+          hasMore = false;
+        }
+      }
 
       console.log("🔍 [AI分析] 原始查询结果:", {
-        classResult,
-        teacherResult,
-        studentResult,
+        classCount: classResult.data?.length,
+        teacherCount: teacherResult.data?.length,
+        studentCount: allStudentRows.length,
       });
 
       // 正确提取数据：value_added_cache 的 result 字段包含实际数据
@@ -323,7 +485,7 @@ export function AIAnalysisPage() {
       const teachers = (teacherResult.data || [])
         .map((row) => row.result)
         .filter((d) => d && typeof d === "object") as TeacherValueAdded[];
-      const students = (studentResult.data || [])
+      const students = allStudentRows
         .map((row) => row.result)
         .filter((d) => d && typeof d === "object") as StudentValueAdded[];
 
@@ -361,12 +523,45 @@ export function AIAnalysisPage() {
         throw new Error("AI未配置或未启用，请前往AI设置页面配置");
       }
 
+      // 计算学生在班级+科目内的出口分排名
+      const classSubjectGroups = new Map<string, typeof students>();
+      for (const s of students) {
+        const key = `${s.class_name}_${s.subject}`;
+        if (!classSubjectGroups.has(key)) classSubjectGroups.set(key, []);
+        classSubjectGroups.get(key)!.push(s);
+      }
+      const studentRankMap = new Map<string, { rank: number; total: number }>();
+      for (const [, group] of classSubjectGroups) {
+        const sorted = [...group].sort(
+          (a, b) => (b.exit_score || 0) - (a.exit_score || 0)
+        );
+        sorted.forEach((s, i) => {
+          studentRankMap.set(`${s.student_id}_${s.subject}`, {
+            rank: i + 1,
+            total: group.length,
+          });
+        });
+      }
+
       // 分析学生数据，找出优秀学生和需关注学生
       const sortedStudents = [...students].sort(
-        (a, b) => b.avg_score_value_added_rate - a.avg_score_value_added_rate
+        (a, b) => b.score_value_added_rate - a.score_value_added_rate
       );
-      const topStudents = sortedStudents.slice(0, 15); // 前15名优秀学生
-      const bottomStudents = sortedStudents.slice(-15); // 后15名需关注学生
+      const topStudents = sortedStudents.slice(0, 15);
+      const bottomStudents = sortedStudents.slice(-15);
+
+      // 小老师候选人：出口成绩在班级前30% + 增值率为正
+      const tutorCandidates = students
+        .filter((s) => {
+          const ri = studentRankMap.get(`${s.student_id}_${s.subject}`);
+          return (
+            ri &&
+            ri.rank <= Math.ceil(ri.total * 0.3) &&
+            s.score_value_added_rate > 0
+          );
+        })
+        .sort((a, b) => (b.exit_score || 0) - (a.exit_score || 0))
+        .slice(0, 10);
 
       // 按科目分组分析
       const subjectAnalysis = students.reduce((acc, s) => {
@@ -379,11 +574,11 @@ export function AIAnalysisPage() {
           };
         }
         acc[s.subject].total++;
-        acc[s.subject].avgRate += s.avg_score_value_added_rate;
+        acc[s.subject].avgRate += s.score_value_added_rate;
 
-        if (s.avg_score_value_added_rate > 0.15) {
+        if (s.score_value_added_rate > 0.15) {
           acc[s.subject].topStudents.push(s);
-        } else if (s.avg_score_value_added_rate < -0.1) {
+        } else if (s.score_value_added_rate < -0.1) {
           acc[s.subject].needAttention.push(s);
         }
         return acc;
@@ -417,18 +612,26 @@ ${subjectPriority
 
 【优秀学生】前15名：
 ${topStudents
-  .map(
-    (s, i) =>
-      `${i + 1}. ${s.student_name}（${s.class_name}）${s.subject}：增值率 ${(s.avg_score_value_added_rate * 100).toFixed(1)}%，出口 ${s.exit_score?.toFixed(1)}分`
-  )
+  .map((s, i) => {
+    const ri = studentRankMap.get(`${s.student_id}_${s.subject}`);
+    return `${i + 1}. ${s.student_name}（${s.class_name}）${s.subject}：入口${s.entry_score?.toFixed(1)}→出口${s.exit_score?.toFixed(1)}分，班内第${ri?.rank ?? "?"}/${ri?.total ?? "?"}名，增值率${(s.score_value_added_rate * 100).toFixed(1)}%，等级${s.entry_level}→${s.exit_level}`;
+  })
   .join("\n")}
 
 【需关注学生】后15名：
 ${bottomStudents
-  .map(
-    (s, i) =>
-      `${i + 1}. ${s.student_name}（${s.class_name}）${s.subject}：增值率 ${(s.avg_score_value_added_rate * 100).toFixed(1)}%，出口 ${s.exit_score?.toFixed(1)}分`
-  )
+  .map((s, i) => {
+    const ri = studentRankMap.get(`${s.student_id}_${s.subject}`);
+    return `${i + 1}. ${s.student_name}（${s.class_name}）${s.subject}：入口${s.entry_score?.toFixed(1)}→出口${s.exit_score?.toFixed(1)}分，班内第${ri?.rank ?? "?"}/${ri?.total ?? "?"}名，增值率${(s.score_value_added_rate * 100).toFixed(1)}%，等级${s.entry_level}→${s.exit_level}`;
+  })
+  .join("\n")}
+
+【小老师候选人】（出口成绩班级前30% + 增值率为正）：
+${tutorCandidates
+  .map((s, i) => {
+    const ri = studentRankMap.get(`${s.student_id}_${s.subject}`);
+    return `${i + 1}. ${s.student_name}（${s.class_name}）${s.subject}：出口${s.exit_score?.toFixed(1)}分，班内第${ri?.rank}/${ri?.total}名，增值率${(s.score_value_added_rate * 100).toFixed(1)}%，等级${s.entry_level}→${s.exit_level}`;
+  })
   .join("\n")}
 
 【班级表现】前8个班：
@@ -457,33 +660,38 @@ ${teachers
 
 【要求】列出3-5个最需关注的科目，每个科目包含：
 - 当前增值率数据（与平均值对比）
-- 表现不佳的具体原因分析（是入口基础弱？教学方法问题？学生态度？）
-- 针对原因的2-3条具体措施（包含时间节点、责任人）
-- 如果有表现优秀的科目，也要说明原因和可推广经验
+- 增值表现与全年级均值的对比分析
+- 2-3个可关注的改进方向（如分层辅导、薄弱知识点强化等）
+- 如果有表现优秀的科目，描述其数据特征和可参考的做法
 
 
 二、学生个体指导
 
 【值得表扬】列出5-8名学生：
 - 姓名、班级、科目
-- 表扬原因：增值率数据 + 进步表现
+- 表扬原因：综合考虑 增值率 + 分数提升 + 等级变化 + 班内排名变化
 - 具体表扬话术建议
 
 【需要谈话】列出5-8名学生：
 - 姓名、班级、科目
-- 谈话原因：增值率数据 + 问题诊断
+- 谈话原因：综合分析 出口分与入口分对比 + 增值率 + 班内排名 + 等级变化
 - 谈话要点和改进建议
 
 【防滑对象】识别2-3名学生：
-- 为什么需要特别关注（数据特征）
+- 为什么需要特别关注（入口分高但增值率低、等级下降等数据特征）
 - 预防措施
 
 
 三、优秀学生利用
 
-【小老师人选】推荐3-5人，说明选择依据
-【学习小组长】每科推荐1-2人
-【帮扶配对】给出3-5对，说明配对理由
+【小老师人选】从上方"小老师候选人"数据中推荐3-5人，选择依据需同时满足：
+- 出口成绩在班级排名前30%（学业实力足够辅导他人）
+- 增值率为正（自己在进步，有学习方法可分享）
+- 等级维持或提升（如A+保持、B→A等）
+说明每个人适合辅导什么科目、什么类型的同学
+
+【学习小组长】每科推荐1-2人，要求出口分高 + 增值率正
+【帮扶配对】给出3-5对，说明配对理由（科目、分数差距、互补性等）
 【激励措施】2-3项具体奖励方案
 
 
@@ -525,7 +733,7 @@ ${teachers
 - 使用真实学生姓名和数据
 - 语言专业但易懂，可直接用于教师会议
 
-【重要】每一项分析都要回答：数据是什么？为什么这样？怎么办？
+【重要】每一项分析都要回答：数据是什么？可以怎么改进？
 `;
 
       // 调用AI分析
@@ -543,11 +751,12 @@ ${teachers
 请以班主任的实际工作视角，提供详细、深入、可操作的分析和建议。
 
 【核心要求】
-- 每一项分析都要包含：具体数据 + 原因分析 + 解决方案
-- 不要只说"要做XX"，要说"为什么做XX"和"具体怎么做"
-- 用数据说话：增值率、排名、分数变化等
-- 挖掘问题根因：是基础问题？学习方法？态度？教学问题？
+- 每一项分析都要包含：具体数据 + 改进方向
+- 不要只说"要做XX"，要说"具体怎么做"
+- 多维度分析：综合使用 入口分、出口分、增值率、班内排名、等级变化，不要只看增值率
+- 聚焦数据表现和可操作建议，不推测教师教学行为或学生态度原因
 - 所有建议要具体到人、到科目、到时间节点
+- 选人（小老师、表扬对象等）要综合分数排名和增值表现，不能只看增值率
 - 语言要专业但易懂，适合在教师会议或班会上使用
 
 【排版格式要求 - 非常重要！】
@@ -701,8 +910,8 @@ ${teachers
         </div>
         <div className="flex items-center gap-4">
           <Badge variant="outline">
-            班级 {classData.length} | 教师 {teacherData.length} | 学生{" "}
-            {studentData.length}
+            班级 {totalStats.classes} | 教师 {totalStats.teachers} | 学生{" "}
+            {totalStats.students}
           </Badge>
           <Button variant="outline" size="sm" onClick={loadData}>
             <RefreshCw className="h-4 w-4 mr-2" />
@@ -783,8 +992,8 @@ ${teachers
           {/* 筛选结果统计 */}
           <div className="mt-4 flex items-center gap-4 text-sm text-muted-foreground">
             <span>
-              筛选结果：班级 {filteredClassData.length} | 教师{" "}
-              {filteredTeacherData.length} | 学生 {filteredStudentData.length}
+              筛选结果：班级 {filteredStats.classes} | 教师{" "}
+              {filteredStats.teachers} | 学生 {filteredStats.students}
             </span>
           </div>
         </CardContent>
@@ -805,42 +1014,20 @@ ${teachers
           {/* 考试整体分析 */}
           <TabsContent value="overview" className="p-6">
             {(() => {
-              // 聚合班级数据：计算每个班级所有科目的平均增值率
-              const aggregatedClassData = classData.reduce((acc, cls) => {
-                if (!acc[cls.class_name]) {
-                  acc[cls.class_name] = {
-                    class_name: cls.class_name,
-                    subjects: [],
-                    totalRate: 0,
-                    count: 0,
-                  };
-                }
-                // 🔧 添加空值检查：忽略null/undefined/NaN的增值率
-                const rate = cls.avg_score_value_added_rate;
-                if (rate !== null && rate !== undefined && !isNaN(rate)) {
-                  acc[cls.class_name].subjects.push({
-                    subject: cls.subject,
-                    rate: rate,
-                  });
-                  acc[cls.class_name].totalRate += rate;
-                  acc[cls.class_name].count++;
-                }
-                return acc;
-              }, {} as any);
-
-              const classOverallData = Object.values(aggregatedClassData).map(
-                (item: any) => ({
-                  class_name: item.class_name,
-                  avgRate: item.count > 0 ? item.totalRate / item.count : 0,
-                  subjectCount: item.count,
-                })
-              );
-
-              // 计算唯一班级数量
-              const uniqueClasses = new Set(classData.map((c) => c.class_name));
-
               return (
                 <div className="space-y-6">
+                  {/* 导出按钮 */}
+                  <div className="flex justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleExportPPT}
+                    >
+                      <FileDown className="h-4 w-4 mr-2" />
+                      导出PPT
+                    </Button>
+                  </div>
+
                   {/* 整体数据统计卡片 */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <Card>
@@ -854,7 +1041,7 @@ ${teachers
                       </CardHeader>
                       <CardContent>
                         <div className="text-3xl font-bold">
-                          {uniqueClasses.size}
+                          {filteredStats.classes}
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
                           涵盖全年级所有班级
@@ -873,7 +1060,7 @@ ${teachers
                       </CardHeader>
                       <CardContent>
                         <div className="text-3xl font-bold">
-                          {teacherData.length}
+                          {filteredStats.teachers}
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
                           各科目任课教师
@@ -892,7 +1079,7 @@ ${teachers
                       </CardHeader>
                       <CardContent>
                         <div className="text-3xl font-bold">
-                          {studentData.length}
+                          {filteredStats.students}
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
                           全年级学生数据
@@ -937,10 +1124,14 @@ ${teachers
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <BarChart3 className="h-5 w-5" />
-                        班级整体增值率分布
+                        {selectedClass !== "all" && selectedSubject === "all"
+                          ? `${selectedClass} 各科目增值率分布`
+                          : "班级整体增值率分布"}
                       </CardTitle>
                       <p className="text-sm text-muted-foreground">
-                        各班级所有科目的平均增值表现
+                        {selectedClass !== "all" && selectedSubject === "all"
+                          ? "该班级各科目的增值表现对比"
+                          : "各班级所有科目的平均增值表现"}
                       </p>
                     </CardHeader>
                     <CardContent>
@@ -1003,7 +1194,7 @@ ${teachers
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                           <Award className="h-5 w-5 text-green-600" />
-                          优秀班级 Top10
+                          优秀班级 Top3
                         </CardTitle>
                         <p className="text-sm text-muted-foreground">
                           基于所有科目的整体表现
@@ -1013,7 +1204,7 @@ ${teachers
                         <div className="space-y-3">
                           {classOverallData
                             .sort((a, b) => b.avgRate - a.avgRate)
-                            .slice(0, 10)
+                            .slice(0, 3)
                             .map((cls, idx) => (
                               <div
                                 key={cls.class_name}
@@ -1051,7 +1242,7 @@ ${teachers
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                           <AlertTriangle className="h-5 w-5 text-orange-600" />
-                          需关注班级 Bottom10
+                          需关注班级 Bottom3
                         </CardTitle>
                         <p className="text-sm text-muted-foreground">
                           整体增值率较低的班级
@@ -1061,7 +1252,7 @@ ${teachers
                         <div className="space-y-3">
                           {classOverallData
                             .sort((a, b) => a.avgRate - b.avgRate)
-                            .slice(0, 10)
+                            .slice(0, 3)
                             .map((cls, idx) => (
                               <div
                                 key={cls.class_name}
@@ -1105,7 +1296,7 @@ ${teachers
                             教师增值率排行
                           </CardTitle>
                           <p className="text-sm text-muted-foreground mt-1">
-                            教学效果前15位教师
+                            教学效果前10位教师
                           </p>
                         </div>
                         {/* 科目筛选器 */}
@@ -1129,7 +1320,7 @@ ${teachers
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {teacherData
+                        {aggregatedTeacherData
                           .filter((t) =>
                             teacherSubjectFilter === "all"
                               ? true
@@ -1140,51 +1331,119 @@ ${teachers
                               b.avg_score_value_added_rate -
                               a.avg_score_value_added_rate
                           )
-                          .slice(0, 15)
-                          .map((teacher, idx) => (
-                            <div
-                              key={teacher.teacher_id}
-                              className="p-4 border rounded-lg hover:shadow-md transition-shadow"
-                            >
-                              <div className="flex items-center justify-between mb-2">
-                                <Badge variant="outline">第 {idx + 1} 名</Badge>
-                                <Badge
-                                  variant={
-                                    teacher.avg_score_value_added_rate > 0.1
-                                      ? "default"
-                                      : "secondary"
-                                  }
-                                >
-                                  {teacher.subject}
-                                </Badge>
+                          .slice(0, 10)
+                          .map((teacher, idx) => {
+                            const teacherKey = `${teacher.teacher_id}__${teacher.subject}`;
+                            const isExpanded = expandedTeachers.has(teacherKey);
+                            const hasMultipleClasses =
+                              (teacher.class_details?.length ?? 0) > 1;
+
+                            return (
+                              <div
+                                key={teacherKey}
+                                className="p-4 border rounded-lg hover:shadow-md transition-shadow"
+                              >
+                                <div className="flex items-center justify-between mb-2">
+                                  <Badge variant="outline">
+                                    第 {idx + 1} 名
+                                  </Badge>
+                                  <Badge
+                                    variant={
+                                      teacher.avg_score_value_added_rate > 0.1
+                                        ? "default"
+                                        : "secondary"
+                                    }
+                                  >
+                                    {teacher.subject}
+                                  </Badge>
+                                </div>
+                                <div className="font-semibold text-lg">
+                                  {teacher.teacher_name}
+                                </div>
+                                <div className="flex items-center justify-between mt-2">
+                                  <span className="text-sm text-muted-foreground">
+                                    增值率
+                                    {hasMultipleClasses && (
+                                      <span className="ml-1 text-xs text-blue-500">
+                                        (全班平均)
+                                      </span>
+                                    )}
+                                  </span>
+                                  <span className="font-bold text-green-600">
+                                    +
+                                    {(
+                                      teacher.avg_score_value_added_rate * 100
+                                    ).toFixed(1)}
+                                    %
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between mt-1">
+                                  <span className="text-sm text-muted-foreground">
+                                    教学人数
+                                  </span>
+                                  <span className="font-semibold">
+                                    {teacher.total_students} 人
+                                  </span>
+                                </div>
+                                {hasMultipleClasses && (
+                                  <Collapsible
+                                    open={isExpanded}
+                                    onOpenChange={(open) => {
+                                      setExpandedTeachers((prev) => {
+                                        const next = new Set(prev);
+                                        if (open) {
+                                          next.add(teacherKey);
+                                        } else {
+                                          next.delete(teacherKey);
+                                        }
+                                        return next;
+                                      });
+                                    }}
+                                  >
+                                    <CollapsibleTrigger asChild>
+                                      <button className="flex items-center gap-1 mt-2 text-xs text-blue-500 hover:text-blue-700 transition-colors">
+                                        <ChevronDown
+                                          className={`h-3 w-3 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                                        />
+                                        {isExpanded
+                                          ? "收起班级明细"
+                                          : `展开 ${teacher.class_details!.length} 个班级`}
+                                      </button>
+                                    </CollapsibleTrigger>
+                                    <CollapsibleContent>
+                                      <div className="mt-2 space-y-1 border-t pt-2">
+                                        {teacher.class_details!.map((cd) => (
+                                          <div
+                                            key={cd.class_name}
+                                            className="flex items-center justify-between text-xs"
+                                          >
+                                            <span className="text-muted-foreground">
+                                              {cd.class_name}{" "}
+                                              <span className="text-muted-foreground/70">
+                                                ({cd.student_count}人)
+                                              </span>
+                                            </span>
+                                            <span
+                                              className={
+                                                cd.avg_rate >= 0
+                                                  ? "text-green-600"
+                                                  : "text-red-500"
+                                              }
+                                            >
+                                              {cd.avg_rate >= 0 ? "+" : ""}
+                                              {(cd.avg_rate * 100).toFixed(1)}%
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </CollapsibleContent>
+                                  </Collapsible>
+                                )}
                               </div>
-                              <div className="font-semibold text-lg">
-                                {teacher.teacher_name}
-                              </div>
-                              <div className="flex items-center justify-between mt-2">
-                                <span className="text-sm text-muted-foreground">
-                                  增值率
-                                </span>
-                                <span className="font-bold text-green-600">
-                                  +
-                                  {(
-                                    teacher.avg_score_value_added_rate * 100
-                                  ).toFixed(1)}
-                                  %
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between mt-1">
-                                <span className="text-sm text-muted-foreground">
-                                  教学人数
-                                </span>
-                                <span className="font-semibold">
-                                  {teacher.total_students} 人
-                                </span>
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                       </div>
-                      {teacherData.filter((t) =>
+                      {aggregatedTeacherData.filter((t) =>
                         teacherSubjectFilter === "all"
                           ? true
                           : t.subject === teacherSubjectFilter
@@ -1206,11 +1465,10 @@ ${teachers
                     </CardHeader>
                     <CardContent>
                       <AIInsightsPanel
-                        key={`overview-insights-${classData.length}`}
-                        data={[...classData, ...teacherData]}
+                        key={`overview-insights-${filteredClassData.length}-${filteredTeacherData.length}`}
+                        data={[...filteredClassData, ...filteredTeacherData]}
                         context={{
-                          activityId: activityId || undefined,
-                          scope: "全年级",
+                          examId: activityId || undefined,
                         }}
                         maxInsights={8}
                       />
@@ -1232,11 +1490,9 @@ ${teachers
                             <div className="text-center">
                               <div className="text-3xl font-bold text-red-600">
                                 {
-                                  generateAnomalies(
-                                    classData,
-                                    teacherData,
-                                    studentData
-                                  ).filter((a) => a.severity === "high").length
+                                  anomalyData.filter(
+                                    (a) => a.severity === "high"
+                                  ).length
                                 }
                               </div>
                               <div className="text-sm text-muted-foreground mt-1">
@@ -1250,12 +1506,9 @@ ${teachers
                             <div className="text-center">
                               <div className="text-3xl font-bold text-orange-600">
                                 {
-                                  generateAnomalies(
-                                    classData,
-                                    teacherData,
-                                    studentData
-                                  ).filter((a) => a.severity === "medium")
-                                    .length
+                                  anomalyData.filter(
+                                    (a) => a.severity === "medium"
+                                  ).length
                                 }
                               </div>
                               <div className="text-sm text-muted-foreground mt-1">
@@ -1269,11 +1522,9 @@ ${teachers
                             <div className="text-center">
                               <div className="text-3xl font-bold text-yellow-600">
                                 {
-                                  generateAnomalies(
-                                    classData,
-                                    teacherData,
-                                    studentData
-                                  ).filter((a) => a.severity === "low").length
+                                  anomalyData.filter(
+                                    (a) => a.severity === "low"
+                                  ).length
                                 }
                               </div>
                               <div className="text-sm text-muted-foreground mt-1">
@@ -1284,11 +1535,7 @@ ${teachers
                         </Card>
                       </div>
                       <AnomalyDetailView
-                        anomalies={generateAnomalies(
-                          classData,
-                          teacherData,
-                          studentData
-                        )}
+                        anomalies={anomalyData}
                         loading={false}
                         hideFilters={false}
                       />
@@ -1305,7 +1552,7 @@ ${teachers
               key={`insights-${selectedSubject}-${selectedClass}-${searchTerm}-${filteredClassData.length}-${filteredTeacherData.length}`}
               data={[...filteredClassData, ...filteredTeacherData]}
               context={{
-                activityId: activityId || undefined,
+                examId: activityId || undefined,
               }}
               maxInsights={10}
             />

@@ -15,15 +15,21 @@ import type {
 // ============================================
 
 /**
- * 计算标准差
+ * 计算标准差（P0修复：使用样本标准差公式）
+ *
+ * 样本标准差公式：σ = sqrt(Σ(x-μ)² / (n-1))
+ * 使用n-1而非n，提供无偏估计
  */
 export function calculateStandardDeviation(values: number[]): number {
   if (values.length === 0) return 0;
+  if (values.length === 1) return 0; // 单个样本标准差为0
 
   const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
   const squaredDiffs = values.map((val) => Math.pow(val - mean, 2));
+
+  // P0修复：使用样本标准差公式（除以n-1而非n）
   const variance =
-    squaredDiffs.reduce((sum, val) => sum + val, 0) / values.length;
+    squaredDiffs.reduce((sum, val) => sum + val, 0) / (values.length - 1);
 
   return Math.sqrt(variance);
 }
@@ -132,21 +138,37 @@ export function calculateStatistics(values: number[]): Statistics {
 // ============================================
 
 /**
- * 计算百分位
+ * 计算百分位（P0修复：明确语义统一）
+ *
+ * 使用升序排列 + 标准百分位公式，确保"高分=高百分位"的语义一致性
+ * 例如：
+ * - 分数最高的学生：百分位=1.0（100th percentile，超过100%的数据）
+ * - 分数最低的学生：百分位=0.0（0th percentile，超过0%的数据）
+ *
+ * 标准公式：percentile = (rank - 1) / (n - 1)
+ * 其中rank是从1开始的升序排名
+ *
  * @param value 目标值
  * @param allValues 所有值的数组
- * @returns 百分位（0-1）
+ * @returns 百分位（0-1），值越大表示排名越高
  */
 export function calculatePercentile(
   value: number,
   allValues: number[]
 ): number {
   if (allValues.length === 0) return 0;
+  if (allValues.length === 1) return 1; // 单个值百分位为1
 
-  const sortedValues = [...allValues].sort((a, b) => b - a); // 降序
-  const rank = sortedValues.findIndex((v) => v <= value) + 1;
+  // 升序排列：低分在前，高分在后
+  const sortedValues = [...allValues].sort((a, b) => a - b);
 
-  return (rank - 1) / allValues.length;
+  // 找到第一个大于等于value的位置（严格升序排名）
+  let rank = sortedValues.findIndex((v) => v >= value);
+  if (rank === -1) rank = sortedValues.length - 1; // value大于所有值
+  rank = rank + 1; // 转换为从1开始的排名
+
+  // 标准百分位公式
+  return (rank - 1) / (allValues.length - 1);
 }
 
 /**
@@ -284,19 +306,20 @@ export function calculateLevelChange(
 // ============================================
 
 /**
- * 计算分数增值率（参照汇优评公式）
- * 公式：(出口标准分 - 入口标准分) / 入口标准分
- * 标准分 = 500 + 100 * Z分数
+ * 计算分数增值率（修复后公式）
+ * 直接使用Z-score差值，避免标准分转换导致的负数分母问题
+ * 公式：出口Z分数 - 入口Z分数
  * @param entryZScore 入口Z分数
  * @param exitZScore 出口Z分数
+ * @returns Z-score增值（正值表示进步，负值表示退步）
  */
 export function calculateScoreValueAddedRate(
   entryZScore: number,
   exitZScore: number
 ): number {
-  const entryStandardScore = 500 + 100 * entryZScore;
-  const exitStandardScore = 500 + 100 * exitZScore;
-  return safeDivide(exitStandardScore - entryStandardScore, entryStandardScore);
+  // P0修复：直接使用Z-score差值，简单且准确
+  // 避免标准分转换时出现负数分母（当entryZScore < -5时）
+  return exitZScore - entryZScore;
 }
 
 /**
@@ -379,9 +402,16 @@ export function calculateTransformationRate(
 }
 
 /**
- * 计算贡献率
+ * 计算贡献率（P0修复：处理年级下降的特殊情况）
+ *
+ * 正常情况（年级上升）：贡献率 = 教师增量 / 年级增量
+ * 特殊情况（年级下降）：
+ * - 教师上升 > 0, 年级下降 < 0 → 贡献率标记为"逆势增长"（正向贡献）
+ * - 教师下降 < 0, 年级下降 < 0 → 按比例计算负向贡献
+ *
  * @param teacherExcellentGain 该教师的优秀人数净增加
  * @param gradeExcellentGain 全年级的优秀人数净增加
+ * @returns 贡献率（正常情况为比例值，年级下降时需特殊解释）
  */
 export function calculateContributionRate(
   teacherExcellentGain: number,
@@ -389,6 +419,14 @@ export function calculateContributionRate(
 ): number {
   if (gradeExcellentGain === 0) return 0;
 
+  // P0修复：处理年级下降但教师上升的情况
+  if (gradeExcellentGain < 0 && teacherExcellentGain > 0) {
+    // 年级整体下降，但该教师逆势增长
+    // 返回正值，表示正向贡献（在展示时需要特殊标注"逆势增长"）
+    return Math.abs(teacherExcellentGain / gradeExcellentGain);
+  }
+
+  // 正常情况：年级上升，或教师与年级同向变化
   return teacherExcellentGain / gradeExcellentGain;
 }
 

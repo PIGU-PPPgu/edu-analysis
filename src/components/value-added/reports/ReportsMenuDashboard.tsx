@@ -5,7 +5,16 @@
  * 提供19个报告维度的卡片式导航
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Card,
@@ -31,6 +40,7 @@ import {
   GitCompare,
   Info,
   Sparkles,
+  Search,
 } from "lucide-react";
 import { ClassValueAddedReport } from "../class/ClassValueAddedReport";
 import { EnhancedClassValueAddedReport } from "../class/EnhancedClassValueAddedReport";
@@ -92,6 +102,8 @@ export function ReportsMenuDashboard({
 }: ReportsMenuDashboardProps) {
   const [selectedReport, setSelectedReport] = useState<string | null>(null);
   const [exitExamId, setExitExamId] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<string>("全部");
 
   // 从activity获取exit_exam_id
   useEffect(() => {
@@ -122,6 +134,18 @@ export function ReportsMenuDashboard({
 
     fetchExitExamId();
   }, [currentActivity]);
+
+  // Cmd+K 搜索快捷键
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setSearchOpen((open) => !open);
+      }
+    };
+    document.addEventListener("keydown", down);
+    return () => document.removeEventListener("keydown", down);
+  }, []);
 
   // 数据统计（调试用）
   console.log("📊 [ReportsMenuDashboard] Data stats:", {
@@ -364,6 +388,11 @@ export function ReportsMenuDashboard({
     "数据对比分析",
   ];
 
+  const filteredReports = useMemo(() => {
+    if (activeCategory === "全部") return reportCards;
+    return reportCards.filter((r) => r.category === activeCategory);
+  }, [activeCategory, reportCards]);
+
   const getBadgeColor = (badge: string) => {
     switch (badge) {
       case "总体":
@@ -386,6 +415,100 @@ export function ReportsMenuDashboard({
   const handleBackToMenu = () => {
     setSelectedReport(null);
   };
+
+  const renderReportCard = useCallback(
+    (report: ReportCard, index: number) => {
+      const Icon = report.icon;
+      const isHero = report.id === "ai-analysis";
+      const isWide = [
+        "teacher-score",
+        "class-score",
+        "subject-balance",
+        "comparison-tool",
+      ].includes(report.id);
+
+      return (
+        <motion.div
+          key={report.id}
+          layout
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.9 }}
+          transition={{
+            duration: 0.3,
+            delay: index * 0.03,
+            layout: { duration: 0.3 },
+          }}
+          className={`
+            group relative rounded-2xl border bg-card text-card-foreground overflow-hidden
+            transition-all duration-300 cursor-pointer
+            ${isHero ? "col-span-2 row-span-2 md:col-span-2 lg:col-span-2" : ""}
+            ${isWide && !isHero ? "col-span-2 md:col-span-2 lg:col-span-2" : ""}
+            ${!report.available ? "opacity-50 pointer-events-none" : ""}
+            hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5
+            hover:border-primary/20
+          `}
+          onClick={() => report.available && handleViewReport(report.id)}
+        >
+          {isHero && (
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50/50 to-purple-50/30 dark:from-blue-950/30 dark:via-indigo-950/20 dark:to-purple-950/10" />
+          )}
+
+          <div
+            className={`relative h-full flex flex-col justify-between ${isHero ? "p-8" : "p-5"}`}
+          >
+            <div className="flex items-start justify-between">
+              <div
+                className={`
+                  rounded-xl flex items-center justify-center
+                  ${isHero ? "h-14 w-14 bg-primary/10" : "h-10 w-10 bg-muted"}
+                  transition-colors group-hover:bg-primary/10
+                `}
+              >
+                <Icon
+                  className={`
+                    ${isHero ? "h-7 w-7" : "h-5 w-5"}
+                    ${report.available ? "text-primary" : "text-muted-foreground"}
+                    transition-transform group-hover:scale-110
+                  `}
+                />
+              </div>
+              <Badge className={`${getBadgeColor(report.badge)} text-xs`}>
+                {report.badge}
+              </Badge>
+            </div>
+
+            <div className="space-y-1">
+              <h3
+                className={`font-semibold leading-tight ${isHero ? "text-xl" : "text-sm"}`}
+              >
+                {report.title}
+              </h3>
+              <p
+                className={`
+                  text-muted-foreground leading-snug
+                  ${
+                    isHero
+                      ? "text-sm opacity-100"
+                      : "text-xs opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200"
+                  }
+                `}
+              >
+                {report.description}
+              </p>
+            </div>
+
+            {report.available && (
+              <div className="absolute bottom-4 right-4 opacity-0 translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200">
+                <ArrowRight className="h-4 w-4 text-primary" />
+              </div>
+            )}
+          </div>
+        </motion.div>
+      );
+    },
+    [getBadgeColor, handleViewReport]
+  );
 
   // 如果选择了具体报告，渲染对应的报告组件
   if (selectedReport) {
@@ -526,121 +649,170 @@ export function ReportsMenuDashboard({
 
   // 渲染报告菜单
   return (
-    <div className="space-y-8">
-      {/* 数据统计卡片 */}
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertDescription>
+    <div className="space-y-6">
+      {/* Command Palette Dialog */}
+      <CommandDialog open={searchOpen} onOpenChange={setSearchOpen}>
+        <CommandInput placeholder="搜索报告..." />
+        <CommandList>
+          <CommandEmpty>未找到匹配的报告</CommandEmpty>
+          {categories.map((cat) => {
+            const catReports = reportCards.filter(
+              (r) => r.category === cat && r.available
+            );
+            if (catReports.length === 0) return null;
+            return (
+              <CommandGroup key={cat} heading={cat}>
+                {catReports.map((report) => {
+                  const Icon = report.icon;
+                  return (
+                    <CommandItem
+                      key={report.id}
+                      onSelect={() => {
+                        handleViewReport(report.id);
+                        setSearchOpen(false);
+                      }}
+                    >
+                      <Icon className="mr-2 h-4 w-4" />
+                      <span>{report.title}</span>
+                      <Badge
+                        className={`${getBadgeColor(report.badge)} ml-auto text-xs`}
+                      >
+                        {report.badge}
+                      </Badge>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            );
+          })}
+        </CommandList>
+      </CommandDialog>
+
+      {/* Top Bar: Activity Info + Search Trigger */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex-1">
           {currentActivity && (
-            <div className="mb-2">
-              当前增值活动：
-              <strong className="text-primary">{currentActivity.name}</strong>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+              当前活动：
+              <span className="font-semibold text-foreground">
+                {currentActivity.name}
+              </span>
             </div>
           )}
-          <div>
-            当前已有数据：
-            <strong className="mx-1">{classData.length}</strong>条班级报告、
-            <strong className="mx-1">{teacherData.length}</strong>条教师报告、
-            <strong className="mx-1">{studentData.length}</strong>条学生报告、
-            <strong className="mx-1">{subjectBalanceData.length}</strong>
-            条学科均衡报告
+          <div className="text-xs text-muted-foreground mt-1">
+            {classData.length} 班级 · {teacherData.length} 教师 ·{" "}
+            {studentData.length} 学生 · {subjectBalanceData.length} 学科
           </div>
-          {classData.length === 0 &&
-            teacherData.length === 0 &&
-            studentData.length === 0 && (
-              <span className="block mt-1 text-amber-600">
-                暂无数据，请先在"增值活动"标签页完成活动计算
+        </div>
+        <Button
+          variant="outline"
+          className="relative h-9 w-9 p-0 xl:h-10 xl:w-60 xl:justify-start xl:px-3 xl:py-2"
+          onClick={() => setSearchOpen(true)}
+        >
+          <Search className="h-4 w-4 xl:mr-2" />
+          <span className="hidden xl:inline-flex">搜索报告...</span>
+          <kbd className="pointer-events-none absolute right-1.5 top-2 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 xl:flex">
+            <span className="text-xs">&#8984;</span>K
+          </kbd>
+        </Button>
+      </div>
+
+      {/* Category Filter Pills */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+        {["全部", ...categories].map((cat) => {
+          const count =
+            cat === "全部"
+              ? reportCards.filter((r) => r.available).length
+              : reportCards.filter((r) => r.category === cat && r.available)
+                  .length;
+          return (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              className={`
+                inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition-all
+                ${
+                  activeCategory === cat
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+                }
+              `}
+            >
+              {cat === "全部"
+                ? "全部"
+                : cat
+                    .replace("分析", "")
+                    .replace("评价", "")
+                    .replace("详情", "")}
+              <span
+                className={`text-xs ${
+                  activeCategory === cat
+                    ? "text-primary-foreground/70"
+                    : "text-muted-foreground/60"
+                }`}
+              >
+                {count}
               </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* No Data Warning */}
+      {classData.length === 0 &&
+        teacherData.length === 0 &&
+        studentData.length === 0 && (
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription className="text-amber-600">
+              暂无数据，请先在"增值活动"标签页完成活动计算
+            </AlertDescription>
+          </Alert>
+        )}
+
+      {/* Bento Grid */}
+      {activeCategory === "全部" ? (
+        <div className="space-y-8">
+          {categories.map((cat) => {
+            const catReports = reportCards.filter((r) => r.category === cat);
+            if (catReports.length === 0) return null;
+            const availCount = catReports.filter((r) => r.available).length;
+            return (
+              <div key={cat}>
+                <div className="flex items-center gap-3 mb-4">
+                  <h3 className="text-base font-bold text-foreground whitespace-nowrap">
+                    {cat}
+                  </h3>
+                  <div className="flex-1 h-px bg-border" />
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {availCount}/{catReports.length} 可用
+                  </span>
+                </div>
+                <motion.div
+                  className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-[140px]"
+                  layout
+                >
+                  {catReports.map((report, index) =>
+                    renderReportCard(report, index)
+                  )}
+                </motion.div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <motion.div
+          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-[140px]"
+          layout
+        >
+          <AnimatePresence mode="popLayout">
+            {filteredReports.map((report, index) =>
+              renderReportCard(report, index)
             )}
-        </AlertDescription>
-      </Alert>
-
-      {categories.map((category) => {
-        const categoryReports = reportCards.filter(
-          (r) => r.category === category
-        );
-
-        return (
-          <div key={category} className="space-y-4">
-            <div className="flex items-center gap-2">
-              <h3 className="text-lg font-semibold text-gray-900">
-                {category}
-              </h3>
-              <Badge variant="outline" className="text-xs">
-                {categoryReports.filter((r) => r.available).length} /{" "}
-                {categoryReports.length} 可用
-              </Badge>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {categoryReports.map((report) => {
-                const Icon = report.icon;
-
-                return (
-                  <Card
-                    key={report.id}
-                    className={`transition-all hover:shadow-md ${
-                      !report.available ? "opacity-60" : "cursor-pointer"
-                    }`}
-                  >
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`p-2 rounded-lg ${
-                              report.available ? "bg-blue-50" : "bg-gray-50"
-                            }`}
-                          >
-                            <Icon
-                              className={`h-5 w-5 ${
-                                report.available
-                                  ? "text-blue-600"
-                                  : "text-gray-400"
-                              }`}
-                            />
-                          </div>
-                          <div>
-                            <CardTitle className="text-base">
-                              {report.title}
-                            </CardTitle>
-                            <Badge
-                              className={`${getBadgeColor(report.badge)} mt-1 text-xs`}
-                            >
-                              {report.badge}
-                            </Badge>
-                          </div>
-                        </div>
-                      </div>
-                      <CardDescription className="mt-2 text-sm">
-                        {report.description}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Button
-                        variant={report.available ? "default" : "outline"}
-                        className="w-full"
-                        disabled={!report.available}
-                        onClick={() =>
-                          report.available && handleViewReport(report.id)
-                        }
-                      >
-                        {report.available ? (
-                          <>
-                            点击查看
-                            <ArrowRight className="h-4 w-4 ml-2" />
-                          </>
-                        ) : (
-                          <>暂无数据</>
-                        )}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
+          </AnimatePresence>
+        </motion.div>
+      )}
     </div>
   );
 }

@@ -284,6 +284,45 @@ const DataValidator: React.FC<DataValidatorProps> = ({
           hasError = true;
         }
 
+        // 验证所有科目分数字段（chinese_score, math_score等）
+        const scoreFields = Object.keys(mappedRow).filter(
+          (key) => key.endsWith("_score") && key !== "total_score"
+        );
+        for (const field of scoreFields) {
+          const value = mappedRow[field];
+          if (value !== undefined && value !== null && value !== "") {
+            const score = parseFloat(value);
+            if (isNaN(score)) {
+              errors.push({
+                row: rowNumber,
+                field,
+                value,
+                error: "分数必须是有效数字",
+                severity: "error",
+              });
+              hasError = true;
+            } else if (score < 0) {
+              errors.push({
+                row: rowNumber,
+                field,
+                value: score,
+                error: "分数不能为负数",
+                severity: "error",
+              });
+              hasError = true;
+            } else if (score > 200) {
+              warnings.push({
+                row: rowNumber,
+                field,
+                value: score,
+                warning: "分数偏高，请确认是否正确",
+                suggestion: "检查分数是否在合理范围内",
+              });
+              hasWarning = true;
+            }
+          }
+        }
+
         // 验证等级字段
         if (
           mappedRow.original_grade &&
