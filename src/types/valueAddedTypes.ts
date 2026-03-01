@@ -174,28 +174,107 @@ export interface ValueAddedMetrics {
   subject?: string;
 
   // 基准考试（入口）
-  baselineExam: {
+  baselineExam?: {
     examId: string;
     examTitle: string;
+    examDate?: string;
     score: number;
     rank?: number;
     level?: AbilityLevel;
   };
 
   // 目标考试（出口）
-  targetExam: {
+  targetExam?: {
     examId: string;
     examTitle: string;
+    examDate?: string;
     score: number;
     rank?: number;
     level?: AbilityLevel;
   };
 
   // 增值指标
-  scoreChange: number;
-  scoreChangeRate: number;
+  scoreChange?: number;
+  scoreChangeRate?: number;
   zScoreChange?: number;
   levelChange?: number;
+  // 扩展字段（valueAddedUtils 计算结果）
+  improvementScore?: number;
+  improvementRate?: number;
+  rankChange?: number;
+  status?: "ok" | "insufficient" | "missing";
+  level?: number;
+  levelLabel?: string;
+  levelDescription?: string;
+}
+
+/** 考试快照（增值计算用） */
+export interface ExamSnapshot {
+  examId: string;
+  examTitle: string;
+  examDate: string;
+  score: number;
+  rank?: number;
+}
+
+/** 增值计算的对比范围 */
+export type ComparisonScope = "class" | "grade" | "school";
+
+/** 段位评价配置 */
+export interface LevelEvaluationConfig {
+  levelCount: number;
+  method: "percentile" | "fixed" | "stddev";
+  percentileThresholds?: number[];
+  fixedThresholds?: number[];
+  labels?: string[];
+  descriptions?: string[];
+}
+
+/** 增值统计摘要 */
+export interface ValueAddedSummary {
+  totalStudents: number;
+  validStudents: number;
+  avgImprovement: number;
+  avgImprovementRate: number;
+  improvedCount: number;
+  improvedRate: number;
+  regressionCount: number;
+  regressionRate: number;
+  stableCount: number;
+  topImprover?: ValueAddedMetrics;
+  topRegressor?: ValueAddedMetrics;
+  levelDistribution?: Record<number, number>;
+}
+
+/** 通用计算结果包装 */
+export interface CalculationResult<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  warnings?: string[];
+}
+
+/** 考试基本信息（用于下拉选择） */
+export interface ExamInfo {
+  examId: string;
+  examTitle: string;
+  examDate?: string;
+  examType?: string;
+  // 字段别名（向后兼容）
+  id?: string;
+  title?: string;
+  date?: string;
+  type?: string;
+  exam_title?: string;
+}
+
+/** 考试选择状态 */
+export interface ExamSelectionState {
+  baselineExamId?: string;
+  targetExamId?: string;
+  scope?: ComparisonScope;
+  comparisonScope?: ComparisonScope;
+  className?: string;
 }
 
 /** 教师增值评价 */
@@ -237,6 +316,10 @@ export interface TeacherValueAdded {
     avg_rate: number;
     student_count: number;
   }>;
+
+  // 向后兼容字段
+  avg_score_exit?: number;
+  exit_excellent_rate?: number;
 }
 
 /** 班级增值评价 */

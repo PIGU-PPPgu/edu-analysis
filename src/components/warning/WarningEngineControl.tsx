@@ -13,7 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import {
   PlayIcon,
-  StopIcon,
+  SquareIcon as StopIcon,
   RefreshCwIcon,
   AlertTriangleIcon,
   CheckCircleIcon,

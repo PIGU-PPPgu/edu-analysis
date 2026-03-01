@@ -69,6 +69,9 @@ export interface WarningRecord {
   resolved_by?: string;
   resolution_notes?: string;
   trigger_data?: Record<string, any>;
+  // JOIN 结果字段（Supabase 关联查询）
+  students?: any;
+  warning_rules?: any;
 }
 
 /**

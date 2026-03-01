@@ -49,6 +49,7 @@ import {
   Search,
   Wand2,
   Brain,
+  Settings,
 } from "lucide-react";
 import { toast } from "sonner";
 import {

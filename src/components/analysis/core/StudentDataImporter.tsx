@@ -20,7 +20,7 @@ import {
   Check,
   X,
 } from "lucide-react";
-import { studentService } from "@/services/education/students";
+import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from "xlsx";
 import UploadProgressIndicator, {
   ProcessingStage,
@@ -418,13 +418,53 @@ export default function StudentDataImporter({
       setProcessingProgress(50);
       const validatedData = validateAndTransformData(rawData);
 
-      // 调用学生服务进行批量导入
+      // 批量导入学生（upsert by student_id）
       setProcessingStage("saving");
       setProcessingProgress(70);
-      const importResult = await studentService.importStudents(validatedData, {
-        skipDuplicates: true,
-        updateExisting: true, // ✅ 修复: 更新现有学生而非跳过,避免班级变更时重复创建
-      });
+      const importResult = await (async () => {
+        const errors: string[] = [];
+        let imported = 0;
+        let updated = 0;
+        const skipped = 0;
+        try {
+          const { data: existing } = await supabase
+            .from("students")
+            .select("student_id");
+          const existingIds = new Set(
+            (existing || []).map((r: any) => r.student_id)
+          );
+          const toCreate = validatedData.filter(
+            (r: any) => !existingIds.has(r.student_id)
+          );
+          const toUpdate = validatedData.filter((r: any) =>
+            existingIds.has(r.student_id)
+          );
+          if (toCreate.length > 0) {
+            const { error } = await supabase.from("students").insert(toCreate);
+            if (error) errors.push(`批量创建失败: ${error.message}`);
+            else imported = toCreate.length;
+          }
+          for (const row of toUpdate) {
+            const { error } = await supabase
+              .from("students")
+              .update(row)
+              .eq("student_id", row.student_id);
+            if (error)
+              errors.push(`更新学生${row.student_id}失败: ${error.message}`);
+            else updated++;
+          }
+          return {
+            success: errors.length === 0,
+            data: { imported, updated, skipped, errors },
+          };
+        } catch (e: any) {
+          return {
+            success: false,
+            error: e.message,
+            data: { imported: 0, updated: 0, skipped: 0, errors: [e.message] },
+          };
+        }
+      })();
 
       if (importResult.success && importResult.data) {
         const { imported, updated, skipped, errors } = importResult.data;

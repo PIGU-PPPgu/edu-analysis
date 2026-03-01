@@ -8,6 +8,7 @@ export interface RiskCluster {
   student_count: number;
   risk_factors: RiskFactor[];
   recommended_interventions: RecommendedIntervention[];
+  color?: string;
 }
 
 // 风险因素接口

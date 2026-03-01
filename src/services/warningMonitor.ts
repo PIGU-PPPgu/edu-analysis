@@ -18,6 +18,11 @@ export interface MonitorConfig {
   dataChangeMonitoring: boolean;
   realTimeUpdates: boolean;
   notificationEnabled: boolean;
+  // 向后兼容字段
+  checkInterval?: number;
+  alertThreshold?: number;
+  autoRestart?: boolean;
+  emailAlerts?: boolean;
 }
 
 // 监控状态
@@ -28,6 +33,11 @@ export interface MonitorStatus {
   totalExecutions: number;
   errorCount: number;
   lastError: string | null;
+  // 向后兼容字段
+  isRunning?: boolean;
+  startTime?: string;
+  checkCount?: number;
+  alertCount?: number;
 }
 
 // 数据变更事件

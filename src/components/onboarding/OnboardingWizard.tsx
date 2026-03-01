@@ -247,7 +247,6 @@ export function OnboardingWizard() {
         .from("onboarding_status")
         .update({
           current_step: nextStep,
-          completed_steps: supabase.sql`array_append(completed_steps, ${stepNames[currentStep]})`,
         })
         .eq("user_id", userId);
     }
@@ -355,15 +354,14 @@ export function OnboardingWizard() {
       for (const subject of data.subjects) {
         const subjectName =
           subjectOptions.find((s) => s.value === subject)?.label || subject;
-        await supabase
-          .from("subjects")
-          .insert({
+        await supabase.from("subjects").upsert(
+          {
             subject_code: subject,
             subject_name: subjectName,
             is_required: true,
-          })
-          .onConflict("subject_code")
-          .ignore();
+          },
+          { onConflict: "subject_code", ignoreDuplicates: true }
+        );
       }
 
       // 5. 创建班级（如果年级数量和每年级班级数不为0）
@@ -374,30 +372,28 @@ export function OnboardingWizard() {
           for (let classNum = 1; classNum <= data.classesPerGrade; classNum++) {
             const className = `${gradeNumber}${classNum}班`;
 
-            await supabase
-              .from("class_info")
-              .insert({
+            await supabase.from("class_info").upsert(
+              {
                 class_name: className,
                 grade_level: gradeNumber,
                 academic_year: `${data.startYear}-${data.startYear + 1}`,
                 student_count: 0,
-              })
-              .onConflict("class_name")
-              .ignore();
+              },
+              { onConflict: "class_name", ignoreDuplicates: true }
+            );
           }
         }
       }
 
       // 6. 创建通知设置
-      await supabase
-        .from("notification_settings")
-        .insert({
+      await supabase.from("notification_settings").upsert(
+        {
           user_id: userId,
           email_notifications: data.enableNotifications,
           push_notifications: data.enableNotifications,
-        })
-        .onConflict("user_id")
-        .merge();
+        },
+        { onConflict: "user_id" }
+      );
     } catch (error) {
       console.error("保存数据失败:", error);
       throw error;

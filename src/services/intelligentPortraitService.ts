@@ -68,6 +68,32 @@ export interface StudentPortraitAnalysis {
     exam_count: number;
     data_quality_score: number;
   };
+
+  // 向后兼容字段（旧版 API 形状）
+  student_name?: string;
+  overall_score?: number;
+  progress_trend?: string;
+  risk_factors?: string[];
+  strengths?: string[];
+  areas_for_improvement?: string[];
+  teaching_recommendations?: string[];
+  knowledge_mastery?: Record<string, number>;
+  academic_performance?: {
+    average_score?: number;
+    trend?: string;
+    subject_scores?: Record<string, number>;
+    rank_percentile?: number;
+    consistency_score?: number;
+    progress_velocity?: number;
+  };
+  learning_style?: {
+    learning_type?: string;
+    stability_score?: number;
+    initiative?: number;
+    focus_level?: number;
+    collaboration_tendency?: number;
+    creativity_level?: number;
+  };
 }
 
 export interface GroupAllocationResult {

@@ -50,7 +50,7 @@ export class APIClient {
     try {
       logInfo(`执行数据库查询: ${table}`, options);
 
-      let query = supabase.from(table);
+      let query: any = supabase.from(table);
 
       // 添加选择字段
       if (options.select) {
@@ -126,7 +126,7 @@ export class APIClient {
 
       return {
         success: true,
-        data: result,
+        data: result as T,
       };
     } catch (error) {
       return this.handleError(error, config);
@@ -145,7 +145,7 @@ export class APIClient {
     try {
       logInfo(`更新 ${table} 数据`, { filter, data });
 
-      let query = supabase.from(table).update(data);
+      let query: any = supabase.from(table).update(data);
 
       // 添加过滤条件
       Object.entries(filter).forEach(([key, value]) => {
@@ -164,7 +164,7 @@ export class APIClient {
 
       return {
         success: true,
-        data: result,
+        data: result as T,
       };
     } catch (error) {
       return this.handleError(error, config);
@@ -182,7 +182,7 @@ export class APIClient {
     try {
       logInfo(`删除 ${table} 数据`, filter);
 
-      let query = supabase.from(table).delete();
+      let query: any = supabase.from(table).delete();
 
       // 添加过滤条件
       Object.entries(filter).forEach(([key, value]) => {
@@ -201,7 +201,7 @@ export class APIClient {
 
       return {
         success: true,
-        data: result,
+        data: result as T,
       };
     } catch (error) {
       return this.handleError(error, config);

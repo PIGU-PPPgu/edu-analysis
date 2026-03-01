@@ -16,6 +16,7 @@ import {
   calculatePercentile,
   determineLevel,
   calculateScoreValueAddedRate,
+  calculateOLSBeta,
   calculateConsolidationRate,
   calculateTransformationRate,
   calculateContributionRate,
@@ -77,6 +78,9 @@ export async function calculateClassValueAdded(
   const gradeEntryZScores = calculateZScores(allEntryScores);
   const gradeExitZScores = calculateZScores(allExitScores);
 
+  // 计算OLS回归斜率（用于均值回归修正）
+  const regressionBeta = calculateOLSBeta(gradeEntryZScores, gradeExitZScores);
+
   // 3. 为每个学生分配Z分数
   const studentsWithZScores = studentGrades.map((student, index) => ({
     ...student,
@@ -118,6 +122,7 @@ export async function calculateClassValueAdded(
       subject,
       levelDefinitions,
       gradeExcellentGain,
+      regressionBeta,
     });
 
     results.push(classResult);
@@ -139,9 +144,16 @@ async function calculateSingleClassValueAdded(params: {
   subject: string;
   levelDefinitions: GradeLevelDefinition[];
   gradeExcellentGain: number;
+  regressionBeta: number;
 }): Promise<ClassValueAdded> {
-  const { className, students, subject, levelDefinitions, gradeExcellentGain } =
-    params;
+  const {
+    className,
+    students,
+    subject,
+    levelDefinitions,
+    gradeExcellentGain,
+    regressionBeta,
+  } = params;
 
   // 1. 提取分数数据
   const entryScores = students.map((s) => s.entry_score);
@@ -167,7 +179,7 @@ async function calculateSingleClassValueAdded(params: {
 
   // 4. 计算分数增值指标
   const scoreValueAddedRates = entryZScores.map((entryZ, i) =>
-    calculateScoreValueAddedRate(entryZ, exitZScores[i])
+    calculateScoreValueAddedRate(entryZ, exitZScores[i], regressionBeta)
   );
 
   const avgScoreValueAddedRate =

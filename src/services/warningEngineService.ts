@@ -22,6 +22,12 @@ export interface WarningEngineResult {
     generatedWarnings: number;
     totalExecutionTime: number;
   };
+  // 向后兼容字段
+  success?: boolean;
+  studentsProcessed?: number;
+  warningsGenerated?: number;
+  error?: string;
+  executionTime?: number;
 }
 
 // 执行状态接口

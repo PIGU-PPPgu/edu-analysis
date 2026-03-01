@@ -27,6 +27,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ICPNotice from "./pages/ICPNotice";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
 import NotFound from "./pages/NotFound";
+import MethodologyDoc from "./pages/MethodologyDoc";
 
 // 主要业务页面 - 懒加载
 const Index = lazy(() => import("./pages/Index"));
@@ -67,6 +68,7 @@ const CreateWarningTablePage = lazy(
   () => import("./pages/tools/CreateWarningTable")
 );
 const DiagnosisPage = lazy(() => import("./pages/DiagnosisPage"));
+const HistoricalTrackingPage = lazy(() => import("./pages/HistoricalTracking"));
 const CleanDuplicateStudents = lazy(
   () => import("./pages/CleanDuplicateStudents")
 );
@@ -238,6 +240,10 @@ function App() {
                           <Route path="/privacy" element={<PrivacyPolicy />} />
                           <Route path="/icp-notice" element={<ICPNotice />} />
                           <Route
+                            path="/docs/methodology"
+                            element={<MethodologyDoc />}
+                          />
+                          <Route
                             path="/unauthorized"
                             element={<UnauthorizedPage />}
                           />
@@ -303,6 +309,10 @@ function App() {
                               <Route
                                 path="/value-added/ai-analysis"
                                 element={<AIAnalysisPage />}
+                              />
+                              <Route
+                                path="/historical-tracking"
+                                element={<HistoricalTrackingPage />}
                               />
                               {/* 配置管理已移至增值评价系统内 */}
                               {/* <Route

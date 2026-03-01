@@ -24,7 +24,7 @@ import {
   AlertTriangleIcon,
   RefreshCwIcon,
   PlayIcon,
-  StopIcon,
+  SquareIcon as StopIcon,
   TrashIcon,
 } from "lucide-react";
 import {

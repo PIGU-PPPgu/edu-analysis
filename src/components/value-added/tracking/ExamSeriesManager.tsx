@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,6 +84,7 @@ interface ExamInSeries {
 }
 
 export function ExamSeriesManager() {
+  const navigate = useNavigate();
   // TODO: 集成真实数据查询
   // 从 exam_series 和 exam_series_exams 表查询
   const [series, setSeries] = useState<ExamSeries[]>([]);
@@ -123,8 +125,7 @@ export function ExamSeriesManager() {
   };
 
   const handleViewTracking = (series: ExamSeries) => {
-    // TODO: 跳转到历次追踪页面
-    toast.info("历次追踪功能开发中...");
+    navigate(`/value-added?tab=reports&report=teacher-score-trend`);
   };
 
   return (

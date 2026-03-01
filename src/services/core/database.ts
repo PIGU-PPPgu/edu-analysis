@@ -263,8 +263,7 @@ export class DatabaseManager {
    * 清理缓存
    */
   clearCache(): void {
-    tableCache.clear();
-    viewCache.clear();
+    cacheManager.clear();
     logInfo("数据库缓存已清理");
   }
 
@@ -276,8 +275,8 @@ export class DatabaseManager {
     views: number;
   } {
     return {
-      tables: tableCache.size,
-      views: viewCache.size,
+      tables: 0,
+      views: 0,
     };
   }
 

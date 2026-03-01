@@ -14,6 +14,7 @@ import {
   calculatePercentile,
   determineLevel,
   calculateScoreValueAddedRate,
+  calculateOLSBeta,
 } from "@/utils/statistics";
 
 // ============================================
@@ -66,6 +67,9 @@ export async function calculateStudentValueAdded(
   const entryZScores = calculateZScores(allEntryScores);
   const exitZScores = calculateZScores(allExitScores);
 
+  // 计算OLS回归斜率（用于均值回归修正）
+  const regressionBeta = calculateOLSBeta(entryZScores, exitZScores);
+
   // 2. 计算百分位（用于确定等级）
   const entryPercentiles = allEntryScores.map((score, index) =>
     calculatePercentile(score, allEntryScores)
@@ -92,7 +96,8 @@ export async function calculateStudentValueAdded(
     // 计算增值率
     const scoreValueAddedRate = calculateScoreValueAddedRate(
       entryZScore,
-      exitZScore
+      exitZScore,
+      regressionBeta
     );
 
     // 计算等级变化

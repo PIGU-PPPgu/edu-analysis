@@ -11,6 +11,11 @@
  * - 错误处理：统一的错误处理策略（复用现有）
  */
 
+import { apiClient } from "./api";
+import { databaseManager } from "./database";
+import { globalCache } from "./cache";
+import { logInfo, logError } from "@/utils/logger";
+
 // API客户端
 export {
   APIClient,
@@ -42,10 +47,7 @@ export {
 
 // 复用现有的工具模块
 export { logError, logInfo, logWarn } from "@/utils/logger";
-export {
-  initializePerformanceOptimizer,
-  PerformanceMonitor,
-} from "@/utils/performanceOptimizer";
+export { initializePerformanceOptimizer } from "@/utils/performanceOptimizer";
 export {
   initGlobalErrorHandlers,
   reduceBrowserWorkload,
@@ -158,10 +160,14 @@ export async function checkCoreServicesHealth(): Promise<{
   };
   details: any;
 }> {
-  const services = {
-    database: "unhealthy" as const,
-    cache: "unhealthy" as const,
-    api: "unhealthy" as const,
+  const services: {
+    database: "healthy" | "degraded" | "unhealthy";
+    cache: "healthy" | "degraded" | "unhealthy";
+    api: "healthy" | "degraded" | "unhealthy";
+  } = {
+    database: "unhealthy",
+    cache: "unhealthy",
+    api: "unhealthy",
   };
 
   const details: any = {};

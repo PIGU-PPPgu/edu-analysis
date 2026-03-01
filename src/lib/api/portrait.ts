@@ -6,6 +6,7 @@ export interface ClassPortraitStats {
   excellentRate: number;
   progressRate: number;
   studentCount: number;
+  warningStudentCount?: number;
   gender: {
     male: number;
     female: number;
@@ -58,6 +59,11 @@ export interface StudentPortraitData {
     personalityTraits: string[];
   };
   customTags?: string[];
+  // 向后兼容字段（snake_case 别名）
+  ai_tags?: string[];
+  custom_tags?: string[];
+  recent_scores?: number[];
+  average_score?: number;
   learningBehaviors?: {
     attendanceRate: number;
     homeworkCompletionRate: number;

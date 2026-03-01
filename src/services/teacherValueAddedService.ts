@@ -16,6 +16,7 @@ import {
   calculatePercentile,
   determineLevel,
   calculateScoreValueAddedRate,
+  calculateOLSBeta,
   calculateConsolidationRate,
   calculateTransformationRate,
   calculateContributionRate,
@@ -38,6 +39,8 @@ interface StudentGradeData {
   subject: string;
   entry_score: number;
   exit_score: number;
+  _entryZ?: number;
+  _exitZ?: number;
 }
 
 /** 教师增值计算参数 */
@@ -68,8 +71,25 @@ export async function calculateTeacherValueAdded(
   const { studentGrades, subject, levelDefinitions, allSubjectStudents } =
     params;
 
+  // ✅ 修复：先计算全年级Z分数（不是按教师分组后再算）
+  const allEntryScores = studentGrades.map((s) => s.entry_score);
+  const allExitScores = studentGrades.map((s) => s.exit_score);
+  const globalEntryZScores = calculateZScores(allEntryScores);
+  const globalExitZScores = calculateZScores(allExitScores);
+  const regressionBeta = calculateOLSBeta(
+    globalEntryZScores,
+    globalExitZScores
+  );
+
+  // 将全局Z分数绑定到每个学生
+  const gradesWithGlobalZ = studentGrades.map((s, i) => ({
+    ...s,
+    _entryZ: globalEntryZScores[i],
+    _exitZ: globalExitZScores[i],
+  }));
+
   // 1. 按教师分组
-  const teacherGroups = groupBy(studentGrades, (s) => s.teacher_id);
+  const teacherGroups = groupBy(gradesWithGlobalZ, (s) => s.teacher_id);
 
   // 2. 计算全学科的优秀人数变化（用于贡献率）
   let subjectExcellentGain = 0;
@@ -99,6 +119,7 @@ export async function calculateTeacherValueAdded(
       subject,
       levelDefinitions,
       subjectExcellentGain,
+      regressionBeta,
     });
 
     results.push(teacherResult);
@@ -117,10 +138,11 @@ async function calculateSingleTeacherValueAdded(params: {
   teacherId: string;
   teacherName: string;
   className: string;
-  students: StudentGradeData[];
+  students: (StudentGradeData & { _entryZ?: number; _exitZ?: number })[];
   subject: string;
   levelDefinitions: GradeLevelDefinition[];
   subjectExcellentGain: number;
+  regressionBeta: number;
 }): Promise<TeacherValueAdded> {
   const {
     teacherId,
@@ -130,19 +152,20 @@ async function calculateSingleTeacherValueAdded(params: {
     subject,
     levelDefinitions,
     subjectExcellentGain,
+    regressionBeta,
   } = params;
 
   // 1. 提取分数数据
   const entryScores = students.map((s) => s.entry_score);
   const exitScores = students.map((s) => s.exit_score);
 
-  // 2. 计算标准分（Z-Score）
-  const entryZScores = calculateZScores(entryScores);
-  const exitZScores = calculateZScores(exitScores);
+  // 2. ✅ 使用全年级预计算的Z分数（不再本地归一化）
+  const entryZScores = students.map((s) => s._entryZ ?? 0);
+  const exitZScores = students.map((s) => s._exitZ ?? 0);
 
   // 3. 计算分数增值指标
   const scoreValueAddedRates = entryZScores.map((entryZ, i) =>
-    calculateScoreValueAddedRate(entryZ, exitZScores[i])
+    calculateScoreValueAddedRate(entryZ, exitZScores[i], regressionBeta)
   );
 
   const avgScoreValueAddedRate =
@@ -291,64 +314,68 @@ export async function getTeacherStudentDetails(
 ): Promise<StudentValueAdded[]> {
   const { studentGrades, subject, levelDefinitions } = params;
 
-  // 筛选该教师的学生
-  const teacherStudents = studentGrades.filter(
-    (s) => s.teacher_id === teacherId
-  );
-
-  if (teacherStudents.length === 0) {
-    return [];
-  }
-
-  // 计算所有学生的标准分
-  const allEntryScores = teacherStudents.map((s) => s.entry_score);
-  const allExitScores = teacherStudents.map((s) => s.exit_score);
+  // ✅ 使用全年级数据计算全局Z和OLS beta
+  const allEntryScores = studentGrades.map((s) => s.entry_score);
+  const allExitScores = studentGrades.map((s) => s.exit_score);
 
   const allEntryZScores = calculateZScores(allEntryScores);
   const allExitZScores = calculateZScores(allExitScores);
+  const regressionBeta = calculateOLSBeta(allEntryZScores, allExitZScores);
+
+  // 筛选该教师的学生（保留在全年级数组中的索引）
+  const teacherStudentsWithIndex = studentGrades
+    .map((student, index) => ({ student, index }))
+    .filter(({ student }) => student.teacher_id === teacherId);
+
+  if (teacherStudentsWithIndex.length === 0) {
+    return [];
+  }
 
   // 计算每个学生的增值数据
-  const results: StudentValueAdded[] = teacherStudents.map((student, index) => {
-    const entryScore = student.entry_score;
-    const exitScore = student.exit_score;
-    const entryZScore = allEntryZScores[index];
-    const exitZScore = allExitZScores[index];
+  const results: StudentValueAdded[] = teacherStudentsWithIndex.map(
+    ({ student, index }) => {
+      const entryScore = student.entry_score;
+      const exitScore = student.exit_score;
+      const entryZScore = allEntryZScores[index];
+      const exitZScore = allExitZScores[index];
 
-    const scoreValueAdded = exitScore - entryScore;
-    const scoreValueAddedRate = calculateScoreValueAddedRate(
-      entryZScore,
-      exitZScore
-    );
+      const scoreValueAdded = exitScore - entryScore;
+      const scoreValueAddedRate = calculateScoreValueAddedRate(
+        entryZScore,
+        exitZScore,
+        regressionBeta
+      );
 
-    // 计算等级
-    const entryPercentile = calculatePercentile(entryScore, allEntryScores);
-    const exitPercentile = calculatePercentile(exitScore, allExitScores);
+      // 计算等级
+      const entryPercentile = calculatePercentile(entryScore, allEntryScores);
+      const exitPercentile = calculatePercentile(exitScore, allExitScores);
 
-    const entryLevel = determineLevel(entryPercentile, levelDefinitions);
-    const exitLevel = determineLevel(exitPercentile, levelDefinitions);
+      const entryLevel = determineLevel(entryPercentile, levelDefinitions);
+      const exitLevel = determineLevel(exitPercentile, levelDefinitions);
 
-    const levelChange = getLevelValue(exitLevel) - getLevelValue(entryLevel);
+      const levelChange = getLevelValue(exitLevel) - getLevelValue(entryLevel);
 
-    return {
-      student_id: student.student_id,
-      student_name: student.student_name,
-      class_name: student.class_name,
-      subject,
+      return {
+        student_id: student.student_id,
+        student_name: student.student_name,
+        class_name: student.class_name,
+        subject,
 
-      entry_score: entryScore,
-      exit_score: exitScore,
-      entry_z_score: entryZScore,
-      exit_z_score: exitZScore,
-      score_value_added: scoreValueAdded,
-      score_value_added_rate: scoreValueAddedRate,
+        entry_score: entryScore,
+        exit_score: exitScore,
+        entry_z_score: entryZScore,
+        exit_z_score: exitZScore,
+        score_value_added: scoreValueAdded,
+        score_value_added_rate: scoreValueAddedRate,
 
-      entry_level: entryLevel,
-      exit_level: exitLevel,
-      level_change: levelChange,
-      is_consolidated: entryLevel === "A+" && exitLevel === "A+",
-      is_transformed: levelChange > 0,
-    };
-  });
+        entry_level: entryLevel,
+        exit_level: exitLevel,
+        level_change: levelChange,
+        is_consolidated: entryLevel === "A+" && exitLevel === "A+",
+        is_transformed: levelChange > 0,
+      };
+    }
+  );
 
   return results;
 }

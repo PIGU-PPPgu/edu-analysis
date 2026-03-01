@@ -4,4 +4,3 @@
  */
 
 export { default as AdvancedAnalyticsDashboard } from "@/components/analysis/dashboard/AdvancedAnalyticsDashboard_Fixed";
-export { default as DashboardExample } from "./DashboardExample";

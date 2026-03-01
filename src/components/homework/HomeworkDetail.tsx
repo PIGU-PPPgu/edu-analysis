@@ -2669,7 +2669,7 @@ export default function HomeworkDetail({ homeworkId }: HomeworkDetailProps) {
                           const result = await gradeHomework(gradeData);
 
                           if (result.success) {
-                            toast.success("批改成功！");
+                            toast({ title: "批改成功！" });
 
                             // 更新本地状态
                             setSubmissions((prev) =>

@@ -306,20 +306,34 @@ export function calculateLevelChange(
 // ============================================
 
 /**
- * 计算分数增值率（修复后公式）
- * 直接使用Z-score差值，避免标准分转换导致的负数分母问题
- * 公式：出口Z分数 - 入口Z分数
+ * 计算OLS回归斜率 β（用于均值回归修正）
+ * 当入口/出口分数都是Z分数时，截距α≈0，只需计算斜率
+ * β = Σ(entryZ_i × exitZ_i) / Σ(entryZ_i²)
+ */
+export function calculateOLSBeta(
+  entryZScores: number[],
+  exitZScores: number[]
+): number {
+  if (entryZScores.length < 2) return 1;
+  const sumXY = entryZScores.reduce((sum, x, i) => sum + x * exitZScores[i], 0);
+  const sumXX = entryZScores.reduce((sum, x) => sum + x * x, 0);
+  return sumXX === 0 ? 1 : sumXY / sumXX;
+}
+
+/**
+ * 计算分数增值率（OLS均值回归修正）
+ * 公式：出口Z分数 - β × 入口Z分数
  * @param entryZScore 入口Z分数
  * @param exitZScore 出口Z分数
- * @returns Z-score增值（正值表示进步，负值表示退步）
+ * @param regressionBeta OLS回归斜率β（默认1，兼容旧逻辑）
+ * @returns 回归修正后的增值（正值表示超预期进步，负值表示低于预期）
  */
 export function calculateScoreValueAddedRate(
   entryZScore: number,
-  exitZScore: number
+  exitZScore: number,
+  regressionBeta: number = 1
 ): number {
-  // P0修复：直接使用Z-score差值，简单且准确
-  // 避免标准分转换时出现负数分母（当entryZScore < -5时）
-  return exitZScore - entryZScore;
+  return exitZScore - regressionBeta * entryZScore;
 }
 
 /**

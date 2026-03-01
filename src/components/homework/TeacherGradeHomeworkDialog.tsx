@@ -32,7 +32,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { PlusCircle, X, AlertCircle, BrainCircuit } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -118,7 +117,6 @@ export default function TeacherGradeHomeworkDialog({
   const [knowledgePointEvaluations, setKnowledgePointEvaluations] = useState<
     { id: string; name: string; masteryLevel: number; evaluationId?: string }[]
   >([]);
-  const { toast } = useToast();
   const [gradingScale, setGradingScale] = useState<{
     id: string;
     name: string;
