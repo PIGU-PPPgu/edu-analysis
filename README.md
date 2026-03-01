@@ -1,5 +1,7 @@
 # 智能教育数据分析平台
 
+![Intelliclass Cover](./docs/intelliclass-cover.png)
+
 [![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/PIGU-PPPgu/edu-analysis)
 [![React](https://img.shields.io/badge/React-18.3-61dafb.svg)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg)](https://www.typescriptlang.org/)
