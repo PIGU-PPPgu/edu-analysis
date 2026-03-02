@@ -1,6 +1,6 @@
 # 智能教育数据分析平台
 
-![Intelliclass Cover](./docs/intelliclass-cover.png)
+![Intelliclass System Map](./docs/intelliclass-system-map.png)
 
 [![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/PIGU-PPPgu/edu-analysis)
 [![React](https://img.shields.io/badge/React-18.3-61dafb.svg)](https://reactjs.org/)
@@ -19,6 +19,8 @@
 - 高级分析：多维交叉分析、异常检测（2 sigma）、科目相关性、学生贡献度
 
 ### 增值评价系统
+
+![Intelliclass Cover](./docs/intelliclass-cover.png)
 
 - **数据导入**：Excel 模板导入，自动校验学生信息、教学编排和考试成绩
 - **增值活动**：创建分析任务，配置前测/后测，一键计算增值率
