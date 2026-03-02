@@ -8,7 +8,7 @@
 [![Vite](https://img.shields.io/badge/Vite-7.0-646cff.svg)](https://vitejs.dev/)
 [![Supabase](https://img.shields.io/badge/Supabase-Backend-3ecf8e.svg)](https://supabase.com/)
 
-面向高中教学管理的一站式数据分析平台，集成成绩分析、增值评价、AI 智能诊断与报告导出功能。
+面向教学管理的一站式数据分析平台，集成成绩分析、增值评价、AI 智能诊断与报告导出功能。
 
 ## 核心功能
 
