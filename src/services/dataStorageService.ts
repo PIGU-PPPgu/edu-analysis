@@ -18,6 +18,15 @@ import {
 } from "@/utils/dataValidator";
 import { retryableWrite, retryableSelect } from "@/utils/apiRetry";
 
+function isMissingConflictConstraintError(error: any): boolean {
+  return (
+    error?.code === "42P10" ||
+    /no unique or exclusion constraint matching the ON CONFLICT specification/i.test(
+      error?.message || ""
+    )
+  );
+}
+
 /**
  * 保存学生信息
  * @param configId 可选的配置ID，用于数据隔离
@@ -185,16 +194,34 @@ export async function saveTeachingArrangement(
         subject: null,
       }));
 
-      // P0修复: 使用upsert批量创建,提供事务保护 - 添加重试保护
+      // 先尝试使用 upsert；若数据库未配置对应唯一约束，则自动降级为 insert。
       const { data: newTeachers, error: createError } = (await retryableWrite(
-        async () =>
-          await supabase
+        async () => {
+          const upsertResult = await supabase
             .from("teachers")
             .upsert(newTeachersData, {
               onConflict: "name",
               ignoreDuplicates: false,
             })
-            .select("id, name"),
+            .select("id, name");
+
+          if (!upsertResult.error) {
+            return upsertResult;
+          }
+
+          if (!isMissingConflictConstraintError(upsertResult.error)) {
+            return upsertResult;
+          }
+
+          console.warn(
+            "[教学编排] teachers.name 缺少唯一约束，教师创建从 upsert 降级为 insert"
+          );
+
+          return await supabase
+            .from("teachers")
+            .insert(newTeachersData)
+            .select("id, name");
+        },
         "批量创建教师账号"
       )) as any;
 

@@ -104,6 +104,37 @@ export const AuthModuleProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // ==================== Helper Functions ====================
 
+  // 角色优先级：admin > teacher > student
+  const ROLE_PRIORITY: Record<string, number> = {
+    admin: 3,
+    teacher: 2,
+    student: 1,
+  };
+
+  const fetchUserRole = useCallback(async (userId: string): Promise<string> => {
+    // 先从 localStorage 缓存取，避免每次都查 DB
+    const cached = localStorage.getItem(`user_role_${userId}`);
+
+    const { data, error } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+
+    if (error || !data || data.length === 0) {
+      return cached ?? "teacher";
+    }
+
+    // 取最高权限角色
+    const topRole = data.reduce((best, cur) => {
+      const bp = ROLE_PRIORITY[best.role] ?? 0;
+      const cp = ROLE_PRIORITY[cur.role] ?? 0;
+      return cp > bp ? cur : best;
+    }, data[0]).role;
+
+    localStorage.setItem(`user_role_${userId}`, topRole);
+    return topRole;
+  }, []);
+
   const createAppError = useCallback(
     (
       message: string,
@@ -276,7 +307,8 @@ export const AuthModuleProvider: React.FC<{ children: React.ReactNode }> = ({
       } else if (session) {
         dispatch({ type: "SET_USER", payload: session.user });
         dispatch({ type: "SET_SESSION", payload: session });
-        dispatch({ type: "SET_USER_ROLE", payload: "teacher" });
+        const role = await fetchUserRole(session.user.id);
+        dispatch({ type: "SET_USER_ROLE", payload: role });
       }
     } catch (error: any) {
       const appError = createAppError(
@@ -314,7 +346,8 @@ export const AuthModuleProvider: React.FC<{ children: React.ReactNode }> = ({
         } else if (session) {
           dispatch({ type: "SET_USER", payload: session.user });
           dispatch({ type: "SET_SESSION", payload: session });
-          dispatch({ type: "SET_USER_ROLE", payload: "teacher" });
+          const role = await fetchUserRole(session.user.id);
+          dispatch({ type: "SET_USER_ROLE", payload: role });
         }
       } catch (error: any) {
         console.error("认证初始化失败:", error);
@@ -339,7 +372,8 @@ export const AuthModuleProvider: React.FC<{ children: React.ReactNode }> = ({
       if (session) {
         dispatch({ type: "SET_USER", payload: session.user });
         dispatch({ type: "SET_SESSION", payload: session });
-        dispatch({ type: "SET_USER_ROLE", payload: "teacher" });
+        const role = await fetchUserRole(session.user.id);
+        dispatch({ type: "SET_USER_ROLE", payload: role });
       } else {
         dispatch({ type: "SET_USER", payload: null });
         dispatch({ type: "SET_SESSION", payload: null });

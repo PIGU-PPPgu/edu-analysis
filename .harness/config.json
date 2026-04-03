@@ -1,0 +1,12 @@
+{
+  "version": "2.2.0",
+  "project_type": "nextjs",
+  "git": {
+    "main_branch": "main"
+  },
+  "quality": {
+    "min_coverage": 80,
+    "lint_on_commit": true,
+    "type_check": true
+  }
+}

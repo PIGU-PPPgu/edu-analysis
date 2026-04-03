@@ -32,9 +32,28 @@ interface EnhancedClassValueAddedReportProps {
   exitExamId?: string | null;
 }
 
+const safeNumber = (value: unknown, fallback = 0) => {
+  const numeric =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value)
+        : fallback;
+
+  return Number.isFinite(numeric) ? numeric : fallback;
+};
+
+const safeText = (value: unknown, fallback = "未命名") => {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  return trimmed || fallback;
+};
+
 const clampPercent = (value: number) => Math.max(0, Math.min(100, value));
 const toPercentValue = (ratio: number | undefined, digits = 1) =>
-  Number(((ratio ?? 0) * 100).toFixed(digits));
+  Number((safeNumber(ratio) * 100).toFixed(digits));
+const formatValueAdded = (value: unknown, digits = 3) =>
+  safeNumber(value).toFixed(digits);
 
 export function EnhancedClassValueAddedReport({
   data,
@@ -45,17 +64,29 @@ export function EnhancedClassValueAddedReport({
   const [selectedSubject, setSelectedSubject] = useState<string>("all");
 
   const subjects = useMemo(() => {
-    return Array.from(new Set(data.map((item) => item.subject))).sort();
+    return Array.from(
+      new Set(
+        data
+          .map((item) => safeText(item.subject, ""))
+          .filter((subject) => subject !== "")
+      )
+    ).sort();
   }, [data]);
 
   const filteredData = useMemo(() => {
     if (selectedSubject === "all") return data;
-    return data.filter((item) => item.subject === selectedSubject);
+    return data.filter(
+      (item) => safeText(item.subject, "") === selectedSubject
+    );
   }, [data, selectedSubject]);
+
+  const onlyTotalSubject = subjects.length === 1 && subjects[0] === "总分";
 
   const sortedData = useMemo(() => {
     return [...filteredData].sort(
-      (a, b) => b.avg_score_value_added_rate - a.avg_score_value_added_rate
+      (a, b) =>
+        safeNumber(b.avg_score_value_added_rate) -
+        safeNumber(a.avg_score_value_added_rate)
     );
   }, [filteredData]);
 
@@ -64,16 +95,16 @@ export function EnhancedClassValueAddedReport({
     if (filteredData.length === 0) return null;
 
     const totalStudents = filteredData.reduce(
-      (sum, item) => sum + item.total_students,
+      (sum, item) => sum + safeNumber(item.total_students),
       0
     );
     const avgValueAddedRate =
       filteredData.reduce(
-        (sum, item) => sum + item.avg_score_value_added_rate,
+        (sum, item) => sum + safeNumber(item.avg_score_value_added_rate),
         0
       ) / filteredData.length;
     const positiveCount = filteredData.filter(
-      (item) => item.avg_score_value_added_rate > 0
+      (item) => safeNumber(item.avg_score_value_added_rate) > 0
     ).length;
 
     return {
@@ -88,13 +119,13 @@ export function EnhancedClassValueAddedReport({
   // 4. 图表1：增值率双向条形图
   const valueAddedChartData = useMemo(() => {
     return sortedData.map((item) => {
-      const rate = Number((item.avg_score_value_added_rate * 100).toFixed(2));
+      const rate = Number(formatValueAdded(item.avg_score_value_added_rate));
       return {
-        className: item.class_name,
-        subject: item.subject,
-        positiveRate: rate > 0 ? rate : 0,
-        negativeRate: rate < 0 ? rate : 0,
-        totalStudents: item.total_students,
+        className: safeText(item.class_name),
+        subject: safeText(item.subject, "未分类科目"),
+        positiveValue: rate > 0 ? rate : 0,
+        negativeValue: rate < 0 ? rate : 0,
+        totalStudents: safeNumber(item.total_students),
       };
     });
   }, [sortedData]);
@@ -102,11 +133,13 @@ export function EnhancedClassValueAddedReport({
   // 5. 图表2：入口出口标准分对比
   const standardScoreChartData = useMemo(() => {
     return sortedData.map((item) => ({
-      className: item.class_name,
+      className: safeText(item.class_name),
       entryStandardScore: Number(
-        (item.avg_score_standard_entry ?? 0).toFixed(2)
+        safeNumber(item.avg_score_standard_entry).toFixed(2)
       ),
-      exitStandardScore: Number((item.avg_score_standard_exit ?? 0).toFixed(2)),
+      exitStandardScore: Number(
+        safeNumber(item.avg_score_standard_exit).toFixed(2)
+      ),
     }));
   }, [sortedData]);
 
@@ -117,7 +150,7 @@ export function EnhancedClassValueAddedReport({
         toPercentValue(item.progress_student_ratio, 1)
       );
       return {
-        className: item.class_name,
+        className: safeText(item.class_name),
         progressRate,
         nonProgressRate: Number((100 - progressRate).toFixed(1)),
       };
@@ -160,6 +193,14 @@ export function EnhancedClassValueAddedReport({
               ：请筛选科目查看各班各科增值情况，便于对比分析
             </AlertDescription>
           </Alert>
+          {onlyTotalSubject && (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                当前活动仅生成了“总分”增值结果。通常表示入口考试未提供分科成绩，因此系统已自动跳过不具备可比性的分科评价。
+              </AlertDescription>
+            </Alert>
+          )}
         </CardContent>
       </Card>
 
@@ -186,15 +227,17 @@ export function EnhancedClassValueAddedReport({
 
           <Card>
             <CardContent className="p-4">
-              <div className="text-sm text-muted-foreground">平均增值率</div>
+              <div className="text-sm text-muted-foreground">平均增值值</div>
               <div
                 className="text-2xl font-bold"
                 style={{
                   color:
-                    statistics.avgValueAddedRate >= 0 ? "#B9FF66" : "#f87171",
+                    safeNumber(statistics.avgValueAddedRate) >= 0
+                      ? "#B9FF66"
+                      : "#f87171",
                 }}
               >
-                {(statistics.avgValueAddedRate * 100).toFixed(2)}%
+                {formatValueAdded(statistics.avgValueAddedRate)}
               </div>
             </CardContent>
           </Card>
@@ -229,7 +272,7 @@ export function EnhancedClassValueAddedReport({
           {/* 图表1：增值率双向条形图 */}
           <Card>
             <CardHeader>
-              <CardTitle>增值率对比图（正负分开）</CardTitle>
+              <CardTitle>增值值对比图（正负分开）</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer
@@ -242,22 +285,23 @@ export function EnhancedClassValueAddedReport({
                   margin={{ top: 8, right: 24, left: 80, bottom: 8 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" tickFormatter={(v) => `${v}%`} />
-                  <YAxis type="category" dataKey="className" width={80} />
-                  <Tooltip
-                    formatter={(v: number) => `${Number(v).toFixed(2)}%`}
+                  <XAxis
+                    type="number"
+                    tickFormatter={(v) => Number(v).toFixed(2)}
                   />
+                  <YAxis type="category" dataKey="className" width={80} />
+                  <Tooltip formatter={(v: number) => Number(v).toFixed(3)} />
                   <Legend />
                   <ReferenceLine x={0} stroke="#64748b" strokeWidth={2} />
                   <Bar
-                    dataKey="positiveRate"
-                    name="正增值(%)"
+                    dataKey="positiveValue"
+                    name="正增值"
                     fill="#B9FF66"
                     stackId="valueAdded"
                   />
                   <Bar
-                    dataKey="negativeRate"
-                    name="负增值(%)"
+                    dataKey="negativeValue"
+                    name="负增值"
                     fill="#f87171"
                     stackId="valueAdded"
                   />
@@ -356,7 +400,7 @@ export function EnhancedClassValueAddedReport({
                       <th className="text-right py-3 px-4">学生数</th>
                       <th className="text-right py-3 px-4">入口分</th>
                       <th className="text-right py-3 px-4">出口分</th>
-                      <th className="text-right py-3 px-4">增值率</th>
+                      <th className="text-right py-3 px-4">增值值</th>
                       <th className="text-right py-3 px-4">进步人数占比</th>
                     </tr>
                   </thead>
@@ -368,20 +412,22 @@ export function EnhancedClassValueAddedReport({
                       >
                         <td className="py-3 px-4 font-medium">#{index + 1}</td>
                         <td className="py-3 px-4 font-medium">
-                          {item.class_name}
+                          {safeText(item.class_name)}
                         </td>
-                        <td className="py-3 px-4">{item.subject}</td>
-                        <td className="py-3 px-4 text-right">
-                          {item.total_students}
+                        <td className="py-3 px-4">
+                          {safeText(item.subject, "未分类科目")}
                         </td>
                         <td className="py-3 px-4 text-right">
-                          {item.avg_score_entry != null
-                            ? item.avg_score_entry.toFixed(1)
+                          {safeNumber(item.total_students)}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          {Number.isFinite(item.avg_score_entry)
+                            ? safeNumber(item.avg_score_entry).toFixed(1)
                             : "-"}
                         </td>
                         <td className="py-3 px-4 text-right">
-                          {item.avg_score_exit != null
-                            ? item.avg_score_exit.toFixed(1)
+                          {Number.isFinite(item.avg_score_exit)
+                            ? safeNumber(item.avg_score_exit).toFixed(1)
                             : "-"}
                         </td>
                         <td className="py-3 px-4 text-right">
@@ -389,28 +435,33 @@ export function EnhancedClassValueAddedReport({
                             <span
                               style={{
                                 color:
-                                  item.avg_score_value_added_rate > 0
+                                  safeNumber(item.avg_score_value_added_rate) >
+                                  0
                                     ? "#B9FF66"
-                                    : item.avg_score_value_added_rate < 0
+                                    : safeNumber(
+                                          item.avg_score_value_added_rate
+                                        ) < 0
                                       ? "#f87171"
                                       : undefined,
                                 fontWeight:
-                                  item.avg_score_value_added_rate !== 0
+                                  safeNumber(
+                                    item.avg_score_value_added_rate
+                                  ) !== 0
                                     ? 600
                                     : undefined,
                               }}
                             >
-                              {(item.avg_score_value_added_rate * 100).toFixed(
-                                2
+                              {formatValueAdded(
+                                item.avg_score_value_added_rate
                               )}
-                              %
                             </span>
-                            {item.avg_score_value_added_rate > 0 ? (
+                            {safeNumber(item.avg_score_value_added_rate) > 0 ? (
                               <TrendingUp
                                 className="h-3 w-3"
                                 style={{ color: "#B9FF66" }}
                               />
-                            ) : item.avg_score_value_added_rate < 0 ? (
+                            ) : safeNumber(item.avg_score_value_added_rate) <
+                              0 ? (
                               <TrendingDown
                                 className="h-3 w-3"
                                 style={{ color: "#f87171" }}
@@ -457,11 +508,8 @@ export function EnhancedClassValueAddedReport({
                   ：班级出口表现不如入口表现，需要分析原因并改进
                 </li>
                 <li>
-                  •{" "}
-                  <strong>
-                    增值率 = (出口标准分 - 入口标准分) / 入口标准分
-                  </strong>
-                  ，反映班级整体进步幅度
+                  • <strong>增值值 = 出口Z分 - β × 入口Z分</strong>
+                  ，反映班级相对预期的超额进步
                 </li>
               </ul>
             </div>
@@ -472,10 +520,10 @@ export function EnhancedClassValueAddedReport({
               </h4>
               <ul className="text-sm space-y-1 text-muted-foreground ml-4">
                 <li>
-                  • 表示班级中<strong>出口成绩优于入口成绩的学生比例</strong>
+                  • 表示班级中<strong>增值值大于 0 的学生比例</strong>
                 </li>
+                <li>• 该指标基于标准化后的相对进步，不直接比较原始分高低</li>
                 <li>• 高占比（≥60%）说明班级整体教学效果显著</li>
-                <li>• 低占比（&lt;40%）提示需要关注教学方法和学生个体差异</li>
               </ul>
             </div>
 

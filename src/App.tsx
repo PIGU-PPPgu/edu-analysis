@@ -55,6 +55,7 @@ const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
 const ConfigurationManagement = lazy(
   () => import("./pages/ConfigurationManagement")
 );
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 
 // 工具和测试页面 - 懒加载
 // 已删除测试文件: CascadeAnalysisTestPage, AnalysisDashboardComparison
@@ -344,6 +345,18 @@ function App() {
                               <Route
                                 path="/class-profile/:classId"
                                 element={<ClassProfile />}
+                              />
+                            </Route>
+
+                            {/* 管理员专属路由 */}
+                            <Route
+                              element={
+                                <ProtectedRoute allowedRoles={["admin"]} />
+                              }
+                            >
+                              <Route
+                                path="/admin"
+                                element={<AdminDashboard />}
                               />
                             </Route>
 

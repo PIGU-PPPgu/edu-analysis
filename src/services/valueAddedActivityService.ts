@@ -46,6 +46,57 @@ export interface ActivityResult {
   error?: string;
 }
 
+const SUBJECT_SCORE_FIELD_MAP: Record<string, string> = {
+  total: "total_score",
+  chinese: "chinese_score",
+  math: "math_score",
+  english: "english_score",
+  physics: "physics_score",
+  chemistry: "chemistry_score",
+  biology: "biology_score",
+  politics: "politics_score",
+  history: "history_score",
+  geography: "geography_score",
+};
+
+function isFiniteScore(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function countComparablePairs(params: {
+  entryData: any[];
+  exitDataByStudentId: Map<string, any>;
+  scoreField: string;
+  absentField: string;
+}) {
+  const { entryData, exitDataByStudentId, scoreField, absentField } = params;
+
+  let count = 0;
+
+  for (const entryRecord of entryData) {
+    const exitRecord = exitDataByStudentId.get(entryRecord.student_id);
+    if (!exitRecord) continue;
+
+    const entryScore = entryRecord[scoreField];
+    const exitScore = exitRecord[scoreField];
+
+    if (!isFiniteScore(entryScore) || !isFiniteScore(exitScore)) {
+      continue;
+    }
+
+    const isEntryAbsent = entryRecord[absentField] === true || entryScore === 0;
+    const isExitAbsent = exitRecord[absentField] === true || exitScore === 0;
+
+    if (isEntryAbsent || isExitAbsent) {
+      continue;
+    }
+
+    count += 1;
+  }
+
+  return count;
+}
+
 /**
  * 创建增值活动
  */
@@ -370,6 +421,10 @@ export async function executeValueAddedCalculation(
       return { success: false, error: "获取出口考试数据失败或无数据" };
     }
 
+    const exitDataByStudentId = new Map(
+      exitData.map((record) => [record.student_id, record])
+    );
+
     onProgress?.({
       step: "prepare",
       progress: 20,
@@ -397,11 +452,17 @@ export async function executeValueAddedCalculation(
     let hasMore = true;
 
     while (hasMore) {
-      const { data, error } = await supabase
+      let tssQuery = supabase
         .from("teacher_student_subjects")
         .select("class_name, subject, teacher_id, teacher_name, student_id")
-        .in("class_name", uniqueClasses)
-        .range(from, from + batchSize - 1);
+        .in("class_name", uniqueClasses);
+
+      // ✅ 按学年筛选，避免跨年级教师数据混入
+      if (activity.academic_year) {
+        tssQuery = tssQuery.eq("academic_year", activity.academic_year);
+      }
+
+      const { data, error } = await tssQuery.range(from, from + batchSize - 1);
 
       if (error) {
         console.warn(`⚠️ 查询教师映射失败 (offset ${from}):`, error);
@@ -498,18 +559,74 @@ export async function executeValueAddedCalculation(
     };
 
     // ✅ 从数据库中动态识别的科目，转换为英文key
-    const subjects = Array.from(availableSubjects)
-      .map((chineseName) => subjectNameToKey[chineseName])
-      .filter((key) => key !== undefined); // 过滤未知科目
+    const subjectCandidates = Array.from(availableSubjects).reduce<
+      Array<{ key: string; teacherSubjectName: string }>
+    >((items, chineseName) => {
+      const key = subjectNameToKey[chineseName];
+      if (!key || items.some((item) => item.key === key)) {
+        return items;
+      }
 
-    // ✅ 新增：总分增值评价（始终计算，不依赖teacher_student_subjects）
-    subjects.unshift("total"); // 总分置于首位
+      items.push({ key, teacherSubjectName: chineseName });
+      return items;
+    }, []);
+
+    const subjectTeacherNameMap = new Map<string, string>(
+      subjectCandidates.map((item) => [item.key, item.teacherSubjectName])
+    );
+
+    const subjectSupport = [
+      {
+        key: "total",
+        label: subjectKeyToName.total,
+        teacherSubjectName: subjectKeyToName.total,
+        comparablePairs: countComparablePairs({
+          entryData,
+          exitDataByStudentId,
+          scoreField: SUBJECT_SCORE_FIELD_MAP.total,
+          absentField: "total_absent",
+        }),
+      },
+      ...subjectCandidates.map((subject) => ({
+        key: subject.key,
+        label: subjectKeyToName[subject.key] || subject.teacherSubjectName,
+        teacherSubjectName: subject.teacherSubjectName,
+        comparablePairs: countComparablePairs({
+          entryData,
+          exitDataByStudentId,
+          scoreField:
+            SUBJECT_SCORE_FIELD_MAP[subject.key] || `${subject.key}_score`,
+          absentField: `${subject.key}_absent`,
+        }),
+      })),
+    ];
+
+    const subjects = subjectSupport
+      .filter((subject) => subject.comparablePairs > 0)
+      .map((subject) => subject.key);
+
+    const unsupportedSubjects = subjectSupport.filter(
+      (subject) => subject.comparablePairs === 0
+    );
 
     console.log(`✅ 动态识别科目: ${availableSubjects.size}个（含总分）`, {
       中文: Array.from(availableSubjects),
       英文: subjects,
       映射: subjects.map((key) => `${key} -> ${subjectKeyToName[key]}`),
+      可比样本数: Object.fromEntries(
+        subjectSupport.map((subject) => [
+          subject.label,
+          subject.comparablePairs,
+        ])
+      ),
     });
+
+    if (unsupportedSubjects.length > 0) {
+      console.warn(
+        "⚠️ 以下科目因入口/出口缺少同科可比分数，已跳过增值计算：",
+        unsupportedSubjects.map((subject) => subject.label)
+      );
+    }
 
     if (subjects.length === 0) {
       throw new Error("未识别到任何科目数据，请检查数据导入");
@@ -522,8 +639,14 @@ export async function executeValueAddedCalculation(
     const missingTeachers: Array<{ class: string; subject: string }> = [];
     const expectedMappings: Array<{ class: string; subject: string }> = [];
 
+    const comparableTeachingSubjects = subjectSupport
+      .filter(
+        (subject) => subject.key !== "total" && subject.comparablePairs > 0
+      )
+      .map((subject) => subject.teacherSubjectName);
+
     for (const className of uniqueClasses) {
-      for (const subject of Array.from(availableSubjects)) {
+      for (const subject of comparableTeachingSubjects) {
         const key = `${className}_${subject}`;
         expectedMappings.push({ class: className, subject });
 
@@ -596,9 +719,7 @@ export async function executeValueAddedCalculation(
       // 构建学生成绩数据
       const studentGrades = entryData
         .map((entryRecord) => {
-          const exitRecord = exitData.find(
-            (e) => e.student_id === entryRecord.student_id
-          );
+          const exitRecord = exitDataByStudentId.get(entryRecord.student_id);
           if (!exitRecord) return null;
 
           const entryScore = entryRecord[scoreField];
@@ -607,7 +728,12 @@ export async function executeValueAddedCalculation(
           const exitAbsent = exitRecord[absentField]; // ✅ 出口是否缺考
 
           // ✅ 跳过无效数据：null/undefined
-          if (entryScore == null || exitScore == null) {
+          if (
+            entryScore === null ||
+            entryScore === undefined ||
+            exitScore === null ||
+            exitScore === undefined
+          ) {
             return null;
           }
 
@@ -671,7 +797,9 @@ export async function executeValueAddedCalculation(
           // ✅ 保存教师增值（总分跳过教师映射）
           if (subject !== "total") {
             // 单科：使用真实教师信息
-            const teacherKey = `${classResult.class_name}_${subjectKeyToName[subject]}`;
+            const teacherSubjectName =
+              subjectTeacherNameMap.get(subject) || subjectKeyToName[subject];
+            const teacherKey = `${classResult.class_name}_${teacherSubjectName}`;
             const teacherInfo = teacherMap.get(teacherKey);
 
             // 如果找到真实教师，使用真实信息；否则使用班级+科目作为唯一标识

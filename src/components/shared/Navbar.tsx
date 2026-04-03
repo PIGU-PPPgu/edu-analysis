@@ -22,6 +22,7 @@ import {
   Brain,
   BookOpen,
   Sparkles,
+  Shield,
 } from "lucide-react";
 import { useViewport } from "@/hooks/use-viewport";
 import {
@@ -364,6 +365,21 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+
+                {/* 管理员后台入口 */}
+                {getEffectiveRole() === "admin" && (
+                  <Link
+                    to="/admin"
+                    className={`font-medium transition-colors hover:text-primary flex items-center gap-1 ${
+                      isActive("/admin")
+                        ? "text-primary"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    <Shield className="h-3.5 w-3.5" />
+                    管理后台
+                  </Link>
+                )}
               </>
             )}
           </nav>

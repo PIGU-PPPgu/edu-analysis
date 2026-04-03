@@ -11,7 +11,6 @@ import type {
 } from "@/types/valueAddedTypes";
 
 import {
-  calculateStatistics,
   calculateZScores,
   calculatePercentile,
   determineLevel,
@@ -56,6 +55,20 @@ interface ClassValueAddedParams {
   gradeStudents?: StudentGradeData[];
 }
 
+function isValidFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function normalizeText(value: string | undefined | null, fallback: string) {
+  const trimmed = value?.trim();
+  return trimmed || fallback;
+}
+
+function average(values: number[]) {
+  if (values.length === 0) return 0;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
 // ============================================
 // 核心计算函数
 // ============================================
@@ -69,12 +82,28 @@ export async function calculateClassValueAdded(
 ): Promise<ClassValueAdded[]> {
   const { studentGrades, subject, levelDefinitions, gradeStudents } = params;
 
+  const sanitizedStudentGrades = studentGrades
+    .map((student) => ({
+      ...student,
+      class_name: normalizeText(student.class_name, "未知班级"),
+      subject: normalizeText(student.subject, subject || "未分类科目"),
+    }))
+    .filter(
+      (student) =>
+        isValidFiniteNumber(student.entry_score) &&
+        isValidFiniteNumber(student.exit_score)
+    );
+
+  if (sanitizedStudentGrades.length === 0) {
+    return [];
+  }
+
   // 1. 按班级分组
-  const classesByName = groupBy(studentGrades, (s) => s.class_name);
+  const classesByName = groupBy(sanitizedStudentGrades, (s) => s.class_name);
 
   // 2. ✅ 计算全年级的Z分数（关键修复）
-  const allEntryScores = studentGrades.map((s) => s.entry_score);
-  const allExitScores = studentGrades.map((s) => s.exit_score);
+  const allEntryScores = sanitizedStudentGrades.map((s) => s.entry_score);
+  const allExitScores = sanitizedStudentGrades.map((s) => s.exit_score);
   const gradeEntryZScores = calculateZScores(allEntryScores);
   const gradeExitZScores = calculateZScores(allExitScores);
 
@@ -82,7 +111,7 @@ export async function calculateClassValueAdded(
   const regressionBeta = calculateOLSBeta(gradeEntryZScores, gradeExitZScores);
 
   // 3. 为每个学生分配Z分数
-  const studentsWithZScores = studentGrades.map((student, index) => ({
+  const studentsWithZScores = sanitizedStudentGrades.map((student, index) => ({
     ...student,
     entry_z_score: gradeEntryZScores[index],
     exit_z_score: gradeExitZScores[index],
@@ -91,13 +120,18 @@ export async function calculateClassValueAdded(
   // 4. 计算全年级的优秀人数变化（用于贡献率）
   let gradeExcellentGain = 0;
   if (gradeStudents) {
+    const sanitizedGradeStudents = gradeStudents.filter(
+      (student) =>
+        isValidFiniteNumber(student.entry_score) &&
+        isValidFiniteNumber(student.exit_score)
+    );
     const gradeEntryLevels = calculateStudentLevels(
-      gradeStudents,
+      sanitizedGradeStudents,
       "entry",
       levelDefinitions
     );
     const gradeExitLevels = calculateStudentLevels(
-      gradeStudents,
+      sanitizedGradeStudents,
       "exit",
       levelDefinitions
     );
@@ -164,14 +198,10 @@ async function calculateSingleClassValueAdded(params: {
   const exitZScores = students.map((s) => s.exit_z_score || 0);
 
   // 3. ✅ 计算班级平均原始分和标准分
-  const avgEntryScore =
-    entryScores.reduce((sum, s) => sum + s, 0) / entryScores.length;
-  const avgExitScore =
-    exitScores.reduce((sum, s) => sum + s, 0) / exitScores.length;
-  const avgEntryZScore =
-    entryZScores.reduce((sum, z) => sum + z, 0) / entryZScores.length;
-  const avgExitZScore =
-    exitZScores.reduce((sum, z) => sum + z, 0) / exitZScores.length;
+  const avgEntryScore = average(entryScores);
+  const avgExitScore = average(exitScores);
+  const avgEntryZScore = average(entryZScores);
+  const avgExitZScore = average(exitZScores);
 
   // 标准分 = 500 + 100 * Z分数（参照汇优评公式）
   const avgStandardEntryScore = 500 + 100 * avgEntryZScore;
@@ -182,15 +212,15 @@ async function calculateSingleClassValueAdded(params: {
     calculateScoreValueAddedRate(entryZ, exitZScores[i], regressionBeta)
   );
 
-  const avgScoreValueAddedRate =
-    scoreValueAddedRates.reduce((sum, rate) => sum + rate, 0) /
-    scoreValueAddedRates.length;
+  const avgScoreValueAddedRate = average(
+    scoreValueAddedRates.filter((rate) => Number.isFinite(rate))
+  );
 
   const avgZScoreChange = avgExitZScore - avgEntryZScore;
 
   // 5. 计算进步学生比例
-  const progressStudentCount = students.filter(
-    (s, i) => exitScores[i] > entryScores[i]
+  const progressStudentCount = scoreValueAddedRates.filter(
+    (rate) => Number.isFinite(rate) && rate > 0
   ).length;
   const progressStudentRatio = safeDivide(
     progressStudentCount,

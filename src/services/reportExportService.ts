@@ -11,6 +11,8 @@ import type {
   SubjectBalanceAnalysis,
 } from "@/types/valueAddedTypes";
 
+const formatValueAdded = (value: number) => value.toFixed(3);
+
 /**
  * 导出班级增值报告为Excel
  */
@@ -28,7 +30,7 @@ export function exportClassReportToExcel(
       [
         "班级名称",
         "科目",
-        "增值率",
+        "增值值",
         "进步学生比例",
         "Z-Score变化",
         "巩固率",
@@ -44,7 +46,7 @@ export function exportClassReportToExcel(
       ...data.map((item) => [
         item.class_name,
         item.subject,
-        `${(item.avg_score_value_added_rate * 100).toFixed(2)}%`,
+        formatValueAdded(item.avg_score_value_added_rate),
         `${(item.progress_student_ratio * 100).toFixed(1)}%`,
         item.avg_z_score_change.toFixed(3),
         `${(item.consolidation_rate * 100).toFixed(1)}%`,
@@ -115,7 +117,7 @@ export function exportTeacherReportToExcel(
       [
         "教师姓名",
         "科目",
-        "增值率",
+        "增值值",
         "进步学生数",
         "进步学生比例",
         "Z-Score变化",
@@ -132,7 +134,7 @@ export function exportTeacherReportToExcel(
       ...data.map((item) => [
         item.teacher_name,
         item.subject,
-        `${(item.avg_score_value_added_rate * 100).toFixed(2)}%`,
+        formatValueAdded(item.avg_score_value_added_rate),
         item.progress_student_count,
         `${(item.progress_student_ratio * 100).toFixed(1)}%`,
         item.avg_z_score_change.toFixed(3),
@@ -209,7 +211,7 @@ export function exportStudentReportToExcel(
         "入口成绩",
         "出口成绩",
         "分数增值",
-        "增值率",
+        "增值值",
         "入口等级",
         "出口等级",
         "等级变化",
@@ -227,7 +229,7 @@ export function exportStudentReportToExcel(
         item.score_value_added > 0
           ? `+${item.score_value_added}`
           : item.score_value_added,
-        `${(item.score_value_added_rate * 100).toFixed(2)}%`,
+        formatValueAdded(item.score_value_added_rate),
         item.entry_level,
         item.exit_level,
         item.level_change > 0 ? `+${item.level_change}` : item.level_change,
@@ -286,10 +288,10 @@ export function exportSubjectBalanceReportToExcel(
   try {
     // 主表数据
     const mainData = [
-      ["班级名称", "总体增值率", "学科偏离度", "均衡得分", "年级排名"],
+      ["班级名称", "总体增值值", "学科偏离度", "均衡得分", "年级排名"],
       ...data.map((item) => [
         item.class_name,
-        `${(item.total_score_value_added_rate * 100).toFixed(2)}%`,
+        formatValueAdded(item.total_score_value_added_rate),
         item.subject_deviation.toFixed(3),
         item.balance_score.toFixed(3),
         `${item.total_rank}`,
@@ -315,11 +317,11 @@ export function exportSubjectBalanceReportToExcel(
       if (index < 10) {
         // 限制工作表数量
         const detailData = [
-          ["科目", "增值率", "偏离度", "班级排名"],
+          ["科目", "增值值", "偏离度", "班级排名"],
           ...classData.subjects.map((subject) => [
             subject.subject,
-            `${(subject.value_added_rate * 100).toFixed(2)}%`,
-            `${(subject.deviation_from_avg * 100).toFixed(2)}%`,
+            formatValueAdded(subject.value_added_rate),
+            formatValueAdded(subject.deviation_from_avg),
             subject.rank,
           ]),
         ];

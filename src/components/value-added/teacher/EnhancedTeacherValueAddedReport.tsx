@@ -39,7 +39,6 @@ import {
 } from "recharts";
 import {
   Filter,
-  Award,
   TrendingUp,
   TrendingDown,
   BarChart3,
@@ -51,6 +50,8 @@ interface EnhancedTeacherValueAddedReportProps {
   data: TeacherValueAdded[];
   loading?: boolean;
 }
+
+const formatValueAdded = (value: number, digits = 3) => value.toFixed(digits);
 
 export function EnhancedTeacherValueAddedReport({
   data,
@@ -110,7 +111,7 @@ export function EnhancedTeacherValueAddedReport({
         name: item.teacher_name,
         subject: item.subject,
         valueAddedRate: Number(
-          (item.avg_score_value_added_rate * 100).toFixed(2)
+          formatValueAdded(item.avg_score_value_added_rate)
         ),
         avgScore: item.avg_score_exit,
         studentCount: item.total_students,
@@ -137,7 +138,7 @@ export function EnhancedTeacherValueAddedReport({
       total: filteredData.length,
       positiveCount,
       negativeCount: filteredData.length - positiveCount,
-      avgValueAdded: (avgValueAdded * 100).toFixed(2),
+      avgValueAdded: formatValueAdded(avgValueAdded),
       positiveRate: ((positiveCount / filteredData.length) * 100).toFixed(1),
     };
   }, [filteredData]);
@@ -255,7 +256,7 @@ export function EnhancedTeacherValueAddedReport({
 
           <Card>
             <CardContent className="p-4">
-              <div className="text-sm text-muted-foreground">平均增值率</div>
+              <div className="text-sm text-muted-foreground">平均增值值</div>
               <div
                 className={`text-2xl font-bold ${
                   parseFloat(statistics.avgValueAdded) > 0
@@ -263,7 +264,7 @@ export function EnhancedTeacherValueAddedReport({
                     : "text-red-600"
                 }`}
               >
-                {statistics.avgValueAdded}%
+                {statistics.avgValueAdded}
               </div>
             </CardContent>
           </Card>
@@ -300,7 +301,7 @@ export function EnhancedTeacherValueAddedReport({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5" />
-              教师增值率对比
+              教师增值值对比
             </CardTitle>
             <CardDescription>
               正值表示增值，负值表示减值（显示前15名）
@@ -317,10 +318,13 @@ export function EnhancedTeacherValueAddedReport({
                 margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
               >
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" tickFormatter={(value) => `${value}%`} />
+                <XAxis
+                  type="number"
+                  tickFormatter={(value) => Number(value).toFixed(2)}
+                />
                 <YAxis type="category" dataKey="name" width={90} />
                 <Tooltip
-                  formatter={(value: number) => `${value.toFixed(2)}%`}
+                  formatter={(value: number) => value.toFixed(3)}
                   labelFormatter={(label) => {
                     const item = chartData.find((d) => d.name === label);
                     return (
@@ -341,7 +345,7 @@ export function EnhancedTeacherValueAddedReport({
                 <ReferenceLine x={0} stroke="#666" strokeWidth={2} />
                 <Bar
                   dataKey="valueAddedRate"
-                  name="增值率(%)"
+                  name="增值值"
                   radius={[0, 4, 4, 0]}
                 >
                   {chartData.map((entry, index) => (
@@ -387,7 +391,7 @@ export function EnhancedTeacherValueAddedReport({
                     <th className="text-left py-3 px-4">所教班级</th>
                     <th className="text-right py-3 px-4">学生数</th>
                     <th className="text-right py-3 px-4">平均分</th>
-                    <th className="text-right py-3 px-4">增值率</th>
+                    <th className="text-right py-3 px-4">增值值</th>
                     <th className="text-right py-3 px-4">优秀率</th>
                   </tr>
                 </thead>
@@ -421,11 +425,12 @@ export function EnhancedTeacherValueAddedReport({
                                 : ""
                           }
                         >
-                          {(item.avg_score_value_added_rate * 100).toFixed(2)}%
+                          {formatValueAdded(item.avg_score_value_added_rate)}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        {item.exit_excellent_rate != null
+                        {item.exit_excellent_rate !== null &&
+                        item.exit_excellent_rate !== undefined
                           ? `${(item.exit_excellent_rate * 100).toFixed(1)}%`
                           : "-"}
                       </td>
@@ -450,8 +455,8 @@ export function EnhancedTeacherValueAddedReport({
             <p className="font-semibold">报告说明:</p>
             <ul className="list-disc list-inside space-y-1 text-muted-foreground">
               <li>
-                <strong>增值率</strong>:
-                出口标准分相对入口标准分的增长比例，正值表示学生进步
+                <strong>增值值</strong>:
+                出口Z分减去回归修正后的入口Z分，正值表示相对预期有进步
               </li>
               <li>
                 <strong>双向条形图</strong>: 蓝色表示正增值，红色表示负增值

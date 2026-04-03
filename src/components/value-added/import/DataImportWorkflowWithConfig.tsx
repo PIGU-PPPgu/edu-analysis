@@ -136,7 +136,7 @@ export function DataImportWorkflowWithConfig() {
           );
           setCurrentStep(1);
         } else {
-          toast.error("配置创建失败");
+          toast.error(result.errors?.[0] || "配置创建失败");
           return;
         }
       }

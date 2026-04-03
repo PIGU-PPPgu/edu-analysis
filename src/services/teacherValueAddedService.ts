@@ -11,7 +11,6 @@ import type {
 } from "@/types/valueAddedTypes";
 
 import {
-  calculateStatistics,
   calculateZScores,
   calculatePercentile,
   determineLevel,
@@ -156,9 +155,6 @@ async function calculateSingleTeacherValueAdded(params: {
   } = params;
 
   // 1. 提取分数数据
-  const entryScores = students.map((s) => s.entry_score);
-  const exitScores = students.map((s) => s.exit_score);
-
   // 2. ✅ 使用全年级预计算的Z分数（不再本地归一化）
   const entryZScores = students.map((s) => s._entryZ ?? 0);
   const exitZScores = students.map((s) => s._exitZ ?? 0);
@@ -179,8 +175,8 @@ async function calculateSingleTeacherValueAdded(params: {
   );
 
   // 4. 计算进步学生统计
-  const progressStudentCount = students.filter(
-    (s, i) => exitScores[i] > entryScores[i]
+  const progressStudentCount = scoreValueAddedRates.filter(
+    (rate) => Number.isFinite(rate) && rate > 0
   ).length;
   const progressStudentRatio = safeDivide(
     progressStudentCount,

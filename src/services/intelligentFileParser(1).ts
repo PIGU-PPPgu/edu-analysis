@@ -3,6 +3,7 @@ import { parseCSV } from "@/utils/fileParsingUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { analyzeCSVHeaders } from "@/services/intelligentFieldMapper";
 import { aiEnhancedFileParser } from "@/services/aiEnhancedFileParser";
+import { detectEncoding } from "@/utils/detection";
 
 // 解析选项接口
 export interface ParseOptions {
@@ -33,6 +34,15 @@ export interface ParsedFileResult {
       name: string;
       sampleValues: string[];
     }>;
+    // 🔧 新增字段
+    mustConfirmMapping?: boolean; // 是否必须中止流程进入人工确认
+    blockReasons?: Array<{
+      // 中止原因列表
+      type: string;
+      message: string;
+      severity: "high" | "medium" | "low";
+    }>;
+    mappingQuality?: number; // 映射质量评分 (0-100)
   };
 }
 
@@ -135,15 +145,23 @@ const SUBJECT_PATTERNS = [
 export class IntelligentFileParser {
   /**
    * 🚀 解析文件的主入口方法 - 支持AI辅助增强
-   * @param file 要解析的文件
+   * @param file 要解析的文件（File 对象或 ArrayBuffer）
    * @param options 解析选项 (可选AI辅助)
    */
   async parseFile(
-    file: File,
-    options?: ParseOptions
+    file: File | ArrayBuffer,
+    options?: ParseOptions & { originalFileName?: string }
   ): Promise<ParsedFileResult> {
+    // 获取文件名（用于日志和类型检测）
+    const fileName =
+      file instanceof File
+        ? file.name
+        : options?.originalFileName || "unknown.xlsx";
+    const fileTypeInfo =
+      file instanceof File ? file.type : "application/octet-stream";
+
     console.log(
-      `[IntelligentFileParser] 开始解析文件: ${file.name} (${file.type})`
+      `[IntelligentFileParser] 开始解析文件: ${fileName} (${fileTypeInfo})`
     );
 
     // 默认选项
@@ -158,7 +176,7 @@ export class IntelligentFileParser {
       aiMode: opts.aiMode,
     });
 
-    const fileType = this.detectFileType(file);
+    const fileType = this.detectFileType(file, options?.originalFileName);
     let rawData: any[] = [];
     let headers: string[] = [];
 
@@ -220,6 +238,13 @@ export class IntelligentFileParser {
         // 模式1: 强制使用完整的AI增强解析
         if (opts.aiMode === "force") {
           console.log("[IntelligentFileParser] 🧠 使用完整AI增强解析引擎...");
+          // AI 增强解析需要 File 对象，如果是 ArrayBuffer 则跳过
+          if (!(file instanceof File)) {
+            console.warn(
+              "[IntelligentFileParser] AI增强解析需要File对象，跳过"
+            );
+            throw new Error("AI增强解析需要File对象");
+          }
           const aiResult = await aiEnhancedFileParser.oneClickParse(file);
 
           // 使用AI结果,但保留我们的数据清洗和结构分析
@@ -293,17 +318,39 @@ export class IntelligentFileParser {
       mappings: finalAnalysis.mappings,
     });
 
-    // 转换映射格式
+    // 转换映射格式（添加保险去重逻辑）
     const suggestedMappings: Record<string, string> = {};
+    const dedupedMap = new Map<string, any>();
+
+    // 🔧 BUG修复：双重保险去重 - 确保一个目标字段只有一个源字段
     finalAnalysis.mappings.forEach((mapping) => {
+      // 生成唯一key：对于科目字段使用 "科目:字段"，非科目字段直接使用字段名
+      const key = mapping.subject
+        ? `${mapping.subject}:${mapping.mappedField}`
+        : mapping.mappedField;
+
+      const existing = dedupedMap.get(key);
+      if (!existing || mapping.confidence > existing.confidence) {
+        dedupedMap.set(key, mapping);
+      }
+    });
+
+    // 将去重后的映射转换为 suggestedMappings 格式
+    dedupedMap.forEach((mapping) => {
       suggestedMappings[mapping.originalField] = mapping.mappedField;
     });
+
+    console.log(
+      `[IntelligentFileParser] 映射去重: ${finalAnalysis.mappings.length} → ${dedupedMap.size}`
+    );
 
     // 科目检测（使用最终分析结果）
     const detectedSubjects = finalAnalysis.subjects;
 
     // 考试信息推断
-    const examInfo = this.inferExamInfo(file.name, headers, cleanedData);
+    const fileNameForInfer =
+      file instanceof File ? file.name : options?.originalFileName || "unknown";
+    const examInfo = this.inferExamInfo(fileNameForInfer, headers, cleanedData);
 
     // 识别未知字段（基于最终分析结果）
     const unknownFields = this.identifyUnknownFields(
@@ -319,9 +366,30 @@ export class IntelligentFileParser {
     const hasBasicFields = this.checkBasicFields(suggestedMappings);
     const autoProcessed = confidence >= 0.8 && hasBasicFields;
 
-    console.log(
-      `[IntelligentFileParser] 自动处理判断: 置信度=${confidence}, 基本字段完整=${hasBasicFields}, 可自动处理=${autoProcessed}`
+    // 🔧 新增：判断是否必须中止并进入人工确认
+    const mustConfirmMapping = this.mustConfirmMappingDecision(
+      confidence,
+      unknownFields,
+      hasBasicFields
     );
+
+    // 🔧 新增：生成用户友好的中止原因说明
+    const blockReasons = this.generateBlockReasons(
+      confidence,
+      unknownFields,
+      hasBasicFields
+    );
+
+    console.log(
+      `[IntelligentFileParser] 自动处理判断: 置信度=${confidence}, 基本字段完整=${hasBasicFields}, 可自动处理=${autoProcessed}, 必须确认=${mustConfirmMapping}`
+    );
+
+    if (blockReasons.length > 0) {
+      console.warn(
+        `[IntelligentFileParser] ⚠️ 检测到${blockReasons.length}个需要用户确认的问题:`,
+        blockReasons
+      );
+    }
 
     return {
       data: cleanedData,
@@ -337,6 +405,13 @@ export class IntelligentFileParser {
         parseMethod, // 记录使用的解析方法
         examInfo,
         unknownFields,
+        // 🔧 新增字段
+        mustConfirmMapping, // 是否必须中止流程进入人工确认
+        blockReasons, // 中止原因列表
+        mappingQuality: this.calculateMappingQuality(
+          suggestedMappings,
+          headers
+        ), // 映射质量评分
       },
     };
   }
@@ -522,9 +597,31 @@ export class IntelligentFileParser {
   /**
    * 检测文件类型
    */
-  public detectFileType(file: File): string {
+  public detectFileType(
+    file: File | ArrayBuffer,
+    originalFileName?: string
+  ): string {
+    // 如果是 ArrayBuffer，需要依赖 originalFileName
+    if (file instanceof ArrayBuffer) {
+      if (!originalFileName) {
+        console.warn("[detectFileType] ArrayBuffer 缺少文件名，默认使用 xlsx");
+        return "xlsx"; // 默认假设是 Excel
+      }
+      const fileName = originalFileName.toLowerCase();
+      if (fileName.endsWith(".xlsx")) return "xlsx";
+      if (fileName.endsWith(".xls")) return "xls";
+      if (fileName.endsWith(".csv")) return "csv";
+      return "xlsx"; // 默认
+    }
+
+    // 安全检查
+    if (!file || !file.name) {
+      console.warn("[detectFileType] 文件对象无效，默认使用 xlsx");
+      return "xlsx";
+    }
+
     const fileName = file.name.toLowerCase();
-    const fileType = file.type.toLowerCase();
+    const fileType = (file.type || "").toLowerCase();
 
     // 优先根据文件扩展名判断（更可靠）
     if (fileName.endsWith(".xlsx")) {
@@ -715,12 +812,15 @@ export class IntelligentFileParser {
    * 解析Excel文件 (支持.xlsx和.xls) - 增强支持多级表头
    */
   private async parseExcelFile(
-    file: File
+    file: File | ArrayBuffer
   ): Promise<{ data: any[]; headers: string[] }> {
     try {
-      console.log(`[IntelligentFileParser] 开始解析Excel文件: ${file.name}`);
+      const fileName = file instanceof File ? file.name : "ArrayBuffer";
+      console.log(`[IntelligentFileParser] 开始解析Excel文件: ${fileName}`);
 
-      const arrayBuffer = await file.arrayBuffer();
+      // 支持 File 或 ArrayBuffer 输入
+      const arrayBuffer =
+        file instanceof ArrayBuffer ? file : await file.arrayBuffer();
 
       // 验证文件不为空
       if (!arrayBuffer || arrayBuffer.byteLength === 0) {
@@ -858,7 +958,7 @@ export class IntelligentFileParser {
    * 解析CSV文件
    */
   private async parseCSVFile(
-    file: File
+    file: File | ArrayBuffer
   ): Promise<{ data: any[]; headers: string[] }> {
     try {
       const text = await this.readFileAsText(file);
@@ -877,15 +977,50 @@ export class IntelligentFileParser {
   }
 
   /**
-   * 将文件读取为文本
+   * 将文件读取为文本（支持 UTF-8/GBK 编码自动检测）
    */
-  private readFileAsText(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target?.result as string);
-      reader.onerror = () => reject(new Error("文件读取失败"));
-      reader.readAsText(file);
-    });
+  private async readFileAsText(file: File | ArrayBuffer): Promise<string> {
+    // 🔧 BUG修复：添加编码检测，支持 UTF-8 和 GBK
+    const buffer =
+      file instanceof ArrayBuffer ? file : await file.arrayBuffer();
+
+    // 使用 jschardet 检测编码
+    const { encoding } = detectEncoding(new Uint8Array(buffer));
+    const normalizedEncoding = encoding.toLowerCase();
+
+    // 映射编码名称
+    let decoderEncoding = "utf-8";
+    if (normalizedEncoding === "gb2312" || normalizedEncoding === "gbk") {
+      decoderEncoding = "gbk";
+    } else if (normalizedEncoding.includes("utf")) {
+      decoderEncoding = "utf-8";
+    }
+
+    console.log(
+      `[IntelligentFileParser] 检测到文件编码: ${encoding} -> 使用 ${decoderEncoding}`
+    );
+
+    // 尝试解码，失败时回退到 GBK
+    let text: string;
+    try {
+      text = new TextDecoder(decoderEncoding, { fatal: true }).decode(buffer);
+    } catch (error) {
+      console.warn(
+        `[IntelligentFileParser] ${decoderEncoding} 解码失败，尝试使用 GBK`,
+        error
+      );
+      try {
+        text = new TextDecoder("gbk").decode(buffer);
+      } catch (gbkError) {
+        console.warn(
+          "[IntelligentFileParser] GBK 解码也失败，尝试使用 GB18030"
+        );
+        text = new TextDecoder("gb18030").decode(buffer);
+      }
+    }
+
+    // 去除 BOM (Byte Order Mark)
+    return text.replace(/^\uFEFF/, "");
   }
 
   /**
@@ -995,6 +1130,145 @@ export class IntelligentFileParser {
     });
 
     return unknownFields;
+  }
+
+  /**
+   * 🔧 判断是否必须中止流程进入人工确认
+   * 规则：
+   * 1. 有未识别字段 → 必须确认
+   * 2. 置信度 < 0.6 → 必须确认
+   * 3. 缺少必需字段 → 必须确认
+   */
+  private mustConfirmMappingDecision(
+    confidence: number,
+    unknownFields: Array<{ name: string; sampleValues: string[] }>,
+    hasBasicFields: boolean
+  ): boolean {
+    // 条件1: 有未识别字段
+    if (unknownFields.length > 0) {
+      console.log(
+        `[IntelligentFileParser] ⚠️ 检测到${unknownFields.length}个未识别字段，必须人工确认`
+      );
+      return true;
+    }
+
+    // 条件2: 置信度过低
+    if (confidence < 0.6) {
+      console.log(
+        `[IntelligentFileParser] ⚠️ 识别置信度过低(${confidence.toFixed(2)})，必须人工确认`
+      );
+      return true;
+    }
+
+    // 条件3: 缺少必需字段
+    if (!hasBasicFields) {
+      console.log(
+        `[IntelligentFileParser] ⚠️ 缺少必需字段（学号/姓名或分数），必须人工确认`
+      );
+      return true;
+    }
+
+    // 所有检查通过，可以自动处理
+    return false;
+  }
+
+  /**
+   * 🔧 生成用户友好的中止原因说明
+   */
+  private generateBlockReasons(
+    confidence: number,
+    unknownFields: Array<{ name: string; sampleValues: string[] }>,
+    hasBasicFields: boolean
+  ): Array<{
+    type: string;
+    message: string;
+    severity: "high" | "medium" | "low";
+  }> {
+    const reasons: Array<{
+      type: string;
+      message: string;
+      severity: "high" | "medium" | "low";
+    }> = [];
+
+    // 检查未识别字段
+    if (unknownFields.length > 0) {
+      const fieldNames = unknownFields.map((f) => f.name).join("、");
+      reasons.push({
+        type: "unknown_fields",
+        message: `检测到${unknownFields.length}个未识别的字段：${fieldNames}。请确认这些字段的含义。`,
+        severity: "high",
+      });
+    }
+
+    // 检查置信度
+    if (confidence < 0.6) {
+      reasons.push({
+        type: "low_confidence",
+        message: `智能识别的置信度较低（${Math.round(confidence * 100)}%）。建议手动检查字段映射是否正确。`,
+        severity: "medium",
+      });
+    } else if (confidence < 0.8) {
+      reasons.push({
+        type: "medium_confidence",
+        message: `智能识别的置信度中等（${Math.round(confidence * 100)}%）。可能存在识别错误，建议确认重要字段。`,
+        severity: "low",
+      });
+    }
+
+    // 检查必需字段
+    if (!hasBasicFields) {
+      reasons.push({
+        type: "missing_required_fields",
+        message: `缺少必需的字段（学号、姓名或分数字段）。无法自动处理数据。`,
+        severity: "high",
+      });
+    }
+
+    return reasons;
+  }
+
+  /**
+   * 🔧 计算映射质量评分 (0-100分)
+   */
+  private calculateMappingQuality(
+    mappings: Record<string, string>,
+    headers: string[]
+  ): number {
+    let score = 0;
+    const totalFields = headers.length;
+    const mappedCount = Object.keys(mappings).length;
+
+    // 1. 基础覆盖率 (40分)
+    const coverageScore = (mappedCount / totalFields) * 40;
+    score += coverageScore;
+
+    // 2. 必需字段完整性 (40分)
+    const requiredFields = ["student_id", "name"];
+    const hasAllRequired = requiredFields.every((field) =>
+      Object.values(mappings).includes(field)
+    );
+    if (hasAllRequired) {
+      score += 40;
+    } else {
+      const hasAnyRequired = requiredFields.some((field) =>
+        Object.values(mappings).includes(field)
+      );
+      if (hasAnyRequired) {
+        score += 20; // 至少有一个必需字段
+      }
+    }
+
+    // 3. 科目字段数量 (20分)
+    const subjectFields = Object.values(mappings).filter(
+      (field) =>
+        field.endsWith("_score") ||
+        field.endsWith("_grade") ||
+        field.endsWith("_rank")
+    );
+    const subjectScore = Math.min((subjectFields.length / 9) * 20, 20); // 假设最多9个科目
+    score += subjectScore;
+
+    return Math.round(score);
   }
 
   /**
