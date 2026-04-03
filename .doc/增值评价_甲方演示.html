@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>增值评价系统 - 甲方演示</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #09111d;
+  --bg-soft: #10233a;
+  --panel: rgba(248, 250, 252, 0.92);
+  --panel-strong: #ffffff;
+  --line: rgba(148, 163, 184, 0.2);
+  --ink: #0f172a;
+  --ink-soft: #475569;
+  --mint: #2dd4bf;
+  --mint-deep: #0f766e;
+  --gold: #f59e0b;
+  --sky: #60a5fa;
+  --rose: #ef4444;
+  --shadow: 0 24px 80px rgba(2, 8, 23, 0.28);
+  --radius: 32px;
+  --radius-sm: 20px;
+  --font-display: "Noto Serif SC", "Songti SC", serif;
+  --font-body: "Manrope", "PingFang SC", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-body);
+  background:
+    radial-gradient(circle at top left, rgba(45, 212, 191, 0.18), transparent 28%),
+    radial-gradient(circle at 85% 20%, rgba(96, 165, 250, 0.18), transparent 26%),
+    linear-gradient(135deg, #07101c 0%, #10243a 56%, #0b1523 100%);
+  color: var(--ink);
+  overflow: hidden;
+  user-select: none;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.8), transparent 88%);
+  pointer-events: none;
+}
+
+.deck {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.slide {
+  position: absolute;
+  inset: 0;
+  padding: 28px;
+  opacity: 0;
+  transform: translateX(64px) scale(0.98);
+  pointer-events: none;
+  transition: opacity 0.42s ease, transform 0.42s ease;
+}
+
+.slide.active {
+  opacity: 1;
+  transform: translateX(0) scale(1);
+  pointer-events: auto;
+}
+
+.slide.prev {
+  transform: translateX(-64px) scale(0.98);
+}
+
+.shell {
+  position: relative;
+  width: min(1380px, 100%);
+  height: calc(100vh - 56px);
+  margin: 0 auto;
+  border-radius: var(--radius);
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(22px);
+}
+
+.shell::-webkit-scrollbar {
+  width: 8px;
+}
+
+.shell::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+}
+
+.shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.08));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.shell-light {
+  background:
+    radial-gradient(circle at top right, rgba(45, 212, 191, 0.12), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(241, 245, 249, 0.94));
+}
+
+.shell-dark {
+  color: #f8fafc;
+  background:
+    radial-gradient(circle at 75% 22%, rgba(45, 212, 191, 0.15), transparent 24%),
+    radial-gradient(circle at 15% 18%, rgba(245, 158, 11, 0.12), transparent 18%),
+    linear-gradient(145deg, rgba(8, 15, 28, 0.96), rgba(14, 29, 49, 0.92));
+}
+
+.slide-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 26px 30px 0;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0));
+}
+
+.shell-dark .slide-head {
+  background: linear-gradient(180deg, rgba(8, 15, 28, 0.76), rgba(8, 15, 28, 0));
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, rgba(45, 212, 191, 0.2), rgba(96, 165, 250, 0.28));
+  color: var(--mint-deep);
+  font-weight: 800;
+  font-size: 18px;
+}
+
+.shell-dark .brand-mark {
+  color: #f8fafc;
+}
+
+.brand-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(71, 85, 105, 0.85);
+}
+
+.shell-dark .eyebrow {
+  color: rgba(226, 232, 240, 0.6);
+}
+
+.brand-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.slide-index {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.68);
+  font-size: 12px;
+  color: var(--ink-soft);
+  box-shadow: 0 10px 32px rgba(15, 23, 42, 0.08);
+}
+
+.shell-dark .slide-index {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.52);
+  color: rgba(226, 232, 240, 0.8);
+}
+
+.slide-index strong {
+  font-family: var(--font-mono);
+  color: var(--ink);
+}
+
+.shell-dark .slide-index strong {
+  color: #f8fafc;
+}
+
+.content {
+  padding: 18px 30px 30px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1.2fr 0.88fr;
+  gap: 28px;
+  align-items: stretch;
+  min-height: calc(100% - 74px);
+}
+
+.hero-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 8px 0 12px;
+}
+
+.hero-kicker {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(45, 212, 191, 0.2);
+  background: rgba(45, 212, 191, 0.1);
+  color: #d1fae5;
+  font-size: 13px;
+  margin-bottom: 24px;
+}
+
+.hero-kicker::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--mint);
+  box-shadow: 0 0 0 8px rgba(45, 212, 191, 0.12);
+}
+
+.hero h1,
+.page-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.hero h1 {
+  font-size: clamp(46px, 6vw, 82px);
+  margin-bottom: 18px;
+}
+
+.hero h1 span {
+  color: var(--mint);
+}
+
+.hero-sub {
+  font-size: 22px;
+  color: rgba(226, 232, 240, 0.76);
+  margin-bottom: 28px;
+}
+
+.hero-note {
+  font-size: 17px;
+  line-height: 1.8;
+  color: rgba(226, 232, 240, 0.72);
+  max-width: 42ch;
+}
+
+.hero-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.hero-pill,
+.metric-pill,
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.hero-pill {
+  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.hero-side {
+  display: grid;
+  gap: 18px;
+  grid-template-rows: auto auto 1fr;
+}
+
+.glass-card,
+.card,
+.stat-card,
+.feature-card,
+.persona-card,
+.insight-card,
+.quote-card {
+  border-radius: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(16px);
+}
+
+.glass-card {
+  padding: 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+}
+
+.hero-side-top {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.stat-card {
+  padding: 22px 20px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(15, 23, 42, 0.06));
+}
+
+.stat-card strong {
+  display: block;
+  font-size: 32px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.stat-card span {
+  font-size: 13px;
+  line-height: 1.6;
+  color: rgba(226, 232, 240, 0.72);
+}
+
+.briefing {
+  display: grid;
+  gap: 14px;
+}
+
+.briefing .metric-pill {
+  color: #d1fae5;
+  background: rgba(45, 212, 191, 0.12);
+  border: 1px solid rgba(45, 212, 191, 0.16);
+  width: fit-content;
+}
+
+.briefing h2,
+.page-title {
+  font-size: clamp(34px, 4.2vw, 54px);
+  margin-bottom: 12px;
+}
+
+.briefing p,
+.lede {
+  color: var(--ink-soft);
+  line-height: 1.82;
+  font-size: 16px;
+}
+
+.briefing p {
+  color: rgba(226, 232, 240, 0.72);
+}
+
+.briefing-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.quote-card {
+  padding: 18px 20px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f8fafc;
+}
+
+.quote-card strong {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 8px;
+  color: rgba(226, 232, 240, 0.62);
+}
+
+.quote-card p {
+  font-size: 15px;
+  line-height: 1.75;
+  color: rgba(248, 250, 252, 0.9);
+}
+
+.summary-box {
+  padding: 18px 20px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(15, 23, 42, 0.08));
+  border-radius: 24px;
+  color: #f8fafc;
+}
+
+.summary-box small {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.summary-box p {
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.section-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  margin-bottom: 28px;
+}
+
+.section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(45, 212, 191, 0.08);
+  color: var(--mint-deep);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+.lede {
+  max-width: 56ch;
+}
+
+.mini-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  min-width: 260px;
+}
+
+.mini-metrics .card {
+  padding: 18px;
+}
+
+.mini-metrics strong {
+  display: block;
+  font-size: 28px;
+  margin-bottom: 6px;
+}
+
+.mini-metrics span {
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.grid-3,
+.grid-2,
+.feature-grid,
+.persona-grid,
+.stats-row {
+  display: grid;
+  gap: 18px;
+}
+
+.grid-3,
+.persona-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.grid-2,
+.feature-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.stats-row {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.card,
+.feature-card,
+.persona-card,
+.insight-card {
+  padding: 24px;
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  box-shadow: 0 18px 46px rgba(15, 23, 42, 0.08);
+}
+
+.card h3,
+.feature-card h3,
+.persona-card h3,
+.insight-card h3 {
+  font-size: 20px;
+  margin-bottom: 12px;
+}
+
+.card p,
+.feature-card p,
+.persona-card p,
+.insight-card p,
+.card li,
+.insight-card li {
+  color: var(--ink-soft);
+  line-height: 1.8;
+  font-size: 15px;
+}
+
+.icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+  margin-bottom: 18px;
+  background: linear-gradient(135deg, rgba(45, 212, 191, 0.16), rgba(96, 165, 250, 0.16));
+}
+
+.danger {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.14), rgba(245, 158, 11, 0.14));
+}
+
+.card blockquote {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #f8fafc;
+  border-left: 3px solid var(--rose);
+  color: #b91c1c;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.formula {
+  padding: 28px 30px;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 85% 20%, rgba(45, 212, 191, 0.12), transparent 32%),
+    linear-gradient(135deg, #09111d, #112740);
+  color: #f8fafc;
+  box-shadow: 0 24px 60px rgba(2, 8, 23, 0.18);
+  margin-bottom: 18px;
+}
+
+.formula code {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: clamp(20px, 2.3vw, 34px);
+  line-height: 1.65;
+  word-break: break-word;
+}
+
+.formula .accent {
+  color: var(--mint);
+}
+
+.formula .warn {
+  color: #fbbf24;
+}
+
+.formula small {
+  display: block;
+  margin-top: 10px;
+  color: rgba(226, 232, 240, 0.56);
+  letter-spacing: 0.06em;
+}
+
+.list {
+  list-style: none;
+}
+
+.list li {
+  position: relative;
+  padding-left: 20px;
+}
+
+.list li + li {
+  margin-top: 10px;
+}
+
+.list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--mint);
+}
+
+.compare-wrap {
+  display: grid;
+  grid-template-columns: 1.28fr 0.72fr;
+  gap: 18px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  overflow: hidden;
+  border-radius: 24px;
+}
+
+thead th {
+  padding: 18px 20px;
+  text-align: left;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+thead th:first-child {
+  background: #e2e8f0;
+  color: #334155;
+  width: 22%;
+}
+
+.them {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.us {
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+tbody td {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+tbody td:first-child {
+  background: #f8fafc;
+  font-weight: 700;
+  color: #334155;
+}
+
+tbody tr.highlight td {
+  background: #ecfdf5;
+}
+
+tbody tr.highlight td.us-cell {
+  color: #166534;
+  font-weight: 800;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  margin-left: 8px;
+  background: rgba(34, 197, 94, 0.12);
+  color: #15803d;
+}
+
+.insight-card ul {
+  list-style: none;
+  margin-top: 14px;
+}
+
+.insight-card li + li {
+  margin-top: 12px;
+}
+
+.feature-card .tag {
+  margin-top: 16px;
+  color: var(--mint-deep);
+  background: rgba(45, 212, 191, 0.08);
+}
+
+.stats-row .stat-box {
+  padding: 22px;
+  border-radius: 24px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+.stat-box strong {
+  display: block;
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.stat-box span {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.chart-card {
+  padding: 24px;
+  border-radius: 28px;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  border: 1px solid var(--line);
+  box-shadow: 0 18px 46px rgba(15, 23, 42, 0.08);
+}
+
+.chart-card h3 {
+  font-size: 18px;
+  margin-bottom: 18px;
+}
+
+.bar-row {
+  display: grid;
+  grid-template-columns: 82px 1fr 64px;
+  align-items: center;
+  gap: 12px;
+}
+
+.bar-row + .bar-row {
+  margin-top: 12px;
+}
+
+.bar-label,
+.bar-score {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.bar-track {
+  height: 28px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding-left: 14px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  border-radius: inherit;
+}
+
+.persona-card .tag {
+  margin-top: 14px;
+  color: #166534;
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.persona-card:nth-child(2) .tag {
+  color: #1d4ed8;
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.persona-card:nth-child(3) .tag {
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.cta-layout {
+  display: grid;
+  grid-template-columns: 1.08fr 0.92fr;
+  gap: 22px;
+  align-items: stretch;
+  min-height: calc(100% - 74px);
+}
+
+.cta-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.cta-copy .page-title {
+  color: #f8fafc;
+  margin-bottom: 16px;
+}
+
+.cta-copy .lede {
+  color: rgba(226, 232, 240, 0.74);
+  margin-bottom: 26px;
+}
+
+.cta-actions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  border: none;
+  border-radius: 999px;
+  padding: 14px 24px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--mint), #14b8a6);
+  color: #06221e;
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8fafc;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.checklist {
+  list-style: none;
+  display: grid;
+  gap: 12px;
+}
+
+.checklist li {
+  padding: 16px 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(248, 250, 252, 0.88);
+  line-height: 1.72;
+}
+
+.checklist li strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.nav {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(248, 250, 252, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+  z-index: 20;
+}
+
+.nav-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: #0f172a;
+  color: #f8fafc;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.nav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.dots {
+  display: flex;
+  gap: 8px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.55);
+  cursor: pointer;
+  transition: width 0.2s ease, background 0.2s ease;
+}
+
+.dot.active {
+  width: 34px;
+  background: linear-gradient(90deg, var(--mint), var(--sky));
+}
+
+.counter {
+  min-width: 92px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 1100px) {
+  .hero,
+  .cta-layout,
+  .compare-wrap,
+  .section-top {
+    grid-template-columns: 1fr;
+  }
+
+  .section-top {
+    display: grid;
+  }
+
+  .grid-3,
+  .grid-2,
+  .feature-grid,
+  .persona-grid,
+  .stats-row,
+  .briefing-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .hero-side-top {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  body {
+    overflow: auto;
+  }
+
+  .slide {
+    padding: 12px;
+  }
+
+  .shell {
+    height: calc(100vh - 24px);
+    border-radius: 24px;
+  }
+
+  .slide-head,
+  .content {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .hero,
+  .grid-3,
+  .grid-2,
+  .feature-grid,
+  .persona-grid,
+  .stats-row,
+  .briefing-grid,
+  .hero-side-top,
+  .mini-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .bar-row {
+    grid-template-columns: 1fr;
+  }
+
+  .nav {
+    width: calc(100% - 24px);
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .counter {
+    min-width: auto;
+  }
+
+  .page-title,
+  .hero h1 {
+    font-size: 36px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide,
+  .nav-btn,
+  .btn,
+  .dot {
+    transition: none;
+  }
+}
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+  <section class="slide active" data-title="封面">
+    <div class="shell shell-dark">
+      <div class="slide-head">
+        <div class="brand">
+          <div class="brand-mark">增</div>
+          <div class="brand-meta">
+            <span class="eyebrow">Education Value Added</span>
+            <strong class="brand-title">增值评价系统 / 甲方演示</strong>
+          </div>
+        </div>
+        <div class="slide-index"><strong>01</strong><span>面向教育局、校长、教务的高层简报</span></div>
+      </div>
+      <div class="content">
+        <div class="hero">
+          <div class="hero-copy">
+            <div class="hero-kicker">教育数据智能平台</div>
+            <h1>让教师的<span>真实贡献</span><br>被稳定看见</h1>
+            <p class="hero-sub">新一代教师增值评价系统</p>
+            <p class="hero-note">不是再做一份“成绩排名报表”，而是把入口差异控制掉，把每次考试真正新增的教学价值单独识别出来。</p>
+            <div class="hero-strip">
+              <span class="hero-pill">9 科独立增值分析</span>
+              <span class="hero-pill">班级 / 教师级颗粒度</span>
+              <span class="hero-pill">考后实时出结果</span>
+            </div>
+          </div>
+          <div class="hero-side">
+            <div class="hero-side-top">
+              <div class="stat-card">
+                <strong>9 科</strong>
+                <span>按学科分别建模，不再只看总分。</span>
+              </div>
+              <div class="stat-card">
+                <strong>班级</strong>
+                <span>可细到班级、教师，不停留在学校均值。</span>
+              </div>
+            </div>
+            <div class="glass-card briefing">
+              <span class="metric-pill">核心判断</span>
+              <h2>比深圳教科院<br>更细、更快、更可用</h2>
+              <p>把年度汇报型评价，改造成可连续使用的校内管理工具。一次考试结束后，即可定位哪位老师、哪门学科、哪个班级超预期或低于预期。</p>
+            </div>
+            <div class="briefing-grid">
+              <div class="quote-card">
+                <strong>适用范围</strong>
+                <p>初中 / 高中，全学段支持。入口成绩可用中考、上学期期末或指定基线考试。</p>
+              </div>
+              <div class="summary-box">
+                <small>一句话定位</small>
+                <p>从“谁分高”转向“谁真正让学生进步更多”。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="教育痛点">
+    <div class="shell shell-light">
+      <div class="slide-head">
+        <div class="brand">
+          <div class="brand-mark">02</div>
+          <div class="brand-meta">
+            <span class="eyebrow">Problem Definition</span>
+            <strong class="brand-title">传统评价体系，看得见结果，看不见努力</strong>
+          </div>
+        </div>
+        <div class="slide-index"><strong>02</strong><span>为什么传统成绩评价无法用于教师治理</span></div>
+      </div>
+      <div class="content">
+        <div class="section-top">
+          <div>
+            <div class="section-label">教育痛点</div>
+            <h2 class="page-title">传统评价，<span style="color:var(--mint-deep)">看不见</span>教师的真实贡献</h2>
+            <p class="lede">均分、排名、升学率都在看结果，但没有控制起点差异。结果是好生源天然占优，真正把普通学生带起来的老师反而容易被淹没。</p>
+          </div>
+          <div class="mini-metrics">
+            <div class="card">
+              <strong>粗</strong>
+              <span>学校均值无法识别班级差异</span>
+            </div>
+            <div class="card">
+              <strong>慢</strong>
+              <span>年度报告错过干预窗口</span>
+            </div>
+          </div>
+        </div>
+        <div class="grid-3">
+          <article class="card">
+            <div class="icon danger">📊</div>
+            <h3>只看结果，不看起点</h3>
+            <p>期末成绩高不代表教学更好，也可能只是生源更强。传统排名无法区分“好学生堆出来的高分”与“教师带来的超预期进步”。</p>
+            <blockquote>“我们班均分第一，但学生入学时就是全校最好的。”</blockquote>
+          </article>
+          <article class="card">
+            <div class="icon">🏫</div>
+            <h3>评价粒度太粗</h3>
+            <p>官方报告往往只能评估到学校层面，同校不同学科、不同班级、不同教师之间的差异完全看不清，难以支持真实管理动作。</p>
+            <blockquote>“同一学校，数学老师 A 和 B 的效果差多少？没人知道。”</blockquote>
+          </article>
+          <article class="card">
+            <div class="icon danger">⏱️</div>
+            <h3>数据滞后，决策被动</h3>
+            <p>评价周期按年输出，等发现问题时，这批学生可能已经毕业。教师发展、资源调配、重点帮扶都失去最佳时点。</p>
+            <blockquote>“等报告出来，这届学生都毕业了。”</blockquote>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="核心方案">
+    <div class="shell shell-light">
+      <div class="slide-head">
+        <div class="brand">
+          <div class="brand-mark">03</div>
+          <div class="brand-meta">
+            <span class="eyebrow">Core Method</span>
+            <strong class="brand-title">控制起点，再评价教学贡献</strong>
+          </div>
+        </div>
+        <div class="slide-index"><strong>03</strong><span>OLS 回归模型解释“增值”从何而来</span></div>
+      </div>
+      <div class="content">
+        <div class="section-top">
+          <div>
+            <div class="section-label">核心方案</div>
+            <h2 class="page-title">增值评价：<span style="color:var(--mint-deep)">控制起点</span>，评估真实教学贡献</h2>
+            <p class="lede">系统使用 OLS 线性回归，根据入口成绩推算“合理预期”，再用实际成绩减去预期成绩，得到教师真正创造的增量价值。</p>
+          </div>
+        </div>
+        <div class="formula">
+          <code><span class="accent">增值分</span> = 实际成绩 - <span class="warn">预期成绩（基于入口成绩回归）</span></code>
+          <small>Teacher Value-Added / OLS 线性回归，与国际主流增值评价方法一致</small>
+        </div>
+        <div class="grid-2">
+          <article class="card">
+            <h3>为什么这种方式更公平</h3>
+            <ul class="list">
+              <li>控制学生入口差异，排除纯生源优势。</li>
+              <li>同等起点下，谁让学生进步更多谁得分更高。</li>
+              <li>弱势生源学校的优秀教师不再被忽略。</li>
+              <li>支持跨班、跨教师、跨学校做横向比较。</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>系统计算流程</h3>
+            <ul class="list">
+              <li>导入入口成绩：中考或上一学期关键考试。</li>
+              <li>导入出口成绩：本次考试总分与分科成绩。</li>
+              <li>系统自动回归建模，生成预期值。</li>
+              <li>输出教师、班级、学科的增值分与排名。</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="竞品对比">
+    <div class="shell shell-light">
+      <div class="slide-head">
+        <div class="brand">
+          <div class="brand-mark">04</div>
+          <div class="brand-meta">
+            <span class="eyebrow">Competitive Positioning</span>
+            <strong class="brand-title">不是替代一份报告，而是升级一整套管理方法</strong>
+          </div>
+        </div>
+        <div class="slide-index"><strong>04</strong><span>与深圳教科院方案的关键差异</span></div>
+      </div>
+      <div class="content">
+        <div class="section-top">
+          <div>
+            <div class="section-label">竞品对比</div>
+            <h2 class="page-title">vs 深圳教科院：<span style="color:var(--mint-deep)">更细、更快、更全</span></h2>
+            <p class="lede">官方方案偏宏观报告，我们提供的是学校内部可持续使用、可快速决策、可追踪责任归因的工作台。</p>
+          </div>
+        </div>
+        <div class="compare-wrap">
+          <div class="chart-card">
+            <table>
+              <thead>
+                <tr>
+                  <th>评价维度</th>
+                  <th class="them">深圳教科院方案</th>
+                  <th class="us">增值评价系统</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>评价粒度</td>
+                  <td>学校级别</td>
+                  <td class="us-cell">班级 / 教师级别 <span class="badge">更细</span></td>
+                </tr>
+                <tr>
+                  <td>入口指标</td>
+                  <td>中考总分</td>
+                  <td class="us-cell">中考总分 + 分科成绩</td>
+                </tr>
+                <tr class="highlight">
+                  <td>分科分析</td>
+                  <td>不支持</td>
+                  <td class="us-cell">支持 9 科独立增值分析 <span class="badge">核心优势</span></td>
+                </tr>
+                <tr>
+                  <td>更新频率</td>
+                  <td>年度报告</td>
+                  <td class="us-cell">每次考试后实时计算 <span class="badge">更快</span></td>
+                </tr>
+                <tr>
+                  <td>能力分层</td>
+                  <td>学校整体</td>
+                  <td class="us-cell">九段 Stanine 精细分层</td>
+                </tr>
+                <tr>
+                  <td>学生画像</td>
+                  <td>无</td>
+                  <td class="us-cell">AI 标签 + 预警系统</td>
+                </tr>
+                <tr>
+                  <td>使用门槛</td>
+                  <td>需申请，数据不透明</td>
+                  <td class="us-cell">学校自主上传，即时可用</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <aside class="insight-card">
+            <h3>甲方最容易听懂的三点</h3>
+            <ul>
+              <li>从学校级报告，下沉到可管理的班级级、教师级结果。</li>
+              <li>从年终总结，升级为每次考试后都能使用的治理工具。</li>
+              <li>从“看结果”，升级为“解释为什么结果会这样”。</li>
+            </ul>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="核心功能">
+    <div class="shell shell-light">
+      <div class="slide-head">
+        <div class="brand">
+          <div class="brand-mark">05</div>
+          <div class="brand-meta">
+            <span class="eyebrow">Capability Map</span>
+            <strong class="brand-title">不止是一个增值分，而是一整套分析能力</strong>
+          </div>
+        </div>
+        <div class="slide-index"><strong>05</strong><span>四类能力组合成完整教学评价闭环</span></div>
+      </div>
+      <div class="content">
+        <div class="section-top">
+          <div>
+            <div class="section-label">核心功能</div>
+            <h2 class="page-title">四大能力，<span style="color:var(--mint-deep)">全面覆盖</span>教学评价需求</h2>
+            <p class="lede">把“增值评价”拆成可执行的四个模块，既支持领导层看趋势，也支持一线老师看学生。</p>
+          </div>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <div class="icon">📈</div>
+            <h3>多维增值分析</h3>
+            <p>按教师、班级、科目三个维度独立计算增值分。支持总分与分科并行展示，一次导入即可完成完整评价。</p>
+            <span class="tag">OLS 回归 · 9 科独立</span>
+          </article>
+          <article class="feature-card">
+            <div class="icon">🎯</div>
+            <h3>九段能力分层</h3>
+            <p>基于 Stanine 正态分布对学生进行 9 段划分，快速识别尖子生、腰部学生与学困学生，辅助分层教学。</p>
+            <span class="tag">Stanine · 可自定义比例</span>
+          </article>
+          <article class="feature-card">
+            <div class="icon">🧠</div>
+            <h3>AI 学生画像</h3>
+            <p>自动生成学生能力标签，跟踪历次考试变化趋势，识别潜力生与风险生，为个性化辅导提供依据。</p>
+            <span class="tag">AI 标签 · 历次追踪</span>
+          </article>
+          <article class="feature-card">
+            <div class="icon">⚠️</div>
+            <h3>智能预警系统</h3>
+            <p>根据规则识别成绩异常下滑、长期学困等风险信号，并提供分层的干预建议，提升管理响应速度。</p>
+            <span class="tag">规则引擎 · 实时提醒</span>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="数据洞察">
+    <div class="shell shell-light">
+      <div class="slide-head">
+        <div class="brand">
+          <div class="brand-mark">06</div>
+          <div class="brand-meta">
+            <span class="eyebrow">Decision Dashboard</span>
+            <strong class="brand-title">从一次考试，拉出多条管理线索</strong>
+          </div>
+        </div>
+        <div class="slide-index"><strong>06</strong><span>数据不是展示，而是管理入口</span></div>
+      </div>
+      <div class="content">
+        <div class="section-top">
+          <div>
+            <div class="section-label">数据驱动</div>
+            <h2 class="page-title">一次考试，<span style="color:var(--mint-deep)">多维洞察</span></h2>
+            <p class="lede">校长看学科差异，教务看班级分布，教师看学生结构。一个数据底座，对应三种管理视角。</p>
+          </div>
+        </div>
+        <div class="stats-row">
+          <div class="stat-box"><strong>9</strong><span>科目独立增值分析</span></div>
+          <div class="stat-box"><strong style="color:#0f766e">9 段</strong><span>Stanine 能力分层</span></div>
+          <div class="stat-box"><strong style="color:#1d4ed8">班级级</strong><span>最细评价颗粒度</span></div>
+          <div class="stat-box"><strong style="color:#b45309">实时</strong><span>考后即时计算</span></div>
+        </div>
+        <div class="chart-card" style="margin-top:18px">
+          <h3>示例：某校数学教师增值分排名</h3>
+          <div class="bar-row">
+            <div class="bar-label">王老师</div>
+            <div class="bar-track"><div class="bar-fill" style="width:82%;background:linear-gradient(90deg,#10b981,#34d399)">+18.4 分</div></div>
+            <div class="bar-score" style="color:#059669">优秀</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">李老师</div>
+            <div class="bar-track"><div class="bar-fill" style="width:68%;background:linear-gradient(90deg,#0ea5e9,#60a5fa)">+9.2 分</div></div>
+            <div class="bar-score" style="color:#0284c7">良好</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">张老师</div>
+            <div class="bar-track"><div class="bar-fill" style="width:52%;background:linear-gradient(90deg,#94a3b8,#cbd5e1)">+1.1 分</div></div>
+            <div class="bar-score">中等</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">陈老师</div>
+            <div class="bar-track"><div class="bar-fill" style="width:35%;background:linear-gradient(90deg,#f59e0b,#fbbf24)">-6.3 分</div></div>
+            <div class="bar-score" style="color:#b45309">待提升</div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label">刘老师</div>
+            <div class="bar-track"><div class="bar-fill" style="width:20%;background:linear-gradient(90deg,#ef4444,#fb7185)">-14.7 分</div></div>
+            <div class="bar-score" style="color:#b91c1c">关注</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="适用场景">
+    <div class="shell shell-light">
+      <div class="slide-head">
+        <div class="brand">
+          <div class="brand-mark">07</div>
+          <div class="brand-meta">
+            <span class="eyebrow">Use Cases</span>
+            <strong class="brand-title">同一系统，对不同角色输出不同价值</strong>
+          </div>
+        </div>
+        <div class="slide-index"><strong>07</strong><span>区域、学校、一线教师都能直接使用</span></div>
+      </div>
+      <div class="content">
+        <div class="section-top">
+          <div>
+            <div class="section-label">适用场景</div>
+            <h2 class="page-title">三类用户，<span style="color:var(--mint-deep)">各取所需</span></h2>
+            <p class="lede">不是把一张报表塞给所有人，而是让同一套数据在不同角色那里生成不同的管理动作。</p>
+          </div>
+        </div>
+        <div class="persona-grid">
+          <article class="persona-card">
+            <div class="icon">🏛️</div>
+            <h3>教育局 / 督导</h3>
+            <p>需要跨校横向比较，评估区域教学质量，识别优秀教师与薄弱学校，形成可解释、可追责的治理依据。</p>
+            <span class="tag">区域增值排名 · 跨校对比报告</span>
+          </article>
+          <article class="persona-card">
+            <div class="icon">🏫</div>
+            <h3>校长 / 教务</h3>
+            <p>需要客观评价教师绩效，优化教学资源配置，识别学科短板与班级差异，支持教师专业发展计划制定。</p>
+            <span class="tag">教师增值排名 · 分科诊断</span>
+          </article>
+          <article class="persona-card">
+            <div class="icon">👨‍🏫</div>
+            <h3>教师 / 班主任</h3>
+            <p>需要知道自己的教学效果是否超过预期，哪些学生是潜力股，哪些学生进入风险区，从而调整课堂与辅导策略。</p>
+            <span class="tag">学生画像 · 预警提醒</span>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="结束页">
+    <div class="shell shell-dark">
+      <div class="slide-head">
+        <div class="brand">
+          <div class="brand-mark">08</div>
+          <div class="brand-meta">
+            <span class="eyebrow">Closing</span>
+            <strong class="brand-title">把“评价”变成真正可落地的教学管理能力</strong>
+          </div>
+        </div>
+        <div class="slide-index"><strong>08</strong><span>结束语与下一步合作建议</span></div>
+      </div>
+      <div class="content">
+        <div class="cta-layout">
+          <div class="cta-copy">
+            <div class="section-label" style="background:rgba(45,212,191,.12);color:#d1fae5">立即推进</div>
+            <h2 class="page-title">让每位教师的努力<br>都被准确记录</h2>
+            <p class="lede">增值评价系统不是替代经验判断，而是把经验判断建立在更公平、更实时、更细颗粒度的数据基础上。</p>
+            <div class="cta-actions">
+              <button class="btn btn-primary" type="button">申请试用</button>
+              <button class="btn btn-secondary" type="button">预约演示</button>
+            </div>
+          </div>
+          <div class="glass-card">
+            <ul class="checklist">
+              <li><strong>低门槛启动</strong>Excel 直接导入，不要求学校先做系统改造。</li>
+              <li><strong>安全可控</strong>支持私有化部署，满足校内数据安全要求。</li>
+              <li><strong>价值明确</strong>从第一次考试开始，就能输出教师、班级、学科三级洞察。</li>
+              <li><strong>适配广</strong>支持初中、高中、多学科、多考试周期持续使用。</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="nav" aria-label="presentation navigation">
+  <button class="nav-btn" id="prev" type="button" aria-label="上一页">◀</button>
+  <div class="dots" id="dots"></div>
+  <div class="counter" id="counter">01 / 08</div>
+  <button class="nav-btn" id="next" type="button" aria-label="下一页">▶</button>
+</div>
+
+<script>
+const slides = Array.from(document.querySelectorAll(".slide"));
+const dotsEl = document.getElementById("dots");
+const counterEl = document.getElementById("counter");
+const prevBtn = document.getElementById("prev");
+const nextBtn = document.getElementById("next");
+let current = 0;
+
+slides.forEach((slide, index) => {
+  const dot = document.createElement("button");
+  dot.type = "button";
+  dot.className = "dot" + (index === 0 ? " active" : "");
+  dot.title = slide.dataset.title || `第 ${index + 1} 页`;
+  dot.setAttribute("aria-label", dot.title);
+  dot.addEventListener("click", () => goTo(index));
+  dotsEl.appendChild(dot);
+});
+
+function render() {
+  slides.forEach((slide, index) => {
+    slide.classList.toggle("active", index === current);
+    if (index !== current) {
+      slide.classList.remove("prev");
+    }
+  });
+
+  dotsEl.querySelectorAll(".dot").forEach((dot, index) => {
+    dot.classList.toggle("active", index === current);
+  });
+
+  counterEl.textContent = `${String(current + 1).padStart(2, "0")} / ${String(slides.length).padStart(2, "0")}`;
+  prevBtn.disabled = current === 0;
+  nextBtn.disabled = current === slides.length - 1;
+}
+
+function goTo(nextIndex) {
+  if (nextIndex === current || nextIndex < 0 || nextIndex >= slides.length) return;
+  slides[current].classList.add("prev");
+  current = nextIndex;
+  render();
+}
+
+function go(delta) {
+  goTo(current + delta);
+}
+
+prevBtn.addEventListener("click", () => go(-1));
+nextBtn.addEventListener("click", () => go(1));
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "ArrowRight" || event.key === "ArrowDown" || event.key === "PageDown") go(1);
+  if (event.key === "ArrowLeft" || event.key === "ArrowUp" || event.key === "PageUp") go(-1);
+  if (event.key === "Home") goTo(0);
+  if (event.key === "End") goTo(slides.length - 1);
+});
+
+render();
+</script>
+</body>
+</html>

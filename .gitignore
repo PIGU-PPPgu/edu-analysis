@@ -58,3 +58,6 @@ tools/notion-integration/.env.local
 **/secrets/
 **/credentials/
 .gstack/
+
+# Build outputs
+coverage/

@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>增值评价系统 - 内部说明</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #06111c;
+  --bg-soft: #0b1a2a;
+  --panel: rgba(10, 20, 34, 0.88);
+  --panel-strong: #0f1e31;
+  --panel-soft: #12243a;
+  --line: rgba(148, 163, 184, 0.16);
+  --ink: #edf4ff;
+  --muted: #9fb2cc;
+  --green: #22c55e;
+  --cyan: #38bdf8;
+  --amber: #f59e0b;
+  --rose: #fb7185;
+  --shadow: 0 28px 80px rgba(0, 0, 0, 0.35);
+  --radius: 30px;
+  --radius-sm: 22px;
+  --font-body: "IBM Plex Sans", "Noto Sans SC", "PingFang SC", sans-serif;
+  --font-title: "Noto Sans SC", "PingFang SC", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-body);
+  background:
+    radial-gradient(circle at 16% 18%, rgba(34, 197, 94, 0.14), transparent 20%),
+    radial-gradient(circle at 84% 16%, rgba(56, 189, 248, 0.18), transparent 22%),
+    linear-gradient(160deg, #05101a 0%, #081624 40%, #0a1726 100%);
+  color: var(--ink);
+  overflow: hidden;
+  user-select: none;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.9), transparent 90%);
+  pointer-events: none;
+}
+
+.deck {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.slide {
+  position: absolute;
+  inset: 0;
+  padding: 24px;
+  opacity: 0;
+  transform: translateX(64px) scale(0.985);
+  pointer-events: none;
+  transition: opacity 0.36s ease, transform 0.36s ease;
+}
+
+.slide.active {
+  opacity: 1;
+  transform: translateX(0) scale(1);
+  pointer-events: auto;
+}
+
+.slide.prev {
+  transform: translateX(-64px) scale(0.985);
+}
+
+.shell {
+  position: relative;
+  width: min(1400px, 100%);
+  height: calc(100vh - 48px);
+  margin: 0 auto;
+  border-radius: var(--radius);
+  overflow: auto;
+  background:
+    linear-gradient(180deg, rgba(10, 20, 34, 0.96), rgba(9, 18, 31, 0.94)),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0));
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  box-shadow: var(--shadow);
+}
+
+.shell::-webkit-scrollbar {
+  width: 8px;
+}
+
+.shell::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.28);
+  border-radius: 999px;
+}
+
+.shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  padding: 24px 28px 0;
+  background: linear-gradient(180deg, rgba(9, 18, 31, 0.86), rgba(9, 18, 31, 0));
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.22), rgba(56, 189, 248, 0.22));
+  color: var(--ink);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.brand-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(159, 178, 204, 0.7);
+}
+
+.brand-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(15, 30, 49, 0.72);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.status strong {
+  font-family: var(--font-mono);
+  color: var(--ink);
+}
+
+.content {
+  padding: 18px 28px 28px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1.06fr 0.94fr;
+  gap: 22px;
+  min-height: calc(100% - 74px);
+}
+
+.hero-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.hero-badge,
+.section-label,
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  padding: 9px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.hero-badge {
+  margin-bottom: 20px;
+  color: #d1fae5;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.18);
+}
+
+.hero-badge::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+.title,
+.page-title {
+  font-family: var(--font-title);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+}
+
+.title {
+  font-size: clamp(42px, 5.8vw, 76px);
+  margin-bottom: 18px;
+}
+
+.title span {
+  color: var(--cyan);
+}
+
+.hero-sub {
+  font-size: 21px;
+  color: rgba(237, 244, 255, 0.72);
+  margin-bottom: 22px;
+}
+
+.lede {
+  font-size: 16px;
+  line-height: 1.82;
+  color: var(--muted);
+}
+
+.hero-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.chip {
+  color: var(--ink);
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.94), rgba(56, 189, 248, 0.94));
+}
+
+.hero-side {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  gap: 16px;
+}
+
+.panel,
+.metric,
+.card,
+.table-card,
+.timeline-card,
+.qa-card {
+  border-radius: 24px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(18, 36, 58, 0.96), rgba(12, 24, 40, 0.92));
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.24);
+}
+
+.panel,
+.card,
+.table-card,
+.timeline-card,
+.qa-card {
+  padding: 22px;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.metric {
+  padding: 20px;
+}
+
+.metric strong {
+  display: block;
+  font-size: 30px;
+  margin-bottom: 8px;
+}
+
+.metric span {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.panel h2 {
+  font-size: clamp(30px, 3.6vw, 48px);
+  margin-bottom: 10px;
+}
+
+.panel p {
+  color: var(--muted);
+  line-height: 1.82;
+}
+
+.section-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.section-label {
+  color: #d1fae5;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.16);
+  margin-bottom: 16px;
+}
+
+.page-title {
+  font-size: clamp(30px, 4vw, 50px);
+  margin-bottom: 12px;
+}
+
+.mini-stack {
+  display: grid;
+  gap: 12px;
+  min-width: 280px;
+}
+
+.mini-note {
+  padding: 16px 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(56, 189, 248, 0.14);
+  background: rgba(8, 20, 35, 0.52);
+}
+
+.mini-note strong {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 4px;
+  color: var(--ink);
+}
+
+.mini-note span {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.grid-3,
+.grid-2,
+.flow-grid,
+.faq-grid,
+.roadmap {
+  display: grid;
+  gap: 16px;
+}
+
+.grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.grid-2,
+.faq-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.flow-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.18), rgba(56, 189, 248, 0.2));
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.stack-list,
+.talk-list,
+.algo-list {
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.stack-list li,
+.talk-list li,
+.algo-list li {
+  position: relative;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.stack-list li::before,
+.talk-list li::before,
+.algo-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 9px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cyan);
+}
+
+.arch-card {
+  min-height: 230px;
+}
+
+.arch-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.tech-pill {
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: #c7d2fe;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.14);
+}
+
+.flow-step {
+  position: relative;
+  padding: 22px 18px;
+}
+
+.flow-step::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -8px;
+  width: 16px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.6), transparent);
+}
+
+.flow-step:last-child::after {
+  display: none;
+}
+
+.flow-num {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  margin-bottom: 12px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(56, 189, 248, 0.22));
+}
+
+.flow-step h3 {
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.algo-box {
+  padding: 26px;
+  border-radius: 26px;
+  background:
+    radial-gradient(circle at 85% 18%, rgba(56, 189, 248, 0.14), transparent 24%),
+    linear-gradient(135deg, #07111c, #102236);
+  border: 1px solid rgba(56, 189, 248, 0.14);
+  margin-bottom: 16px;
+}
+
+.algo-box code {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: clamp(18px, 2.3vw, 30px);
+  line-height: 1.7;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+.algo-box .accent {
+  color: #86efac;
+}
+
+.algo-box .warn {
+  color: #fbbf24;
+}
+
+.algo-box small {
+  display: block;
+  margin-top: 10px;
+  color: rgba(159, 178, 204, 0.72);
+  letter-spacing: 0.06em;
+}
+
+.stanine {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.stanine span {
+  display: grid;
+  place-items: center;
+  min-height: 38px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.sales-card .card-title {
+  margin-bottom: 10px;
+}
+
+.table-card table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-card th {
+  padding: 15px 16px;
+  text-align: left;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.table-card th:first-child {
+  width: 20%;
+  background: rgba(148, 163, 184, 0.14);
+  color: #dbe7f8;
+}
+
+.table-card th.them {
+  background: rgba(245, 158, 11, 0.14);
+  color: #fde68a;
+}
+
+.table-card th.us {
+  background: rgba(34, 197, 94, 0.14);
+  color: #d1fae5;
+}
+
+.table-card td {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.table-card td:first-child {
+  color: var(--ink);
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.table-card tr.highlight td {
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #d1fae5;
+  background: rgba(34, 197, 94, 0.14);
+}
+
+.qa-card h3 {
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+
+.qa-card p {
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--muted);
+}
+
+.roadmap {
+  grid-template-columns: 1fr;
+}
+
+.timeline-card {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+.phase {
+  display: grid;
+  place-items: center;
+  min-height: 64px;
+  border-radius: 18px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #06111c;
+}
+
+.phase.done {
+  background: linear-gradient(135deg, #22c55e, #4ade80);
+}
+
+.phase.next {
+  background: linear-gradient(135deg, #38bdf8, #60a5fa);
+}
+
+.phase.future {
+  background: linear-gradient(135deg, #f59e0b, #fbbf24);
+}
+
+.phase-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.phase-items span {
+  padding: 9px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.nav {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(9, 18, 31, 0.86);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(18px);
+  z-index: 20;
+}
+
+.nav-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(56, 189, 248, 0.24));
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.nav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.dots {
+  display: flex;
+  gap: 8px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.44);
+  cursor: pointer;
+  transition: width 0.2s ease, background 0.2s ease;
+}
+
+.dot.active {
+  width: 34px;
+  background: linear-gradient(90deg, var(--green), var(--cyan));
+}
+
+.counter {
+  min-width: 92px;
+  text-align: center;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--muted);
+}
+
+@media (max-width: 1120px) {
+  .hero,
+  .section-top,
+  .timeline-card {
+    grid-template-columns: 1fr;
+  }
+
+  .grid-3,
+  .grid-2,
+  .faq-grid,
+  .flow-grid,
+  .metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  body {
+    overflow: auto;
+  }
+
+  .slide {
+    padding: 12px;
+  }
+
+  .shell {
+    height: calc(100vh - 24px);
+    border-radius: 24px;
+  }
+
+  .header,
+  .content {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .grid-3,
+  .grid-2,
+  .faq-grid,
+  .flow-grid,
+  .metrics-grid,
+  .stanine {
+    grid-template-columns: 1fr;
+  }
+
+  .nav {
+    width: calc(100% - 24px);
+    justify-content: center;
+  }
+
+  .counter {
+    min-width: auto;
+  }
+
+  .title,
+  .page-title {
+    font-size: 34px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide,
+  .dot {
+    transition: none;
+  }
+}
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+  <section class="slide active" data-title="封面">
+    <div class="shell">
+      <div class="header">
+        <div class="brand">
+          <div class="brand-mark">VA</div>
+          <div class="brand-copy">
+            <span class="eyebrow">Internal Briefing / Product Ops</span>
+            <strong class="brand-title">增值评价系统 · 内部技术与销售手册</strong>
+          </div>
+        </div>
+        <div class="status"><strong>01</strong><span>开发团队 / 销售团队 / 内部培训使用</span></div>
+      </div>
+      <div class="content">
+        <div class="hero">
+          <div class="hero-copy">
+            <div class="hero-badge">Internal Use Only</div>
+            <h1 class="title">把产品讲清楚<br><span>把打法跑顺</span></h1>
+            <p class="hero-sub">一份给开发、产品、销售共同使用的内部作战手册</p>
+            <p class="lede">这不是对外宣传页，而是内部共识页。目标是让所有人对架构、算法、销售重点、竞品差异、路线图拥有同一套说法。</p>
+            <div class="hero-chips">
+              <span class="chip">技术架构</span>
+              <span class="chip">算法原理</span>
+              <span class="chip">销售话术</span>
+            </div>
+          </div>
+          <div class="hero-side">
+            <div class="metrics-grid">
+              <div class="metric">
+                <strong>3 层</strong>
+                <span>前端层、业务逻辑层、数据层。</span>
+              </div>
+              <div class="metric">
+                <strong>8 页</strong>
+                <span>覆盖讲解、竞品、FAQ、路线图。</span>
+              </div>
+            </div>
+            <div class="panel">
+              <h2>一个页面解决三个问题</h2>
+              <p>开发知道系统怎么搭，销售知道客户最关心什么，内部培训知道每一页该怎么讲。减少口径分裂，降低知识传递成本。</p>
+            </div>
+            <div class="card">
+              <div class="card-title"><div class="icon">◎</div><span>建议使用方式</span></div>
+              <ul class="stack-list">
+                <li>售前演示前，先过一遍第 4-7 页确保话术一致。</li>
+                <li>新人培训时，按页面顺序讲一遍即可快速建立产品心智。</li>
+                <li>需求变更后，优先更新这份手册而不是口头同步。</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="技术架构">
+    <div class="shell">
+      <div class="header">
+        <div class="brand">
+          <div class="brand-mark">02</div>
+          <div class="brand-copy">
+            <span class="eyebrow">Architecture</span>
+            <strong class="brand-title">三层架构，职责清晰，可快速演进</strong>
+          </div>
+        </div>
+        <div class="status"><strong>02</strong><span>前后端分离 + 数据权限隔离</span></div>
+      </div>
+      <div class="content">
+        <div class="section-top">
+          <div>
+            <div class="section-label">技术架构</div>
+            <h2 class="page-title">三层架构，<span style="color:var(--cyan)">前后端分离</span></h2>
+            <p class="lede">架构的重点不是“技术栈先进”，而是上传快、算得稳、权限清楚、后续功能可持续加。每一层都围绕这个目标设计。</p>
+          </div>
+          <div class="mini-stack">
+            <div class="mini-note">
+              <strong>技术叙述原则</strong>
+              <span>讲价值，不堆缩写。除非对方是技术负责人，否则不主动展开细节。</span>
+            </div>
+          </div>
+        </div>
+        <div class="grid-3">
+          <article class="card arch-card">
+            <div class="card-title"><div class="icon">🖥️</div><span>前端层</span></div>
+            <ul class="stack-list">
+              <li>React 18 + TypeScript</li>
+              <li>Vite 构建工具</li>
+              <li>Tailwind CSS + shadcn/ui</li>
+              <li>Recharts 数据可视化</li>
+              <li>XLSX.js 文件解析</li>
+            </ul>
+          </article>
+          <article class="card arch-card">
+            <div class="card-title"><div class="icon">⚙️</div><span>业务逻辑层</span></div>
+            <ul class="stack-list">
+              <li>OLS 线性回归引擎</li>
+              <li>Stanine 分层算法</li>
+              <li>智能文件解析器</li>
+              <li>增值分计算服务</li>
+              <li>预警规则引擎</li>
+            </ul>
+          </article>
+          <article class="card arch-card">
+            <div class="card-title"><div class="icon">🗄️</div><span>数据层</span></div>
+            <ul class="stack-list">
+              <li>Supabase PostgreSQL</li>
+              <li>Row Level Security</li>
+              <li>grade_data 主成绩表</li>
+              <li>Realtime 实时订阅</li>
+              <li>Edge Functions</li>
+            </ul>
+          </article>
+        </div>
+        <div class="arch-strip">
+          <span class="tech-pill">React</span>
+          <span class="tech-pill">TypeScript</span>
+          <span class="tech-pill">Supabase</span>
+          <span class="tech-pill">PostgreSQL</span>
+          <span class="tech-pill">XLSX.js</span>
+          <span class="tech-pill">Recharts</span>
+          <span class="tech-pill">shadcn/ui</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="数据流程">
+    <div class="shell">
+      <div class="header">
+        <div class="brand">
+          <div class="brand-mark">03</div>
+          <div class="brand-copy">
+            <span class="eyebrow">Data Flow</span>
+            <strong class="brand-title">从 Excel 到增值报告的完整链路</strong>
+          </div>
+        </div>
+        <div class="status"><strong>03</strong><span>解析、清洗、建模、输出一条龙</span></div>
+      </div>
+      <div class="content">
+        <div class="section-top">
+          <div>
+            <div class="section-label">数据流程</div>
+            <h2 class="page-title">从 Excel 到<span style="color:var(--cyan)">增值报告</span>的完整链路</h2>
+            <p class="lede">客户最在意的不是数学细节，而是“能不能把我手上的 Excel 直接变成可用结果”。这一页回答的就是这个问题。</p>
+          </div>
+        </div>
+        <div class="flow-grid">
+          <article class="card flow-step">
+            <div class="flow-num">1</div>
+            <h3>导入文件</h3>
+            <p class="muted">拖拽 Excel / CSV，智能识别列名和 Sheet。</p>
+          </article>
+          <article class="card flow-step">
+            <div class="flow-num">2</div>
+            <h3>字段映射</h3>
+            <p class="muted">AI 自动匹配字段，也支持人工修正。</p>
+          </article>
+          <article class="card flow-step">
+            <div class="flow-num">3</div>
+            <h3>数据清洗</h3>
+            <p class="muted">去重、补全、异常值识别、结构修正。</p>
+          </article>
+          <article class="card flow-step">
+            <div class="flow-num">4</div>
+            <h3>OLS 回归</h3>
+            <p class="muted">按科目计算预期成绩与增值偏差。</p>
+          </article>
+          <article class="card flow-step">
+            <div class="flow-num">5</div>
+            <h3>增值输出</h3>
+            <p class="muted">教师 / 班级增值分、排名、画像和预警。</p>
+          </article>
+        </div>
+        <div class="grid-3" style="margin-top:16px">
+          <article class="card">
+            <div class="card-title"><div class="icon">🧩</div><span>智能解析</span></div>
+            <ul class="stack-list">
+              <li>模糊匹配列名（语文 / Chinese / 语文成绩）</li>
+              <li>支持合并单元格表头</li>
+              <li>自动识别学号 / 姓名 / 班级列</li>
+              <li>多 Sheet 批量处理</li>
+            </ul>
+          </article>
+          <article class="card">
+            <div class="card-title"><div class="icon">🗃️</div><span>数据存储</span></div>
+            <ul class="stack-list">
+              <li>grade_data 宽表，一行一位学生的一次考试</li>
+              <li>入口 / 出口成绩分开管理</li>
+              <li>支持历次考试追踪</li>
+              <li>RLS 保证学校数据隔离</li>
+            </ul>
+          </article>
+          <article class="card">
+            <div class="card-title"><div class="icon">📤</div><span>计算输出</span></div>
+            <ul class="stack-list">
+              <li>9 科独立增值分</li>
+              <li>班级 / 教师维度聚合</li>
+              <li>Stanine 九段分层</li>
+              <li>预警信号自动触发</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="算法原理">
+    <div class="shell">
+      <div class="header">
+        <div class="brand">
+          <div class="brand-mark">04</div>
+          <div class="brand-copy">
+            <span class="eyebrow">Model Logic</span>
+            <strong class="brand-title">算法要讲得清楚，但不需要讲得玄</strong>
+          </div>
+        </div>
+        <div class="status"><strong>04</strong><span>OLS 回归 + Stanine 分层</span></div>
+      </div>
+      <div class="content">
+        <div class="section-top">
+          <div>
+            <div class="section-label">算法原理</div>
+            <h2 class="page-title">TVA 模型：<span style="color:var(--cyan)">OLS 回归</span> + Stanine 分层</h2>
+            <p class="lede">内部统一说法：我们不追求炫技，而是选择透明、稳定、可解释、适合教育场景落地的方法。</p>
+          </div>
+        </div>
+        <div class="algo-box">
+          <code><span class="accent">增值分</span> = 实际成绩 - <span class="warn">OLS 预期成绩（f(入口成绩)）</span></code>
+          <small>Teacher Value-Added / 与国际主流教育增值评价方法一致</small>
+        </div>
+        <div class="grid-3">
+          <article class="card">
+            <div class="card-title"><div class="icon">①</div><span>OLS 回归步骤</span></div>
+            <ul class="algo-list">
+              <li>以入口成绩为自变量 X</li>
+              <li>以出口成绩为因变量 Y</li>
+              <li>拟合 Y = aX + b</li>
+              <li>预期值 = a × 入口 + b</li>
+              <li>增值分 = 实际 - 预期</li>
+            </ul>
+          </article>
+          <article class="card">
+            <div class="card-title"><div class="icon">②</div><span>Stanine 九段分层</span></div>
+            <ul class="algo-list">
+              <li>1 段：底部 4%（学困生）</li>
+              <li>2 段：次低 7%</li>
+              <li>3-7 段：中间 78%</li>
+              <li>8 段：次高 7%</li>
+              <li>9 段：顶部 4%（顶尖生）</li>
+            </ul>
+            <div class="stanine">
+              <span style="background:#ef4444">1</span>
+              <span style="background:#f97316">2</span>
+              <span style="background:#f59e0b">3</span>
+              <span style="background:#84cc16">4</span>
+              <span style="background:#22c55e">5</span>
+              <span style="background:#06b6d4">6</span>
+              <span style="background:#3b82f6">7</span>
+              <span style="background:#8b5cf6">8</span>
+              <span style="background:#6d28d9">9</span>
+            </div>
+          </article>
+          <article class="card">
+            <div class="card-title"><div class="icon">③</div><span>为什么选 OLS</span></div>
+            <ul class="algo-list">
+              <li>逻辑透明，便于老师接受和解释</li>
+              <li>结果稳定，不依赖超大样本</li>
+              <li>适合按学科独立建模</li>
+              <li>比复杂黑盒模型更适合教育管理</li>
+              <li>便于后续输出报告与追责依据</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="销售话术">
+    <div class="shell">
+      <div class="header">
+        <div class="brand">
+          <div class="brand-mark">05</div>
+          <div class="brand-copy">
+            <span class="eyebrow">Sales Narrative</span>
+            <strong class="brand-title">按客户身份换说法，不换核心价值</strong>
+          </div>
+        </div>
+        <div class="status"><strong>05</strong><span>四类客户，四套切入口</span></div>
+      </div>
+      <div class="content">
+        <div class="section-top">
+          <div>
+            <div class="section-label">销售话术</div>
+            <h2 class="page-title">四类客户，<span style="color:var(--cyan)">四套话术</span></h2>
+            <p class="lede">对外表达不要一股脑讲全。先判断对方是谁，再切到他最关心的成本、价值、管理动作或数据安全。</p>
+          </div>
+        </div>
+        <div class="grid-2">
+          <article class="card sales-card">
+            <div class="card-title"><div class="icon">🏛️</div><span>教育局 / 督导</span></div>
+            <ul class="talk-list">
+              <li>比深圳教科院更细粒度，能看到每个班、每位老师。</li>
+              <li>数据可私有化部署，符合教育数据安全要求。</li>
+              <li>每次考试后实时出报告，不用等年度汇总。</li>
+            </ul>
+          </article>
+          <article class="card sales-card">
+            <div class="card-title"><div class="icon">🏫</div><span>校长 / 教务主任</span></div>
+            <ul class="talk-list">
+              <li>控制生源差异，让弱势班级里的好老师被看见。</li>
+              <li>9 科独立增值分，哪科哪班需要支持一目了然。</li>
+              <li>导入一次 Excel，短时间内出完整报告。</li>
+            </ul>
+          </article>
+          <article class="card sales-card">
+            <div class="card-title"><div class="icon">👨‍🏫</div><span>教师 / 班主任</span></div>
+            <ul class="talk-list">
+              <li>增值分为正，说明你让学生实现了超预期进步。</li>
+              <li>九段分层帮助识别需重点关注的学生群体。</li>
+              <li>AI 预警提前发现成绩下滑风险。</li>
+            </ul>
+          </article>
+          <article class="card sales-card">
+            <div class="card-title"><div class="icon">💼</div><span>采购 / IT 负责人</span></div>
+            <ul class="talk-list">
+              <li>SaaS 模式开箱即用，也支持私有化部署。</li>
+              <li>Excel 导入即可使用，零迁移成本。</li>
+              <li>权限隔离清晰，不改现有教务系统也能先跑起来。</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="竞品分析">
+    <div class="shell">
+      <div class="header">
+        <div class="brand">
+          <div class="brand-mark">06</div>
+          <div class="brand-copy">
+            <span class="eyebrow">Competitive Analysis</span>
+            <strong class="brand-title">内部必须知道，我们到底赢在哪</strong>
+          </div>
+        </div>
+        <div class="status"><strong>06</strong><span>技术层面的清晰差异点</span></div>
+      </div>
+      <div class="content">
+        <div class="section-top">
+          <div>
+            <div class="section-label">竞品分析</div>
+            <h2 class="page-title">vs 深圳教科院：<span style="color:var(--cyan)">技术层面</span>差异</h2>
+            <p class="lede">竞品页不要讲“我们更强”这种空话，要讲清楚差异落在哪个环节，客户因此得到什么额外价值。</p>
+          </div>
+        </div>
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>维度</th>
+                <th class="them">深圳教科院方案</th>
+                <th class="us">增值评价系统</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>评价粒度</td>
+                <td>学校级别</td>
+                <td>班级 / 教师级别 <span class="badge">更细</span></td>
+              </tr>
+              <tr>
+                <td>入口指标</td>
+                <td>中考总分</td>
+                <td>中考总分 + 9 科分科成绩</td>
+              </tr>
+              <tr class="highlight">
+                <td>分科分析</td>
+                <td>不支持</td>
+                <td>支持 9 科独立增值 <span class="badge">核心差异</span></td>
+              </tr>
+              <tr>
+                <td>更新频率</td>
+                <td>年度报告</td>
+                <td>每次考试后实时计算 <span class="badge">更快</span></td>
+              </tr>
+              <tr>
+                <td>数据获取</td>
+                <td>需申请，不透明</td>
+                <td>学校自主上传，即时可用</td>
+              </tr>
+              <tr>
+                <td>算法透明度</td>
+                <td>黑盒，不公开</td>
+                <td>OLS 公式公开，可复现</td>
+              </tr>
+              <tr>
+                <td>学生画像</td>
+                <td>无</td>
+                <td>AI 标签 + 预警系统</td>
+              </tr>
+              <tr>
+                <td>部署方式</td>
+                <td>官方平台，无私有化</td>
+                <td>SaaS + 私有化双选</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="FAQ">
+    <div class="shell">
+      <div class="header">
+        <div class="brand">
+          <div class="brand-mark">07</div>
+          <div class="brand-copy">
+            <span class="eyebrow">FAQ</span>
+            <strong class="brand-title">把高频问题提前准备好，别临场乱答</strong>
+          </div>
+        </div>
+        <div class="status"><strong>07</strong><span>销售 & 技术高频问题答法</span></div>
+      </div>
+      <div class="content">
+        <div class="section-top">
+          <div>
+            <div class="section-label">常见问题</div>
+            <h2 class="page-title">销售 & 技术<span style="color:var(--cyan)">高频问题</span>解答</h2>
+            <p class="lede">FAQ 页的意义是统一底线答法。内部可以展开，但对外的第一句回答要尽量稳、短、可复述。</p>
+          </div>
+        </div>
+        <div class="faq-grid">
+          <article class="qa-card">
+            <h3>增值分会不会被老师质疑不公平？</h3>
+            <p>OLS 回归控制了生源差异。增值分为正，意味着学生实际成绩超过同入口水平的预期值，逻辑清晰，便于向教师解释。</p>
+          </article>
+          <article class="qa-card">
+            <h3>样本量小的班级结果可靠吗？</h3>
+            <p>OLS 在小样本下仍可运行，但置信区间更宽。系统会对样本量较小的班级给出提示，建议结合多次考试综合判断。</p>
+          </article>
+          <article class="qa-card">
+            <h3>数据安全怎么保证？</h3>
+            <p>默认使用 RLS 做学校级数据隔离，支持私有化部署，数据不出校园网络。对于强安全诉求客户，可优先讲私有化方案。</p>
+          </article>
+          <article class="qa-card">
+            <h3>Excel 格式有要求吗？</h3>
+            <p>智能解析器支持模糊列名匹配、合并单元格表头和多 Sheet。只要关键字段齐全，就不要求完全标准模板。</p>
+          </article>
+          <article class="qa-card">
+            <h3>初中和高中都支持吗？</h3>
+            <p>完全支持。初中常用中考成绩作入口，高中可用上一学期期末成绩作入口，科目组合也可灵活调整。</p>
+          </article>
+          <article class="qa-card">
+            <h3>能和现有教务系统打通吗？</h3>
+            <p>当前版本以 Excel 导入为主，降低接入门槛。后续路线图中包含 API 对接能力，适合在跑通价值后再推进系统集成。</p>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="路线图">
+    <div class="shell">
+      <div class="header">
+        <div class="brand">
+          <div class="brand-mark">08</div>
+          <div class="brand-copy">
+            <span class="eyebrow">Roadmap</span>
+            <strong class="brand-title">对内讲清节奏，对外讲清边界</strong>
+          </div>
+        </div>
+        <div class="status"><strong>08</strong><span>已上线、下一步、未来规划</span></div>
+      </div>
+      <div class="content">
+        <div class="section-top">
+          <div>
+            <div class="section-label">产品路线图</div>
+            <h2 class="page-title">已上线 → <span style="color:var(--cyan)">下一步</span> → 未来规划</h2>
+            <p class="lede">路线图页不是许愿墙。内部要知道哪些能承诺、哪些只能说在规划中，避免销售过度承诺或研发被动背锅。</p>
+          </div>
+        </div>
+        <div class="roadmap">
+          <article class="timeline-card">
+            <div class="phase done">已上线</div>
+            <div class="phase-items">
+              <span>Excel 智能导入</span>
+              <span>OLS 增值分计算</span>
+              <span>9 科独立分析</span>
+              <span>Stanine 九段分层</span>
+              <span>教师 / 班级排名</span>
+              <span>学生画像标签</span>
+              <span>预警规则引擎</span>
+              <span>初中 + 高中支持</span>
+            </div>
+          </article>
+          <article class="timeline-card">
+            <div class="phase next">下一步</div>
+            <div class="phase-items">
+              <span>PDF 报告导出</span>
+              <span>多校区管理</span>
+              <span>历次考试趋势图</span>
+              <span>教师端自助查看</span>
+              <span>移动端适配</span>
+            </div>
+          </article>
+          <article class="timeline-card">
+            <div class="phase future">未来规划</div>
+            <div class="phase-items">
+              <span>教务系统 API 对接</span>
+              <span>AI 教学建议生成</span>
+              <span>区域横向对比</span>
+              <span>私有化部署包</span>
+              <span>家长端报告</span>
+              <span>知识点掌握度追踪</span>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="nav" aria-label="presentation navigation">
+  <button class="nav-btn" id="prev" type="button" aria-label="上一页">◀</button>
+  <div class="dots" id="dots"></div>
+  <div class="counter" id="counter">01 / 08</div>
+  <button class="nav-btn" id="next" type="button" aria-label="下一页">▶</button>
+</div>
+
+<script>
+const slides = Array.from(document.querySelectorAll(".slide"));
+const dotsEl = document.getElementById("dots");
+const counterEl = document.getElementById("counter");
+const prevBtn = document.getElementById("prev");
+const nextBtn = document.getElementById("next");
+let current = 0;
+
+slides.forEach((slide, index) => {
+  const dot = document.createElement("button");
+  dot.type = "button";
+  dot.className = "dot" + (index === 0 ? " active" : "");
+  dot.title = slide.dataset.title || `第 ${index + 1} 页`;
+  dot.setAttribute("aria-label", dot.title);
+  dot.addEventListener("click", () => goTo(index));
+  dotsEl.appendChild(dot);
+});
+
+function render() {
+  slides.forEach((slide, index) => {
+    slide.classList.toggle("active", index === current);
+    if (index !== current) slide.classList.remove("prev");
+  });
+
+  dotsEl.querySelectorAll(".dot").forEach((dot, index) => {
+    dot.classList.toggle("active", index === current);
+  });
+
+  counterEl.textContent = `${String(current + 1).padStart(2, "0")} / ${String(slides.length).padStart(2, "0")}`;
+  prevBtn.disabled = current === 0;
+  nextBtn.disabled = current === slides.length - 1;
+}
+
+function goTo(nextIndex) {
+  if (nextIndex === current || nextIndex < 0 || nextIndex >= slides.length) return;
+  slides[current].classList.add("prev");
+  current = nextIndex;
+  render();
+}
+
+function go(delta) {
+  goTo(current + delta);
+}
+
+prevBtn.addEventListener("click", () => go(-1));
+nextBtn.addEventListener("click", () => go(1));
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "ArrowRight" || event.key === "ArrowDown" || event.key === "PageDown") go(1);
+  if (event.key === "ArrowLeft" || event.key === "ArrowUp" || event.key === "PageUp") go(-1);
+  if (event.key === "Home") goTo(0);
+  if (event.key === "End") goTo(slides.length - 1);
+});
+
+render();
+</script>
+</body>
+</html>
