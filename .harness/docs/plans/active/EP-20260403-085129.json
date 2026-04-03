@@ -7,7 +7,7 @@
       "id": "EP-20260403-085129-T001",
       "title": "\u5206\u6790 ExamManagementCenter \u62c6\u5206\u8fb9\u754c",
       "description": "\u8bfb ExamManagementCenter.tsx\uff082552\u884c\uff09\uff0c\u8bc6\u522b\u4e09\u4e2a Tab \u7684\u72b6\u6001\u8fb9\u754c\uff0c\u786e\u5b9a state/handler \u5f52\u5c5e\uff0c\u8f93\u51fa\u62c6\u5206\u65b9\u6848",
-      "status": "pending",
+      "status": "done",
       "created_at": "2026-04-03T08:51:29.384241",
       "updated_at": "2026-04-03T08:51:29.384241",
       "dependencies": [],
@@ -19,9 +19,9 @@
       "id": "EP-20260403-085129-T002",
       "title": "\u7edf\u4e00\u6570\u636e\u8bbf\u95ee\u5230 ExamDataService",
       "description": "\u5c06\u7ec4\u4ef6\u4e2d\u76f4\u63a5\u8c03\u7528 examService.ts \u7684\u90e8\u5206\u6539\u4e3a\u901a\u8fc7 ExamDataService\uff08DataGateway \u8def\u5f84\uff09",
-      "status": "pending",
+      "status": "done",
       "created_at": "2026-04-03T08:51:29.432934",
-      "updated_at": "2026-04-03T08:51:29.432934",
+      "updated_at": "2026-04-02T00:00:00.000000",
       "dependencies": [
         "EP-20260403-085129-T001"
       ],
@@ -33,9 +33,9 @@
       "id": "EP-20260403-085129-T003",
       "title": "\u62c6\u5206\u8003\u8bd5\u5217\u8868\u6a21\u5757",
       "description": "\u63d0\u53d6\u5217\u8868 Tab \u4e3a\u72ec\u7acb ExamListTab.tsx\uff08ExamList\u3001ExamFilters\u3001\u7b5b\u9009 state\u3001\u6279\u91cf\u64cd\u4f5c\uff09\uff0c\u5355\u6587\u4ef6 \u2264300 \u884c",
-      "status": "pending",
+      "status": "done",
       "created_at": "2026-04-03T08:51:29.475127",
-      "updated_at": "2026-04-03T08:51:29.475127",
+      "updated_at": "2026-04-02T00:00:00.000000",
       "dependencies": [
         "EP-20260403-085129-T001"
       ],
@@ -47,7 +47,7 @@
       "id": "EP-20260403-085129-T004",
       "title": "\u62c6\u5206\u7edf\u8ba1\u6982\u89c8\u6a21\u5757",
       "description": "\u63d0\u53d6\u7edf\u8ba1 Tab \u4e3a\u72ec\u7acb ExamStatsTab.tsx\uff08ExamStatsOverview\u3001\u7edf\u8ba1\u8ba1\u7b97\u3001\u56fe\u8868\u6570\u636e\uff09",
-      "status": "pending",
+      "status": "done",
       "created_at": "2026-04-03T08:51:29.516930",
       "updated_at": "2026-04-03T08:51:29.516930",
       "dependencies": [
@@ -61,9 +61,9 @@
       "id": "EP-20260403-085129-T005",
       "title": "\u62c6\u5206\u79d1\u76ee\u5206\u6570\u8bbe\u7f6e\u6a21\u5757",
       "description": "\u63d0\u53d6\u8bbe\u7f6e Tab \u4e3a\u72ec\u7acb ExamSettingsTab.tsx\uff08SubjectScoreDialog\u3001\u5206\u6570\u7ebf\u914d\u7f6e\uff09",
-      "status": "pending",
+      "status": "done",
       "created_at": "2026-04-03T08:51:29.557854",
-      "updated_at": "2026-04-03T08:51:29.557854",
+      "updated_at": "2026-04-02T00:00:00.000000",
       "dependencies": [
         "EP-20260403-085129-T001"
       ],
@@ -75,7 +75,7 @@
       "id": "EP-20260403-085129-T006",
       "title": "\u8865\u5145\u6838\u5fc3\u4e1a\u52a1\u903b\u8f91\u5355\u5143\u6d4b\u8bd5",
       "description": "\u4e3a ExamDataService CRUD\u3001examDuplicateChecker \u51b2\u7a81\u68c0\u6d4b\u3001examScoreCalculationService \u8ba1\u7b97\u903b\u8f91\u5199 Vitest \u6d4b\u8bd5",
-      "status": "pending",
+      "status": "done",
       "created_at": "2026-04-03T08:51:29.596554",
       "updated_at": "2026-04-03T08:51:29.596554",
       "dependencies": [
