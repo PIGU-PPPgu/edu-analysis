@@ -19,7 +19,7 @@ import { ArrowUp, ArrowDown, Minus } from "lucide-react";
 import type {
   ScoreBandAnalysis as UIScoreBandAnalysis,
   ScoreBandStats as UIScoreBandStats,
-  ChangeStats as UIChangeStats,
+  ChangeStatsNested as UIChangeStats,
 } from "@/services/scoreBandAnalysisAdapter";
 
 // 重新导出类型以保持向后兼容

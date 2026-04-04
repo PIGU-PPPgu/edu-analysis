@@ -164,6 +164,11 @@ export interface StudentValueAdded {
   entry_rank_in_class?: number;
   exit_rank_in_class?: number;
   rank_change?: number;
+
+  // 散点图兼容字段
+  avg_score_entry?: number;
+  avg_score_exit?: number;
+  avg_score_value_added_rate?: number;
 }
 
 /** 增值评价指标数据（用于趋势预测和分析） */
@@ -318,6 +323,7 @@ export interface TeacherValueAdded {
   }>;
 
   // 向后兼容字段
+  avg_score_entry?: number;
   avg_score_exit?: number;
   exit_excellent_rate?: number;
 }
