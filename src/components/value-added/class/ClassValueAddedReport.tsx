@@ -811,13 +811,24 @@ export function ClassValueAddedReport({
                                 <AlertTriangle className="h-3.5 w-3.5 text-orange-400" />
                               </span>
                             )}
+                            {Math.abs(classData.avg_score_value_added_rate) >
+                              0.2 && (
+                              <span
+                                title={`增值率 ${(classData.avg_score_value_added_rate * 100).toFixed(1)}% 超出正常范围（±20%），请关注数据质量`}
+                              >
+                                <AlertTriangle className="h-3.5 w-3.5 text-orange-500" />
+                              </span>
+                            )}
                             <span
                               className={
-                                classData.avg_score_value_added_rate > 0
-                                  ? "text-green-600 font-semibold"
-                                  : classData.avg_score_value_added_rate < 0
-                                    ? "text-red-600 font-semibold"
-                                    : ""
+                                Math.abs(classData.avg_score_value_added_rate) >
+                                0.2
+                                  ? "text-orange-600 font-semibold"
+                                  : classData.avg_score_value_added_rate > 0
+                                    ? "text-green-600 font-semibold"
+                                    : classData.avg_score_value_added_rate < 0
+                                      ? "text-red-600 font-semibold"
+                                      : ""
                               }
                             >
                               {(
@@ -1047,7 +1058,21 @@ export function ClassValueAddedReport({
                       {classData.total_students}
                     </TableCell>
                     <TableCell className="text-right">
-                      {classData.avg_score_value_added_rate.toFixed(3)}
+                      <div className="flex items-center justify-end gap-1">
+                        {Math.abs(classData.avg_score_value_added_rate) >
+                          0.2 && (
+                          <AlertTriangle className="h-3.5 w-3.5 text-orange-500" />
+                        )}
+                        <span
+                          className={
+                            Math.abs(classData.avg_score_value_added_rate) > 0.2
+                              ? "text-orange-600 font-semibold"
+                              : ""
+                          }
+                        >
+                          {classData.avg_score_value_added_rate.toFixed(3)}
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       {(classData.progress_student_ratio * 100).toFixed(1)}%

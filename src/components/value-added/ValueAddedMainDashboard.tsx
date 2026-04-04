@@ -8,12 +8,19 @@
  * 3. 增值报告
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom"; // ✅ 添加 URL 参数读取
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Upload,
   ListChecks,
@@ -42,6 +49,9 @@ export function ValueAddedMainDashboard() {
   const previousActivityIdRef = useRef<string | null>(null); // ✅ 跟踪上一次的活动ID
 
   const [activeTab, setActiveTab] = useState("import");
+
+  // ✅ 学段选择（高中/初中切换时清空缓存重新计算）
+  const [gradeLevel, setGradeLevel] = useState<string>("all");
 
   // ✅ 首次使用引导状态
   const [showWelcome, setShowWelcome] = useState(() => {
@@ -123,13 +133,21 @@ export function ValueAddedMainDashboard() {
         console.log(
           "🔍 [ValueAddedMainDashboard] No activity_id, loading latest activity data"
         );
-        const { data: latestActivity } = await supabase
+        let query = supabase
           .from("value_added_activities")
           .select("id, name")
           .eq("status", "completed")
           .order("created_at", { ascending: false })
-          .limit(1)
-          .single();
+          .limit(1);
+
+        // ✅ 按学段筛选活动
+        if (gradeLevel === "high") {
+          query = query.in("grade_level", ["高一", "高二", "高三"]);
+        } else if (gradeLevel === "middle") {
+          query = query.in("grade_level", ["初一", "初二", "初三"]);
+        }
+
+        const { data: latestActivity } = await query.single();
 
         if (latestActivity) {
           console.log(
@@ -333,6 +351,30 @@ export function ValueAddedMainDashboard() {
     }
   }, [activeTab]); // ✅ 只依赖activeTab，有activityId时由第一个useEffect处理
 
+  // ✅ 学段切换时清空缓存并重新加载
+  const handleGradeLevelChange = useCallback(
+    (newLevel: string) => {
+      console.log("🔍 [GradeLevel Changed]", {
+        from: gradeLevel,
+        to: newLevel,
+      });
+      setGradeLevel(newLevel);
+
+      // 清空所有缓存数据
+      setClassData([]);
+      setTeacherData([]);
+      setStudentData([]);
+      setSubjectBalanceData([]);
+      setCurrentActivity(null);
+
+      // 如果当前在报告标签页，重新加载数据
+      if (activeTab === "reports") {
+        setTimeout(() => loadReportData(), 50);
+      }
+    },
+    [gradeLevel, activeTab]
+  );
+
   const handleDismissWelcome = () => {
     setShowWelcome(false);
     localStorage.setItem("value_added_welcome_dismissed", "true");
@@ -458,6 +500,17 @@ export function ValueAddedMainDashboard() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          {/* ✅ 学段切换选择器 */}
+          <Select value={gradeLevel} onValueChange={handleGradeLevelChange}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="选择学段" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部学段</SelectItem>
+              <SelectItem value="high">高中</SelectItem>
+              <SelectItem value="middle">初中</SelectItem>
+            </SelectContent>
+          </Select>
           <FormulaExplanation />
           <Badge variant="outline" className="text-sm px-3 py-1">
             核心功能完成 (90%)
