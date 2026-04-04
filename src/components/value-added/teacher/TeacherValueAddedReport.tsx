@@ -686,6 +686,13 @@ export function TeacherValueAddedReport({
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
+                            {teacher.is_statistically_significant === false && (
+                              <span
+                                title={`样本量仅 ${teacher.total_students} 人，结果仅供参考`}
+                              >
+                                <AlertTriangle className="h-3.5 w-3.5 text-orange-400" />
+                              </span>
+                            )}
                             <span
                               className={
                                 teacher.avg_score_value_added_rate > 0

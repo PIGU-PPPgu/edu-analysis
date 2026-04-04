@@ -337,6 +337,21 @@ export function calculateScoreValueAddedRate(
 }
 
 /**
+ * 贝叶斯收缩：小样本时将增值率向全年级均值（0）收缩
+ * 公式：shrunk = rate * (n / (n + k))，k=15 为收缩强度
+ * n >= 30 时几乎不收缩；n=15 时收缩 50%；n=5 时收缩 75%
+ */
+export function shrinkValueAddedRate(
+  rate: number,
+  sampleSize: number,
+  k: number = 15
+): number {
+  if (sampleSize <= 0) return 0;
+  const shrinkFactor = sampleSize / (sampleSize + k);
+  return rate * shrinkFactor;
+}
+
+/**
  * 计算进步人数占比
  */
 export function calculateProgressRatio(

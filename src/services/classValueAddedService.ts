@@ -15,6 +15,7 @@ import {
   calculatePercentile,
   determineLevel,
   calculateScoreValueAddedRate,
+  shrinkValueAddedRate,
   calculateOLSBeta,
   calculateConsolidationRate,
   calculateTransformationRate,
@@ -216,6 +217,12 @@ async function calculateSingleClassValueAdded(params: {
     scoreValueAddedRates.filter((rate) => Number.isFinite(rate))
   );
 
+  // 小样本收缩（高中选科班级保护）
+  const shrunkAvgScoreValueAddedRate = shrinkValueAddedRate(
+    avgScoreValueAddedRate,
+    students.length
+  );
+
   const avgZScoreChange = avgExitZScore - avgEntryZScore;
 
   // 5. 计算进步学生比例
@@ -269,8 +276,8 @@ async function calculateSingleClassValueAdded(params: {
     avg_score_standard_entry: avgStandardEntryScore,
     avg_score_standard_exit: avgStandardExitScore,
 
-    // 分数增值
-    avg_score_value_added_rate: avgScoreValueAddedRate,
+    // 分数增值（已收缩）
+    avg_score_value_added_rate: shrunkAvgScoreValueAddedRate,
     progress_student_ratio: progressStudentRatio,
     avg_z_score_change: avgZScoreChange,
 
@@ -284,6 +291,9 @@ async function calculateSingleClassValueAdded(params: {
     entry_excellent_count: entryExcellentCount,
     exit_excellent_count: exitExcellentCount,
     excellent_gain: excellentGain,
+
+    // 统计有效性
+    is_statistically_significant: students.length >= 15,
   };
 }
 
