@@ -324,6 +324,7 @@ export function DataImportWorkflow() {
           fileStates={fileStates}
           onFileSelect={handleFileSelect}
           onNext={handleNextToValidation}
+          importData={importData}
         />
       )}
 
@@ -386,12 +387,14 @@ interface StepOneUploadProps {
   fileStates: Record<string, FileUploadState>;
   onFileSelect: (key: string, file: File | null) => void;
   onNext: () => void;
+  importData?: Partial<ImportData>;
 }
 
 function StepOneUpload({
   fileStates,
   onFileSelect,
   onNext,
+  importData = {},
 }: StepOneUploadProps) {
   const files = [
     {
