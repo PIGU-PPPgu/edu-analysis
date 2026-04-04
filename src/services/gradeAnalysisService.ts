@@ -738,70 +738,20 @@ export const gradeAnalysisService = {
    */
   async getClassRanking(examId: string) {
     try {
-      const { data, error } = await supabase
-        .from("grade_data")
-        .select("*, exams!inner(*)")
-        .eq("exam_id", examId);
-
-      if (error) throw error;
-
-      // 按班级分组并计算平均分
-      const classData = data.reduce((acc: any, record) => {
-        const className = record.class_name || "未知班级";
-
-        if (!acc[className]) {
-          acc[className] = {
-            className,
-            totalScore: 0,
-            studentCount: 0,
-            averageScore: 0,
-            maxScore: 0,
-            minScore: Infinity,
-            passCount: 0,
-          };
-        }
-
-        const score = record.total_score || 0;
-        acc[className].totalScore += score;
-        acc[className].studentCount += 1;
-        acc[className].maxScore = Math.max(acc[className].maxScore, score);
-        acc[className].minScore = Math.min(acc[className].minScore, score);
-
-        // 使用动态及格线判断
-        try {
-          const { getPassScore } = require("@/services/passRateCalculator");
-          const passScore = getPassScore(record.subject || "总分");
-          if (score >= passScore) {
-            acc[className].passCount += 1;
-          }
-        } catch (error) {
-          // 回退到默认60分
-          if (score >= 60) {
-            acc[className].passCount += 1;
-          }
-        }
-
-        return acc;
-      }, {});
-
-      // 计算平均分和及格率
-      Object.values(classData).forEach((cls: any) => {
-        cls.averageScore =
-          cls.studentCount > 0 ? cls.totalScore / cls.studentCount : 0;
-        cls.passRate =
-          cls.studentCount > 0 ? cls.passCount / cls.studentCount : 0;
-
-        // 修正最低分，如果还是Infinity说明没有数据
-        if (cls.minScore === Infinity) {
-          cls.minScore = 0;
-        }
+      const { data, error } = await supabase.rpc("get_class_ranking", {
+        p_exam_id: examId,
       });
-
-      // 按平均分排序
-      const rankingData = Object.values(classData).sort(
-        (a: any, b: any) => b.averageScore - a.averageScore
-      );
-
+      if (error) throw error;
+      // Normalize snake_case RPC response to camelCase for callers
+      const rankingData = (data ?? []).map((row: any) => ({
+        className: row.class_name,
+        averageScore: Number(row.average_score),
+        maxScore: Number(row.max_score),
+        minScore: Number(row.min_score),
+        studentCount: Number(row.student_count),
+        passCount: Number(row.pass_count),
+        passRate: Number(row.pass_rate),
+      }));
       return { data: rankingData, error: null };
     } catch (error) {
       console.error("获取班级排名失败:", error);
@@ -814,28 +764,12 @@ export const gradeAnalysisService = {
    */
   async getStudentRanking(examId: string, classFilter?: string) {
     try {
-      let query = supabase
-        .from("grade_data")
-        .select("*")
-        .eq("exam_id", examId)
-        .order("total_score", { ascending: false });
-
-      if (classFilter) {
-        query = query.eq("class_name", classFilter);
-      }
-
-      const { data, error } = await query;
-
+      const { data, error } = await supabase.rpc("get_student_ranking", {
+        p_exam_id: examId,
+        p_class_name: classFilter ?? null,
+      });
       if (error) throw error;
-
-      // 添加排名信息
-      const rankedData = data.map((student, index) => ({
-        ...student,
-        rank: index + 1,
-        rankPercentile: data.length > 0 ? (index + 1) / data.length : 0,
-      }));
-
-      return { data: rankedData, error: null };
+      return { data: data ?? [], error: null };
     } catch (error) {
       console.error("获取学生排名失败:", error);
       return { data: [], error };
@@ -1159,57 +1093,19 @@ export const gradeAnalysisService = {
       if (!classNames || classNames.length === 0) {
         return { data: [], error: null };
       }
-
-      const { data, error } = await supabase
-        .from("grade_data")
-        .select("*, exams!inner(*)")
-        .eq("exam_id", examId)
-        .in("class_name", classNames);
-
-      if (error) throw error;
-
-      // 按班级分组并计算统计数据
-      const classStats = classNames.map((className) => {
-        const classData = data.filter((item) => item.class_name === className);
-        const scores = classData.map((item) => item.total_score || 0);
-
-        if (scores.length === 0) {
-          return {
-            className,
-            averageScore: 0,
-            maxScore: 0,
-            minScore: 0,
-            passRate: 0,
-            studentCount: 0,
-          };
-        }
-
-        const sum = scores.reduce((a, b) => a + b, 0);
-        const average = sum / scores.length;
-        const max = Math.max(...scores);
-        const min = Math.min(...scores);
-        // 使用动态及格线计算及格率
-        let passCount;
-        try {
-          const { getPassScore } = require("@/services/passRateCalculator");
-          const passScore = getPassScore("总分");
-          passCount = scores.filter((score) => score >= passScore).length;
-        } catch (error) {
-          // 回退到默认60分
-          passCount = scores.filter((score) => score >= 60).length;
-        }
-        const passRate = scores.length > 0 ? passCount / scores.length : 0;
-
-        return {
-          className,
-          averageScore: average,
-          maxScore: max,
-          minScore: min,
-          passRate,
-          studentCount: scores.length,
-        };
+      const { data, error } = await supabase.rpc("compare_class_performance", {
+        p_exam_id: examId,
+        p_class_names: classNames,
       });
-
+      if (error) throw error;
+      const classStats = (data ?? []).map((row: any) => ({
+        className: row.class_name,
+        averageScore: Number(row.average_score),
+        maxScore: Number(row.max_score),
+        minScore: Number(row.min_score),
+        passRate: Number(row.pass_rate),
+        studentCount: Number(row.student_count),
+      }));
       return { data: classStats, error: null };
     } catch (error) {
       console.error("比较班级表现失败:", error);
@@ -1261,444 +1157,38 @@ export const gradeAnalysisService = {
   },
 
   /**
-   * 初始化数据库表
-   * 创建成绩分析系统所需的所有数据表
+   * @deprecated DDL 已迁移到 supabase/migrations/。此方法保留仅为兼容旧调用，不再执行任何操作。
    */
   async initializeTables() {
-    try {
-      console.log("开始初始化成绩分析系统所需的数据表...");
-
-      // 创建考试表SQL
-      const createExamsTableSQL = `
-      CREATE TABLE IF NOT EXISTS exams (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        title TEXT NOT NULL,
-        type TEXT NOT NULL,
-        date DATE,
-        subject TEXT,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-      );`;
-
-      // 创建成绩数据表SQL
-      const createGradeDataTableSQL = `
-      CREATE TABLE IF NOT EXISTS grade_data (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        exam_id UUID NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
-        student_id TEXT NOT NULL,
-        name TEXT,
-        class_name TEXT,
-        subject TEXT,
-        total_score NUMERIC,
-        exam_date DATE,
-        exam_type TEXT,
-        exam_title TEXT,
-        metadata JSONB,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-        UNIQUE(exam_id, student_id)
-      );`;
-
-      // 创建学生表SQL
-      const createStudentsTableSQL = `
-      CREATE TABLE IF NOT EXISTS students (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        student_id TEXT NOT NULL UNIQUE,
-        name TEXT NOT NULL,
-        class_name TEXT,
-        grade TEXT,
-        school_id TEXT,
-        gender TEXT,
-        birth_date DATE,
-        contact_info JSONB,
-        metadata JSONB,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-      );
-      
-      -- 创建RLS策略
-      ALTER TABLE students ENABLE ROW LEVEL SECURITY;
-      
-      -- 创建自动更新时间戳触发器
-      CREATE OR REPLACE FUNCTION update_timestamp()
-      RETURNS TRIGGER AS $$
-      BEGIN
-        NEW.updated_at = now();
-        RETURN NEW;
-      END;
-      $$ LANGUAGE plpgsql;
-      
-      CREATE TRIGGER update_students_timestamp
-      BEFORE UPDATE ON students
-      FOR EACH ROW EXECUTE PROCEDURE update_timestamp();
-      `;
-
-      // 创建成绩标签表SQL
-      const createGradeTagsTableSQL = `
-      CREATE TABLE IF NOT EXISTS grade_tags (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        name TEXT NOT NULL,
-        description TEXT,
-        color TEXT DEFAULT 'bg-blue-500',
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-      );`;
-
-      // 创建成绩数据和标签的关联表SQL
-      const createGradeDataTagsTableSQL = `
-      CREATE TABLE IF NOT EXISTS grade_data_tags (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        grade_id UUID NOT NULL,
-        tag_id UUID NOT NULL,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-        CONSTRAINT grade_data_tags_grade_id_tag_id_key UNIQUE (grade_id, tag_id),
-        CONSTRAINT grade_data_tags_grade_id_fkey FOREIGN KEY (grade_id) REFERENCES grade_data(id) ON DELETE CASCADE,
-        CONSTRAINT grade_data_tags_tag_id_fkey FOREIGN KEY (tag_id) REFERENCES grade_tags(id) ON DELETE CASCADE
-      );`;
-
-      // 执行SQL创建表
-      // 尝试执行创建表SQL
-      const executeSQL = async (sql: string, description: string) => {
-        try {
-          console.log(`执行${description}...`);
-
-          // 首先尝试使用 exec_sql RPC 函数
-          try {
-            const { error } = await supabase.rpc("exec_sql", {
-              sql_query: sql,
-            });
-
-            // 如果没有错误，执行成功
-            if (!error) {
-              console.log(`${description}通过RPC执行成功`);
-              return { success: true };
-            }
-
-            // 如果是"函数不存在"的错误，尝试其他方法
-            if (
-              error.message &&
-              error.message.includes("function") &&
-              error.message.includes("not exist")
-            ) {
-              console.warn(`exec_sql RPC 函数不存在，尝试其他方法...`);
-              // 继续后面的代码尝试其他方法
-            } else {
-              // 其他类型的错误
-              console.error(`执行${description}失败:`, error);
-              return { success: false, error };
-            }
-          } catch (rpcError) {
-            console.warn(`通过RPC执行${description}时出错:`, rpcError);
-            // 继续后面的代码尝试其他方法
-          }
-
-          // 使用一个组装的解决方案：使用SQL注释来尝试创建表
-          // 这种方法是不完美的，但在某些有限的权限环境中可能能工作
-          try {
-            // 我们在表名前添加注释，尝试通过注释执行SQL
-            // 这取决于Supabase如何处理SQL查询的方式
-            // 如果这样不行，我们只能提示用户手动执行SQL
-            const commentPrefix = `-- ${Math.random().toString(36).substring(2, 15)}`;
-            const { count, error } = await supabase
-              .from("_dummy")
-              .select("*")
-              .eq("create_table_sql", sql)
-              .limit(1);
-
-            if (error) {
-              // 如果错误，提示用户手动执行SQL
-              console.warn(`无法自动创建表，需要手动执行SQL`);
-              return {
-                success: false,
-                needsManualExecution: true,
-                sql,
-                description,
-                message: "需要在Supabase控制台手动执行SQL",
-              };
-            }
-          } catch (error) {
-            console.warn(`创建表的备用方法也失败:`, error);
-          }
-
-          // 如果前面的方法都失败了，我们检查表是否已经存在
-          // 如果表存在，我们认为创建成功
-          const tableName = sql.match(/CREATE TABLE IF NOT EXISTS (\w+)/i)?.[1];
-
-          if (tableName) {
-            const exists = await checkTableExists(tableName);
-            if (exists) {
-              console.log(`表 ${tableName} 已存在，认为创建成功`);
-              return { success: true };
-            }
-          }
-
-          // 所有方法都失败，提示用户手动执行SQL
-          return {
-            success: false,
-            needsManualExecution: true,
-            sql,
-            description,
-            message: "需要在Supabase控制台手动执行SQL",
-          };
-        } catch (error) {
-          console.error(`执行${description}时发生意外错误:`, error);
-          return { success: false, error };
-        }
-      };
-
-      // 尝试创建表
-      const results = await Promise.all([
-        executeSQL(createExamsTableSQL, "创建考试表"),
-        executeSQL(createGradeDataTableSQL, "创建成绩数据表"),
-        executeSQL(createStudentsTableSQL, "创建学生表"),
-        executeSQL(createGradeTagsTableSQL, "创建成绩标签表"),
-        executeSQL(createGradeDataTagsTableSQL, "创建成绩数据标签关联表"),
-      ]);
-
-      // 检查是否有任何错误
-      const errors = results.filter((result) => !result.success);
-
-      if (errors.length > 0) {
-        console.error("初始化数据库表过程中发生错误:", errors);
-
-        // 收集需要手动执行的SQL
-        const manualSqlScripts = results
-          .filter((result) => result.needsManualExecution)
-          .map((result) => `-- ${result.description}\n${result.sql}`)
-          .join("\n\n");
-
-        if (manualSqlScripts) {
-          return {
-            success: false,
-            errors,
-            manualSqlScripts,
-            message:
-              "无法自动创建数据库表。请在Supabase管理面板中手动执行以下SQL脚本：",
-            needsManualExecution: true,
-          };
-        }
-
-        return {
-          success: false,
-          errors,
-          message:
-            "无法自动创建数据库表。请在Supabase管理面板中手动执行SQL脚本。",
-        };
-      }
-
-      // 再次检查所有需要的表是否存在
-      const tablesExist = await Promise.all([
-        checkTableExists("exams"),
-        checkTableExists("grade_data"),
-        checkTableExists("students"),
-        checkTableExists("grade_tags"),
-        checkTableExists("grade_data_tags"),
-      ]);
-
-      if (tablesExist.every(Boolean)) {
-        return { success: true, message: "数据库表初始化成功" };
-      } else {
-        const missingTables = [
-          "exams",
-          "grade_data",
-          "students",
-          "grade_tags",
-          "grade_data_tags",
-        ].filter((_, index) => !tablesExist[index]);
-
-        return {
-          success: false,
-          message: `初始化后检查表发现以下表仍不存在: ${missingTables.join(", ")}`,
-          missingTables,
-        };
-      }
-    } catch (error) {
-      console.error("初始化数据库表失败:", error);
-      return {
-        success: false,
-        error,
-        message: "初始化数据库表失败，请手动执行SQL脚本。",
-      };
-    }
+    console.warn(
+      "[DEPRECATED] initializeTables() 已废弃，请使用 supabase/migrations/ 管理 schema。"
+    );
+    return {
+      success: true,
+      message: "Schema 由 Supabase migrations 管理，无需手动初始化。",
+    };
+    // eslint-disable-next-line no-unreachable
   },
 
-  /**
-   * 检查并修复学生表 - 简化健壮版本
-   */
+  /** @deprecated Schema 由 supabase/migrations/ 管理。 */
   async checkAndFixStudentsTable() {
-    console.log("检查学生表结构");
-    try {
-      // 简单检查表是否存在
-      const { data, error } = await supabase
-        .from("students")
-        .select("student_id")
-        .limit(1);
-
-      if (error) {
-        console.warn("学生表检查失败:", error.message);
-        return { success: false, error };
-      }
-
-      return { success: true };
-    } catch (error) {
-      console.error("检查学生表出错:", error);
-      return { success: false, error };
-    }
+    console.warn("[DEPRECATED] checkAndFixStudentsTable() 已废弃。");
+    return { success: true };
   },
 
   /**
    * 检查并修复成绩数据表 - 简化健壮版本
    */
+  /** @deprecated Schema 由 supabase/migrations/ 管理。 */
   async checkAndFixGradeDataTable() {
-    console.log("检查成绩数据表结构");
-    try {
-      // 简单检查表是否存在
-      const { data, error } = await supabase
-        .from("grade_data")
-        .select("id, exam_id")
-        .limit(1);
-
-      if (error) {
-        console.warn("成绩数据表检查失败:", error.message);
-
-        // 尝试通过RPC调用检查字段
-        try {
-          // 检查是否存在我们的RPC函数
-          const { data: rpcData, error: rpcError } = await supabase.rpc(
-            "get_exam_analysis",
-            { p_exam_id: "00000000-0000-0000-0000-000000000000" }
-          );
-
-          if (!rpcError) {
-            console.log("通过RPC检查: 成功, 检查通过");
-            return { success: true };
-          }
-
-          console.warn("RPC检查失败:", rpcError);
-        } catch (rpcError) {
-          console.warn("检查RPC函数出错:", rpcError);
-        }
-
-        return { success: false, error };
-      }
-
-      return { success: true };
-    } catch (error) {
-      console.error("检查成绩数据表出错:", error);
-      return { success: false, error };
-    }
+    console.warn("[DEPRECATED] checkAndFixGradeDataTable() 已废弃。");
+    return { success: true };
   },
 
-  /**
-   * 检查并创建学生表
-   * 如果表不存在，则创建它
-   */
+  /** @deprecated Schema 由 supabase/migrations/ 管理。 */
   async ensureStudentsTableExists() {
-    try {
-      // 检查表是否存在
-      const tableExists = await checkTableExists("students");
-
-      if (tableExists) {
-        console.log("学生表已存在，检查字段完整性");
-        return await this.checkAndFixStudentsTable();
-      }
-
-      // 创建更完整的学生表SQL，包括所有必要的字段
-      const createStudentsTableSQL = `
-      CREATE TABLE IF NOT EXISTS students (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        student_id TEXT NOT NULL UNIQUE,
-        name TEXT NOT NULL,
-        class_name TEXT,
-        grade TEXT,
-        school_id TEXT,
-        gender TEXT,
-        birth_date DATE,
-        contact_info JSONB DEFAULT '{}'::jsonb,
-        metadata JSONB DEFAULT '{}'::jsonb,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-      );
-      
-      -- 创建RLS策略
-      ALTER TABLE students ENABLE ROW LEVEL SECURITY;
-      
-      -- 默认RLS策略: 允许所有授权用户读取
-      CREATE POLICY "允许授权用户读取学生信息" ON students FOR SELECT USING (auth.role() = 'authenticated');
-      
-      -- 创建自动更新时间戳触发器
-      CREATE OR REPLACE FUNCTION update_timestamp()
-      RETURNS TRIGGER AS $$
-      BEGIN
-        NEW.updated_at = now();
-        RETURN NEW;
-      END;
-      $$ LANGUAGE plpgsql;
-      
-      DROP TRIGGER IF EXISTS update_students_timestamp ON students;
-      CREATE TRIGGER update_students_timestamp
-      BEFORE UPDATE ON students
-      FOR EACH ROW EXECUTE PROCEDURE update_timestamp();
-      `;
-
-      // 尝试执行SQL
-      try {
-        const { error } = await supabase.rpc("exec_sql", {
-          sql_query: createStudentsTableSQL,
-        });
-        if (error) {
-          console.error("创建学生表失败:", error);
-          return {
-            success: false,
-            error,
-            message: "创建学生表失败，请在Supabase控制台手动执行SQL脚本。",
-            sql: createStudentsTableSQL,
-          };
-        }
-
-        // 检查表是否真的创建成功
-        const tableCreated = await checkTableExists("students");
-        if (tableCreated) {
-          console.log("学生表创建成功");
-          return { success: true, message: "学生表创建成功" };
-        } else {
-          return {
-            success: false,
-            message: "尝试创建学生表，但表仍不存在",
-            sql: createStudentsTableSQL,
-          };
-        }
-      } catch (rpcError) {
-        console.error("RPC执行创建学生表失败:", rpcError);
-
-        // 尝试直接使用SQL方法
-        try {
-          // 尝试使用直接查询创建表 - 注意这可能不起作用，取决于Supabase权限
-          console.log("尝试使用替代方法创建学生表...");
-          return {
-            success: false,
-            message:
-              "无法自动创建学生表。请在Supabase控制台手动执行以下SQL脚本:",
-            sql: createStudentsTableSQL,
-          };
-        } catch (directError) {
-          console.error("替代方法创建学生表失败:", directError);
-          return {
-            success: false,
-            error: directError,
-            message: "创建学生表失败。请在Supabase控制台手动执行SQL脚本。",
-            sql: createStudentsTableSQL,
-          };
-        }
-      }
-    } catch (error) {
-      console.error("检查/创建学生表失败:", error);
-      return {
-        success: false,
-        error,
-        message: "学生表检查/创建过程中出错。",
-      };
-    }
+    console.warn("[DEPRECATED] ensureStudentsTableExists() 已废弃。");
+    return { success: true };
   },
 
   /**
@@ -1742,501 +1232,36 @@ export const gradeAnalysisService = {
   },
 
   // 尝试初始化或验证数据库
+  /** @deprecated Schema 由 supabase/migrations/ 管理。 */
   async initializeDatabase() {
-    // 检查所有必要的表是否存在
-    const [examsExists, gradeDataExists, studentsExists] = await Promise.all([
-      checkTableExists("exams"),
-      checkTableExists("grade_data"),
-      checkTableExists("students"),
-    ]);
-
-    const missingTables = [];
-    if (!examsExists) missingTables.push("exams");
-    if (!gradeDataExists) missingTables.push("grade_data");
-    if (!studentsExists) missingTables.push("students");
-
-    // 如果有缺失的表，尝试创建它们
-    if (missingTables.length > 0) {
-      console.warn(`发现缺失的表: ${missingTables.join(", ")}`);
-      const result = await this.initializeTables();
-
-      if (!result.success) {
-        // 显示给用户缺少表的警告
-        toast.error("数据库表缺失", {
-          description: `系统检测到以下表不存在: ${missingTables.join(", ")}。这可能导致数据导入失败。请联系管理员。`,
-        });
-        return result;
-      }
-
-      return { success: true, createdTables: missingTables };
-    }
-
-    // 如果students表存在，检查并修复其结构
-    if (studentsExists) {
-      try {
-        // 静默检查学生表结构并尝试自动修复
-        const tableCheck = await this.checkAndFixStudentsTable();
-
-        if (!tableCheck.success) {
-          console.warn("学生表结构有问题:", tableCheck.message);
-          // 此处只记录问题，不中断流程，让后续步骤决定是否需要处理
-          return {
-            success: true,
-            message: "所有必要的表都已存在，但学生表结构可能需要修复",
-            studentsTableNeedsRepair: true,
-            repairInfo: tableCheck,
-          };
-        }
-      } catch (error) {
-        console.error("检查学生表结构失败:", error);
-        // 仍然返回成功，但标记可能存在问题
-        return {
-          success: true,
-          message: "所有必要的表都已存在，但检查学生表结构时发生错误",
-          studentsTableCheckError: true,
-          error,
-        };
-      }
-    }
-
-    return { success: true, message: "所有必要的表都已存在且结构正确" };
+    console.warn("[DEPRECATED] initializeDatabase() 已废弃。");
+    return { success: true };
   },
 
-  /**
-   * 检查并修复exams表，确保scope字段存在
-   */
+  /** @deprecated Schema 由 supabase/migrations/ 管理。 */
   async checkAndFixExamsTable() {
-    console.log("开始检查考试表结构...");
-
-    try {
-      // 检查考试表是否存在
-      const tableExists = await checkTableExists("exams");
-      if (!tableExists) {
-        console.log("考试表不存在，需要创建");
-        return {
-          success: false,
-          message: "考试表不存在，请先初始化数据库",
-          sql: `
-          CREATE TABLE IF NOT EXISTS exams (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            title TEXT NOT NULL,
-            type TEXT NOT NULL,
-            date DATE,
-            subject TEXT,
-            scope TEXT DEFAULT 'class' NOT NULL,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-            created_by UUID REFERENCES auth.users(id)
-          );
-          `,
-        };
-      }
-
-      // 标记字段是否已经验证存在
-      let scopeColumnExists = false;
-
-      // 方法1: 尝试使用RPC函数检查
-      try {
-        const { data: columnInfo, error: columnError } = await supabase.rpc(
-          "has_column",
-          {
-            table_name: "exams",
-            column_name: "scope",
-          }
-        );
-
-        if (!columnError && columnInfo === true) {
-          console.log("使用RPC确认scope字段已存在");
-          scopeColumnExists = true;
-        }
-      } catch (rpcError) {
-        console.log("RPC函数不存在或调用失败，尝试备选方法");
-      }
-
-      // 方法2: 如果RPC失败，尝试直接查询信息模式
-      if (!scopeColumnExists) {
-        try {
-          const { data, error } = await supabase
-            .from("information_schema.columns")
-            .select("column_name")
-            .eq("table_name", "exams")
-            .eq("column_name", "scope")
-            .eq("table_schema", "public");
-
-          if (!error && data && data.length > 0) {
-            console.log("通过information_schema确认scope字段已存在");
-            scopeColumnExists = true;
-          }
-        } catch (queryError) {
-          console.log("information_schema查询失败，尝试最后方法");
-        }
-      }
-
-      // 方法3: 如果前两种方法都失败，尝试直接执行添加列，并通过错误判断列是否存在
-      if (!scopeColumnExists) {
-        try {
-          // 尝试执行添加列的SQL
-          const { data, error } = await supabase.rpc("exec_sql", {
-            sql_query: `ALTER TABLE exams ADD COLUMN scope TEXT DEFAULT 'class' NOT NULL;`,
-          });
-
-          // 如果没有错误，说明列成功添加
-          if (!error) {
-            console.log("成功添加scope字段到exams表");
-            return {
-              success: true,
-              message: "成功添加scope字段到exams表",
-              modified: true,
-            };
-          }
-
-          // 如果错误是"列已存在"，实际上是成功的情况
-          if (
-            error &&
-            error.message &&
-            (error.message.includes("already exists") ||
-              error.code === "42701" ||
-              error.message.includes("已经存在"))
-          ) {
-            console.log("根据错误信息判断scope字段已存在");
-            scopeColumnExists = true;
-          } else {
-            // 其他错误情况
-            throw error;
-          }
-        } catch (execError) {
-          console.error("尝试添加列失败，无法确定列是否存在:", execError);
-        }
-      }
-
-      // 如果通过任何方法确认列已存在
-      if (scopeColumnExists) {
-        console.log("考试表结构检查完成，scope字段已存在");
-        return { success: true, message: "考试表结构正常" };
-      }
-
-      // 如果到这里，说明所有自动方法都失败了，提供SQL脚本供手动执行
-      console.warn("无法确认或添加scope字段，需要手动执行SQL");
-      return {
-        success: false,
-        message: "考试表缺少scope字段，自动修复失败",
-        sql: `
-        -- 添加scope字段到exams表
-        DO $$
-        BEGIN
-          BEGIN
-            ALTER TABLE exams ADD COLUMN scope TEXT DEFAULT 'class' NOT NULL;
-            RAISE NOTICE 'scope字段已添加';
-          EXCEPTION WHEN duplicate_column THEN
-            RAISE NOTICE 'scope字段已存在，无需添加';
-          END;
-        END $$;
-        `,
-      };
-    } catch (error) {
-      console.error("检查考试表结构失败:", error);
-      return {
-        success: false,
-        message: `检查考试表结构时出错: ${error instanceof Error ? error.message : "未知错误"}`,
-      };
-    }
+    console.warn("[DEPRECATED] checkAndFixExamsTable() 已废弃。");
+    return { success: true };
   },
 
-  /**
-   * 修复grade_data表添加exam_scope字段
-   */
+  /** @deprecated Schema 由 supabase/migrations/ 管理。 */
   async fixGradeDataTable() {
-    try {
-      console.log("正在检查grade_data表是否需要修复...");
-
-      // 首先检查表是否存在
-      const tableExists = await checkTableExists("grade_data");
-      if (!tableExists) {
-        console.log("grade_data表不存在，需要创建");
-        return {
-          success: false,
-          message: "grade_data表不存在，请先初始化数据库",
-          needsCreation: true,
-        };
-      }
-
-      // 标记字段是否已经验证存在
-      let examScopeColumnExists = false;
-
-      // 方法1: 尝试使用RPC函数检查
-      try {
-        const { data: hasExamScopeColumn, error: checkError } =
-          await supabase.rpc("has_column", {
-            table_name: "grade_data",
-            column_name: "exam_scope",
-          });
-
-        if (!checkError && hasExamScopeColumn === true) {
-          console.log("使用RPC确认exam_scope字段已存在");
-          examScopeColumnExists = true;
-        }
-      } catch (rpcError) {
-        console.log("RPC函数不存在或调用失败，尝试备选方法");
-      }
-
-      // 方法2: 如果RPC失败，尝试直接查询信息模式
-      if (!examScopeColumnExists) {
-        try {
-          const { data, error } = await supabase
-            .from("information_schema.columns")
-            .select("column_name")
-            .eq("table_name", "grade_data")
-            .eq("column_name", "exam_scope")
-            .eq("table_schema", "public");
-
-          if (!error && data && data.length > 0) {
-            console.log("通过information_schema确认exam_scope字段已存在");
-            examScopeColumnExists = true;
-          }
-        } catch (queryError) {
-          console.log("information_schema查询失败，尝试最后方法");
-        }
-      }
-
-      // 方法3: 如果前两种方法都失败，尝试直接执行添加列，并通过错误判断列是否存在
-      if (!examScopeColumnExists) {
-        try {
-          // 尝试执行添加列的SQL
-          const addColumnSQL = `
-            ALTER TABLE grade_data ADD COLUMN exam_scope TEXT DEFAULT 'class';
-            COMMENT ON COLUMN grade_data.exam_scope IS '考试范围，继承自exams表';
-          `;
-
-          const { data, error } = await supabase.rpc("exec_sql", {
-            sql_query: addColumnSQL,
-          });
-
-          // 如果没有错误，说明列成功添加
-          if (!error) {
-            console.log("成功添加exam_scope字段");
-            return { success: true, modified: true };
-          }
-
-          // 如果错误是"列已存在"，实际上是成功的情况
-          if (
-            error &&
-            error.message &&
-            (error.message.includes("already exists") ||
-              error.code === "42701" ||
-              error.message.includes("已经存在"))
-          ) {
-            console.log("根据错误信息判断exam_scope字段已存在");
-            examScopeColumnExists = true;
-          } else {
-            // 其他错误情况，记录详细信息
-            console.error("添加exam_scope字段错误:", error);
-
-            // 检查一下错误是否包含额外信息
-            if (error.details) {
-              console.error("错误详情:", error.details);
-            }
-            if (error.hint) {
-              console.error("错误提示:", error.hint);
-            }
-
-            // 尝试一下另一种更直接的方式添加列
-            try {
-              const { data: directData, error: directError } = await supabase
-                .from("grade_data")
-                .select("count(*)")
-                .limit(1);
-
-              if (!directError) {
-                // 表存在且可以访问，但可能无法修改结构
-                return {
-                  success: false,
-                  message: "无法自动添加exam_scope字段，请手动执行SQL",
-                  sql: addColumnSQL,
-                };
-              }
-            } catch (directQueryError) {
-              console.error("直接查询grade_data表失败:", directQueryError);
-            }
-
-            throw error;
-          }
-        } catch (execError) {
-          console.error("尝试添加列失败，无法确定列是否存在:", execError);
-        }
-      }
-
-      // 如果通过任何方法确认列已存在
-      if (examScopeColumnExists) {
-        console.log("grade_data表结构正常，exam_scope字段已存在");
-        return { success: true, modified: false };
-      }
-
-      // 如果到这里，说明所有自动方法都失败了，提供SQL脚本供手动执行
-      console.warn("无法确认或添加exam_scope字段，需要手动执行SQL");
-      return {
-        success: false,
-        message: "grade_data表缺少exam_scope字段，自动修复失败",
-        sql: `
-        -- 添加exam_scope字段到grade_data表
-        DO $$
-        BEGIN
-          BEGIN
-            ALTER TABLE grade_data ADD COLUMN exam_scope TEXT DEFAULT 'class';
-            COMMENT ON COLUMN grade_data.exam_scope IS '考试范围，继承自exams表';
-            RAISE NOTICE 'exam_scope字段已添加';
-          EXCEPTION WHEN duplicate_column THEN
-            RAISE NOTICE 'exam_scope字段已存在，无需添加';
-          END;
-        END $$;
-        `,
-      };
-    } catch (error) {
-      console.error("修复grade_data表出错:", error);
-      return {
-        success: false,
-        error,
-        message: `修复grade_data表出错: ${error instanceof Error ? error.message : "未知错误"}`,
-      };
-    }
+    console.warn("[DEPRECATED] fixGradeDataTable() 已废弃。");
+    return { success: true };
   },
 
-  /**
-   * 创建或修复数据库辅助函数
-   */
+  /** @deprecated 安全敏感：不再从前端授予 exec_sql 权限。 */
   async createHelperFunctions() {
-    try {
-      console.log("正在创建数据库辅助函数...");
-      const { data, error } = await supabase.rpc("exec_sql", {
-        sql_query: `
-        -- 创建检查列是否存在的函数
-        CREATE OR REPLACE FUNCTION public.has_column(table_name text, column_name text)
-        RETURNS boolean AS $$
-        DECLARE
-          column_exists boolean;
-        BEGIN
-          SELECT EXISTS (
-            SELECT FROM information_schema.columns 
-            WHERE table_name = $1
-            AND column_name = $2
-          ) INTO column_exists;
-          
-          RETURN column_exists;
-        END;
-        $$ LANGUAGE plpgsql SECURITY DEFINER;
-
-        -- 创建安全的SQL执行函数
-        CREATE OR REPLACE FUNCTION public.exec_sql(sql_query text)
-        RETURNS text AS $$
-        BEGIN
-          EXECUTE sql_query;
-          RETURN 'SQL executed successfully';
-        EXCEPTION WHEN OTHERS THEN
-          RETURN 'SQL执行失败: ' || SQLERRM;
-        END;
-        $$ LANGUAGE plpgsql SECURITY DEFINER;
-
-        -- 为RPC函数添加注释
-        COMMENT ON FUNCTION public.has_column IS '检查指定表中是否存在某列';
-        COMMENT ON FUNCTION public.exec_sql IS '安全地执行动态SQL语句，用于系统维护';
-
-        -- 设置适当的权限
-        GRANT EXECUTE ON FUNCTION public.has_column TO authenticated;
-        GRANT EXECUTE ON FUNCTION public.exec_sql TO authenticated;
-        `,
-      });
-
-      if (error) {
-        // 如果exec_sql函数不存在，我们可能需要直接执行SQL
-        console.error(
-          "创建辅助函数失败，可能需要在Supabase Studio手动执行SQL。错误:",
-          error
-        );
-        return { success: false, error };
-      }
-
-      return { success: true };
-    } catch (error) {
-      console.error("创建辅助函数出错:", error);
-      return { success: false, error };
-    }
+    console.warn("[DEPRECATED] createHelperFunctions() 已废弃。");
+    return { success: true };
   },
 
-  /**
-   * 修复所有表结构
-   */
+  /** @deprecated Schema 由 supabase/migrations/ 管理。 */
   async fixAllTables() {
-    const results = {
-      helperFunctions: false,
-      examsTable: false,
-      gradeDataTable: false,
-      gradeDataColumns: false,
-      errors: [],
-    };
-
-    try {
-      // 1. 创建辅助函数
-      const helperResult = await this.createHelperFunctions();
-      results.helperFunctions = helperResult.success;
-      if (!helperResult.success) {
-        results.errors.push("创建辅助函数失败");
-      }
-
-      // 2. 修复exams表
-      const examsResult = await this.checkAndFixExamsTable();
-      results.examsTable = examsResult.success;
-      if (!examsResult.success) {
-        results.errors.push("修复exams表失败");
-      }
-
-      // 3. 修复grade_data表
-      const gradeDataResult = await this.fixGradeDataTable();
-      results.gradeDataTable = gradeDataResult.success;
-      if (!gradeDataResult.success) {
-        results.errors.push("修复grade_data表失败");
-      }
-
-      // 4. 一次性检查并修复grade_data表的所有列
-      const columnsResult = await this.ensureAllRequiredColumns();
-      results.gradeDataColumns = columnsResult.success;
-      if (!columnsResult.success) {
-        results.errors.push("修复grade_data表字段失败");
-      }
-
-      // 5. 特别检查rank_in_school字段（如果通用检查失败）
-      if (
-        !columnsResult.success ||
-        !columnsResult.details?.rank_in_school?.exists
-      ) {
-        const rankInSchoolResult = await this.checkAndFixRankInSchoolColumn();
-        if (!rankInSchoolResult.success) {
-          results.errors.push("添加rank_in_school字段失败");
-        }
-      }
-
-      return {
-        success:
-          results.helperFunctions &&
-          results.examsTable &&
-          results.gradeDataTable &&
-          results.gradeDataColumns,
-        results,
-        error: results.errors.length > 0 ? results.errors.join("; ") : null,
-      };
-    } catch (error) {
-      console.error("修复表结构失败:", error);
-      return {
-        success: false,
-        results,
-        error: error instanceof Error ? error.message : "未知错误",
-      };
-    }
+    console.warn("[DEPRECATED] fixAllTables() 已废弃。");
+    return { success: true };
   },
 
-  /**
-   * 删除指定考试及相关成绩数据
-   * @param examId 考试ID
-   * @returns 删除结果
-   */
   async deleteExam(
     examId: string
   ): Promise<{ success: boolean; error?: any; message?: string }> {
@@ -2291,1233 +1316,103 @@ export const gradeAnalysisService = {
     }
   },
 
-  /**
-   * 修复exams表添加scope字段
-   */
+  /** @deprecated Schema 由 supabase/migrations/ 管理。 */
   async fixExamsTable() {
-    try {
-      console.log("正在检查exams表是否需要修复...");
-      // 先检查辅助函数是否存在，如果不存在则创建
-      try {
-        const { data: hasColumnExists } = await supabase.rpc("has_column", {
-          table_name: "exams",
-          column_name: "id",
-        });
-      } catch (error) {
-        // 如果函数不存在，先创建辅助函数
-        console.log("辅助函数不存在，正在创建...");
-        await this.createHelperFunctions();
-      }
-
-      // 检查scope字段是否存在
-      const { data: hasScopeColumn, error: checkError } = await supabase.rpc(
-        "has_column",
-        {
-          table_name: "exams",
-          column_name: "scope",
-        }
-      );
-
-      if (checkError) {
-        console.error("检查scope字段失败:", checkError);
-        return { success: false, error: checkError };
-      }
-
-      // 如果字段不存在，添加它
-      if (!hasScopeColumn) {
-        console.log("scope字段不存在，正在添加...");
-        const { data, error } = await supabase.rpc("exec_sql", {
-          sql_query: `
-          ALTER TABLE exams ADD COLUMN scope TEXT DEFAULT 'class' NOT NULL;
-          COMMENT ON COLUMN exams.scope IS '考试范围，可以是班级(class)或年级(grade)级别';
-          `,
-        });
-
-        if (error) {
-          console.error("添加scope字段失败:", error);
-          return { success: false, error };
-        }
-
-        console.log("成功添加scope字段");
-        return { success: true, modified: true };
-      }
-
-      console.log("exams表结构正常，scope字段已存在");
-      return { success: true, modified: false };
-    } catch (error) {
-      console.error("修复exams表出错:", error);
-      return { success: false, error };
-    }
+    console.warn(
+      "[DEPRECATED] fixExamsTable() 已废弃，请使用 supabase/migrations/ 管理 schema。"
+    );
+    return {
+      success: true,
+      message: "Schema 由 Supabase migrations 管理，无需手动修复。",
+    };
   },
 
-  /**
-   * 检查grade_data表是否有grade字段，并在需要时添加
-   */
+  /** @deprecated Schema 由 supabase/migrations/ 管理。 */
   async checkAndFixGradeColumn() {
-    try {
-      console.log("开始检查grade_data表的grade字段...");
-
-      // 首先检查表是否存在
-      const tableExists = await checkTableExists("grade_data");
-      if (!tableExists) {
-        console.log("grade_data表不存在，需要先创建表");
-        return {
-          success: false,
-          message: "grade_data表不存在，请先初始化数据库",
-          needsCreation: true,
-        };
-      }
-
-      // 标记字段是否已经验证存在
-      let gradeColumnExists = false;
-
-      // 方法1: 尝试使用RPC函数检查
-      try {
-        const { data: hasGradeColumn, error: checkError } = await supabase.rpc(
-          "has_column",
-          {
-            table_name: "grade_data",
-            column_name: "grade",
-          }
-        );
-
-        if (!checkError && hasGradeColumn === true) {
-          console.log("使用RPC确认grade字段已存在");
-          gradeColumnExists = true;
-        }
-      } catch (rpcError) {
-        console.log("RPC函数不存在或调用失败，尝试备选方法");
-      }
-
-      // 方法2: 如果RPC失败，尝试直接查询信息模式
-      if (!gradeColumnExists) {
-        try {
-          const { data, error } = await supabase
-            .from("information_schema.columns")
-            .select("column_name")
-            .eq("table_name", "grade_data")
-            .eq("column_name", "grade")
-            .eq("table_schema", "public");
-
-          if (!error && data && data.length > 0) {
-            console.log("通过information_schema确认grade字段已存在");
-            gradeColumnExists = true;
-          }
-        } catch (queryError) {
-          console.log("information_schema查询失败，尝试最后方法");
-        }
-      }
-
-      // 方法3: 如果前两种方法都失败，尝试直接执行添加列，并通过错误判断列是否存在
-      if (!gradeColumnExists) {
-        try {
-          // 尝试执行添加列的SQL
-          const addColumnSQL = `
-            ALTER TABLE grade_data ADD COLUMN grade TEXT;
-            COMMENT ON COLUMN grade_data.grade IS '等级评定';
-          `;
-
-          const { data, error } = await supabase.rpc("exec_sql", {
-            sql_query: addColumnSQL,
-          });
-
-          // 如果没有错误，说明列成功添加
-          if (!error) {
-            console.log("成功添加grade字段");
-            return { success: true, modified: true };
-          }
-
-          // 如果错误是"列已存在"，实际上是成功的情况
-          if (
-            error &&
-            error.message &&
-            (error.message.includes("already exists") ||
-              error.code === "42701" ||
-              error.message.includes("已经存在"))
-          ) {
-            console.log("根据错误信息判断grade字段已存在");
-            gradeColumnExists = true;
-          } else {
-            // 其他错误情况，记录详细信息
-            console.error("添加grade字段错误:", error);
-
-            // 检查一下错误是否包含额外信息
-            if (error.details) {
-              console.error("错误详情:", error.details);
-            }
-            if (error.hint) {
-              console.error("错误提示:", error.hint);
-            }
-
-            throw error;
-          }
-        } catch (execError) {
-          console.error("尝试添加列失败，无法确定列是否存在:", execError);
-        }
-      }
-
-      // 如果通过任何方法确认列已存在
-      if (gradeColumnExists) {
-        console.log("grade_data表结构正常，grade字段已存在");
-        return { success: true, modified: false };
-      }
-
-      // 如果到这里，说明所有自动方法都失败了，提供SQL脚本供手动执行
-      console.warn("无法确认或添加grade字段，需要手动执行SQL");
-      return {
-        success: false,
-        message: "grade_data表缺少grade字段，自动修复失败",
-        sql: `
-        -- 添加grade字段到grade_data表
-        DO $$
-        BEGIN
-          BEGIN
-            ALTER TABLE grade_data ADD COLUMN grade TEXT;
-            COMMENT ON COLUMN grade_data.grade IS '等级评定';
-            RAISE NOTICE 'grade字段已添加';
-          EXCEPTION WHEN duplicate_column THEN
-            RAISE NOTICE 'grade字段已存在，无需添加';
-          END;
-        END $$;
-        `,
-      };
-    } catch (error) {
-      console.error("检查grade字段出错:", error);
-      return {
-        success: false,
-        error,
-        message: `检查grade字段出错: ${error instanceof Error ? error.message : "未知错误"}`,
-      };
-    }
+    console.warn(
+      "[DEPRECATED] checkAndFixGradeColumn() 已废弃，请使用 supabase/migrations/ 管理 schema。"
+    );
+    return {
+      success: true,
+      message: "Schema 由 Supabase migrations 管理，无需手动修复。",
+    };
   },
 
-  /**
-   * 检查grade_data表是否有import_strategy字段，并在需要时添加
-   */
+  /** @deprecated Schema 由 supabase/migrations/ 管理。 */
   async checkAndFixImportStrategyColumn() {
-    try {
-      console.log("开始检查grade_data表的import_strategy字段...");
-
-      // 首先检查表是否存在
-      const tableExists = await checkTableExists("grade_data");
-      if (!tableExists) {
-        console.log("grade_data表不存在，需要先创建表");
-        return {
-          success: false,
-          message: "grade_data表不存在，请先初始化数据库",
-          needsCreation: true,
-        };
-      }
-
-      // 标记字段是否已经验证存在
-      let importStrategyColumnExists = false;
-
-      // 方法1: 尝试使用RPC函数检查
-      try {
-        const { data: hasColumn, error: checkError } = await supabase.rpc(
-          "has_column",
-          {
-            table_name: "grade_data",
-            column_name: "import_strategy",
-          }
-        );
-
-        if (!checkError && hasColumn === true) {
-          console.log("使用RPC确认import_strategy字段已存在");
-          importStrategyColumnExists = true;
-        }
-      } catch (rpcError) {
-        console.log("RPC函数不存在或调用失败，尝试备选方法");
-      }
-
-      // 方法2: 如果RPC失败，尝试直接查询信息模式
-      if (!importStrategyColumnExists) {
-        try {
-          const { data, error } = await supabase
-            .from("information_schema.columns")
-            .select("column_name")
-            .eq("table_name", "grade_data")
-            .eq("column_name", "import_strategy")
-            .eq("table_schema", "public");
-
-          if (!error && data && data.length > 0) {
-            console.log("通过information_schema确认import_strategy字段已存在");
-            importStrategyColumnExists = true;
-          }
-        } catch (queryError) {
-          console.log("information_schema查询失败，尝试最后方法");
-        }
-      }
-
-      // 方法3: 如果前两种方法都失败，尝试直接执行添加列，并通过错误判断列是否存在
-      if (!importStrategyColumnExists) {
-        try {
-          // 尝试执行添加列的SQL
-          const addColumnSQL = `
-            ALTER TABLE grade_data ADD COLUMN import_strategy TEXT;
-            COMMENT ON COLUMN grade_data.import_strategy IS '数据导入策略';
-          `;
-
-          const { data, error } = await supabase.rpc("exec_sql", {
-            sql_query: addColumnSQL,
-          });
-
-          // 如果没有错误，说明列成功添加
-          if (!error) {
-            console.log("成功添加import_strategy字段");
-            return { success: true, modified: true };
-          }
-
-          // 如果错误是"列已存在"，实际上是成功的情况
-          if (
-            error &&
-            error.message &&
-            (error.message.includes("already exists") ||
-              error.code === "42701" ||
-              error.message.includes("已经存在"))
-          ) {
-            console.log("根据错误信息判断import_strategy字段已存在");
-            importStrategyColumnExists = true;
-          } else {
-            // 其他错误情况，记录详细信息
-            console.error("添加import_strategy字段错误:", error);
-
-            // 检查一下错误是否包含额外信息
-            if (error.details) {
-              console.error("错误详情:", error.details);
-            }
-            if (error.hint) {
-              console.error("错误提示:", error.hint);
-            }
-
-            throw error;
-          }
-        } catch (execError) {
-          console.error("尝试添加列失败，无法确定列是否存在:", execError);
-        }
-      }
-
-      // 如果通过任何方法确认列已存在
-      if (importStrategyColumnExists) {
-        console.log("grade_data表结构正常，import_strategy字段已存在");
-        return { success: true, modified: false };
-      }
-
-      // 如果到这里，说明所有自动方法都失败了，提供SQL脚本供手动执行
-      console.warn("无法确认或添加import_strategy字段，需要手动执行SQL");
-      return {
-        success: false,
-        message: "grade_data表缺少import_strategy字段，自动修复失败",
-        sql: `
-        -- 添加import_strategy字段到grade_data表
-        DO $$
-        BEGIN
-          BEGIN
-            ALTER TABLE grade_data ADD COLUMN import_strategy TEXT;
-            COMMENT ON COLUMN grade_data.import_strategy IS '数据导入策略';
-            RAISE NOTICE 'import_strategy字段已添加';
-          EXCEPTION WHEN duplicate_column THEN
-            RAISE NOTICE 'import_strategy字段已存在，无需添加';
-          END;
-        END $$;
-        `,
-      };
-    } catch (error) {
-      console.error("检查import_strategy字段出错:", error);
-      return {
-        success: false,
-        error,
-        message: `检查import_strategy字段出错: ${error instanceof Error ? error.message : "未知错误"}`,
-      };
-    }
+    console.warn(
+      "[DEPRECATED] checkAndFixImportStrategyColumn() 已废弃，请使用 supabase/migrations/ 管理 schema。"
+    );
+    return {
+      success: true,
+      message: "Schema 由 Supabase migrations 管理，无需手动修复。",
+    };
   },
 
-  /**
-   * 检查grade_data表是否有match_type字段，并在需要时添加
-   */
+  /** @deprecated Schema 由 supabase/migrations/ 管理。 */
   async checkAndFixMatchTypeColumn() {
-    try {
-      console.log("开始检查grade_data表的match_type字段...");
-
-      // 首先检查表是否存在
-      const tableExists = await checkTableExists("grade_data");
-      if (!tableExists) {
-        console.log("grade_data表不存在，需要先创建表");
-        return {
-          success: false,
-          message: "grade_data表不存在，请先初始化数据库",
-          needsCreation: true,
-        };
-      }
-
-      // 标记字段是否已经验证存在
-      let matchTypeColumnExists = false;
-
-      // 方法1: 尝试使用RPC函数检查
-      try {
-        const { data: hasColumn, error: checkError } = await supabase.rpc(
-          "has_column",
-          {
-            table_name: "grade_data",
-            column_name: "match_type",
-          }
-        );
-
-        if (!checkError && hasColumn === true) {
-          console.log("使用RPC确认match_type字段已存在");
-          matchTypeColumnExists = true;
-        }
-      } catch (rpcError) {
-        console.log("RPC函数不存在或调用失败，尝试备选方法");
-      }
-
-      // 方法2: 如果RPC失败，尝试直接查询信息模式
-      if (!matchTypeColumnExists) {
-        try {
-          const { data, error } = await supabase
-            .from("information_schema.columns")
-            .select("column_name")
-            .eq("table_name", "grade_data")
-            .eq("column_name", "match_type")
-            .eq("table_schema", "public");
-
-          if (!error && data && data.length > 0) {
-            console.log("通过information_schema确认match_type字段已存在");
-            matchTypeColumnExists = true;
-          }
-        } catch (queryError) {
-          console.log("information_schema查询失败，尝试最后方法");
-        }
-      }
-
-      // 方法3: 如果前两种方法都失败，尝试直接执行添加列，并通过错误判断列是否存在
-      if (!matchTypeColumnExists) {
-        try {
-          // 尝试执行添加列的SQL
-          const addColumnSQL = `
-            ALTER TABLE grade_data ADD COLUMN match_type TEXT;
-            COMMENT ON COLUMN grade_data.match_type IS '学生匹配类型，例如id、name_class、name等';
-          `;
-
-          const { data, error } = await supabase.rpc("exec_sql", {
-            sql_query: addColumnSQL,
-          });
-
-          // 如果没有错误，说明列成功添加
-          if (!error) {
-            console.log("成功添加match_type字段");
-            return { success: true, modified: true };
-          }
-
-          // 如果错误是"列已存在"，实际上是成功的情况
-          if (
-            error &&
-            error.message &&
-            (error.message.includes("already exists") ||
-              error.code === "42701" ||
-              error.message.includes("已经存在"))
-          ) {
-            console.log("根据错误信息判断match_type字段已存在");
-            matchTypeColumnExists = true;
-          } else {
-            // 其他错误情况，记录详细信息
-            console.error("添加match_type字段错误:", error);
-
-            // 检查一下错误是否包含额外信息
-            if (error.details) {
-              console.error("错误详情:", error.details);
-            }
-            if (error.hint) {
-              console.error("错误提示:", error.hint);
-            }
-
-            throw error;
-          }
-        } catch (execError) {
-          console.error("尝试添加列失败，无法确定列是否存在:", execError);
-        }
-      }
-
-      // 如果通过任何方法确认列已存在
-      if (matchTypeColumnExists) {
-        console.log("grade_data表结构正常，match_type字段已存在");
-        return { success: true, modified: false };
-      }
-
-      // 如果到这里，说明所有自动方法都失败了，提供SQL脚本供手动执行
-      console.warn("无法确认或添加match_type字段，需要手动执行SQL");
-      return {
-        success: false,
-        message: "grade_data表缺少match_type字段，自动修复失败",
-        sql: `
-        -- 添加match_type字段到grade_data表
-        DO $$
-        BEGIN
-          BEGIN
-            ALTER TABLE grade_data ADD COLUMN match_type TEXT;
-            COMMENT ON COLUMN grade_data.match_type IS '学生匹配类型，例如id、name_class、name等';
-            RAISE NOTICE 'match_type字段已添加';
-          EXCEPTION WHEN duplicate_column THEN
-            RAISE NOTICE 'match_type字段已存在，无需添加';
-          END;
-        END $$;
-        `,
-      };
-    } catch (error) {
-      console.error("检查match_type字段出错:", error);
-      return {
-        success: false,
-        error,
-        message: `检查match_type字段出错: ${error instanceof Error ? error.message : "未知错误"}`,
-      };
-    }
+    console.warn(
+      "[DEPRECATED] checkAndFixMatchTypeColumn() 已废弃，请使用 supabase/migrations/ 管理 schema。"
+    );
+    return {
+      success: true,
+      message: "Schema 由 Supabase migrations 管理，无需手动修复。",
+    };
   },
 
-  /**
-   * 检查grade_data表是否有multiple_matches字段，并在需要时添加
-   */
+  /** @deprecated Schema 由 supabase/migrations/ 管理。 */
   async checkAndFixMultipleMatchesColumn() {
-    try {
-      console.log("开始检查grade_data表的multiple_matches字段...");
-
-      // 首先检查表是否存在
-      const tableExists = await checkTableExists("grade_data");
-      if (!tableExists) {
-        console.log("grade_data表不存在，需要先创建表");
-        return {
-          success: false,
-          message: "grade_data表不存在，请先初始化数据库",
-          needsCreation: true,
-        };
-      }
-
-      // 标记字段是否已经验证存在
-      let multipleMatchesColumnExists = false;
-
-      // 方法1: 尝试使用RPC函数检查
-      try {
-        const { data: hasColumn, error: checkError } = await supabase.rpc(
-          "has_column",
-          {
-            table_name: "grade_data",
-            column_name: "multiple_matches",
-          }
-        );
-
-        if (!checkError && hasColumn === true) {
-          console.log("使用RPC确认multiple_matches字段已存在");
-          multipleMatchesColumnExists = true;
-        }
-      } catch (rpcError) {
-        console.log("RPC函数不存在或调用失败，尝试备选方法");
-      }
-
-      // 方法2: 如果RPC失败，尝试直接查询信息模式
-      if (!multipleMatchesColumnExists) {
-        try {
-          const { data, error } = await supabase
-            .from("information_schema.columns")
-            .select("column_name")
-            .eq("table_name", "grade_data")
-            .eq("column_name", "multiple_matches")
-            .eq("table_schema", "public");
-
-          if (!error && data && data.length > 0) {
-            console.log("通过information_schema确认multiple_matches字段已存在");
-            multipleMatchesColumnExists = true;
-          }
-        } catch (queryError) {
-          console.log("information_schema查询失败，尝试最后方法");
-        }
-      }
-
-      // 方法3: 如果前两种方法都失败，尝试直接执行添加列，并通过错误判断列是否存在
-      if (!multipleMatchesColumnExists) {
-        try {
-          // 尝试执行添加列的SQL
-          const addColumnSQL = `
-            ALTER TABLE grade_data ADD COLUMN multiple_matches BOOLEAN DEFAULT false;
-            COMMENT ON COLUMN grade_data.multiple_matches IS '是否存在多个匹配结果';
-          `;
-
-          const { data, error } = await supabase.rpc("exec_sql", {
-            sql_query: addColumnSQL,
-          });
-
-          // 如果没有错误，说明列成功添加
-          if (!error) {
-            console.log("成功添加multiple_matches字段");
-            return { success: true, modified: true };
-          }
-
-          // 如果错误是"列已存在"，实际上是成功的情况
-          if (
-            error &&
-            error.message &&
-            (error.message.includes("already exists") ||
-              error.code === "42701" ||
-              error.message.includes("已经存在"))
-          ) {
-            console.log("根据错误信息判断multiple_matches字段已存在");
-            multipleMatchesColumnExists = true;
-          } else {
-            // 其他错误情况，记录详细信息
-            console.error("添加multiple_matches字段错误:", error);
-
-            // 检查一下错误是否包含额外信息
-            if (error.details) {
-              console.error("错误详情:", error.details);
-            }
-            if (error.hint) {
-              console.error("错误提示:", error.hint);
-            }
-
-            throw error;
-          }
-        } catch (execError) {
-          console.error("尝试添加列失败，无法确定列是否存在:", execError);
-        }
-      }
-
-      // 如果通过任何方法确认列已存在
-      if (multipleMatchesColumnExists) {
-        console.log("grade_data表结构正常，multiple_matches字段已存在");
-        return { success: true, modified: false };
-      }
-
-      // 如果到这里，说明所有自动方法都失败了，提供SQL脚本供手动执行
-      console.warn("无法确认或添加multiple_matches字段，需要手动执行SQL");
-      return {
-        success: false,
-        message: "grade_data表缺少multiple_matches字段，自动修复失败",
-        sql: `
-        -- 添加multiple_matches字段到grade_data表
-        DO $$
-        BEGIN
-          BEGIN
-            ALTER TABLE grade_data ADD COLUMN multiple_matches BOOLEAN DEFAULT false;
-            COMMENT ON COLUMN grade_data.multiple_matches IS '是否存在多个匹配结果';
-            RAISE NOTICE 'multiple_matches字段已添加';
-          EXCEPTION WHEN duplicate_column THEN
-            RAISE NOTICE 'multiple_matches字段已存在，无需添加';
-          END;
-        END $$;
-        `,
-      };
-    } catch (error) {
-      console.error("检查multiple_matches字段出错:", error);
-      return {
-        success: false,
-        error,
-        message: `检查multiple_matches字段出错: ${error instanceof Error ? error.message : "未知错误"}`,
-      };
-    }
+    console.warn(
+      "[DEPRECATED] checkAndFixMultipleMatchesColumn() 已废弃，请使用 supabase/migrations/ 管理 schema。"
+    );
+    return {
+      success: true,
+      message: "Schema 由 Supabase migrations 管理，无需手动修复。",
+    };
   },
 
-  /**
-   * 检查grade_data表是否有rank_in_class字段，并在需要时添加
-   */
+  /** @deprecated Schema 由 supabase/migrations/ 管理。 */
   async checkAndFixRankInClassColumn() {
-    try {
-      console.log("开始检查grade_data表的rank_in_class字段...");
-
-      // 首先检查表是否存在
-      const tableExists = await checkTableExists("grade_data");
-      if (!tableExists) {
-        console.log("grade_data表不存在，需要先创建表");
-        return {
-          success: false,
-          message: "grade_data表不存在，请先初始化数据库",
-          needsCreation: true,
-        };
-      }
-
-      // 标记字段是否已经验证存在
-      let rankInClassColumnExists = false;
-
-      // 方法1: 尝试使用RPC函数检查
-      try {
-        const { data: hasColumn, error: checkError } = await supabase.rpc(
-          "has_column",
-          {
-            table_name: "grade_data",
-            column_name: "rank_in_class",
-          }
-        );
-
-        if (!checkError && hasColumn === true) {
-          console.log("使用RPC确认rank_in_class字段已存在");
-          rankInClassColumnExists = true;
-        }
-      } catch (rpcError) {
-        console.log("RPC函数不存在或调用失败，尝试备选方法");
-      }
-
-      // 方法2: 如果RPC失败，尝试直接查询信息模式
-      if (!rankInClassColumnExists) {
-        try {
-          const { data, error } = await supabase
-            .from("information_schema.columns")
-            .select("column_name")
-            .eq("table_name", "grade_data")
-            .eq("column_name", "rank_in_class")
-            .eq("table_schema", "public");
-
-          if (!error && data && data.length > 0) {
-            console.log("通过information_schema确认rank_in_class字段已存在");
-            rankInClassColumnExists = true;
-          }
-        } catch (queryError) {
-          console.log("information_schema查询失败，尝试最后方法");
-        }
-      }
-
-      // 方法3: 如果前两种方法都失败，尝试直接执行添加列，并通过错误判断列是否存在
-      if (!rankInClassColumnExists) {
-        try {
-          // 尝试执行添加列的SQL
-          const addColumnSQL = `
-            ALTER TABLE grade_data ADD COLUMN rank_in_class INTEGER;
-            COMMENT ON COLUMN grade_data.rank_in_class IS '班级内排名';
-          `;
-
-          const { data, error } = await supabase.rpc("exec_sql", {
-            sql_query: addColumnSQL,
-          });
-
-          // 如果没有错误，说明列成功添加
-          if (!error) {
-            console.log("成功添加rank_in_class字段");
-            return { success: true, modified: true };
-          }
-
-          // 如果错误是"列已存在"，实际上是成功的情况
-          if (
-            error &&
-            error.message &&
-            (error.message.includes("already exists") ||
-              error.code === "42701" ||
-              error.message.includes("已经存在"))
-          ) {
-            console.log("根据错误信息判断rank_in_class字段已存在");
-            rankInClassColumnExists = true;
-          } else {
-            // 其他错误情况，记录详细信息
-            console.error("添加rank_in_class字段错误:", error);
-
-            // 检查一下错误是否包含额外信息
-            if (error.details) {
-              console.error("错误详情:", error.details);
-            }
-            if (error.hint) {
-              console.error("错误提示:", error.hint);
-            }
-
-            throw error;
-          }
-        } catch (execError) {
-          console.error("尝试添加列失败，无法确定列是否存在:", execError);
-        }
-      }
-
-      // 如果通过任何方法确认列已存在
-      if (rankInClassColumnExists) {
-        console.log("grade_data表结构正常，rank_in_class字段已存在");
-        return { success: true, modified: false };
-      }
-
-      // 如果到这里，说明所有自动方法都失败了，提供SQL脚本供手动执行
-      console.warn("无法确认或添加rank_in_class字段，需要手动执行SQL");
-      return {
-        success: false,
-        message: "grade_data表缺少rank_in_class字段，自动修复失败",
-        sql: `
-        -- 添加rank_in_class字段到grade_data表
-        DO $$
-        BEGIN
-          BEGIN
-            ALTER TABLE grade_data ADD COLUMN rank_in_class INTEGER;
-            COMMENT ON COLUMN grade_data.rank_in_class IS '班级内排名';
-            RAISE NOTICE 'rank_in_class字段已添加';
-          EXCEPTION WHEN duplicate_column THEN
-            RAISE NOTICE 'rank_in_class字段已存在，无需添加';
-          END;
-        END $$;
-        `,
-      };
-    } catch (error) {
-      console.error("检查rank_in_class字段出错:", error);
-      return {
-        success: false,
-        error,
-        message: `检查rank_in_class字段出错: ${error instanceof Error ? error.message : "未知错误"}`,
-      };
-    }
+    console.warn(
+      "[DEPRECATED] checkAndFixRankInClassColumn() 已废弃，请使用 supabase/migrations/ 管理 schema。"
+    );
+    return {
+      success: true,
+      message: "Schema 由 Supabase migrations 管理，无需手动修复。",
+    };
   },
 
-  /**
-   * 检查grade_data表是否有rank_in_grade字段，并在需要时添加
-   */
+  /** @deprecated Schema 由 supabase/migrations/ 管理。 */
   async checkAndFixRankInGradeColumn() {
-    try {
-      console.log("开始检查grade_data表的rank_in_grade字段...");
-
-      // 首先检查表是否存在
-      const tableExists = await checkTableExists("grade_data");
-      if (!tableExists) {
-        console.log("grade_data表不存在，需要先创建表");
-        return {
-          success: false,
-          message: "grade_data表不存在，请先初始化数据库",
-          needsCreation: true,
-        };
-      }
-
-      // 标记字段是否已经验证存在
-      let rankInGradeColumnExists = false;
-
-      // 方法1: 尝试使用RPC函数检查
-      try {
-        const { data: hasColumn, error: checkError } = await supabase.rpc(
-          "has_column",
-          {
-            table_name: "grade_data",
-            column_name: "rank_in_grade",
-          }
-        );
-
-        if (!checkError && hasColumn === true) {
-          console.log("使用RPC确认rank_in_grade字段已存在");
-          rankInGradeColumnExists = true;
-        }
-      } catch (rpcError) {
-        console.log("RPC函数不存在或调用失败，尝试备选方法");
-      }
-
-      // 方法2: 如果RPC失败，尝试直接查询信息模式
-      if (!rankInGradeColumnExists) {
-        try {
-          const { data, error } = await supabase
-            .from("information_schema.columns")
-            .select("column_name")
-            .eq("table_name", "grade_data")
-            .eq("column_name", "rank_in_grade")
-            .eq("table_schema", "public");
-
-          if (!error && data && data.length > 0) {
-            console.log("通过information_schema确认rank_in_grade字段已存在");
-            rankInGradeColumnExists = true;
-          }
-        } catch (queryError) {
-          console.log("information_schema查询失败，尝试最后方法");
-        }
-      }
-
-      // 方法3: 如果前两种方法都失败，尝试直接执行添加列，并通过错误判断列是否存在
-      if (!rankInGradeColumnExists) {
-        try {
-          // 尝试执行添加列的SQL
-          const addColumnSQL = `
-            ALTER TABLE grade_data ADD COLUMN rank_in_grade INTEGER;
-            COMMENT ON COLUMN grade_data.rank_in_grade IS '年级内排名';
-          `;
-
-          const { data, error } = await supabase.rpc("exec_sql", {
-            sql_query: addColumnSQL,
-          });
-
-          // 如果没有错误，说明列成功添加
-          if (!error) {
-            console.log("成功添加rank_in_grade字段");
-            return { success: true, modified: true };
-          }
-
-          // 如果错误是"列已存在"，实际上是成功的情况
-          if (
-            error &&
-            error.message &&
-            (error.message.includes("already exists") ||
-              error.code === "42701" ||
-              error.message.includes("已经存在"))
-          ) {
-            console.log("根据错误信息判断rank_in_grade字段已存在");
-            rankInGradeColumnExists = true;
-          } else {
-            // 其他错误情况，记录详细信息
-            console.error("添加rank_in_grade字段错误:", error);
-
-            // 检查一下错误是否包含额外信息
-            if (error.details) {
-              console.error("错误详情:", error.details);
-            }
-            if (error.hint) {
-              console.error("错误提示:", error.hint);
-            }
-
-            throw error;
-          }
-        } catch (execError) {
-          console.error("尝试添加列失败，无法确定列是否存在:", execError);
-        }
-      }
-
-      // 如果通过任何方法确认列已存在
-      if (rankInGradeColumnExists) {
-        console.log("grade_data表结构正常，rank_in_grade字段已存在");
-        return { success: true, modified: false };
-      }
-
-      // 如果到这里，说明所有自动方法都失败了，提供SQL脚本供手动执行
-      console.warn("无法确认或添加rank_in_grade字段，需要手动执行SQL");
-      return {
-        success: false,
-        message: "grade_data表缺少rank_in_grade字段，自动修复失败",
-        sql: `
-        -- 添加rank_in_grade字段到grade_data表
-        DO $$
-        BEGIN
-          BEGIN
-            ALTER TABLE grade_data ADD COLUMN rank_in_grade INTEGER;
-            COMMENT ON COLUMN grade_data.rank_in_grade IS '年级内排名';
-            RAISE NOTICE 'rank_in_grade字段已添加';
-          EXCEPTION WHEN duplicate_column THEN
-            RAISE NOTICE 'rank_in_grade字段已存在，无需添加';
-          END;
-        END $$;
-        `,
-      };
-    } catch (error) {
-      console.error("检查rank_in_grade字段出错:", error);
-      return {
-        success: false,
-        error,
-        message: `检查rank_in_grade字段出错: ${error instanceof Error ? error.message : "未知错误"}`,
-      };
-    }
+    console.warn(
+      "[DEPRECATED] checkAndFixRankInGradeColumn() 已废弃，请使用 supabase/migrations/ 管理 schema。"
+    );
+    return {
+      success: true,
+      message: "Schema 由 Supabase migrations 管理，无需手动修复。",
+    };
   },
 
-  /**
-   * 检查grade_data表是否有rank_in_school字段，并在需要时添加
-   */
+  /** @deprecated Schema 由 supabase/migrations/ 管理。 */
   async checkAndFixRankInSchoolColumn() {
-    try {
-      console.log("开始检查grade_data表的rank_in_school字段...");
-
-      // 首先检查表是否存在
-      const tableExists = await checkTableExists("grade_data");
-      if (!tableExists) {
-        console.log("grade_data表不存在，需要先创建表");
-        return {
-          success: false,
-          message: "grade_data表不存在，请先初始化数据库",
-          needsCreation: true,
-        };
-      }
-
-      // 标记字段是否已经验证存在
-      let rankInSchoolColumnExists = false;
-
-      // 方法1: 尝试使用RPC函数检查
-      try {
-        const { data: hasColumn, error: checkError } = await supabase.rpc(
-          "has_column",
-          {
-            table_name: "grade_data",
-            column_name: "rank_in_school",
-          }
-        );
-
-        if (!checkError && hasColumn === true) {
-          console.log("使用RPC确认rank_in_school字段已存在");
-          rankInSchoolColumnExists = true;
-        }
-      } catch (rpcError) {
-        console.log("RPC函数不存在或调用失败，尝试备选方法");
-      }
-
-      // 方法2: 如果RPC失败，尝试直接查询信息模式
-      if (!rankInSchoolColumnExists) {
-        try {
-          const { data, error } = await supabase
-            .from("information_schema.columns")
-            .select("column_name")
-            .eq("table_name", "grade_data")
-            .eq("column_name", "rank_in_school")
-            .eq("table_schema", "public");
-
-          if (!error && data && data.length > 0) {
-            console.log("通过information_schema确认rank_in_school字段已存在");
-            rankInSchoolColumnExists = true;
-          }
-        } catch (queryError) {
-          console.log("information_schema查询失败，尝试最后方法");
-        }
-      }
-
-      // 方法3: 如果前两种方法都失败，尝试直接执行添加列，并通过错误判断列是否存在
-      if (!rankInSchoolColumnExists) {
-        try {
-          // 尝试执行添加列的SQL
-          const addColumnSQL = `
-            ALTER TABLE grade_data ADD COLUMN rank_in_school INTEGER;
-            COMMENT ON COLUMN grade_data.rank_in_school IS '校内排名';
-          `;
-
-          const { data, error } = await supabase.rpc("exec_sql", {
-            sql_query: addColumnSQL,
-          });
-
-          // 如果没有错误，说明列成功添加
-          if (!error) {
-            console.log("成功添加rank_in_school字段");
-            return { success: true, modified: true };
-          }
-
-          // 如果错误是"列已存在"，实际上是成功的情况
-          if (
-            error &&
-            error.message &&
-            (error.message.includes("already exists") ||
-              error.code === "42701" ||
-              error.message.includes("已经存在"))
-          ) {
-            console.log("根据错误信息判断rank_in_school字段已存在");
-            rankInSchoolColumnExists = true;
-          } else {
-            // 其他错误情况，记录详细信息
-            console.error("添加rank_in_school字段错误:", error);
-
-            // 检查一下错误是否包含额外信息
-            if (error.details) {
-              console.error("错误详情:", error.details);
-            }
-            if (error.hint) {
-              console.error("错误提示:", error.hint);
-            }
-
-            throw error;
-          }
-        } catch (execError) {
-          console.error("尝试添加列失败，无法确定列是否存在:", execError);
-        }
-      }
-
-      // 如果通过任何方法确认列已存在
-      if (rankInSchoolColumnExists) {
-        console.log("grade_data表结构正常，rank_in_school字段已存在");
-        return { success: true, modified: false };
-      }
-
-      // 如果到这里，说明所有自动方法都失败了，提供SQL脚本供手动执行
-      console.warn("无法确认或添加rank_in_school字段，需要手动执行SQL");
-      return {
-        success: false,
-        message: "grade_data表缺少rank_in_school字段，自动修复失败",
-        sql: `
-        -- 添加rank_in_school字段到grade_data表
-        DO $$
-        BEGIN
-          BEGIN
-            ALTER TABLE grade_data ADD COLUMN rank_in_school INTEGER;
-            COMMENT ON COLUMN grade_data.rank_in_school IS '校内排名';
-            RAISE NOTICE 'rank_in_school字段已添加';
-          EXCEPTION WHEN duplicate_column THEN
-            RAISE NOTICE 'rank_in_school字段已存在，无需添加';
-          END;
-        END $$;
-        `,
-      };
-    } catch (error) {
-      console.error("检查rank_in_school字段出错:", error);
-      return {
-        success: false,
-        error,
-        message: `检查rank_in_school字段出错: ${error instanceof Error ? error.message : "未知错误"}`,
-      };
-    }
+    console.warn(
+      "[DEPRECATED] checkAndFixRankInSchoolColumn() 已废弃，请使用 supabase/migrations/ 管理 schema。"
+    );
+    return {
+      success: true,
+      message: "Schema 由 Supabase migrations 管理，无需手动修复。",
+    };
   },
 
-  /**
-   * 一次性检查并修复所有可能需要的列
-   * 这是一个更全面的方法，可以防止逐渐发现缺失列的问题
-   */
+  /** @deprecated Schema 由 supabase/migrations/ 管理。 */
   async ensureAllRequiredColumns() {
-    try {
-      console.log("开始全面检查grade_data表的所有必要字段...");
-
-      // 检查表是否存在
-      const tableExists = await checkTableExists("grade_data");
-      if (!tableExists) {
-        console.log("grade_data表不存在，需要先创建表");
-        return {
-          success: false,
-          message: "grade_data表不存在，请先初始化数据库",
-          needsCreation: true,
-        };
-      }
-
-      // 定义所有需要检查的字段列表
-      const requiredColumns = [
-        { name: "score", type: "NUMERIC", comment: "分数值" },
-        { name: "grade", type: "TEXT", comment: "等级评定" },
-        { name: "import_strategy", type: "TEXT", comment: "数据导入策略" },
-        {
-          name: "match_type",
-          type: "TEXT",
-          comment: "学生匹配类型，例如id、name_class、name等",
-        },
-        {
-          name: "multiple_matches",
-          type: "BOOLEAN DEFAULT false",
-          comment: "是否存在多个匹配结果",
-        },
-        { name: "rank_in_class", type: "INTEGER", comment: "班级内排名" },
-        { name: "rank_in_grade", type: "INTEGER", comment: "年级内排名" },
-        { name: "rank_in_school", type: "INTEGER", comment: "校内排名" },
-        {
-          name: "exam_scope",
-          type: "TEXT DEFAULT 'class'",
-          comment: "考试范围，继承自exams表",
-        },
-      ];
-
-      const results = {
-        success: true,
-        modified: false,
-        details: {},
-        message: "所有必要字段检查完成",
-      };
-
-      // 一次性添加所有缺失的列
-      const missingColumns = [];
-
-      // 尝试检查每个列是否存在
-      for (const column of requiredColumns) {
-        let columnExists = false;
-
-        // 尝试方法1: 使用RPC函数
-        try {
-          const { data: hasColumn, error: checkError } = await supabase.rpc(
-            "has_column",
-            {
-              table_name: "grade_data",
-              column_name: column.name,
-            }
-          );
-
-          if (!checkError && hasColumn === true) {
-            console.log(`使用RPC确认${column.name}字段已存在`);
-            columnExists = true;
-            results.details[column.name] = { exists: true, method: "rpc" };
-            continue;
-          }
-        } catch (rpcError) {
-          // RPC可能不可用，继续尝试其他方法
-        }
-
-        // 尝试方法2: 信息模式查询
-        try {
-          const { data, error } = await supabase
-            .from("information_schema.columns")
-            .select("column_name")
-            .eq("table_name", "grade_data")
-            .eq("column_name", column.name)
-            .eq("table_schema", "public");
-
-          if (!error && data && data.length > 0) {
-            console.log(`通过information_schema确认${column.name}字段已存在`);
-            columnExists = true;
-            results.details[column.name] = {
-              exists: true,
-              method: "information_schema",
-            };
-            continue;
-          }
-        } catch (queryError) {
-          // 查询可能失败，继续尝试其他方法
-        }
-
-        // 如果到这里还没确认列存在，就假设它不存在，添加到缺失列表
-        if (!columnExists) {
-          missingColumns.push(column);
-        }
-      }
-
-      // 如果有缺失的列，尝试添加它们
-      if (missingColumns.length > 0) {
-        results.modified = true;
-
-        // 构建SQL脚本来添加所有缺失的列
-        const columnsSQL = missingColumns
-          .map(
-            (col) =>
-              `ALTER TABLE grade_data ADD COLUMN IF NOT EXISTS ${col.name} ${col.type};\n` +
-              `COMMENT ON COLUMN grade_data.${col.name} IS '${col.comment}';`
-          )
-          .join("\n");
-
-        const addColumnsSQL = `
-        DO $$
-        BEGIN
-          ${columnsSQL}
-        END $$;
-        `;
-
-        try {
-          const { data, error } = await supabase.rpc("exec_sql", {
-            sql_query: addColumnsSQL,
-          });
-
-          if (!error) {
-            console.log(
-              `成功添加缺失的字段: ${missingColumns.map((c) => c.name).join(", ")}`
-            );
-
-            missingColumns.forEach((col) => {
-              results.details[col.name] = { exists: false, added: true };
-            });
-          } else {
-            // 即使发生错误，也可能有一些列已成功添加
-            // 这里假设错误是由于某些列已存在导致的
-            console.warn(`添加列时有警告: ${error.message}`);
-
-            missingColumns.forEach((col) => {
-              if (
-                error.message &&
-                error.message.includes(col.name) &&
-                (error.message.includes("already exists") ||
-                  error.code === "42701")
-              ) {
-                results.details[col.name] = {
-                  exists: true,
-                  method: "error_inference",
-                };
-              } else {
-                results.details[col.name] = {
-                  exists: false,
-                  added: true,
-                  warning: true,
-                };
-              }
-            });
-          }
-        } catch (execError) {
-          console.error("执行SQL添加列失败:", execError);
-          results.success = false;
-          results.message = "尝试添加缺失字段时发生错误";
-          return results;
-        }
-      }
-
-      return results;
-    } catch (error) {
-      console.error("检查所有必要字段时出错:", error);
-      return {
-        success: false,
-        error,
-        message: `检查所有必要字段时出错: ${error instanceof Error ? error.message : "未知错误"}`,
-      };
-    }
+    console.warn(
+      "[DEPRECATED] ensureAllRequiredColumns() 已废弃，请使用 supabase/migrations/ 管理 schema。"
+    );
+    return {
+      success: true,
+      message: "Schema 由 Supabase migrations 管理，无需手动修复。",
+    };
   },
 
   /**
@@ -4032,31 +1927,44 @@ export async function getDistinctClassNames(): Promise<string[]> {
  * 1. saveExamData({examName, examDate, examType, examId, data, dataFormat}) - 新的对象参数方式
  * 2. saveExamData(processedData, examInfo, mergeStrategy, options) - 原始参数列表方式
  */
-export const saveExamData = (param1, param2?, param3?, param4?) => {
+export const saveExamData = (
+  dataOrParams: Record<string, any> | Record<string, any>[],
+  examInfo?: ExamInfo,
+  mergeStrategy?: MergeStrategy,
+  options?: {
+    examScope?: "class" | "grade";
+    newStudentStrategy?: "create" | "ignore";
+  }
+) => {
   // 检测是否使用了新的对象参数方式调用
-  if (param1 && typeof param1 === "object" && "data" in param1) {
-    const params = param1;
+  if (
+    dataOrParams &&
+    !Array.isArray(dataOrParams) &&
+    typeof dataOrParams === "object" &&
+    "data" in dataOrParams
+  ) {
+    const params = dataOrParams;
     console.log("[saveExamData适配器] 检测到对象参数调用方式");
 
     // 构造考试信息对象
-    const examInfo = {
+    const constructedExamInfo = {
       title: params.examName,
       type: params.examType || params.examId,
       date: params.examDate || new Date().toISOString().split("T")[0],
       subject: params.subject || "",
     };
 
-    console.log("[saveExamData适配器] 构造的考试信息:", examInfo);
+    console.log("[saveExamData适配器] 构造的考试信息:", constructedExamInfo);
 
     // 确保考试信息完整
-    if (!examInfo.title) {
+    if (!constructedExamInfo.title) {
       throw new Error("考试标题不能为空");
     }
 
     // 传递给原始服务方法
     return gradeAnalysisService.saveExamData(
       params.data,
-      examInfo,
+      constructedExamInfo as ExamInfo,
       params.mergeStrategy || "replace",
       {
         examScope: params.examScope || "class",
@@ -4066,5 +1974,10 @@ export const saveExamData = (param1, param2?, param3?, param4?) => {
   }
 
   // 原始调用方式 - 直接传递各个参数
-  return gradeAnalysisService.saveExamData(param1, param2, param3, param4);
+  return gradeAnalysisService.saveExamData(
+    dataOrParams as Record<string, any>[],
+    examInfo!,
+    mergeStrategy || "replace",
+    options
+  );
 };

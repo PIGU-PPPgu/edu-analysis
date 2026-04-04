@@ -76,7 +76,6 @@ import SubjectCorrelationAnalysis from "@/components/analysis/advanced/SubjectCo
 import ClassComparisonChart from "@/components/analysis/comparison/ClassComparisonChart";
 import ClassBoxPlotChart from "@/components/analysis/comparison/ClassBoxPlotChart";
 import { PredictiveAnalysis } from "@/components/analysis/advanced/PredictiveAnalysis";
-import AnomalyDetectionAnalysis from "@/components/analysis/advanced/AnomalyDetectionAnalysis";
 import StatisticsOverview from "@/components/analysis/statistics/StatisticsOverview";
 import { LearningBehaviorAnalysis } from "@/components/analysis/advanced/LearningBehaviorAnalysis";
 import CrossAnalysis from "@/components/analysis/advanced/CrossAnalysis";
