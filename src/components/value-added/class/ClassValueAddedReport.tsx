@@ -144,10 +144,16 @@ export function ClassValueAddedReport({
 
   // 按科目筛选数据
   const filteredData = useMemo(() => {
+    // 过滤掉缓存中可能存在的无效行（avg_score_value_added_rate 为 null/undefined）
+    const validData = data.filter(
+      (d) =>
+        typeof d.avg_score_value_added_rate === "number" &&
+        Number.isFinite(d.avg_score_value_added_rate)
+    );
     let result =
       selectedSubject === "all"
-        ? data
-        : data.filter((d) => d.subject === selectedSubject);
+        ? validData
+        : validData.filter((d) => d.subject === selectedSubject);
 
     // 班级名称筛选
     if (classNameFilter.trim()) {
