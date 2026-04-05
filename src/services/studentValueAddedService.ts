@@ -13,6 +13,8 @@ import {
   calculateZScores,
   calculatePercentile,
   determineLevel,
+  determineLevelByZScore,
+  isZScoreBasedConfig,
   calculateScoreValueAddedRate,
   calculateOLSBeta,
 } from "@/utils/statistics";
@@ -67,27 +69,41 @@ export async function calculateStudentValueAdded(
   const entryZScores = calculateZScores(allEntryScores);
   const exitZScores = calculateZScores(allExitScores);
 
-  // 计算OLS回归斜率（用于均值回归修正）
-  const regressionBeta = calculateOLSBeta(entryZScores, exitZScores);
+  // 当相关性过低时，限制beta最小值为0.8，与classValueAddedService保持一致
+  const regressionBeta = Math.max(
+    calculateOLSBeta(entryZScores, exitZScores),
+    0.8
+  );
 
-  // 2. 计算百分位（用于确定等级）
-  const entryPercentiles = allEntryScores.map((score, index) =>
-    calculatePercentile(score, allEntryScores)
-  );
-  const exitPercentiles = allExitScores.map((score, index) =>
-    calculatePercentile(score, allExitScores)
-  );
+  // 2. 计算百分位和等级（支持六段和九段）
+  const useZScore = isZScoreBasedConfig(levelDefinitions);
+
+  const entryLevels = useZScore
+    ? entryZScores.map((z) => determineLevelByZScore(z, levelDefinitions))
+    : allEntryScores.map((score) =>
+        determineLevel(
+          calculatePercentile(score, allEntryScores),
+          levelDefinitions
+        )
+      );
+
+  const exitLevels = useZScore
+    ? exitZScores.map((z) => determineLevelByZScore(z, levelDefinitions))
+    : allExitScores.map((score) =>
+        determineLevel(
+          calculatePercentile(score, allExitScores),
+          levelDefinitions
+        )
+      );
 
   // 3. 为每个学生计算增值数据
   const results: StudentValueAdded[] = allStudents.map((student, index) => {
     const entryZScore = entryZScores[index];
     const exitZScore = exitZScores[index];
-    const entryPercentile = entryPercentiles[index];
-    const exitPercentile = exitPercentiles[index];
 
-    // 确定等级
-    const entryLevel = determineLevel(entryPercentile, levelDefinitions);
-    const exitLevel = determineLevel(exitPercentile, levelDefinitions);
+    // 确定等级（已在上方按配置类型预计算）
+    const entryLevel = entryLevels[index];
+    const exitLevel = exitLevels[index];
 
     // 计算标准分（500 + 100 * Z）
     const entryStandardScore = 500 + 100 * entryZScore;
@@ -152,7 +168,16 @@ function calculateLevelChange(
     B: 3,
     "C+": 2,
     C: 1,
+    "1段": 9,
+    "2段": 8,
+    "3段": 7,
+    "4段": 6,
+    "5段": 5,
+    "6段": 4,
+    "7段": 3,
+    "8段": 2,
+    "9段": 1,
   };
 
-  return levelOrder[exitLevel] - levelOrder[entryLevel];
+  return (levelOrder[exitLevel] ?? 0) - (levelOrder[entryLevel] ?? 0);
 }

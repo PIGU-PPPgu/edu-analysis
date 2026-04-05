@@ -14,6 +14,8 @@ import {
   calculateZScores,
   calculatePercentile,
   determineLevel,
+  determineLevelByZScore,
+  isZScoreBasedConfig,
   calculateScoreValueAddedRate,
   shrinkValueAddedRate,
   calculateOLSBeta,
@@ -76,9 +78,10 @@ export async function calculateTeacherValueAdded(
   const allExitScores = studentGrades.map((s) => s.exit_score);
   const globalEntryZScores = calculateZScores(allEntryScores);
   const globalExitZScores = calculateZScores(allExitScores);
-  const regressionBeta = calculateOLSBeta(
-    globalEntryZScores,
-    globalExitZScores
+  // 当相关性过低时，限制beta最小值为0.8，与classValueAddedService保持一致
+  const regressionBeta = Math.max(
+    calculateOLSBeta(globalEntryZScores, globalExitZScores),
+    0.8
   );
 
   // 将全局Z分数绑定到每个学生
@@ -251,7 +254,7 @@ async function calculateSingleTeacherValueAdded(params: {
 }
 
 /**
- * 计算学生的能力等级
+ * 计算学生的能力等级（支持六段和九段配置）
  */
 function calculateStudentLevels(
   students: StudentGradeData[],
@@ -261,6 +264,13 @@ function calculateStudentLevels(
   const scores = students.map((s) =>
     type === "entry" ? s.entry_score : s.exit_score
   );
+
+  const useZScore = isZScoreBasedConfig(levelDefinitions);
+
+  if (useZScore) {
+    const zScores = calculateZScores(scores);
+    return zScores.map((z) => determineLevelByZScore(z, levelDefinitions));
+  }
 
   return scores.map((score) => {
     const percentile = calculatePercentile(score, scores);
@@ -387,7 +397,7 @@ export async function getTeacherStudentDetails(
 }
 
 /**
- * 获取等级数值
+ * 获取等级数值（支持六段和九段）
  */
 function getLevelValue(level: AbilityLevel): number {
   const levelMap: Record<AbilityLevel, number> = {
@@ -397,7 +407,16 @@ function getLevelValue(level: AbilityLevel): number {
     B: 3,
     "C+": 2,
     C: 1,
+    "1段": 9,
+    "2段": 8,
+    "3段": 7,
+    "4段": 6,
+    "5段": 5,
+    "6段": 4,
+    "7段": 3,
+    "8段": 2,
+    "9段": 1,
   };
 
-  return levelMap[level] || 0;
+  return levelMap[level] ?? 0;
 }

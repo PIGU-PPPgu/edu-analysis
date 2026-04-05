@@ -714,10 +714,32 @@ export async function executeValueAddedCalculation(
           }
 
           // ✅ 此时所有进入计算的成绩都是有效分数
+          // 注入教师信息（用于教师增值计算）
+          let teacherId: string;
+          let teacherName: string;
+
+          if (subject === "total") {
+            teacherId = `class_${entryRecord.class_name}`;
+            teacherName = entryRecord.class_name;
+          } else {
+            const teacherSubjectName =
+              subjectTeacherNameMap.get(subject) || subjectKeyToName[subject];
+            const teacherKey = `${entryRecord.class_name}_${teacherSubjectName}`;
+            const teacherInfo = teacherMap.get(teacherKey);
+            teacherId =
+              teacherInfo?.teacher_id ??
+              `unknown_${entryRecord.class_name}_${subjectKeyToName[subject]}`;
+            teacherName =
+              teacherInfo?.teacher_name ??
+              `${entryRecord.class_name} ${subjectKeyToName[subject]}教师`;
+          }
+
           return {
             student_id: entryRecord.student_id,
             student_name: entryRecord.name,
             class_name: entryRecord.class_name,
+            teacher_id: teacherId,
+            teacher_name: teacherName,
             subject: subjectKeyToName[subject],
             entry_score: entryScore,
             exit_score: exitScore,
@@ -748,47 +770,25 @@ export async function executeValueAddedCalculation(
             target_name: classResult.class_name,
             result: classResult as any,
           });
+        }
 
-          // ✅ 保存教师增值
-          // 总分：直接用班级名作为"教师"标识（高中场景只有总分，归到班级名下）
-          // 单科：使用真实教师信息
-          {
-            let teacherId: string;
-            let teacherName: string;
+        // 计算教师增值（使用真实教师分组，而非复制班级数据）
+        const teacherResults = await calculateTeacherValueAdded({
+          studentGrades: studentGrades as any,
+          subject: subjectKeyToName[subject],
+          levelDefinitions: levelConfig,
+          allSubjectStudents: studentGrades as any,
+        });
 
-            if (subject === "total") {
-              teacherId = `class_${classResult.class_name}`;
-              teacherName = classResult.class_name;
-            } else {
-              const teacherSubjectName =
-                subjectTeacherNameMap.get(subject) || subjectKeyToName[subject];
-              const teacherKey = `${classResult.class_name}_${teacherSubjectName}`;
-              const teacherInfo = teacherMap.get(teacherKey);
-
-              if (teacherInfo) {
-                teacherId = teacherInfo.teacher_id;
-                teacherName = teacherInfo.teacher_name;
-              } else {
-                teacherId = `unknown_${classResult.class_name}_${subjectKeyToName[subject]}`;
-                teacherName = `${classResult.class_name} ${subjectKeyToName[subject]}教师`;
-              }
-            }
-
-            allTeacherResults.push({
-              activity_id: activityId,
-              report_type: "teacher_value_added",
-              dimension: "teacher",
-              target_id: `${teacherId}_${classResult.class_name}_${subjectKeyToName[subject]}`,
-              target_name: teacherName,
-              result: {
-                teacher_id: teacherId,
-                teacher_name: teacherName,
-                subject: classResult.subject,
-                class_name: classResult.class_name,
-                ...classResult,
-              } as any,
-            });
-          }
+        for (const teacherResult of teacherResults) {
+          allTeacherResults.push({
+            activity_id: activityId,
+            report_type: "teacher_value_added",
+            dimension: "teacher",
+            target_id: `${teacherResult.teacher_id}_${teacherResult.class_name}_${subjectKeyToName[subject]}`,
+            target_name: teacherResult.teacher_name,
+            result: teacherResult as any,
+          });
         }
 
         // ✅ 计算学生增值（使用正确的Z分数和等级计算）
