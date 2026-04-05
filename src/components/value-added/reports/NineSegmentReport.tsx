@@ -1,13 +1,24 @@
 "use client";
 
 /**
- * 九段评价分布报告
- * 展示各班级入口→出口的九段人数分布变化
- * 仅当活动使用九段配置时有意义
+ * 段位分布分析报告（九段/六段）
+ * Tab1: 段位说明  Tab2: 分布对比  Tab3: 流动分析（保持/进步/退步）
  */
 
 import { useMemo, useState } from "react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Cell,
+} from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -23,7 +34,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Info } from "lucide-react";
 import type { StudentValueAdded } from "@/types/valueAddedTypes";
@@ -33,46 +43,92 @@ interface NineSegmentReportProps {
   loading?: boolean;
 }
 
-// 九段标签顺序（1段最优，9段最差）
-const NINE_SEGMENTS = [
-  "1段",
-  "2段",
-  "3段",
-  "4段",
-  "5段",
-  "6段",
-  "7段",
-  "8段",
-  "9段",
+// 九段定义（Z分区间）
+const NINE_SEGMENT_DEFS = [
+  {
+    level: "1段",
+    label: "顶尖生",
+    zDesc: "Z ≥ 1.75",
+    ratio: "约4%",
+    color: "#10b981",
+  },
+  {
+    level: "2段",
+    label: "尖子生",
+    zDesc: "1.25 ≤ Z < 1.75",
+    ratio: "约7%",
+    color: "#22c55e",
+  },
+  {
+    level: "3段",
+    label: "优秀生",
+    zDesc: "0.75 ≤ Z < 1.25",
+    ratio: "约12%",
+    color: "#3b82f6",
+  },
+  {
+    level: "4段",
+    label: "良好生",
+    zDesc: "0.25 ≤ Z < 0.75",
+    ratio: "约17%",
+    color: "#6366f1",
+  },
+  {
+    level: "5段",
+    label: "中等生",
+    zDesc: "-0.25 ≤ Z < 0.25",
+    ratio: "约20%",
+    color: "#8b5cf6",
+  },
+  {
+    level: "6段",
+    label: "中下生",
+    zDesc: "-0.75 ≤ Z < -0.25",
+    ratio: "约17%",
+    color: "#f59e0b",
+  },
+  {
+    level: "7段",
+    label: "后进生",
+    zDesc: "-1.25 ≤ Z < -0.75",
+    ratio: "约12%",
+    color: "#ef4444",
+  },
+  {
+    level: "8段",
+    label: "学困生",
+    zDesc: "-1.75 ≤ Z < -1.25",
+    ratio: "约7%",
+    color: "#dc2626",
+  },
+  {
+    level: "9段",
+    label: "特困生",
+    zDesc: "Z < -1.75",
+    ratio: "约4%",
+    color: "#991b1b",
+  },
 ];
 
-// 六段标签（兼容旧数据）
 const SIX_SEGMENTS = ["A+", "A", "B+", "B", "C+", "C"];
+const NINE_SEGMENTS = NINE_SEGMENT_DEFS.map((d) => d.level);
 
-const SEGMENT_COLORS: Record<string, string> = {
-  "1段": "bg-emerald-600 text-white",
-  "2段": "bg-emerald-500 text-white",
-  "3段": "bg-green-400 text-white",
-  "4段": "bg-lime-400 text-gray-800",
-  "5段": "bg-yellow-300 text-gray-800",
-  "6段": "bg-orange-300 text-gray-800",
-  "7段": "bg-orange-500 text-white",
-  "8段": "bg-red-500 text-white",
-  "9段": "bg-red-700 text-white",
-  // 六段兼容
-  "A+": "bg-emerald-600 text-white",
-  A: "bg-green-500 text-white",
-  "B+": "bg-lime-400 text-gray-800",
-  B: "bg-yellow-300 text-gray-800",
-  "C+": "bg-orange-400 text-white",
-  C: "bg-red-500 text-white",
+const SEGMENT_COLOR: Record<string, string> = {
+  ...Object.fromEntries(NINE_SEGMENT_DEFS.map((d) => [d.level, d.color])),
+  "A+": "#10b981",
+  A: "#22c55e",
+  "B+": "#3b82f6",
+  B: "#6366f1",
+  "C+": "#f59e0b",
+  C: "#ef4444",
 };
 
 function SegmentBadge({ level }: { level: string }) {
-  const cls = SEGMENT_COLORS[level] ?? "bg-gray-200 text-gray-700";
+  const color = SEGMENT_COLOR[level] ?? "#9ca3af";
   return (
     <span
-      className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${cls}`}
+      style={{ backgroundColor: color }}
+      className="inline-block px-2 py-0.5 rounded text-xs font-semibold text-white"
     >
       {level}
     </span>
@@ -85,52 +141,49 @@ export function NineSegmentReport({
 }: NineSegmentReportProps) {
   const [selectedClass, setSelectedClass] = useState<string>("all");
 
-  // 检测数据使用的是几段制
   const segmentLabels = useMemo(() => {
     const levels = studentData.map((s) => s.entry_level).filter(Boolean);
-    const hasNine = levels.some((l) => NINE_SEGMENTS.includes(l as string));
-    return hasNine ? NINE_SEGMENTS : SIX_SEGMENTS;
+    return levels.some((l) => NINE_SEGMENTS.includes(l as string))
+      ? NINE_SEGMENTS
+      : SIX_SEGMENTS;
   }, [studentData]);
 
-  const isNineSegment = segmentLabels === NINE_SEGMENTS;
+  const isNine = segmentLabels === NINE_SEGMENTS;
 
-  // 班级列表
-  const classes = useMemo(() => {
-    return Array.from(new Set(studentData.map((s) => s.class_name))).sort();
-  }, [studentData]);
+  const classes = useMemo(
+    () => Array.from(new Set(studentData.map((s) => s.class_name))).sort(),
+    [studentData]
+  );
 
-  // 按班级过滤
-  const filtered = useMemo(() => {
-    if (selectedClass === "all") return studentData;
-    return studentData.filter((s) => s.class_name === selectedClass);
-  }, [studentData, selectedClass]);
+  const filtered = useMemo(
+    () =>
+      selectedClass === "all"
+        ? studentData
+        : studentData.filter((s) => s.class_name === selectedClass),
+    [studentData, selectedClass]
+  );
 
-  // 计算各班各段人数
+  // 各班各段人数（入口/出口）
   const classStats = useMemo(() => {
-    const byClass: Record<
+    const map: Record<
       string,
       { entry: Record<string, number>; exit: Record<string, number>; n: number }
     > = {};
-
     for (const s of filtered) {
-      const cls = s.class_name;
-      if (!byClass[cls]) {
-        byClass[cls] = {
+      if (!map[s.class_name]) {
+        map[s.class_name] = {
           entry: Object.fromEntries(segmentLabels.map((l) => [l, 0])),
           exit: Object.fromEntries(segmentLabels.map((l) => [l, 0])),
           n: 0,
         };
       }
-      byClass[cls].n++;
-      if (s.entry_level && segmentLabels.includes(s.entry_level as string)) {
-        byClass[cls].entry[s.entry_level as string]++;
-      }
-      if (s.exit_level && segmentLabels.includes(s.exit_level as string)) {
-        byClass[cls].exit[s.exit_level as string]++;
-      }
+      map[s.class_name].n++;
+      if (s.entry_level && segmentLabels.includes(s.entry_level as string))
+        map[s.class_name].entry[s.entry_level as string]++;
+      if (s.exit_level && segmentLabels.includes(s.exit_level as string))
+        map[s.class_name].exit[s.exit_level as string]++;
     }
-
-    return Object.entries(byClass).sort(([a], [b]) => a.localeCompare(b));
+    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b));
   }, [filtered, segmentLabels]);
 
   // 全年级汇总
@@ -146,6 +199,61 @@ export function NineSegmentReport({
     return { entry, exit, n: filtered.length };
   }, [filtered, segmentLabels]);
 
+  // 分布对比图数据（各段入口/出口人数）
+  const distributionChartData = useMemo(
+    () =>
+      segmentLabels.map((l) => ({
+        segment: l,
+        入口: gradeTotal.entry[l] || 0,
+        出口: gradeTotal.exit[l] || 0,
+        color: SEGMENT_COLOR[l] ?? "#9ca3af",
+      })),
+    [gradeTotal, segmentLabels]
+  );
+
+  // 流动分析：每个学生 entry→exit 的变化
+  // 九段：数字越小越好；六段：A+>A>B+>B>C+>C
+  const levelOrder = isNine
+    ? Object.fromEntries(NINE_SEGMENTS.map((l, i) => [l, i]))
+    : { "A+": 0, A: 1, "B+": 2, B: 3, "C+": 4, C: 5 };
+
+  const flowStats = useMemo(() => {
+    const byClass: Record<
+      string,
+      { keep: number; improve: number; regress: number; n: number }
+    > = {};
+    for (const s of filtered) {
+      const cls = s.class_name;
+      if (!byClass[cls])
+        byClass[cls] = { keep: 0, improve: 0, regress: 0, n: 0 };
+      byClass[cls].n++;
+      const entryRank = levelOrder[s.entry_level as string] ?? -1;
+      const exitRank = levelOrder[s.exit_level as string] ?? -1;
+      if (entryRank === -1 || exitRank === -1) continue;
+      if (exitRank < entryRank)
+        byClass[cls].improve++; // 段位数字变小 = 进步
+      else if (exitRank > entryRank)
+        byClass[cls].regress++; // 段位数字变大 = 退步
+      else byClass[cls].keep++;
+    }
+    return Object.entries(byClass).sort(([a], [b]) => a.localeCompare(b));
+  }, [filtered, levelOrder]);
+
+  // 流动堆叠柱状图数据
+  const flowChartData = useMemo(
+    () =>
+      flowStats.map(([cls, s]) => ({
+        班级: cls,
+        进步: s.improve,
+        保持: s.keep,
+        退步: s.regress,
+        进步率: s.n > 0 ? ((s.improve / s.n) * 100).toFixed(1) : "0",
+        保持率: s.n > 0 ? ((s.keep / s.n) * 100).toFixed(1) : "0",
+        退步率: s.n > 0 ? ((s.regress / s.n) * 100).toFixed(1) : "0",
+      })),
+    [flowStats]
+  );
+
   if (loading) {
     return (
       <Card>
@@ -155,7 +263,6 @@ export function NineSegmentReport({
       </Card>
     );
   }
-
   if (studentData.length === 0) {
     return (
       <Card>
@@ -168,11 +275,11 @@ export function NineSegmentReport({
 
   return (
     <div className="space-y-4">
-      {!isNineSegment && (
+      {!isNine && (
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription>
-            当前活动使用六段评价配置，若需九段评价请在活动创建时选择"深圳市标准九段评价"配置，并重新计算。
+            当前活动使用六段评价配置。若需九段评价，请在活动创建时选择"深圳市标准九段评价"并重新计算。
           </AlertDescription>
         </Alert>
       )}
@@ -196,122 +303,270 @@ export function NineSegmentReport({
         </span>
       </div>
 
-      {/* 全年级汇总 */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">
-            {selectedClass === "all" ? "全年级" : selectedClass} 段位分布对比
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-20">段位</TableHead>
-                {segmentLabels.map((l) => (
-                  <TableHead key={l} className="text-center px-2">
-                    <SegmentBadge level={l} />
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell className="font-medium text-sm">入口人数</TableCell>
-                {segmentLabels.map((l) => (
-                  <TableCell key={l} className="text-center text-sm">
-                    {gradeTotal.entry[l] || 0}
-                  </TableCell>
-                ))}
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium text-sm">出口人数</TableCell>
-                {segmentLabels.map((l) => (
-                  <TableCell key={l} className="text-center text-sm">
-                    {gradeTotal.exit[l] || 0}
-                  </TableCell>
-                ))}
-              </TableRow>
-              <TableRow className="bg-gray-50">
-                <TableCell className="font-medium text-sm">变化</TableCell>
-                {segmentLabels.map((l) => {
-                  const diff =
-                    (gradeTotal.exit[l] || 0) - (gradeTotal.entry[l] || 0);
-                  return (
-                    <TableCell
-                      key={l}
-                      className="text-center text-sm font-semibold"
-                    >
-                      <span
-                        className={
-                          diff > 0
-                            ? "text-green-600"
-                            : diff < 0
-                              ? "text-red-600"
-                              : "text-gray-400"
-                        }
-                      >
-                        {diff > 0 ? `+${diff}` : diff === 0 ? "—" : diff}
-                      </span>
-                    </TableCell>
-                  );
-                })}
-              </TableRow>
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="definition">
+        <TabsList>
+          <TabsTrigger value="definition">段位说明</TabsTrigger>
+          <TabsTrigger value="distribution">分布对比</TabsTrigger>
+          <TabsTrigger value="flow">流动分析</TabsTrigger>
+        </TabsList>
 
-      {/* 各班明细（仅全部班级时显示） */}
-      {selectedClass === "all" && classStats.length > 1 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">各班出口段位分布</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-24">班级</TableHead>
-                  <TableHead className="text-center w-16">人数</TableHead>
-                  {segmentLabels.map((l) => (
-                    <TableHead key={l} className="text-center px-1">
-                      <SegmentBadge level={l} />
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {classStats.map(([cls, stats]) => (
-                  <TableRow key={cls}>
-                    <TableCell className="font-medium text-sm">{cls}</TableCell>
-                    <TableCell className="text-center text-sm">
-                      {stats.n}
-                    </TableCell>
-                    {segmentLabels.map((l) => {
-                      const exitN = stats.exit[l] || 0;
-                      const entryN = stats.entry[l] || 0;
-                      const diff = exitN - entryN;
-                      return (
-                        <TableCell key={l} className="text-center text-xs px-1">
-                          <div>{exitN}</div>
-                          {diff !== 0 && (
-                            <div
-                              className={`text-xs ${diff > 0 ? "text-green-600" : "text-red-500"}`}
-                            >
-                              {diff > 0 ? `+${diff}` : diff}
-                            </div>
-                          )}
+        {/* Tab1: 段位说明 */}
+        <TabsContent value="definition" className="mt-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">
+                {isNine ? "深圳市标准九段评价说明" : "六段评价说明"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isNine ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-16">等级</TableHead>
+                      <TableHead className="w-20">标签</TableHead>
+                      <TableHead>Z分数区间</TableHead>
+                      <TableHead className="w-20 text-right">
+                        理论比例
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {NINE_SEGMENT_DEFS.map((d) => (
+                      <TableRow key={d.level}>
+                        <TableCell>
+                          <SegmentBadge level={d.level} />
                         </TableCell>
-                      );
-                    })}
+                        <TableCell className="text-sm">{d.label}</TableCell>
+                        <TableCell className="text-sm font-mono">
+                          {d.zDesc}
+                        </TableCell>
+                        <TableCell className="text-right text-sm text-gray-500">
+                          {d.ratio}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-sm text-gray-500">
+                  六段评价基于百分位排名划分，A+为前5%，C为后5%。
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab2: 分布对比 */}
+        <TabsContent value="distribution" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">
+                {selectedClass === "all" ? "全年级" : selectedClass}{" "}
+                入口/出口段位分布
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart
+                  data={distributionChartData}
+                  margin={{ top: 8, right: 16, left: 0, bottom: 4 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="segment" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="入口" fill="#94a3b8" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="出口" radius={[3, 3, 0, 0]}>
+                    {distributionChartData.map((d, i) => (
+                      <Cell key={i} fill={d.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* 各班明细表 */}
+          {selectedClass === "all" && classStats.length > 1 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">
+                  各班出口段位明细（出口人数 / 变化）
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-20">班级</TableHead>
+                      <TableHead className="text-center w-14">人数</TableHead>
+                      {segmentLabels.map((l) => (
+                        <TableHead
+                          key={l}
+                          className="text-center px-1 min-w-[48px]"
+                        >
+                          <SegmentBadge level={l} />
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {classStats.map(([cls, stats]) => (
+                      <TableRow key={cls}>
+                        <TableCell className="font-medium text-sm">
+                          {cls}
+                        </TableCell>
+                        <TableCell className="text-center text-sm">
+                          {stats.n}
+                        </TableCell>
+                        {segmentLabels.map((l) => {
+                          const diff =
+                            (stats.exit[l] || 0) - (stats.entry[l] || 0);
+                          return (
+                            <TableCell
+                              key={l}
+                              className="text-center text-xs px-1"
+                            >
+                              <div className="font-medium">
+                                {stats.exit[l] || 0}
+                              </div>
+                              {diff !== 0 && (
+                                <div
+                                  className={
+                                    diff > 0 ? "text-green-600" : "text-red-500"
+                                  }
+                                >
+                                  {diff > 0 ? `+${diff}` : diff}
+                                </div>
+                              )}
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Tab3: 流动分析 */}
+        <TabsContent value="flow" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">
+                各班段位流动（进步 / 保持 / 退步）
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart
+                  data={flowChartData}
+                  margin={{ top: 8, right: 16, left: 0, bottom: 4 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="班级" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip
+                    formatter={(value, name, props) => {
+                      const d = props.payload;
+                      const rate =
+                        name === "进步"
+                          ? d.进步率
+                          : name === "保持"
+                            ? d.保持率
+                            : d.退步率;
+                      return [`${value}人 (${rate}%)`, name];
+                    }}
+                  />
+                  <Legend />
+                  <Bar
+                    dataKey="进步"
+                    stackId="a"
+                    fill="#22c55e"
+                    radius={[0, 0, 0, 0]}
+                  />
+                  <Bar dataKey="保持" stackId="a" fill="#94a3b8" />
+                  <Bar
+                    dataKey="退步"
+                    stackId="a"
+                    fill="#ef4444"
+                    radius={[3, 3, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* 流动率汇总表 */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">各班流动率汇总</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>班级</TableHead>
+                    <TableHead className="text-center">人数</TableHead>
+                    <TableHead className="text-center text-green-600">
+                      进步人数
+                    </TableHead>
+                    <TableHead className="text-center text-green-600">
+                      进步率
+                    </TableHead>
+                    <TableHead className="text-center text-gray-500">
+                      保持人数
+                    </TableHead>
+                    <TableHead className="text-center text-gray-500">
+                      保持率
+                    </TableHead>
+                    <TableHead className="text-center text-red-500">
+                      退步人数
+                    </TableHead>
+                    <TableHead className="text-center text-red-500">
+                      退步率
+                    </TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
+                </TableHeader>
+                <TableBody>
+                  {flowStats.map(([cls, s]) => (
+                    <TableRow key={cls}>
+                      <TableCell className="font-medium text-sm">
+                        {cls}
+                      </TableCell>
+                      <TableCell className="text-center text-sm">
+                        {s.n}
+                      </TableCell>
+                      <TableCell className="text-center text-sm text-green-600 font-medium">
+                        {s.improve}
+                      </TableCell>
+                      <TableCell className="text-center text-sm text-green-600">
+                        {s.n > 0 ? ((s.improve / s.n) * 100).toFixed(1) : 0}%
+                      </TableCell>
+                      <TableCell className="text-center text-sm text-gray-500">
+                        {s.keep}
+                      </TableCell>
+                      <TableCell className="text-center text-sm text-gray-500">
+                        {s.n > 0 ? ((s.keep / s.n) * 100).toFixed(1) : 0}%
+                      </TableCell>
+                      <TableCell className="text-center text-sm text-red-500 font-medium">
+                        {s.regress}
+                      </TableCell>
+                      <TableCell className="text-center text-sm text-red-500">
+                        {s.n > 0 ? ((s.regress / s.n) * 100).toFixed(1) : 0}%
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
