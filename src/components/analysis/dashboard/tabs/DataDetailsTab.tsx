@@ -4,7 +4,6 @@ import { cn } from "@/lib/utils";
 import StatisticsOverview from "@/components/analysis/statistics/StatisticsOverview";
 import OptimizedDataTable from "@/components/performance/OptimizedDataTable";
 import ErrorBoundary from "@/components/performance/ErrorBoundary";
-import { toast } from "sonner";
 
 interface DataDetailsTabProps {
   filteredGradeData: any[];
@@ -142,11 +141,6 @@ const DataDetailsTab: React.FC<DataDetailsTabProps> = ({
           loading={loading}
           emptyText="暂无成绩数据"
           rowKey="id"
-          onRowClick={(record) => {
-            toast.info(
-              `查看 ${record.name} 的 ${record.subject} 成绩: ${record.score}分`
-            );
-          }}
           className=""
         />
       </ErrorBoundary>

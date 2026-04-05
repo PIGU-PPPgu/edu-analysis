@@ -69,7 +69,16 @@ const CompleteAnalyticsDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [showSidebar, setShowSidebar] = useState(false);
   const [showSubjectSettings, setShowSubjectSettings] = useState(false);
+  // 记录已访问过的 tab，避免重复渲染重型组件
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(
+    new Set(["overview"])
+  );
   const isMountedRef = useRef(true);
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setVisitedTabs((prev) => new Set([...prev, tab]));
+  };
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -270,7 +279,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
 
           <Tabs
             value={activeTab}
-            onValueChange={setActiveTab}
+            onValueChange={handleTabChange}
             className="space-y-8"
           >
             <div className="overflow-x-auto">
@@ -328,102 +337,113 @@ const CompleteAnalyticsDashboard: React.FC = () => {
             </TabsContent>
 
             <TabsContent value="data-analysis" className="space-y-6">
-              <EnhancedSubjectCorrelationMatrix
-                gradeData={((wideGradeData || []) as WideGradeRecord[]).slice(
-                  0,
-                  2000
-                )}
-                title="科目相关性分析"
-                className="w-full"
-                showHeatMap={true}
-                filterSignificance="all"
-              />
-              <StudentTrendAnalysis
-                gradeData={((wideGradeData || []) as WideGradeRecord[]).slice(
-                  0,
-                  3000
-                )}
-                className="w-full"
-              />
-              <MultiDimensionalRankingSystem
-                gradeData={((wideGradeData || []) as WideGradeRecord[]).slice(
-                  0,
-                  1000
-                )}
-                className="w-full"
-              />
-              <SubjectCorrelationAnalysis
-                gradeData={filteredGradeData}
-                className=""
-              />
+              {visitedTabs.has("data-analysis") && (
+                <>
+                  <EnhancedSubjectCorrelationMatrix
+                    gradeData={(
+                      (wideGradeData || []) as WideGradeRecord[]
+                    ).slice(0, 2000)}
+                    title="科目相关性分析"
+                    className="w-full"
+                    showHeatMap={true}
+                    filterSignificance="all"
+                  />
+                  <StudentTrendAnalysis
+                    gradeData={(
+                      (wideGradeData || []) as WideGradeRecord[]
+                    ).slice(0, 3000)}
+                    className="w-full"
+                  />
+                  <MultiDimensionalRankingSystem
+                    gradeData={(
+                      (wideGradeData || []) as WideGradeRecord[]
+                    ).slice(0, 1000)}
+                    className="w-full"
+                  />
+                  <SubjectCorrelationAnalysis
+                    gradeData={filteredGradeData}
+                    className=""
+                  />
+                </>
+              )}
             </TabsContent>
 
             <TabsContent value="student-analysis" className="space-y-6">
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                <ClassComparisonChart
-                  data={comparisonGradeData}
-                  filterState={{ selectedClasses: [], viewMode: "all" }}
-                  className=""
-                />
-                <ClassBoxPlotChart
-                  gradeData={comparisonGradeData}
-                  className=""
-                />
-              </div>
-              <LearningBehaviorAnalysis gradeData={wideGradeData || []} />
-              <ContributionAnalysis
-                gradeData={filteredGradeData}
-                title="学生科目贡献度分析"
-                className=""
-              />
+              {visitedTabs.has("student-analysis") && (
+                <>
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    <ClassComparisonChart
+                      data={comparisonGradeData}
+                      filterState={{
+                        selectedClasses: filter.classNames ?? [],
+                        viewMode: "all",
+                      }}
+                      className=""
+                    />
+                    <ClassBoxPlotChart
+                      gradeData={comparisonGradeData}
+                      className=""
+                    />
+                  </div>
+                  <LearningBehaviorAnalysis gradeData={wideGradeData || []} />
+                  <ContributionAnalysis
+                    gradeData={filteredGradeData}
+                    title="学生科目贡献度分析"
+                    className=""
+                  />
+                </>
+              )}
             </TabsContent>
 
             <TabsContent value="chart-gallery" className="space-y-6">
-              {filteredGradeData.length > 5000 && (
-                <Card className="border-l-4 border-l-orange-500 bg-orange-50/50">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="h-5 w-5 text-orange-600" />
-                      <div>
-                        <p className="font-semibold text-orange-800">
-                          数据量较大 (
-                          {filteredGradeData.length.toLocaleString()} 条记录)
-                        </p>
-                        <p className="text-sm text-orange-600">
-                          为保证性能，图表将只显示前 5,000
-                          条数据。建议使用筛选功能缩小数据范围以获得更准确的分析。
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+              {visitedTabs.has("chart-gallery") && (
+                <>
+                  {filteredGradeData.length > 5000 && (
+                    <Card className="border-l-4 border-l-orange-500 bg-orange-50/50">
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-5 w-5 text-orange-600" />
+                          <div>
+                            <p className="font-semibold text-orange-800">
+                              数据量较大 (
+                              {filteredGradeData.length.toLocaleString()}{" "}
+                              条记录)
+                            </p>
+                            <p className="text-sm text-orange-600">
+                              为保证性能，图表将只显示前 5,000
+                              条数据。建议使用筛选功能缩小数据范围。
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                  <ChartGallery
+                    gradeData={filteredGradeData.slice(0, 5000)}
+                    className=""
+                  />
+                </>
               )}
-              <ChartGallery
-                gradeData={filteredGradeData.slice(0, 5000)}
-                className=""
-              />
             </TabsContent>
 
             <TabsContent value="ai-analysis">
-              <AIAnalysisTab filteredGradeData={filteredGradeData} />
+              {visitedTabs.has("ai-analysis") && (
+                <AIAnalysisTab filteredGradeData={filteredGradeData} />
+              )}
             </TabsContent>
 
             <TabsContent value="data-details">
-              <DataDetailsTab
-                filteredGradeData={filteredGradeData}
-                loading={loading}
-                examIds={filter.examIds}
-                classFilter={filter.classNames}
-                subjectFilter={filter.subjects}
-              />
+              {visitedTabs.has("data-details") && (
+                <DataDetailsTab
+                  filteredGradeData={filteredGradeData}
+                  loading={loading}
+                  examIds={filter.examIds}
+                  classFilter={filter.classNames}
+                  subjectFilter={filter.subjects}
+                />
+              )}
             </TabsContent>
           </Tabs>
-
-          <div className="mt-8 pt-4 border-t border-[#6B7280]">
-            <p className="text-xs text-[#6B7280] text-center leading-relaxed">
-              增强功能说明：科目相关性分析使用95%置信区间；个人趋势分析支持线性回归预测；多维度排名包含学术、稳定性、进步性、均衡性四个维度。数据基于Wide-Table结构优化，提供更快的查询性能。
-            </p>
-          </div>
 
           <ExamSpecificSubjectSettings
             isOpen={showSubjectSettings}
