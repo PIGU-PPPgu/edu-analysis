@@ -156,7 +156,7 @@ export function SubjectBalanceReport({
       {!selectedClass ? (
         <>
           {/* 统计摘要 */}
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
             <Card className="p-4">
               <div className="text-sm text-muted-foreground">班级总数</div>
               <div className="text-2xl font-bold">{data.length}</div>
@@ -181,6 +181,38 @@ export function SubjectBalanceReport({
                       getBalanceLevel(c.subject_deviation).level === "excellent"
                   ).length
                 }
+              </div>
+            </Card>
+
+            <Card className="p-4">
+              <div className="text-sm text-muted-foreground">平均 SBI</div>
+              <div
+                className={`text-2xl font-bold ${(() => {
+                  const validSBIs = data
+                    .map((c) => c.subject_balance_index)
+                    .filter((v): v is number => v != null);
+                  if (validSBIs.length === 0) return "";
+                  const avg =
+                    validSBIs.reduce((a, b) => a + b, 0) / validSBIs.length;
+                  return avg >= 0.5
+                    ? "text-green-600"
+                    : avg >= 0
+                      ? "text-yellow-600"
+                      : "text-red-600";
+                })()}`}
+              >
+                {(() => {
+                  const validSBIs = data
+                    .map((c) => c.subject_balance_index)
+                    .filter((v): v is number => v != null);
+                  if (validSBIs.length === 0) return "—";
+                  const avg =
+                    validSBIs.reduce((a, b) => a + b, 0) / validSBIs.length;
+                  return avg.toFixed(2);
+                })()}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                科目均衡指数
               </div>
             </Card>
 
@@ -223,8 +255,8 @@ export function SubjectBalanceReport({
                     <TableHead>班级</TableHead>
                     <TableHead className="text-right">总分增值率</TableHead>
                     <TableHead className="text-right">学科偏离度</TableHead>
+                    <TableHead className="text-right">SBI</TableHead>
                     <TableHead className="text-right">均衡度评价</TableHead>
-                    <TableHead className="text-right">综合得分</TableHead>
                     <TableHead className="text-right">操作</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -271,6 +303,23 @@ export function SubjectBalanceReport({
                           {safeToFixed(classData.subject_deviation, 3)}
                         </TableCell>
                         <TableCell className="text-right">
+                          {classData.subject_balance_index != null ? (
+                            <span
+                              className={
+                                classData.subject_balance_index >= 0.5
+                                  ? "text-green-600 font-medium"
+                                  : classData.subject_balance_index >= 0
+                                    ? "text-yellow-600 font-medium"
+                                    : "text-red-600 font-medium"
+                              }
+                            >
+                              {classData.subject_balance_index.toFixed(2)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
                           <Badge
                             variant="outline"
                             style={{
@@ -280,9 +329,6 @@ export function SubjectBalanceReport({
                           >
                             {balanceLevel.label}
                           </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {classData.balance_score.toFixed(3)}
                         </TableCell>
                         <TableCell className="text-right">
                           <Button
@@ -320,6 +366,11 @@ export function SubjectBalanceReport({
               <li>
                 <strong>学科偏离度</strong>
                 ：各科目增值率的标准差，数值越小表示学科发展越均衡
+              </li>
+              <li>
+                <strong>科目均衡指数 SBI</strong>
+                ：1 - 偏离度/|均值|，越接近 1
+                越均衡；负值表示严重偏科（某些科目拖后腿）
               </li>
               <li>
                 <strong>综合得分</strong>：综合考虑总分增值和均衡度的评分
@@ -389,7 +440,7 @@ function ClassBalanceDetail({
       </Card>
 
       {/* 核心指标 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">总分增值率</div>
           <div className="text-2xl font-bold flex items-center gap-2">
@@ -409,6 +460,28 @@ function ClassBalanceDetail({
           </div>
           <div className="text-xs text-muted-foreground mt-1">
             基于 {classData.subjects.length} 个科目计算
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="text-sm text-muted-foreground">科目均衡指数 SBI</div>
+          <div
+            className={`text-2xl font-bold ${
+              classData.subject_balance_index == null
+                ? ""
+                : classData.subject_balance_index >= 0.5
+                  ? "text-green-600"
+                  : classData.subject_balance_index >= 0
+                    ? "text-yellow-600"
+                    : "text-red-600"
+            }`}
+          >
+            {classData.subject_balance_index != null
+              ? classData.subject_balance_index.toFixed(2)
+              : "—"}
+          </div>
+          <div className="text-xs text-muted-foreground mt-1">
+            越接近 1 越均衡，负值表示严重偏科
           </div>
         </Card>
 
