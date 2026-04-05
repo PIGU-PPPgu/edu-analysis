@@ -7,8 +7,23 @@
 // 基础类型
 // ============================================
 
-/** 能力等级 (A+/A/B+/B/C+/C) */
-export type AbilityLevel = "A+" | "A" | "B+" | "B" | "C+" | "C";
+/** 能力等级 (六段: A+/A/B+/B/C+/C，九段: 1段~9段) */
+export type AbilityLevel =
+  | "A+"
+  | "A"
+  | "B+"
+  | "B"
+  | "C+"
+  | "C"
+  | "1段"
+  | "2段"
+  | "3段"
+  | "4段"
+  | "5段"
+  | "6段"
+  | "7段"
+  | "8段"
+  | "9段";
 
 /** 增值活动状态 */
 export type ActivityStatus = "pending" | "analyzing" | "completed" | "failed";
@@ -52,6 +67,11 @@ export interface GradeLevelDefinition {
   percentile: {
     min: number; // 0.00 - 1.00
     max: number;
+  };
+  /** Z分数区间（九段评价使用，优先于百分位） */
+  z_score?: {
+    min: number | null; // null 表示 -∞
+    max: number | null; // null 表示 +∞
   };
   color: string;
   description: string;

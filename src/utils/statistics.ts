@@ -251,6 +251,35 @@ export function determineLevel(
 }
 
 /**
+ * 按Z分数判定等级（深圳九段评价标准）
+ * z_score区间：min=null表示-∞，max=null表示+∞
+ * 1段: Z≥1.75, 2段:[1.25,1.75), ..., 9段: Z<-1.75
+ */
+export function determineLevelByZScore(
+  zScore: number,
+  levelDefinitions: GradeLevelDefinition[]
+): AbilityLevel {
+  for (const def of levelDefinitions) {
+    if (!def.z_score) continue;
+    const { min, max } = def.z_score;
+    const aboveMin = min === null || zScore >= min;
+    const belowMax = max === null || zScore < max;
+    if (aboveMin && belowMax) return def.level;
+  }
+  // 回退到百分位判定（兼容六段）
+  return "C";
+}
+
+/**
+ * 判断配置是否使用Z分段制
+ */
+export function isZScoreBasedConfig(
+  levelDefinitions: GradeLevelDefinition[]
+): boolean {
+  return levelDefinitions.some((d) => d.z_score !== undefined);
+}
+
+/**
  * 批量判定等级
  */
 export function determineLevels(
@@ -274,6 +303,16 @@ export function getLevelValue(level: AbilityLevel): number {
     B: 3,
     "C+": 2,
     C: 1,
+    // 九段：1段最优=9分，9段最差=1分
+    "1段": 9,
+    "2段": 8,
+    "3段": 7,
+    "4段": 6,
+    "5段": 5,
+    "6段": 4,
+    "7段": 3,
+    "8段": 2,
+    "9段": 1,
   };
 
   return levelMap[level] || 0;

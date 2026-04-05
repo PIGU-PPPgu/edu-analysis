@@ -14,6 +14,8 @@ import {
   calculateZScores,
   calculatePercentile,
   determineLevel,
+  determineLevelByZScore,
+  isZScoreBasedConfig,
   calculateScoreValueAddedRate,
   shrinkValueAddedRate,
   calculateOLSBeta,
@@ -312,16 +314,28 @@ async function calculateSingleClassValueAdded(params: {
 
 /**
  * 计算学生的能力等级
+ * 若配置含 z_score 区间（九段），则用 Z 分判断；否则用百分位（六段）
  */
 function calculateStudentLevels(
   students: StudentGradeData[],
   type: "entry" | "exit",
   levelDefinitions: GradeLevelDefinition[]
 ): AbilityLevel[] {
+  const useZScore = isZScoreBasedConfig(levelDefinitions);
+
+  if (useZScore) {
+    // 九段：用全年级 Z 分（已在上层计算并挂到 student 上）
+    return students.map((s) => {
+      const z =
+        type === "entry" ? (s.entry_z_score ?? 0) : (s.exit_z_score ?? 0);
+      return determineLevelByZScore(z, levelDefinitions);
+    });
+  }
+
+  // 六段：用百分位
   const scores = students.map((s) =>
     type === "entry" ? s.entry_score : s.exit_score
   );
-
   return scores.map((score) => {
     const percentile = calculatePercentile(score, scores);
     return determineLevel(percentile, levelDefinitions);
@@ -376,12 +390,20 @@ export async function getStudentValueAddedDetails(
       exitZScore
     );
 
-    // 计算等级
-    const entryPercentile = calculatePercentile(entryScore, allEntryScores);
-    const exitPercentile = calculatePercentile(exitScore, allExitScores);
-
-    const entryLevel = determineLevel(entryPercentile, levelDefinitions);
-    const exitLevel = determineLevel(exitPercentile, levelDefinitions);
+    // 计算等级（九段用Z分，六段用百分位）
+    const useZScore = isZScoreBasedConfig(levelDefinitions);
+    const entryLevel = useZScore
+      ? determineLevelByZScore(entryZScore, levelDefinitions)
+      : determineLevel(
+          calculatePercentile(entryScore, allEntryScores),
+          levelDefinitions
+        );
+    const exitLevel = useZScore
+      ? determineLevelByZScore(exitZScore, levelDefinitions)
+      : determineLevel(
+          calculatePercentile(exitScore, allExitScores),
+          levelDefinitions
+        );
 
     const levelChange = getLevelValue(exitLevel) - getLevelValue(entryLevel);
 
