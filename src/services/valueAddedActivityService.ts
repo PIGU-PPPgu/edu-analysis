@@ -805,44 +805,46 @@ export async function executeValueAddedCalculation(
             result: classResult as any,
           });
 
-          // ✅ 保存教师增值（总分跳过教师映射）
-          if (subject !== "total") {
-            // 单科：使用真实教师信息
-            const teacherSubjectName =
-              subjectTeacherNameMap.get(subject) || subjectKeyToName[subject];
-            const teacherKey = `${classResult.class_name}_${teacherSubjectName}`;
-            const teacherInfo = teacherMap.get(teacherKey);
-
-            // 如果找到真实教师，使用真实信息；否则使用班级+科目作为唯一标识
+          // ✅ 保存教师增值
+          // 总分：直接用班级名作为"教师"标识（高中场景只有总分，归到班级名下）
+          // 单科：使用真实教师信息
+          {
             let teacherId: string;
             let teacherName: string;
 
-            if (teacherInfo) {
-              // 有真实教师信息
-              teacherId = teacherInfo.teacher_id;
-              teacherName = teacherInfo.teacher_name;
+            if (subject === "total") {
+              teacherId = `class_${classResult.class_name}`;
+              teacherName = classResult.class_name;
             } else {
-              // 没有教师信息，使用唯一标识避免错误聚合（已在前面统一提示）
-              teacherId = `unknown_${classResult.class_name}_${subjectKeyToName[subject]}`;
-              teacherName = `${classResult.class_name} ${subjectKeyToName[subject]}教师`;
+              const teacherSubjectName =
+                subjectTeacherNameMap.get(subject) || subjectKeyToName[subject];
+              const teacherKey = `${classResult.class_name}_${teacherSubjectName}`;
+              const teacherInfo = teacherMap.get(teacherKey);
+
+              if (teacherInfo) {
+                teacherId = teacherInfo.teacher_id;
+                teacherName = teacherInfo.teacher_name;
+              } else {
+                teacherId = `unknown_${classResult.class_name}_${subjectKeyToName[subject]}`;
+                teacherName = `${classResult.class_name} ${subjectKeyToName[subject]}教师`;
+              }
             }
 
             allTeacherResults.push({
               activity_id: activityId,
               report_type: "teacher_value_added",
               dimension: "teacher",
-              target_id: `${teacherId}_${classResult.class_name}_${subjectKeyToName[subject]}`, // 包含班级，确保细粒度存储
+              target_id: `${teacherId}_${classResult.class_name}_${subjectKeyToName[subject]}`,
               target_name: teacherName,
               result: {
                 teacher_id: teacherId,
                 teacher_name: teacherName,
                 subject: classResult.subject,
-                class_name: classResult.class_name, // 单个班级名称（细粒度存储）
+                class_name: classResult.class_name,
                 ...classResult,
               } as any,
             });
           }
-          // 总分：不保存到教师维度（班主任功能Phase 2实现）
         }
 
         // ✅ 计算学生增值（使用正确的Z分数和等级计算）
