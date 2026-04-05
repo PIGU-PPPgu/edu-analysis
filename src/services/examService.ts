@@ -911,7 +911,7 @@ export const getAcademicTerms = async (): Promise<AcademicTerm[]> => {
     const { data, error } = await supabase
       .from("academic_terms")
       .select("*")
-      .eq("is_active", true)
+      .eq("is_current", true)
       .order("academic_year", { ascending: false })
       .order("semester");
 
@@ -936,7 +936,8 @@ export const getCurrentAcademicTerm =
         .eq("is_current", true)
         .single();
 
-      if (error && error.code !== "PGRST116") throw error;
+      if (error && error.code !== "PGRST116" && error.code !== "PGRST106")
+        throw error;
       return data;
     } catch (error) {
       console.error("获取当前学期失败:", error);

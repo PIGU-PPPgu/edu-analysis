@@ -12,7 +12,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useEffect, Suspense, lazy } from "react";
+import { useEffect, Suspense, lazy, useRef } from "react";
 import { initializeDatabase, setupInitialData } from "./utils/dbSetup";
 // import { AuthProvider } from "./contexts/AuthContext"; // 🔧 移除：现在使用UnifiedAppProvider中的AuthModule
 import ProtectedRoute from "./components/auth/ProtectedRoute";
@@ -56,6 +56,7 @@ const ConfigurationManagement = lazy(
   () => import("./pages/ConfigurationManagement")
 );
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const GradeReportPage = lazy(() => import("./pages/GradeReport"));
 
 // 工具和测试页面 - 懒加载
 // 已删除测试文件: CascadeAnalysisTestPage, AnalysisDashboardComparison
@@ -94,6 +95,7 @@ import { ThemeTest } from "./ThemeTest";
 import { UnifiedAppProvider } from "./contexts/unified/UnifiedAppContext";
 import { GlobalLoadingProvider } from "./contexts/GlobalLoadingContext";
 import { DataFlowProvider } from "./contexts/DataFlowContext";
+import { useAuth } from "./contexts/unified/modules/AuthModule";
 // 🧠 Master-AI-Data: 用户行为追踪系统
 // import { userBehaviorTracker } from "./services/ai/userBehaviorTracker"; // Disabled for development
 // import { useInitializeApp } from "./hooks/useInitializeApp"; // 暂时未使用
@@ -128,25 +130,45 @@ const AppInitializer: React.FC<{ children: React.ReactNode }> = ({
   return <>{children}</>;
 };
 
-// 数据库初始化组件（保持现有逻辑）
+// 数据库初始化组件（带 localStorage 缓存，避免每次刷新都串行执行 DDL）
+const DB_INIT_CACHE_KEY = "db_init_done_v1";
+const DB_INIT_TTL_MS = 24 * 60 * 60 * 1000; // 24 小时
+
 const DatabaseInitializer = ({ children }: { children: React.ReactNode }) => {
+  const { user, isAuthReady } = useAuth();
+  const initializedUserIdRef = useRef<string | null>(null);
+
   useEffect(() => {
+    if (!isAuthReady || !user) return;
+    if (initializedUserIdRef.current === user.id) return;
+    initializedUserIdRef.current = user.id;
+
     const setupDatabase = async () => {
       try {
-        await initializeDatabase();
-        await setupInitialData();
-        // 初始化默认AI配置（豆包API），强制重置配置
-        await initDefaultAIConfig(true);
+        const cached = localStorage.getItem(DB_INIT_CACHE_KEY);
+        const skipHeavyInit =
+          cached && Date.now() - Number(cached) < DB_INIT_TTL_MS;
 
-        // 🚀 第6周新增: 预热缓存系统
-        console.log("🚀 性能优化系统已启动，缓存系统已预热");
+        if (!skipHeavyInit) {
+          // 首次（或缓存过期）：执行完整的 DDL 初始化
+          await initializeDatabase();
+          await setupInitialData();
+          await initDefaultAIConfig(true);
+          localStorage.setItem(DB_INIT_CACHE_KEY, String(Date.now()));
+          console.log("🚀 数据库完整初始化完成");
+        } else {
+          console.log("🚀 跳过数据库 DDL 初始化（24h 缓存有效）");
+        }
       } catch (error) {
         console.error("数据库初始化失败:", error);
+        localStorage.removeItem(DB_INIT_CACHE_KEY);
       }
     };
 
     setupDatabase();
+  }, [isAuthReady, user]);
 
+  useEffect(() => {
     // 检查浏览器资源，如果资源不足，自动减少动画和特效
     if (!checkBrowserResources()) {
       reduceBrowserWorkload();
@@ -284,6 +306,10 @@ function App() {
                           {/* 受保护的路由 - 需要登录验证 */}
                           <Route element={<ProtectedRoute />}>
                             <Route path="/dashboard" element={<Index />} />
+                            <Route
+                              path="/grade-report"
+                              element={<GradeReportPage />}
+                            />
                             <Route
                               path="/teacher-dashboard"
                               element={<TeacherDashboard />}

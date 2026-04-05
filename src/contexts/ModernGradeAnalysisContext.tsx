@@ -10,6 +10,7 @@ import React, {
   useEffect,
   useMemo,
   useCallback,
+  useRef,
 } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -786,27 +787,39 @@ export const ModernGradeAnalysisProvider: React.FC<
     return filtered;
   }, [allGradeData, filter]);
 
-  // 计算可用选项
+  // 当前选中的考试ID（单选）
+  const currentExamId = filter.examIds?.[0];
+
+  // 计算可用选项 - 当选了考试时从该考试数据中提取，否则从全量数据提取
+  const examScopedData = useMemo(() => {
+    if (!currentExamId) return allGradeData;
+    return allGradeData.filter(
+      (r) =>
+        r.exam_id === currentExamId ||
+        r.exam_title === examList.find((e) => e.id === currentExamId)?.title
+    );
+  }, [allGradeData, currentExamId, examList]);
+
   const availableSubjects = useMemo(() => {
     const subjects = new Set(
-      allGradeData.map((record) => record.subject).filter(Boolean)
+      examScopedData.map((record) => record.subject).filter(Boolean)
     );
     return Array.from(subjects).sort();
-  }, [allGradeData]);
+  }, [examScopedData]);
 
   const availableClasses = useMemo(() => {
     const classes = new Set(
-      allGradeData.map((record) => record.class_name).filter(Boolean)
+      examScopedData.map((record) => record.class_name).filter(Boolean)
     );
     return Array.from(classes).sort();
-  }, [allGradeData]);
+  }, [examScopedData]);
 
   const availableGrades = useMemo(() => {
     const grades = new Set(
-      allGradeData.map((record) => record.grade).filter(Boolean)
+      examScopedData.map((record) => record.grade).filter(Boolean)
     );
     return Array.from(grades).sort();
-  }, [allGradeData]);
+  }, [examScopedData]);
 
   const availableExamTypes = useMemo(() => {
     const types = new Set(examList.map((exam) => exam.type).filter(Boolean));
@@ -1267,10 +1280,20 @@ export const ModernGradeAnalysisProvider: React.FC<
     [filteredGradeData]
   );
 
-  // 初始加载数据
+  // 根据考试筛选器决定加载策略：选了具体考试则精确加载，否则加载全量
+  const loadedExamKeyRef = useRef<string | null>(null);
+
   useEffect(() => {
-    loadAllData();
-  }, [loadAllData]);
+    const examKey = currentExamId ?? "__all__";
+    if (examKey === loadedExamKeyRef.current) return;
+    loadedExamKeyRef.current = examKey;
+
+    if (currentExamId) {
+      loadExamData(currentExamId);
+    } else {
+      loadAllData();
+    }
+  }, [currentExamId, loadExamData, loadAllData]);
 
   // 调试：监控数据和筛选器的变化
   useEffect(() => {

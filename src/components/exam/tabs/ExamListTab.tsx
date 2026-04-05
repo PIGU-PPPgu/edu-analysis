@@ -25,6 +25,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Search,
   RefreshCw,
   BookOpen,
@@ -66,6 +76,7 @@ export interface ExamListTabProps {
   onQuickAction: (exam: UIExam, action: string) => void;
   onBatchAction: (action: string) => void;
   onOpenCreate: () => void;
+  onReload?: () => Promise<void>;
 }
 
 // ---- 状态徽章 ----
@@ -105,6 +116,7 @@ const ExamListTab: React.FC<ExamListTabProps> = ({
   onQuickAction,
   onBatchAction,
   onOpenCreate,
+  onReload,
 }) => {
   // 局部 state：搜索 / 筛选 / 分页
   const [searchTerm, setSearchTerm] = useState("");
@@ -114,13 +126,7 @@ const ExamListTab: React.FC<ExamListTabProps> = ({
   const [selectedTermId, setSelectedTermId] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(12);
-
-  // 当前学期加载后默认选中
-  useEffect(() => {
-    if (currentTerm && selectedTermId === "all") {
-      setSelectedTermId(currentTerm.id);
-    }
-  }, [currentTerm]);
+  const [examToDelete, setExamToDelete] = useState<UIExam | null>(null);
 
   // 搜索防抖
   useEffect(() => {
@@ -234,9 +240,13 @@ const ExamListTab: React.FC<ExamListTabProps> = ({
               <Button
                 variant="outline"
                 size="sm"
+                disabled={isLoading}
+                onClick={() => onReload?.()}
                 className="gap-1 border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#000] transition-all duration-200 font-bold"
               >
-                <RefreshCw className="h-4 w-4" />
+                <RefreshCw
+                  className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+                />
                 刷新
               </Button>
             </div>
@@ -471,15 +481,7 @@ const ExamListTab: React.FC<ExamListTabProps> = ({
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
-                              onClick={() => {
-                                if (
-                                  confirm(
-                                    `确定要删除考试"${exam.title}"吗？此操作不可撤销。`
-                                  )
-                                ) {
-                                  onQuickAction(exam, "delete");
-                                }
-                              }}
+                              onClick={() => setExamToDelete(exam)}
                               className="text-red-600 focus:text-red-600"
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
@@ -598,6 +600,34 @@ const ExamListTab: React.FC<ExamListTabProps> = ({
           </CardContent>
         </Card>
       )}
+      {/* 删除确认弹窗 */}
+      <AlertDialog
+        open={!!examToDelete}
+        onOpenChange={(open) => !open && setExamToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除考试</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要删除考试「{examToDelete?.title}」吗？此操作不可撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => {
+                if (examToDelete) {
+                  onQuickAction(examToDelete, "delete");
+                  setExamToDelete(null);
+                }
+              }}
+            >
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

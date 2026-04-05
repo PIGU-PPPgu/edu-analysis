@@ -1,0 +1,95 @@
+{
+  "id": "EP-20260403-130854",
+  "title": "优化 /analysis/:examId 路由模块",
+  "description": "拆分 BasicAnalyticsDashboard 和巨型子组件，统一数据访问，提升可测试性",
+  "tasks": [
+    {
+      "id": "EP-20260403-130854-T001",
+      "title": "创建 useAnalysisData hook",
+      "description": "封装所有分析数据操作：fetchAnalysisData, fetchAnomalyData, fetchTrendData 等，替换直接调用 service 层",
+      "status": "done",
+      "created_at": "2026-04-03T13:10:15.381149",
+      "updated_at": "2026-04-03T13:40:00.000000",
+      "dependencies": [],
+      "assignee": "claude-agent",
+      "branch": null,
+      "pr_url": null
+    },
+    {
+      "id": "EP-20260403-130854-T002",
+      "title": "拆分 BasicAnalyticsDashboard 的 4 个 tab",
+      "description": "将 OverviewTab, DetailedAnalysisTab, TrendAnalysisTab, ComparisonTab 提取为独立组件",
+      "status": "done",
+      "created_at": "2026-04-03T13:24:43.432412",
+      "updated_at": "2026-04-03T13:24:43.432412",
+      "dependencies": [
+        "EP-20260403-130854-T001"
+      ],
+      "assignee": null,
+      "branch": null,
+      "pr_url": null
+    },
+    {
+      "id": "EP-20260403-130854-T003",
+      "title": "拆分 AnomalyDetectionAnalysis 组件",
+      "description": "1214 行 → 拆成 AnomalyDetector, AnomalyList, AnomalyChart 等子组件",
+      "status": "done",
+      "created_at": "2026-04-03T13:25:29.651171",
+      "updated_at": "2026-04-03T14:00:00.000000",
+      "dependencies": [
+        "EP-20260403-130854-T001"
+      ],
+      "assignee": "claude-agent-t003",
+      "branch": null,
+      "pr_url": null
+    },
+    {
+      "id": "EP-20260403-130854-T004",
+      "title": "拆分 TrendAnalysisPanel 组件",
+      "description": "1089 行 → 拆成 TrendChart, TrendFilters, TrendSummary 等子组件",
+      "status": "pending",
+      "created_at": "2026-04-03T13:27:40.095587",
+      "updated_at": "2026-04-03T13:27:40.095587",
+      "dependencies": [
+        "EP-20260403-130854-T001"
+      ],
+      "assignee": null,
+      "branch": null,
+      "pr_url": null
+    },
+    {
+      "id": "EP-20260403-130854-T005",
+      "title": "拆分 SubjectComparisonAnalysis 组件",
+      "description": "987 行 → 拆成 ComparisonChart, ComparisonTable, ComparisonFilters 等子组件",
+      "status": "pending",
+      "created_at": "2026-04-03T13:28:09.867799",
+      "updated_at": "2026-04-03T13:28:09.867799",
+      "dependencies": [
+        "EP-20260403-130854-T001"
+      ],
+      "assignee": null,
+      "branch": null,
+      "pr_url": null
+    },
+    {
+      "id": "EP-20260403-130854-T006",
+      "title": "为分析计算逻辑添加单元测试",
+      "description": "测试异常检测算法、趋势计算、统计指标计算等核心业务逻辑",
+      "status": "pending",
+      "created_at": "2026-04-03T13:29:22.281414",
+      "updated_at": "2026-04-03T13:29:22.281414",
+      "dependencies": [
+        "EP-20260403-130854-T002",
+        "EP-20260403-130854-T003",
+        "EP-20260403-130854-T004",
+        "EP-20260403-130854-T005"
+      ],
+      "assignee": null,
+      "branch": null,
+      "pr_url": null
+    }
+  ],
+  "created_at": "2026-04-03T13:08:54.062382",
+  "updated_at": "2026-04-03T13:29:22.281414",
+  "status": "active"
+}

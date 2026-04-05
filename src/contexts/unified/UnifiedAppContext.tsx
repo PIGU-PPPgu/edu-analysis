@@ -207,10 +207,8 @@ const StateAggregator: React.FC<{
 
       uiModule.setGlobalLoading({ progress: 60, message: "加载数据..." });
 
-      // 如果用户已登录，预加载成绩数据
-      if (authModule.user) {
-        await gradeModule.loadAllData();
-      }
+      // 成绩数据按需加载，不在初始化时阻塞
+      // GradeModule 的 useEffect 已经会加载考试列表
 
       uiModule.setGlobalLoading({ progress: 100, message: "初始化完成" });
       setInitialized(true);
@@ -238,8 +236,6 @@ const StateAggregator: React.FC<{
   }, [
     initialized,
     authModule.isAuthReady,
-    authModule.user,
-    gradeModule.loadAllData,
     uiModule.setGlobalLoading,
     uiModule.addNotification,
     uiModule.clearGlobalLoading,

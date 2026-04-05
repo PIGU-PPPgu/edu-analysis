@@ -66,6 +66,7 @@ import { SubjectScoreComparisonReport } from "../subject/SubjectScoreComparisonR
 import { SubjectAbilityComparisonReport } from "../subject/SubjectAbilityComparisonReport";
 import { ComparisonAnalysisTool } from "../comparison/ComparisonAnalysisTool";
 import { AIAnalysisReport } from "../ai/AIAnalysisReport";
+import { NineSegmentReport } from "./NineSegmentReport";
 import type {
   ClassValueAdded,
   TeacherValueAdded,
@@ -147,15 +148,6 @@ export function ReportsMenuDashboard({
     return () => document.removeEventListener("keydown", down);
   }, []);
 
-  // 数据统计（调试用）
-  console.log("📊 [ReportsMenuDashboard] Data stats:", {
-    classData: classData.length,
-    teacherData: teacherData.length,
-    studentData: studentData.length,
-    subjectBalanceData: subjectBalanceData.length,
-    exitExamId,
-  });
-
   // 19个报告维度定义
   const reportCards: ReportCard[] = [
     // AI智能分析
@@ -207,6 +199,16 @@ export function ReportsMenuDashboard({
       icon: BarChart3,
       category: "班级增值评价",
       available: classData.length > 0,
+    },
+    {
+      id: "nine-segment",
+      title: "段位分布分析",
+      description:
+        "展示各班级入口→出口的九段（或六段）人数分布变化，直观呈现段位流动",
+      badge: "行政班",
+      icon: BarChart3,
+      category: "班级增值评价",
+      available: studentData.length > 0,
     },
 
     // 学科均衡分析
@@ -612,6 +614,9 @@ export function ReportsMenuDashboard({
         {selectedReport === "comparison-tool" && (
           <ComparisonAnalysisTool loading={loading} />
         )}
+        {selectedReport === "nine-segment" && (
+          <NineSegmentReport studentData={studentData} loading={loading} />
+        )}
 
         {/* 其他报告组件待实现 */}
         {![
@@ -636,6 +641,7 @@ export function ReportsMenuDashboard({
           "student-ability-multi",
           "student-trend",
           "comparison-tool",
+          "nine-segment",
         ].includes(selectedReport) && (
           <Card>
             <CardContent className="p-12 text-center">

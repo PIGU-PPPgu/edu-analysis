@@ -389,6 +389,69 @@ export function FormulaExplanation({ trigger }: FormulaExplanationProps) {
                 </AccordionContent>
               </AccordionItem>
 
+              <AccordionItem value="shrinkage">
+                <AccordionTrigger>
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-orange-500">稳定性</Badge>
+                    <span>小样本贝叶斯收缩</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="space-y-3 px-2">
+                  <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded text-center">
+                    <BlockMath math="\text{TVA}_{\text{adj}} = \text{TVA} \times \dfrac{n}{n + k}, \quad k = 15" />
+                    <div className="text-xs text-muted-foreground mt-1">
+                      收缩因子随样本量增大趋近于 1（不收缩）
+                    </div>
+                  </div>
+                  <div className="text-sm space-y-2">
+                    <p>
+                      <strong>问题背景</strong>：高中选科/走班制下，部分班级仅有
+                      5–15 名学生。Z-score
+                      差值在小样本下方差极大，直接展示会出现 ±20%
+                      以上的虚高增值率，误导评价。
+                    </p>
+                    <p>
+                      <strong>解决方案</strong>
+                      ：对所有班级/教师的增值率应用贝叶斯收缩，将极端值向零拉回。
+                      样本越小，收缩越强；样本充足时（n ≥ 30）影响可忽略。
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    {[
+                      { n: 5, factor: "25%", note: "高度收缩" },
+                      { n: 15, factor: "50%", note: "中度收缩" },
+                      { n: 30, factor: "67%", note: "轻度收缩" },
+                    ].map(({ n, factor, note }) => (
+                      <div
+                        key={n}
+                        className="bg-orange-50 dark:bg-orange-950 p-2 rounded border border-orange-200 text-center"
+                      >
+                        <div className="font-semibold text-orange-700 dark:text-orange-300">
+                          n = {n}
+                        </div>
+                        <div className="text-muted-foreground">
+                          保留 {factor}
+                        </div>
+                        <div className="text-muted-foreground italic">
+                          {note}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 rounded p-3 text-xs">
+                    <div className="font-semibold mb-1 text-amber-700 dark:text-amber-300">
+                      ⚠ 统计显著性提示
+                    </div>
+                    <div className="text-muted-foreground">
+                      样本量 &lt; 15
+                      时，增值率旁会显示橙色警告图标，提示"结果仅供参考"。
+                      增值率绝对值 &gt; 20%
+                      时同样标注，建议结合其他维度综合判断。
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
               <AccordionItem value="consolidation">
                 <AccordionTrigger>
                   <div className="flex items-center gap-2">

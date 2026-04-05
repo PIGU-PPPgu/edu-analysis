@@ -432,16 +432,10 @@ export async function executeValueAddedCalculation(
     });
 
     // 4. 获取教师映射关系（从teacher_student_subjects表）
-    console.log("🔍 查询教师映射关系...");
 
     // ✅ 修复：使用班级名称查询，不依赖可能不一致的config_id
     const uniqueClasses = Array.from(
       new Set(entryData.map((d) => d.class_name))
-    );
-
-    console.log(
-      `📚 涉及班级: ${uniqueClasses.length}个`,
-      uniqueClasses.slice(0, 5)
     );
 
     // 直接用班级名称查询所有教学关系
@@ -458,8 +452,19 @@ export async function executeValueAddedCalculation(
         .in("class_name", uniqueClasses);
 
       // ✅ 按学年筛选，避免跨年级教师数据混入
+      // 格式归一化：活动可能存 "25-26"，表里存 "2024-2025"，两种都尝试
       if (activity.academic_year) {
-        tssQuery = tssQuery.eq("academic_year", activity.academic_year);
+        const normalizeYear = (y: string) => {
+          // "25-26" -> "2024-2025"
+          const m = y.match(/^(\d{2})-(\d{2})$/);
+          if (m) return `20${m[1]}-20${m[2]}`;
+          return y;
+        };
+        const normalizedYear = normalizeYear(activity.academic_year);
+        // 用 OR 兼容两种格式
+        tssQuery = tssQuery.or(
+          `academic_year.eq.${activity.academic_year},academic_year.eq.${normalizedYear}`
+        );
       }
 
       const { data, error } = await tssQuery.range(from, from + batchSize - 1);
@@ -473,13 +478,10 @@ export async function executeValueAddedCalculation(
         teacherMappingData = teacherMappingData.concat(data);
         from += batchSize;
         hasMore = data.length === batchSize; // 如果返回数据少于batchSize，说明已经到末尾
-        console.log(`  已获取 ${teacherMappingData.length} 条记录...`);
       } else {
         hasMore = false;
       }
     }
-
-    console.log(`✅ 查询到 ${teacherMappingData?.length || 0} 条教师映射记录`);
 
     // 建立 class_name + subject -> teacher_name 的映射
     const teacherMap = new Map<
@@ -491,11 +493,6 @@ export async function executeValueAddedCalculation(
     const availableSubjects = new Set<string>();
 
     if (teacherMappingData && teacherMappingData.length > 0) {
-      console.log(
-        `📊 教师映射原始数据样本 (前3条):`,
-        teacherMappingData.slice(0, 3)
-      );
-
       // 🔍 统计每个科目的映射数量
       const subjectCounts = new Map<string, number>();
 
@@ -514,20 +511,12 @@ export async function executeValueAddedCalculation(
           (subjectCounts.get(mapping.subject) || 0) + 1
         );
       });
-
-      console.log(`✅ 成功建立教师映射，共 ${teacherMap.size} 个班级-科目组合`);
-      console.log(
-        `📊 映射键样本 (前8个):`,
-        Array.from(teacherMap.keys()).slice(0, 8)
-      );
-      console.log(`📊 动态识别的科目:`, Array.from(availableSubjects));
-      console.log(`📊 数据库中的科目分布:`, Object.fromEntries(subjectCounts));
     } else {
       console.warn("⚠️ 未找到教师映射数据，将使用默认命名");
     }
 
-    // 5. 获取等级配置
-    const levelConfig = await getDefaultLevelConfig();
+    // 5. 获取等级配置（优先使用活动绑定的配置，fallback 到默认）
+    const levelConfig = await getLevelConfig(activity.grade_level_config_id);
 
     // 6. 动态构建科目映射（支持未来添加新科目）
     // 中文科目名 -> 英文key（用于grade_data表字段名）
@@ -609,18 +598,6 @@ export async function executeValueAddedCalculation(
       (subject) => subject.comparablePairs === 0
     );
 
-    console.log(`✅ 动态识别科目: ${availableSubjects.size}个（含总分）`, {
-      中文: Array.from(availableSubjects),
-      英文: subjects,
-      映射: subjects.map((key) => `${key} -> ${subjectKeyToName[key]}`),
-      可比样本数: Object.fromEntries(
-        subjectSupport.map((subject) => [
-          subject.label,
-          subject.comparablePairs,
-        ])
-      ),
-    });
-
     if (unsupportedSubjects.length > 0) {
       console.warn(
         "⚠️ 以下科目因入口/出口缺少同科可比分数，已跳过增值计算：",
@@ -633,7 +610,6 @@ export async function executeValueAddedCalculation(
     }
 
     // 🔍 数据完整性校验：检查班级-科目组合是否都有教师信息
-    console.log("\n🔍 开始数据完整性校验...");
     // uniqueClasses 已在前面声明，此处直接使用
 
     const missingTeachers: Array<{ class: string; subject: string }> = [];
@@ -655,13 +631,6 @@ export async function executeValueAddedCalculation(
         }
       }
     }
-
-    console.log(`📊 校验结果:`);
-    console.log(
-      `   期望映射数: ${expectedMappings.length} (${uniqueClasses.length}个班级 × ${availableSubjects.size}个科目)`
-    );
-    console.log(`   实际映射数: ${teacherMap.size}`);
-    console.log(`   缺失映射数: ${missingTeachers.length}`);
 
     if (missingTeachers.length > 0) {
       console.warn(
@@ -690,8 +659,6 @@ export async function executeValueAddedCalculation(
       console.warn(
         `   这些班级-科目组合将使用"未知教师"标识，但不影响增值计算\n`
       );
-    } else {
-      console.log(`✅ 数据完整性检查通过：所有班级-科目组合都有教师信息\n`);
     }
 
     // 7. 按科目计算班级和学生增值
@@ -743,9 +710,6 @@ export async function executeValueAddedCalculation(
           const isExitAbsent = exitAbsent === true || exitScore === 0;
 
           if (isEntryAbsent || isExitAbsent) {
-            console.log(
-              `跳过缺考/0分学生: ${entryRecord.name} (${subjectKeyToName[subject]}, 入口:${entryScore}, 出口:${exitScore})`
-            );
             return null;
           }
 
@@ -762,13 +726,8 @@ export async function executeValueAddedCalculation(
         .filter(Boolean);
 
       if (studentGrades.length === 0) {
-        console.log(`${subjectKeyToName[subject]} 无有效数据，跳过`);
         continue;
       }
-
-      console.log(
-        `开始计算 ${subjectKeyToName[subject]}，学生数: ${studentGrades.length}`
-      );
 
       try {
         // 计算班级增值
@@ -778,10 +737,6 @@ export async function executeValueAddedCalculation(
           levelDefinitions: levelConfig,
           gradeStudents: studentGrades as any,
         });
-
-        console.log(
-          `${subjectKeyToName[subject]} 班级增值计算完成，班级数: ${classResults.length}`
-        );
 
         // 收集班级结果
         for (const classResult of classResults) {
@@ -794,59 +749,54 @@ export async function executeValueAddedCalculation(
             result: classResult as any,
           });
 
-          // ✅ 保存教师增值（总分跳过教师映射）
-          if (subject !== "total") {
-            // 单科：使用真实教师信息
-            const teacherSubjectName =
-              subjectTeacherNameMap.get(subject) || subjectKeyToName[subject];
-            const teacherKey = `${classResult.class_name}_${teacherSubjectName}`;
-            const teacherInfo = teacherMap.get(teacherKey);
-
-            // 如果找到真实教师，使用真实信息；否则使用班级+科目作为唯一标识
+          // ✅ 保存教师增值
+          // 总分：直接用班级名作为"教师"标识（高中场景只有总分，归到班级名下）
+          // 单科：使用真实教师信息
+          {
             let teacherId: string;
             let teacherName: string;
 
-            if (teacherInfo) {
-              // 有真实教师信息
-              teacherId = teacherInfo.teacher_id;
-              teacherName = teacherInfo.teacher_name;
+            if (subject === "total") {
+              teacherId = `class_${classResult.class_name}`;
+              teacherName = classResult.class_name;
             } else {
-              // 没有教师信息，使用唯一标识避免错误聚合（已在前面统一提示）
-              teacherId = `unknown_${classResult.class_name}_${subjectKeyToName[subject]}`;
-              teacherName = `${classResult.class_name} ${subjectKeyToName[subject]}教师`;
+              const teacherSubjectName =
+                subjectTeacherNameMap.get(subject) || subjectKeyToName[subject];
+              const teacherKey = `${classResult.class_name}_${teacherSubjectName}`;
+              const teacherInfo = teacherMap.get(teacherKey);
+
+              if (teacherInfo) {
+                teacherId = teacherInfo.teacher_id;
+                teacherName = teacherInfo.teacher_name;
+              } else {
+                teacherId = `unknown_${classResult.class_name}_${subjectKeyToName[subject]}`;
+                teacherName = `${classResult.class_name} ${subjectKeyToName[subject]}教师`;
+              }
             }
 
             allTeacherResults.push({
               activity_id: activityId,
               report_type: "teacher_value_added",
               dimension: "teacher",
-              target_id: `${teacherId}_${classResult.class_name}_${subjectKeyToName[subject]}`, // 包含班级，确保细粒度存储
+              target_id: `${teacherId}_${classResult.class_name}_${subjectKeyToName[subject]}`,
               target_name: teacherName,
               result: {
                 teacher_id: teacherId,
                 teacher_name: teacherName,
                 subject: classResult.subject,
-                class_name: classResult.class_name, // 单个班级名称（细粒度存储）
+                class_name: classResult.class_name,
                 ...classResult,
               } as any,
             });
           }
-          // 总分：不保存到教师维度（班主任功能Phase 2实现）
         }
 
         // ✅ 计算学生增值（使用正确的Z分数和等级计算）
-        console.log(
-          `🔍 [学生计算] 开始 ${subjectKeyToName[subject]}，输入学生数: ${studentGrades.length}`
-        );
         const studentResults = await calculateStudentValueAdded({
           allStudents: studentGrades as any,
           subject: subjectKeyToName[subject],
           levelDefinitions: levelConfig,
         });
-
-        console.log(
-          `✅ [学生计算] ${subjectKeyToName[subject]} 完成，输出学生数: ${studentResults.length}`
-        );
 
         // 收集学生结果
         for (const studentResult of studentResults) {
@@ -877,12 +827,8 @@ export async function executeValueAddedCalculation(
 
     // 7. 【已移除聚合逻辑】保持细粒度存储：每个(教师, 班级, 科目)组合一条记录
     // 教师数据将以原始细粒度形式存储，不再聚合
-    console.log(
-      `✅ 教师数据准备完成: ${allTeacherResults.length} 条记录（细粒度存储）`
-    );
 
     // 8. 计算学科均衡（新增）
-    console.log("🔍 开始计算学科均衡...");
     onProgress?.({
       step: "calculate",
       progress: 82,
@@ -909,8 +855,6 @@ export async function executeValueAddedCalculation(
           classSubjectData,
         });
 
-        console.log(`✅ 学科均衡计算完成，班级数: ${balanceAnalyses.length}`);
-
         // 包装结果
         for (const analysis of balanceAnalyses) {
           subjectBalanceResults.push({
@@ -936,7 +880,6 @@ export async function executeValueAddedCalculation(
     });
 
     if (allClassResults.length > 0) {
-      console.log(`批量插入 ${allClassResults.length} 条班级结果`);
       const { error: classError } = await supabase
         .from("value_added_cache")
         .insert(allClassResults);
@@ -954,9 +897,6 @@ export async function executeValueAddedCalculation(
     });
 
     if (allTeacherResults.length > 0) {
-      console.log(
-        `批量插入 ${allTeacherResults.length} 条教师结果（细粒度存储：每个教师-班级-科目组合一条）`
-      );
       const { error: teacherError } = await supabase
         .from("value_added_cache")
         .insert(allTeacherResults);
@@ -974,7 +914,6 @@ export async function executeValueAddedCalculation(
     });
 
     if (allStudentResults.length > 0) {
-      console.log(`批量插入 ${allStudentResults.length} 条学生结果（分批）`);
       const BATCH_SIZE = 500;
       for (let i = 0; i < allStudentResults.length; i += BATCH_SIZE) {
         const batch = allStudentResults.slice(i, i + BATCH_SIZE);
@@ -989,9 +928,6 @@ export async function executeValueAddedCalculation(
           );
           throw new Error(`保存学生结果失败: ${studentError.message}`);
         }
-        console.log(
-          `✅ 学生批次 ${i / BATCH_SIZE + 1}/${Math.ceil(allStudentResults.length / BATCH_SIZE)} 插入成功 (${batch.length}条)`
-        );
       }
     }
 
@@ -1002,7 +938,6 @@ export async function executeValueAddedCalculation(
     });
 
     if (subjectBalanceResults.length > 0) {
-      console.log(`批量插入 ${subjectBalanceResults.length} 条学科均衡结果`);
       const { error: balanceError } = await supabase
         .from("value_added_cache")
         .insert(subjectBalanceResults);
@@ -1014,7 +949,6 @@ export async function executeValueAddedCalculation(
     }
 
     // 10. AI智能分析摘要预计算（Phase 1新增）
-    console.log("🤖 开始预计算AI智能分析摘要...");
     onProgress?.({
       step: "ai_analysis",
       progress: 97,
@@ -1043,10 +977,6 @@ export async function executeValueAddedCalculation(
         if (aiError) {
           console.error("保存AI分析摘要失败:", aiError);
           // 不阻断流程，仅记录错误
-        } else {
-          console.log(
-            `✅ AI分析摘要保存成功，耗时: ${aiSummary.performanceMetrics.calculationTime}ms`
-          );
         }
       }
     } catch (error) {
@@ -1080,6 +1010,21 @@ export async function executeValueAddedCalculation(
 // ============================================
 // 辅助函数
 // ============================================
+
+/**
+ * 获取等级配置：优先使用活动绑定的 configId，fallback 到 is_default=true
+ */
+async function getLevelConfig(configId?: string | null) {
+  if (configId) {
+    const { data } = await supabase
+      .from("grade_levels_config")
+      .select("*")
+      .eq("id", configId)
+      .single();
+    if (data) return data.levels;
+  }
+  return getDefaultLevelConfig();
+}
 
 /**
  * 获取默认等级配置
@@ -1420,14 +1365,6 @@ async function generateAIAnalysisSummary(
         cacheSize,
       },
     };
-
-    console.log(`✅ AI分析摘要生成完成:`, {
-      科目数: subjectSummaries.length,
-      班级数: classSummaries.length,
-      诊断建议数: overallDiagnostics.length,
-      耗时: `${calculationTime}ms`,
-      缓存大小: `${(cacheSize / 1024).toFixed(2)}KB`,
-    });
 
     return aiSummary;
   } catch (error) {

@@ -14,7 +14,10 @@ import {
   calculateZScores,
   calculatePercentile,
   determineLevel,
+  determineLevelByZScore,
+  isZScoreBasedConfig,
   calculateScoreValueAddedRate,
+  shrinkValueAddedRate,
   calculateOLSBeta,
   calculateConsolidationRate,
   calculateTransformationRate,
@@ -108,7 +111,11 @@ export async function calculateClassValueAdded(
   const gradeExitZScores = calculateZScores(allExitScores);
 
   // 计算OLS回归斜率（用于均值回归修正）
-  const regressionBeta = calculateOLSBeta(gradeEntryZScores, gradeExitZScores);
+  // 当相关性过低（跨量纲考试，如中考→高中期末）时，限制beta最小值为0.8
+  // 防止低相关性导致的过度均值回归修正，产生极端TVA
+  const rawBeta = calculateOLSBeta(gradeEntryZScores, gradeExitZScores);
+  const regressionBeta = Math.max(rawBeta, 0.8);
+  const lowCorrelationWarning = rawBeta < 0.7;
 
   // 3. 为每个学生分配Z分数
   const studentsWithZScores = sanitizedStudentGrades.map((student, index) => ({
@@ -157,6 +164,7 @@ export async function calculateClassValueAdded(
       levelDefinitions,
       gradeExcellentGain,
       regressionBeta,
+      lowCorrelationWarning,
     });
 
     results.push(classResult);
@@ -179,6 +187,7 @@ async function calculateSingleClassValueAdded(params: {
   levelDefinitions: GradeLevelDefinition[];
   gradeExcellentGain: number;
   regressionBeta: number;
+  lowCorrelationWarning?: boolean;
 }): Promise<ClassValueAdded> {
   const {
     className,
@@ -187,6 +196,7 @@ async function calculateSingleClassValueAdded(params: {
     levelDefinitions,
     gradeExcellentGain,
     regressionBeta,
+    lowCorrelationWarning,
   } = params;
 
   // 1. 提取分数数据
@@ -214,6 +224,12 @@ async function calculateSingleClassValueAdded(params: {
 
   const avgScoreValueAddedRate = average(
     scoreValueAddedRates.filter((rate) => Number.isFinite(rate))
+  );
+
+  // 小样本收缩（高中选科班级保护）
+  const shrunkAvgScoreValueAddedRate = shrinkValueAddedRate(
+    avgScoreValueAddedRate,
+    students.length
   );
 
   const avgZScoreChange = avgExitZScore - avgEntryZScore;
@@ -269,8 +285,8 @@ async function calculateSingleClassValueAdded(params: {
     avg_score_standard_entry: avgStandardEntryScore,
     avg_score_standard_exit: avgStandardExitScore,
 
-    // 分数增值
-    avg_score_value_added_rate: avgScoreValueAddedRate,
+    // 分数增值（已收缩）
+    avg_score_value_added_rate: shrunkAvgScoreValueAddedRate,
     progress_student_ratio: progressStudentRatio,
     avg_z_score_change: avgZScoreChange,
 
@@ -284,21 +300,42 @@ async function calculateSingleClassValueAdded(params: {
     entry_excellent_count: entryExcellentCount,
     exit_excellent_count: exitExcellentCount,
     excellent_gain: excellentGain,
+
+    // 统计有效性
+    is_statistically_significant: students.length >= 15,
+    warnings: [
+      ...(students.length < 15 ? ["样本量不足15人，结果仅供参考"] : []),
+      ...(lowCorrelationWarning
+        ? ["入口与出口考试相关性较低（跨量纲），增值结果仅供参考"]
+        : []),
+    ],
   };
 }
 
 /**
  * 计算学生的能力等级
+ * 若配置含 z_score 区间（九段），则用 Z 分判断；否则用百分位（六段）
  */
 function calculateStudentLevels(
   students: StudentGradeData[],
   type: "entry" | "exit",
   levelDefinitions: GradeLevelDefinition[]
 ): AbilityLevel[] {
+  const useZScore = isZScoreBasedConfig(levelDefinitions);
+
+  if (useZScore) {
+    // 九段：用全年级 Z 分（已在上层计算并挂到 student 上）
+    return students.map((s) => {
+      const z =
+        type === "entry" ? (s.entry_z_score ?? 0) : (s.exit_z_score ?? 0);
+      return determineLevelByZScore(z, levelDefinitions);
+    });
+  }
+
+  // 六段：用百分位
   const scores = students.map((s) =>
     type === "entry" ? s.entry_score : s.exit_score
   );
-
   return scores.map((score) => {
     const percentile = calculatePercentile(score, scores);
     return determineLevel(percentile, levelDefinitions);
@@ -353,12 +390,20 @@ export async function getStudentValueAddedDetails(
       exitZScore
     );
 
-    // 计算等级
-    const entryPercentile = calculatePercentile(entryScore, allEntryScores);
-    const exitPercentile = calculatePercentile(exitScore, allExitScores);
-
-    const entryLevel = determineLevel(entryPercentile, levelDefinitions);
-    const exitLevel = determineLevel(exitPercentile, levelDefinitions);
+    // 计算等级（九段用Z分，六段用百分位）
+    const useZScore = isZScoreBasedConfig(levelDefinitions);
+    const entryLevel = useZScore
+      ? determineLevelByZScore(entryZScore, levelDefinitions)
+      : determineLevel(
+          calculatePercentile(entryScore, allEntryScores),
+          levelDefinitions
+        );
+    const exitLevel = useZScore
+      ? determineLevelByZScore(exitZScore, levelDefinitions)
+      : determineLevel(
+          calculatePercentile(exitScore, allExitScores),
+          levelDefinitions
+        );
 
     const levelChange = getLevelValue(exitLevel) - getLevelValue(entryLevel);
 
@@ -397,6 +442,15 @@ function getLevelValue(level: AbilityLevel): number {
     B: 3,
     "C+": 2,
     C: 1,
+    "1段": 9,
+    "2段": 8,
+    "3段": 7,
+    "4段": 6,
+    "5段": 5,
+    "6段": 4,
+    "7段": 3,
+    "8段": 2,
+    "9段": 1,
   };
 
   return levelMap[level] || 0;

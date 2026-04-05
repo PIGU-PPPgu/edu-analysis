@@ -45,33 +45,32 @@ interface PredictionData {
 interface PredictiveAnalysisProps {
   selectedStudents?: string[];
   timeframe?: "week" | "month" | "semester";
+  gradeData?: any[];
 }
 
 const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
   selectedStudents = [],
   timeframe = "month",
+  gradeData = [],
 }) => {
   const [predictions, setPredictions] = useState<PredictionData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<string>("");
-  const [allStudents, setAllStudents] = useState<any[]>([]);
 
-  useEffect(() => {
-    loadStudentList();
-  }, []);
-
-  const loadStudentList = async () => {
-    try {
-      const { data: students } = await supabase
-        .from("students")
-        .select("student_id, name, class_name")
-        .order("name");
-
-      setAllStudents(students || []);
-    } catch (error) {
-      console.error("加载学生列表失败:", error);
-    }
-  };
+  // 从传入的 gradeData（宽表格式）提取学生列表
+  const allStudents = React.useMemo(() => {
+    const seen = new Set<string>();
+    return gradeData
+      .filter(
+        (r) => r.student_id && !seen.has(r.student_id) && seen.add(r.student_id)
+      )
+      .map((r) => ({
+        student_id: r.student_id,
+        name: r.name,
+        class_name: r.class_name,
+      }))
+      .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  }, [gradeData]);
 
   const generatePredictions = async () => {
     if (!selectedStudent) {

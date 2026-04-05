@@ -15,6 +15,7 @@ import {
   calculatePercentile,
   determineLevel,
   calculateScoreValueAddedRate,
+  shrinkValueAddedRate,
   calculateOLSBeta,
   calculateConsolidationRate,
   calculateTransformationRate,
@@ -168,6 +169,12 @@ async function calculateSingleTeacherValueAdded(params: {
     scoreValueAddedRates.reduce((sum, rate) => sum + rate, 0) /
     scoreValueAddedRates.length;
 
+  // 小样本收缩（高中选科班级保护）
+  const shrunkAvgScoreValueAddedRate = shrinkValueAddedRate(
+    avgScoreValueAddedRate,
+    students.length
+  );
+
   const avgZScoreChange = safeDivide(
     exitZScores.reduce((sum, z) => sum + z, 0) -
       entryZScores.reduce((sum, z) => sum + z, 0),
@@ -221,8 +228,8 @@ async function calculateSingleTeacherValueAdded(params: {
     class_name: className,
     subject,
 
-    // 分数增值
-    avg_score_value_added_rate: avgScoreValueAddedRate,
+    // 分数增值（已收缩）
+    avg_score_value_added_rate: shrunkAvgScoreValueAddedRate,
     progress_student_count: progressStudentCount,
     progress_student_ratio: progressStudentRatio,
     avg_z_score_change: avgZScoreChange,
@@ -237,6 +244,9 @@ async function calculateSingleTeacherValueAdded(params: {
     total_students: students.length,
     entry_excellent_count: entryExcellentCount,
     exit_excellent_count: exitExcellentCount,
+
+    // 统计有效性
+    is_statistically_significant: students.length >= 15,
   };
 }
 

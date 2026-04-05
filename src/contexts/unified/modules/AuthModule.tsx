@@ -36,6 +36,8 @@ type AuthAction =
 
 // ==================== 初始状态 ====================
 
+const AUTH_REQUEST_TIMEOUT_MS = 8000;
+
 const initialState: AuthModuleState = {
   user: null,
   session: null,
@@ -111,14 +113,39 @@ export const AuthModuleProvider: React.FC<{ children: React.ReactNode }> = ({
     student: 1,
   };
 
+  const getSessionWithTimeout = useCallback(async () => {
+    const timeout = new Promise<null>((resolve) =>
+      setTimeout(() => resolve(null), AUTH_REQUEST_TIMEOUT_MS)
+    );
+    const result = await Promise.race([supabase.auth.getSession(), timeout]);
+
+    if (!result) {
+      console.warn("getSession: 超时，按未登录状态继续初始化");
+      return null;
+    }
+
+    return result as Awaited<ReturnType<typeof supabase.auth.getSession>>;
+  }, []);
+
   const fetchUserRole = useCallback(async (userId: string): Promise<string> => {
     // 先从 localStorage 缓存取，避免每次都查 DB
     const cached = localStorage.getItem(`user_role_${userId}`);
 
-    const { data, error } = await supabase
+    // 5秒超时，防止网络挂起导致 isAuthReady 永远不触发
+    const timeout = new Promise<null>((resolve) =>
+      setTimeout(() => resolve(null), 5000)
+    );
+    const query = supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", userId);
+    const result = await Promise.race([query, timeout]);
+
+    if (!result) {
+      console.warn("fetchUserRole: 超时，使用缓存角色");
+      return cached ?? "teacher";
+    }
+    const { data, error } = result as Awaited<typeof query>;
 
     if (error || !data || data.length === 0) {
       return cached ?? "teacher";
@@ -293,10 +320,19 @@ export const AuthModuleProvider: React.FC<{ children: React.ReactNode }> = ({
     });
 
     try {
+      const sessionResult = await getSessionWithTimeout();
+
+      if (!sessionResult) {
+        dispatch({ type: "SET_USER", payload: null });
+        dispatch({ type: "SET_SESSION", payload: null });
+        dispatch({ type: "SET_USER_ROLE", payload: null });
+        return;
+      }
+
       const {
         data: { session },
         error,
-      } = await supabase.auth.getSession();
+      } = sessionResult;
 
       if (error) {
         const appError = createAppError(
@@ -319,7 +355,13 @@ export const AuthModuleProvider: React.FC<{ children: React.ReactNode }> = ({
     } finally {
       setLoading({ isLoading: false });
     }
-  }, [createAppError, setError, setLoading]);
+  }, [
+    createAppError,
+    fetchUserRole,
+    getSessionWithTimeout,
+    setError,
+    setLoading,
+  ]);
 
   const clearError = useCallback(() => {
     dispatch({ type: "CLEAR_ERROR" });
@@ -331,10 +373,19 @@ export const AuthModuleProvider: React.FC<{ children: React.ReactNode }> = ({
     const initializeAuth = async () => {
       // Supabase认证流程
       try {
+        const sessionResult = await getSessionWithTimeout();
+
+        if (!sessionResult) {
+          dispatch({ type: "SET_USER", payload: null });
+          dispatch({ type: "SET_SESSION", payload: null });
+          dispatch({ type: "SET_USER_ROLE", payload: null });
+          return;
+        }
+
         const {
           data: { session },
           error,
-        } = await supabase.auth.getSession();
+        } = sessionResult;
 
         if (error) {
           console.error("获取会话失败:", error);
@@ -384,7 +435,7 @@ export const AuthModuleProvider: React.FC<{ children: React.ReactNode }> = ({
     });
 
     return () => subscription.unsubscribe();
-  }, [createAppError, setError]);
+  }, [createAppError, getSessionWithTimeout, setError]);
 
   // ==================== Context Value ====================
 

@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,6 +18,9 @@ import {
   Brain,
   BarChart3,
   FileText,
+  Users,
+  PieChart,
+  AlertTriangle,
 } from "lucide-react";
 import { useModernGradeAnalysis } from "@/contexts/ModernGradeAnalysisContext";
 import ModernGradeFilters from "@/components/analysis/filters/ModernGradeFilters";
@@ -29,10 +33,161 @@ import type { GradeRecord as LegacyGradeRecord } from "@/types/grade";
 
 import OverviewTab from "./tabs/OverviewTab";
 import AIAnalysisTab from "./tabs/AIAnalysisTab";
-import DeepAnalysisTab from "./tabs/DeepAnalysisTab";
 import DataDetailsTab from "./tabs/DataDetailsTab";
 
+import { Card, CardContent } from "@/components/ui/card";
+import SubjectCorrelationAnalysis from "@/components/analysis/advanced/SubjectCorrelationAnalysis";
+import ClassComparisonChart from "@/components/analysis/comparison/ClassComparisonChart";
+import ClassBoxPlotChart from "@/components/analysis/comparison/ClassBoxPlotChart";
+import { LearningBehaviorAnalysis } from "@/components/analysis/advanced/LearningBehaviorAnalysis";
+import ContributionAnalysis from "@/components/analysis/advanced/ContributionAnalysis";
+import EnhancedSubjectCorrelationMatrix from "@/components/analysis/advanced/EnhancedSubjectCorrelationMatrix";
+import StudentTrendAnalysis from "@/components/analysis/advanced/StudentTrendAnalysis";
+import MultiDimensionalRankingSystem from "@/components/analysis/advanced/MultiDimensionalRankingSystem";
+import ChartGallery from "@/components/analysis/charts/ChartGallery";
+import type { WideGradeRecord } from "@/components/analysis/advanced/trend/trendUtils";
+
+// ---- 数据分析子 Tab ----
+const DATA_ANALYSIS_TABS = [
+  { value: "correlation", label: "相关性" },
+  { value: "trend", label: "趋势" },
+  { value: "ranking", label: "排名" },
+  { value: "subject", label: "科目分析" },
+] as const;
+
+const DataAnalysisSubTabs: React.FC<{
+  wideGradeData: WideGradeRecord[];
+  filteredGradeData: any[];
+}> = ({ wideGradeData, filteredGradeData }) => {
+  const [sub, setSub] = useState<string>("correlation");
+  const [visited, setVisited] = useState<Set<string>>(new Set(["correlation"]));
+  const handleSub = (v: string) => {
+    setSub(v);
+    setVisited((p) => new Set([...p, v]));
+  };
+  return (
+    <Tabs value={sub} onValueChange={handleSub} className="space-y-4">
+      <TabsList className="bg-white border-2 border-black shadow-[3px_3px_0px_0px_#191A23] p-1">
+        {DATA_ANALYSIS_TABS.map(({ value, label }) => (
+          <TabsTrigger
+            key={value}
+            value={value}
+            className="data-[state=active]:bg-[#191A23] data-[state=active]:text-white font-bold border-2 border-transparent data-[state=active]:border-black px-4 py-2"
+          >
+            {label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+      <TabsContent value="correlation">
+        {visited.has("correlation") && (
+          <EnhancedSubjectCorrelationMatrix
+            gradeData={wideGradeData.slice(0, 2000)}
+            title="科目相关性分析"
+            className="w-full"
+            showHeatMap={true}
+            filterSignificance="all"
+          />
+        )}
+      </TabsContent>
+      <TabsContent value="trend">
+        {visited.has("trend") && (
+          <StudentTrendAnalysis
+            gradeData={wideGradeData.slice(0, 3000)}
+            className="w-full"
+          />
+        )}
+      </TabsContent>
+      <TabsContent value="ranking">
+        {visited.has("ranking") && (
+          <MultiDimensionalRankingSystem
+            gradeData={wideGradeData.slice(0, 1000)}
+            className="w-full"
+          />
+        )}
+      </TabsContent>
+      <TabsContent value="subject">
+        {visited.has("subject") && (
+          <SubjectCorrelationAnalysis
+            gradeData={filteredGradeData}
+            className=""
+          />
+        )}
+      </TabsContent>
+    </Tabs>
+  );
+};
+
+// ---- 学生对比子 Tab ----
+const STUDENT_ANALYSIS_TABS = [
+  { value: "class-compare", label: "班级对比" },
+  { value: "behavior", label: "学习行为" },
+  { value: "contribution", label: "贡献度" },
+] as const;
+
+const StudentAnalysisSubTabs: React.FC<{
+  comparisonGradeData: LegacyGradeRecord[];
+  wideGradeData: any[];
+  filteredGradeData: any[];
+  classNames: string[];
+}> = ({
+  comparisonGradeData,
+  wideGradeData,
+  filteredGradeData,
+  classNames,
+}) => {
+  const [sub, setSub] = useState<string>("class-compare");
+  const [visited, setVisited] = useState<Set<string>>(
+    new Set(["class-compare"])
+  );
+  const handleSub = (v: string) => {
+    setSub(v);
+    setVisited((p) => new Set([...p, v]));
+  };
+  return (
+    <Tabs value={sub} onValueChange={handleSub} className="space-y-4">
+      <TabsList className="bg-white border-2 border-black shadow-[3px_3px_0px_0px_#191A23] p-1">
+        {STUDENT_ANALYSIS_TABS.map(({ value, label }) => (
+          <TabsTrigger
+            key={value}
+            value={value}
+            className="data-[state=active]:bg-[#191A23] data-[state=active]:text-white font-bold border-2 border-transparent data-[state=active]:border-black px-4 py-2"
+          >
+            {label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+      <TabsContent value="class-compare">
+        {visited.has("class-compare") && (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <ClassComparisonChart
+              data={comparisonGradeData}
+              filterState={{ selectedClasses: classNames, viewMode: "all" }}
+              className=""
+            />
+            <ClassBoxPlotChart gradeData={comparisonGradeData} className="" />
+          </div>
+        )}
+      </TabsContent>
+      <TabsContent value="behavior">
+        {visited.has("behavior") && (
+          <LearningBehaviorAnalysis gradeData={wideGradeData} />
+        )}
+      </TabsContent>
+      <TabsContent value="contribution">
+        {visited.has("contribution") && (
+          <ContributionAnalysis
+            gradeData={filteredGradeData}
+            title="学生科目贡献度分析"
+            className=""
+          />
+        )}
+      </TabsContent>
+    </Tabs>
+  );
+};
+
 const CompleteAnalyticsDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const {
     allGradeData,
     wideGradeData,
@@ -51,9 +206,18 @@ const CompleteAnalyticsDashboard: React.FC = () => {
   } = useModernGradeAnalysis();
 
   const [activeTab, setActiveTab] = useState("overview");
-  const [showSidebar, setShowSidebar] = useState(true);
+  const [showSidebar, setShowSidebar] = useState(false);
   const [showSubjectSettings, setShowSubjectSettings] = useState(false);
+  // 记录已访问过的 tab，避免重复渲染重型组件
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(
+    new Set(["overview"])
+  );
   const isMountedRef = useRef(true);
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setVisitedTabs((prev) => new Set([...prev, tab]));
+  };
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -91,42 +255,14 @@ const CompleteAnalyticsDashboard: React.FC = () => {
     }
   };
 
-  const handleExamEdit = async (examId: string) => {
-    try {
-      const exam = examList.find((e) => e.id === examId);
-      const newTitle = window.prompt("更新考试名称", exam?.title || "");
-      if (newTitle === null || newTitle.trim() === "") return;
-      const { updateExam } = await import("@/services/examService");
-      const updated = await updateExam(examId, { title: newTitle.trim() });
-      if (updated) {
-        await refreshData();
-        toast.success("考试已更新");
-      }
-    } catch (error) {
-      console.error("更新考试失败", error);
-      toast.error("更新考试失败");
-    }
+  const handleExamEdit = (examId: string) => {
+    navigate(`/exam-management`);
+    toast.info("请在考试管理页面编辑考试信息");
   };
 
-  const handleExamAdd = async () => {
-    try {
-      const title = window.prompt("请输入考试名称");
-      if (!title || !title.trim()) return;
-      const date =
-        window.prompt("请输入考试日期（YYYY-MM-DD，可选）") || undefined;
-      const type = window.prompt("请输入考试类型（可选）") || undefined;
-      const { createExam } = await import("@/services/examService");
-      const created = await createExam({
-        title: title.trim(),
-        type: type?.trim() || undefined,
-        date: date?.trim() || undefined,
-        subject: undefined,
-      });
-      if (created) await refreshData();
-    } catch (error) {
-      console.error("新增考试失败", error);
-      toast.error("新增考试失败");
-    }
+  const handleExamAdd = () => {
+    navigate(`/exam-management`);
+    toast.info("请在考试管理页面创建新考试");
   };
 
   if (loading) {
@@ -198,13 +334,18 @@ const CompleteAnalyticsDashboard: React.FC = () => {
   return (
     <div className="container mx-auto px-4">
       <div className="flex bg-white min-h-screen">
-        {/* 侧边筛选栏 */}
+        {/* 侧边筛选栏：桌面端 inline 占位，移动端 overlay */}
         <div
           className={cn(
-            "transition-all duration-300",
-            showSidebar ? "block" : "hidden"
+            "transition-all duration-300 flex-shrink-0",
+            // 桌面端：始终占位，通过宽度控制显隐
+            "lg:block",
+            showSidebar ? "lg:w-96" : "lg:w-0 lg:overflow-hidden",
+            // 移动端：overlay 模式
+            showSidebar ? "block" : "hidden lg:block"
           )}
         >
+          {/* 移动端遮罩 */}
           <div
             className={cn(
               "fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity",
@@ -212,7 +353,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
             )}
             onClick={() => setShowSidebar(false)}
           />
-          <div className="fixed lg:static inset-y-0 left-0 z-50 w-80 lg:w-96 bg-[#F8F8F8] border-r-2 border-black p-6 overflow-y-auto transform lg:transform-none transition-transform lg:transition-none">
+          <div className="fixed lg:sticky lg:top-0 inset-y-0 left-0 z-50 lg:z-auto w-80 lg:w-96 h-screen bg-[#F8F8F8] border-r-2 border-black p-6 overflow-y-auto">
             <ModernGradeFilters
               filter={filter}
               onFilterChange={setFilter}
@@ -221,7 +362,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
               availableClasses={availableClasses}
               availableGrades={availableGrades}
               availableExamTypes={availableExamTypes}
-              totalCount={filteredGradeData.length}
+              totalCount={allGradeData.length}
               filteredCount={filteredGradeData.length}
               onExamDelete={handleExamDelete}
               onExamEdit={handleExamEdit}
@@ -277,11 +418,11 @@ const CompleteAnalyticsDashboard: React.FC = () => {
 
           <Tabs
             value={activeTab}
-            onValueChange={setActiveTab}
+            onValueChange={handleTabChange}
             className="space-y-8"
           >
             <div className="overflow-x-auto">
-              <TabsList className="grid w-fit grid-cols-4 bg-white border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] p-1">
+              <TabsList className="grid w-fit grid-cols-6 bg-white border-2 border-black shadow-[4px_4px_0px_0px_#B9FF66] p-1">
                 <TabsTrigger
                   value="overview"
                   className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-black font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide px-6 py-3"
@@ -290,18 +431,32 @@ const CompleteAnalyticsDashboard: React.FC = () => {
                   <span>概览</span>
                 </TabsTrigger>
                 <TabsTrigger
+                  value="data-analysis"
+                  className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-black font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide px-6 py-3"
+                >
+                  <BarChart3 className="w-5 h-5" />
+                  <span>数据分析</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="student-analysis"
+                  className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-black font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide px-6 py-3"
+                >
+                  <Users className="w-5 h-5" />
+                  <span>学生对比</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="chart-gallery"
+                  className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-black font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide px-6 py-3"
+                >
+                  <PieChart className="w-5 h-5" />
+                  <span>图表</span>
+                </TabsTrigger>
+                <TabsTrigger
                   value="ai-analysis"
                   className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-black font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide px-6 py-3"
                 >
                   <Brain className="w-5 h-5" />
                   <span>AI分析</span>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="deep-analysis"
-                  className="flex items-center gap-2 data-[state=active]:bg-[#B9FF66] data-[state=active]:text-black font-bold border-2 border-transparent data-[state=active]:border-black uppercase tracking-wide px-6 py-3"
-                >
-                  <BarChart3 className="w-5 h-5" />
-                  <span>深度分析</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="data-details"
@@ -320,34 +475,75 @@ const CompleteAnalyticsDashboard: React.FC = () => {
               />
             </TabsContent>
 
-            <TabsContent value="ai-analysis">
-              <AIAnalysisTab filteredGradeData={filteredGradeData} />
+            <TabsContent value="data-analysis">
+              {visitedTabs.has("data-analysis") && (
+                <DataAnalysisSubTabs
+                  wideGradeData={(wideGradeData || []) as WideGradeRecord[]}
+                  filteredGradeData={filteredGradeData}
+                />
+              )}
             </TabsContent>
 
-            <TabsContent value="deep-analysis">
-              <DeepAnalysisTab
-                filteredGradeData={filteredGradeData}
-                wideGradeData={wideGradeData || []}
-                comparisonGradeData={comparisonGradeData}
-              />
+            <TabsContent value="student-analysis">
+              {visitedTabs.has("student-analysis") && (
+                <StudentAnalysisSubTabs
+                  comparisonGradeData={comparisonGradeData}
+                  wideGradeData={wideGradeData || []}
+                  filteredGradeData={filteredGradeData}
+                  classNames={filter.classNames ?? []}
+                />
+              )}
+            </TabsContent>
+
+            <TabsContent value="chart-gallery" className="space-y-6">
+              {visitedTabs.has("chart-gallery") && (
+                <>
+                  {filteredGradeData.length > 5000 && (
+                    <Card className="border-l-4 border-l-orange-500 bg-orange-50/50">
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-5 w-5 text-orange-600" />
+                          <div>
+                            <p className="font-semibold text-orange-800">
+                              数据量较大 (
+                              {filteredGradeData.length.toLocaleString()}{" "}
+                              条记录)
+                            </p>
+                            <p className="text-sm text-orange-600">
+                              为保证性能，图表将只显示前 5,000
+                              条数据。建议使用筛选功能缩小数据范围。
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                  <ChartGallery
+                    gradeData={filteredGradeData.slice(0, 5000)}
+                    className=""
+                  />
+                </>
+              )}
+            </TabsContent>
+
+            <TabsContent value="ai-analysis">
+              {visitedTabs.has("ai-analysis") && (
+                <AIAnalysisTab filteredGradeData={filteredGradeData} />
+              )}
             </TabsContent>
 
             <TabsContent value="data-details">
-              <DataDetailsTab
-                filteredGradeData={filteredGradeData}
-                loading={loading}
-                examIds={filter.examIds}
-                classFilter={filter.classNames}
-                subjectFilter={filter.subjects}
-              />
+              {visitedTabs.has("data-details") && (
+                <DataDetailsTab
+                  filteredGradeData={filteredGradeData}
+                  loading={loading}
+                  examIds={filter.examIds}
+                  classFilter={filter.classNames}
+                  subjectFilter={filter.subjects}
+                />
+              )}
             </TabsContent>
           </Tabs>
-
-          <div className="mt-8 pt-4 border-t border-[#6B7280]">
-            <p className="text-xs text-[#6B7280] text-center leading-relaxed">
-              增强功能说明：科目相关性分析使用95%置信区间；个人趋势分析支持线性回归预测；多维度排名包含学术、稳定性、进步性、均衡性四个维度。数据基于Wide-Table结构优化，提供更快的查询性能。
-            </p>
-          </div>
 
           <ExamSpecificSubjectSettings
             isOpen={showSubjectSettings}

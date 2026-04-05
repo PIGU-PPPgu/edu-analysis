@@ -212,18 +212,15 @@ export class ValueAddedPdfExporter {
         },
       };
 
-      console.log("📄 开始生成PDF，元素尺寸:", {
-        width: actualWidth,
-        height: actualHeight,
-      });
-
       // 生成PDF
-      await html2pdf().set(opt).from(wrapper).save();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await html2pdf()
+        .set(opt as any)
+        .from(wrapper)
+        .save();
 
       // 清理
       document.body.removeChild(wrapper);
-
-      console.log("✅ PDF导出成功:", filename);
     } catch (error) {
       console.error("❌ PDF导出失败:", error);
       throw new Error("PDF导出失败，请重试");

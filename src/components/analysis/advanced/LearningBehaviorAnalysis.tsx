@@ -77,29 +77,32 @@ interface LearningPattern {
   };
 }
 
-const LearningBehaviorAnalysis: React.FC = () => {
+interface LearningBehaviorAnalysisProps {
+  gradeData?: any[];
+}
+
+const LearningBehaviorAnalysis: React.FC<LearningBehaviorAnalysisProps> = ({
+  gradeData = [],
+}) => {
   const [patterns, setPatterns] = useState<LearningPattern[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<string>("");
-  const [allStudents, setAllStudents] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("overview");
 
-  useEffect(() => {
-    loadStudentList();
-  }, []);
-
-  const loadStudentList = async () => {
-    try {
-      const { data: students } = await supabase
-        .from("students")
-        .select("student_id, name, class_name")
-        .order("name");
-
-      setAllStudents(students || []);
-    } catch (error) {
-      console.error("加载学生列表失败:", error);
-    }
-  };
+  // 从传入的 gradeData（宽表格式）提取学生列表
+  const allStudents = React.useMemo(() => {
+    const seen = new Set<string>();
+    return gradeData
+      .filter(
+        (r) => r.student_id && !seen.has(r.student_id) && seen.add(r.student_id)
+      )
+      .map((r) => ({
+        student_id: r.student_id,
+        name: r.name,
+        class_name: r.class_name,
+      }))
+      .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  }, [gradeData]);
 
   const analyzeLearningBehavior = async () => {
     if (!selectedStudent) {
@@ -132,19 +135,23 @@ const LearningBehaviorAnalysis: React.FC = () => {
       const student = allStudents.find((s) => s.student_id === studentId);
       if (!student) return null;
 
-      // 获取学生的成绩数据
-      const { data: grades } = await supabase
-        .from("grade_data")
-        .select("*")
-        .eq("student_id", studentId)
-        .order("exam_date", { ascending: true });
+      // 从传入的 gradeData（宽表）中过滤该学生的记录
+      const grades = gradeData
+        .filter((r) => r.student_id === studentId)
+        .sort(
+          (a, b) =>
+            new Date(a.exam_date || 0).getTime() -
+            new Date(b.exam_date || 0).getTime()
+        );
 
       if (!grades || grades.length < 2) {
         return null;
       }
 
-      // 计算基础指标
-      const scores = grades.map((g) => g.score || 0).filter((s) => s > 0);
+      // 使用 total_score（宽表字段）
+      const scores = grades
+        .map((g) => Number(g.total_score) || 0)
+        .filter((s) => s > 0);
       const avgScore = scores.reduce((sum, s) => sum + s, 0) / scores.length;
       const variance = calculateVariance(scores);
       const trend =

@@ -84,7 +84,7 @@ const DeepAnalysisTab: React.FC<DeepAnalysisTabProps> = ({
           />
           <ClassBoxPlotChart gradeData={comparisonGradeData} className="" />
         </div>
-        <LearningBehaviorAnalysis />
+        <LearningBehaviorAnalysis gradeData={wideGradeData} />
         <ContributionAnalysis
           gradeData={filteredGradeData}
           title="学生科目贡献度分析"

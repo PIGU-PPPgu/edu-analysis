@@ -686,13 +686,31 @@ export function TeacherValueAddedReport({
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
+                            {teacher.is_statistically_significant === false && (
+                              <span
+                                title={`样本量仅 ${teacher.total_students} 人，结果仅供参考`}
+                              >
+                                <AlertTriangle className="h-3.5 w-3.5 text-orange-400" />
+                              </span>
+                            )}
+                            {Math.abs(teacher.avg_score_value_added_rate) >
+                              0.2 && (
+                              <span
+                                title={`增值率 ${(teacher.avg_score_value_added_rate * 100).toFixed(1)}% 超出正常范围（±20%），请关注数据质量`}
+                              >
+                                <AlertTriangle className="h-3.5 w-3.5 text-orange-500" />
+                              </span>
+                            )}
                             <span
                               className={
-                                teacher.avg_score_value_added_rate > 0
-                                  ? "text-green-600 font-semibold"
-                                  : teacher.avg_score_value_added_rate < 0
-                                    ? "text-red-600 font-semibold"
-                                    : ""
+                                Math.abs(teacher.avg_score_value_added_rate) >
+                                0.2
+                                  ? "text-orange-600 font-semibold"
+                                  : teacher.avg_score_value_added_rate > 0
+                                    ? "text-green-600 font-semibold"
+                                    : teacher.avg_score_value_added_rate < 0
+                                      ? "text-red-600 font-semibold"
+                                      : ""
                               }
                             >
                               {teacher.avg_score_value_added_rate.toFixed(3)}
@@ -855,7 +873,20 @@ export function TeacherValueAddedReport({
                       {teacher.total_students}
                     </TableCell>
                     <TableCell className="text-right">
-                      {teacher.avg_score_value_added_rate.toFixed(3)}
+                      <div className="flex items-center justify-end gap-1">
+                        {Math.abs(teacher.avg_score_value_added_rate) > 0.2 && (
+                          <AlertTriangle className="h-3.5 w-3.5 text-orange-500" />
+                        )}
+                        <span
+                          className={
+                            Math.abs(teacher.avg_score_value_added_rate) > 0.2
+                              ? "text-orange-600 font-semibold"
+                              : ""
+                          }
+                        >
+                          {teacher.avg_score_value_added_rate.toFixed(3)}
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       {(teacher.progress_student_ratio * 100).toFixed(1)}%

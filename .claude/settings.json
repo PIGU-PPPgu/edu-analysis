@@ -2,12 +2,30 @@
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": {"tools": ["mcp__supabase__execute_sql"]},
-        "hooks": [{"type": "command", "command": "bash scripts/grade-analysis-hook.sh"}]
+        "matcher": {
+          "tools": [
+            "mcp__supabase__execute_sql"
+          ]
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/grade-analysis-hook.sh"
+          }
+        ]
       },
       {
-        "matcher": {"tools": ["mcp__task_master_ai__set_task_status"]},
-        "hooks": [{"type": "command", "command": "bash scripts/project-progress-hook.sh"}]
+        "matcher": {
+          "tools": [
+            "mcp__task_master_ai__set_task_status"
+          ]
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/project-progress-hook.sh"
+          }
+        ]
       }
     ]
   },
@@ -17,5 +35,8 @@
     "Bash(scripts/*)",
     "Bash(*hook*)",
     "Bash(*analysis*)"
-  ]
+  ],
+  "enabledPlugins": {
+    "github@claude-plugins-official": true
+  }
 }

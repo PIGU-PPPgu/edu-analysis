@@ -96,7 +96,7 @@ export function mapExam(dbExam: DBExam, examTypes: UIExamType[] = []): UIExam {
   return {
     ...dbExam,
     subjects: dbExam.subject ? [dbExam.subject] : [],
-    status: "scheduled" as const,
+    status: (dbExam.status ?? "scheduled") as UIExam["status"],
     createdBy: dbExam.created_by ?? "系统",
     createdAt: dbExam.created_at,
     updatedAt: dbExam.updated_at,
