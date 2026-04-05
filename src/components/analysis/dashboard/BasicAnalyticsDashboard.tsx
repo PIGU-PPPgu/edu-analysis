@@ -47,6 +47,145 @@ import MultiDimensionalRankingSystem from "@/components/analysis/advanced/MultiD
 import ChartGallery from "@/components/analysis/charts/ChartGallery";
 import type { WideGradeRecord } from "@/components/analysis/advanced/trend/trendUtils";
 
+// ---- 数据分析子 Tab ----
+const DATA_ANALYSIS_TABS = [
+  { value: "correlation", label: "相关性" },
+  { value: "trend", label: "趋势" },
+  { value: "ranking", label: "排名" },
+  { value: "subject", label: "科目分析" },
+] as const;
+
+const DataAnalysisSubTabs: React.FC<{
+  wideGradeData: WideGradeRecord[];
+  filteredGradeData: any[];
+}> = ({ wideGradeData, filteredGradeData }) => {
+  const [sub, setSub] = useState<string>("correlation");
+  const [visited, setVisited] = useState<Set<string>>(new Set(["correlation"]));
+  const handleSub = (v: string) => {
+    setSub(v);
+    setVisited((p) => new Set([...p, v]));
+  };
+  return (
+    <Tabs value={sub} onValueChange={handleSub} className="space-y-4">
+      <TabsList className="bg-white border-2 border-black shadow-[3px_3px_0px_0px_#191A23] p-1">
+        {DATA_ANALYSIS_TABS.map(({ value, label }) => (
+          <TabsTrigger
+            key={value}
+            value={value}
+            className="data-[state=active]:bg-[#191A23] data-[state=active]:text-white font-bold border-2 border-transparent data-[state=active]:border-black px-4 py-2"
+          >
+            {label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+      <TabsContent value="correlation">
+        {visited.has("correlation") && (
+          <EnhancedSubjectCorrelationMatrix
+            gradeData={wideGradeData.slice(0, 2000)}
+            title="科目相关性分析"
+            className="w-full"
+            showHeatMap={true}
+            filterSignificance="all"
+          />
+        )}
+      </TabsContent>
+      <TabsContent value="trend">
+        {visited.has("trend") && (
+          <StudentTrendAnalysis
+            gradeData={wideGradeData.slice(0, 3000)}
+            className="w-full"
+          />
+        )}
+      </TabsContent>
+      <TabsContent value="ranking">
+        {visited.has("ranking") && (
+          <MultiDimensionalRankingSystem
+            gradeData={wideGradeData.slice(0, 1000)}
+            className="w-full"
+          />
+        )}
+      </TabsContent>
+      <TabsContent value="subject">
+        {visited.has("subject") && (
+          <SubjectCorrelationAnalysis
+            gradeData={filteredGradeData}
+            className=""
+          />
+        )}
+      </TabsContent>
+    </Tabs>
+  );
+};
+
+// ---- 学生对比子 Tab ----
+const STUDENT_ANALYSIS_TABS = [
+  { value: "class-compare", label: "班级对比" },
+  { value: "behavior", label: "学习行为" },
+  { value: "contribution", label: "贡献度" },
+] as const;
+
+const StudentAnalysisSubTabs: React.FC<{
+  comparisonGradeData: LegacyGradeRecord[];
+  wideGradeData: any[];
+  filteredGradeData: any[];
+  classNames: string[];
+}> = ({
+  comparisonGradeData,
+  wideGradeData,
+  filteredGradeData,
+  classNames,
+}) => {
+  const [sub, setSub] = useState<string>("class-compare");
+  const [visited, setVisited] = useState<Set<string>>(
+    new Set(["class-compare"])
+  );
+  const handleSub = (v: string) => {
+    setSub(v);
+    setVisited((p) => new Set([...p, v]));
+  };
+  return (
+    <Tabs value={sub} onValueChange={handleSub} className="space-y-4">
+      <TabsList className="bg-white border-2 border-black shadow-[3px_3px_0px_0px_#191A23] p-1">
+        {STUDENT_ANALYSIS_TABS.map(({ value, label }) => (
+          <TabsTrigger
+            key={value}
+            value={value}
+            className="data-[state=active]:bg-[#191A23] data-[state=active]:text-white font-bold border-2 border-transparent data-[state=active]:border-black px-4 py-2"
+          >
+            {label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+      <TabsContent value="class-compare">
+        {visited.has("class-compare") && (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <ClassComparisonChart
+              data={comparisonGradeData}
+              filterState={{ selectedClasses: classNames, viewMode: "all" }}
+              className=""
+            />
+            <ClassBoxPlotChart gradeData={comparisonGradeData} className="" />
+          </div>
+        )}
+      </TabsContent>
+      <TabsContent value="behavior">
+        {visited.has("behavior") && (
+          <LearningBehaviorAnalysis gradeData={wideGradeData} />
+        )}
+      </TabsContent>
+      <TabsContent value="contribution">
+        {visited.has("contribution") && (
+          <ContributionAnalysis
+            gradeData={filteredGradeData}
+            title="学生科目贡献度分析"
+            className=""
+          />
+        )}
+      </TabsContent>
+    </Tabs>
+  );
+};
+
 const CompleteAnalyticsDashboard: React.FC = () => {
   const navigate = useNavigate();
   const {
@@ -336,62 +475,23 @@ const CompleteAnalyticsDashboard: React.FC = () => {
               />
             </TabsContent>
 
-            <TabsContent value="data-analysis" className="space-y-6">
+            <TabsContent value="data-analysis">
               {visitedTabs.has("data-analysis") && (
-                <>
-                  <EnhancedSubjectCorrelationMatrix
-                    gradeData={(
-                      (wideGradeData || []) as WideGradeRecord[]
-                    ).slice(0, 2000)}
-                    title="科目相关性分析"
-                    className="w-full"
-                    showHeatMap={true}
-                    filterSignificance="all"
-                  />
-                  <StudentTrendAnalysis
-                    gradeData={(
-                      (wideGradeData || []) as WideGradeRecord[]
-                    ).slice(0, 3000)}
-                    className="w-full"
-                  />
-                  <MultiDimensionalRankingSystem
-                    gradeData={(
-                      (wideGradeData || []) as WideGradeRecord[]
-                    ).slice(0, 1000)}
-                    className="w-full"
-                  />
-                  <SubjectCorrelationAnalysis
-                    gradeData={filteredGradeData}
-                    className=""
-                  />
-                </>
+                <DataAnalysisSubTabs
+                  wideGradeData={(wideGradeData || []) as WideGradeRecord[]}
+                  filteredGradeData={filteredGradeData}
+                />
               )}
             </TabsContent>
 
-            <TabsContent value="student-analysis" className="space-y-6">
+            <TabsContent value="student-analysis">
               {visitedTabs.has("student-analysis") && (
-                <>
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                    <ClassComparisonChart
-                      data={comparisonGradeData}
-                      filterState={{
-                        selectedClasses: filter.classNames ?? [],
-                        viewMode: "all",
-                      }}
-                      className=""
-                    />
-                    <ClassBoxPlotChart
-                      gradeData={comparisonGradeData}
-                      className=""
-                    />
-                  </div>
-                  <LearningBehaviorAnalysis gradeData={wideGradeData || []} />
-                  <ContributionAnalysis
-                    gradeData={filteredGradeData}
-                    title="学生科目贡献度分析"
-                    className=""
-                  />
-                </>
+                <StudentAnalysisSubTabs
+                  comparisonGradeData={comparisonGradeData}
+                  wideGradeData={wideGradeData || []}
+                  filteredGradeData={filteredGradeData}
+                  classNames={filter.classNames ?? []}
+                />
               )}
             </TabsContent>
 
