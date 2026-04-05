@@ -331,6 +331,9 @@ export interface TeacherValueAdded {
   warnings?: string[]; // 统计警告信息
   is_statistically_significant?: boolean; // 是否统计显著
 
+  // 公平性指标
+  bottom_quartile_value_added_rate?: number; // 后25%学生的平均增值率（薄弱学生关注度）
+
   // 排名
   rank_in_subject?: number;
   total_teachers?: number;
@@ -381,6 +384,9 @@ export interface ClassValueAdded {
   warnings?: string[]; // 统计警告信息
   is_statistically_significant?: boolean; // 是否统计显著（无警告）
   valid_sample_count?: number; // 有效样本数（过滤缺考后）
+
+  // 公平性指标
+  bottom_quartile_value_added_rate?: number; // 后25%学生的平均增值率（薄弱学生关注度）
 
   // 排名
   rank_in_grade?: number;

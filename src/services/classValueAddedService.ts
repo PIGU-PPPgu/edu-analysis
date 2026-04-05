@@ -275,6 +275,28 @@ async function calculateSingleClassValueAdded(params: {
       ? calculateContributionRate(excellentGain, gradeExcellentGain)
       : 0;
 
+  // 10. 薄弱学生关注度（BQAI）：后25%学生的平均增值率
+  const sortedByEntry = [...students].sort(
+    (a, b) => a.entry_score - b.entry_score
+  );
+  const bottomQuartileCount = Math.max(
+    1,
+    Math.floor(sortedByEntry.length * 0.25)
+  );
+  const bottomQuartileStudents = sortedByEntry.slice(0, bottomQuartileCount);
+  const bottomQuartileRates = bottomQuartileStudents.map((s) => {
+    const idx = students.indexOf(s);
+    return calculateScoreValueAddedRate(
+      entryZScores[idx],
+      exitZScores[idx],
+      regressionBeta
+    );
+  });
+  const bottomQuartileValueAddedRate =
+    bottomQuartileRates.filter(Number.isFinite).length > 0
+      ? average(bottomQuartileRates.filter(Number.isFinite))
+      : undefined;
+
   return {
     class_name: className,
     subject,
@@ -309,6 +331,9 @@ async function calculateSingleClassValueAdded(params: {
         ? ["入口与出口考试相关性较低（跨量纲），增值结果仅供参考"]
         : []),
     ],
+
+    // 公平性指标
+    bottom_quartile_value_added_rate: bottomQuartileValueAddedRate,
   };
 }
 

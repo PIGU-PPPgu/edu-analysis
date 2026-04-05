@@ -880,6 +880,7 @@ export function ClassValueAddedReport({
                     <TableHead className="text-right">转化率</TableHead>
                     <TableHead className="text-right">贡献率</TableHead>
                     <TableHead className="text-right">优秀增量</TableHead>
+                    <TableHead className="text-right">薄弱生关注度</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -943,6 +944,32 @@ export function ClassValueAddedReport({
                             {classData.excellent_gain > 0 ? "+" : ""}
                             {classData.excellent_gain}
                           </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {classData.bottom_quartile_value_added_rate !=
+                          null ? (
+                            <span
+                              className={
+                                classData.bottom_quartile_value_added_rate > 0
+                                  ? "text-green-600 font-semibold"
+                                  : classData.bottom_quartile_value_added_rate <
+                                      0
+                                    ? "text-red-600 font-semibold"
+                                    : ""
+                              }
+                              title="后25%学生的平均增值率，正值表示薄弱学生也在进步"
+                            >
+                              {classData.bottom_quartile_value_added_rate > 0
+                                ? "+"
+                                : ""}
+                              {(
+                                classData.bottom_quartile_value_added_rate * 100
+                              ).toFixed(1)}
+                              %
+                            </span>
+                          ) : (
+                            "-"
+                          )}
                         </TableCell>
                       </TableRow>
                     );
