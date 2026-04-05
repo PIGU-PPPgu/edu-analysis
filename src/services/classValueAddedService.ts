@@ -109,7 +109,11 @@ export async function calculateClassValueAdded(
   const gradeExitZScores = calculateZScores(allExitScores);
 
   // 计算OLS回归斜率（用于均值回归修正）
-  const regressionBeta = calculateOLSBeta(gradeEntryZScores, gradeExitZScores);
+  // 当相关性过低（跨量纲考试，如中考→高中期末）时，限制beta最小值为0.8
+  // 防止低相关性导致的过度均值回归修正，产生极端TVA
+  const rawBeta = calculateOLSBeta(gradeEntryZScores, gradeExitZScores);
+  const regressionBeta = Math.max(rawBeta, 0.8);
+  const lowCorrelationWarning = rawBeta < 0.7;
 
   // 3. 为每个学生分配Z分数
   const studentsWithZScores = sanitizedStudentGrades.map((student, index) => ({
@@ -158,6 +162,7 @@ export async function calculateClassValueAdded(
       levelDefinitions,
       gradeExcellentGain,
       regressionBeta,
+      lowCorrelationWarning,
     });
 
     results.push(classResult);
@@ -180,6 +185,7 @@ async function calculateSingleClassValueAdded(params: {
   levelDefinitions: GradeLevelDefinition[];
   gradeExcellentGain: number;
   regressionBeta: number;
+  lowCorrelationWarning?: boolean;
 }): Promise<ClassValueAdded> {
   const {
     className,
@@ -188,6 +194,7 @@ async function calculateSingleClassValueAdded(params: {
     levelDefinitions,
     gradeExcellentGain,
     regressionBeta,
+    lowCorrelationWarning,
   } = params;
 
   // 1. 提取分数数据
@@ -294,6 +301,12 @@ async function calculateSingleClassValueAdded(params: {
 
     // 统计有效性
     is_statistically_significant: students.length >= 15,
+    warnings: [
+      ...(students.length < 15 ? ["样本量不足15人，结果仅供参考"] : []),
+      ...(lowCorrelationWarning
+        ? ["入口与出口考试相关性较低（跨量纲），增值结果仅供参考"]
+        : []),
+    ],
   };
 }
 
