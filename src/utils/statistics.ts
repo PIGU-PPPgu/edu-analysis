@@ -657,3 +657,32 @@ export function getOutlierInfo(
     zScore: zScores[index],
   }));
 }
+
+// ============================================
+// 置信区间
+// ============================================
+
+/**
+ * 计算均值的标准误（SEM = σ / sqrt(n)）
+ */
+export function calculateStandardError(values: number[]): number {
+  const n = values.length;
+  if (n <= 1) return 0;
+  return calculateStandardDeviation(values) / Math.sqrt(n);
+}
+
+/**
+ * 计算均值的置信区间
+ * @param mean 点估计（已收缩的增值率）
+ * @param se 标准误
+ * @param level 置信水平：0.80 → z=1.28，0.95 → z=1.96
+ */
+export function calculateConfidenceInterval(
+  mean: number,
+  se: number,
+  level: 0.8 | 0.95 = 0.95
+): { lower: number; upper: number; margin: number } {
+  const z = level === 0.8 ? 1.282 : 1.96;
+  const margin = z * se;
+  return { lower: mean - margin, upper: mean + margin, margin };
+}

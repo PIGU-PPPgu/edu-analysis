@@ -5,19 +5,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import {
-  Document,
-  Packer,
-  Paragraph,
-  TextRun,
-  HeadingLevel,
-  AlignmentType,
-  Table,
-  TableRow,
-  TableCell,
-  WidthType,
-  BorderStyle,
-} from "docx";
+import { Document, Packer, Paragraph, TextRun, AlignmentType } from "docx";
+import { AIGateway } from "@/services/ai/unified/AIGateway";
 import {
   BarChart,
   Bar,
@@ -511,46 +500,6 @@ const GradeView: React.FC<{ classStats: ClassStat[] }> = ({ classStats }) => {
                 合格≥300分 · 优良≥400分 · 各科格显示得分率
               </p>
             </div>
-            {/* 等级图例 */}
-            <div className="flex flex-wrap gap-2 items-center">
-              <span className="text-xs text-gray-400 font-bold">
-                综合分等级：
-              </span>
-              {[
-                {
-                  g: "A",
-                  range: "≥75",
-                  style: "bg-[#B9FF66] text-[#191A23] border-[#191A23]",
-                },
-                {
-                  g: "B",
-                  range: "60–74",
-                  style: "bg-blue-100 text-blue-900 border-blue-400",
-                },
-                {
-                  g: "C",
-                  range: "45–59",
-                  style: "bg-yellow-100 text-yellow-900 border-yellow-400",
-                },
-                {
-                  g: "D",
-                  range: "<45",
-                  style: "bg-red-100 text-red-800 border-red-400",
-                },
-              ].map(({ g, range, style }) => (
-                <span key={g} className="flex items-center gap-1">
-                  <span
-                    className={cn(
-                      "inline-block px-2 py-0.5 rounded text-xs font-black border-2",
-                      style
-                    )}
-                  >
-                    {g}
-                  </span>
-                  <span className="text-xs text-gray-400">{range}</span>
-                </span>
-              ))}
-            </div>
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -562,9 +511,6 @@ const GradeView: React.FC<{ classStats: ClassStat[] }> = ({ classStats }) => {
                 </th>
                 <th className="text-left px-4 py-3 font-black text-[#191A23]">
                   班级
-                </th>
-                <th className="px-3 py-3 font-black text-[#191A23] text-center">
-                  等级
                 </th>
                 <th className="px-3 py-3 font-black text-[#191A23] text-center">
                   综合分
@@ -616,16 +562,6 @@ const GradeView: React.FC<{ classStats: ClassStat[] }> = ({ classStats }) => {
                           <span className="text-red-400 text-xs">▼</span>
                         )}
                         {cls.class_name.replace("初一", "")}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      <span
-                        className={cn(
-                          "inline-block px-2 py-0.5 rounded text-xs font-black border-2",
-                          GRADE_STYLE[cls.grade]
-                        )}
-                      >
-                        {cls.grade}
                       </span>
                     </td>
                     <td className="px-3 py-2 text-center font-black text-[#191A23]">
@@ -757,18 +693,52 @@ const ReportGeneratorTab: React.FC<{ classStats: ClassStat[] }> = ({
   classStats,
 }) => {
   const [generating, setGenerating] = useState<string | null>(null);
+  const [statusMsg, setStatusMsg] = useState<string>("");
 
-  const makeH = (text: string) =>
-    new Paragraph({
-      children: [new TextRun({ text, bold: true, size: 28 })],
-      spacing: { before: 240, after: 120 },
-    });
+  // 构建数据摘要供 AI 使用
+  const buildDataSummary = () => {
+    const sorted = [...classStats].sort(
+      (a, b) => b.composite_score - a.composite_score
+    );
+    const n = classStats.length || 1;
+    const gradeAvg = classStats.reduce((s, c) => s + c.avg_total, 0) / n;
+    const gradePass = classStats.reduce((s, c) => s + c.pass_rate, 0) / n;
+    const gradeExc = classStats.reduce((s, c) => s + c.excellent_rate, 0) / n;
+    const totalStudents = classStats.reduce((s, c) => s + c.student_count, 0);
+    const totalAtRisk = classStats.reduce((s, c) => s + c.at_risk_count, 0);
+    const subjectAvgs = SUBJECTS.map((s) => {
+      const k =
+        `avg_${s.key === "geography" ? "geo" : s.key}` as keyof ClassStat;
+      const avg = classStats.reduce((sum, c) => sum + (c[k] as number), 0) / n;
+      return { label: s.label, pct: (avg / s.max) * 100 };
+    }).sort((a, b) => a.pct - b.pct);
 
-  const makeP = (text: string, bold = false) =>
-    new Paragraph({
-      children: [new TextRun({ text, bold, size: 24 })],
-      spacing: { before: 80, after: 80 },
-    });
+    const classRows = sorted
+      .map(
+        (c, i) =>
+          `  ${i + 1}. ${c.class_name}：综合分${c.composite_score.toFixed(1)}，平均分${Math.round(c.avg_total)}，合格率${c.pass_rate.toFixed(1)}%，优良率${c.excellent_rate.toFixed(1)}%，学困生${c.at_risk_count}人`
+      )
+      .join("\n");
+
+    return {
+      sorted,
+      top3: sorted.slice(0, 3),
+      bottom3: sorted.slice(-3).reverse(),
+      gradeAvg,
+      gradePass,
+      gradeExc,
+      totalStudents,
+      totalAtRisk,
+      subjectAvgs,
+      weak2: subjectAvgs.slice(0, 2),
+      strong2: subjectAvgs.slice(-2).reverse(),
+      classRows,
+      gap: (
+        (sorted[0]?.composite_score ?? 0) -
+        (sorted[sorted.length - 1]?.composite_score ?? 0)
+      ).toFixed(1),
+    };
+  };
 
   const download = async (doc: Document, filename: string) => {
     const blob = await Packer.toBlob(doc);
@@ -780,28 +750,80 @@ const ReportGeneratorTab: React.FC<{ classStats: ClassStat[] }> = ({
     URL.revokeObjectURL(url);
   };
 
+  // 将 AI 返回的文本按行转换为 docx 段落
+  const textToParas = (text: string): Paragraph[] => {
+    return text
+      .split("\n")
+      .map((line) => line.trimEnd())
+      .filter((line) => line.length > 0)
+      .map((line) => {
+        // 识别标题行（一、二、三 或 （一）（二）等）
+        const isSection = /^[一二三四五六七八九十]+[、．.]/.test(line);
+        const isSubSection = /^（[一二三四五六七八九十]+）/.test(line);
+        const isBold = isSection || isSubSection;
+        return new Paragraph({
+          children: [new TextRun({ text: line, bold: isBold, size: 24 })],
+          spacing: { before: isBold ? 200 : 80, after: 80 },
+        });
+      });
+  };
+
   const generateDoc1 = async () => {
     setGenerating("doc1");
+    setStatusMsg("正在调用 AI 生成内容，请稍候…");
     try {
-      const sorted = [...classStats].sort(
-        (a, b) => b.composite_score - a.composite_score
-      );
-      const top3 = sorted.slice(0, 3);
-      const bottom3 = sorted.slice(-3).reverse();
-      const n = classStats.length || 1;
-      const gradeAvg = classStats.reduce((s, c) => s + c.avg_total, 0) / n;
-      const gradePass = classStats.reduce((s, c) => s + c.pass_rate, 0) / n;
-      const gradeExc = classStats.reduce((s, c) => s + c.excellent_rate, 0) / n;
-      const totalStudents = classStats.reduce((s, c) => s + c.student_count, 0);
-      const totalAtRisk = classStats.reduce((s, c) => s + c.at_risk_count, 0);
-      const subjectAvgs = SUBJECTS.map((s) => {
-        const k =
-          `avg_${s.key === "geography" ? "geo" : s.key}` as keyof ClassStat;
-        const avg =
-          classStats.reduce((sum, c) => sum + (c[k] as number), 0) / n;
-        return { label: s.label, pct: (avg / s.max) * 100 };
-      }).sort((a, b) => a.pct - b.pct);
-      const weak2 = subjectAvgs.slice(0, 2);
+      const d = buildDataSummary();
+
+      const prompt = `你是一位经验丰富的教务主任，请根据以下真实考试数据，撰写一份《港中深附属知新学校教学质量精准提升方案》正文内容。
+
+【考试数据】
+考试名称：ph七上期末成绩（满分580分，合格线300分，优良线400分）
+参考人数：${d.totalStudents}人，共${classStats.length}个班级
+年级平均分：${d.gradeAvg.toFixed(1)}分
+年级合格率：${d.gradePass.toFixed(1)}%
+年级优良率：${d.gradeExc.toFixed(1)}%
+学困生总数：${d.totalAtRisk}人（总分低于200分）
+
+班级综合分排名（综合分=平均分/580×100×40%+合格率×30%+优良率×30%）：
+${d.classRows}
+
+各科目年级平均得分率（从低到高）：
+${d.subjectAvgs.map((s) => `  ${s.label}：${s.pct.toFixed(1)}%`).join("\n")}
+
+【写作要求】
+请严格按照以下结构撰写，每个章节内容要结合上述真实数据，语言专业、具体、有针对性，避免空话套话：
+
+一、学情分析
+（一）成绩现状
+（二）核心问题
+
+二、本学期目标
+（列出3-4条量化目标，基于当前数据设定合理提升幅度）
+
+三、教学改进措施
+（一）质量分析会改进
+（二）课堂质量提升
+（三）教学常规强化
+（四）培优补弱
+
+四、落款
+（右对齐：港中深附属知新学校七年级组，以及今天日期${new Date().toLocaleDateString("zh-CN")}）
+
+注意：直接输出正文内容，不要输出标题"港中深附属知新学校教学质量精准提升方案"，不要有多余说明。`;
+
+      const gateway = AIGateway.getInstance();
+      const resp = await gateway.processRequest({
+        content: prompt,
+        requestType: "analysis",
+        options: { temperature: 0.7, maxTokens: 2000, priority: "high" },
+      });
+
+      if (!resp.success || !resp.content) {
+        throw new Error(resp.error || "AI 生成失败");
+      }
+
+      setStatusMsg("AI 内容生成完成，正在生成 Word 文档…");
+
       const doc = new Document({
         sections: [
           {
@@ -824,111 +846,15 @@ const ReportGeneratorTab: React.FC<{ classStats: ClassStat[] }> = ({
                 alignment: AlignmentType.CENTER,
                 spacing: { after: 360 },
               }),
-              makeH("一、学情分析"),
-              makeP("（一）成绩现状", true),
-              makeP(
-                `本次期末考试共 ${totalStudents} 名学生参考，年级平均分 ${gradeAvg.toFixed(1)} 分（满分580分），合格率 ${gradePass.toFixed(1)}%，优良率 ${gradeExc.toFixed(1)}%，学困生 ${totalAtRisk} 人。`
-              ),
-              makeP(
-                `综合分排名前三班级：${top3.map((c) => `${c.class_name}（${c.composite_score.toFixed(1)}分，${c.grade}级）`).join("、")}。`
-              ),
-              makeP(
-                `综合分排名后三班级：${bottom3.map((c) => `${c.class_name}（${c.composite_score.toFixed(1)}分，${c.grade}级）`).join("、")}，需重点关注。`
-              ),
-              makeP("（二）核心问题", true),
-              makeP(
-                `1. 学科短板：${weak2.map((s) => `${s.label}（得分率${s.pct.toFixed(1)}%）`).join("、")} 得分率偏低，是本年级的薄弱学科。`
-              ),
-              makeP(
-                `2. 班级差距：最高综合分班级（${top3[0]?.class_name}，${top3[0]?.composite_score.toFixed(1)}分）与最低综合分班级（${bottom3[0]?.class_name}，${bottom3[0]?.composite_score.toFixed(1)}分）相差 ${((top3[0]?.composite_score ?? 0) - (bottom3[0]?.composite_score ?? 0)).toFixed(1)} 分，班级间差距明显。`
-              ),
-              makeP(
-                `3. 学困生问题：全年级共 ${totalAtRisk} 名学困生（总分低于200分），需要个性化辅导。`
-              ),
-              makeH("二、本学期目标"),
-              makeP(
-                `1. 年级合格率提升至 ${Math.min(100, gradePass + 5).toFixed(0)}% 以上。`
-              ),
-              makeP(
-                `2. 年级优良率提升至 ${Math.min(100, gradeExc + 5).toFixed(0)}% 以上。`
-              ),
-              makeP(
-                `3. 学困生人数减少 30% 以上，重点关注 ${bottom3.map((c) => c.class_name).join("、")} 等班级。`
-              ),
-              makeP(
-                `4. 薄弱学科（${weak2.map((s) => s.label).join("、")}）得分率提升 5 个百分点以上。`
-              ),
-              makeH("三、教学改进措施"),
-              makeP("（一）培优补弱", true),
-              makeP(
-                "1. 建立学困生档案，每班班主任与科任教师共同制定个性化辅导计划，每周至少开展一次针对性辅导。"
-              ),
-              makeP(
-                "2. 对优秀学生实施拔高训练，通过竞赛题、拓展题等方式提升综合能力。"
-              ),
-              makeP('3. 建立"一对一"帮扶机制，优秀学生结对帮扶学困生。'),
-              makeP("（二）课堂质量提升", true),
-              makeP(
-                '1. 推行"精讲多练"教学模式，减少无效讲授，增加学生自主练习时间。'
-              ),
-              makeP(
-                "2. 加强课堂提问的针对性，重点关注中等生和学困生的课堂参与度。"
-              ),
-              makeP("3. 每节课设置明确的学习目标，课后及时检测达成情况。"),
-              makeP("（三）学科短板攻坚", true),
-              makeP(
-                `1. 针对 ${weak2[0]?.label} 学科，组织专项教研，分析失分原因，制定针对性训练方案。`
-              ),
-              makeP(
-                `2. 针对 ${weak2[1]?.label} 学科，加强基础知识巩固，增加课堂练习频次。`
-              ),
-              makeP("3. 各学科组每月开展一次质量分析会，及时调整教学策略。"),
-              makeP("（四）班级差距缩小", true),
-              makeP(
-                `1. 对 ${bottom3.map((c) => c.class_name).join("、")} 等后进班级，安排骨干教师进行教学指导和示范课。`
-              ),
-              makeP("2. 推广优秀班级的教学经验，组织跨班级教研交流活动。"),
-              makeP("3. 加强班主任与科任教师的协同配合，形成教育合力。"),
-              makeP("（五）常规管理强化", true),
-              makeP("1. 严格执行作业管理制度，确保作业质量和批改及时性。"),
-              makeP("2. 加强课堂纪律管理，营造良好的学习氛围。"),
-              makeP("3. 定期开展家校沟通，争取家长配合，形成家校共育合力。"),
-              makeH("四、保障机制"),
-              makeP(
-                "1. 组织保障：成立年级教学质量提升工作小组，由年级组长负责统筹协调。"
-              ),
-              makeP(
-                "2. 制度保障：建立月度质量分析制度，每月召开一次年级教学质量分析会。"
-              ),
-              makeP("3. 资源保障：优先保障薄弱班级和薄弱学科的教学资源配置。"),
-              makeP(
-                "4. 考核保障：将教学质量提升情况纳入教师绩效考核，激励教师积极参与。"
-              ),
-              new Paragraph({ spacing: { before: 480 } }),
-              new Paragraph({
-                children: [
-                  new TextRun({ text: "港中深附属知新学校七年级组", size: 24 }),
-                ],
-                alignment: AlignmentType.RIGHT,
-              }),
-              new Paragraph({
-                children: [
-                  new TextRun({
-                    text: new Date().toLocaleDateString("zh-CN", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    }),
-                    size: 24,
-                  }),
-                ],
-                alignment: AlignmentType.RIGHT,
-              }),
+              ...textToParas(resp.content),
             ],
           },
         ],
       });
       await download(doc, "教学质量精准提升方案.docx");
+      setStatusMsg("");
+    } catch (e: unknown) {
+      setStatusMsg(`生成失败：${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setGenerating(null);
     }
@@ -936,28 +862,67 @@ const ReportGeneratorTab: React.FC<{ classStats: ClassStat[] }> = ({
 
   const generateDoc2 = async () => {
     setGenerating("doc2");
+    setStatusMsg("正在调用 AI 生成内容，请稍候…");
     try {
-      const sorted = [...classStats].sort(
-        (a, b) => b.composite_score - a.composite_score
-      );
-      const n = classStats.length || 1;
-      const gradeAvg = classStats.reduce((s, c) => s + c.avg_total, 0) / n;
-      const gradePass = classStats.reduce((s, c) => s + c.pass_rate, 0) / n;
-      const gradeExc = classStats.reduce((s, c) => s + c.excellent_rate, 0) / n;
-      const totalStudents = classStats.reduce((s, c) => s + c.student_count, 0);
-      const totalAtRisk = classStats.reduce((s, c) => s + c.at_risk_count, 0);
-      const subjectAvgs = SUBJECTS.map((s) => {
-        const k =
-          `avg_${s.key === "geography" ? "geo" : s.key}` as keyof ClassStat;
-        const avg =
-          classStats.reduce((sum, c) => sum + (c[k] as number), 0) / n;
-        return { label: s.label, pct: (avg / s.max) * 100 };
-      }).sort((a, b) => a.pct - b.pct);
-      const weak2 = subjectAvgs.slice(0, 2);
-      const gap = (
-        (sorted[0]?.composite_score ?? 0) -
-        (sorted[sorted.length - 1]?.composite_score ?? 0)
-      ).toFixed(1);
+      const d = buildDataSummary();
+
+      const prompt = `你是一位经验丰富的教务主任，请根据以下真实考试数据，撰写一份《知新学校质量分析会指导意见》正文内容。
+
+【考试数据】
+考试名称：ph七上期末成绩（满分580分，合格线300分，优良线400分）
+参考人数：${d.totalStudents}人，共${classStats.length}个班级
+年级平均分：${d.gradeAvg.toFixed(1)}分
+年级合格率：${d.gradePass.toFixed(1)}%
+年级优良率：${d.gradeExc.toFixed(1)}%
+学困生总数：${d.totalAtRisk}人
+
+班级综合分排名：
+${d.classRows}
+
+薄弱学科（得分率最低）：${d.weak2.map((s) => `${s.label}（${s.pct.toFixed(1)}%）`).join("、")}
+优势学科（得分率最高）：${d.strong2.map((s) => `${s.label}（${s.pct.toFixed(1)}%）`).join("、")}
+最高与最低综合分班级差距：${d.gap}分
+
+【写作要求】
+请严格按照以下结构撰写，内容要结合上述真实数据，具体指导教师如何开好质量分析会：
+
+一、会前准备
+（一）数据分层（按成绩层次分组，结合本次数据说明如何分层）
+（二）对比参照（与上次考试对比，说明关注哪些变化）
+（三）活材料准备（收集典型案例、错题等）
+
+二、会中研讨
+（一）归因归策（针对本次数据的主要问题进行归因）
+（二）靶向研讨（结合具体数据提出3个重点研讨议题）
+（三）案例说话（请优秀班级分享经验）
+
+三、会后落地
+（一）整改清单（明确整改事项和时间节点）
+（二）验收反馈（跟踪机制）
+
+四、复盘迭代（PDCA循环）
+（Plan/Do/Check/Act 四个环节，结合本次数据说明）
+
+附录：质量分析工具包
+（列出10项工具，每项一行）
+
+落款（右对齐：知新学校教务处，${new Date().toLocaleDateString("zh-CN")}）
+
+注意：直接输出正文内容，不要输出标题"知新学校质量分析会指导意见"，不要有多余说明。`;
+
+      const gateway = AIGateway.getInstance();
+      const resp = await gateway.processRequest({
+        content: prompt,
+        requestType: "analysis",
+        options: { temperature: 0.7, maxTokens: 2000, priority: "high" },
+      });
+
+      if (!resp.success || !resp.content) {
+        throw new Error(resp.error || "AI 生成失败");
+      }
+
+      setStatusMsg("AI 内容生成完成，正在生成 Word 文档…");
+
       const doc = new Document({
         sections: [
           {
@@ -983,108 +948,15 @@ const ReportGeneratorTab: React.FC<{ classStats: ClassStat[] }> = ({
                 alignment: AlignmentType.CENTER,
                 spacing: { after: 360 },
               }),
-              makeH("一、会前准备"),
-              makeP("（一）数据准备", true),
-              makeP("各班主任和科任教师在会前须完成以下数据整理工作："),
-              makeP(
-                "1. 本班成绩汇总：平均分、合格率、优良率、综合分等核心指标。"
-              ),
-              makeP(
-                "2. 学生分层名单：优秀生（总分≥400分）、合格生（300–399分）、待提升生（200–299分）、学困生（<200分）。"
-              ),
-              makeP(
-                "3. 与上次考试对比：各指标的变化情况，进步和退步学生名单。"
-              ),
-              makeP("4. 学科失分分析：各科目主要失分点和典型错误类型。"),
-              makeP("（二）归因准备", true),
-              makeP("各教师须对本班/本学科成绩进行初步归因，从以下维度思考："),
-              makeP(
-                "1. 教学因素：教学内容覆盖是否全面、教学方法是否适当、作业布置是否合理。"
-              ),
-              makeP("2. 学生因素：学习态度、学习习惯、基础差异等。"),
-              makeP("3. 管理因素：课堂纪律、作业完成情况、家校配合等。"),
-              makeH("二、会中研讨"),
-              makeP("（一）数据呈现与解读", true),
-              makeP(
-                `年级整体情况：参考 ${totalStudents} 人，年级平均分 ${gradeAvg.toFixed(1)} 分，合格率 ${gradePass.toFixed(1)}%，优良率 ${gradeExc.toFixed(1)}%，学困生 ${totalAtRisk} 人。`
-              ),
-              makeP(
-                `薄弱学科：${weak2.map((s) => `${s.label}（得分率${s.pct.toFixed(1)}%）`).join("、")}，需重点关注。`
-              ),
-              makeP("（二）靶向研讨议题", true),
-              makeP("本次质量分析会重点研讨以下议题："),
-              makeP(
-                `议题1：如何缩小班级间差距（最高与最低综合分相差 ${gap} 分）？`
-              ),
-              makeP(
-                `议题2：薄弱学科（${weak2.map((s) => s.label).join("、")}）的教学改进策略？`
-              ),
-              makeP(`议题3：学困生（${totalAtRisk}人）的精准帮扶方案？`),
-              makeP("（三）经验分享", true),
-              makeP(
-                `请 ${sorted[0]?.class_name} 等优秀班级的班主任和科任教师分享成功经验，重点介绍：`
-              ),
-              makeP("1. 课堂教学的有效策略。"),
-              makeP("2. 学困生帮扶的具体做法。"),
-              makeP("3. 家校沟通的有效方式。"),
-              makeH("三、会后落地"),
-              makeP("（一）整改清单", true),
-              makeP(
-                "各班主任和科任教师须在会后3天内提交《教学整改清单》，内容包括："
-              ),
-              makeP("1. 本班/本学科存在的主要问题（不超过3条）。"),
-              makeP("2. 针对每个问题的具体改进措施。"),
-              makeP("3. 预期改进效果和时间节点。"),
-              makeP("4. 需要学校/年级组提供的支持。"),
-              makeP("（二）跟踪验收", true),
-              makeP(
-                "1. 月度检查：每月末由年级组长对整改情况进行检查，填写《整改进度跟踪表》。"
-              ),
-              makeP("2. 阶段性测试：下次月考后对比数据，评估整改效果。"),
-              makeP(
-                "3. 期末总结：学期末对本次质量分析会的整改落实情况进行全面总结。"
-              ),
-              makeH("四、复盘迭代（PDCA循环）"),
-              makeP("Plan（计划）：根据本次分析结果，制定下阶段教学改进计划。"),
-              makeP("Do（执行）：按计划落实各项改进措施，做好过程记录。"),
-              makeP("Check（检查）：通过月考、作业检查等方式评估改进效果。"),
-              makeP(
-                "Act（处理）：总结有效经验，固化为教学常规；对未达预期的措施进行调整优化。"
-              ),
-              makeH("附录：质量分析工具包"),
-              makeP("1. 班级成绩分析模板（含各指标计算公式）"),
-              makeP("2. 学生分层名单模板"),
-              makeP("3. 教学整改清单模板"),
-              makeP("4. 整改进度跟踪表"),
-              makeP("5. 家校沟通记录表"),
-              makeP("6. 学困生帮扶档案"),
-              makeP("7. 优秀经验分享记录表"),
-              makeP("8. 月度质量分析报告模板"),
-              makeP("9. 学科教研活动记录表"),
-              makeP("10. 学期质量总结报告模板"),
-              new Paragraph({ spacing: { before: 480 } }),
-              new Paragraph({
-                children: [new TextRun({ text: "知新学校教务处", size: 24 })],
-                alignment: AlignmentType.RIGHT,
-              }),
-              new Paragraph({
-                children: [
-                  new TextRun({
-                    text: new Date().toLocaleDateString("zh-CN", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    }),
-                    size: 24,
-                  }),
-                ],
-                alignment: AlignmentType.RIGHT,
-              }),
+              ...textToParas(resp.content),
             ],
           },
         ],
       });
       await download(doc, "质量分析会指导意见.docx");
+      setStatusMsg("");
+    } catch (e: unknown) {
+      setStatusMsg(`生成失败：${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setGenerating(null);
     }
@@ -1097,8 +969,13 @@ const ReportGeneratorTab: React.FC<{ classStats: ClassStat[] }> = ({
           报告生成
         </h2>
         <p className="text-sm text-[#6B7280]">
-          基于当前成绩数据，一键生成 Word 文档
+          基于当前成绩数据，调用 AI 生成专业分析内容，导出 Word 文档
         </p>
+        {statusMsg && (
+          <p className="mt-3 text-sm font-bold text-[#191A23] animate-pulse">
+            {statusMsg}
+          </p>
+        )}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_#B9FF66] p-6 space-y-4">
@@ -1107,7 +984,7 @@ const ReportGeneratorTab: React.FC<{ classStats: ClassStat[] }> = ({
               教学质量精准提升方案
             </h3>
             <p className="text-xs text-[#6B7280] mt-1">
-              包含学情分析、目标设定、改进措施、保障机制
+              AI 根据真实数据生成：学情分析、目标设定、改进措施、保障机制
             </p>
           </div>
           <ul className="text-sm text-[#191A23] space-y-1">
@@ -1122,7 +999,7 @@ const ReportGeneratorTab: React.FC<{ classStats: ClassStat[] }> = ({
             disabled={generating !== null}
             className="w-full py-3 bg-[#B9FF66] border-2 border-black font-black text-[#191A23] shadow-[4px_4px_0px_0px_#191A23] hover:shadow-[2px_2px_0px_0px_#191A23] hover:translate-x-[2px] hover:translate-y-[2px] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {generating === "doc1" ? "生成中…" : "下载 Word 文档"}
+            {generating === "doc1" ? "AI 生成中…" : "AI 生成并下载"}
           </button>
         </div>
         <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_#191A23] p-6 space-y-4">
@@ -1131,7 +1008,7 @@ const ReportGeneratorTab: React.FC<{ classStats: ClassStat[] }> = ({
               质量分析会指导意见
             </h3>
             <p className="text-xs text-[#6B7280] mt-1">
-              包含会前准备、会中研讨、会后落地、PDCA循环
+              AI 根据真实数据生成：会前准备、会中研讨、会后落地、PDCA循环
             </p>
           </div>
           <ul className="text-sm text-[#191A23] space-y-1">
@@ -1146,7 +1023,7 @@ const ReportGeneratorTab: React.FC<{ classStats: ClassStat[] }> = ({
             disabled={generating !== null}
             className="w-full py-3 bg-[#191A23] border-2 border-black font-black text-white shadow-[4px_4px_0px_0px_#B9FF66] hover:shadow-[2px_2px_0px_0px_#B9FF66] hover:translate-x-[2px] hover:translate-y-[2px] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {generating === "doc2" ? "生成中…" : "下载 Word 文档"}
+            {generating === "doc2" ? "AI 生成中…" : "AI 生成并下载"}
           </button>
         </div>
       </div>

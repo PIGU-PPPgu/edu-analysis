@@ -334,6 +334,13 @@ export interface TeacherValueAdded {
   // 公平性指标
   bottom_quartile_value_added_rate?: number; // 后25%学生的平均增值率（薄弱学生关注度）
 
+  // 置信区间（基于标准误）
+  value_added_rate_se?: number; // 增值率标准误
+  ci_lower_80?: number; // 80% 置信区间下界
+  ci_upper_80?: number; // 80% 置信区间上界
+  ci_lower_95?: number; // 95% 置信区间下界
+  ci_upper_95?: number; // 95% 置信区间上界
+
   // 排名
   rank_in_subject?: number;
   total_teachers?: number;
@@ -387,6 +394,13 @@ export interface ClassValueAdded {
 
   // 公平性指标
   bottom_quartile_value_added_rate?: number; // 后25%学生的平均增值率（薄弱学生关注度）
+
+  // 置信区间（基于标准误）
+  value_added_rate_se?: number; // 增值率标准误
+  ci_lower_80?: number; // 80% 置信区间下界
+  ci_upper_80?: number; // 80% 置信区间上界
+  ci_lower_95?: number; // 95% 置信区间下界
+  ci_upper_95?: number; // 95% 置信区间上界
 
   // 排名
   rank_in_grade?: number;

@@ -715,6 +715,16 @@ export function TeacherValueAddedReport({
                             >
                               {teacher.avg_score_value_added_rate.toFixed(3)}
                             </span>
+                            {teacher.ci_lower_95 != null &&
+                              teacher.ci_upper_95 != null && (
+                                <span
+                                  className="text-[10px] text-muted-foreground block leading-tight"
+                                  title={`95% 置信区间：[${teacher.ci_lower_95.toFixed(3)}, ${teacher.ci_upper_95.toFixed(3)}]。区间越宽说明样本量越小，结果越不确定。`}
+                                >
+                                  [{teacher.ci_lower_95.toFixed(3)},{" "}
+                                  {teacher.ci_upper_95.toFixed(3)}]
+                                </span>
+                              )}
                             {teacher.avg_score_value_added_rate > 0 ? (
                               <TrendingUp className="h-4 w-4 text-green-500" />
                             ) : teacher.avg_score_value_added_rate < 0 ? (

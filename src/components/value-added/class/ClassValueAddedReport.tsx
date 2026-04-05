@@ -842,6 +842,16 @@ export function ClassValueAddedReport({
                               ).toFixed(2)}
                               %
                             </span>
+                            {classData.ci_lower_95 != null &&
+                              classData.ci_upper_95 != null && (
+                                <span
+                                  className="text-[10px] text-muted-foreground block leading-tight"
+                                  title={`95% 置信区间：[${(classData.ci_lower_95 * 100).toFixed(1)}%, ${(classData.ci_upper_95 * 100).toFixed(1)}%]。区间越宽说明样本量越小，结果越不确定。`}
+                                >
+                                  [{(classData.ci_lower_95 * 100).toFixed(1)}%,{" "}
+                                  {(classData.ci_upper_95 * 100).toFixed(1)}%]
+                                </span>
+                              )}
                             {classData.avg_score_value_added_rate > 0 ? (
                               <TrendingUp className="h-4 w-4 text-green-500" />
                             ) : classData.avg_score_value_added_rate < 0 ? (

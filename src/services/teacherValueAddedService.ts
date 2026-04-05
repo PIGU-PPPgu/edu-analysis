@@ -25,6 +25,8 @@ import {
   calculateExcellentGain,
   safeDivide,
   groupBy,
+  calculateStandardError,
+  calculateConfidenceInterval,
 } from "@/utils/statistics";
 
 // ============================================
@@ -248,6 +250,20 @@ async function calculateSingleTeacherValueAdded(params: {
         bottomQuartileRates.filter(Number.isFinite).length
       : undefined;
 
+  // 置信区间
+  const validRates = scoreValueAddedRates.filter(Number.isFinite);
+  const se = calculateStandardError(validRates);
+  const ci80 = calculateConfidenceInterval(
+    shrunkAvgScoreValueAddedRate,
+    se,
+    0.8
+  );
+  const ci95 = calculateConfidenceInterval(
+    shrunkAvgScoreValueAddedRate,
+    se,
+    0.95
+  );
+
   return {
     teacher_id: teacherId,
     teacher_name: teacherName,
@@ -276,6 +292,13 @@ async function calculateSingleTeacherValueAdded(params: {
 
     // 公平性指标
     bottom_quartile_value_added_rate: bottomQuartileValueAddedRate,
+
+    // 置信区间
+    value_added_rate_se: se,
+    ci_lower_80: ci80.lower,
+    ci_upper_80: ci80.upper,
+    ci_lower_95: ci95.lower,
+    ci_upper_95: ci95.upper,
   };
 }
 
