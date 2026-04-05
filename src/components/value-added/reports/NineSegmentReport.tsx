@@ -2,7 +2,8 @@
 
 /**
  * 段位分布分析报告（九段/六段）
- * Tab1: 段位说明  Tab2: 分布对比  Tab3: 流动分析（保持/进步/退步）
+ * Tab1: 分布对比  Tab2: 流动分析（保持/进步/退步）
+ * 段位说明改为 Info 按钮弹出 Dialog
  */
 
 import { useMemo, useState } from "react";
@@ -34,6 +35,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Info } from "lucide-react";
 import type { StudentValueAdded } from "@/types/valueAddedTypes";
@@ -163,13 +172,13 @@ export function NineSegmentReport({
     [studentData, selectedClass]
   );
 
-  // 各班各段人数（入口/出口）
-  const classStats = useMemo(() => {
+  // 各班各段人数（入口/出口）—— 始终基于全量数据，不受班级筛选影响
+  const allClassStats = useMemo(() => {
     const map: Record<
       string,
       { entry: Record<string, number>; exit: Record<string, number>; n: number }
     > = {};
-    for (const s of filtered) {
+    for (const s of studentData) {
       if (!map[s.class_name]) {
         map[s.class_name] = {
           entry: Object.fromEntries(segmentLabels.map((l) => [l, 0])),
@@ -184,9 +193,9 @@ export function NineSegmentReport({
         map[s.class_name].exit[s.exit_level as string]++;
     }
     return Object.entries(map).sort(([a], [b]) => a.localeCompare(b));
-  }, [filtered, segmentLabels]);
+  }, [studentData, segmentLabels]);
 
-  // 全年级汇总
+  // 全年级汇总（受班级筛选影响，用于顶部图表）
   const gradeTotal = useMemo(() => {
     const entry = Object.fromEntries(segmentLabels.map((l) => [l, 0]));
     const exit = Object.fromEntries(segmentLabels.map((l) => [l, 0]));
@@ -199,7 +208,7 @@ export function NineSegmentReport({
     return { entry, exit, n: filtered.length };
   }, [filtered, segmentLabels]);
 
-  // 分布对比图数据（各段入口/出口人数）
+  // 分布对比图数据
   const distributionChartData = useMemo(
     () =>
       segmentLabels.map((l) => ({
@@ -211,8 +220,7 @@ export function NineSegmentReport({
     [gradeTotal, segmentLabels]
   );
 
-  // 流动分析：每个学生 entry→exit 的变化
-  // 九段：数字越小越好；六段：A+>A>B+>B>C+>C
+  // 流动分析
   const levelOrder = isNine
     ? Object.fromEntries(NINE_SEGMENTS.map((l, i) => [l, i]))
     : { "A+": 0, A: 1, "B+": 2, B: 3, "C+": 4, C: 5 };
@@ -230,16 +238,13 @@ export function NineSegmentReport({
       const entryRank = levelOrder[s.entry_level as string] ?? -1;
       const exitRank = levelOrder[s.exit_level as string] ?? -1;
       if (entryRank === -1 || exitRank === -1) continue;
-      if (exitRank < entryRank)
-        byClass[cls].improve++; // 段位数字变小 = 进步
-      else if (exitRank > entryRank)
-        byClass[cls].regress++; // 段位数字变大 = 退步
+      if (exitRank < entryRank) byClass[cls].improve++;
+      else if (exitRank > entryRank) byClass[cls].regress++;
       else byClass[cls].keep++;
     }
     return Object.entries(byClass).sort(([a], [b]) => a.localeCompare(b));
   }, [filtered, levelOrder]);
 
-  // 流动堆叠柱状图数据
   const flowChartData = useMemo(
     () =>
       flowStats.map(([cls, s]) => ({
@@ -301,63 +306,64 @@ export function NineSegmentReport({
         <span className="text-sm text-gray-500">
           共 {filtered.length} 名学生
         </span>
+
+        {/* 段位说明 Dialog */}
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm" className="ml-auto gap-1.5">
+              <Info className="h-3.5 w-3.5" />
+              {isNine ? "九段说明" : "六段说明"}
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>
+                {isNine ? "深圳市标准九段评价说明" : "六段评价说明"}
+              </DialogTitle>
+            </DialogHeader>
+            {isNine ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-16">等级</TableHead>
+                    <TableHead className="w-20">标签</TableHead>
+                    <TableHead>Z分数区间</TableHead>
+                    <TableHead className="w-20 text-right">理论比例</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {NINE_SEGMENT_DEFS.map((d) => (
+                    <TableRow key={d.level}>
+                      <TableCell>
+                        <SegmentBadge level={d.level} />
+                      </TableCell>
+                      <TableCell className="text-sm">{d.label}</TableCell>
+                      <TableCell className="text-sm font-mono">
+                        {d.zDesc}
+                      </TableCell>
+                      <TableCell className="text-right text-sm text-gray-500">
+                        {d.ratio}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <p className="text-sm text-gray-500">
+                六段评价基于百分位排名划分，A+为前5%，C为后5%。
+              </p>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
 
-      <Tabs defaultValue="definition">
+      <Tabs defaultValue="distribution">
         <TabsList>
-          <TabsTrigger value="definition">段位说明</TabsTrigger>
           <TabsTrigger value="distribution">分布对比</TabsTrigger>
           <TabsTrigger value="flow">流动分析</TabsTrigger>
         </TabsList>
 
-        {/* Tab1: 段位说明 */}
-        <TabsContent value="definition" className="mt-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">
-                {isNine ? "深圳市标准九段评价说明" : "六段评价说明"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isNine ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-16">等级</TableHead>
-                      <TableHead className="w-20">标签</TableHead>
-                      <TableHead>Z分数区间</TableHead>
-                      <TableHead className="w-20 text-right">
-                        理论比例
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {NINE_SEGMENT_DEFS.map((d) => (
-                      <TableRow key={d.level}>
-                        <TableCell>
-                          <SegmentBadge level={d.level} />
-                        </TableCell>
-                        <TableCell className="text-sm">{d.label}</TableCell>
-                        <TableCell className="text-sm font-mono">
-                          {d.zDesc}
-                        </TableCell>
-                        <TableCell className="text-right text-sm text-gray-500">
-                          {d.ratio}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <p className="text-sm text-gray-500">
-                  六段评价基于百分位排名划分，A+为前5%，C为后5%。
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Tab2: 分布对比 */}
+        {/* Tab1: 分布对比 */}
         <TabsContent value="distribution" className="mt-4 space-y-4">
           <Card>
             <CardHeader className="pb-2">
@@ -388,8 +394,8 @@ export function NineSegmentReport({
             </CardContent>
           </Card>
 
-          {/* 各班明细表 */}
-          {selectedClass === "all" && classStats.length > 1 && (
+          {/* 各班出口段位明细 —— 始终显示 */}
+          {allClassStats.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">
@@ -413,8 +419,15 @@ export function NineSegmentReport({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {classStats.map(([cls, stats]) => (
-                      <TableRow key={cls}>
+                    {allClassStats.map(([cls, stats]) => (
+                      <TableRow
+                        key={cls}
+                        className={
+                          selectedClass !== "all" && selectedClass !== cls
+                            ? "opacity-30"
+                            : ""
+                        }
+                      >
                         <TableCell className="font-medium text-sm">
                           {cls}
                         </TableCell>
@@ -453,7 +466,7 @@ export function NineSegmentReport({
           )}
         </TabsContent>
 
-        {/* Tab3: 流动分析 */}
+        {/* Tab2: 流动分析 */}
         <TabsContent value="flow" className="mt-4 space-y-4">
           <Card>
             <CardHeader className="pb-2">
@@ -501,7 +514,6 @@ export function NineSegmentReport({
             </CardContent>
           </Card>
 
-          {/* 流动率汇总表 */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">各班流动率汇总</CardTitle>
