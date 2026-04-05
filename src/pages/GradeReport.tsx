@@ -49,7 +49,34 @@ interface ClassStat {
   avg_politics: number;
   avg_bio: number;
   at_risk_count: number;
+  pass_rate: number; // 合格率 %（总分≥300）
+  excellent_rate: number; // 优良率 %（总分≥400）
+  composite_score: number; // 综合分 = 平均分/580×100×40% + 合格率×30% + 优良率×30%
+  grade: "A" | "B" | "C" | "D";
 }
+
+// 综合分阈值（七上期末，满分580）
+const TOTAL_MAX = 580;
+const PASS_LINE = 300; // 合格线
+const EXCELLENT_LINE = 400; // 优良线
+
+function calcComposite(avg: number, passRate: number, excellentRate: number) {
+  return (avg / TOTAL_MAX) * 100 * 0.4 + passRate * 0.3 + excellentRate * 0.3;
+}
+
+function compositeGrade(score: number): "A" | "B" | "C" | "D" {
+  if (score >= 75) return "A";
+  if (score >= 60) return "B";
+  if (score >= 45) return "C";
+  return "D";
+}
+
+const GRADE_STYLE: Record<string, string> = {
+  A: "bg-[#B9FF66] text-[#191A23] border-[#191A23]",
+  B: "bg-blue-100 text-blue-900 border-blue-400",
+  C: "bg-yellow-100 text-yellow-900 border-yellow-400",
+  D: "bg-red-100 text-red-800 border-red-400",
+};
 
 // 科目配置
 const SUBJECTS = [

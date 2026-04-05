@@ -174,7 +174,7 @@ export function NineSegmentReport({
       scores.reduce((a, b) => a + Math.pow(b - mean, 2), 0) /
         (scores.length - 1)
     );
-    return stddev / range < 0.05;
+    return stddev / range < 0.12;
   }, [studentData]);
 
   const classes = useMemo(
