@@ -19,6 +19,17 @@ interface PreloadStrategy {
 
 // 基于用户角色的预加载策略
 const PRELOAD_STRATEGIES: { [role: string]: PreloadStrategy } = {
+  guest: {
+    immediate: [],
+    onHover: [],
+    onIdle: [],
+    conditional: {},
+    complexityBased: {
+      simple: [],
+      standard: [],
+      advanced: [],
+    },
+  },
   admin: {
     immediate: ["/dashboard", "/grade-analysis"],
     onHover: ["/advanced-analysis", "/student-management", "/class-management"],
@@ -65,7 +76,7 @@ const PRELOAD_STRATEGIES: { [role: string]: PreloadStrategy } = {
 class RoutePreloader {
   private preloadedRoutes = new Set<string>();
   private preloadPromises = new Map<string, Promise<any>>();
-  private userRole: string = "student";
+  private userRole: string = "guest";
   private currentRoute: string = "/";
   private complexityLevel: "simple" | "standard" | "advanced" = "standard";
 

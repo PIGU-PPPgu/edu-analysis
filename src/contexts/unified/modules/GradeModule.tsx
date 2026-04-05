@@ -589,13 +589,14 @@ export const GradeModuleProvider: React.FC<{ children: React.ReactNode }> = ({
     });
 
     try {
-      // 并行加载考试信息和成绩数据
+      // 并行加载考试信息和成绩数据（限制1000条防止全表扫描）
       const [examResponse, gradeResponse] = await Promise.all([
         supabase.from("exams").select("*").order("date", { ascending: false }),
         supabase
           .from("grade_data")
           .select("*")
-          .order("created_at", { ascending: false }),
+          .order("created_at", { ascending: false })
+          .limit(1000),
       ]);
 
       if (examResponse.error) {
@@ -726,10 +727,23 @@ export const GradeModuleProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [state.error, loadAllData]);
 
   // ==================== 初始化 ====================
-
+  // 启动时只加载考试列表，成绩数据按需加载（避免全表扫描拖慢启动）
   useEffect(() => {
-    loadAllData();
-  }, [loadAllData]);
+    const loadExamListOnly = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("exams")
+          .select("*")
+          .order("date", { ascending: false });
+        if (!error && data) {
+          dispatch({ type: "SET_EXAM_LIST", payload: data });
+        }
+      } catch (_) {
+        // 静默失败，不影响启动
+      }
+    };
+    loadExamListOnly();
+  }, []);
 
   // ==================== Context Value ====================
 
