@@ -65,7 +65,6 @@ import {
   Layers,
   Settings,
   Shield,
-  Settings2,
   PieChart,
   Brain,
   AlertTriangle,
@@ -101,6 +100,7 @@ const ExamManagementCenter: React.FC = () => {
     academicTerms,
     currentTerm,
     isLoading,
+    reload,
     createExam,
     updateExam,
     deleteExam,
@@ -126,6 +126,7 @@ const ExamManagementCenter: React.FC = () => {
     ExamSubjectScore[]
   >([]);
   const [reportExamId, setReportExamId] = useState<string | null>(null);
+  const [viewingExam, setViewingExam] = useState<Exam | null>(null);
   const [examForm, setExamForm] = useState<Partial<Exam>>({
     title: "",
     description: "",
@@ -407,28 +408,6 @@ const ExamManagementCenter: React.FC = () => {
     });
   };
 
-  // 调试功能：输出可用数据概览
-  const handleDebugDataOverview = () => {
-    console.log("🔍 === 数据调试概览 ===");
-    console.log("📊 考试数据:", exams.length, "个考试");
-    if (exams.length > 0) {
-      console.log("📋 考试样本:");
-      exams.slice(0, 3).forEach((exam, index) => {
-        console.log(`  ${index + 1}. id: ${exam.id}, title: "${exam.title}"`);
-      });
-    }
-    console.log("📈 统计数据:", statistics);
-    console.log(
-      "🔗 所有考试标题列表:",
-      exams.map((e) => e.title)
-    );
-
-    toast.info("调试信息已输出到控制台", {
-      description: `发现 ${exams.length} 个考试`,
-      duration: 3000,
-    });
-  };
-
   // 批量操作
   const handleBatchAction = async (action: string) => {
     if (selectedExams.length === 0) {
@@ -572,14 +551,16 @@ const ExamManagementCenter: React.FC = () => {
         break;
 
       case "warning-analysis":
-        // 跳转到预警分析，带上考试筛选条件
-        const queryParams = new URLSearchParams();
-        queryParams.set("exam", exam.title);
-        if (exam.date) queryParams.set("date", exam.date);
-        queryParams.set("from", "exam-management");
-
-        window.location.href = `/warning-analysis?${queryParams.toString()}`;
-        toast.info(`正在跳转到预警分析，筛选条件: ${exam.title}`);
+        {
+          // 跳转到预警分析，带上考试筛选条件
+          const queryParams = new URLSearchParams();
+          queryParams.set("exam", exam.title);
+          if (exam.date) queryParams.set("date", exam.date);
+          queryParams.set("from", "exam-management");
+          navigate(`/warning-analysis?${queryParams.toString()}`);
+          toast.info(`正在跳转到预警分析，筛选条件: ${exam.title}`);
+          break;
+        }
         break;
       case "delete":
         try {
@@ -595,47 +576,7 @@ const ExamManagementCenter: React.FC = () => {
         }
         break;
       case "view":
-        // 显示考试详情的详细信息
-        const examDetails = [
-          `考试标题: ${exam.title}`,
-          `考试类型: ${exam.type}`,
-          `考试日期: ${exam.date}`,
-          `状态: ${exam.status}`,
-          `科目: ${exam.subjects.join(", ")}`,
-          exam.startTime ? `时间: ${exam.startTime} - ${exam.endTime}` : "",
-          exam.totalScore ? `总分: ${exam.totalScore}分` : "",
-          exam.passingScore ? `及格分: ${exam.passingScore}分` : "",
-          `创建时间: ${new Date(exam.createdAt).toLocaleString()}`,
-          exam.createdBy ? `创建者: ${exam.createdBy}` : "",
-        ].filter(Boolean);
-
-        toast.success("考试详情", {
-          description: examDetails.slice(0, 3).join(" | "),
-          duration: 5000,
-        });
-
-        console.log("📋 考试详细信息:", {
-          基本信息: {
-            ID: exam.id,
-            标题: exam.title,
-            类型: exam.type,
-            日期: exam.date,
-            状态: exam.status,
-          },
-          详细设置: {
-            科目: exam.subjects,
-            开始时间: exam.startTime,
-            结束时间: exam.endTime,
-            总分: exam.totalScore,
-            及格分: exam.passingScore,
-            班级: exam.classes,
-          },
-          管理信息: {
-            创建者: exam.createdBy,
-            创建时间: exam.createdAt,
-            更新时间: exam.updatedAt,
-          },
-        });
+        setViewingExam(exam);
         break;
       case "analysis":
       case "basic-analysis":
@@ -722,14 +663,6 @@ const ExamManagementCenter: React.FC = () => {
             >
               <Download className="h-4 w-4" />
               导出数据
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleDebugDataOverview}
-              className="gap-2 hover:shadow-md transition-all duration-200 text-blue-600 border-blue-300"
-            >
-              <Settings2 className="h-4 w-4" />
-              调试信息
             </Button>
             <Button
               onClick={() => setIsCreateDialogOpen(true)}
@@ -878,6 +811,7 @@ const ExamManagementCenter: React.FC = () => {
                       variant="outline"
                       size="sm"
                       className="gap-1 border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#000] font-bold"
+                      onClick={() => setActiveTab("list")}
                     >
                       <Eye className="h-4 w-4" />
                       查看全部
@@ -932,6 +866,7 @@ const ExamManagementCenter: React.FC = () => {
                 onQuickAction={handleQuickAction}
                 onBatchAction={handleBatchAction}
                 onOpenCreate={() => setIsCreateDialogOpen(true)}
+                onReload={reload}
               />
             </TabsContent>
 
@@ -1220,6 +1155,86 @@ const ExamManagementCenter: React.FC = () => {
                 examId={reportExamId}
                 onClose={() => setReportExamId(null)}
               />
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* 考试详情弹窗 */}
+        {viewingExam && (
+          <Dialog
+            open={!!viewingExam}
+            onOpenChange={() => setViewingExam(null)}
+          >
+            <DialogContent className="max-w-lg rounded-xl">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                  <span>
+                    {examTypes.find((t) => t.name === viewingExam.type)
+                      ?.emoji ?? "📝"}
+                  </span>
+                  {viewingExam.title}
+                </DialogTitle>
+                <DialogDescription>考试详细信息</DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-3 py-4 text-sm">
+                {[
+                  { label: "考试类型", value: viewingExam.type },
+                  { label: "考试日期", value: viewingExam.date },
+                  { label: "状态", value: getStatusBadge(viewingExam.status) },
+                  {
+                    label: "科目",
+                    value: viewingExam.subjects.join(", ") || "—",
+                  },
+                  viewingExam.startTime && {
+                    label: "考试时间",
+                    value: `${viewingExam.startTime} — ${viewingExam.endTime}`,
+                  },
+                  viewingExam.totalScore && {
+                    label: "总分",
+                    value: `${viewingExam.totalScore} 分`,
+                  },
+                  viewingExam.passingScore && {
+                    label: "及格分",
+                    value: `${viewingExam.passingScore} 分`,
+                  },
+                  viewingExam.participantCount && {
+                    label: "参与人数",
+                    value: `${viewingExam.participantCount} 人`,
+                  },
+                  { label: "创建者", value: viewingExam.createdBy ?? "系统" },
+                  {
+                    label: "创建时间",
+                    value: new Date(viewingExam.createdAt).toLocaleString(),
+                  },
+                ]
+                  .filter(Boolean)
+                  .map((item: any) => (
+                    <div
+                      key={item.label}
+                      className="flex items-center justify-between border-b border-gray-100 pb-2"
+                    >
+                      <span className="text-gray-500 font-medium">
+                        {item.label}
+                      </span>
+                      <span className="text-gray-900">{item.value}</span>
+                    </div>
+                  ))}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setViewingExam(null)}>
+                  关闭
+                </Button>
+                <Button
+                  className="bg-[#B9FF66] text-black hover:bg-[#A3E85A]"
+                  onClick={() => {
+                    setViewingExam(null);
+                    handleAnalysisNavigation(viewingExam);
+                  }}
+                >
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  查看分析
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         )}

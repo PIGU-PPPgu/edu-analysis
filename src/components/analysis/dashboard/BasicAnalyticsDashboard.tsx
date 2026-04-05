@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -47,6 +48,7 @@ import ChartGallery from "@/components/analysis/charts/ChartGallery";
 import type { WideGradeRecord } from "@/components/analysis/advanced/trend/trendUtils";
 
 const CompleteAnalyticsDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const {
     allGradeData,
     wideGradeData,
@@ -105,42 +107,14 @@ const CompleteAnalyticsDashboard: React.FC = () => {
     }
   };
 
-  const handleExamEdit = async (examId: string) => {
-    try {
-      const exam = examList.find((e) => e.id === examId);
-      const newTitle = window.prompt("更新考试名称", exam?.title || "");
-      if (newTitle === null || newTitle.trim() === "") return;
-      const { updateExam } = await import("@/services/examService");
-      const updated = await updateExam(examId, { title: newTitle.trim() });
-      if (updated) {
-        await refreshData();
-        toast.success("考试已更新");
-      }
-    } catch (error) {
-      console.error("更新考试失败", error);
-      toast.error("更新考试失败");
-    }
+  const handleExamEdit = (examId: string) => {
+    navigate(`/exam-management`);
+    toast.info("请在考试管理页面编辑考试信息");
   };
 
-  const handleExamAdd = async () => {
-    try {
-      const title = window.prompt("请输入考试名称");
-      if (!title || !title.trim()) return;
-      const date =
-        window.prompt("请输入考试日期（YYYY-MM-DD，可选）") || undefined;
-      const type = window.prompt("请输入考试类型（可选）") || undefined;
-      const { createExam } = await import("@/services/examService");
-      const created = await createExam({
-        title: title.trim(),
-        type: type?.trim() || undefined,
-        date: date?.trim() || undefined,
-        subject: undefined,
-      });
-      if (created) await refreshData();
-    } catch (error) {
-      console.error("新增考试失败", error);
-      toast.error("新增考试失败");
-    }
+  const handleExamAdd = () => {
+    navigate(`/exam-management`);
+    toast.info("请在考试管理页面创建新考试");
   };
 
   if (loading) {
@@ -212,13 +186,18 @@ const CompleteAnalyticsDashboard: React.FC = () => {
   return (
     <div className="container mx-auto px-4">
       <div className="flex bg-white min-h-screen">
-        {/* 侧边筛选栏 */}
+        {/* 侧边筛选栏：桌面端 inline 占位，移动端 overlay */}
         <div
           className={cn(
-            "transition-all duration-300",
-            showSidebar ? "block" : "hidden"
+            "transition-all duration-300 flex-shrink-0",
+            // 桌面端：始终占位，通过宽度控制显隐
+            "lg:block",
+            showSidebar ? "lg:w-96" : "lg:w-0 lg:overflow-hidden",
+            // 移动端：overlay 模式
+            showSidebar ? "block" : "hidden lg:block"
           )}
         >
+          {/* 移动端遮罩 */}
           <div
             className={cn(
               "fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity",
@@ -226,7 +205,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
             )}
             onClick={() => setShowSidebar(false)}
           />
-          <div className="fixed lg:static inset-y-0 left-0 z-50 w-80 lg:w-96 bg-[#F8F8F8] border-r-2 border-black p-6 overflow-y-auto transform lg:transform-none transition-transform lg:transition-none">
+          <div className="fixed lg:sticky lg:top-0 inset-y-0 left-0 z-50 lg:z-auto w-80 lg:w-96 h-screen bg-[#F8F8F8] border-r-2 border-black p-6 overflow-y-auto">
             <ModernGradeFilters
               filter={filter}
               onFilterChange={setFilter}
@@ -235,7 +214,7 @@ const CompleteAnalyticsDashboard: React.FC = () => {
               availableClasses={availableClasses}
               availableGrades={availableGrades}
               availableExamTypes={availableExamTypes}
-              totalCount={filteredGradeData.length}
+              totalCount={allGradeData.length}
               filteredCount={filteredGradeData.length}
               onExamDelete={handleExamDelete}
               onExamEdit={handleExamEdit}
