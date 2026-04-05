@@ -555,7 +555,7 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6">
-                  <PredictiveAnalysis />
+                  <PredictiveAnalysis gradeData={safeGradeData} />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -569,7 +569,7 @@ const AdvancedAnalyticsDashboard: React.FC = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6">
-                  <LearningBehaviorAnalysis />
+                  <LearningBehaviorAnalysis gradeData={safeGradeData} />
                 </CardContent>
               </Card>
             </TabsContent>

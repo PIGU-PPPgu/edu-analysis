@@ -232,110 +232,115 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
 
       <GradeLevelDistribution gradeData={filteredGradeData} className="" />
 
-      <Accordion type="single" collapsible className="w-full">
-        <AccordionItem
-          value="insights"
-          className="border border-black bg-white shadow-[4px_4px_0px_0px_#B9FF66]"
-        >
-          <AccordionTrigger className="px-8 py-6 bg-[#B9FF66] hover:bg-[#B9FF66] border-b border-black data-[state=open]:border-b-2">
-            <div className="flex items-center gap-2">
-              <Brain className="w-5 h-5 text-[#191A23]" />
-              <span className="text-[#191A23] font-black uppercase tracking-wide">
-                智能教学洞察与建议
-              </span>
-            </div>
-          </AccordionTrigger>
-          <AccordionContent className="px-8 py-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="p-6 bg-[#B9FF66]/20 border border-[#B9FF66] rounded-lg">
-                <h4 className="font-black text-[#191A23] mb-3 flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5" />
-                  教学亮点
-                </h4>
-                <ul className="space-y-2 text-sm">
-                  <li className="flex items-start gap-2">
-                    <div className="w-2 h-2 bg-[#B9FF66] rounded-full mt-2 flex-shrink-0 border border-black"></div>
-                    <span className="text-[#191A23] font-medium">
-                      {statistics?.topSubject || "数学"} 科目表现优异，平均分达{" "}
-                      {statistics?.topSubjectScore?.toFixed(1) || "85.2"} 分
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <div className="w-2 h-2 bg-[#B9FF66] rounded-full mt-2 flex-shrink-0 border border-black"></div>
-                    <span className="text-[#191A23] font-medium">
-                      整体及格率{" "}
-                      {statistics?.totalScoreStats?.passRate?.toFixed(1) ||
-                        "78.5"}
-                      %，表现良好
-                    </span>
-                  </li>
-                </ul>
+      {statistics && filteredGradeData.length > 0 && (
+        <Accordion type="single" collapsible className="w-full">
+          <AccordionItem
+            value="insights"
+            className="border border-black bg-white shadow-[4px_4px_0px_0px_#B9FF66]"
+          >
+            <AccordionTrigger className="px-8 py-6 bg-[#B9FF66] hover:bg-[#B9FF66] border-b border-black data-[state=open]:border-b-2">
+              <div className="flex items-center gap-2">
+                <Brain className="w-5 h-5 text-[#191A23]" />
+                <span className="text-[#191A23] font-black uppercase tracking-wide">
+                  智能教学洞察与建议
+                </span>
               </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-8 py-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="p-6 bg-[#B9FF66]/20 border border-[#B9FF66] rounded-lg">
+                  <h4 className="font-black text-[#191A23] mb-3 flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5" />
+                    教学亮点
+                  </h4>
+                  <ul className="space-y-2 text-sm">
+                    {statistics.topSubject && (
+                      <li className="flex items-start gap-2">
+                        <div className="w-2 h-2 bg-[#B9FF66] rounded-full mt-2 flex-shrink-0 border border-black"></div>
+                        <span className="text-[#191A23] font-medium">
+                          {statistics.topSubject} 科目表现优异，平均分达{" "}
+                          {statistics.topSubjectScore?.toFixed(1)} 分
+                        </span>
+                      </li>
+                    )}
+                    {statistics.totalScoreStats?.passRate != null && (
+                      <li className="flex items-start gap-2">
+                        <div className="w-2 h-2 bg-[#B9FF66] rounded-full mt-2 flex-shrink-0 border border-black"></div>
+                        <span className="text-[#191A23] font-medium">
+                          整体及格率{" "}
+                          {statistics.totalScoreStats.passRate.toFixed(1)}
+                          %，表现良好
+                        </span>
+                      </li>
+                    )}
+                  </ul>
+                </div>
 
-              <div className="p-6 bg-[#6B7280]/20 border border-[#6B7280] rounded-lg">
-                <h4 className="font-black text-[#191A23] mb-3 flex items-center gap-2">
-                  <Target className="w-5 h-5" />
-                  改进建议
-                </h4>
-                <ul className="space-y-2 text-sm">
-                  <li className="flex items-start gap-2">
-                    <div className="w-2 h-2 bg-[#6B7280] rounded-full mt-2 flex-shrink-0 border border-black"></div>
-                    <span className="text-[#191A23] font-medium">
-                      关注 {statistics?.atRiskStudents || 0}{" "}
-                      名学困生，建议个性化辅导
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <div className="w-2 h-2 bg-[#6B7280] rounded-full mt-2 flex-shrink-0 border border-black"></div>
-                    <span className="text-[#191A23] font-medium">
-                      加强薄弱科目教学，提升整体均衡性
-                    </span>
-                  </li>
-                </ul>
-              </div>
+                <div className="p-6 bg-[#6B7280]/20 border border-[#6B7280] rounded-lg">
+                  <h4 className="font-black text-[#191A23] mb-3 flex items-center gap-2">
+                    <Target className="w-5 h-5" />
+                    改进建议
+                  </h4>
+                  <ul className="space-y-2 text-sm">
+                    <li className="flex items-start gap-2">
+                      <div className="w-2 h-2 bg-[#6B7280] rounded-full mt-2 flex-shrink-0 border border-black"></div>
+                      <span className="text-[#191A23] font-medium">
+                        关注 {statistics.atRiskStudents || 0}{" "}
+                        名学困生，建议个性化辅导
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <div className="w-2 h-2 bg-[#6B7280] rounded-full mt-2 flex-shrink-0 border border-black"></div>
+                      <span className="text-[#191A23] font-medium">
+                        加强薄弱科目教学，提升整体均衡性
+                      </span>
+                    </li>
+                  </ul>
+                </div>
 
-              <div className="p-6 bg-[#6B7280]/20 border border-[#6B7280] rounded-lg">
-                <h4 className="font-black text-[#191A23] mb-3 flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5" />
-                  学困生预警
-                </h4>
-                <div className="space-y-2">
-                  {filteredGradeData
-                    .filter((r) => {
+                <div className="p-6 bg-[#6B7280]/20 border border-[#6B7280] rounded-lg">
+                  <h4 className="font-black text-[#191A23] mb-3 flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5" />
+                    学困生预警
+                  </h4>
+                  <div className="space-y-2">
+                    {filteredGradeData
+                      .filter((r) => {
+                        const s = r.score || r.total_score;
+                        return s && s < 60;
+                      })
+                      .slice(0, 3)
+                      .map((record, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-2 bg-[#6B7280]/10 border border-[#6B7280] rounded text-xs"
+                        >
+                          <span className="font-bold text-[#191A23]">
+                            {record.name}
+                          </span>
+                          <Badge className="bg-[#6B7280] text-white border border-black font-bold">
+                            {record.score || record.total_score}分
+                          </Badge>
+                        </div>
+                      ))}
+                    {filteredGradeData.filter((r) => {
                       const s = r.score || r.total_score;
                       return s && s < 60;
-                    })
-                    .slice(0, 3)
-                    .map((record, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-2 bg-[#6B7280]/10 border border-[#6B7280] rounded text-xs"
-                      >
-                        <span className="font-bold text-[#191A23]">
-                          {record.name}
-                        </span>
-                        <Badge className="bg-[#6B7280] text-white border border-black font-bold">
-                          {record.score || record.total_score}分
-                        </Badge>
+                    }).length === 0 && (
+                      <div className="text-center py-2">
+                        <CheckCircle className="w-6 h-6 text-[#B9FF66] mx-auto mb-1" />
+                        <p className="text-xs font-bold text-[#191A23]">
+                          暂无学困生
+                        </p>
                       </div>
-                    ))}
-                  {filteredGradeData.filter((r) => {
-                    const s = r.score || r.total_score;
-                    return s && s < 60;
-                  }).length === 0 && (
-                    <div className="text-center py-2">
-                      <CheckCircle className="w-6 h-6 text-[#B9FF66] mx-auto mb-1" />
-                      <p className="text-xs font-bold text-[#191A23]">
-                        暂无学困生
-                      </p>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      )}
     </div>
   );
 };

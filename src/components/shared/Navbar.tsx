@@ -47,7 +47,7 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
   const { signOut } = useAuthActions();
   const [localUserRole, setLocalUserRole] = useState<string | null>(null);
   const { isMobile } = useViewport();
-  const { setUserRole, setCurrentRoute } = useRoutePreloader();
+  const { setUserRole, setCurrentRoute, clearCache } = useRoutePreloader();
 
   // 在组件加载时检查localStorage中是否有用户角色
   useEffect(() => {
@@ -61,9 +61,17 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
 
   // 🚀 Master-Frontend: 路由预加载集成
   useEffect(() => {
-    const effectiveRole = getEffectiveRole() || "student";
+    if (!isAuthReady) return;
+
+    if (!user) {
+      setUserRole("guest");
+      clearCache();
+      return;
+    }
+
+    const effectiveRole = getEffectiveRole() || "teacher";
     setUserRole(effectiveRole);
-  }, [userRole, localUserRole]);
+  }, [isAuthReady, user, userRole, localUserRole, setUserRole, clearCache]);
 
   useEffect(() => {
     setCurrentRoute(location.pathname);
