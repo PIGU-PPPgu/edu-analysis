@@ -101,10 +101,12 @@ const ValueAddedDashboard: React.FC = () => {
   // 将examList转换为ExamInfo格式
   const examInfoList: ExamInfo[] = useMemo(() => {
     return examList.map((exam) => ({
+      examId: exam.id || "",
+      examTitle: exam.title || "",
+      examDate: exam.date || "",
+      examType: exam.type || "",
       id: exam.id || "",
       title: exam.title || "",
-      date: exam.date || "",
-      type: exam.type || "",
     }));
   }, [examList]);
 

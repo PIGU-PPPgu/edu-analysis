@@ -148,15 +148,6 @@ export function ReportsMenuDashboard({
     return () => document.removeEventListener("keydown", down);
   }, []);
 
-  // 数据统计（调试用）
-  console.log("📊 [ReportsMenuDashboard] Data stats:", {
-    classData: classData.length,
-    teacherData: teacherData.length,
-    studentData: studentData.length,
-    subjectBalanceData: subjectBalanceData.length,
-    exitExamId,
-  });
-
   // 19个报告维度定义
   const reportCards: ReportCard[] = [
     // AI智能分析

@@ -66,6 +66,15 @@ const LEVEL_COLORS: Record<AbilityLevel, string> = {
   B: "#eab308",
   "C+": "#f97316",
   C: "#ef4444",
+  "1段": "#10b981",
+  "2段": "#22c55e",
+  "3段": "#3b82f6",
+  "4段": "#6366f1",
+  "5段": "#8b5cf6",
+  "6段": "#f59e0b",
+  "7段": "#ef4444",
+  "8段": "#dc2626",
+  "9段": "#991b1b",
 };
 
 // 等级顺序(用于排序)
@@ -76,6 +85,15 @@ const LEVEL_ORDER: Record<AbilityLevel, number> = {
   B: 3,
   "C+": 2,
   C: 1,
+  "1段": 9,
+  "2段": 8,
+  "3段": 7,
+  "4段": 6,
+  "5段": 5,
+  "6段": 4,
+  "7段": 3,
+  "8段": 2,
+  "9段": 1,
 };
 
 const safeToFixed = (value: any, decimals: number = 2): string => {

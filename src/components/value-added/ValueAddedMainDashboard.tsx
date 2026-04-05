@@ -73,66 +73,35 @@ export function ValueAddedMainDashboard() {
 
   // ✅ 如果有 activity_id，自动切换到报告标签页并强制刷新
   useEffect(() => {
-    console.log("🔍 [ValueAddedMainDashboard] useEffect triggered", {
-      activityId,
-      hasActivityId: !!activityId,
-      activeTab,
-      previousActivityId: previousActivityIdRef.current,
-    });
-
     if (activityId) {
       const isNewActivity = activityId !== previousActivityIdRef.current;
       const isAlreadyOnReports = activeTab === "reports";
-
-      console.log("🔍 [ActivityID Changed]", {
-        activityId,
-        previousActivityId: previousActivityIdRef.current,
-        isNewActivity,
-        isAlreadyOnReports,
-        activeTab,
-      });
 
       // 更新引用
       previousActivityIdRef.current = activityId;
 
       // 如果不在reports标签页，先切换
       if (!isAlreadyOnReports) {
-        console.log("📍 Switching to reports tab");
         setActiveTab("reports");
         // 切换标签页后，在下一个tick加载数据
         setTimeout(() => {
-          console.log("🔄 Loading data after tab switch");
           loadReportData();
-        }, 50); // 增加延迟确保状态更新
+        }, 50);
       } else {
-        // ✅ 已经在reports标签页时，无论是否是新活动，都强制重新加载
-        console.log(
-          "🔄 [Force Reload] Already on reports tab, forcing data reload"
-        );
+        // 已经在reports标签页时，无论是否是新活动，都强制重新加载
         loadReportData();
       }
-    } else {
-      console.log("⚠️ [ValueAddedMainDashboard] No activityId in URL");
     }
   }, [activityId]);
 
   // 加载数据
   const loadReportData = async () => {
-    console.log("🔍 [ValueAddedMainDashboard] loadReportData called", {
-      activeTab,
-      activityId,
-      hasActivityId: !!activityId,
-    });
-
     setLoading(true);
     try {
       // 确定要加载的活动ID
       let targetActivityId = activityId;
 
       if (!targetActivityId) {
-        console.log(
-          "🔍 [ValueAddedMainDashboard] No activity_id, loading latest activity data"
-        );
         let query = supabase
           .from("value_added_activities")
           .select("id, name")
@@ -150,10 +119,6 @@ export function ValueAddedMainDashboard() {
         const { data: latestActivity } = await query.single();
 
         if (latestActivity) {
-          console.log(
-            "🔍 [ValueAddedMainDashboard] Using latest activity:",
-            latestActivity.id
-          );
           targetActivityId = latestActivity.id;
           setCurrentActivity({
             id: latestActivity.id,
@@ -180,11 +145,6 @@ export function ValueAddedMainDashboard() {
         setCurrentActivity(null);
         return;
       }
-
-      console.log(
-        "🔍 [ValueAddedMainDashboard] Filtering by activity_id:",
-        targetActivityId
-      );
 
       // ✅ 分别查询不同维度的数据，使用分页查询避免1000条限制
       // 定义分页查询辅助函数
@@ -247,19 +207,6 @@ export function ValueAddedMainDashboard() {
       const studentResult = { data: studentData_raw, error: null };
       const subjectResult = { data: subjectData_raw, error: null };
 
-      console.log("🔍 [ValueAddedMainDashboard] Query results:", {
-        classCount: classResult.data?.length || 0,
-        teacherCount: teacherResult.data?.length || 0,
-        studentCount: studentResult.data?.length || 0,
-        subjectCount: subjectResult.data?.length || 0,
-        classError: classResult.error,
-        sampleClassData: classResult.data?.slice(0, 2),
-        classDimensions: classResult.data?.map((d) => d.dimension).slice(0, 3),
-        classReportTypes: classResult.data
-          ?.map((d) => d.report_type)
-          .slice(0, 3),
-      });
-
       if (
         classResult.error ||
         teacherResult.error ||
@@ -309,20 +256,6 @@ export function ValueAddedMainDashboard() {
         (c) => c.result as SubjectBalanceAnalysis
       );
 
-      console.log("🔍 [ValueAddedMainDashboard] Extracted results:", {
-        classCount: classResults.length,
-        teacherCount: teacherResults.length,
-        studentCount: studentResults.length,
-        subjectCount: subjectResults.length,
-        sampleClass: classResults[0]
-          ? {
-              class_name: classResults[0].class_name,
-              subject: classResults[0].subject,
-              total_students: classResults[0].total_students,
-            }
-          : null,
-      });
-
       setClassData(classResults);
       setTeacherData(teacherResults);
       setStudentData(studentResults);
@@ -345,8 +278,6 @@ export function ValueAddedMainDashboard() {
   // ✅ 监听标签页切换到reports时加载数据（仅在无activityId时）
   useEffect(() => {
     if (activeTab === "reports" && !activityId && !loading) {
-      // 只在没有指定activityId且非loading状态下自动加载
-      console.log("🔍 [Tab Changed] Loading reports without activityId");
       loadReportData();
     }
   }, [activeTab]); // ✅ 只依赖activeTab，有activityId时由第一个useEffect处理
@@ -354,10 +285,6 @@ export function ValueAddedMainDashboard() {
   // ✅ 学段切换时清空缓存并重新加载
   const handleGradeLevelChange = useCallback(
     (newLevel: string) => {
-      console.log("🔍 [GradeLevel Changed]", {
-        from: gradeLevel,
-        to: newLevel,
-      });
       setGradeLevel(newLevel);
 
       // 清空所有缓存数据

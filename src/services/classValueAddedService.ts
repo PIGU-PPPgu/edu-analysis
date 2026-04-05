@@ -442,6 +442,15 @@ function getLevelValue(level: AbilityLevel): number {
     B: 3,
     "C+": 2,
     C: 1,
+    "1段": 9,
+    "2段": 8,
+    "3段": 7,
+    "4段": 6,
+    "5段": 5,
+    "6段": 4,
+    "7段": 3,
+    "8段": 2,
+    "9段": 1,
   };
 
   return levelMap[level] || 0;

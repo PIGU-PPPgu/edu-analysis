@@ -56,6 +56,7 @@ const ConfigurationManagement = lazy(
   () => import("./pages/ConfigurationManagement")
 );
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const GradeReportPage = lazy(() => import("./pages/GradeReport"));
 
 // 工具和测试页面 - 懒加载
 // 已删除测试文件: CascadeAnalysisTestPage, AnalysisDashboardComparison
@@ -305,6 +306,10 @@ function App() {
                           {/* 受保护的路由 - 需要登录验证 */}
                           <Route element={<ProtectedRoute />}>
                             <Route path="/dashboard" element={<Index />} />
+                            <Route
+                              path="/grade-report"
+                              element={<GradeReportPage />}
+                            />
                             <Route
                               path="/teacher-dashboard"
                               element={<TeacherDashboard />}

@@ -136,13 +136,14 @@ export function ActivityList() {
   const handleRecalculate = async () => {
     if (!selectedActivity) return;
 
+    const activityToRecalculate = selectedActivity;
     setRecalculateDialogOpen(false);
 
     // 开始清除缓存
     toast.loading("正在清除旧数据...", { id: "recalculate" });
 
     try {
-      const success = await clearActivityCache(selectedActivity.id);
+      const success = await clearActivityCache(activityToRecalculate.id);
 
       if (!success) {
         toast.error("清除缓存失败", { id: "recalculate" });
@@ -154,14 +155,11 @@ export function ActivityList() {
       // 重新加载活动列表，状态应该变为pending
       await loadActivities();
 
-      // 找到刚才的活动（现在状态是pending）
-      const updatedActivity = activities.find(
-        (a) => a.id === selectedActivity.id
-      );
-      if (updatedActivity) {
-        // 自动开始计算
-        await handleStartCalculation({ ...updatedActivity, status: "pending" });
-      }
+      // 直接用保存的活动引用，不依赖 state 快照
+      await handleStartCalculation({
+        ...activityToRecalculate,
+        status: "pending",
+      });
     } catch (error) {
       console.error("重新计算失败:", error);
       toast.error("重新计算失败，请重试", { id: "recalculate" });
@@ -370,40 +368,19 @@ export function ActivityList() {
                               size="sm"
                               variant="outline"
                               onClick={() => {
-                                console.log(
-                                  "🔍 [ActivityList] Button clicked, navigating to:",
-                                  activity.id
-                                );
-                                console.log(
-                                  "🔍 [ActivityList] Current location:",
-                                  window.location.pathname,
-                                  window.location.search
-                                );
-
-                                // 强制刷新导航
                                 const targetUrl = `/value-added?activity_id=${activity.id}`;
 
                                 // 如果已经在目标URL，先清空再导航
                                 if (
                                   window.location.pathname === "/value-added"
                                 ) {
-                                  console.log(
-                                    "🔄 [ActivityList] Already on /value-added, forcing navigation"
-                                  );
                                   // 先清空activity_id
                                   navigate("/value-added", { replace: true });
                                   // 然后导航到带activity_id的URL
                                   setTimeout(() => {
-                                    console.log(
-                                      "🔄 [ActivityList] Navigating with activity_id:",
-                                      activity.id
-                                    );
                                     navigate(targetUrl, { replace: false });
                                   }, 50);
                                 } else {
-                                  console.log(
-                                    "🔄 [ActivityList] Direct navigation"
-                                  );
                                   navigate(targetUrl, { replace: false });
                                 }
                               }}
