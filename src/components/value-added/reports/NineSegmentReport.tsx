@@ -44,7 +44,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Info } from "lucide-react";
+import { AlertTriangle, Info } from "lucide-react";
 import type { StudentValueAdded } from "@/types/valueAddedTypes";
 
 interface NineSegmentReportProps {
@@ -158,6 +158,24 @@ export function NineSegmentReport({
   }, [studentData]);
 
   const isNine = segmentLabels === NINE_SEGMENTS;
+
+  // 检测入口考试区分度：标准差 / 全距 < 5% 视为区分度不足
+  const entryDiscriminationWarning = useMemo(() => {
+    const scores = studentData
+      .map((s) => s.entry_score)
+      .filter((v) => typeof v === "number" && Number.isFinite(v));
+    if (scores.length < 2) return false;
+    const min = Math.min(...scores);
+    const max = Math.max(...scores);
+    const range = max - min;
+    if (range === 0) return true;
+    const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
+    const stddev = Math.sqrt(
+      scores.reduce((a, b) => a + Math.pow(b - mean, 2), 0) /
+        (scores.length - 1)
+    );
+    return stddev / range < 0.05;
+  }, [studentData]);
 
   const classes = useMemo(
     () => Array.from(new Set(studentData.map((s) => s.class_name))).sort(),
@@ -285,6 +303,20 @@ export function NineSegmentReport({
           <Info className="h-4 w-4" />
           <AlertDescription>
             当前活动使用六段评价配置。若需九段评价，请在活动创建时选择"深圳市标准九段评价"并重新计算。
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {entryDiscriminationWarning && (
+        <Alert
+          variant="destructive"
+          className="border-amber-300 bg-amber-50 text-amber-900 [&>svg]:text-amber-600"
+        >
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            <span className="font-medium">入口考试区分度不足</span>
+            ——入口分数分布极度集中（标准差不足全距的
+            5%），通常见于掐尖录取场景（如中考进重点高中）。此时段位划分无法有效区分学生能力，流动分析结果仅供参考，建议以增值评价（TVA）为主要依据。
           </AlertDescription>
         </Alert>
       )}
