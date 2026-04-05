@@ -134,6 +134,17 @@ export function TrackingDashboard({
 
   const trend = calculateTrend();
 
+  // 进步持续性（GPR）：增值率为正的考试次数占比
+  const calculateGPR = () => {
+    if (!currentSubject || currentSubject.data.length === 0) return null;
+    const positiveCount = currentSubject.data.filter(
+      (d) => d.value_added_rate > 0
+    ).length;
+    return positiveCount / currentSubject.data.length;
+  };
+
+  const gpr = calculateGPR();
+
   return (
     <div className="space-y-6">
       {/* 头部信息 */}
@@ -256,12 +267,22 @@ export function TrackingDashboard({
 
           <Card>
             <CardContent className="p-6">
-              <div className="text-sm text-muted-foreground">考试次数</div>
-              <div className="text-3xl font-bold mt-2">
-                {currentSubject.data.length}
+              <div className="text-sm text-muted-foreground">
+                进步持续性 GPR
+              </div>
+              <div
+                className={`text-3xl font-bold mt-2 ${
+                  gpr != null && gpr >= 0.6
+                    ? "text-green-600"
+                    : gpr != null && gpr >= 0.4
+                      ? "text-yellow-600"
+                      : "text-red-600"
+                }`}
+              >
+                {gpr != null ? `${(gpr * 100).toFixed(0)}%` : "—"}
               </div>
               <div className="text-xs text-muted-foreground mt-1">
-                历次追踪分析
+                增值为正的考试占比
               </div>
             </CardContent>
           </Card>

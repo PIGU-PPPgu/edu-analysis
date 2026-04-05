@@ -838,14 +838,13 @@ export async function executeValueAddedCalculation(
     const subjectBalanceResults: any[] = [];
 
     if (allClassResults.length > 0) {
-      // 从班级结果中提取班级-科目数据
+      // 从班级结果中提取班级-科目数据（使用预计算的增值率，而非原始分）
       const classSubjectData = allClassResults.map((item) => {
         const result = item.result;
         return {
           class_name: result.class_name,
           subject: result.subject,
-          entry_score: result.avg_score_entry || 0, // 使用正确的字段名
-          exit_score: result.avg_score_exit || 0,
+          value_added_rate: result.avg_score_value_added_rate ?? 0,
         };
       });
 

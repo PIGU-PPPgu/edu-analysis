@@ -424,6 +424,10 @@ export interface SubjectBalanceAnalysis {
 
   // 综合评分
   balance_score: number;
+
+  // 科目均衡指数 SBI = 1 - std(各科增值率) / |mean(各科增值率)|
+  // 越接近1越均衡，负值表示严重偏科
+  subject_balance_index?: number;
 }
 
 /** 科目增值详情 */

@@ -10,7 +10,6 @@ import type {
 
 import {
   calculateStandardDeviation,
-  calculateZScores,
   safeDivide,
   groupBy,
 } from "@/utils/statistics";
@@ -19,12 +18,12 @@ import {
 // 接口定义
 // ============================================
 
-/** 班级科目数据（输入） */
+/** 班级科目数据（输入）— 直接传入预计算的增值率，避免用原始分重算 */
 interface ClassSubjectData {
   class_name: string;
   subject: string;
-  entry_score: number;
-  exit_score: number;
+  /** 已由 classValueAddedService 计算好的增值率（OLS 残差均值） */
+  value_added_rate: number;
 }
 
 /** 学科均衡分析参数 */
@@ -64,7 +63,6 @@ export async function calculateSubjectBalance(
     const analysis = await calculateSingleClassBalance({
       className,
       subjectData,
-      allData: classSubjectData, // ✅ 传入全体数据用于Z-Score计算
       weights,
     });
 
@@ -82,36 +80,17 @@ export async function calculateSubjectBalance(
  */
 async function calculateSingleClassBalance(params: {
   className: string;
-  subjectData: ClassSubjectData[]; // 当前班级的科目数据
-  allData: ClassSubjectData[]; // 所有班级的科目数据（用于Z-Score计算）
+  subjectData: ClassSubjectData[];
   weights: { totalValueAdded: number; deviation: number };
 }): Promise<SubjectBalanceAnalysis> {
-  const { className, subjectData, allData, weights } = params;
+  const { className, subjectData, weights } = params;
 
-  // 1. 计算各科目的增值率
-  const subjectDetails: SubjectValueAddedDetail[] = [];
-
-  for (const data of subjectData) {
-    // ✅ 使用全体数据计算Z-Score
-    const allSubjectData = allData.filter((d) => d.subject === data.subject);
-    const entryScores = allSubjectData.map((d) => d.entry_score);
-    const exitScores = allSubjectData.map((d) => d.exit_score);
-
-    const entryZScores = calculateZScores(entryScores);
-    const exitZScores = calculateZScores(exitScores);
-
-    // ✅ 找到当前班级在该科目的索引
-    const index = allSubjectData.findIndex((d) => d.class_name === className);
-
-    const valueAddedRate =
-      index >= 0 ? exitZScores[index] - entryZScores[index] : 0;
-
-    subjectDetails.push({
-      subject: data.subject,
-      value_added_rate: valueAddedRate,
-      deviation_from_avg: 0, // 稍后计算
-    });
-  }
+  // 1. 直接使用预计算的增值率构建科目详情
+  const subjectDetails: SubjectValueAddedDetail[] = subjectData.map((data) => ({
+    subject: data.subject,
+    value_added_rate: data.value_added_rate,
+    deviation_from_avg: 0, // 稍后计算
+  }));
 
   // 2. 计算平均增值率
   const avgValueAddedRate =
@@ -127,24 +106,27 @@ async function calculateSingleClassBalance(params: {
   const valueAddedRates = subjectDetails.map((s) => s.value_added_rate);
   const subjectDeviation = calculateStandardDeviation(valueAddedRates);
 
-  // 5. 计算总分增值率（所有科目的平均）
-  const totalScoreValueAddedRate = avgValueAddedRate;
+  // 5. 科目均衡指数 SBI = 1 - std / |mean|
+  // 均值接近0时 SBI 无意义，设为 null；否则越接近1越均衡
+  const subject_balance_index =
+    Math.abs(avgValueAddedRate) > 0.001
+      ? 1 - safeDivide(subjectDeviation, Math.abs(avgValueAddedRate))
+      : undefined;
 
-  // 6. 计算偏离得分（偏离度越小越好，所以用负数）
+  // 6. 综合均衡得分（保留原有权重逻辑）
   const deviationScore = -subjectDeviation;
-
-  // 7. 计算综合均衡得分
   const balanceScore =
-    weights.totalValueAdded * totalScoreValueAddedRate +
+    weights.totalValueAdded * avgValueAddedRate +
     weights.deviation * deviationScore;
 
   return {
     class_name: className,
-    total_score_value_added_rate: totalScoreValueAddedRate,
+    total_score_value_added_rate: avgValueAddedRate,
     subject_deviation: subjectDeviation,
     deviation_score: deviationScore,
     subjects: subjectDetails,
     balance_score: balanceScore,
+    subject_balance_index,
   };
 }
 
