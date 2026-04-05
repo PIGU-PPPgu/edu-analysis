@@ -458,8 +458,19 @@ export async function executeValueAddedCalculation(
         .in("class_name", uniqueClasses);
 
       // ✅ 按学年筛选，避免跨年级教师数据混入
+      // 格式归一化：活动可能存 "25-26"，表里存 "2024-2025"，两种都尝试
       if (activity.academic_year) {
-        tssQuery = tssQuery.eq("academic_year", activity.academic_year);
+        const normalizeYear = (y: string) => {
+          // "25-26" -> "2024-2025"
+          const m = y.match(/^(\d{2})-(\d{2})$/);
+          if (m) return `20${m[1]}-20${m[2]}`;
+          return y;
+        };
+        const normalizedYear = normalizeYear(activity.academic_year);
+        // 用 OR 兼容两种格式
+        tssQuery = tssQuery.or(
+          `academic_year.eq.${activity.academic_year},academic_year.eq.${normalizedYear}`
+        );
       }
 
       const { data, error } = await tssQuery.range(from, from + batchSize - 1);
@@ -526,8 +537,8 @@ export async function executeValueAddedCalculation(
       console.warn("⚠️ 未找到教师映射数据，将使用默认命名");
     }
 
-    // 5. 获取等级配置
-    const levelConfig = await getDefaultLevelConfig();
+    // 5. 获取等级配置（优先使用活动绑定的配置，fallback 到默认）
+    const levelConfig = await getLevelConfig(activity.grade_level_config_id);
 
     // 6. 动态构建科目映射（支持未来添加新科目）
     // 中文科目名 -> 英文key（用于grade_data表字段名）
@@ -1080,6 +1091,21 @@ export async function executeValueAddedCalculation(
 // ============================================
 // 辅助函数
 // ============================================
+
+/**
+ * 获取等级配置：优先使用活动绑定的 configId，fallback 到 is_default=true
+ */
+async function getLevelConfig(configId?: string | null) {
+  if (configId) {
+    const { data } = await supabase
+      .from("grade_levels_config")
+      .select("*")
+      .eq("id", configId)
+      .single();
+    if (data) return data.levels;
+  }
+  return getDefaultLevelConfig();
+}
 
 /**
  * 获取默认等级配置
