@@ -42,6 +42,7 @@ import {
   Clock,
   Users,
   BarChart3,
+  FileText,
   Eye,
   Edit,
   Copy,
@@ -411,6 +412,16 @@ const ExamListTab: React.FC<ExamListTabProps> = ({
                         >
                           <BarChart3 className="h-4 w-4" />
                           分析
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1 border-2 border-black shadow-[2px_2px_0px_0px_#B9FF66] hover:bg-[#B9FF66] transition-all duration-200 font-bold"
+                          onClick={() => onQuickAction(exam, "grade-report")}
+                        >
+                          <FileText className="h-4 w-4" />
+                          年级报告
                         </Button>
 
                         {exam.status === "completed" && (

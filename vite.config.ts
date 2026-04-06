@@ -32,10 +32,11 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "debug": path.resolve(__dirname, "node_modules/debug/src/index.js"),
     },
   },
   optimizeDeps: {
-    exclude: ["docx"],
+    exclude: ["docx", "micromark"],
   },
   build: {
     rollupOptions: {
