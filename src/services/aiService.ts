@@ -26,8 +26,8 @@ const USE_MOCK_AI = env.NEXT_PUBLIC_USE_MOCK_AI === "true";
 // 使用Supabase代理请求的开关
 const USE_SUPABASE_PROXY = false; // 设置为false直接发送请求，设置为true通过Supabase代理
 
-// 使用硅基流动API，添加硬编码的API密钥（通常应该通过环境变量或安全方式存储）
-const SBJT_API_KEY = "sk-kpibphayuoyyzkkrhnljayyjbrgkazwfrzonqxegfghntxzb";
+// 硅基流动API密钥，从环境变量读取
+const SBJT_API_KEY = import.meta.env.VITE_SBJT_API_KEY || "";
 // 直接使用硅基流动
 const FORCE_USE_SBJT = false;
 
@@ -2512,10 +2512,9 @@ export async function saveExamData(records: any[], examInfo: ExamInfo) {
       data: records,
     };
 
-    // 直接使用hardcoded URL和ANON_KEY避免环境变量问题
-    const SUPABASE_URL = "https://giluhqotfjpmofowvogn.supabase.co";
-    const ANON_KEY =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdpbHVocW90ZmpwbW9mb3d2b2duIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDc1MDc1MzcsImV4cCI6MjAyMzA4MzUzN30.4tLi3tPSiWHcRuLcS3tN13aK6CADEr1DVPfgswQTnhA";
+    // 从环境变量读取，避免硬编码
+    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+    const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
     // 直接使用Supabase REST API（而不是Supabase客户端）来调用Edge Function
     const response = await fetch(
