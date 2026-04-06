@@ -544,19 +544,34 @@ export function ReportsMenuDashboard({
           />
         )}
         {selectedReport === "class-score-trend-grade" && (
-          <ClassScoreTrendGradeReport loading={loading} />
+          <ClassScoreTrendGradeReport
+            loading={loading}
+            activityId={currentActivity?.id}
+          />
         )}
         {selectedReport === "class-score-trend-single" && (
-          <ClassScoreTrendSingleReport loading={loading} />
+          <ClassScoreTrendSingleReport
+            loading={loading}
+            activityId={currentActivity?.id}
+          />
         )}
         {selectedReport === "class-ability-trend-single" && (
-          <ClassAbilityTrendSingleReport loading={loading} />
+          <ClassAbilityTrendSingleReport
+            loading={loading}
+            activityId={currentActivity?.id}
+          />
         )}
         {selectedReport === "class-score-trend-multi" && (
-          <ClassScoreTrendMultiReport loading={loading} />
+          <ClassScoreTrendMultiReport
+            loading={loading}
+            activityId={currentActivity?.id}
+          />
         )}
         {selectedReport === "class-ability-trend-multi" && (
-          <ClassAbilityTrendMultiReport loading={loading} />
+          <ClassAbilityTrendMultiReport
+            loading={loading}
+            activityId={currentActivity?.id}
+          />
         )}
         {selectedReport === "teacher-score" && (
           <EnhancedTeacherValueAddedReport
@@ -572,10 +587,16 @@ export function ReportsMenuDashboard({
           />
         )}
         {selectedReport === "teacher-score-trend" && (
-          <TeacherScoreTrendReport loading={loading} />
+          <TeacherScoreTrendReport
+            loading={loading}
+            activityId={currentActivity?.id}
+          />
         )}
         {selectedReport === "teacher-ability-trend" && (
-          <TeacherAbilityTrendReport loading={loading} />
+          <TeacherAbilityTrendReport
+            loading={loading}
+            activityId={currentActivity?.id}
+          />
         )}
         {selectedReport === "student-score-single" && (
           <StudentValueAddedReport data={studentData} loading={loading} />

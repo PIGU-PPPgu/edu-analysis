@@ -44,6 +44,7 @@ import type { HistoricalTracking } from "@/types/valueAddedTypes";
 
 interface ClassScoreTrendGradeReportProps {
   loading?: boolean;
+  activityId?: string;
 }
 
 // 为每个班级分配不同颜色
@@ -62,6 +63,7 @@ const CHART_COLORS = [
 
 export function ClassScoreTrendGradeReport({
   loading: externalLoading = false,
+  activityId,
 }: ClassScoreTrendGradeReportProps) {
   const [classes, setClasses] = useState<
     Array<{
@@ -83,7 +85,7 @@ export function ClassScoreTrendGradeReport({
   useEffect(() => {
     async function loadClasses() {
       setLoading(true);
-      const data = await fetchClassesWithHistory();
+      const data = await fetchClassesWithHistory(activityId);
       setClasses(data);
 
       if (data.length > 0 && data[0].subjects.length > 0) {
@@ -94,7 +96,7 @@ export function ClassScoreTrendGradeReport({
       setLoading(false);
     }
     loadClasses();
-  }, []);
+  }, [activityId]);
 
   // 获取所有科目（取并集）
   const availableSubjects = useMemo(() => {
@@ -124,7 +126,8 @@ export function ClassScoreTrendGradeReport({
           if (classInfo.subjects.includes(selectedSubject)) {
             const data = await fetchGradeHistoricalData(
               classInfo.class_name,
-              selectedSubject
+              selectedSubject,
+              activityId
             );
             if (data && data.score_trend.length > 0) {
               dataMap[classInfo.class_name] = data;
@@ -138,7 +141,7 @@ export function ClassScoreTrendGradeReport({
     }
 
     loadGradeData();
-  }, [selectedSubject, classes]);
+  }, [selectedSubject, classes, activityId]);
 
   // 准备图表数据（合并所有班级的历次数据）
   const chartData = useMemo(() => {

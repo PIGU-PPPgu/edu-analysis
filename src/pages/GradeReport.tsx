@@ -6,7 +6,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Document, Packer, Paragraph, TextRun, AlignmentType } from "docx";
-import { AIGateway } from "@/services/ai/unified/AIGateway";
+import { getProviderApiKey, getApiBaseURL } from "@/utils/apiKeyManager";
 import {
   BarChart,
   Bar,
@@ -695,6 +695,70 @@ const ReportGeneratorTab: React.FC<{ classStats: ClassStat[] }> = ({
   const [generating, setGenerating] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState<string>("");
 
+  // 获取 AI Settings 里第一个配置了 key 的 provider
+  const getAIConfig = (): {
+    apiKey: string;
+    baseURL: string;
+    model: string;
+  } | null => {
+    // 按优先级尝试各 provider
+    const candidates = [
+      "doubao",
+      "openai",
+      "anthropic",
+      "deepseek",
+      "moonshot",
+      "openrouter",
+    ];
+    for (const pid of candidates) {
+      const cfg = getProviderApiKey(pid);
+      if (cfg?.apiKey) {
+        const baseURL = cfg.baseURL || getApiBaseURL(pid);
+        // 火山引擎用 endpoint 作为 model id
+        const model =
+          pid === "doubao"
+            ? cfg.baseURL?.split("/").pop() || "doubao-pro-32k"
+            : "gpt-4o";
+        return {
+          apiKey: cfg.apiKey,
+          baseURL: baseURL.replace(/\/$/, ""),
+          model,
+        };
+      }
+    }
+    return null;
+  };
+
+  const callAI = async (prompt: string): Promise<string> => {
+    const cfg = getAIConfig();
+    if (!cfg)
+      throw new Error("未找到可用的 AI 配置，请先在 AI 设置页面配置 API Key");
+
+    const resp = await fetch(`${cfg.baseURL}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${cfg.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: cfg.model,
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.7,
+        max_tokens: 2000,
+      }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.text();
+      throw new Error(`AI 请求失败 (${resp.status}): ${err.slice(0, 200)}`);
+    }
+
+    const data = await resp.json();
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) throw new Error("AI 返回内容为空");
+    return content;
+  };
+
   // 构建数据摘要供 AI 使用
   const buildDataSummary = () => {
     const sorted = [...classStats].sort(
@@ -811,17 +875,7 @@ ${d.subjectAvgs.map((s) => `  ${s.label}：${s.pct.toFixed(1)}%`).join("\n")}
 
 注意：直接输出正文内容，不要输出标题"港中深附属知新学校教学质量精准提升方案"，不要有多余说明。`;
 
-      const gateway = AIGateway.getInstance();
-      const resp = await gateway.processRequest({
-        content: prompt,
-        requestType: "analysis",
-        options: { temperature: 0.7, maxTokens: 2000, priority: "high" },
-      });
-
-      if (!resp.success || !resp.content) {
-        throw new Error(resp.error || "AI 生成失败");
-      }
-
+      const aiContent = await callAI(prompt);
       setStatusMsg("AI 内容生成完成，正在生成 Word 文档…");
 
       const doc = new Document({
@@ -846,7 +900,7 @@ ${d.subjectAvgs.map((s) => `  ${s.label}：${s.pct.toFixed(1)}%`).join("\n")}
                 alignment: AlignmentType.CENTER,
                 spacing: { after: 360 },
               }),
-              ...textToParas(resp.content),
+              ...textToParas(aiContent),
             ],
           },
         ],
@@ -910,17 +964,7 @@ ${d.classRows}
 
 注意：直接输出正文内容，不要输出标题"知新学校质量分析会指导意见"，不要有多余说明。`;
 
-      const gateway = AIGateway.getInstance();
-      const resp = await gateway.processRequest({
-        content: prompt,
-        requestType: "analysis",
-        options: { temperature: 0.7, maxTokens: 2000, priority: "high" },
-      });
-
-      if (!resp.success || !resp.content) {
-        throw new Error(resp.error || "AI 生成失败");
-      }
-
+      const aiContent2 = await callAI(prompt);
       setStatusMsg("AI 内容生成完成，正在生成 Word 文档…");
 
       const doc = new Document({
@@ -948,7 +992,7 @@ ${d.classRows}
                 alignment: AlignmentType.CENTER,
                 spacing: { after: 360 },
               }),
-              ...textToParas(resp.content),
+              ...textToParas(aiContent2),
             ],
           },
         ],

@@ -40,6 +40,7 @@ import type { HistoricalTracking } from "@/types/valueAddedTypes";
 
 interface ClassAbilityTrendMultiReportProps {
   loading?: boolean;
+  activityId?: string;
 }
 
 const COLORS = [
@@ -83,6 +84,7 @@ type MetricType = "consolidation" | "transformation" | "contribution";
 
 export function ClassAbilityTrendMultiReport({
   loading: externalLoading = false,
+  activityId,
 }: ClassAbilityTrendMultiReportProps) {
   const [classes, setClasses] = useState<
     Array<{ class_name: string; subjects: string[] }>
@@ -98,13 +100,13 @@ export function ClassAbilityTrendMultiReport({
   useEffect(() => {
     async function loadClasses() {
       setLoading(true);
-      const data = await fetchClassesWithHistory();
+      const data = await fetchClassesWithHistory(activityId);
       setClasses(data);
       if (data.length > 0) setSelectedClassName(data[0].class_name);
       setLoading(false);
     }
     loadClasses();
-  }, []);
+  }, [activityId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -122,7 +124,8 @@ export function ClassAbilityTrendMultiReport({
         classInfo.subjects.map(async (subject) => {
           const data = await fetchClassHistoricalData(
             selectedClassName,
-            subject
+            subject,
+            activityId
           );
           if (data && !cancelled) map.set(subject, data);
         })
@@ -138,7 +141,7 @@ export function ClassAbilityTrendMultiReport({
     return () => {
       cancelled = true;
     };
-  }, [selectedClassName, classes]);
+  }, [selectedClassName, classes, activityId]);
 
   // 按exam_id对齐数据（修复索引对齐问题）
   const chartData = useMemo(() => {

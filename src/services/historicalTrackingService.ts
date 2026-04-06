@@ -70,18 +70,20 @@ async function fetchAllData<T = any>(
  */
 export async function fetchTeacherHistoricalData(
   teacherId: string,
-  subject: string
+  subject: string,
+  activityId?: string
 ): Promise<HistoricalTracking | null> {
   try {
     // 1. 🔧 使用分页查询获取该教师该科目的所有增值活动缓存
-    const cacheData = await fetchAllData(
-      "value_added_cache",
-      {
-        dimension: "teacher",
-        target_id: teacherId,
-      },
-      { column: "created_at", ascending: true }
-    );
+    const filters: Record<string, any> = {
+      dimension: "teacher",
+      target_id: teacherId,
+    };
+    if (activityId) filters.activity_id = activityId;
+    const cacheData = await fetchAllData("value_added_cache", filters, {
+      column: "created_at",
+      ascending: true,
+    });
 
     if (!cacheData || cacheData.length === 0) return null;
 
@@ -175,18 +177,20 @@ export async function fetchTeacherHistoricalData(
  */
 export async function fetchClassHistoricalData(
   className: string,
-  subject: string
+  subject: string,
+  activityId?: string
 ): Promise<HistoricalTracking | null> {
   try {
     // 🔧 使用分页查询
-    const cacheData = await fetchAllData(
-      "value_added_cache",
-      {
-        dimension: "class",
-        target_name: className,
-      },
-      { column: "created_at", ascending: true }
-    );
+    const filters: Record<string, any> = {
+      dimension: "class",
+      target_name: className,
+    };
+    if (activityId) filters.activity_id = activityId;
+    const cacheData = await fetchAllData("value_added_cache", filters, {
+      column: "created_at",
+      ascending: true,
+    });
 
     if (!cacheData || cacheData.length === 0) return null;
 
@@ -272,18 +276,20 @@ export async function fetchClassHistoricalData(
  */
 export async function fetchStudentHistoricalData(
   studentId: string,
-  subject: string
+  subject: string,
+  activityId?: string
 ): Promise<HistoricalTracking | null> {
   try {
     // 🔧 使用分页查询
-    const cacheData = await fetchAllData(
-      "value_added_cache",
-      {
-        dimension: "student",
-        target_id: studentId,
-      },
-      { column: "created_at", ascending: true }
-    );
+    const filters: Record<string, any> = {
+      dimension: "student",
+      target_id: studentId,
+    };
+    if (activityId) filters.activity_id = activityId;
+    const cacheData = await fetchAllData("value_added_cache", filters, {
+      column: "created_at",
+      ascending: true,
+    });
 
     if (!cacheData || cacheData.length === 0) return null;
 
@@ -395,7 +401,7 @@ export async function fetchStudentHistoricalData(
 /**
  * 获取可用的教师列表(有历史数据)
  */
-export async function fetchTeachersWithHistory(): Promise<
+export async function fetchTeachersWithHistory(activityId?: string): Promise<
   Array<{
     teacher_id: string;
     teacher_name: string;
@@ -404,9 +410,9 @@ export async function fetchTeachersWithHistory(): Promise<
 > {
   try {
     // 🔧 使用分页查询
-    const cacheData = await fetchAllData("value_added_cache", {
-      dimension: "teacher",
-    });
+    const filters: Record<string, any> = { dimension: "teacher" };
+    if (activityId) filters.activity_id = activityId;
+    const cacheData = await fetchAllData("value_added_cache", filters);
 
     if (!cacheData || cacheData.length === 0) return [];
 
@@ -444,7 +450,7 @@ export async function fetchTeachersWithHistory(): Promise<
 /**
  * 获取可用的班级列表(有历史数据)
  */
-export async function fetchClassesWithHistory(): Promise<
+export async function fetchClassesWithHistory(activityId?: string): Promise<
   Array<{
     class_name: string;
     subjects: string[];
@@ -452,9 +458,9 @@ export async function fetchClassesWithHistory(): Promise<
 > {
   try {
     // 🔧 使用分页查询
-    const cacheData = await fetchAllData("value_added_cache", {
-      dimension: "class",
-    });
+    const filters: Record<string, any> = { dimension: "class" };
+    if (activityId) filters.activity_id = activityId;
+    const cacheData = await fetchAllData("value_added_cache", filters);
 
     if (!cacheData || cacheData.length === 0) return [];
 
@@ -489,7 +495,8 @@ export async function fetchClassesWithHistory(): Promise<
  */
 export async function fetchGradeHistoricalData(
   className: string,
-  subject: string
+  subject: string,
+  activityId?: string
 ): Promise<HistoricalTracking | null> {
-  return fetchClassHistoricalData(className, subject);
+  return fetchClassHistoricalData(className, subject, activityId);
 }

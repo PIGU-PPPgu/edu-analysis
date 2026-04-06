@@ -562,6 +562,13 @@ const ExamManagementCenter: React.FC = () => {
           break;
         }
         break;
+      case "grade-report": {
+        const params = new URLSearchParams();
+        params.set("exam", exam.title);
+        params.set("examId", exam.id);
+        navigate(`/grade-report?${params.toString()}`);
+        break;
+      }
       case "delete":
         try {
           const success = await deleteExam(exam.id);

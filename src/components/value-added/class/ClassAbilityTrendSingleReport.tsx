@@ -57,10 +57,12 @@ import { safeToFixed } from "@/utils/formatUtils"; // 🔧 P1修复：使用统�
 interface ClassAbilityTrendSingleReportProps {
   /** 是否显示加载状态 */
   loading?: boolean;
+  activityId?: string;
 }
 
 export function ClassAbilityTrendSingleReport({
   loading: externalLoading = false,
+  activityId,
 }: ClassAbilityTrendSingleReportProps) {
   const [classes, setClasses] = useState<
     Array<{
@@ -78,7 +80,7 @@ export function ClassAbilityTrendSingleReport({
   useEffect(() => {
     async function loadClasses() {
       setLoading(true);
-      const data = await fetchClassesWithHistory();
+      const data = await fetchClassesWithHistory(activityId);
       setClasses(data);
 
       if (data.length > 0) {
@@ -90,7 +92,7 @@ export function ClassAbilityTrendSingleReport({
       setLoading(false);
     }
     loadClasses();
-  }, []);
+  }, [activityId]);
 
   // 加载选中班级的历史数据
   useEffect(() => {
@@ -103,14 +105,15 @@ export function ClassAbilityTrendSingleReport({
       setLoading(true);
       const data = await fetchClassHistoricalData(
         selectedClassName,
-        selectedSubject
+        selectedSubject,
+        activityId
       );
       setHistoricalData(data);
       setLoading(false);
     }
 
     loadHistoricalData();
-  }, [selectedClassName, selectedSubject]);
+  }, [selectedClassName, selectedSubject, activityId]);
 
   // 当前选中班级的科目列表
   const availableSubjects = useMemo(() => {

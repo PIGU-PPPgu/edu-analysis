@@ -96,6 +96,38 @@ const LEVEL_ORDER: Record<AbilityLevel, number> = {
   "9段": 1,
 };
 
+// 九段等级集合
+const NINE_SEGMENT_LEVELS = new Set<string>([
+  "1段",
+  "2段",
+  "3段",
+  "4段",
+  "5段",
+  "6段",
+  "7段",
+  "8段",
+  "9段",
+]);
+
+/**
+ * 实时重算等级变化，修复旧存储数据中 level_change=0 的问题
+ * 同时过滤掉入口/出口等级系统不一致的学生（混有六段/九段）
+ */
+function computeLevelChange(entry: AbilityLevel, exit: AbilityLevel): number {
+  const entryOrder = LEVEL_ORDER[entry];
+  const exitOrder = LEVEL_ORDER[exit];
+  if (entryOrder == null || exitOrder == null) return 0;
+  // 检测等级系统是否一致
+  const entryIsNine = NINE_SEGMENT_LEVELS.has(entry);
+  const exitIsNine = NINE_SEGMENT_LEVELS.has(exit);
+  if (entryIsNine !== exitIsNine) return 0; // 系统不一致，无法比较
+  return exitOrder - entryOrder;
+}
+
+function isTopLevel(level: AbilityLevel): boolean {
+  return level === "A+" || level === "1段";
+}
+
 const safeToFixed = (value: any, decimals: number = 2): string => {
   if (value == null || value === undefined || isNaN(Number(value))) {
     return "0." + "0".repeat(decimals);
@@ -128,10 +160,23 @@ export function StudentAbilitySingleReport({
     }
   }, [availableSubjects, selectedSubject]);
 
-  // 筛选当前科目的数据
+  // 筛选当前科目的数据，并实时修正 level_change / is_consolidated
   const subjectData = useMemo(() => {
     if (!selectedSubject) return [];
-    return data.filter((d) => d.subject === selectedSubject);
+    return data
+      .filter((d) => d.subject === selectedSubject)
+      .filter((d) => {
+        // 过滤掉入口/出口等级系统不一致的脏数据
+        const entryIsNine = NINE_SEGMENT_LEVELS.has(d.entry_level);
+        const exitIsNine = NINE_SEGMENT_LEVELS.has(d.exit_level);
+        return entryIsNine === exitIsNine;
+      })
+      .map((d) => ({
+        ...d,
+        level_change: computeLevelChange(d.entry_level, d.exit_level),
+        is_consolidated: isTopLevel(d.entry_level) && isTopLevel(d.exit_level),
+        is_transformed: computeLevelChange(d.entry_level, d.exit_level) > 0,
+      }));
   }, [data, selectedSubject]);
 
   // 应用搜索和等级筛选

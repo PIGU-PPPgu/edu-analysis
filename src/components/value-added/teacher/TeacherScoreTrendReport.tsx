@@ -51,6 +51,7 @@ import type { HistoricalTracking } from "@/types/valueAddedTypes";
 interface TeacherScoreTrendReportProps {
   /** 是否显示加载状态 */
   loading?: boolean;
+  activityId?: string;
 }
 
 const safeToFixed = (value: any, decimals: number = 2): string => {
@@ -62,6 +63,7 @@ const safeToFixed = (value: any, decimals: number = 2): string => {
 
 export function TeacherScoreTrendReport({
   loading: externalLoading = false,
+  activityId,
 }: TeacherScoreTrendReportProps) {
   const [teachers, setTeachers] = useState<
     Array<{
@@ -80,7 +82,7 @@ export function TeacherScoreTrendReport({
   useEffect(() => {
     async function loadTeachers() {
       setLoading(true);
-      const data = await fetchTeachersWithHistory();
+      const data = await fetchTeachersWithHistory(activityId);
       setTeachers(data);
 
       if (data.length > 0) {
@@ -92,7 +94,7 @@ export function TeacherScoreTrendReport({
       setLoading(false);
     }
     loadTeachers();
-  }, []);
+  }, [activityId]);
 
   // 加载选中教师的历史数据
   useEffect(() => {
@@ -105,14 +107,15 @@ export function TeacherScoreTrendReport({
       setLoading(true);
       const data = await fetchTeacherHistoricalData(
         selectedTeacherId,
-        selectedSubject
+        selectedSubject,
+        activityId
       );
       setHistoricalData(data);
       setLoading(false);
     }
 
     loadHistoricalData();
-  }, [selectedTeacherId, selectedSubject]);
+  }, [selectedTeacherId, selectedSubject, activityId]);
 
   // 🔧 P0修复：教师切换时自动同步科目选择
   useEffect(() => {

@@ -120,7 +120,9 @@ export async function calculateStudentValueAdded(
     const levelChange = calculateLevelChange(entryLevel, exitLevel);
 
     // 判断是否巩固/转化
-    const isConsolidated = entryLevel === "A+" && exitLevel === "A+";
+    // 九段评价：顶级是"1段"；六段评价：顶级是"A+"
+    const topLevel = useZScore ? "1段" : "A+";
+    const isConsolidated = entryLevel === topLevel && exitLevel === topLevel;
     const isTransformed = levelChange > 0;
 
     return {
