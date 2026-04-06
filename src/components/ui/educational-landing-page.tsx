@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { motion } from "framer-motion";
+import { useRef, useEffect, useState } from "react";
+import { motion, useScroll, useTransform } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -68,6 +69,76 @@ interface ProcessStepProps {
 }
 
 const EducationalLandingPage = () => {
+  const heroRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: heroRef,
+    offset: ["start start", "end start"],
+  });
+
+  // 书页翻页：每页占滚动区间 1/5
+  const bookPages = [
+    {
+      title: "增值评价系统",
+      subtitle: "科学衡量教学真实贡献",
+      desc: "基于入口-出口双考试模型，用 Z 分数标准化消除生源差异，真实反映每位教师、每个班级的教学增值。",
+      icon: TrendingUp,
+      color: "from-emerald-500/20 to-teal-500/20",
+    },
+    {
+      title: "九段评价体系",
+      subtitle: "深圳市标准，精准定位学生层次",
+      desc: "将全年级学生按 Z 分数划分为 9 个段位，1 段为顶尖 4%，9 段为末尾 4%，横向比较一目了然。",
+      icon: BarChart3,
+      color: "from-blue-500/20 to-indigo-500/20",
+    },
+    {
+      title: "AI 智能分析",
+      subtitle: "一键生成深度教学报告",
+      desc: "整合班级、教师、学生三维数据，由 AI 自动撰写分析报告，发现规律、识别风险、给出建议。",
+      icon: Brain,
+      color: "from-purple-500/20 to-pink-500/20",
+    },
+    {
+      title: "历次追踪",
+      subtitle: "纵向对比，看见成长轨迹",
+      desc: "跨多次考试追踪教师、班级、学生的增值趋势，用折线图直观呈现进步与退步，支持多维对比。",
+      icon: Target,
+      color: "from-orange-500/20 to-amber-500/20",
+    },
+    {
+      title: "预警与干预",
+      subtitle: "提前发现，及时介入",
+      desc: "自动识别成绩异常、能力退步的学生，触发预警通知，帮助教师在问题扩大前采取针对性干预。",
+      icon: AlertTriangle,
+      color: "from-red-500/20 to-rose-500/20",
+    },
+  ];
+
+  // 每页对应的滚动进度区间
+  const pageCount = bookPages.length;
+  const pageIndex = useTransform(
+    scrollYProgress,
+    [0.1, 0.9],
+    [0, pageCount - 1]
+  );
+  const [currentPage, setCurrentPage] = useState(0);
+
+  useEffect(() => {
+    return pageIndex.on("change", (v) => {
+      setCurrentPage(Math.round(Math.min(Math.max(v, 0), pageCount - 1)));
+    });
+  }, [pageIndex, pageCount]);
+
+  // 视频淡出：滚动到 20% 时开始淡出，40% 完全透明
+  const videoOpacity = useTransform(
+    scrollYProgress,
+    [0, 0.15, 0.35],
+    [1, 1, 0]
+  );
+  // 书本淡入：滚动到 15% 开始出现
+  const bookOpacity = useTransform(scrollYProgress, [0.1, 0.3], [0, 1]);
+  const bookScale = useTransform(scrollYProgress, [0.1, 0.3], [0.85, 1]);
+
   const features = [
     {
       icon: Brain,
@@ -274,65 +345,128 @@ const EducationalLandingPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
-        {/* Background Effects */}
-        <div className="absolute inset-0">
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
-        </div>
-
-        <div className="container px-4 md:px-6 relative z-10">
+      {/* Hero Section — 视频背景 + 滚动书页 */}
+      {/* 高度 = 100vh 视频 + 5页书页滚动区 */}
+      <div ref={heroRef} style={{ height: `${100 + pageCount * 80}vh` }}>
+        {/* sticky 容器，固定在视口内 */}
+        <div className="sticky top-0 h-screen overflow-hidden">
+          {/* 视频背景 */}
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="text-center max-w-4xl mx-auto"
+            className="absolute inset-0"
+            style={{ opacity: videoOpacity }}
           >
-            <Badge className="mb-6 px-4 py-2 bg-primary/10 text-primary border-primary/20">
-              <GraduationCap className="w-4 h-4 mr-2" />
-              AI驱动的教育科技
-            </Badge>
-
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-              智能学生画像系统
-              <br />
-              <span className="text-primary">让教学更精准</span>
-            </h1>
-
-            <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-              基于AI技术的教育数据分析平台，帮助教师深入了解每一位学生
-            </p>
-
-            <div className="flex flex-wrap justify-center gap-4 mb-12">
-              <div className="flex items-center gap-2 px-4 py-2 bg-card border rounded-lg">
-                <CheckCircle className="w-5 h-5 text-green-500" />
-                <span>数据驱动教学</span>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2 bg-card border rounded-lg">
-                <CheckCircle className="w-5 h-5 text-green-500" />
-                <span>个性化教育</span>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2 bg-card border rounded-lg">
-                <CheckCircle className="w-5 h-5 text-green-500" />
-                <span>提升教学效果</span>
-              </div>
+            <video
+              className="w-full h-full object-cover"
+              src="/hero.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
+            />
+            {/* 渐变遮罩，让文字可读 */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/40" />
+            {/* 首屏标题 */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 1, delay: 0.3 }}
+                className="text-center px-4"
+              >
+                <p className="text-sm tracking-[0.3em] uppercase mb-4 text-white/70">
+                  AI 驱动的教育评价平台
+                </p>
+                <h1 className="text-5xl md:text-7xl font-bold mb-6 drop-shadow-lg">
+                  智见教育
+                </h1>
+                <p className="text-lg md:text-xl text-white/80 max-w-xl mx-auto">
+                  向下滚动，翻开我们的故事
+                </p>
+                <motion.div
+                  animate={{ y: [0, 8, 0] }}
+                  transition={{ repeat: Infinity, duration: 1.8 }}
+                  className="mt-10 text-white/60"
+                >
+                  ↓
+                </motion.div>
+              </motion.div>
             </div>
+          </motion.div>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" className="gap-2">
-                <Play className="w-5 h-5" />
-                免费试用30天
-                <ArrowRight className="w-4 h-4" />
-              </Button>
-              <Button size="lg" variant="outline" className="gap-2">
-                <Calendar className="w-5 h-5" />
-                预约演示
-              </Button>
+          {/* 书本区域 */}
+          <motion.div
+            className="absolute inset-0 flex items-center justify-center"
+            style={{ opacity: bookOpacity, scale: bookScale }}
+          >
+            {/* 书本外框 */}
+            <div className="relative w-full max-w-3xl mx-4">
+              {/* 书页堆叠阴影 */}
+              <div className="absolute -bottom-2 left-2 right-2 h-full bg-amber-100/30 rounded-2xl blur-sm" />
+              <div className="absolute -bottom-1 left-1 right-1 h-full bg-amber-50/40 rounded-2xl" />
+
+              {/* 书页主体 */}
+              <div className="relative bg-amber-50/95 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden border border-amber-200/50">
+                {/* 书脊装饰线 */}
+                <div className="absolute left-12 top-0 bottom-0 w-px bg-amber-300/40" />
+
+                {/* 页码指示器 */}
+                <div className="absolute top-4 right-6 flex gap-1.5">
+                  {bookPages.map((_, i) => (
+                    <div
+                      key={i}
+                      className={cn(
+                        "w-1.5 h-1.5 rounded-full transition-all duration-300",
+                        i === currentPage ? "bg-amber-600 w-4" : "bg-amber-300"
+                      )}
+                    />
+                  ))}
+                </div>
+
+                {/* 页面内容 */}
+                <div className="relative min-h-[420px] md:min-h-[360px]">
+                  {bookPages.map((page, i) => {
+                    const Icon = page.icon;
+                    return (
+                      <motion.div
+                        key={i}
+                        className="absolute inset-0 p-10 md:p-14 flex flex-col justify-center"
+                        initial={false}
+                        animate={{
+                          opacity: i === currentPage ? 1 : 0,
+                          x: i === currentPage ? 0 : i < currentPage ? -30 : 30,
+                        }}
+                        transition={{ duration: 0.4, ease: "easeInOut" }}
+                      >
+                        <div
+                          className={cn(
+                            "inline-flex items-center gap-3 px-4 py-2 rounded-full mb-6 w-fit",
+                            "bg-gradient-to-r",
+                            page.color
+                          )}
+                        >
+                          <Icon className="w-5 h-5 text-amber-800" />
+                          <span className="text-sm font-medium text-amber-800">
+                            {page.subtitle}
+                          </span>
+                        </div>
+                        <h2 className="text-3xl md:text-4xl font-bold text-amber-900 mb-4">
+                          {page.title}
+                        </h2>
+                        <p className="text-amber-800/70 text-lg leading-relaxed max-w-xl">
+                          {page.desc}
+                        </p>
+                        <div className="mt-8 text-amber-400/60 text-sm">
+                          第 {i + 1} 页 / 共 {pageCount} 页
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </motion.div>
         </div>
-      </section>
+      </div>
 
       {/* Features Section */}
       <section className="py-20 bg-muted/30">
