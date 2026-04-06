@@ -135,8 +135,13 @@ const EducationalLandingPage = () => {
     }
   }, []);
 
-  // zoom 视频播完 → 进入 book 阶段
+  // zoom 视频播完 → 进入 book 阶段，翻书视频停在第一帧
   const onZoomEnded = useCallback(() => {
+    const v = turnVideoRef.current;
+    if (v) {
+      v.currentTime = 0;
+      v.pause();
+    }
     setPhase("book");
     lockedRef.current = false;
   }, []);
@@ -438,19 +443,21 @@ const EducationalLandingPage = () => {
           style={{ display: phase === "zoom" ? "block" : "none" }}
         />
 
-        {/* ③ 翻书视频（每翻一页播一次，叠在书页内容上方） */}
+        {/* ③ 翻书视频 — book 阶段始终作为背景，turning 时播放动画 */}
         <video
           ref={turnVideoRef}
-          className="absolute inset-0 w-full h-full object-cover z-20"
+          className="absolute inset-0 w-full h-full object-cover"
           src="/turn-page.mp4"
           muted
           playsInline
           onEnded={onTurnEnded}
-          style={{ display: turning ? "block" : "none" }}
+          style={{ display: phase === "book" ? "block" : "none" }}
         />
 
-        {/* 渐变遮罩 */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/50 z-10" />
+        {/* 渐变遮罩（仅 loop 阶段） */}
+        {phase === "loop" && (
+          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/50 z-10" />
+        )}
 
         {/* 首屏标题（loop 阶段显示） */}
         {phase === "loop" && (
@@ -481,81 +488,69 @@ const EducationalLandingPage = () => {
           </div>
         )}
 
-        {/* 书页内容（book 阶段显示，翻书时被翻书视频遮住） */}
+        {/* 书页文字（book 阶段，叠在翻书视频上方，定位在右侧书页区域） */}
         {phase === "book" && (
-          <div className="absolute inset-0 flex items-center justify-center z-10">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5 }}
-              className="relative w-full max-w-3xl mx-4"
-            >
-              {/* 书页堆叠阴影 */}
-              <div className="absolute -bottom-2 left-2 right-2 h-full bg-amber-100/30 rounded-2xl blur-sm" />
-              <div className="absolute -bottom-1 left-1 right-1 h-full bg-amber-50/40 rounded-2xl" />
-
-              <div className="relative bg-amber-50/95 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden border border-amber-200/50">
-                {/* 书脊装饰线 */}
-                <div className="absolute left-12 top-0 bottom-0 w-px bg-amber-300/40" />
-
-                {/* 页码指示器 */}
-                <div className="absolute top-4 right-6 flex gap-1.5">
-                  {bookPages.map((_, i) => (
-                    <div
-                      key={i}
-                      className={cn(
-                        "h-1.5 rounded-full transition-all duration-300",
-                        i === bookPage
-                          ? "bg-amber-600 w-4"
-                          : "bg-amber-300 w-1.5"
-                      )}
-                    />
-                  ))}
-                </div>
-
-                {/* 页面内容 */}
-                <div className="relative min-h-[420px] md:min-h-[360px]">
-                  {bookPages.map((page, i) => {
-                    const Icon = page.icon;
-                    return (
-                      <motion.div
-                        key={i}
-                        className="absolute inset-0 p-10 md:p-14 flex flex-col justify-center"
-                        initial={false}
-                        animate={{
-                          opacity: i === bookPage ? 1 : 0,
-                          x: i === bookPage ? 0 : i < bookPage ? -30 : 30,
-                        }}
-                        transition={{ duration: 0.35, ease: "easeInOut" }}
-                      >
-                        <div
-                          className={cn(
-                            "inline-flex items-center gap-3 px-4 py-2 rounded-full mb-6 w-fit bg-gradient-to-r",
-                            page.color
-                          )}
-                        >
-                          <Icon className="w-5 h-5 text-amber-800" />
-                          <span className="text-sm font-medium text-amber-800">
-                            {page.subtitle}
-                          </span>
-                        </div>
-                        <h2 className="text-3xl md:text-4xl font-bold text-amber-900 mb-4">
-                          {page.title}
-                        </h2>
-                        <p className="text-amber-800/70 text-lg leading-relaxed max-w-xl">
-                          {page.desc}
-                        </p>
-                        <div className="mt-8 text-amber-400/60 text-sm">
-                          {bookPage < pageCount - 1
-                            ? "向下滚动翻页 ↓"
-                            : "已到最后一页，继续滚动查看更多"}
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              </div>
-            </motion.div>
+          <div
+            className="absolute z-20"
+            style={{
+              /* 右侧书页区域：视频中书的右页大约占右侧 45% 宽度，垂直居中偏上 */
+              top: "18%",
+              right: "4%",
+              width: "42%",
+              bottom: "18%",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+            }}
+          >
+            {bookPages.map((page, i) => {
+              const Icon = page.icon;
+              return (
+                <motion.div
+                  key={i}
+                  className="absolute inset-0 flex flex-col justify-center px-6 md:px-8"
+                  initial={false}
+                  animate={{ opacity: i === bookPage && !turning ? 1 : 0 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                >
+                  {/* 图标 + 副标题 */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <Icon className="w-4 h-4 text-amber-700/80 shrink-0" />
+                    <span className="text-xs font-medium text-amber-700/70 tracking-wide">
+                      {page.subtitle}
+                    </span>
+                  </div>
+                  {/* 主标题 */}
+                  <h2 className="text-xl md:text-2xl font-bold text-stone-800 mb-3 leading-tight">
+                    {page.title}
+                  </h2>
+                  {/* 描述 */}
+                  <p className="text-stone-600/90 text-sm md:text-base leading-relaxed">
+                    {page.desc}
+                  </p>
+                  {/* 翻页提示 */}
+                  <div className="mt-5 text-stone-400 text-xs">
+                    {bookPage < pageCount - 1
+                      ? "向下滚动翻页 ↓"
+                      : "继续滚动查看更多 ↓"}
+                  </div>
+                  {/* 页码点 */}
+                  <div className="mt-3 flex gap-1">
+                    {bookPages.map((_, j) => (
+                      <div
+                        key={j}
+                        className={cn(
+                          "h-1 rounded-full transition-all duration-300",
+                          j === bookPage
+                            ? "bg-amber-600/60 w-4"
+                            : "bg-stone-300/60 w-1.5"
+                        )}
+                      />
+                    ))}
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         )}
       </div>
