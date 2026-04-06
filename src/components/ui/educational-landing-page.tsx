@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useRef, useEffect, useState } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { useRef, useEffect, useState, useCallback } from "react";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -68,14 +68,21 @@ interface ProcessStepProps {
   icon: React.ElementType;
 }
 
+// 视频交互阶段
+type Phase = "loop" | "zoom" | "book";
+
 const EducationalLandingPage = () => {
   const heroRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: heroRef,
-    offset: ["start start", "end start"],
-  });
+  const loopVideoRef = useRef<HTMLVideoElement>(null);
+  const zoomVideoRef = useRef<HTMLVideoElement>(null);
+  const turnVideoRef = useRef<HTMLVideoElement>(null);
 
-  // 书页翻页：每页占滚动区间 1/5
+  const [phase, setPhase] = useState<Phase>("loop");
+  const [bookPage, setBookPage] = useState(0);
+  const [turning, setTurning] = useState(false);
+  // 防止翻书视频播放期间重复触发
+  const lockedRef = useRef(false);
+
   const bookPages = [
     {
       title: "增值评价系统",
@@ -114,30 +121,90 @@ const EducationalLandingPage = () => {
     },
   ];
 
-  // 每页对应的滚动进度区间
   const pageCount = bookPages.length;
-  const pageIndex = useTransform(
-    scrollYProgress,
-    [0.1, 0.9],
-    [0, pageCount - 1]
-  );
-  const [currentPage, setCurrentPage] = useState(0);
 
+  // 进入 zoom 阶段：播放推进到书视频
+  const startZoom = useCallback(() => {
+    if (lockedRef.current) return;
+    lockedRef.current = true;
+    setPhase("zoom");
+    const v = zoomVideoRef.current;
+    if (v) {
+      v.currentTime = 0;
+      v.play();
+    }
+  }, []);
+
+  // zoom 视频播完 → 进入 book 阶段
+  const onZoomEnded = useCallback(() => {
+    setPhase("book");
+    lockedRef.current = false;
+  }, []);
+
+  // 翻到下一页
+  const turnNext = useCallback(() => {
+    if (lockedRef.current) return;
+    lockedRef.current = true;
+    setTurning(true);
+    const v = turnVideoRef.current;
+    if (v) {
+      v.currentTime = 0;
+      v.play();
+    }
+  }, []);
+
+  // 翻书视频播完 → 切换页面内容
+  const onTurnEnded = useCallback(() => {
+    setBookPage((p) => Math.min(p + 1, pageCount - 1));
+    setTurning(false);
+    lockedRef.current = false;
+  }, [pageCount]);
+
+  // wheel 事件处理
   useEffect(() => {
-    return pageIndex.on("change", (v) => {
-      setCurrentPage(Math.round(Math.min(Math.max(v, 0), pageCount - 1)));
-    });
-  }, [pageIndex, pageCount]);
+    const el = heroRef.current;
+    if (!el) return;
 
-  // 视频淡出：滚动到 20% 时开始淡出，40% 完全透明
-  const videoOpacity = useTransform(
-    scrollYProgress,
-    [0, 0.15, 0.35],
-    [1, 1, 0]
-  );
-  // 书本淡入：滚动到 15% 开始出现
-  const bookOpacity = useTransform(scrollYProgress, [0.1, 0.3], [0, 1]);
-  const bookScale = useTransform(scrollYProgress, [0.1, 0.3], [0.85, 1]);
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY <= 0) return; // 只响应向下滚动
+
+      if (phase === "loop") {
+        e.preventDefault();
+        startZoom();
+      } else if (phase === "book") {
+        if (bookPage < pageCount - 1) {
+          e.preventDefault();
+          turnNext();
+        }
+        // 最后一页：放行，让页面正常滚动
+      }
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [phase, bookPage, pageCount, startZoom, turnNext]);
+
+  // touch 支持
+  useEffect(() => {
+    const el = heroRef.current;
+    if (!el) return;
+    let startY = 0;
+    const onTouchStart = (e: TouchEvent) => {
+      startY = e.touches[0].clientY;
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      const dy = startY - e.changedTouches[0].clientY;
+      if (dy < 30) return;
+      if (phase === "loop") startZoom();
+      else if (phase === "book" && bookPage < pageCount - 1) turnNext();
+    };
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [phase, bookPage, pageCount, startZoom, turnNext]);
 
   const features = [
     {
@@ -345,66 +412,88 @@ const EducationalLandingPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section — 视频背景 + 滚动书页 */}
-      {/* 高度 = 100vh 视频 + 5页书页滚动区 */}
-      <div ref={heroRef} style={{ height: `${100 + pageCount * 80}vh` }}>
-        {/* sticky 容器，固定在视口内 */}
-        <div className="sticky top-0 h-screen overflow-hidden">
-          {/* 视频背景 */}
-          <motion.div
-            className="absolute inset-0"
-            style={{ opacity: videoOpacity }}
-          >
-            <video
-              className="w-full h-full object-cover"
-              src="/hero.mp4"
-              autoPlay
-              loop
-              muted
-              playsInline
-            />
-            {/* 渐变遮罩，让文字可读 */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/40" />
-            {/* 首屏标题 */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 1, delay: 0.3 }}
-                className="text-center px-4"
-              >
-                <p className="text-sm tracking-[0.3em] uppercase mb-4 text-white/70">
-                  AI 驱动的教育评价平台
-                </p>
-                <h1 className="text-5xl md:text-7xl font-bold mb-6 drop-shadow-lg">
-                  智见教育
-                </h1>
-                <p className="text-lg md:text-xl text-white/80 max-w-xl mx-auto">
-                  向下滚动，翻开我们的故事
-                </p>
-                <motion.div
-                  animate={{ y: [0, 8, 0] }}
-                  transition={{ repeat: Infinity, duration: 1.8 }}
-                  className="mt-10 text-white/60"
-                >
-                  ↓
-                </motion.div>
-              </motion.div>
-            </div>
-          </motion.div>
+      {/* Hero Section — 视频状态机交互 */}
+      {/* 外层 wrapper 只占 100vh，Hero 本身不需要 sticky 撑高 */}
+      <div ref={heroRef} className="relative h-screen overflow-hidden">
+        {/* ① 循环背景视频 */}
+        <video
+          ref={loopVideoRef}
+          className="absolute inset-0 w-full h-full object-cover"
+          src="/hero-loop.mp4"
+          autoPlay
+          loop
+          muted
+          playsInline
+          style={{ display: phase === "loop" ? "block" : "none" }}
+        />
 
-          {/* 书本区域 */}
-          <motion.div
-            className="absolute inset-0 flex items-center justify-center"
-            style={{ opacity: bookOpacity, scale: bookScale }}
-          >
-            {/* 书本外框 */}
-            <div className="relative w-full max-w-3xl mx-4">
+        {/* ② 推进到书视频（播一次） */}
+        <video
+          ref={zoomVideoRef}
+          className="absolute inset-0 w-full h-full object-cover"
+          src="/zoom-to-book.mp4"
+          muted
+          playsInline
+          onEnded={onZoomEnded}
+          style={{ display: phase === "zoom" ? "block" : "none" }}
+        />
+
+        {/* ③ 翻书视频（每翻一页播一次，叠在书页内容上方） */}
+        <video
+          ref={turnVideoRef}
+          className="absolute inset-0 w-full h-full object-cover z-20"
+          src="/turn-page.mp4"
+          muted
+          playsInline
+          onEnded={onTurnEnded}
+          style={{ display: turning ? "block" : "none" }}
+        />
+
+        {/* 渐变遮罩 */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/50 z-10" />
+
+        {/* 首屏标题（loop 阶段显示） */}
+        {phase === "loop" && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-white z-10">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 1, delay: 0.3 }}
+              className="text-center px-4"
+            >
+              <p className="text-sm tracking-[0.3em] uppercase mb-4 text-white/70">
+                AI 驱动的教育评价平台
+              </p>
+              <h1 className="text-5xl md:text-7xl font-bold mb-6 drop-shadow-lg">
+                智见教育
+              </h1>
+              <p className="text-lg md:text-xl text-white/80 max-w-xl mx-auto">
+                向下滚动，翻开我们的故事
+              </p>
+              <motion.div
+                animate={{ y: [0, 8, 0] }}
+                transition={{ repeat: Infinity, duration: 1.8 }}
+                className="mt-10 text-white/60"
+              >
+                ↓
+              </motion.div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* 书页内容（book 阶段显示，翻书时被翻书视频遮住） */}
+        {phase === "book" && (
+          <div className="absolute inset-0 flex items-center justify-center z-10">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5 }}
+              className="relative w-full max-w-3xl mx-4"
+            >
               {/* 书页堆叠阴影 */}
               <div className="absolute -bottom-2 left-2 right-2 h-full bg-amber-100/30 rounded-2xl blur-sm" />
               <div className="absolute -bottom-1 left-1 right-1 h-full bg-amber-50/40 rounded-2xl" />
 
-              {/* 书页主体 */}
               <div className="relative bg-amber-50/95 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden border border-amber-200/50">
                 {/* 书脊装饰线 */}
                 <div className="absolute left-12 top-0 bottom-0 w-px bg-amber-300/40" />
@@ -415,8 +504,10 @@ const EducationalLandingPage = () => {
                     <div
                       key={i}
                       className={cn(
-                        "w-1.5 h-1.5 rounded-full transition-all duration-300",
-                        i === currentPage ? "bg-amber-600 w-4" : "bg-amber-300"
+                        "h-1.5 rounded-full transition-all duration-300",
+                        i === bookPage
+                          ? "bg-amber-600 w-4"
+                          : "bg-amber-300 w-1.5"
                       )}
                     />
                   ))}
@@ -432,15 +523,14 @@ const EducationalLandingPage = () => {
                         className="absolute inset-0 p-10 md:p-14 flex flex-col justify-center"
                         initial={false}
                         animate={{
-                          opacity: i === currentPage ? 1 : 0,
-                          x: i === currentPage ? 0 : i < currentPage ? -30 : 30,
+                          opacity: i === bookPage ? 1 : 0,
+                          x: i === bookPage ? 0 : i < bookPage ? -30 : 30,
                         }}
-                        transition={{ duration: 0.4, ease: "easeInOut" }}
+                        transition={{ duration: 0.35, ease: "easeInOut" }}
                       >
                         <div
                           className={cn(
-                            "inline-flex items-center gap-3 px-4 py-2 rounded-full mb-6 w-fit",
-                            "bg-gradient-to-r",
+                            "inline-flex items-center gap-3 px-4 py-2 rounded-full mb-6 w-fit bg-gradient-to-r",
                             page.color
                           )}
                         >
@@ -456,16 +546,18 @@ const EducationalLandingPage = () => {
                           {page.desc}
                         </p>
                         <div className="mt-8 text-amber-400/60 text-sm">
-                          第 {i + 1} 页 / 共 {pageCount} 页
+                          {bookPage < pageCount - 1
+                            ? "向下滚动翻页 ↓"
+                            : "已到最后一页，继续滚动查看更多"}
                         </div>
                       </motion.div>
                     );
                   })}
                 </div>
               </div>
-            </div>
-          </motion.div>
-        </div>
+            </motion.div>
+          </div>
+        )}
       </div>
 
       {/* Features Section */}
