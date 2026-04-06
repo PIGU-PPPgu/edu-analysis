@@ -436,41 +436,45 @@ export function AIAnalysisPage() {
         setActivityName(activity.name);
       }
 
-      // 查询增值数据（班级/教师数据量小，学生需要分页突破1000条限制）
-      const [classResult, teacherResult] = await Promise.all([
+      // 并行查询班级/教师数据（只取 result 字段，减少传输量）
+      const [classResult, teacherResult, countResult] = await Promise.all([
         supabase
           .from("value_added_cache")
-          .select("*")
+          .select("result")
           .eq("activity_id", activityId)
           .eq("dimension", "class"),
 
         supabase
           .from("value_added_cache")
-          .select("*")
+          .select("result")
           .eq("activity_id", activityId)
           .eq("dimension", "teacher"),
+
+        // 先查学生总数，用于并行分页
+        supabase
+          .from("value_added_cache")
+          .select("id", { count: "exact", head: true })
+          .eq("activity_id", activityId)
+          .eq("dimension", "student"),
       ]);
 
-      // 分页查询学生数据（可能超过1000条）
-      let allStudentRows: any[] = [];
-      let from = 0;
+      // 并行分页查询学生数据
       const batchSize = 1000;
-      let hasMore = true;
-      while (hasMore) {
-        const { data } = await supabase
-          .from("value_added_cache")
-          .select("*")
-          .eq("activity_id", activityId)
-          .eq("dimension", "student")
-          .range(from, from + batchSize - 1);
-        if (data && data.length > 0) {
-          allStudentRows = allStudentRows.concat(data);
-          from += batchSize;
-          hasMore = data.length === batchSize;
-        } else {
-          hasMore = false;
-        }
-      }
+      const totalStudents = countResult.count || 0;
+      const batchCount = Math.max(1, Math.ceil(totalStudents / batchSize));
+
+      const studentBatches = await Promise.all(
+        Array.from({ length: batchCount }, (_, i) =>
+          supabase
+            .from("value_added_cache")
+            .select("result")
+            .eq("activity_id", activityId)
+            .eq("dimension", "student")
+            .range(i * batchSize, (i + 1) * batchSize - 1)
+        )
+      );
+
+      const allStudentRows = studentBatches.flatMap((b) => b.data || []);
 
       console.log("🔍 [AI分析] 原始查询结果:", {
         classCount: classResult.data?.length,

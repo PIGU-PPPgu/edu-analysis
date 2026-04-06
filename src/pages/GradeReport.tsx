@@ -3,10 +3,15 @@
  * 数据源：ph七上期末成绩
  */
 import React, { useState, useEffect, useMemo } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Document, Packer, Paragraph, TextRun, AlignmentType } from "docx";
-import { getProviderApiKey, getApiBaseURL } from "@/utils/apiKeyManager";
+import {
+  getProviderApiKey,
+  getApiBaseURL,
+  getGlobalAIConfig,
+} from "@/utils/apiKeyManager";
 import {
   BarChart,
   Bar,
@@ -37,6 +42,13 @@ interface StudentRow {
   geography_score: number | null;
   politics_score: number | null;
   biology_score: number | null;
+  chinese_grade: string | null;
+  math_grade: string | null;
+  english_grade: string | null;
+  history_grade: string | null;
+  geography_grade: string | null;
+  politics_grade: string | null;
+  biology_grade: string | null;
 }
 
 interface ClassStat {
@@ -51,25 +63,71 @@ interface ClassStat {
   avg_politics: number;
   avg_bio: number;
   at_risk_count: number;
-  pass_rate: number; // 合格率 %（总分≥300）
-  excellent_rate: number; // 优良率 %（总分≥400）
-  composite_score: number; // 综合分 = 平均分/580×100×40% + 合格率×30% + 优良率×30%
+  pass_rate: number; // 各科合格率均值 %（B及以上）
+  excellent_rate: number; // 各科优秀率均值 %（A及以上）
+  composite_score: number; // 综合分 = (avg_total/7)*0.4 + avg_subject_pass*0.3 + avg_subject_excellent*0.3
   grade: "A" | "B" | "C" | "D";
 }
 
 // 综合分阈值（七上期末，满分580）
-const TOTAL_MAX = 580;
-const PASS_LINE = 300; // 合格线
-const EXCELLENT_LINE = 400; // 优良线
+const NUM_SUBJECTS = 7; // 语数英史地政生
 
-function calcComposite(avg: number, passRate: number, excellentRate: number) {
-  return (avg / TOTAL_MAX) * 100 * 0.4 + passRate * 0.3 + excellentRate * 0.3;
+// 等级判断
+const PASS_GRADES = new Set(["B", "B+", "A", "A+"]); // 合格：B及以上
+const EXCELLENT_GRADES = new Set(["A", "A+"]); // 优秀：A及以上
+
+// 综合分 = (avg_total/NUM_SUBJECTS)*0.4 + avg_per_subject_pass_rate*0.3 + avg_per_subject_excellent_rate*0.3
+function calcComposite(
+  avgTotal: number,
+  avgSubjectPassRate: number,
+  avgSubjectExcellentRate: number
+) {
+  return (
+    (avgTotal / NUM_SUBJECTS) * 0.4 +
+    avgSubjectPassRate * 0.3 +
+    avgSubjectExcellentRate * 0.3
+  );
+}
+
+// 计算一个班级的各科等级合格率/优良率均值
+const GRADE_KEYS = [
+  "chinese_grade",
+  "math_grade",
+  "english_grade",
+  "history_grade",
+  "geography_grade",
+  "politics_grade",
+  "biology_grade",
+] as const;
+
+function calcSubjectRates(students: StudentRow[]): {
+  avgPassRate: number;
+  avgExcellentRate: number;
+} {
+  const passRates: number[] = [];
+  const excellentRates: number[] = [];
+  for (const key of GRADE_KEYS) {
+    const grades = students
+      .map((s) => s[key])
+      .filter((g): g is string => g != null);
+    if (grades.length === 0) continue;
+    passRates.push(
+      (grades.filter((g) => PASS_GRADES.has(g)).length / grades.length) * 100
+    );
+    excellentRates.push(
+      (grades.filter((g) => EXCELLENT_GRADES.has(g)).length / grades.length) *
+        100
+    );
+  }
+  const avg = (arr: number[]) =>
+    arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+  return { avgPassRate: avg(passRates), avgExcellentRate: avg(excellentRates) };
 }
 
 function compositeGrade(score: number): "A" | "B" | "C" | "D" {
-  if (score >= 75) return "A";
-  if (score >= 60) return "B";
-  if (score >= 45) return "C";
+  if (score >= 55) return "A";
+  if (score >= 45) return "B";
+  if (score >= 35) return "C";
   return "D";
 }
 
@@ -442,7 +500,8 @@ const GradeView: React.FC<{ classStats: ClassStat[] }> = ({ classStats }) => {
             班级综合分排名
           </h2>
           <p className="text-xs text-[#191A23]/60 mt-1">
-            综合分 = 平均分/580×100 × 40% + 合格率 × 30% + 优良率 × 30%
+            综合分 = (平均分/7) × 40% + 各科合格率均值 × 30% + 各科优秀率均值 ×
+            30%
           </p>
         </div>
         <div className="p-6">
@@ -457,7 +516,7 @@ const GradeView: React.FC<{ classStats: ClassStat[] }> = ({ classStats }) => {
                 tick={{ fontSize: 11, fontWeight: 700 }}
                 tickFormatter={(v) => v.replace("初一", "")}
               />
-              <YAxis domain={[0, 80]} tick={{ fontSize: 11 }} />
+              <YAxis domain={[0, 70]} tick={{ fontSize: 11 }} />
               <Tooltip
                 formatter={(v: number) => [
                   `${(v as number).toFixed(1)}`,
@@ -497,7 +556,7 @@ const GradeView: React.FC<{ classStats: ClassStat[] }> = ({ classStats }) => {
                 班级综合排名详情
               </h2>
               <p className="text-xs text-gray-400 mt-1">
-                合格≥300分 · 优良≥400分 · 各科格显示得分率
+                合格≥B · 优秀≥A · 各科格显示得分率
               </p>
             </div>
           </div>
@@ -710,15 +769,23 @@ const ReportGeneratorTab: React.FC<{ classStats: ClassStat[] }> = ({
       "moonshot",
       "openrouter",
     ];
+    const globalModel = getGlobalAIConfig().defaultModel;
     for (const pid of candidates) {
       const cfg = getProviderApiKey(pid);
       if (cfg?.apiKey) {
         const baseURL = cfg.baseURL || getApiBaseURL(pid);
-        // 火山引擎用 endpoint 作为 model id
+        // 优先使用全局配置的 defaultModel，其次尝试从 baseURL 末尾提取（兼容旧版 endpoint 格式）
+        const modelFromURL = cfg.baseURL?.split("/").pop();
+        const isValidModelId = (s?: string) =>
+          !!s && !["v1", "v2", "v3", "v4"].includes(s);
         const model =
-          pid === "doubao"
-            ? cfg.baseURL?.split("/").pop() || "doubao-pro-32k"
-            : "gpt-4o";
+          globalModel && globalModel !== "gpt-4o-mini"
+            ? globalModel
+            : isValidModelId(modelFromURL)
+              ? modelFromURL!
+              : pid === "doubao"
+                ? "doubao-seed-1.8"
+                : "gpt-4o";
         return {
           apiKey: cfg.apiKey,
           baseURL: baseURL.replace(/\/$/, ""),
@@ -814,22 +881,101 @@ const ReportGeneratorTab: React.FC<{ classStats: ClassStat[] }> = ({
     URL.revokeObjectURL(url);
   };
 
+  // 清除 markdown 符号
+  const stripMarkdown = (line: string): string => {
+    return line
+      .replace(/^#{1,6}\s+/, "") // ## 标题
+      .replace(/\*\*(.+?)\*\*/g, "$1") // **粗体**
+      .replace(/\*(.+?)\*/g, "$1") // *斜体*
+      .replace(/^[-*+]\s+/, "") // 列表符号
+      .replace(/^>\s+/, "") // 引用
+      .replace(/`(.+?)`/g, "$1") // 行内代码
+      .trim();
+  };
+
   // 将 AI 返回的文本按行转换为 docx 段落
+  // 字体规范：主标题-方正小标宋简体小二；小标题-黑体三号；正文-仿宋_GB2312三号
   const textToParas = (text: string): Paragraph[] => {
-    return text
-      .split("\n")
+    // 先把行内数字序号（如"1. xxx 2. xxx"）拆成多行
+    const expandedLines: string[] = [];
+    for (const raw of text.split("\n")) {
+      const line = raw.trimEnd();
+      if (!line) {
+        expandedLines.push(line);
+        continue;
+      }
+      // 检测行内是否含有 " 2. " " 3. " 等中间序号（排除行首序号，那是正常换行）
+      // 匹配模式：非行首位置出现 数字+点+空格
+      const parts = line.split(/(?<=\S)\s+(?=\d+[.．]\s)/);
+      if (parts.length > 1) {
+        parts.forEach((p) => expandedLines.push(p.trim()));
+      } else {
+        expandedLines.push(line);
+      }
+    }
+
+    return expandedLines
       .map((line) => line.trimEnd())
       .filter((line) => line.length > 0)
       .map((line) => {
-        // 识别标题行（一、二、三 或 （一）（二）等）
-        const isSection = /^[一二三四五六七八九十]+[、．.]/.test(line);
-        const isSubSection = /^（[一二三四五六七八九十]+）/.test(line);
-        const isBold = isSection || isSubSection;
+        const clean = stripMarkdown(line);
+        if (!clean) return null;
+
+        // 一级标题：一、二、三…
+        const isH1 = /^[一二三四五六七八九十]+[、．.]/.test(clean);
+        // 二级标题：（一）（二）…
+        const isH2 = /^（[一二三四五六七八九十]+）/.test(clean);
+
+        if (isH1) {
+          return new Paragraph({
+            children: [
+              new TextRun({
+                text: clean,
+                bold: true,
+                font: { name: "黑体" },
+                size: 32, // 三号 = 16pt = 32 half-points
+              }),
+            ],
+            spacing: {
+              before: 240,
+              after: 120,
+              line: 360,
+              lineRule: "auto" as any,
+            },
+          });
+        }
+        if (isH2) {
+          return new Paragraph({
+            children: [
+              new TextRun({
+                text: clean,
+                bold: true,
+                font: { name: "黑体" },
+                size: 32,
+              }),
+            ],
+            spacing: {
+              before: 160,
+              after: 80,
+              line: 360,
+              lineRule: "auto" as any,
+            },
+          });
+        }
+        // 正文：仿宋_GB2312，三号，首行缩进2字符，1.5倍行距
         return new Paragraph({
-          children: [new TextRun({ text: line, bold: isBold, size: 24 })],
-          spacing: { before: isBold ? 200 : 80, after: 80 },
+          children: [
+            new TextRun({
+              text: clean,
+              font: { name: "仿宋_GB2312" },
+              size: 32,
+            }),
+          ],
+          indent: { firstLine: 640 }, // 2字符 × 三号(16pt) × 20 = 640 twips
+          spacing: { line: 360, lineRule: "auto" as any, before: 0, after: 0 },
         });
-      });
+      })
+      .filter((p): p is Paragraph => p !== null);
   };
 
   const generateDoc1 = async () => {
@@ -838,7 +984,7 @@ const ReportGeneratorTab: React.FC<{ classStats: ClassStat[] }> = ({
     try {
       const d = buildDataSummary();
 
-      const prompt = `你是一位经验丰富的教务主任，请根据以下真实考试数据，撰写一份《港中深附属知新学校教学质量精准提升方案》正文内容。
+      const prompt = `你是一位经验丰富的教务主任，请根据以下真实考试数据，撰写一份《教学质量精准提升方案》正文内容。
 
 【考试数据】
 考试名称：ph七上期末成绩（满分580分，合格线300分，优良线400分）
@@ -848,32 +994,42 @@ const ReportGeneratorTab: React.FC<{ classStats: ClassStat[] }> = ({
 年级优良率：${d.gradeExc.toFixed(1)}%
 学困生总数：${d.totalAtRisk}人（总分低于200分）
 
-班级综合分排名（综合分=平均分/580×100×40%+合格率×30%+优良率×30%）：
+班级综合分排名（综合分=平均分/7×40%+各科合格率均值×30%+各科优良率均值×30%）：
 ${d.classRows}
 
 各科目年级平均得分率（从低到高）：
 ${d.subjectAvgs.map((s) => `  ${s.label}：${s.pct.toFixed(1)}%`).join("\n")}
 
 【写作要求】
-请严格按照以下结构撰写，每个章节内容要结合上述真实数据，语言专业、具体、有针对性，避免空话套话：
+请严格按照以下结构撰写，每个章节内容要充分展开，结合上述真实数据深入分析，语言专业、具体、有针对性，避免空话套话。每个子章节不少于150字，措施要具体可操作：
 
 一、学情分析
 （一）成绩现状
+深入分析年级整体成绩分布，结合各班综合分排名，指出头部班级与尾部班级的差距，分析各科得分率高低，点名薄弱学科及其具体数据。
 （二）核心问题
+从学生学习习惯、课堂效率、教学方法、学困生比例等多个维度，结合数据归纳出3-5个核心问题，每个问题要有数据支撑。
 
 二、本学期目标
-（列出3-4条量化目标，基于当前数据设定合理提升幅度）
+列出4-5条量化目标，基于当前数据设定合理提升幅度，包括：年级平均分目标、合格率目标、优良率目标、学困生转化目标、薄弱学科提升目标。
 
 三、教学改进措施
 （一）质量分析会改进
+说明如何优化质量分析会的频次、形式、内容，如何让数据真正驱动教学决策，包括会前准备、会中研讨、会后跟踪的具体做法。
 （二）课堂质量提升
+针对薄弱学科提出具体的课堂改进策略，包括教学方法创新、分层教学设计、课堂互动优化、作业设计改进等。
 （三）教学常规强化
+从备课、上课、作业批改、辅导、考试等环节提出具体规范要求，说明如何通过常规管理提升整体教学质量。
 （四）培优补弱
+针对学困生（总分低于200分的${d.totalAtRisk}人）制定具体帮扶方案；针对优秀生制定拔尖培养计划，包括具体措施和时间节点。
 
 四、落款
-（右对齐：港中深附属知新学校七年级组，以及今天日期${new Date().toLocaleDateString("zh-CN")}）
+（右对齐：七年级组，${new Date().toLocaleDateString("zh-CN")}）
 
-注意：直接输出正文内容，不要输出标题"港中深附属知新学校教学质量精准提升方案"，不要有多余说明。`;
+【格式要求】
+1. 直接输出正文内容，不要输出文档标题
+2. 严禁使用任何Markdown格式符号（#、*、**、-、>、\`等）
+3. 标题格式：一级标题用"一、二、三"，二级标题用"（一）（二）"
+4. 不要有多余说明或前言`;
 
       const aiContent = await callAI(prompt);
       setStatusMsg("AI 内容生成完成，正在生成 Word 文档…");
@@ -885,9 +1041,10 @@ ${d.subjectAvgs.map((s) => `  ${s.label}：${s.pct.toFixed(1)}%`).join("\n")}
               new Paragraph({
                 children: [
                   new TextRun({
-                    text: "港中深附属知新学校教学质量精准提升方案",
+                    text: "教学质量精准提升方案",
                     bold: true,
-                    size: 36,
+                    font: { name: "方正小标宋简体" },
+                    size: 36, // 小二 = 18pt = 36 half-points
                   }),
                 ],
                 alignment: AlignmentType.CENTER,
@@ -920,7 +1077,7 @@ ${d.subjectAvgs.map((s) => `  ${s.label}：${s.pct.toFixed(1)}%`).join("\n")}
     try {
       const d = buildDataSummary();
 
-      const prompt = `你是一位经验丰富的教务主任，请根据以下真实考试数据，撰写一份《知新学校质量分析会指导意见》正文内容。
+      const prompt = `你是一位经验丰富的教务主任，请根据以下真实考试数据，撰写一份《质量分析会指导意见》正文内容。
 
 【考试数据】
 考试名称：ph七上期末成绩（满分580分，合格线300分，优良线400分）
@@ -938,31 +1095,43 @@ ${d.classRows}
 最高与最低综合分班级差距：${d.gap}分
 
 【写作要求】
-请严格按照以下结构撰写，内容要结合上述真实数据，具体指导教师如何开好质量分析会：
+请严格按照以下结构撰写，每个章节内容要充分展开，结合上述真实数据深入分析，语言专业、具体、有针对性，每个子章节不少于150字，指导要具体可操作：
 
 一、会前准备
-（一）数据分层（按成绩层次分组，结合本次数据说明如何分层）
-（二）对比参照（与上次考试对比，说明关注哪些变化）
-（三）活材料准备（收集典型案例、错题等）
+（一）数据分层
+结合本次考试数据，说明如何按成绩层次（优秀/良好/合格/待提升）对学生进行分组，各层次的具体划分标准，以及针对不同层次学生的分析重点。
+（二）对比参照
+说明如何与上次考试数据进行横向对比，重点关注哪些指标的变化（平均分、合格率、优良率、各科得分率），如何识别进步班级和退步班级。
+（三）活材料准备
+指导教师如何收集典型错题、优秀作业、学生学习案例等活材料，如何整理成有说服力的分析素材。
 
 二、会中研讨
-（一）归因归策（针对本次数据的主要问题进行归因）
-（二）靶向研讨（结合具体数据提出3个重点研讨议题）
-（三）案例说话（请优秀班级分享经验）
+（一）归因归策
+针对本次数据中的主要问题（薄弱学科${d.weak2.map((s) => s.label).join("、")}得分率偏低，班级间差距${d.gap}分等），从教师教学、学生学习、课程设计等多维度进行深入归因，并提出对应策略。
+（二）靶向研讨
+结合具体数据提出3-4个重点研讨议题，每个议题要有数据支撑，引导教师聚焦核心问题展开讨论。
+（三）案例说话
+说明如何组织综合分排名靠前的班级分享成功经验，如何提炼可复制的教学方法，促进班级间的经验交流。
 
 三、会后落地
-（一）整改清单（明确整改事项和时间节点）
-（二）验收反馈（跟踪机制）
+（一）整改清单
+明确会议形成的整改事项清单，包括具体整改内容、责任人、完成时间节点，以及可量化的验收标准。
+（二）验收反馈
+建立跟踪机制，说明如何定期检查整改落实情况，如何通过数据变化验证改进效果，形成闭环管理。
 
 四、复盘迭代（PDCA循环）
-（Plan/Do/Check/Act 四个环节，结合本次数据说明）
+结合本次考试数据，详细说明Plan（计划）、Do（执行）、Check（检查）、Act（改进）四个环节的具体内容，如何通过PDCA循环持续提升教学质量。
 
 附录：质量分析工具包
-（列出10项工具，每项一行）
+（列出10项实用工具，每项一行，包括工具名称和简要说明）
 
-落款（右对齐：知新学校教务处，${new Date().toLocaleDateString("zh-CN")}）
+落款（右对齐：教务处，${new Date().toLocaleDateString("zh-CN")}）
 
-注意：直接输出正文内容，不要输出标题"知新学校质量分析会指导意见"，不要有多余说明。`;
+【格式要求】
+1. 直接输出正文内容，不要输出文档标题
+2. 严禁使用任何Markdown格式符号（#、*、**、-、>、\`等）
+3. 标题格式：一级标题用"一、二、三"，二级标题用"（一）（二）"
+4. 不要有多余说明或前言`;
 
       const aiContent2 = await callAI(prompt);
       setStatusMsg("AI 内容生成完成，正在生成 Word 文档…");
@@ -974,8 +1143,9 @@ ${d.classRows}
               new Paragraph({
                 children: [
                   new TextRun({
-                    text: "知新学校质量分析会指导意见",
+                    text: "质量分析会指导意见",
                     bold: true,
+                    font: { name: "方正小标宋简体" },
                     size: 36,
                   }),
                 ],
@@ -1016,9 +1186,29 @@ ${d.classRows}
           基于当前成绩数据，调用 AI 生成专业分析内容，导出 Word 文档
         </p>
         {statusMsg && (
-          <p className="mt-3 text-sm font-bold text-[#191A23] animate-pulse">
-            {statusMsg}
-          </p>
+          <div className="mt-3 space-y-2">
+            <p className="text-sm font-bold text-[#191A23]">{statusMsg}</p>
+            {generating && (
+              <p className="text-xs text-amber-600 font-medium">
+                ⚠️ 生成期间请勿离开此页面，否则可能导致生成失败
+              </p>
+            )}
+            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-[#B9FF66] rounded-full"
+                style={{
+                  width: "40%",
+                  animation: "slide 1.4s ease-in-out infinite",
+                }}
+              />
+            </div>
+            <style>{`
+              @keyframes slide {
+                0% { transform: translateX(-100%); }
+                100% { transform: translateX(350%); }
+              }
+            `}</style>
+          </div>
         )}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1077,6 +1267,11 @@ ${d.classRows}
 
 // ---- 主页面 ----
 const GradeReportPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  // 优先读 URL 参数，兜底用硬编码（向后兼容）
+  const examTitle = searchParams.get("exam") ?? EXAM_TITLE;
+
   const [perspective, setPerspective] = useState<"grade" | "class" | "report">(
     "grade"
   );
@@ -1087,6 +1282,21 @@ const GradeReportPage: React.FC = () => {
 
   useEffect(() => {
     async function load() {
+      // 检查 sessionStorage 缓存（key 含 examTitle，TTL 5分钟）
+      const cacheKey = `grade_report_cache_${examTitle}`;
+      try {
+        const raw = sessionStorage.getItem(cacheKey);
+        if (raw) {
+          const { rows, ts } = JSON.parse(raw);
+          if (Date.now() - ts < 5 * 60 * 1000) {
+            applyRows(rows);
+            return;
+          }
+        }
+      } catch {
+        // 缓存损坏，忽略
+      }
+
       setLoading(true);
       setError(null);
       try {
@@ -1094,92 +1304,117 @@ const GradeReportPage: React.FC = () => {
           .from("grade_data")
           .select(
             "student_id,name,class_name,total_score,total_rank_in_class,total_rank_in_grade," +
-              "chinese_score,math_score,english_score,history_score,geography_score,politics_score,biology_score"
+              "chinese_score,math_score,english_score,history_score,geography_score,politics_score,biology_score," +
+              "chinese_grade,math_grade,english_grade,history_grade,geography_grade,politics_grade,biology_grade"
           )
-          .eq("exam_title", EXAM_TITLE);
+          .eq("exam_title", examTitle);
 
         if (err) throw err;
         const rows = (data ?? []) as unknown as StudentRow[];
-        setStudents(rows);
 
-        // 按班级聚合
-        const map = new Map<string, StudentRow[]>();
-        rows.forEach((r) => {
-          if (!map.has(r.class_name)) map.set(r.class_name, []);
-          map.get(r.class_name)!.push(r);
-        });
+        // 写缓存
+        try {
+          sessionStorage.setItem(
+            cacheKey,
+            JSON.stringify({ rows, ts: Date.now() })
+          );
+        } catch {
+          /* 忽略 */
+        }
 
-        const avg = (arr: (number | null)[]) => {
-          const valid = arr.filter((v): v is number => v != null);
-          return valid.length
-            ? valid.reduce((a, b) => a + b, 0) / valid.length
-            : 0;
-        };
-
-        const stats: ClassStat[] = Array.from(map.entries()).map(
-          ([class_name, ss]) => {
-            const validTotal = ss.filter((s) => s.total_score != null);
-            const n = validTotal.length || 1;
-            const passCount = validTotal.filter(
-              (s) => s.total_score! >= PASS_LINE
-            ).length;
-            const excellentCount = validTotal.filter(
-              (s) => s.total_score! >= EXCELLENT_LINE
-            ).length;
-            const avgTotalVal = avg(ss.map((s) => s.total_score));
-            const passRate = (passCount / n) * 100;
-            const excellentRate = (excellentCount / n) * 100;
-            const composite = calcComposite(
-              avgTotalVal,
-              passRate,
-              excellentRate
-            );
-            return {
-              class_name,
-              student_count: ss.length,
-              avg_total: avgTotalVal,
-              avg_chinese: avg(ss.map((s) => s.chinese_score)),
-              avg_math: avg(ss.map((s) => s.math_score)),
-              avg_english: avg(ss.map((s) => s.english_score)),
-              avg_history: avg(ss.map((s) => s.history_score)),
-              avg_geo: avg(ss.map((s) => s.geography_score)),
-              avg_politics: avg(ss.map((s) => s.politics_score)),
-              avg_bio: avg(ss.map((s) => s.biology_score)),
-              at_risk_count: ss.filter(
-                (s) => s.total_score != null && s.total_score < 200
-              ).length,
-              pass_rate: passRate,
-              excellent_rate: excellentRate,
-              composite_score: composite,
-              grade: compositeGrade(composite),
-            };
-          }
-        );
-
-        setClassStats(
-          stats.sort((a, b) => a.class_name.localeCompare(b.class_name))
-        );
+        applyRows(rows);
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : "加载失败");
-      } finally {
         setLoading(false);
       }
     }
+
+    function applyRows(rows: StudentRow[]) {
+      setStudents(rows);
+
+      // 按班级聚合
+      const map = new Map<string, StudentRow[]>();
+      rows.forEach((r) => {
+        if (!map.has(r.class_name)) map.set(r.class_name, []);
+        map.get(r.class_name)!.push(r);
+      });
+
+      const avg = (arr: (number | null)[]) => {
+        const valid = arr.filter((v): v is number => v != null);
+        return valid.length
+          ? valid.reduce((a, b) => a + b, 0) / valid.length
+          : 0;
+      };
+
+      const stats: ClassStat[] = Array.from(map.entries()).map(
+        ([class_name, ss]) => {
+          const avgTotalVal = avg(ss.map((s) => s.total_score));
+          const { avgPassRate, avgExcellentRate } = calcSubjectRates(ss);
+          const composite = calcComposite(
+            avgTotalVal,
+            avgPassRate,
+            avgExcellentRate
+          );
+          return {
+            class_name,
+            student_count: ss.length,
+            avg_total: avgTotalVal,
+            avg_chinese: avg(ss.map((s) => s.chinese_score)),
+            avg_math: avg(ss.map((s) => s.math_score)),
+            avg_english: avg(ss.map((s) => s.english_score)),
+            avg_history: avg(ss.map((s) => s.history_score)),
+            avg_geo: avg(ss.map((s) => s.geography_score)),
+            avg_politics: avg(ss.map((s) => s.politics_score)),
+            avg_bio: avg(ss.map((s) => s.biology_score)),
+            at_risk_count: ss.filter(
+              (s) => s.total_score != null && s.total_score < 200
+            ).length,
+            pass_rate: avgPassRate,
+            excellent_rate: avgExcellentRate,
+            composite_score: composite,
+            grade: compositeGrade(composite),
+          };
+        }
+      );
+
+      setClassStats(
+        stats.sort((a, b) => a.class_name.localeCompare(b.class_name))
+      );
+      setLoading(false);
+    }
+
     load();
-  }, []);
+  }, [examTitle]);
 
   return (
     <div className="min-h-screen bg-[#F3F4F6] p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* 页头 */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-black text-[#191A23] uppercase tracking-wide">
-              成绩分析
-            </h1>
-            <p className="text-sm text-[#6B7280] font-medium mt-1">
-              {EXAM_TITLE}
-            </p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate(-1)}
+              className="flex items-center justify-center w-9 h-9 border-2 border-black bg-white shadow-[3px_3px_0px_0px_#191A23] hover:shadow-[1px_1px_0px_0px_#191A23] hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
+              title="返回"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M10 3L5 8L10 13"
+                  stroke="#191A23"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+            <div>
+              <h1 className="text-2xl font-black text-[#191A23] uppercase tracking-wide">
+                成绩分析
+              </h1>
+              <p className="text-sm text-[#6B7280] font-medium mt-1">
+                {examTitle}
+              </p>
+            </div>
           </div>
           {/* 视角切换 */}
           <div className="flex border-2 border-black overflow-hidden shadow-[4px_4px_0px_0px_#191A23]">

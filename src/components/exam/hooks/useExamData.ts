@@ -177,6 +177,47 @@ const DEFAULT_STATISTICS: UIExamStatistics = {
   riskExams: 0,
 };
 
+// ---- 缓存层（sessionStorage，TTL 5分钟） ----
+
+const CACHE_KEY = "exam_data_cache";
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+interface ExamDataCache {
+  exams: UIExam[];
+  examTypes: UIExamType[];
+  statistics: UIExamStatistics;
+  academicTerms: AcademicTerm[];
+  currentTerm: AcademicTerm | null;
+  ts: number;
+}
+
+function readCache(): ExamDataCache | null {
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const parsed: ExamDataCache = JSON.parse(raw);
+    if (Date.now() - parsed.ts > CACHE_TTL_MS) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(data: Omit<ExamDataCache, "ts">): void {
+  try {
+    sessionStorage.setItem(
+      CACHE_KEY,
+      JSON.stringify({ ...data, ts: Date.now() })
+    );
+  } catch {
+    // sessionStorage 满了就跳过
+  }
+}
+
+function invalidateCache(): void {
+  sessionStorage.removeItem(CACHE_KEY);
+}
+
 // ---- Hook 实现 ----
 
 export function useExamData(): UseExamDataReturn {
@@ -188,7 +229,19 @@ export function useExamData(): UseExamDataReturn {
   const [currentTerm, setCurrentTerm] = useState<AcademicTerm | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (forceRefresh = false) => {
+    // 命中缓存直接返回
+    if (!forceRefresh) {
+      const cached = readCache();
+      if (cached) {
+        setExams(cached.exams);
+        setExamTypes(cached.examTypes);
+        setStatistics(cached.statistics);
+        setAcademicTerms(cached.academicTerms);
+        setCurrentTerm(cached.currentTerm);
+        return;
+      }
+    }
     setIsLoading(true);
     try {
       const [dbExamTypes, dbExams, overviewStats, terms, currentTermData] =
@@ -240,6 +293,15 @@ export function useExamData(): UseExamDataReturn {
       setAcademicTerms(terms);
       setCurrentTerm(currentTermData);
       if (overviewStats) setStatistics(overviewStats);
+
+      // 写入缓存
+      writeCache({
+        exams: examsWithParticipants,
+        examTypes: mappedTypes,
+        statistics: overviewStats ?? DEFAULT_STATISTICS,
+        academicTerms: terms,
+        currentTerm: currentTermData,
+      });
     } catch (error) {
       console.error("[useExamData] 加载数据失败:", error);
       toast.error("加载数据失败，请重试");
@@ -268,8 +330,9 @@ export function useExamData(): UseExamDataReturn {
     loadData();
   }, [loadData]);
 
-  // 删除后重新加载（含 examTypes 和 statistics）
+  // 删除后重新加载（含 examTypes 和 statistics），同时清缓存
   const reloadAfterDelete = useCallback(async () => {
+    invalidateCache();
     const [dbExamTypes, dbExams, overviewStats] = await Promise.all([
       getExamTypes(),
       examDataService.getExams(),
@@ -333,7 +396,10 @@ export function useExamData(): UseExamDataReturn {
     academicTerms,
     currentTerm,
     isLoading,
-    reload: loadData,
+    reload: () => {
+      invalidateCache();
+      return loadData(true);
+    },
     createExam: createExamFn,
     updateExam: updateExamFn,
     deleteExam: deleteExamFn,
