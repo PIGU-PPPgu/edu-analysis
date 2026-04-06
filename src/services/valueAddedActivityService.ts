@@ -515,8 +515,11 @@ export async function executeValueAddedCalculation(
       console.warn("⚠️ 未找到教师映射数据，将使用默认命名");
     }
 
-    // 5. 获取等级配置（优先使用活动绑定的配置，fallback 到默认）
-    const levelConfig = await getLevelConfig(activity.grade_level_config_id);
+    // 5. 获取等级配置（优先使用活动绑定的配置，按学段自动选，fallback 到默认）
+    const levelConfig = await getLevelConfig(
+      activity.grade_level_config_id,
+      activity.grade_level
+    );
 
     // 6. 动态构建科目映射（支持未来添加新科目）
     // 中文科目名 -> 英文key（用于grade_data表字段名）
@@ -1011,17 +1014,33 @@ export async function executeValueAddedCalculation(
 // ============================================
 
 /**
- * 获取等级配置：优先使用活动绑定的 configId，fallback 到 is_default=true
+ * 获取等级配置：
+ * 1. 有 configId → 用指定配置，查询失败则抛错（不静默回退，防止脏数据）
+ * 2. 无 configId → 按学段自动选：高中(high) → 九段(is_nine_segment=true)，其他 → 默认(is_default=true)
  */
-async function getLevelConfig(configId?: string | null) {
+async function getLevelConfig(configId?: string | null, gradeLevel?: string) {
   if (configId) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("grade_levels_config")
       .select("*")
       .eq("id", configId)
       .single();
     if (data) return data.levels;
+    throw new Error(
+      `等级配置 ${configId} 查询失败，拒绝回退到默认配置以防止脏数据写入。错误：${error?.message ?? "未找到记录"}`
+    );
   }
+
+  // 高中自动使用九段评价
+  if (gradeLevel === "high") {
+    const { data } = await supabase
+      .from("grade_levels_config")
+      .select("*")
+      .eq("is_nine_segment", true)
+      .single();
+    if (data) return data.levels;
+  }
+
   return getDefaultLevelConfig();
 }
 

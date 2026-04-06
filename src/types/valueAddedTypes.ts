@@ -54,6 +54,7 @@ export interface GradeLevelConfig {
   name: string;
   description?: string;
   is_default: boolean;
+  is_nine_segment: boolean;
   levels: GradeLevelDefinition[];
   created_by?: string;
   created_at: Date;

@@ -26,6 +26,7 @@ interface GradeLevelConfigInDB {
   name: string;
   description: string;
   is_default: boolean;
+  is_nine_segment: boolean;
   levels: GradeLevelInDB[];
   created_by?: string;
   created_at: string;
