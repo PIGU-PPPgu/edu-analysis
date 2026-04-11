@@ -228,8 +228,6 @@ export const getExamTypes = async (): Promise<ExamType[]> => {
  */
 export const getExams = async (filter?: ExamFilter): Promise<Exam[]> => {
   // 暂时禁用缓存以确保删除后能立即看到变化
-  console.log("[ExamService] 获取考试列表...");
-
   const deriveExamsFromGrades = async (): Promise<Exam[]> => {
     try {
       const { data, error } = await supabase
@@ -313,8 +311,6 @@ export const getExams = async (filter?: ExamFilter): Promise<Exam[]> => {
       throw error;
     }
 
-    console.log("[ExamService] 获取到考试数据:", data?.length, "条");
-
     if (!data || data.length === 0) {
       const derived = await deriveExamsFromGrades();
       if (derived.length > 0) {
@@ -372,8 +368,6 @@ export const getExamStatistics = async (
   examId: string
 ): Promise<ExamStatistics> => {
   return warningAnalysisCache.getExamData(async () => {
-    console.log(`[ExamService] 获取考试统计信息: ${examId}`);
-
     // 获取考试信息
     const { data: exam, error: examError } = await supabase
       .from("exams")
@@ -432,10 +426,6 @@ export const getExamStatistics = async (
 
       // 计算分数段分布
       const scoreDistribution = calculateScoreDistribution(grades || []);
-
-      console.log(
-        `[ExamService] 使用数据库配置计算 - 及格率: ${stats.passRate}%, 优秀率: ${stats.excellentRate}%`
-      );
 
       return {
         examId,
@@ -764,22 +754,17 @@ export const updateExam = async (
  */
 export const deleteExam = async (examId: string): Promise<boolean> => {
   try {
-    console.log("🗑️ 开始删除考试:", examId);
-
     const { error, data } = await supabase
       .from("exams")
       .delete()
       .eq("id", examId)
       .select(); // 添加select以获取删除的数据确认
 
-    console.log("🗑️ 删除结果:", { error, data });
-
     if (error) {
       console.error("🗑️ 删除失败，错误详情:", error);
       throw error;
     }
 
-    console.log("✅ 考试删除成功，删除的数据:", data);
     toast.success("考试删除成功");
     return true;
   } catch (error) {
@@ -1108,8 +1093,6 @@ export const getExamActiveSubjects = async (
   hasData: boolean;
 }> => {
   try {
-    console.log(`[getExamActiveSubjects] 开始检测考试科目，examId: ${examId}`);
-
     // 1. 首先获取实际成绩数据中的科目
     const actualSubjects = await getActualExamSubjects(examId);
     console.log(
@@ -1157,8 +1140,6 @@ export const getExamActiveSubjects = async (
     }
 
     // 4. 如果配置验证失败，直接使用实际数据中的科目
-    console.log(`[getExamActiveSubjects] 📊 使用实际成绩数据中的科目`);
-
     if (actualSubjects.length > 0) {
       return {
         configuredSubjects: actualSubjects.map((subject) => ({
@@ -1170,9 +1151,6 @@ export const getExamActiveSubjects = async (
     }
 
     // 5. 如果都没有数据，返回默认科目
-    console.log(
-      `[getExamActiveSubjects] ⚠️ 无法找到任何科目数据，使用默认科目`
-    );
     return {
       configuredSubjects: [
         { code: "chinese", name: "语文", configured: false },
@@ -1202,10 +1180,6 @@ export const getExamParticipantCount = async (
   examId: string
 ): Promise<number> => {
   try {
-    console.log(
-      `[getExamParticipantCount] 开始获取考试参与人数，examId: ${examId}`
-    );
-
     // 首先尝试直接使用exam_id查询
     const {
       data: gradeData,
@@ -1216,30 +1190,16 @@ export const getExamParticipantCount = async (
       .select("student_id", { count: "exact" })
       .eq("exam_id", examId);
 
-    console.log(`[getExamParticipantCount] exam_id查询结果:`, {
-      count,
-      dataLength: gradeData?.length || 0,
-      error: error?.message,
-    });
-
     if (!error && count !== null && count > 0) {
-      console.log(
-        `[getExamParticipantCount] ✅ 通过exam_id找到 ${count} 个参与者`
-      );
       return count;
     }
 
     // 如果exam_id查询失败，尝试使用exam_title
-    console.log(
-      `[getExamParticipantCount] 🔄 exam_id查询无结果，尝试exam_title查询`
-    );
     const { data: examInfo } = await supabase
       .from("exams")
       .select("title")
       .eq("id", examId)
       .single();
-
-    console.log(`[getExamParticipantCount] 考试信息:`, examInfo);
 
     if (examInfo && examInfo.title) {
       const {
@@ -1251,21 +1211,11 @@ export const getExamParticipantCount = async (
         .select("student_id", { count: "exact" })
         .eq("exam_title", examInfo.title);
 
-      console.log(`[getExamParticipantCount] exam_title查询结果:`, {
-        count: titleCount,
-        dataLength: gradeDataByTitle?.length || 0,
-        error: titleError?.message,
-      });
-
       if (!titleError && titleCount !== null && titleCount > 0) {
-        console.log(
-          `[getExamParticipantCount] ✅ 通过exam_title找到 ${titleCount} 个参与者`
-        );
         return titleCount;
       }
     }
 
-    console.log(`[getExamParticipantCount] ⚠️ 未找到任何参与者数据`);
     return 0;
   } catch (error) {
     console.error("获取考试参与人数失败:", error);

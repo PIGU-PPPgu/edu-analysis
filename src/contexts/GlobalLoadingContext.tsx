@@ -137,8 +137,6 @@ export const GlobalLoadingProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // 设置超时提醒
       setupTimeout(operation);
-
-      console.log(`[GlobalLoading] 开始加载: ${id} - ${operation.message}`);
     },
     [setupTimeout]
   );
@@ -152,7 +150,6 @@ export const GlobalLoadingProvider: React.FC<{ children: React.ReactNode }> = ({
 
         if (operation) {
           const duration = Date.now() - operation.startTime;
-          console.log(`[GlobalLoading] 停止加载: ${id} (耗时: ${duration}ms)`);
           newOps.delete(id);
         }
 

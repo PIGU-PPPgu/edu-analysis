@@ -384,10 +384,6 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({
   // 监听筛选配置变化
   useEffect(() => {
     if (filterConfig) {
-      console.log(
-        "🔍 [WarningTrackingDashboard] 筛选配置变化，重新加载数据:",
-        filterConfig
-      );
       loadTrackingData();
     }
   }, [filterConfig]);
@@ -402,43 +398,21 @@ const WarningTrackingDashboard: React.FC<WarningTrackingDashboardProps> = ({
         severity:
           severityFilter !== "all" ? (severityFilter as any) : undefined,
         searchTerm: searchTerm.trim() || undefined,
-        // 如果有外部筛选配置，使用第一个班级（单选模式）
-        className:
+        classNames:
           filterConfig?.classNames && filterConfig.classNames.length > 0
-            ? filterConfig.classNames[0]
+            ? filterConfig.classNames
             : undefined,
-        // 🆕 添加考试筛选支持
         examTitles:
           filterConfig?.examTitles && filterConfig.examTitles.length > 0
             ? filterConfig.examTitles
             : undefined,
       };
 
-      console.log("🔍 [WarningTrackingDashboard] 构建的筛选条件:", filter);
-      console.log("🔍 [WarningTrackingDashboard] 外部筛选配置:", filterConfig);
-
-      // 重点：使用基于成绩的实时计算，传递完整的筛选配置
       const priorityStudentsResult = await getEnhancedPriorityStudents(20, {
         classNames: filterConfig?.classNames,
         examTitles: filterConfig?.examTitles,
         timeRange: filterConfig?.timeRange,
       });
-
-      console.log(
-        "📊 [WarningTrackingDashboard] 获取到优先级学生:",
-        priorityStudentsResult.length,
-        "名"
-      );
-      console.log(
-        "🎯 [WarningTrackingDashboard] 学生详情:",
-        priorityStudentsResult.map((s) => ({
-          name: s.studentName,
-          class: s.className,
-          priority: s.finalPriority,
-          reasons: s.customTags,
-          riskScore: s.effectiveRiskScore,
-        }))
-      );
 
       // 并行加载预警记录数据（保留原有功能）
       const recordsResult = await getWarningRecords(filter, 50, 0);

@@ -1,13 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
   Accordion,
   AccordionContent,
@@ -27,189 +24,16 @@ import {
   Clock,
   CheckCircle,
   ArrowRight,
-  Star,
-  ChevronRight,
   Play,
   BookOpen,
-  GraduationCap,
   UserCheck,
   Upload,
   Calendar,
   MessageSquare,
 } from "lucide-react";
 
-interface FeatureCardProps {
-  icon: React.ElementType;
-  title: string;
-  description: string;
-  benefits: string[];
-}
-
-interface UseCaseProps {
-  title: string;
-  description: string;
-  icon: React.ElementType;
-  steps: string[];
-}
-
-interface TestimonialProps {
-  name: string;
-  role: string;
-  school: string;
-  content: string;
-  rating: number;
-  avatar: string;
-}
-
-interface ProcessStepProps {
-  step: number;
-  title: string;
-  description: string;
-  icon: React.ElementType;
-}
-
-// 视频交互阶段
-type Phase = "loop" | "zoom" | "book";
-
 const EducationalLandingPage = () => {
-  const heroRef = useRef<HTMLDivElement>(null);
   const loopVideoRef = useRef<HTMLVideoElement>(null);
-  const zoomVideoRef = useRef<HTMLVideoElement>(null);
-  const turnVideoRef = useRef<HTMLVideoElement>(null);
-
-  const [phase, setPhase] = useState<Phase>("loop");
-  const [bookPage, setBookPage] = useState(0);
-  const [turning, setTurning] = useState(false);
-  // 防止翻书视频播放期间重复触发
-  const lockedRef = useRef(false);
-
-  const bookPages = [
-    {
-      title: "增值评价系统",
-      subtitle: "科学衡量教学真实贡献",
-      desc: "基于入口-出口双考试模型，用 Z 分数标准化消除生源差异，真实反映每位教师、每个班级的教学增值。",
-      icon: TrendingUp,
-      color: "from-emerald-500/20 to-teal-500/20",
-    },
-    {
-      title: "九段评价体系",
-      subtitle: "深圳市标准，精准定位学生层次",
-      desc: "将全年级学生按 Z 分数划分为 9 个段位，1 段为顶尖 4%，9 段为末尾 4%，横向比较一目了然。",
-      icon: BarChart3,
-      color: "from-blue-500/20 to-indigo-500/20",
-    },
-    {
-      title: "AI 智能分析",
-      subtitle: "一键生成深度教学报告",
-      desc: "整合班级、教师、学生三维数据，由 AI 自动撰写分析报告，发现规律、识别风险、给出建议。",
-      icon: Brain,
-      color: "from-purple-500/20 to-pink-500/20",
-    },
-    {
-      title: "历次追踪",
-      subtitle: "纵向对比，看见成长轨迹",
-      desc: "跨多次考试追踪教师、班级、学生的增值趋势，用折线图直观呈现进步与退步，支持多维对比。",
-      icon: Target,
-      color: "from-orange-500/20 to-amber-500/20",
-    },
-    {
-      title: "预警与干预",
-      subtitle: "提前发现，及时介入",
-      desc: "自动识别成绩异常、能力退步的学生，触发预警通知，帮助教师在问题扩大前采取针对性干预。",
-      icon: AlertTriangle,
-      color: "from-red-500/20 to-rose-500/20",
-    },
-  ];
-
-  const pageCount = bookPages.length;
-
-  // 进入 zoom 阶段：播放推进到书视频
-  const startZoom = useCallback(() => {
-    if (lockedRef.current) return;
-    lockedRef.current = true;
-    setPhase("zoom");
-    const v = zoomVideoRef.current;
-    if (v) {
-      v.currentTime = 0;
-      v.play();
-    }
-  }, []);
-
-  // zoom 视频播完 → 进入 book 阶段，翻书视频停在第一帧
-  const onZoomEnded = useCallback(() => {
-    const v = turnVideoRef.current;
-    if (v) {
-      v.currentTime = 0;
-      v.pause();
-    }
-    setPhase("book");
-    lockedRef.current = false;
-  }, []);
-
-  // 翻到下一页
-  const turnNext = useCallback(() => {
-    if (lockedRef.current) return;
-    lockedRef.current = true;
-    setTurning(true);
-    const v = turnVideoRef.current;
-    if (v) {
-      v.currentTime = 0;
-      v.play();
-    }
-  }, []);
-
-  // 翻书视频播完 → 切换页面内容
-  const onTurnEnded = useCallback(() => {
-    setBookPage((p) => Math.min(p + 1, pageCount - 1));
-    setTurning(false);
-    lockedRef.current = false;
-  }, [pageCount]);
-
-  // wheel 事件处理
-  useEffect(() => {
-    const el = heroRef.current;
-    if (!el) return;
-
-    const onWheel = (e: WheelEvent) => {
-      if (e.deltaY <= 0) return; // 只响应向下滚动
-
-      if (phase === "loop") {
-        e.preventDefault();
-        startZoom();
-      } else if (phase === "book") {
-        if (bookPage < pageCount - 1) {
-          e.preventDefault();
-          turnNext();
-        }
-        // 最后一页：放行，让页面正常滚动
-      }
-    };
-
-    el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
-  }, [phase, bookPage, pageCount, startZoom, turnNext]);
-
-  // touch 支持
-  useEffect(() => {
-    const el = heroRef.current;
-    if (!el) return;
-    let startY = 0;
-    const onTouchStart = (e: TouchEvent) => {
-      startY = e.touches[0].clientY;
-    };
-    const onTouchEnd = (e: TouchEvent) => {
-      const dy = startY - e.changedTouches[0].clientY;
-      if (dy < 30) return;
-      if (phase === "loop") startZoom();
-      else if (phase === "book" && bookPage < pageCount - 1) turnNext();
-    };
-    el.addEventListener("touchstart", onTouchStart, { passive: true });
-    el.addEventListener("touchend", onTouchEnd, { passive: true });
-    return () => {
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchend", onTouchEnd);
-    };
-  }, [phase, bookPage, pageCount, startZoom, turnNext]);
 
   const features = [
     {
@@ -349,39 +173,6 @@ const EducationalLandingPage = () => {
     },
   ];
 
-  const testimonials = [
-    {
-      name: "张老师",
-      role: "高中数学教师",
-      school: "北京市第一中学",
-      content:
-        "使用这个系统后，我能更精准地了解每个学生的学习状况，教学效果显著提升。特别是预警功能，帮我及时发现了很多潜在问题。",
-      rating: 5,
-      avatar:
-        "https://images.unsplash.com/photo-1494790108755-2616b332e234?w=150&h=150&fit=crop&crop=face",
-    },
-    {
-      name: "李主任",
-      role: "教务主任",
-      school: "上海实验中学",
-      content:
-        "这个平台的数据分析功能非常强大，帮助我们学校整体提升了教学管理水平。家长反馈也很好，都说报告很专业。",
-      rating: 5,
-      avatar:
-        "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
-    },
-    {
-      name: "王老师",
-      role: "班主任",
-      school: "广州市育才学校",
-      content:
-        "AI学生画像功能让我对学生有了更深入的了解，制定教学计划更有针对性。系统操作简单，数据准确可靠。",
-      rating: 5,
-      avatar:
-        "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face",
-    },
-  ];
-
   const faqs = [
     {
       question: "系统如何保护学生隐私数据？",
@@ -416,11 +207,72 @@ const EducationalLandingPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Hero Section — 视频状态机交互 */}
-      {/* 外层 wrapper 只占 100vh，Hero 本身不需要 sticky 撑高 */}
-      <div ref={heroRef} className="relative h-screen overflow-hidden">
-        {/* ① 循环背景视频 */}
+    <div
+      className="min-h-screen"
+      style={{ background: "#FAFAFA", color: "#111827" }}
+    >
+      {/* ── NAVBAR ── */}
+      <nav
+        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 md:px-16"
+        style={{
+          height: 56,
+          background: "rgba(0,0,0,0.35)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          borderBottom: "1px solid rgba(255,255,255,0.08)",
+        }}
+      >
+        {/* Logo */}
+        <span
+          className="text-sm font-semibold tracking-wide"
+          style={{ color: "rgba(255,255,255,0.9)" }}
+        >
+          Intelliclass
+        </span>
+
+        {/* Nav links */}
+        <div className="hidden md:flex items-center gap-8">
+          {["核心功能", "应用场景", "Why us"].map((label) => (
+            <a
+              key={label}
+              href={`#${label}`}
+              className="text-xs font-medium transition-colors"
+              style={{ color: "rgba(255,255,255,0.6)" }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.color = "rgba(255,255,255,0.95)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.color = "rgba(255,255,255,0.6)")
+              }
+            >
+              {label}
+            </a>
+          ))}
+        </div>
+
+        {/* Login */}
+        <button
+          className="text-xs font-medium px-4 py-1.5 rounded-md transition-colors"
+          style={{
+            background: "rgba(255,255,255,0.12)",
+            color: "rgba(255,255,255,0.85)",
+            border: "1px solid rgba(255,255,255,0.18)",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background =
+              "rgba(255,255,255,0.2)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background =
+              "rgba(255,255,255,0.12)";
+          }}
+        >
+          登录
+        </button>
+      </nav>
+
+      {/* ── HERO ── */}
+      <div className="relative h-screen overflow-hidden">
         <video
           ref={loopVideoRef}
           className="absolute inset-0 w-full h-full object-cover"
@@ -429,494 +281,529 @@ const EducationalLandingPage = () => {
           loop
           muted
           playsInline
-          style={{ display: phase === "loop" ? "block" : "none" }}
         />
+        {/* 遮罩：底部渐暗，让文字可读 */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60" />
 
-        {/* ② 推进到书视频（播一次） */}
-        <video
-          ref={zoomVideoRef}
-          className="absolute inset-0 w-full h-full object-cover"
-          src="/zoom-to-book.mp4"
-          muted
-          playsInline
-          onEnded={onZoomEnded}
-          style={{ display: phase === "zoom" ? "block" : "none" }}
-        />
-
-        {/* ③ 翻书视频 — book 阶段始终作为背景，turning 时播放动画 */}
-        <video
-          ref={turnVideoRef}
-          className="absolute inset-0 w-full h-full object-cover"
-          src="/turn-page.mp4"
-          muted
-          playsInline
-          onEnded={onTurnEnded}
-          style={{ display: phase === "book" ? "block" : "none" }}
-        />
-
-        {/* 渐变遮罩（仅 loop 阶段） */}
-        {phase === "loop" && (
-          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/50 z-10" />
-        )}
-
-        {/* 首屏标题（loop 阶段显示） */}
-        {phase === "loop" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-white z-10">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 1, delay: 0.3 }}
-              className="text-center px-4"
-            >
-              <p className="text-sm tracking-[0.3em] uppercase mb-4 text-white/70">
-                AI 驱动的教育评价平台
-              </p>
-              <h1 className="text-5xl md:text-7xl font-bold mb-6 drop-shadow-lg">
-                智见教育
-              </h1>
-              <p className="text-lg md:text-xl text-white/80 max-w-xl mx-auto">
-                向下滚动，翻开我们的故事
-              </p>
-              <motion.div
-                animate={{ y: [0, 8, 0] }}
-                transition={{ repeat: Infinity, duration: 1.8 }}
-                className="mt-10 text-white/60"
-              >
-                ↓
-              </motion.div>
-            </motion.div>
-          </div>
-        )}
-
-        {/* 书页文字（book 阶段，叠在翻书视频上方，定位在右侧书页区域） */}
-        {phase === "book" && (
-          <div
-            className="absolute z-20"
-            style={{
-              /* 右侧书页区域：视频中书的右页大约占右侧 45% 宽度，垂直居中偏上 */
-              top: "18%",
-              right: "4%",
-              width: "42%",
-              bottom: "18%",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-            }}
+        <div className="absolute inset-0 flex flex-col items-start justify-end pb-20 px-8 md:px-16 z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.9, delay: 0.2 }}
           >
-            {bookPages.map((page, i) => {
-              const Icon = page.icon;
-              return (
-                <motion.div
-                  key={i}
-                  className="absolute inset-0 flex flex-col justify-center px-6 md:px-8"
-                  initial={false}
-                  animate={{ opacity: i === bookPage && !turning ? 1 : 0 }}
-                  transition={{ duration: 0.3, ease: "easeInOut" }}
-                >
-                  {/* 图标 + 副标题 */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <Icon className="w-4 h-4 text-amber-700/80 shrink-0" />
-                    <span className="text-xs font-medium text-amber-700/70 tracking-wide">
-                      {page.subtitle}
-                    </span>
-                  </div>
-                  {/* 主标题 */}
-                  <h2 className="text-xl md:text-2xl font-bold text-stone-800 mb-3 leading-tight">
-                    {page.title}
-                  </h2>
-                  {/* 描述 */}
-                  <p className="text-stone-600/90 text-sm md:text-base leading-relaxed">
-                    {page.desc}
-                  </p>
-                  {/* 翻页提示 */}
-                  <div className="mt-5 text-stone-400 text-xs">
-                    {bookPage < pageCount - 1
-                      ? "向下滚动翻页 ↓"
-                      : "继续滚动查看更多 ↓"}
-                  </div>
-                  {/* 页码点 */}
-                  <div className="mt-3 flex gap-1">
-                    {bookPages.map((_, j) => (
-                      <div
-                        key={j}
-                        className={cn(
-                          "h-1 rounded-full transition-all duration-300",
-                          j === bookPage
-                            ? "bg-amber-600/60 w-4"
-                            : "bg-stone-300/60 w-1.5"
-                        )}
-                      />
-                    ))}
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        )}
+            <p className="text-xs font-semibold tracking-[0.12em] uppercase text-white/60 mb-4">
+              教育数据分析平台
+            </p>
+            <h1 className="text-5xl md:text-7xl font-bold text-white leading-[1.1] tracking-tight mb-6">
+              让每一分
+              <br />
+              有迹可循
+            </h1>
+            <p className="text-base md:text-lg text-white/70 max-w-md mb-8 leading-relaxed">
+              基于增值评价模型，精准追踪学生学业成长轨迹。
+              九段评价体系，让教学决策有数据支撑。
+            </p>
+            <div className="flex gap-3">
+              <button
+                className="px-6 py-3 text-sm font-medium rounded-lg"
+                style={{ background: "white", color: "#111827" }}
+              >
+                免费试用 →
+              </button>
+              <button
+                className="px-6 py-3 text-sm font-medium rounded-lg border"
+                style={{ borderColor: "rgba(255,255,255,0.3)", color: "white" }}
+              >
+                查看演示
+              </button>
+            </div>
+          </motion.div>
+
+          {/* 品牌名 */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.9, delay: 0.7 }}
+            className="absolute bottom-8 right-8 md:right-16"
+          >
+            <span
+              className="text-sm font-medium tracking-wide"
+              style={{
+                color: "rgba(255,255,255,0.5)",
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              Intelliclass.online
+            </span>
+          </motion.div>
+        </div>
       </div>
 
-      {/* Features Section */}
-      <section className="py-20 bg-muted/30">
-        <div className="container px-4 md:px-6">
+      {/* ── FEATURES ── */}
+      <section className="py-24" style={{ background: "#FAFAFA" }}>
+        <div className="max-w-6xl mx-auto px-8 md:px-16">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            className="mb-14"
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              核心功能特性
+            <p
+              className="text-xs font-semibold tracking-[0.12em] uppercase mb-3"
+              style={{ color: "#6B7280" }}
+            >
+              核心功能
+            </p>
+            <h2
+              className="text-3xl font-bold tracking-tight mb-4"
+              style={{ color: "#111827" }}
+            >
+              数据驱动的教学决策
             </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              全面的教育数据分析工具，助力教师提升教学质量
+            <p
+              className="text-base max-w-lg leading-relaxed"
+              style={{ color: "#6B7280" }}
+            >
+              从原始分数到增值评价，从个体追踪到班级分析，覆盖教学评估全链路。
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div
+            className="grid md:grid-cols-2 lg:grid-cols-3"
+            style={{
+              border: "1px solid #E5E7EB",
+              borderRadius: 12,
+              overflow: "hidden",
+            }}
+          >
             {features.map((feature, index) => (
               <motion.div
                 key={index}
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
+                transition={{ duration: 0.5, delay: index * 0.06 }}
                 viewport={{ once: true }}
+                style={{
+                  background: "#FFFFFF",
+                  padding: "28px 24px",
+                  borderRight: index % 3 !== 2 ? "1px solid #E5E7EB" : "none",
+                  borderBottom: index < 3 ? "1px solid #E5E7EB" : "none",
+                }}
               >
-                <Card className="h-full hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                      <feature.icon className="w-6 h-6 text-primary" />
-                    </div>
-                    <h3 className="text-xl font-semibold mb-2">
-                      {feature.title}
-                    </h3>
-                    <p className="text-muted-foreground">
-                      {feature.description}
-                    </p>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      {feature.benefits.map((benefit, i) => (
-                        <li key={i} className="flex items-center gap-2 text-sm">
-                          <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                          {benefit}
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
+                <div
+                  className="flex items-center justify-center mb-5"
+                  style={{
+                    width: 36,
+                    height: 36,
+                    background: "#F3F4F6",
+                    borderRadius: 8,
+                    border: "1px solid #E5E7EB",
+                  }}
+                >
+                  <feature.icon
+                    className="w-4 h-4"
+                    style={{ color: "#374151" }}
+                  />
+                </div>
+                <h3
+                  className="text-sm font-semibold mb-2"
+                  style={{ color: "#111827" }}
+                >
+                  {feature.title}
+                </h3>
+                <p
+                  className="text-sm leading-relaxed mb-4"
+                  style={{ color: "#6B7280" }}
+                >
+                  {feature.description}
+                </p>
+                <ul className="space-y-1.5">
+                  {feature.benefits.map((benefit, i) => (
+                    <li
+                      key={i}
+                      className="flex items-center gap-2 text-xs"
+                      style={{ color: "#6B7280" }}
+                    >
+                      <div
+                        className="w-1 h-1 rounded-full flex-shrink-0"
+                        style={{ background: "#9CA3AF" }}
+                      />
+                      {benefit}
+                    </li>
+                  ))}
+                </ul>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Use Cases Section */}
-      <section className="py-20">
-        <div className="container px-4 md:px-6">
+      {/* ── USE CASES ── */}
+      <section
+        className="py-24"
+        style={{ background: "#FFFFFF", borderTop: "1px solid #E5E7EB" }}
+      >
+        <div className="max-w-6xl mx-auto px-8 md:px-16">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            className="mb-14"
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">应用场景</h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              覆盖教学全流程，满足不同场景下的数据分析需求
+            <p
+              className="text-xs font-semibold tracking-[0.12em] uppercase mb-3"
+              style={{ color: "#6B7280" }}
+            >
+              应用场景
             </p>
+            <h2
+              className="text-3xl font-bold tracking-tight"
+              style={{ color: "#111827" }}
+            >
+              覆盖教学全流程
+            </h2>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid md:grid-cols-2 gap-6">
             {useCases.map((useCase, index) => (
               <motion.div
                 key={index}
-                initial={{ opacity: 0, x: index % 2 === 0 ? -30 : 30 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.08 }}
                 viewport={{ once: true }}
+                style={{
+                  background: "#FAFAFA",
+                  border: "1px solid #E5E7EB",
+                  borderRadius: 10,
+                  padding: "24px",
+                }}
               >
-                <Card className="h-full">
-                  <CardHeader>
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <useCase.icon className="w-6 h-6 text-primary" />
+                <div className="flex items-start gap-4 mb-5">
+                  <div
+                    style={{
+                      width: 36,
+                      height: 36,
+                      background: "#F3F4F6",
+                      borderRadius: 8,
+                      border: "1px solid #E5E7EB",
+                      flexShrink: 0,
+                    }}
+                    className="flex items-center justify-center"
+                  >
+                    <useCase.icon
+                      className="w-4 h-4"
+                      style={{ color: "#374151" }}
+                    />
+                  </div>
+                  <div>
+                    <h3
+                      className="text-sm font-semibold mb-1"
+                      style={{ color: "#111827" }}
+                    >
+                      {useCase.title}
+                    </h3>
+                    <p
+                      className="text-xs leading-relaxed"
+                      style={{ color: "#6B7280" }}
+                    >
+                      {useCase.description}
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {useCase.steps.map((step, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <div
+                        className="flex items-center justify-center text-xs font-semibold flex-shrink-0"
+                        style={{
+                          width: 20,
+                          height: 20,
+                          background: "#111827",
+                          color: "white",
+                          borderRadius: "50%",
+                          fontSize: 10,
+                        }}
+                      >
+                        {i + 1}
                       </div>
-                      <div>
-                        <h3 className="text-xl font-semibold mb-2">
-                          {useCase.title}
-                        </h3>
-                        <p className="text-muted-foreground">
-                          {useCase.description}
-                        </p>
-                      </div>
+                      <span className="text-xs" style={{ color: "#374151" }}>
+                        {step}
+                      </span>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {useCase.steps.map((step, i) => (
-                        <div key={i} className="flex items-center gap-3">
-                          <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-medium">
-                            {i + 1}
-                          </div>
-                          <span className="text-sm">{step}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                  ))}
+                </div>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Benefits Section */}
-      <section className="py-20 bg-muted/30">
-        <div className="container px-4 md:px-6">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+      {/* ── BENEFITS + STATS ── */}
+      <section
+        className="py-24"
+        style={{ background: "#FAFAFA", borderTop: "1px solid #E5E7EB" }}
+      >
+        <div className="max-w-6xl mx-auto px-8 md:px-16">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
             <motion.div
-              initial={{ opacity: 0, x: -30 }}
+              initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6 }}
               viewport={{ once: true }}
             >
-              <h2 className="text-3xl md:text-4xl font-bold mb-6">
-                为什么选择我们？
-              </h2>
-              <p className="text-xl text-muted-foreground mb-8">
-                AI驱动的教育数据分析，让每一个教学决策都有数据支撑
+              <p
+                className="text-xs font-semibold tracking-[0.12em] uppercase mb-3"
+                style={{ color: "#6B7280" }}
+              >
+                为什么选择我们
               </p>
-
-              <div className="space-y-6">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <TrendingUp className="w-5 h-5 text-primary" />
+              <h2
+                className="text-3xl font-bold tracking-tight mb-10"
+                style={{ color: "#111827" }}
+              >
+                让每个教学决策
+                <br />
+                都有数据支撑
+              </h2>
+              <div className="space-y-8">
+                {[
+                  {
+                    icon: TrendingUp,
+                    title: "提升教学效果",
+                    desc: "基于数据分析的个性化教学，平均提升学生成绩 15–25%",
+                  },
+                  {
+                    icon: Clock,
+                    title: "节省时间成本",
+                    desc: "自动化数据分析，减少 80% 的手工统计时间",
+                  },
+                  {
+                    icon: Shield,
+                    title: "数据安全可靠",
+                    desc: "银行级数据加密，确保学生信息安全",
+                  },
+                ].map((item, i) => (
+                  <div key={i} className="flex items-start gap-4">
+                    <div
+                      style={{
+                        width: 36,
+                        height: 36,
+                        background: "#F3F4F6",
+                        borderRadius: 8,
+                        border: "1px solid #E5E7EB",
+                        flexShrink: 0,
+                      }}
+                      className="flex items-center justify-center"
+                    >
+                      <item.icon
+                        className="w-4 h-4"
+                        style={{ color: "#374151" }}
+                      />
+                    </div>
+                    <div>
+                      <h3
+                        className="text-sm font-semibold mb-1"
+                        style={{ color: "#111827" }}
+                      >
+                        {item.title}
+                      </h3>
+                      <p
+                        className="text-sm leading-relaxed"
+                        style={{ color: "#6B7280" }}
+                      >
+                        {item.desc}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold mb-2">提升教学效果</h3>
-                    <p className="text-muted-foreground">
-                      基于数据分析的个性化教学，平均提升学生成绩15-25%
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Clock className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold mb-2">节省时间成本</h3>
-                    <p className="text-muted-foreground">
-                      自动化数据分析，减少80%的手工统计时间
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Shield className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold mb-2">数据安全可靠</h3>
-                    <p className="text-muted-foreground">
-                      银行级数据加密，确保学生信息安全
-                    </p>
-                  </div>
-                </div>
+                ))}
               </div>
             </motion.div>
 
             <motion.div
-              initial={{ opacity: 0, x: 30 }}
+              initial={{ opacity: 0, x: 20 }}
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6 }}
               viewport={{ once: true }}
-              className="relative"
             >
-              <div className="bg-gradient-to-br from-primary/10 to-blue-500/10 rounded-2xl p-8">
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-primary mb-2">
-                      95%
+              <div
+                style={{
+                  background: "#FFFFFF",
+                  border: "1px solid #E5E7EB",
+                  borderRadius: 12,
+                  padding: "40px",
+                }}
+                className="grid grid-cols-2 gap-8"
+              >
+                {[
+                  { val: "95%", label: "AI 分析准确率" },
+                  { val: "10,000+", label: "服务教师数量" },
+                  { val: "500+", label: "合作学校" },
+                  { val: "99.9%", label: "系统稳定性" },
+                ].map((s) => (
+                  <div key={s.label} className="text-center">
+                    <div
+                      className="text-3xl font-bold mb-1"
+                      style={{
+                        color: "#111827",
+                        fontVariantNumeric: "tabular-nums",
+                        letterSpacing: "-0.02em",
+                      }}
+                    >
+                      {s.val}
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      AI分析准确率
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-primary mb-2">
-                      10000+
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      服务教师数量
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-primary mb-2">
-                      500+
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      合作学校
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-primary mb-2">
-                      99.9%
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      系统稳定性
+                    <div className="text-xs" style={{ color: "#9CA3AF" }}>
+                      {s.label}
                     </div>
                   </div>
-                </div>
+                ))}
               </div>
             </motion.div>
           </div>
         </div>
       </section>
 
-      {/* How It Works Section */}
-      <section className="py-20">
-        <div className="container px-4 md:px-6">
+      {/* ── HOW IT WORKS ── */}
+      <section
+        className="py-24"
+        style={{ background: "#FFFFFF", borderTop: "1px solid #E5E7EB" }}
+      >
+        <div className="max-w-6xl mx-auto px-8 md:px-16">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            className="mb-14"
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">工作流程</h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              简单四步，开启智能化教学数据分析之旅
+            <p
+              className="text-xs font-semibold tracking-[0.12em] uppercase mb-3"
+              style={{ color: "#6B7280" }}
+            >
+              工作流程
             </p>
+            <h2
+              className="text-3xl font-bold tracking-tight"
+              style={{ color: "#111827" }}
+            >
+              四步开启智能分析
+            </h2>
           </motion.div>
 
-          <div className="relative">
-            <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-border transform -translate-y-1/2 hidden lg:block" />
-
-            <div className="grid lg:grid-cols-4 gap-8">
-              {processSteps.map((step, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: index * 0.1 }}
-                  viewport={{ once: true }}
-                  className="relative"
-                >
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-primary text-primary-foreground rounded-full flex items-center justify-center mx-auto mb-4 relative z-10">
-                      <step.icon className="w-8 h-8" />
-                    </div>
-                    <div className="absolute top-8 left-1/2 transform -translate-x-1/2 w-8 h-8 bg-primary/20 rounded-full -z-10" />
-
-                    <h3 className="text-lg font-semibold mb-2">{step.title}</h3>
-                    <p className="text-muted-foreground text-sm">
-                      {step.description}
-                    </p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section className="py-20 bg-muted/30">
-        <div className="container px-4 md:px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
+          <div
+            className="grid lg:grid-cols-4 gap-0"
+            style={{
+              border: "1px solid #E5E7EB",
+              borderRadius: 10,
+              overflow: "hidden",
+            }}
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">用户评价</h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              听听一线教师的真实反馈
-            </p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
+            {processSteps.map((step, index) => (
               <motion.div
                 key={index}
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
+                transition={{ duration: 0.5, delay: index * 0.08 }}
                 viewport={{ once: true }}
+                style={{
+                  background: "#FAFAFA",
+                  padding: "28px 24px",
+                  borderRight: index < 3 ? "1px solid #E5E7EB" : "none",
+                }}
               >
-                <Card className="h-full">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-1 mb-4">
-                      {[...Array(testimonial.rating)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className="w-4 h-4 fill-yellow-400 text-yellow-400"
-                        />
-                      ))}
-                    </div>
-
-                    <p className="text-muted-foreground mb-6 italic">
-                      "{testimonial.content}"
-                    </p>
-
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={testimonial.avatar}
-                        alt={testimonial.name}
-                        className="w-10 h-10 rounded-full"
-                      />
-                      <div>
-                        <div className="font-semibold">{testimonial.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {testimonial.role} · {testimonial.school}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <div
+                  className="text-xs font-semibold mb-4"
+                  style={{
+                    fontVariantNumeric: "tabular-nums",
+                    color: "#9CA3AF",
+                    fontFamily: "monospace",
+                  }}
+                >
+                  0{step.step}
+                </div>
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    background: "#F3F4F6",
+                    borderRadius: 8,
+                    border: "1px solid #E5E7EB",
+                  }}
+                  className="flex items-center justify-center mb-4"
+                >
+                  <step.icon className="w-4 h-4" style={{ color: "#374151" }} />
+                </div>
+                <h3
+                  className="text-sm font-semibold mb-2"
+                  style={{ color: "#111827" }}
+                >
+                  {step.title}
+                </h3>
+                <p
+                  className="text-xs leading-relaxed"
+                  style={{ color: "#6B7280" }}
+                >
+                  {step.description}
+                </p>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* FAQ Section */}
-      <section className="py-20">
-        <div className="container px-4 md:px-6">
+      {/* ── FAQ ── */}
+      <section
+        className="py-24"
+        style={{ background: "#FFFFFF", borderTop: "1px solid #E5E7EB" }}
+      >
+        <div className="max-w-3xl mx-auto px-8 md:px-16">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            className="mb-14"
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">常见问题</h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              解答您关心的问题
+            <p
+              className="text-xs font-semibold tracking-[0.12em] uppercase mb-3"
+              style={{ color: "#6B7280" }}
+            >
+              常见问题
             </p>
+            <h2
+              className="text-3xl font-bold tracking-tight"
+              style={{ color: "#111827" }}
+            >
+              解答您关心的问题
+            </h2>
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
             viewport={{ once: true }}
-            className="max-w-3xl mx-auto"
           >
-            <Accordion type="single" collapsible className="space-y-4">
+            <Accordion type="single" collapsible className="space-y-0">
               {faqs.map((faq, index) => (
                 <AccordionItem
                   key={index}
                   value={`item-${index}`}
-                  className="border rounded-lg px-6"
+                  style={{ borderBottom: "1px solid #E5E7EB" }}
+                  className="border-0"
                 >
-                  <AccordionTrigger className="text-left hover:no-underline">
+                  <AccordionTrigger
+                    className="text-left hover:no-underline py-5 text-sm font-medium"
+                    style={{ color: "#111827" }}
+                  >
                     {faq.question}
                   </AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground">
+                  <AccordionContent
+                    className="text-sm pb-5 leading-relaxed"
+                    style={{ color: "#6B7280" }}
+                  >
                     {faq.answer}
                   </AccordionContent>
                 </AccordionItem>
@@ -926,37 +813,52 @@ const EducationalLandingPage = () => {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-20 bg-primary text-primary-foreground">
-        <div className="container px-4 md:px-6">
+      {/* ── CTA ── */}
+      <section
+        className="py-24"
+        style={{ background: "#111827", borderTop: "1px solid #E5E7EB" }}
+      >
+        <div className="max-w-6xl mx-auto px-8 md:px-16 text-center">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
             viewport={{ once: true }}
-            className="text-center max-w-3xl mx-auto"
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+            <p
+              className="text-xs font-semibold tracking-[0.12em] uppercase mb-4"
+              style={{ color: "rgba(255,255,255,0.4)" }}
+            >
+              开始使用
+            </p>
+            <h2
+              className="text-3xl md:text-4xl font-bold mb-4 tracking-tight"
+              style={{ color: "white" }}
+            >
               开启智能化教学新时代
             </h2>
-            <p className="text-xl opacity-90 mb-8">
-              立即体验AI驱动的学生画像系统，让数据为您的教学赋能
+            <p
+              className="text-base mb-10 max-w-md mx-auto leading-relaxed"
+              style={{ color: "rgba(255,255,255,0.5)" }}
+            >
+              立即体验 AI 驱动的增值评价系统，让数据为您的教学赋能
             </p>
-
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" variant="secondary" className="gap-2">
-                <Play className="w-5 h-5" />
-                立即免费试用
-                <ArrowRight className="w-4 h-4" />
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="gap-2 border-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/10"
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                className="px-8 py-3 text-sm font-medium rounded-lg"
+                style={{ background: "white", color: "#111827" }}
               >
-                <Calendar className="w-5 h-5" />
+                立即免费试用 →
+              </button>
+              <button
+                className="px-8 py-3 text-sm font-medium rounded-lg border"
+                style={{
+                  borderColor: "rgba(255,255,255,0.2)",
+                  color: "rgba(255,255,255,0.7)",
+                }}
+              >
                 联系销售顾问
-              </Button>
+              </button>
             </div>
           </motion.div>
         </div>

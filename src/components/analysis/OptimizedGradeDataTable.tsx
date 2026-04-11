@@ -156,7 +156,6 @@ const VirtualRow = memo<{
           onClick={(e) => {
             e.stopPropagation();
             // 简化为直接操作，移除复杂的DropdownMenu
-            console.log("Row action:", row.id);
           }}
           className="h-6 w-6"
         >

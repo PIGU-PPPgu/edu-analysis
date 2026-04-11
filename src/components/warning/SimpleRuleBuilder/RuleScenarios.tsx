@@ -86,7 +86,7 @@ const ScenarioCard: React.FC<{
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-gray-100 rounded-lg">
-              <span className="text-2xl">{scenario.icon}</span>
+              <div className="w-6 h-6 rounded bg-gray-400" />
             </div>
             <div>
               <CardTitle className="text-base font-bold text-[#191A23]">
@@ -217,7 +217,7 @@ const RuleScenarios: React.FC<RuleScenariosProps> = ({
           {/* 无结果提示 */}
           {filteredScenarios.length === 0 && (
             <div className="text-center py-12">
-              <div className="text-6xl mb-4">🔍</div>
+              <div className="w-16 h-16 bg-gray-200 rounded-full mx-auto mb-4" />
               <h3 className="text-lg font-bold text-[#191A23] mb-2">
                 未找到匹配的场景
               </h3>
@@ -241,7 +241,7 @@ const RuleScenarios: React.FC<RuleScenariosProps> = ({
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-2xl mx-auto">
         <div className="flex items-start gap-3">
           <div className="p-1 bg-blue-100 rounded-full">
-            <span className="text-sm">💡</span>
+            <div className="w-4 h-4 rounded-full bg-blue-400" />
           </div>
           <div>
             <h4 className="font-medium text-blue-800 mb-1">使用建议</h4>

@@ -163,7 +163,7 @@ export function FormulaExplanation({ trigger }: FormulaExplanationProps) {
                     </ul>
                   </div>
                   <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded border border-blue-200">
-                    <div className="text-xs font-semibold mb-2">📝 示例</div>
+                    <div className="text-xs font-semibold mb-2">示例</div>
                     <div className="text-xs space-y-1">
                       <div>考试A：平均70分，标准差10，小明80分 → Z = 1.0</div>
                       <div>考试B：平均60分，标准差15，小明75分 → Z = 1.0</div>
@@ -200,7 +200,7 @@ export function FormulaExplanation({ trigger }: FormulaExplanationProps) {
                     </ul>
                   </div>
                   <div className="bg-green-50 dark:bg-green-950 p-3 rounded border border-green-200">
-                    <div className="text-xs font-semibold mb-2">📝 示例</div>
+                    <div className="text-xs font-semibold mb-2">示例</div>
                     <div className="text-xs space-y-1">
                       <div>
                         班级30人，小明第9名 → 百分位 ≈ 0.73（超过73%的同学）
@@ -264,9 +264,7 @@ export function FormulaExplanation({ trigger }: FormulaExplanationProps) {
                     </ul>
                   </div>
                   <div className="bg-purple-50 dark:bg-purple-950 p-3 rounded border border-purple-200">
-                    <div className="text-xs font-semibold mb-2">
-                      📝 对比示例
-                    </div>
+                    <div className="text-xs font-semibold mb-2">对比示例</div>
                     <div className="text-xs space-y-2">
                       <div className="border-b pb-2">
                         <div className="font-semibold">学生A（基础好）：</div>
@@ -440,7 +438,7 @@ export function FormulaExplanation({ trigger }: FormulaExplanationProps) {
                   </div>
                   <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 rounded p-3 text-xs">
                     <div className="font-semibold mb-1 text-amber-700 dark:text-amber-300">
-                      ⚠ 统计显著性提示
+                      统计显著性提示
                     </div>
                     <div className="text-muted-foreground">
                       样本量 &lt; 15
@@ -474,7 +472,7 @@ export function FormulaExplanation({ trigger }: FormulaExplanationProps) {
                     </p>
                   </div>
                   <div className="bg-yellow-50 dark:bg-yellow-950 p-3 rounded border border-yellow-200">
-                    <div className="text-xs font-semibold mb-2">📝 示例</div>
+                    <div className="text-xs font-semibold mb-2">示例</div>
                     <div className="text-xs">
                       <div>入口A+等级：10人</div>
                       <div>出口仍为A+：8人</div>
@@ -508,7 +506,7 @@ export function FormulaExplanation({ trigger }: FormulaExplanationProps) {
                     </p>
                   </div>
                   <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded border border-blue-200">
-                    <div className="text-xs font-semibold mb-2">📝 示例</div>
+                    <div className="text-xs font-semibold mb-2">示例</div>
                     <div className="text-xs">
                       <div>可提升学生（入口非A+）：20人</div>
                       <div>等级提升（如B→A, C→B+）：12人</div>
@@ -707,7 +705,7 @@ export function FormulaExplanation({ trigger }: FormulaExplanationProps) {
                 {/* 深圳本地政策 */}
                 <div className="mt-3 pt-3 border-t border-red-200">
                   <div className="text-xs font-semibold text-red-600 mb-2 flex items-center gap-1">
-                    📍 深圳市配套政策
+                    深圳市配套政策
                   </div>
                   <div className="space-y-2">
                     <div className="bg-white dark:bg-gray-900 p-2.5 rounded border-l-4 border-rose-300">
@@ -931,7 +929,7 @@ export function FormulaExplanation({ trigger }: FormulaExplanationProps) {
         <div className="mt-6 pt-4 border-t">
           <div className="text-xs text-muted-foreground space-y-1">
             <div>
-              📚 <strong>开发者文档</strong>：完整技术说明请查看{" "}
+              <strong>开发者文档</strong>：完整技术说明请查看{" "}
               <a
                 href="/docs/methodology"
                 target="_blank"
@@ -942,7 +940,7 @@ export function FormulaExplanation({ trigger }: FormulaExplanationProps) {
               </a>
             </div>
             <div>
-              🧪 <strong>单元测试</strong>：算法验证请查看{" "}
+              <strong>单元测试</strong>：算法验证请查看{" "}
               <code>
                 src/utils/__tests__/statistics.algorithm-fixes.test.ts
               </code>

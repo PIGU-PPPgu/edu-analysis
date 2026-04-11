@@ -261,6 +261,22 @@ export const AuthModuleProvider: React.FC<{ children: React.ReactNode }> = ({
           return { error: appError };
         }
 
+        // 创建 user_profiles 记录（供 onboarding 的 update 使用）
+        if (data.user) {
+          await supabase
+            .from("user_profiles")
+            .upsert(
+              { id: data.user.id, user_type: "teacher" },
+              { onConflict: "id", ignoreDuplicates: true }
+            );
+          await supabase
+            .from("user_roles")
+            .upsert(
+              { user_id: data.user.id, role: "teacher" },
+              { onConflict: "user_id,role", ignoreDuplicates: true }
+            );
+        }
+
         if (data.user && data.session) {
           toast.success("注册成功");
         } else {
@@ -418,8 +434,6 @@ export const AuthModuleProvider: React.FC<{ children: React.ReactNode }> = ({
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("认证状态变化:", event, session);
-
       if (session) {
         dispatch({ type: "SET_USER", payload: session.user });
         dispatch({ type: "SET_SESSION", payload: session });

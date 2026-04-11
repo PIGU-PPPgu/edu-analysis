@@ -211,12 +211,7 @@ export default function StudentDataImporter({
     // 🔄 智能同步：自动创建缺失的班级和学生（带重试和错误阻断）
     setProcessingProgress(85);
     try {
-      console.log("[学生导入] 开始自动同步班级和学生...");
       const syncResult = await runAutoSyncWithRetry(validatedData);
-
-      console.log(
-        `[智能同步] 完成！自动创建了 ${syncResult.newClasses.length} 个班级和 ${syncResult.newStudents.length} 名学生`
-      );
 
       // 如果创建了新的班级或学生，添加到通知中
       if (
@@ -337,11 +332,6 @@ export default function StudentDataImporter({
 
     for (let attempt = 0; attempt < autoSyncAttempts.length; attempt++) {
       const { label, options } = autoSyncAttempts[attempt];
-      console.log(
-        `[学生导入][AutoSync] 尝试${attempt + 1}: ${label}（跳过班级/学号/姓名强校验）`,
-        options
-      );
-
       setProcessingStage("analyzing");
       setProcessingProgress(85 + attempt * 3);
 
@@ -357,10 +347,6 @@ export default function StudentDataImporter({
         );
 
         if (syncResult.success) {
-          console.log(`[学生导入][AutoSync] 尝试${attempt + 1}成功:`, {
-            newClasses: syncResult.newClasses.length,
-            newStudents: syncResult.newStudents.length,
-          });
           return syncResult;
         }
 
@@ -473,12 +459,8 @@ export default function StudentDataImporter({
         if (autoCreateMode) {
           setProcessingStage("analyzing");
           setProcessingProgress(80);
-          console.log("[学生导入] 自动创建模式 - 正在生成预览...");
-
           try {
             const preview = await autoSyncService.previewChanges(validatedData);
-            console.log("[学生导入] 预览结果:", preview.summary);
-
             // 如果有新的班级或学生需要创建，显示确认对话框
             if (
               preview.summary.newClassCount > 0 ||

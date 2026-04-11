@@ -37,6 +37,7 @@ export interface WarningFilterConfig {
   examTypes: string[];
   classNames: string[]; // 新增：班级筛选
   examTitles: string[]; // 新增：具体考试筛选
+  gradeLevel?: string[]; // 新增：年级筛选（如 ["高一", "高二"]）
   mixedAnalysis: boolean;
   analysisMode: "student" | "exam" | "subject";
   startDate?: string;
@@ -79,8 +80,9 @@ const WarningFilters: React.FC<WarningFiltersProps> = ({
   >({
     timeFilter: true,
     examFilter: true,
-    classFilter: true, // 新增：班级筛选
-    examTitleFilter: false, // 新增：具体考试筛选
+    gradeLevelFilter: true, // 年级筛选
+    classFilter: false, // 班级筛选（精确）
+    examTitleFilter: false, // 具体考试筛选
     statusFilter: false,
     advanced: false,
   });
@@ -140,12 +142,21 @@ const WarningFilters: React.FC<WarningFiltersProps> = ({
     updateFilter("warningStatus", newStatuses);
   };
 
-  // 切换班级
+  // 切换年级（选年级时清空精确班级选择）
+  const toggleGradeLevel = (grade: string) => {
+    const current = filter.gradeLevel ?? [];
+    const newGrades = current.includes(grade)
+      ? current.filter((g) => g !== grade)
+      : [...current, grade];
+    onFilterChange({ ...filter, gradeLevel: newGrades, classNames: [] });
+  };
+
+  // 切换班级（选精确班级时清空年级筛选）
   const toggleClassName = (className: string) => {
     const newClasses = filter.classNames.includes(className)
       ? filter.classNames.filter((c) => c !== className)
       : [...filter.classNames, className];
-    updateFilter("classNames", newClasses);
+    onFilterChange({ ...filter, classNames: newClasses, gradeLevel: [] });
   };
 
   // 切换具体考试
@@ -382,6 +393,58 @@ const WarningFilters: React.FC<WarningFiltersProps> = ({
                   </p>
                 </div>
               </div>
+            </div>
+          )}
+        </div>
+
+        {/* 年级筛选 */}
+        <div className="border-b border-gray-200">
+          <ExpandButton section="gradeLevelFilter" title="年级筛选" />
+          {expandedSections.gradeLevelFilter && (
+            <div className="p-4 bg-gray-50/50 space-y-3">
+              <Label className="text-sm font-bold text-[#191A23] flex items-center gap-2">
+                <Target className="h-4 w-4" />
+                年级
+                {(filter.gradeLevel ?? []).length > 0 && (
+                  <Badge className="bg-[#B9FF66] text-[#191A23] border border-black text-xs">
+                    已选 {(filter.gradeLevel ?? []).length} 个
+                  </Badge>
+                )}
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                {["高一", "高二", "高三", "初一", "初二", "初三"].map(
+                  (grade) => (
+                    <Button
+                      key={grade}
+                      size="sm"
+                      variant={
+                        (filter.gradeLevel ?? []).includes(grade)
+                          ? "default"
+                          : "outline"
+                      }
+                      onClick={() => toggleGradeLevel(grade)}
+                      className={cn(
+                        "border-2 border-black font-bold shadow-[2px_2px_0px_0px_#191A23]",
+                        (filter.gradeLevel ?? []).includes(grade)
+                          ? "bg-[#B9FF66] text-[#191A23] hover:bg-[#A8E055]"
+                          : "bg-white text-[#191A23] hover:bg-gray-50"
+                      )}
+                    >
+                      {grade}
+                    </Button>
+                  )
+                )}
+              </div>
+              {(filter.gradeLevel ?? []).length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => updateFilter("gradeLevel", [])}
+                  className="text-xs border-gray-300"
+                >
+                  清空年级
+                </Button>
+              )}
             </div>
           )}
         </div>

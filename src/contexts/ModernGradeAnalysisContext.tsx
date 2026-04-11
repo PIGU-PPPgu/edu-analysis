@@ -21,20 +21,12 @@ const isDev = import.meta.env?.DEV ?? false;
 function convertWideToLongFormat(wideData: any[]): any[] {
   const longData: any[] = [];
 
-  if (isDev) {
-    console.log(`🔄 开始转换 ${wideData.length} 条宽格式数据为长格式...`);
-  }
-
   // 🔍 专门检查总分数据情况
   let totalScoreCount = 0;
   let missingTotalScore = 0;
   let calculatedTotalCount = 0;
 
   wideData.forEach((student, index) => {
-    if (isDev && index === 0) {
-      console.log("🔍 第一条学生数据:", student);
-    }
-
     // 📊 计算动态总分（如果总分缺失）
     let effectiveTotalScore = student.total_score;
     let isCalculated = false;
@@ -60,12 +52,6 @@ function convertWideToLongFormat(wideData: any[]): any[] {
         );
         isCalculated = true;
         calculatedTotalCount++;
-
-        if (isDev && calculatedTotalCount <= 3) {
-          console.log(
-            `🧮 为学生 ${student.name} 计算总分: ${effectiveTotalScore} (基于 ${subjectScores.length} 科成绩)`
-          );
-        }
       }
       missingTotalScore++;
     } else {
@@ -159,10 +145,6 @@ function convertWideToLongFormat(wideData: any[]): any[] {
         };
 
         // 🔍 调试：第一条记录的详细信息
-        if (isDev && index === 0 && longData.length < 3) {
-          console.log(`📊 科目 ${subject.name} 转换结果:`, recordToAdd);
-        }
-
         longData.push(recordToAdd);
       }
     });
@@ -201,12 +183,6 @@ function convertWideToLongFormat(wideData: any[]): any[] {
     }
   });
 
-  if (isDev) {
-    console.log(
-      `📊 总分数据统计: 原有总分=${totalScoreCount}, 缺失总分=${missingTotalScore}, 计算总分=${calculatedTotalCount}`
-    );
-    console.log(`✅ 转换完成，生成 ${longData.length} 条长格式记录`);
-  }
   return longData;
 }
 import type { GradeFilterConfig } from "@/components/analysis/filters/ModernGradeFilters";
@@ -414,16 +390,9 @@ export const ModernGradeAnalysisProvider: React.FC<
   const [wideGradeData, setWideGradeData] = useState<any[]>([]);
   const [examList, setExamList] = useState<ExamInfo[]>([]);
   const [filter, setFilter] = useState<GradeFilterConfig>(() => {
-    if (isDev) {
-      console.log("🔧 初始化ModernGradeAnalysisContext筛选器:", initialFilter);
-    }
     const result = initialFilter || {};
     if (isDev) {
-      console.log("🔧 最终筛选器状态:", result);
-      console.log("🔧 筛选器键值对:");
-      Object.keys(result).forEach((key) => {
-        console.log(`  ${key}:`, result[key as keyof GradeFilterConfig]);
-      });
+      Object.keys(result).forEach((key) => {});
     }
     return result;
   });
@@ -436,10 +405,6 @@ export const ModernGradeAnalysisProvider: React.FC<
     setError(null);
 
     try {
-      if (isDev) {
-        console.log(`🔧 开始加载成绩数据（限制${limit}条）...`);
-      }
-
       // 并行加载考试信息和成绩数据
       const [examResponse, gradeResponse] = await Promise.all([
         supabase
@@ -469,15 +434,7 @@ export const ModernGradeAnalysisProvider: React.FC<
       const mergedExams = mergeExamLists(exams, derivedExams);
 
       if (isDev) {
-        console.log(
-          `✅ 加载成功: ${exams.length} 个考试, ${grades.length} 条成绩记录`
-        );
-
         // 🔍 调试：查看原始数据样本
-        if (grades.length > 0) {
-          console.log("📋 原始数据样本:", grades[0]);
-          console.log("📋 原始数据字段:", Object.keys(grades[0]));
-        }
       }
 
       setExamList(mergedExams);
@@ -488,13 +445,9 @@ export const ModernGradeAnalysisProvider: React.FC<
       // 转换wide table为long table格式，保持向后兼容
       const longFormatGrades = convertWideToLongFormat(grades);
       if (isDev) {
-        console.log(`🔄 转换后的长格式数据: ${longFormatGrades.length} 条记录`);
-
         // 🔍 调试：查看转换后数据样本
         if (longFormatGrades.length > 0) {
-          console.log("📋 转换后数据样本:", longFormatGrades[0]);
           const subjects = [...new Set(longFormatGrades.map((r) => r.subject))];
-          console.log("📚 转换后科目列表:", subjects);
         }
       }
 
@@ -527,10 +480,6 @@ export const ModernGradeAnalysisProvider: React.FC<
           subjectCounts["总分"] = (subjectCounts["总分"] || 0) + 1;
       });
 
-      if (isDev) {
-        console.log("📊 科目分布:", subjectCounts);
-      }
-
       // 检查是否有等级数据 - Wide table中检查各科目等级
       let gradesWithLevels = 0;
       grades.forEach((student) => {
@@ -547,11 +496,6 @@ export const ModernGradeAnalysisProvider: React.FC<
           gradesWithLevels++;
         }
       });
-      if (isDev) {
-        console.log(
-          `📈 等级数据: ${gradesWithLevels}/${grades.length} 条记录包含等级`
-        );
-      }
     } catch (err) {
       console.error("❌ 加载数据失败:", err);
       const errorMessage = err instanceof Error ? err.message : "加载数据失败";
@@ -592,12 +536,6 @@ export const ModernGradeAnalysisProvider: React.FC<
       if (derivedExams.length > 0) {
         setExamList((prev) => mergeExamLists(prev, derivedExams));
       }
-
-      if (isDev) {
-        console.log(
-          `✅ 加载考试 ${examId} 的数据: ${grades.length || 0} 条记录`
-        );
-      }
     } catch (err) {
       console.error("❌ 加载考试数据失败:", err);
       const errorMessage =
@@ -626,11 +564,6 @@ export const ModernGradeAnalysisProvider: React.FC<
 
   // 🚀 应用筛选逻辑（性能优化版）
   const filteredGradeData = useMemo(() => {
-    if (isDev) {
-      console.log(`🔍 开始过滤数据，原始数据: ${allGradeData.length} 条`);
-      console.log("🔍 当前过滤器:", filter);
-    }
-
     // 🆕 大数据量时的性能提醒
     if (allGradeData.length > 10000 && isDev) {
       console.warn(
@@ -641,14 +574,6 @@ export const ModernGradeAnalysisProvider: React.FC<
 
     // 考试筛选 - 支持按ID或标题筛选
     if (filter.examIds?.length || filter.examTitles?.length) {
-      if (isDev) {
-        console.log(
-          "🔍 应用考试筛选 - examIds:",
-          filter.examIds,
-          "examTitles:",
-          filter.examTitles
-        );
-      }
       const beforeFilter = filtered.length;
 
       // 收集所有需要匹配的考试标题
@@ -670,10 +595,6 @@ export const ModernGradeAnalysisProvider: React.FC<
       // 去重
       examTitles = [...new Set(examTitles)];
 
-      if (isDev) {
-        console.log("🔍 所有筛选标题:", examTitles);
-      }
-
       filtered = filtered.filter((record) => {
         // 按exam_id匹配
         const matchById =
@@ -687,22 +608,8 @@ export const ModernGradeAnalysisProvider: React.FC<
 
         const match = matchById || matchByTitle;
 
-        if (isDev && !match && beforeFilter <= 10) {
-          console.log(
-            `❌ 记录不匹配: exam_id=${record.exam_id}, exam_title="${record.exam_title}"`
-          );
-          console.log(
-            `   期望的IDs: [${filter.examIds || []}], 期望的标题: [${examTitles}]`
-          );
-        }
-
         return match;
       });
-      if (isDev) {
-        console.log(
-          `📊 考试筛选结果: ${beforeFilter} → ${filtered.length} 条记录`
-        );
-      }
     }
 
     // 科目筛选
@@ -781,9 +688,6 @@ export const ModernGradeAnalysisProvider: React.FC<
       );
     }
 
-    if (isDev) {
-      console.log(`✅ 过滤完成，结果: ${filtered.length} 条数据`);
-    }
     return filtered;
   }, [allGradeData, filter]);
 
@@ -828,15 +732,7 @@ export const ModernGradeAnalysisProvider: React.FC<
 
   // 🔧 修正统计信息计算 - 彻底分离总分与单科统计逻辑
   const statistics = useMemo((): GradeStatistics | null => {
-    if (isDev) {
-      console.log("📊 开始计算统计信息...");
-      console.log("📊 filteredGradeData长度:", filteredGradeData.length);
-    }
-
     if (filteredGradeData.length === 0) {
-      if (isDev) {
-        console.log("❌ 没有过滤后的数据，返回null");
-      }
       return null;
     }
 
@@ -846,38 +742,21 @@ export const ModernGradeAnalysisProvider: React.FC<
     );
     const totalStudents = uniqueStudents.size;
 
-    if (isDev) {
-      console.log("🔧 开始分离统计计算...");
-    }
-
     // 🎯 计算总分统计 - 仅使用总分数据
     const calculateTotalScoreStats = () => {
-      if (isDev) {
-        console.log("🎯 开始计算总分统计...");
-      }
-
       const totalScoreRecords = filteredGradeData.filter(
         (record) =>
           record.subject === "总分" && record.score && record.score > 0
       );
 
       if (isDev) {
-        console.log("📊 总分记录数:", totalScoreRecords.length);
-        if (totalScoreRecords.length > 0) {
-          console.log("📊 总分样本:", totalScoreRecords[0]);
-        }
-
         // 调试：查看所有科目分布
         const allSubjects = [
           ...new Set(filteredGradeData.map((r) => r.subject)),
         ];
-        console.log("📚 当前所有科目:", allSubjects);
       }
 
       if (totalScoreRecords.length === 0) {
-        if (isDev) {
-          console.log("❌ 没有找到总分记录");
-        }
         return {
           avgScore: 0,
           maxScore: 0,
@@ -907,12 +786,6 @@ export const ModernGradeAnalysisProvider: React.FC<
 
       const passRate = (passingScores.length / totalScores.length) * 100;
       const excellentRate = (excellentScores.length / totalScores.length) * 100;
-
-      if (isDev) {
-        console.log(
-          `📊 总分统计: 平均分=${avgScore.toFixed(1)}, 样本数=${totalScores.length}`
-        );
-      }
 
       return {
         avgScore,
@@ -963,12 +836,6 @@ export const ModernGradeAnalysisProvider: React.FC<
       const passRate = (passingScores.length / subjectScores.length) * 100;
       const excellentRate =
         (excellentScores.length / subjectScores.length) * 100;
-
-      if (isDev) {
-        console.log(
-          `📚 单科统计: 平均分=${avgScore.toFixed(1)}, 样本数=${subjectScores.length}`
-        );
-      }
 
       return {
         avgScore,
@@ -1025,12 +892,6 @@ export const ModernGradeAnalysisProvider: React.FC<
               subjectRecords.length) *
             100
           : 0;
-
-      if (isDev) {
-        console.log(
-          `📈 科目${subject}: 平均分=${subjectAvg.toFixed(1)}, 样本=${subjectScores.length}, 类型=${isTotal ? "总分" : "单科"}`
-        );
-      }
 
       return {
         subject,
@@ -1096,12 +957,6 @@ export const ModernGradeAnalysisProvider: React.FC<
               subjectRecords.length) *
             100
           : 0;
-
-      if (isDev) {
-        console.log(
-          `🏫 班级${className}: 总分平均=${totalScoreAvg.toFixed(1)}, 单科平均=${subjectScoreAvg.toFixed(1)}`
-        );
-      }
 
       return {
         className,
@@ -1223,15 +1078,6 @@ export const ModernGradeAnalysisProvider: React.FC<
           )
         : { subject: "暂无", avgScore: 0 };
 
-    if (isDev) {
-      console.log("🎯 统计分离完成:", {
-        totalScoreStats,
-        subjectScoreStats,
-        topSubject: topSubjectData.subject,
-        atRiskStudents,
-      });
-    }
-
     return {
       totalStudents,
       totalRecords,
@@ -1298,31 +1144,14 @@ export const ModernGradeAnalysisProvider: React.FC<
   // 调试：监控数据和筛选器的变化
   useEffect(() => {
     if (isDev) {
-      console.log("🔍 数据加载状态变化:");
-      console.log("  - allGradeData数量:", allGradeData.length);
-      console.log("  - examList数量:", examList.length);
-      console.log("  - 当前筛选器:", filter);
-
       if (allGradeData.length > 0 && examList.length > 0) {
-        console.log("📊 数据已加载完成，检查筛选效果...");
-
         // 显示前几条数据作为样本
         if (allGradeData.length > 0) {
-          console.log("📋 前3条成绩数据样本:");
-          allGradeData.slice(0, 3).forEach((record, index) => {
-            console.log(
-              `  ${index + 1}. exam_id: ${record.exam_id}, exam_title: "${record.exam_title}", student: ${record.name}`
-            );
-          });
+          allGradeData.slice(0, 3).forEach((record, index) => {});
         }
 
         if (examList.length > 0) {
-          console.log("📋 前3条考试数据样本:");
-          examList.slice(0, 3).forEach((exam, index) => {
-            console.log(
-              `  ${index + 1}. id: ${exam.id}, title: "${exam.title}"`
-            );
-          });
+          examList.slice(0, 3).forEach((exam, index) => {});
         }
       }
     }

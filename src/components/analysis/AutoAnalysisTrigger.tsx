@@ -143,14 +143,6 @@ const AutoAnalysisTrigger: React.FC<AutoAnalysisTriggerProps> = ({
       setAnalysisStatus("triggering");
       setProgress(10);
 
-      console.log("🚀 触发成绩分析:", {
-        examTitle,
-        className,
-        studentCount,
-        isAutoTrigger,
-        enableWechatPush,
-      });
-
       // 获取成绩数据
       const gradeData = await fetchGradeData(examTitle, className);
       setProgress(30);
@@ -219,7 +211,6 @@ const AutoAnalysisTrigger: React.FC<AutoAnalysisTriggerProps> = ({
   // 组件加载时自动触发
   useEffect(() => {
     if (autoTrigger && examTitle && studentCount > 0) {
-      console.log("🎯 自动触发分析条件满足");
       // 延迟2秒自动触发，给用户时间看到导入成功
       setTimeout(() => {
         triggerAnalysis(true);

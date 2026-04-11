@@ -62,7 +62,10 @@ const ExamSettingsTab: React.FC<ExamSettingsTabProps> = ({
               >
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-xl">{type.emoji}</span>
+                    <span
+                      className="inline-block w-3 h-3 rounded-sm"
+                      style={{ background: type.color }}
+                    />
                     <span className="font-medium">{type.name}</span>
                   </div>
                   <div className="flex gap-1">

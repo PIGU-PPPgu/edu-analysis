@@ -64,8 +64,9 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
       {} as Record<string, number[]>
     );
 
-    // 计算每个日期的平均分
+    // 计算每个日期的平均分，先按原始日期排序再格式化
     return Object.entries(dateGroups)
+      .sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime())
       .map(([date, scores]) => ({
         date: new Date(date).toLocaleDateString("zh-CN", {
           month: "short",
@@ -76,7 +77,6 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
         ),
         count: scores.length,
       }))
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .slice(-10); // 最近10个数据点
   }, [data]);
 

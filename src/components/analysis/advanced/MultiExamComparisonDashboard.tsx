@@ -107,7 +107,6 @@ const MultiExamComparisonDashboard: React.FC<
       try {
         const exams = await examComparisonService.getAvailableExams();
         setAvailableExams(exams);
-        console.log("✅ [MultiExamComparison] 加载考试列表:", exams.length);
       } catch (error) {
         console.error("❌ [MultiExamComparison] 加载考试列表失败:", error);
         toast.error("加载考试列表失败");
@@ -126,7 +125,6 @@ const MultiExamComparisonDashboard: React.FC<
 
     setLoading(true);
     try {
-      console.log("🔄 [MultiExamComparison] 开始对比分析:", selectedExams);
       const results = await examComparisonService.compareExams(selectedExams);
       setComparisonResults(results);
 

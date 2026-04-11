@@ -208,7 +208,7 @@ export function AbsentConfirmationDialog({
             请确认哪些是缺考，哪些是真实成绩。
             <br />
             <span className="text-orange-600 text-sm">
-              ⚠️ 标记为缺考的学生将不会参与增值计算
+              标记为缺考的学生将不会参与增值计算
             </span>
           </DialogDescription>
         </DialogHeader>
@@ -325,7 +325,7 @@ export function AbsentConfirmationDialog({
           {/* 说明 */}
           <div className="text-xs text-gray-500 space-y-1 p-3 bg-gray-50 rounded">
             <div>
-              💡 <strong>使用说明</strong>：
+              <strong>使用说明</strong>：
             </div>
             <ul className="list-disc list-inside ml-2 space-y-1">
               <li>

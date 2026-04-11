@@ -425,6 +425,10 @@ export async function getStudentValueAddedDetails(
   const allEntryZScores = calculateZScores(allEntryScores);
   const allExitZScores = calculateZScores(allExitScores);
 
+  // 与班级汇总保持一致：用 OLS beta 做均值回归修正
+  const rawBeta = calculateOLSBeta(allEntryZScores, allExitZScores);
+  const regressionBeta = Math.max(rawBeta, 0.8);
+
   // 2. 计算每个学生的增值数据
   const results: StudentValueAdded[] = studentGrades.map((student, index) => {
     const entryScore = student.entry_score;
@@ -435,7 +439,8 @@ export async function getStudentValueAddedDetails(
     const scoreValueAdded = exitScore - entryScore;
     const scoreValueAddedRate = calculateScoreValueAddedRate(
       entryZScore,
-      exitZScore
+      exitZScore,
+      regressionBeta
     );
 
     // 计算等级（九段用Z分，六段用百分位）

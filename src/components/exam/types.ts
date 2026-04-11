@@ -27,7 +27,6 @@ export interface ExamType {
   name: string;
   description: string;
   color: string;
-  emoji: string;
   isDefault: boolean;
 }
 
@@ -117,13 +116,13 @@ export const SUBJECT_OPTIONS = [
 export const CLASS_OPTIONS = [] as const;
 
 // 考试类型映射
-export const EXAM_TYPE_MAP: Record<string, { color: string; emoji: string }> = {
-  期中考试: { color: "#3B82F6", emoji: "📝" },
-  期末考试: { color: "#EF4444", emoji: "🎯" },
-  月考: { color: "#10B981", emoji: "📊" },
-  小测: { color: "#F59E0B", emoji: "📋" },
-  模拟考试: { color: "#8B5CF6", emoji: "🎪" },
-  随堂测验: { color: "#06B6D4", emoji: "⚡" },
+export const EXAM_TYPE_MAP: Record<string, { color: string }> = {
+  期中考试: { color: "#3B82F6" },
+  期末考试: { color: "#EF4444" },
+  月考: { color: "#10B981" },
+  小测: { color: "#F59E0B" },
+  模拟考试: { color: "#8B5CF6" },
+  随堂测验: { color: "#06B6D4" },
 };
 
 // 状态颜色映射

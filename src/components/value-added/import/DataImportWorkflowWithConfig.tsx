@@ -390,15 +390,25 @@ export function DataImportWorkflowWithConfig() {
         const firstClassName = grades[0].class_name;
         if (!firstClassName) return "未知年级";
 
-        // 提取班级名前缀（例如："初一1班" -> "初一"，"高二3班" -> "高二"）
-        const match = firstClassName.match(/^(初|高)(一|二|三)/);
+        // 支持多种格式：初一/高二（汉字）、初1/高2（数字）、Grade 10 等
+        const match =
+          firstClassName.match(/^(初|高)(一|二|三|[1-3])/) ||
+          firstClassName.match(/^(Grade\s*\d+)/i) ||
+          firstClassName.match(/^(\d+年级)/);
         return match ? match[0] : "未知年级";
       };
 
       const gradeLevel = detectGradeLevel(
         entryGrades.length > 0 ? entryGrades : exitGrades
       );
-      console.log(`✅ 自动检测年级: ${gradeLevel}`);
+
+      // 根据当前月份自动推断学年和学期
+      const now = new Date();
+      const month = now.getMonth() + 1; // 1-12
+      const year = now.getFullYear();
+      const academicYear =
+        month >= 9 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
+      const semester = month >= 9 || month <= 1 ? "第一学期" : "第二学期";
 
       // ✅ 使用文件名作为考试标题（去除.xlsx后缀）
       const entryExamTitle = entryGradesFile
@@ -416,8 +426,8 @@ export function DataImportWorkflowWithConfig() {
         exam_type: "摸底考试",
         exam_date: new Date().toISOString().split("T")[0],
         grade_level: gradeLevel, // ✅ 自动检测的年级
-        academic_year: "2024-2025",
-        semester: "第一学期",
+        academic_year: academicYear,
+        semester: semester,
         original_filename: entryGradesFile?.name, // ✅ 保存原始文件名
       };
 
@@ -448,8 +458,8 @@ export function DataImportWorkflowWithConfig() {
         exam_type: "期末考试",
         exam_date: new Date().toISOString().split("T")[0],
         grade_level: gradeLevel, // ✅ 自动检测的年级
-        academic_year: "2024-2025",
-        semester: "第一学期",
+        academic_year: academicYear,
+        semester: semester,
         original_filename: exitGradesFile?.name, // ✅ 保存原始文件名
       };
 
@@ -760,7 +770,7 @@ export function DataImportWorkflowWithConfig() {
                         : "text-red-600"
                     }
                   >
-                    {result.status === "passed" ? "✅ 通过" : "❌ 失败"}
+                    {result.status === "passed" ? "通过" : "失败"}
                   </div>
                   {result.errors && result.errors.length > 0 && (
                     <ul className="mt-2 text-sm text-red-600">

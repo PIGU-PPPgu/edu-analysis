@@ -82,8 +82,6 @@ import SimplePostImportReview from "./SimplePostImportReview";
 //  正式化考试重复检查函数 - 解决406错误的最优方案
 const checkExamDuplicateOptimized = async (examInfo: ExamInfo) => {
   try {
-    console.log("[检查重复] 开始优化考试查询:", examInfo.title);
-
     // 使用分阶段查询策略，避免复杂查询导致的406错误
     const { data, error } = await supabase
       .from("exams")
@@ -113,7 +111,6 @@ const checkExamDuplicateOptimized = async (examInfo: ExamInfo) => {
       return { data: null, error };
     }
 
-    console.log("[检查重复] 查询成功:", data?.length || 0, "条记录");
     return { data, error: null };
   } catch (err) {
     console.error("[检查重复] 异常:", err);
@@ -127,8 +124,6 @@ const checkGradeDataDuplicateOptimized = async (
   studentId: string
 ) => {
   try {
-    console.log("[成绩检查] 开始查询重复成绩:", { examId, studentId });
-
     // 优化查询策略：只选择必要字段，提高查询性能
     const { data, error } = await supabase
       .from("grade_data")
@@ -150,7 +145,6 @@ const checkGradeDataDuplicateOptimized = async (
       return { data: null, error };
     }
 
-    console.log("[成绩检查] 查询成功:", data?.length || 0, "条重复记录");
     return { data, error: null };
   } catch (err) {
     console.error("[成绩检查] 异常:", err);
@@ -160,9 +154,6 @@ const checkGradeDataDuplicateOptimized = async (
 
 const insertGradeDataSafe = async (gradeRecord: any) => {
   try {
-    console.log("安全插入成绩数据，学生:", gradeRecord.student_id);
-    console.log("输入数据字段:", Object.keys(gradeRecord));
-
     // 数据类型转换和清洗
     const cleanScore = (value: any): number | null => {
       if (value === null || value === undefined || value === "") {
@@ -420,8 +411,6 @@ const insertGradeDataSafe = async (gradeRecord: any) => {
         const score = cleanScore(gradeRecord[inputField]);
         if (score !== null) {
           wideRecord[mapping.scoreCol] = score;
-          console.log(`映射 ${inputField} -> ${mapping.scoreCol}: ${score}`);
-
           // 查找对应的等级字段
           const gradeField = gradeRecord[`${inputField}等级`]
             ? `${inputField}等级`
@@ -446,9 +435,6 @@ const insertGradeDataSafe = async (gradeRecord: any) => {
       }
     }
 
-    console.log(`准备插入宽表记录，学生: ${gradeRecord.student_id}`);
-    console.log(`记录字段数量: ${Object.keys(wideRecord).length}`);
-
     // 插入单条宽表记录
     const { data, error } = await supabase
       .from("grade_data")
@@ -464,7 +450,6 @@ const insertGradeDataSafe = async (gradeRecord: any) => {
       return { data: null, error };
     }
 
-    console.log(`成绩宽表插入成功:`, data);
     return { data, error: null };
   } catch (err) {
     console.error("成绩插入异常:", err);
@@ -476,8 +461,6 @@ const insertGradeDataSafe = async (gradeRecord: any) => {
 const createExamOptimized = async (examInfo: ExamInfo) => {
   try {
     const startTime = performance.now();
-    console.log("[考试创建] 开始创建考试:", examInfo.title);
-
     // 数据清洗和验证
     const examRecord = {
       title: examInfo.title.trim(),
@@ -512,9 +495,6 @@ const createExamOptimized = async (examInfo: ExamInfo) => {
     }
 
     const endTime = performance.now();
-    console.log(
-      `[考试创建] 成功: ${data.title}, 耗时: ${Math.round(endTime - startTime)}ms`
-    );
     return { data, error: null };
   } catch (err) {
     console.error("[考试创建] 异常:", err);
@@ -714,8 +694,6 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
     setImportMode(detectedMode);
     const localSkippedRecords: SkippedRecord[] = [];
 
-    console.log(`[导入模式] ${detectedMode.description}`);
-
     // 初始化进度状态
     setImportProgress((prev) => ({
       ...prev,
@@ -833,10 +811,6 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
     setSkippedRecords(localSkippedRecords);
 
     // 生成导入结果消息
-    console.log(
-      `[导入完成] 成功: ${successCount}, 失败: ${failedCount}, 跳过: ${localSkippedRecords.length}`
-    );
-
     return {
       success: true,
       examId,
@@ -886,9 +860,6 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
               data: record,
             });
 
-            console.log(
-              `[跳过记录] 第${processedCount + 1}行: 学号 ${record.student_id} 不存在`
-            );
             processedCount++;
             continue; // 跳过该行
           }
@@ -977,7 +948,6 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
               data: record,
             });
 
-            console.log(`[跳过记录] 学号 ${record.student_id} 不存在`);
             return { success: false, skipped: true }; // 标记为跳过
           }
         } else {
@@ -1071,11 +1041,6 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
       throw new Error("用户未登录，无法创建考试记录");
     }
 
-    console.log(" 使用安全的考试记录创建，用户信息:", {
-      userId: user.id,
-      email: user.email,
-    });
-
     try {
       //  使用优化的考试查询，解决406错误
       const duplicateCheck = await checkExamDuplicateOptimized(tempExamInfo);
@@ -1085,7 +1050,6 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
         // 如果查询失败，继续尝试创建
       } else if (duplicateCheck.data && duplicateCheck.data.length > 0) {
         const existingExam = duplicateCheck.data[0];
-        console.log("找到现有考试记录，重用:", existingExam);
         toast.info(`使用现有考试记录: ${existingExam.title}`);
         return existingExam;
       }
@@ -1104,7 +1068,6 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
         throw new Error(`创建考试记录失败: ${createResult.error.message}`);
       }
 
-      console.log("考试记录创建成功:", createResult.data);
       toast.success("考试记录创建成功");
       return createResult.data;
     } catch (error) {
@@ -1238,25 +1201,12 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
       if (matchResult.exactMatches.length > 0) {
         // 找到三选二精确匹配，使用现有学生
         const match = matchResult.exactMatches[0];
-        console.log(
-          `三选二匹配成功: ${record.name} -> 现有学生 ${match.systemStudent!.name} (${match.matchType})`
-        );
         return match.systemStudent;
       }
 
       // 无法通过三选二匹配，需要手动处理或创建新学生
-      if (matchResult.manualReviewNeeded.length > 0) {
-        console.log(`无法通过三选二匹配: ${record.name}，创建新学生`);
-      }
-
       // 4. 没有匹配到，创建新学生
       if (matchResult.newStudents.length > 0) {
-        console.log("智能匹配未找到匹配学生，创建新学生记录:", {
-          student_id: record.student_id,
-          name: record.name,
-          class_name: record.class_name,
-        });
-
         const { data: newStudent, error: insertError } = await supabase
           .from("students")
           .insert({
@@ -1273,7 +1223,6 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
           throw new Error(`创建学生记录失败: ${insertError.message}`);
         }
 
-        console.log("新学生记录创建成功:", newStudent);
         return newStudent;
       }
     } catch (error) {
@@ -1287,7 +1236,6 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
         .single();
 
       if (existingStudent) {
-        console.log("回退匹配成功:", existingStudent.name);
         return existingStudent;
       }
 
@@ -1328,7 +1276,6 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
 
         // 如果配置为跳过重复数据
         if (importConfig.skipDuplicates) {
-          console.log(`跳过重复数据: 学号${gradeData.student_id}`);
           return;
         }
 
@@ -1344,7 +1291,6 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
             throw new Error(`更新数据失败: ${updateResult.error.message}`);
           }
 
-          console.log(`更新现有数据: 学号${gradeData.student_id}`);
           return;
         }
 
@@ -1367,7 +1313,6 @@ const ImportProcessor: React.FC<ImportProcessorProps> = ({
   // 创建备份
   const createBackup = async () => {
     // 实现数据备份逻辑
-    console.log("创建数据备份...");
   };
 
   // 暂停导入

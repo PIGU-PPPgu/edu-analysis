@@ -463,7 +463,6 @@ class ErrorHandler {
         console.info("[LOW ERROR]", logData);
         break;
       default:
-        console.log("[ERROR]", logData);
     }
 
     // 在生产环境可以发送到错误监控服务

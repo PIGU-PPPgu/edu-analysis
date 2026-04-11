@@ -263,24 +263,13 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
             <img
               src="https://cdn.builder.io/api/v1/image/assets/TEMP/5404ad9ad18a6dff6da5f0646acd0f77aa36f47d?placeholderIfAbsent=true"
               className="h-8 w-auto"
-              alt="Positivus"
+              alt="IntelliClass"
             />
           </Link>
         </div>
 
         {showMainNav && (
           <nav className="hidden md:flex items-center gap-2 text-xs xl:gap-3 xl:text-sm">
-            <Link
-              to="/teacher-dashboard"
-              className={`font-medium transition-colors hover:text-primary ${
-                isActive("/teacher-dashboard")
-                  ? "text-primary"
-                  : "text-muted-foreground"
-              }`}
-            >
-              工作台
-            </Link>
-
             {isAuthReady && user && (
               <>
                 <Link
@@ -312,16 +301,6 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
                   }`}
                 >
                   增值评价
-                </Link>
-                <Link
-                  to="/homework"
-                  className={`font-medium transition-colors hover:text-primary ${
-                    isActive("/homework")
-                      ? "text-primary"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  作业管理
                 </Link>
                 <Link
                   to="/warning-analysis"
@@ -361,10 +340,14 @@ const Navbar: React.FC<NavbarProps> = ({ showMainNav = true, mobileTitle }) => {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="center" className="w-48">
-                    <DropdownMenuItem onClick={() => navigate("/ai-settings")}>
-                      <UserCircle className="mr-2 h-4 w-4" />
-                      AI设置
-                    </DropdownMenuItem>
+                    {getEffectiveRole() === "admin" && (
+                      <DropdownMenuItem
+                        onClick={() => navigate("/ai-settings")}
+                      >
+                        <UserCircle className="mr-2 h-4 w-4" />
+                        AI设置
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem
                       onClick={() => navigate("/performance-monitoring")}
                     >

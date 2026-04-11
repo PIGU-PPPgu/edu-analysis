@@ -387,11 +387,12 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
       // 并行查询基础统计数据
       const [studentsResult, warningsResult] = await Promise.allSettled([
         supabase.from("students").select("student_id", { count: "exact" }),
-        supabase.from("warning_records").select("student_id, status"),
+        supabase.from("warning_records").select("student_id, status, details"),
       ]);
 
       let totalStudents = 0;
       let atRiskStudents = 0;
+      let highRiskStudents = 0;
       let activeWarnings = 0;
 
       // 处理学生总数
@@ -403,7 +404,7 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
         console.log("✅ 学生总数查询成功:", totalStudents);
       } else {
         console.warn("⚠️ 学生总数查询失败，使用默认值");
-        totalStudents = 10; // 测试数据中的学生数量
+        totalStudents = 0;
       }
 
       // 处理预警数据
@@ -419,7 +420,18 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
         activeWarnings = warningData.filter(
           (w) => w.status === "active"
         ).length;
-        console.log("✅ 预警数据查询成功:", { atRiskStudents, activeWarnings });
+        // 从 details.severity 字段统计高风险学生数（去重）
+        const highRiskIds = new Set(
+          warningData
+            .filter((w) => w.details?.severity === "high")
+            .map((w) => w.student_id)
+        );
+        highRiskStudents = highRiskIds.size;
+        console.log("✅ 预警数据查询成功:", {
+          atRiskStudents,
+          activeWarnings,
+          highRiskStudents,
+        });
       } else {
         console.warn("⚠️ 预警数据查询失败，使用计算值");
         atRiskStudents = Math.min(
@@ -432,7 +444,7 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
       const newCardStats = {
         totalStudents,
         atRiskStudents,
-        highRiskStudents: Math.floor(atRiskStudents * 0.4), // 高风险是风险学生的40%
+        highRiskStudents,
         activeWarnings,
       };
 
@@ -444,12 +456,12 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
         `数据加载失败: ${error instanceof Error ? error.message : "未知错误"}`
       );
 
-      // 设置基本的测试数据
+      // 设置空数据，避免显示假数据
       setCardStats({
-        totalStudents: 10,
-        atRiskStudents: 6,
-        highRiskStudents: 2,
-        activeWarnings: 4,
+        totalStudents: 0,
+        atRiskStudents: 0,
+        highRiskStudents: 0,
+        activeWarnings: 0,
       });
     } finally {
       setIsLoadingCards(false);
@@ -576,7 +588,7 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
       }, 800);
 
       // 立即显示开始分析提示
-      toast.info("🤖 正在启动AI预警分析...", {
+      toast.info("正在启动AI预警分析...", {
         description: "正在分析预警数据，请稍候...",
         duration: 3000,
       });
@@ -645,7 +657,7 @@ const WarningDashboard: React.FC<WarningDashboardProps> = ({
       console.log("📊 数据详细内容:", JSON.stringify(aiInputData, null, 2));
 
       // 向用户展示我们正在分析的数据
-      toast.info("📋 数据分析中", {
+      toast.info("数据分析中", {
         description: `正在分析 ${aiInputData.totalActiveWarnings} 个预警，涉及 ${aiInputData.highRiskStudents} 名高风险学生`,
         duration: 2000,
       });
@@ -772,7 +784,7 @@ ${analysisData.priorityStudents
           setAnalysisProgress(100);
           setAiInsights(aiContent);
 
-          toast.success("🎉 AI分析完成!", {
+          toast.success("AI分析完成!", {
             description: `基于${analysisData.priorityStudents.length}名学生数据生成专业教育建议`,
             duration: 6000,
           });
@@ -876,14 +888,14 @@ ${analysisData.priorityStudents
 
       // 生成分析报告
       const analysisContent = `
-## 📊 预警分析报告
+## 预警分析报告
 
-### 🚨 风险学生概况
+### 风险学生概况
 - **高风险学生**: ${highRiskStudents.length}名（${((highRiskStudents.length / Math.max(priorityStudents.length, 1)) * 100).toFixed(1)}%）
 - **中等风险学生**: ${mediumRiskStudents.length}名（${((mediumRiskStudents.length / Math.max(priorityStudents.length, 1)) * 100).toFixed(1)}%）
 - **低风险学生**: ${lowRiskStudents.length}名（${((lowRiskStudents.length / Math.max(priorityStudents.length, 1)) * 100).toFixed(1)}%）
 
-### 👥 高风险学生详情
+### 高风险学生详情
 ${
   highRiskStudents.length > 0
     ? highRiskStudents
@@ -900,7 +912,7 @@ ${
     : "暂无高风险学生"
 }
 
-### 📚 重点关注班级
+### 重点关注班级
 ${
   riskClassesData.length > 0
     ? riskClassesData
@@ -912,7 +924,7 @@ ${
     : "各班级情况相对均衡"
 }
 
-### 🎯 主要预警原因分析
+### 主要预警原因分析
 ${
   topReasons.length > 0
     ? topReasons
@@ -924,7 +936,7 @@ ${
     : "预警原因正在分析中"
 }
 
-### 🔧 干预建议
+### 干预建议
 
 #### 紧急行动（72小时内）
 ${
@@ -949,7 +961,7 @@ ${
 - 优化教学方法，提升课堂参与度
 - 定期评估干预效果，调整策略
 
-### 📈 数据说明
+### 数据说明
 本分析基于${priorityStudents.length}名学生的真实预警数据生成，包括成绩记录、学习表现和历史趋势。建议每周更新分析结果。
 
 ---

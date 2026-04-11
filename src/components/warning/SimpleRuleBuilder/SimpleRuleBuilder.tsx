@@ -222,7 +222,7 @@ const SimpleRuleBuilder: React.FC<SimpleRuleBuilderProps> = ({
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
             <div className="p-1 bg-blue-100 rounded-full mt-0.5">
-              <span className="text-sm">💡</span>
+              <div className="w-4 h-4 rounded-full bg-blue-400" />
             </div>
             <div>
               <h4 className="font-medium text-blue-800 mb-1">使用提示</h4>

@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -119,6 +120,7 @@ const ExamListTab: React.FC<ExamListTabProps> = ({
   onOpenCreate,
   onReload,
 }) => {
+  const navigate = useNavigate();
   // 局部 state：搜索 / 筛选 / 分页
   const [searchTerm, setSearchTerm] = useState("");
   const [searchDebounce, setSearchDebounce] = useState("");
@@ -223,6 +225,7 @@ const ExamListTab: React.FC<ExamListTabProps> = ({
                   <SelectItem value="scheduled">已安排</SelectItem>
                   <SelectItem value="ongoing">进行中</SelectItem>
                   <SelectItem value="completed">已完成</SelectItem>
+                  <SelectItem value="cancelled">已取消</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={typeFilter} onValueChange={setTypeFilter}>
@@ -233,7 +236,13 @@ const ExamListTab: React.FC<ExamListTabProps> = ({
                   <SelectItem value="all">全部类型</SelectItem>
                   {examTypes.map((type) => (
                     <SelectItem key={type.id} value={type.name}>
-                      {type.emoji} {type.name}
+                      <span className="inline-flex items-center gap-1.5">
+                        <span
+                          className="inline-block w-2.5 h-2.5 rounded-sm"
+                          style={{ background: type.color }}
+                        />
+                        {type.name}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -278,13 +287,22 @@ const ExamListTab: React.FC<ExamListTabProps> = ({
                 {!searchTerm &&
                   statusFilter === "all" &&
                   typeFilter === "all" && (
-                    <Button
-                      onClick={onOpenCreate}
-                      className="bg-[#B9FF66] text-black hover:bg-[#A3E85A]"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      创建第一个考试
-                    </Button>
+                    <div className="flex gap-3 justify-center">
+                      <Button
+                        onClick={onOpenCreate}
+                        className="bg-[#B9FF66] text-black hover:bg-[#A3E85A]"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        创建第一个考试
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => navigate("/")}
+                        className="border-2 border-black"
+                      >
+                        导入成绩数据
+                      </Button>
+                    </div>
                   )}
               </CardContent>
             </Card>
@@ -319,10 +337,6 @@ const ExamListTab: React.FC<ExamListTabProps> = ({
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-3">
-                            <div className="text-2xl">
-                              {examTypes.find((t) => t.name === exam.type)
-                                ?.emoji ?? "📝"}
-                            </div>
                             <div>
                               <h3 className="text-xl font-semibold text-gray-800 group-hover:text-[#B9FF66] transition-colors duration-200">
                                 {exam.title}

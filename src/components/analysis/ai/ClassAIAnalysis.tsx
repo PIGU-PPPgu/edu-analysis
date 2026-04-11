@@ -345,7 +345,6 @@ const ClassAIAnalysis: React.FC<ClassAIAnalysisProps> = ({
       XLSX.writeFile(wb, fileName);
 
       // 显示成功提示
-      console.log("AI分析报告导出成功:", fileName);
     } catch (error) {
       console.error("导出报告失败:", error);
     }

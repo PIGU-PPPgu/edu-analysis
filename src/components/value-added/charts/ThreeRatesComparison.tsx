@@ -439,7 +439,7 @@ export function ThreeRatesComparison({
         <CardContent className="p-4">
           <div className="text-sm space-y-2">
             <p className="font-semibold text-blue-900 dark:text-blue-100">
-              📊 指标说明
+              指标说明
             </p>
             <ul className="list-disc list-inside space-y-1 text-blue-800 dark:text-blue-200">
               <li>

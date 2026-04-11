@@ -78,7 +78,9 @@ const CustomTooltip = memo(({ active, payload, label }: any) => {
               style={{ color: entry.color }}
             >
               {entry.dataKey === "average" ? "班级平均分" : "年级平均分"}:{" "}
-              <span className="font-black">{entry.value.toFixed(1)}</span>
+              <span className="font-black">
+                {(entry.value ?? 0).toFixed(1)}
+              </span>
             </p>
           ))}
           {payload[0]?.payload?.rank && (

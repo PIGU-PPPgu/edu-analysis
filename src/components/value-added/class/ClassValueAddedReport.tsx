@@ -1206,7 +1206,7 @@ export function ClassValueAddedReport({
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              💡 例如：A+ 表示该学生排名在全年级前5%，属于最优秀的学生群体
+              例如：A+ 表示该学生排名在全年级前5%，属于最优秀的学生群体
             </p>
           </div>
         </div>

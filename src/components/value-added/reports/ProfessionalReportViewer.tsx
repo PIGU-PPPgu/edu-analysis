@@ -365,7 +365,7 @@ export function ProfessionalReportViewer({
         <div className="cover-section min-h-[25cm] flex flex-col items-center justify-center border-b-8 border-[#191A23] pb-16 mb-12 page-break-after">
           {/* Logo */}
           <div className="cover-logo w-40 h-40 mb-12 rounded-[30px] bg-[#191A23] flex items-center justify-center text-[#B9FF66] text-8xl shadow-[8px_8px_0px_0px_#B9FF66] border-2 border-[#191A23]">
-            {organizationLogo || "📊"}
+            {organizationLogo || "A"}
           </div>
 
           {/* 标题 */}
@@ -406,8 +406,8 @@ export function ProfessionalReportViewer({
         {/* 目录 - Positivus风格 */}
         <div className="table-of-contents my-16 bg-[#191A23] p-10 rounded-[30px] border-2 border-[#191A23] shadow-[8px_8px_0px_0px_#B9FF66] page-break-after">
           <h2 className="text-4xl font-black text-[#B9FF66] mb-10 flex items-center uppercase tracking-wide">
-            <span className="w-14 h-14 bg-[#B9FF66] text-[#191A23] rounded-xl flex items-center justify-center mr-4 text-3xl border-2 border-[#B9FF66] shadow-[3px_3px_0px_0px_rgba(185,255,102,0.3)]">
-              📑
+            <span className="w-14 h-14 bg-[#B9FF66] text-[#191A23] rounded-xl flex items-center justify-center mr-4 font-black text-xl border-2 border-[#B9FF66] shadow-[3px_3px_0px_0px_rgba(185,255,102,0.3)]">
+              目
             </span>
             目录
           </h2>
@@ -468,8 +468,8 @@ export function ProfessionalReportViewer({
                     <div className="bg-white border-4 border-[#191A23] rounded-[20px] shadow-[6px_6px_0px_0px_#B9FF66] p-8 hover:translate-x-1 hover:translate-y-1 hover:shadow-[4px_4px_0px_0px_#B9FF66] transition-all duration-200 positivus-card">
                       {/* 标题栏 */}
                       <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-[#191A23] page-break-avoid">
-                        <span className="w-10 h-10 bg-[#B9FF66] text-[#191A23] rounded-lg flex items-center justify-center font-black text-xl border-2 border-[#191A23] shadow-[2px_2px_0px_0px_#191A23]">
-                          📌
+                        <span className="w-10 h-10 bg-[#B9FF66] text-[#191A23] rounded-lg flex items-center justify-center font-black text-sm border-2 border-[#191A23] shadow-[2px_2px_0px_0px_#191A23]">
+                          §
                         </span>
                         <h4 className="text-xl font-black text-[#191A23] uppercase">
                           {block.title}

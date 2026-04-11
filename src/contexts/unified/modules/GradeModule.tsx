@@ -617,10 +617,6 @@ export const GradeModuleProvider: React.FC<{ children: React.ReactNode }> = ({
       const longFormatGrades = convertWideToLongFormat(grades);
       dispatch({ type: "SET_ALL_GRADE_DATA", payload: longFormatGrades });
       dispatch({ type: "SET_LAST_UPDATED", payload: Date.now() });
-
-      console.log(
-        `✅ 加载成功: ${exams.length} 个考试, ${longFormatGrades.length} 条成绩记录`
-      );
     } catch (err) {
       console.error("❌ 加载数据失败:", err);
       const errorMessage = err instanceof Error ? err.message : "加载数据失败";
@@ -655,10 +651,6 @@ export const GradeModuleProvider: React.FC<{ children: React.ReactNode }> = ({
         const longFormatGrades = convertWideToLongFormat(data || []);
         dispatch({ type: "SET_ALL_GRADE_DATA", payload: longFormatGrades });
         dispatch({ type: "SET_LAST_UPDATED", payload: Date.now() });
-
-        console.log(
-          `✅ 加载考试 ${examId} 的数据: ${data?.length || 0} 条记录`
-        );
       } catch (err) {
         console.error("❌ 加载考试数据失败:", err);
         const errorMessage =

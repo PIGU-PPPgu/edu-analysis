@@ -200,8 +200,6 @@ const DataMapper: React.FC<DataMapperProps> = ({
         fileData.aiAnalysis.confidence &&
         fileData.aiAnalysis.confidence > 0.5
       ) {
-        console.log("[DataMapper]  使用AI解析结果进行字段映射");
-
         useAIResults = true;
 
         // 设置AI建议（基于AI解析结果）
@@ -240,8 +238,6 @@ const DataMapper: React.FC<DataMapperProps> = ({
         };
       } else {
         // 降级到传统智能字段映射器分析
-        console.log("[DataMapper] 使用传统字段映射分析");
-
         headerAnalysis = analyzeCSVHeaders(headers);
         mappingSuggestions = generateMappingSuggestions(headers);
 

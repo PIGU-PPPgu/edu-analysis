@@ -249,7 +249,10 @@ export const ExamList: React.FC<ExamListProps> = ({
 
                       <div className="flex items-center space-x-2">
                         {exam.typeInfo && (
-                          <span className="text-lg">{exam.typeInfo.emoji}</span>
+                          <span
+                            className="inline-block w-3 h-3 rounded-sm"
+                            style={{ background: exam.typeInfo.color }}
+                          />
                         )}
                         <h3 className="text-lg font-semibold text-gray-900">
                           {exam.title}

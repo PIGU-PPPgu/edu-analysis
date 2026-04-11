@@ -142,21 +142,12 @@ export class IntelligentFileParser {
     file: File,
     options?: ParseOptions
   ): Promise<ParsedFileResult> {
-    console.log(
-      `[IntelligentFileParser] 开始解析文件: ${file.name} (${file.type})`
-    );
-
     // 默认选项
     const opts: ParseOptions = {
       useAI: options?.useAI ?? false,
       aiMode: options?.aiMode ?? "auto",
       minConfidenceForAI: options?.minConfidenceForAI ?? 0.8,
     };
-
-    console.log(`[IntelligentFileParser] 解析模式:`, {
-      useAI: opts.useAI,
-      aiMode: opts.aiMode,
-    });
 
     const fileType = this.detectFileType(file);
     let rawData: any[] = [];
@@ -166,11 +157,9 @@ export class IntelligentFileParser {
     switch (fileType) {
       case "xlsx":
       case "xls":
-        console.log(`[IntelligentFileParser] 解析Excel文件: ${fileType}`);
         ({ data: rawData, headers } = await this.parseExcelFile(file));
         break;
       case "csv":
-        console.log(`[IntelligentFileParser] 解析CSV文件`);
         ({ data: rawData, headers } = await this.parseCSVFile(file));
         break;
       default:
@@ -179,47 +168,24 @@ export class IntelligentFileParser {
         );
     }
 
-    console.log(
-      `[IntelligentFileParser] 文件解析完成: ${rawData.length}行数据, ${headers.length}个字段`
-    );
-    console.log(`[IntelligentFileParser] 字段列表:`, headers);
-
     // 数据清洗
     const cleanedData = this.cleanData(rawData);
-    console.log(
-      `[IntelligentFileParser] 数据清洗完成: ${cleanedData.length}行有效数据`
-    );
-
     // 结构分析
     const structure = this.analyzeDataStructure(headers, cleanedData);
-    console.log(`[IntelligentFileParser] 数据结构分析: ${structure}`);
-
     // 使用增强的智能字段映射
-    console.log("[IntelligentFileParser] 开始智能字段映射分析...");
     const intelligentAnalysis = analyzeCSVHeaders(headers);
 
     // 🚀 智能分析策略: 算法+AI混合模式
     let finalAnalysis = intelligentAnalysis;
     let parseMethod: "algorithm" | "ai-enhanced" | "hybrid" = "algorithm";
 
-    console.log("[IntelligentFileParser] 算法分析结果:", {
-      confidence: intelligentAnalysis.confidence,
-      mappedFields: intelligentAnalysis.mappings.length,
-      subjects: intelligentAnalysis.subjects,
-    });
-
     // 决定是否使用AI辅助
     const shouldUseAI = this.shouldUseAI(opts, intelligentAnalysis.confidence);
 
     if (shouldUseAI) {
-      console.log(
-        `[IntelligentFileParser] 🤖 启用AI辅助解析 (模式: ${opts.aiMode})`
-      );
-
       try {
         // 模式1: 强制使用完整的AI增强解析
         if (opts.aiMode === "force") {
-          console.log("[IntelligentFileParser] 🧠 使用完整AI增强解析引擎...");
           const aiResult = await aiEnhancedFileParser.oneClickParse(file);
 
           // 使用AI结果,但保留我们的数据清洗和结构分析
@@ -232,14 +198,9 @@ export class IntelligentFileParser {
             studentFields: intelligentAnalysis.studentFields,
           };
           parseMethod = "ai-enhanced";
-          console.log(
-            "[IntelligentFileParser] ✅ AI增强解析完成, 置信度:",
-            aiResult.metadata.confidence
-          );
         }
         // 模式2: 自动模式 - AI辅助算法无法识别的字段
         else {
-          console.log("[IntelligentFileParser] 🤝 使用混合协同模式...");
           const aiAnalysis = await this.performAIAnalysis(
             headers,
             cleanedData.slice(0, 3)
@@ -266,11 +227,6 @@ export class IntelligentFileParser {
               studentFields: intelligentAnalysis.studentFields,
             };
             parseMethod = "hybrid";
-            console.log("[IntelligentFileParser] ✅ AI辅助增强了算法分析结果");
-          } else {
-            console.log(
-              "[IntelligentFileParser] ⚠️ AI辅助效果不佳，保持算法分析结果"
-            );
           }
         }
       } catch (error) {
@@ -281,19 +237,7 @@ export class IntelligentFileParser {
         // 优雅降级，不影响整体解析流程
         parseMethod = "algorithm";
       }
-    } else {
-      console.log("[IntelligentFileParser] ⚡ 算法分析置信度足够高或AI已禁用");
-    }
-
-    console.log("[IntelligentFileParser] 最终分析结果:", {
-      confidence: finalAnalysis.confidence,
-      mappedFields: finalAnalysis.mappings.length,
-      totalFields: headers.length,
-      subjects: finalAnalysis.subjects,
-      mappings: finalAnalysis.mappings,
-    });
-
-    // 转换映射格式
+    } // 转换映射格式
     const suggestedMappings: Record<string, string> = {};
     finalAnalysis.mappings.forEach((mapping) => {
       suggestedMappings[mapping.originalField] = mapping.mappedField;
@@ -318,10 +262,6 @@ export class IntelligentFileParser {
     // 判断是否可以自动处理（置信度高于80%且包含基本字段）
     const hasBasicFields = this.checkBasicFields(suggestedMappings);
     const autoProcessed = confidence >= 0.8 && hasBasicFields;
-
-    console.log(
-      `[IntelligentFileParser] 自动处理判断: 置信度=${confidence}, 基本字段完整=${hasBasicFields}, 可自动处理=${autoProcessed}`
-    );
 
     return {
       data: cleanedData,
@@ -395,16 +335,12 @@ export class IntelligentFileParser {
     aiResult.mappings.forEach((aiMapping: any) => {
       if (!algorithmFields.has(aiMapping.originalField)) {
         // 算法没有识别的字段，AI可以补充
-        console.log(
-          `[AI辅助] 补充算法未识别的字段: ${aiMapping.originalField} -> ${aiMapping.mappedField}`
-        );
         mergedMappings.push({
           ...aiMapping,
           confidence: aiMapping.confidence * 0.8, // AI辅助的置信度略降
         });
       } else {
         // 算法已识别的字段，保持算法结果
-        console.log(`[算法优先] 保持算法识别结果: ${aiMapping.originalField}`);
       }
     });
 
@@ -431,7 +367,6 @@ export class IntelligentFileParser {
   } | null> {
     // 临时禁用AI分析，直接返回null使用算法分析
     // 原因：AI Edge Function存在CORS配置问题或服务不可用
-    console.log("[AI分析] AI服务暂时不可用，使用算法分析");
     return null;
 
     /* 
@@ -442,7 +377,6 @@ export class IntelligentFileParser {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        console.log('[AI分析] 用户未登录，跳过AI分析');
         return null;
       }
 
@@ -455,11 +389,8 @@ export class IntelligentFileParser {
         .single();
 
       if (!aiConfig) {
-        console.log('[AI分析] 未找到AI配置，跳过AI分析');
         return null;
       }
-
-      console.log('[AI分析] 开始调用AI服务进行字段分析...');
 
       // 准备AI分析的数据
       const analysisData = {
@@ -482,7 +413,6 @@ export class IntelligentFileParser {
       }
 
       if (aiResult && aiResult.success) {
-        console.log('[AI分析] AI分析成功:', aiResult);
         return {
           mappings: aiResult.mappings || [],
           subjects: aiResult.subjects || [],
@@ -510,10 +440,6 @@ export class IntelligentFileParser {
     const hasScoreField = mappedFields.some(
       (field) =>
         field.includes("score") || field === "score" || field.endsWith("_score")
-    );
-
-    console.log(
-      `[IntelligentFileParser] 基本字段检查: 学生标识=${hasStudentIdentifier}, 分数字段=${hasScoreField}`
     );
 
     return hasStudentIdentifier && hasScoreField;
@@ -607,17 +533,12 @@ export class IntelligentFileParser {
         const headers = row.map(
           (_: any, index: number) => `Column${index + 1}`
         );
-        console.log(
-          `[多级表头检测] 未检测到表头关键词,使用列索引: ${headers.join(", ")}`
-        );
         return { headers, dataStartRow: 0 };
       }
     }
 
     // 检查是否存在合并单元格信息
     const merges = worksheet["!merges"] || [];
-    console.log(`[多级表头检测] 发现 ${merges.length} 个合并单元格`);
-
     // 检测前两行是否为多级表头
     const row1 = jsonData[0] || [];
     const row2 = jsonData[1] || [];
@@ -649,15 +570,10 @@ export class IntelligentFileParser {
       const headers = row1
         .map((h: any) => String(h || "").trim())
         .filter((h) => h !== "");
-      console.log(
-        `[多级表头检测] 单级表头,使用第1行 (${headers.length}个字段)`
-      );
       return { headers, dataStartRow: 1 };
     }
 
     // 多级表头处理
-    console.log(`[多级表头检测] 检测到多级表头,开始合并...`);
-
     // 构建合并表头
     const mergedHeaders: string[] = [];
     let currentParent = "";
@@ -691,11 +607,6 @@ export class IntelligentFileParser {
     }
 
     const filteredHeaders = mergedHeaders.filter((h) => h !== "");
-    console.log(
-      `[多级表头检测] 合并后表头 (${filteredHeaders.length}个):`,
-      filteredHeaders
-    );
-
     return { headers: filteredHeaders, dataStartRow: 2 };
   }
 
@@ -718,8 +629,6 @@ export class IntelligentFileParser {
     file: File
   ): Promise<{ data: any[]; headers: string[] }> {
     try {
-      console.log(`[IntelligentFileParser] 开始解析Excel文件: ${file.name}`);
-
       const arrayBuffer = await file.arrayBuffer();
 
       // 验证文件不为空
@@ -760,7 +669,6 @@ export class IntelligentFileParser {
         throw new Error("Excel文件中没有找到工作表");
       }
 
-      console.log(`[IntelligentFileParser] 使用工作表: ${sheetName}`);
       const worksheet = workbook.Sheets[sheetName];
 
       // 验证工作表有效性
@@ -806,10 +714,6 @@ export class IntelligentFileParser {
         throw new Error("Excel文件中没有有效的表头");
       }
 
-      console.log(
-        `[IntelligentFileParser] 表头解析完成: ${headers.length}个字段, 数据从第${dataStartRow + 1}行开始`
-      );
-
       // 剩余行作为数据，转换为对象格式
       const data = jsonData
         .slice(dataStartRow)
@@ -839,11 +743,6 @@ export class IntelligentFileParser {
           });
           return rowObj;
         });
-
-      console.log(
-        `[IntelligentFileParser] Excel解析完成: ${data.length}行数据, ${headers.length}个字段`
-      );
-      console.log(`[IntelligentFileParser] 示例数据:`, data.slice(0, 2));
 
       return { data, headers };
     } catch (error) {

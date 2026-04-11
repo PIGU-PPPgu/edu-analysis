@@ -176,9 +176,10 @@ export const SubjectScoreDialog: React.FC<SubjectScoreDialogProps> = ({
 
   // 处理保存
   const handleSave = () => {
+    if (!exam) return;
     if (validateScores()) {
       const examSubjectScores: ExamSubjectScore[] = scores.map((score) => ({
-        exam_id: exam!.id,
+        exam_id: exam.id,
         subject_code: score.subject_code,
         subject_name: score.subject_name,
         total_score: score.total_score,
@@ -266,8 +267,8 @@ export const SubjectScoreDialog: React.FC<SubjectScoreDialogProps> = ({
             ) : (
               <span className="text-yellow-600">
                 {totalConfiguredScore > examTotalScore
-                  ? " ⚠️ 超出考试总分"
-                  : " ⚠️ 少于考试总分"}
+                  ? " 超出考试总分"
+                  : " 少于考试总分"}
                 {examTotalScore} 分
               </span>
             )}

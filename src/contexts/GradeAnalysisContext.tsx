@@ -278,8 +278,6 @@ export const GradeAnalysisProvider: React.FC<{ children: ReactNode }> = ({
   const loadExamData = async (examId: string) => {
     setLoading(true);
     try {
-      console.log("正在加载考试数据, examId:", examId);
-
       // 从 Supabase 获取真实成绩数据
       const { data: gradeDataFromDB, error } = await supabase
         .from("grade_data")
@@ -290,8 +288,6 @@ export const GradeAnalysisProvider: React.FC<{ children: ReactNode }> = ({
         console.error("获取成绩数据失败:", error);
         throw error;
       }
-
-      console.log("获取到的成绩数据:", gradeDataFromDB);
 
       // 转换数据格式以匹配 GradeRecord 接口
       const gradeRecords: GradeRecord[] =
@@ -308,7 +304,6 @@ export const GradeAnalysisProvider: React.FC<{ children: ReactNode }> = ({
           rank_in_grade: record.rank_in_grade,
         })) || [];
 
-      console.log("转换后的成绩记录:", gradeRecords);
       setExamData(gradeRecords);
       setGradeData(gradeRecords); // 同时更新主要的成绩数据
     } catch (error) {
@@ -323,8 +318,6 @@ export const GradeAnalysisProvider: React.FC<{ children: ReactNode }> = ({
 
     setLoading(true);
     try {
-      console.log("🔍 开始分析考试数据:", currentExam.exam_title);
-
       // 查询当前考试的成绩数据
       const { data: examGrades, error } = await supabase
         .from("grades")
@@ -422,7 +415,6 @@ export const GradeAnalysisProvider: React.FC<{ children: ReactNode }> = ({
         totalGrades: examGrades.length,
       };
 
-      console.log("✅ 分析结果:", analysisResult);
       setAnalysisResult(analysisResult);
     } catch (error) {
       console.error("分析成绩数据失败:", error);

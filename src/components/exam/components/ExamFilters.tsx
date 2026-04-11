@@ -228,7 +228,10 @@ export const ExamFiltersComponent: React.FC<ExamFiltersComponentProps> = ({
                     {examTypes.map((type) => (
                       <SelectItem key={type.id} value={type.name}>
                         <div className="flex items-center gap-2">
-                          <span>{type.emoji}</span>
+                          <span
+                            className="inline-block w-2.5 h-2.5 rounded-sm"
+                            style={{ background: type.color }}
+                          />
                           {type.name}
                         </div>
                       </SelectItem>

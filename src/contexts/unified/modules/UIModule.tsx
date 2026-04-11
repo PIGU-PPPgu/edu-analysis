@@ -197,14 +197,6 @@ export const UIModuleProvider: React.FC<{ children: React.ReactNode }> = ({
       const root = document.documentElement;
       root.classList.remove("light", "dark");
       root.classList.add(effectiveTheme);
-
-      if (themeConfig.getConfig().enableThemeLogging) {
-        console.log("🎨 [UIModule] 主题已应用", {
-          requestedTheme: theme,
-          effectiveTheme,
-          domClass: effectiveTheme,
-        });
-      }
     }
   }, []);
 
@@ -218,14 +210,6 @@ export const UIModuleProvider: React.FC<{ children: React.ReactNode }> = ({
     // 🎨 使用主题配置管理器确定实际应用的主题
     const effectiveTheme = themeConfig.getEffectiveTheme(state.theme);
     root.classList.add(effectiveTheme);
-
-    if (themeConfig.getConfig().enableThemeLogging) {
-      console.log("🎨 [UIModule] 初始主题应用", {
-        requestedTheme: state.theme,
-        effectiveTheme,
-        domClass: effectiveTheme,
-      });
-    }
   }, []); // 只在组件挂载时执行一次
 
   // 监听系统主题变化（仅当主题配置允许时）
@@ -234,9 +218,6 @@ export const UIModuleProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // 🔒 检查主题配置是否允许监听系统主题变化
     if (!themeConfig.shouldListenToSystemTheme()) {
-      if (themeConfig.getConfig().enableThemeLogging) {
-        console.log("🎨 [UIModule] 系统主题监听已禁用，跳过事件监听器设置");
-      }
       return;
     }
 
@@ -248,13 +229,6 @@ export const UIModuleProvider: React.FC<{ children: React.ReactNode }> = ({
       // 🎨 使用主题配置管理器确定实际应用的主题
       const effectiveTheme = themeConfig.getEffectiveTheme("system");
       root.classList.add(effectiveTheme);
-
-      if (themeConfig.getConfig().enableThemeLogging) {
-        console.log("🎨 [UIModule] 系统主题变化响应", {
-          systemDarkMode: mediaQuery.matches,
-          effectiveTheme,
-        });
-      }
     };
 
     handleChange(); // 初始应用

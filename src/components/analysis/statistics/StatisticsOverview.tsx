@@ -208,11 +208,7 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
 
   // 计算整体统计数据
   const overallStatistics = useMemo(() => {
-    console.log("📊 StatisticsOverview: 开始计算整体统计数据");
-    console.log("📊 filteredGradeData长度:", filteredGradeData?.length || 0);
-
     if (!filteredGradeData || filteredGradeData.length === 0) {
-      console.log("⚠️ StatisticsOverview: 没有数据");
       return {
         statistics: calculateBasicStatistics([]),
         rates: { passRate: 0, goodRate: 0, excellentRate: 0 },
@@ -236,16 +232,12 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
       );
     }
 
-    console.log("📊 过滤后数据长度:", filteredData.length);
-
     // 🎯 关键修复：只使用总分记录进行统计
     const totalScoreRecords = filteredData.filter(
       (record) => record.subject === "总分"
     );
-    console.log("📊 总分记录数:", totalScoreRecords.length);
 
     if (totalScoreRecords.length === 0) {
-      console.log("⚠️ StatisticsOverview: 没有总分数据");
       return {
         statistics: calculateBasicStatistics([]),
         rates: { passRate: 0, goodRate: 0, excellentRate: 0 },
@@ -266,31 +258,37 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
       }
     });
 
-    console.log("📊 有效总分数量:", totalScores.length);
-    console.log("📊 总分样本:", totalScores.slice(0, 5));
-
     const statistics = calculateBasicStatistics(totalScores);
     // 使用考试特定的及格率配置
+    const passScore = examSpecificPassRateCalculator.getPassScore(
+      "总分",
+      examId
+    );
+    const excellentScore = examSpecificPassRateCalculator.getExcellentScore(
+      "总分",
+      examId
+    );
     const rates = {
       passRate: examSpecificPassRateCalculator.calculatePassRate(
         totalScores,
         "总分",
         examId
       ),
-      goodRate: examSpecificPassRateCalculator.calculatePassRate(
-        totalScores,
-        "总分",
-        examId
-      ),
+      goodRate:
+        totalScores.length > 0
+          ? Math.round(
+              (totalScores.filter((s) => s >= passScore && s < excellentScore)
+                .length /
+                totalScores.length) *
+                100
+            )
+          : 0,
       excellentRate: examSpecificPassRateCalculator.calculateExcellentRate(
         totalScores,
         "总分",
         examId
       ),
     };
-
-    console.log("📊 计算结果 - 平均分:", statistics.average);
-    console.log("📊 计算结果 - 及格率:", rates.passRate);
 
     return {
       statistics,
@@ -302,8 +300,6 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
 
   // 计算班级统计数据
   const classStatistics = useMemo((): ClassStatistics[] => {
-    console.log("📊 StatisticsOverview: 开始计算班级统计数据");
-
     if (!filteredGradeData || filteredGradeData.length === 0) return [];
 
     // 🎯 关键修复：只使用总分记录
@@ -312,7 +308,6 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
     );
 
     if (totalScoreRecords.length === 0) {
-      console.log("⚠️ StatisticsOverview: 班级统计没有总分数据");
       return [];
     }
 
@@ -336,21 +331,30 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
           }
         });
 
-        console.log(`📊 班级 ${className}: ${scores.length} 个总分记录`);
-
         const statistics = calculateBasicStatistics(scores);
         // 使用考试特定的及格率配置
+        const classPassScore = examSpecificPassRateCalculator.getPassScore(
+          "总分",
+          examId
+        );
+        const classExcellentScore =
+          examSpecificPassRateCalculator.getExcellentScore("总分", examId);
         const rates = {
           passRate: examSpecificPassRateCalculator.calculatePassRate(
             scores,
             "总分",
             examId
           ),
-          goodRate: examSpecificPassRateCalculator.calculatePassRate(
-            scores,
-            "总分",
-            examId
-          ),
+          goodRate:
+            scores.length > 0
+              ? Math.round(
+                  (scores.filter(
+                    (s) => s >= classPassScore && s < classExcellentScore
+                  ).length /
+                    scores.length) *
+                    100
+                )
+              : 0,
           excellentRate: examSpecificPassRateCalculator.calculateExcellentRate(
             scores,
             "总分",
@@ -367,7 +371,7 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
         };
       })
       .sort((a, b) => b.averageScore - a.averageScore); // 按平均分排序
-  }, [filteredGradeData]);
+  }, [filteredGradeData, examId]);
 
   // 计算表现水平
   const performanceLevel = useMemo(

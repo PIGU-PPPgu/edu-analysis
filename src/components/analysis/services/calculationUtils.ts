@@ -11,6 +11,7 @@ import {
   calculateMedian,
   groupBy as groupByStats,
 } from "@/utils/statistics";
+import { getPassScore, getExcellentScore } from "@/services/passRateCalculator";
 
 // ============================================================================
 // 基础统计计算
@@ -184,18 +185,10 @@ export function calculateRates(
 
   if (subject) {
     try {
-      // 动态导入以避免循环依赖
-      const {
-        getPassScore,
-        getExcellentScore,
-      } = require("@/services/passRateCalculator");
       passScore = getPassScore(subject);
       excellentScore = getExcellentScore(subject);
     } catch (error) {
-      console.warn(
-        "Failed to load dynamic pass rate calculator, using default values:",
-        error
-      );
+      // fall through to defaults
     }
   }
 
@@ -318,17 +311,20 @@ export function calculateBoxPlotData(
   const sortedScores = [...validScores].sort((a, b) => a - b);
   const n = sortedScores.length;
 
-  // 计算四分位数
-  const q1Index = Math.floor(n * 0.25);
-  const medianIndex = Math.floor(n * 0.5);
-  const q3Index = Math.floor(n * 0.75);
+  // 线性插值四分位数（与 calculatePercentile 保持一致）
+  const interpolate = (p: number) => {
+    const idx = (p / 100) * (n - 1);
+    const lo = Math.floor(idx);
+    const hi = Math.ceil(idx);
+    if (lo === hi) return sortedScores[lo];
+    return (
+      sortedScores[lo] + (sortedScores[hi] - sortedScores[lo]) * (idx - lo)
+    );
+  };
 
-  const q1 = sortedScores[q1Index];
-  const median =
-    n % 2 === 0
-      ? (sortedScores[medianIndex - 1] + sortedScores[medianIndex]) / 2
-      : sortedScores[medianIndex];
-  const q3 = sortedScores[q3Index];
+  const q1 = interpolate(25);
+  const median = interpolate(50);
+  const q3 = interpolate(75);
 
   // 计算IQR和异常值
   const iqr = q3 - q1;

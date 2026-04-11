@@ -176,8 +176,11 @@ const CrossAnalysis: React.FC<CrossAnalysisProps> = ({
       totalSubjects,
       totalStudents,
       totalRecords,
-      avgClassSize: totalStudents / totalClasses,
-      dataCompleteness: (totalRecords / (totalStudents * totalSubjects)) * 100,
+      avgClassSize: totalClasses > 0 ? totalStudents / totalClasses : 0,
+      dataCompleteness:
+        totalStudents * totalSubjects > 0
+          ? (totalRecords / (totalStudents * totalSubjects)) * 100
+          : 0,
     };
   }, [gradeData, availableClasses, availableSubjects]);
 

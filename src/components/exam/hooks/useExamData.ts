@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { examDataService } from "@/services/domains/ExamDataService";
+import { EXAM_TYPE_MAP } from "@/components/exam/types";
 import {
   getExamTypes,
   getExamOverviewStatistics,
@@ -53,7 +54,6 @@ export interface UIExamType {
   name: string;
   description: string;
   color: string;
-  emoji: string;
   isDefault: boolean;
 }
 
@@ -71,23 +71,13 @@ export interface UIExamStatistics {
 
 // ---- 映射工具（纯函数，不依赖 state） ----
 
-const TYPE_MAP: Record<string, { color: string; emoji: string }> = {
-  期中考试: { color: "#3B82F6", emoji: "📝" },
-  期末考试: { color: "#EF4444", emoji: "🎯" },
-  月考: { color: "#10B981", emoji: "📊" },
-  小测: { color: "#F59E0B", emoji: "📋" },
-  模拟考试: { color: "#8B5CF6", emoji: "🎪" },
-  随堂测验: { color: "#06B6D4", emoji: "⚡" },
-};
-
 export function mapExamType(dbType: DBExamType): UIExamType {
-  const info = TYPE_MAP[dbType.type_name] ?? { color: "#6B7280", emoji: "📄" };
+  const info = EXAM_TYPE_MAP[dbType.type_name] ?? { color: "#6B7280" };
   return {
     id: dbType.id,
     name: dbType.type_name,
     description: dbType.description ?? "",
     color: info.color,
-    emoji: info.emoji,
     isDefault: dbType.is_system,
   };
 }
@@ -333,15 +323,22 @@ export function useExamData(): UseExamDataReturn {
   // 删除后重新加载（含 examTypes 和 statistics），同时清缓存
   const reloadAfterDelete = useCallback(async () => {
     invalidateCache();
-    const [dbExamTypes, dbExams, overviewStats] = await Promise.all([
-      getExamTypes(),
-      examDataService.getExams(),
-      getExamOverviewStatistics(),
-    ]);
-    const mappedTypes = dbExamTypes.map(mapExamType);
-    setExamTypes(mappedTypes);
-    setExams(dbExams.map((e) => mapExam(e, mappedTypes)));
-    if (overviewStats) setStatistics(overviewStats);
+    setIsLoading(true);
+    try {
+      const [dbExamTypes, dbExams, overviewStats] = await Promise.all([
+        getExamTypes(),
+        examDataService.getExams(),
+        getExamOverviewStatistics(),
+      ]);
+      const mappedTypes = dbExamTypes.map(mapExamType);
+      setExamTypes(mappedTypes);
+      setExams(dbExams.map((e) => mapExam(e, mappedTypes)));
+      if (overviewStats) setStatistics(overviewStats);
+    } catch (error) {
+      console.error("重新加载考试数据失败:", error);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   const createExamFn = useCallback(

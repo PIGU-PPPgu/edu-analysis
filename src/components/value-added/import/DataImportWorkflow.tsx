@@ -262,7 +262,6 @@ export function DataImportWorkflow() {
 
     if (hasFatalErrors) {
       toast.error("数据校验失败，请查看下方详细错误信息");
-      console.error("[数据校验失败] 详细结果:", results);
     } else {
       toast.success("数据校验通过！");
     }
@@ -442,7 +441,7 @@ function StepOneUpload({
           <strong>必需文件</strong>
           ：学生信息表、教学编排表、入口成绩、出口成绩。
           <br />
-          <strong className="text-red-600">⚠️ 重要提示</strong>：
+          <strong className="text-red-600">重要提示</strong>：
           <ul className="mt-2 ml-4 space-y-1 text-sm list-disc">
             <li>
               <strong>班级名称格式</strong>：必须为"高一1班"、"高二3班"（
@@ -1000,7 +999,7 @@ function ValidationResultItem({ result }: { result: ValidationResult }) {
           {result.warnings && result.warnings.length > 0 && (
             <div className="space-y-1 mt-3 pt-3 border-t">
               <div className="text-sm font-medium text-yellow-700 mb-2">
-                ⚠️ 警告信息：
+                警告信息：
               </div>
               {result.warnings.slice(0, 3).map((warning, i) => (
                 <div key={i} className="text-sm text-yellow-700">

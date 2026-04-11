@@ -715,8 +715,6 @@ ${studentSummary}
     gradeData?: GradeRecord[]
   ): AIClassDiagnosis {
     try {
-      console.log("🔍 AI原始响应:", response);
-
       // 清理响应内容，移除可能的markdown标记和多余空白
       let cleanResponse = response.trim();
 
@@ -734,8 +732,6 @@ ${studentSummary}
       // 再次清理
       cleanResponse = cleanResponse.trim();
 
-      console.log("🧹 清理后的响应:", cleanResponse);
-
       // 尝试解析JSON
       const parsed = JSON.parse(cleanResponse);
 
@@ -752,8 +748,6 @@ ${studentSummary}
       return parsed;
     } catch (error) {
       console.error("解析AI班级诊断结果失败:", error);
-      console.log("📄 原始响应内容:", response);
-
       // 如果解析失败，返回基于实际数据的模拟分析结果
       console.warn("🔄 JSON解析失败，降级到模拟分析");
       const fallbackData = gradeData || [];
@@ -767,8 +761,6 @@ ${studentSummary}
    */
   private parseStudentGuidance(response: string): AIStudentGuidance {
     try {
-      console.log("🔍 AI学生分析原始响应:", response);
-
       // 清理响应内容
       let cleanResponse = response.trim();
 
@@ -784,8 +776,6 @@ ${studentSummary}
       }
 
       cleanResponse = cleanResponse.trim();
-      console.log("🧹 清理后的学生分析响应:", cleanResponse);
-
       const parsed = JSON.parse(cleanResponse);
 
       // 验证必要字段
@@ -797,7 +787,6 @@ ${studentSummary}
       return parsed;
     } catch (error) {
       console.error("解析AI学生指导结果失败:", error);
-      console.log("📄 学生分析原始响应内容:", response);
       throw new Error("AI分析结果格式错误");
     }
   }

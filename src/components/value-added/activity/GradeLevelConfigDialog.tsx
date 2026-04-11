@@ -25,7 +25,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Info, RotateCcw } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { AlertCircle, Info, RotateCcw, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
 interface GradeLevelConfigDialogProps {
@@ -64,6 +70,28 @@ const DEFAULT_CONFIG: GradeLevelConfig = {
   ],
 };
 
+// 深圳市教科院 Z 分数标准九段评价（绝对 Z 分数阈值）
+// Z≥1.75→1段, 1.25≤Z<1.75→2段, 0.75≤Z<1.25→3段,
+// 0.25≤Z<0.75→4段, -0.25≤Z<0.25→5段, -0.75≤Z<-0.25→6段,
+// -1.25≤Z<-0.75→7段, -1.75≤Z<-1.25→8段, Z<-1.75→9段
+// 对应正态分布比例约为：4%-7%-12%-17%-20%-17%-12%-7%-4%
+const SHENZHEN_ZSCORE_CONFIG: GradeLevelConfig = {
+  configName: "深圳市教科院 Z 分数标准",
+  description:
+    "基于绝对 Z 分数阈值（±0.5 间隔），与深圳市教科院增值评价模型配套使用",
+  segments: [
+    { segment: 1, label: "顶尖生", percentage: 4 },
+    { segment: 2, label: "尖子生", percentage: 7 },
+    { segment: 3, label: "优秀生", percentage: 12 },
+    { segment: 4, label: "良好生", percentage: 17 },
+    { segment: 5, label: "中等生", percentage: 20 },
+    { segment: 6, label: "中下生", percentage: 17 },
+    { segment: 7, label: "后进生", percentage: 12 },
+    { segment: 8, label: "学困生", percentage: 7 },
+    { segment: 9, label: "特困生", percentage: 4 },
+  ],
+};
+
 export function GradeLevelConfigDialog({
   open,
   onOpenChange,
@@ -74,6 +102,13 @@ export function GradeLevelConfigDialog({
     initialConfig || DEFAULT_CONFIG
   );
   const [totalPercentage, setTotalPercentage] = useState(100);
+
+  // 当 initialConfig prop 变化时同步内部状态（例如编辑已有配置时）
+  useEffect(() => {
+    if (initialConfig) {
+      setConfig(initialConfig);
+    }
+  }, [initialConfig]);
 
   useEffect(() => {
     const total = config.segments.reduce((sum, seg) => sum + seg.percentage, 0);
@@ -141,15 +176,33 @@ export function GradeLevelConfigDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             高中九段评价配置
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleResetToDefault}
-              className="ml-auto"
-            >
-              <RotateCcw className="h-4 w-4 mr-1" />
-              重置为默认
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="ml-auto">
+                  <RotateCcw className="h-4 w-4 mr-1" />
+                  加载预设
+                  <ChevronDown className="h-3 w-3 ml-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => {
+                    setConfig(DEFAULT_CONFIG);
+                    toast.success("已加载：Stanine 百分位标准");
+                  }}
+                >
+                  Stanine 百分位标准（5-10-10-15-20-15-10-10-5）
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setConfig(SHENZHEN_ZSCORE_CONFIG);
+                    toast.success("已加载：深圳市教科院 Z 分数标准");
+                  }}
+                >
+                  深圳市教科院 Z 分数标准（4-7-12-17-20-17-12-7-4）
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </DialogTitle>
           <DialogDescription>
             为高中学段配置9个层级的评价标准，用于学生能力分层和增值分析
@@ -313,7 +366,7 @@ export function GradeLevelConfigDialog({
 
           {/* 使用说明 */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm space-y-2">
-            <h5 className="font-semibold text-blue-900">💡 使用说明</h5>
+            <h5 className="font-semibold text-blue-900">使用说明</h5>
             <ul className="space-y-1 text-blue-800 ml-4">
               <li>
                 • <strong>1段</strong>：排名前5%，为顶尖学生，适合竞赛培优

@@ -163,8 +163,6 @@ export const DataFlowProvider: React.FC<{ children: React.ReactNode }> = ({
 
         setTasks(taskMap);
         setIsHydrated(true);
-
-        console.log(`[DataFlow] 从持久化加载了 ${savedTasks.length} 个任务`);
       } catch (error) {
         console.error("[DataFlow] 加载任务失败:", error);
         setIsHydrated(true); // 即使失败也标记为已加载,避免阻塞
@@ -414,10 +412,6 @@ export const DataFlowProvider: React.FC<{ children: React.ReactNode }> = ({
           data: checkpoint,
           timestamp: Date.now(),
         });
-
-        console.log(
-          `[DataFlow] 检查点已保存: 任务${taskId}, 批次${checkpoint.batchIndex}`
-        );
 
         return updated;
       });
@@ -685,10 +679,6 @@ export const DataFlowProvider: React.FC<{ children: React.ReactNode }> = ({
             }
           }
 
-          if (cleanedCount > 0) {
-            console.log(`[DataFlow] 清理了 ${cleanedCount} 个旧任务`);
-          }
-
           return updated;
         });
 
@@ -697,11 +687,6 @@ export const DataFlowProvider: React.FC<{ children: React.ReactNode }> = ({
           const deletedCount = await dataFlowPersistence.cleanup(
             new Date(sevenDaysAgo)
           );
-          if (deletedCount > 0) {
-            console.log(
-              `[DataFlow] IndexedDB清理了 ${deletedCount} 条过期记录`
-            );
-          }
         } catch (error) {
           console.error("[DataFlow] IndexedDB清理失败:", error);
         }

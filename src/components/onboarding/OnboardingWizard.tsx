@@ -306,7 +306,20 @@ export function OnboardingWizard() {
   // 保存设置到数据库
   const saveOnboardingData = async (data: AllFormValues) => {
     try {
-      // 1. 更新用户配置
+      // 0. upsert 学校记录，获取 school_id（多租户隔离的锚点）
+      const { data: schoolData, error: schoolError } = await supabase
+        .from("schools")
+        .upsert(
+          { school_name: data.schoolName, is_active: true },
+          { onConflict: "school_name" }
+        )
+        .select("id")
+        .single();
+
+      if (schoolError) throw schoolError;
+      const schoolId: string = schoolData.id;
+
+      // 1. 更新用户配置（写入 school_id 外键，供 RLS 使用）
       const { error: profileError } = await supabase
         .from("user_profiles")
         .update({
@@ -315,6 +328,7 @@ export function OnboardingWizard() {
           bio: data.bio,
           avatar_url: data.avatarUrl,
           user_type: data.role,
+          school_id: schoolId,
           preferences: {
             education_stage: data.educationStage,
             setup_completed: true,
@@ -325,6 +339,18 @@ export function OnboardingWizard() {
         .eq("id", userId);
 
       if (profileError) throw profileError;
+
+      // 1b. upsert teachers 记录（RLS 通过 teachers.school_id 做隔离）
+      if (data.role === "teacher" || data.role === "admin") {
+        await supabase.from("teachers").upsert(
+          {
+            id: userId,
+            name: data.fullName,
+            school_id: schoolId,
+          },
+          { onConflict: "id" }
+        );
+      }
 
       // 2. 创建学年
       const { data: academicYearData, error: yearError } = await supabase
@@ -378,6 +404,7 @@ export function OnboardingWizard() {
                 grade_level: gradeNumber,
                 academic_year: `${data.startYear}-${data.startYear + 1}`,
                 student_count: 0,
+                school_id: schoolId,
               },
               { onConflict: "class_name", ignoreDuplicates: true }
             );

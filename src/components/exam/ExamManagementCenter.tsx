@@ -3,20 +3,10 @@
  * 基于项目UI设计风格和用户体验原则
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
@@ -29,18 +19,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Calendar,
   Plus,
   Search,
   Filter,
-  Edit,
   Trash2,
   Copy,
   Download,
@@ -86,6 +68,8 @@ import ReportViewer from "@/components/analysis/reports/ReportViewer";
 import ExamStatsTab from "./tabs/ExamStatsTab";
 import ExamSettingsTab from "./tabs/ExamSettingsTab";
 import ExamListTab from "./tabs/ExamListTab";
+import { ExamDialog } from "./components/ExamDialog";
+import type { Exam as ExamDialogExam, ExamFormData } from "./types";
 
 // 类型从 useExamData hook 导入，此处无需重复定义
 
@@ -117,7 +101,7 @@ const ExamManagementCenter: React.FC = () => {
 
   // 对话框状态
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [editingExamId, setEditingExamId] = useState<string | null>(null);
+  const [editingExam, setEditingExam] = useState<ExamDialogExam | null>(null);
   const [isSubjectScoreDialogOpen, setIsSubjectScoreDialogOpen] =
     useState(false);
   const [selectedExamForScoreConfig, setSelectedExamForScoreConfig] =
@@ -127,19 +111,8 @@ const ExamManagementCenter: React.FC = () => {
   >([]);
   const [reportExamId, setReportExamId] = useState<string | null>(null);
   const [viewingExam, setViewingExam] = useState<Exam | null>(null);
-  const [examForm, setExamForm] = useState<Partial<Exam>>({
-    title: "",
-    description: "",
-    type: "",
-    subjects: [],
-    date: "",
-    startTime: "",
-    endTime: "",
-    totalScore: 100,
-    passingScore: 60,
-    classes: [],
-    status: "draft",
-  });
+  const [isBatchDeleteConfirmOpen, setIsBatchDeleteConfirmOpen] =
+    useState(false);
 
   // 处理科目总分配置
   const handleSubjectScoreConfig = async (exam: Exam) => {
@@ -180,7 +153,14 @@ const ExamManagementCenter: React.FC = () => {
 
     if (success) {
       setCurrentExamSubjectScores(scores);
-      toast.success("科目总分配置已更新，相关分析将使用新的配置");
+      toast.success("科目总分配置已更新", {
+        description: "下一步：前往首页导入该考试的成绩数据",
+        action: {
+          label: "去导入成绩",
+          onClick: () => navigate("/"),
+        },
+        duration: 6000,
+      });
     }
 
     return success;
@@ -282,124 +262,75 @@ const ExamManagementCenter: React.FC = () => {
     </motion.div>
   );
 
-  // 创建或编辑考试
-  const handleCreateExam = async () => {
-    if (!examForm.title || !examForm.type || !examForm.date) {
-      toast.error("请填写必填字段");
-      return;
-    }
-
+  // 创建或编辑考试（由 ExamDialog 回调）
+  const handleSaveExam = async (formData: ExamFormData) => {
     try {
-      if (editingExamId) {
-        // 编辑模式
+      if (editingExam) {
         const updateData = {
-          title: examForm.title,
-          type: examForm.type,
-          date: examForm.date,
-          subject: examForm.subjects?.[0], // 取第一个科目作为主科目
-          description: examForm.description,
-          start_time: examForm.startTime,
-          end_time: examForm.endTime,
-          total_score: examForm.totalScore,
-          passing_score: examForm.passingScore,
-          status: (examForm.status as "draft" | "scheduled") || "draft",
+          title: formData.title,
+          type: formData.type,
+          date: formData.date,
+          subject: formData.subjects?.[0],
+          description: formData.description,
+          start_time: formData.startTime,
+          end_time: formData.endTime,
+          total_score: formData.totalScore,
+          passing_score: formData.passingScore,
+          status: formData.status as "draft" | "scheduled",
         };
-
-        const updatedDbExam = await updateExam(editingExamId, updateData);
-
-        if (updatedDbExam) {
-          // 更新本地列表中的考试（hook 已返回 UIExam，无需再 mapExam）
+        const updated = await updateExam(editingExam.id, updateData);
+        if (updated) {
           setExams((prev) =>
-            prev.map((exam) =>
-              exam.id === editingExamId ? updatedDbExam : exam
-            )
+            prev.map((e) => (e.id === editingExam.id ? updated : e))
           );
-
-          toast.success(`考试"${examForm.title}"更新成功`);
+          toast.success(`考试"${formData.title}"更新成功`);
         }
       } else {
-        // 创建模式
         const createData: CreateExamInput = {
-          title: examForm.title,
-          type: examForm.type,
-          date: examForm.date,
-          subject: examForm.subjects?.[0], // 取第一个科目作为主科目
-          description: examForm.description,
-          start_time: examForm.startTime,
-          end_time: examForm.endTime,
-          total_score: examForm.totalScore,
-          passing_score: examForm.passingScore,
-          status: (examForm.status as "draft" | "scheduled") || "draft",
+          title: formData.title,
+          type: formData.type,
+          date: formData.date,
+          subject: formData.subjects?.[0],
+          description: formData.description,
+          start_time: formData.startTime,
+          end_time: formData.endTime,
+          total_score: formData.totalScore,
+          passing_score: formData.passingScore,
+          status: (formData.status === "scheduled" ? "scheduled" : "draft") as
+            | "draft"
+            | "scheduled",
         };
-
-        const newDbExam = await createExam(createData);
-
-        if (newDbExam) {
-          // hook 已返回 UIExam，直接添加到列表
-          setExams((prev) => [newDbExam, ...prev]);
-
-          // 更新统计信息
+        const newExam = await createExam(createData);
+        if (newExam) {
+          setExams((prev) => [newExam, ...prev]);
           setStatistics((prev) => ({
             ...prev,
             total: prev.total + 1,
             upcoming: prev.upcoming + 1,
           }));
-
-          toast.success(`考试"${examForm.title}"创建成功`);
+          toast.success(`考试"${formData.title}"创建成功`);
         }
       }
-
-      // 重置表单和关闭对话框
-      setIsCreateDialogOpen(false);
-      setEditingExamId(null);
-      setExamForm({
-        title: "",
-        description: "",
-        type: "",
-        subjects: [],
-        date: "",
-        startTime: "",
-        endTime: "",
-        totalScore: 100,
-        passingScore: 60,
-        classes: [],
-        status: "draft",
-      });
     } catch (error) {
-      console.error(editingExamId ? "更新考试失败:" : "创建考试失败:", error);
       toast.error(
-        editingExamId ? "更新考试失败，请重试" : "创建考试失败，请重试"
+        editingExam ? "更新考试失败，请重试" : "创建考试失败，请重试"
       );
     }
+    setIsCreateDialogOpen(false);
+    setEditingExam(null);
   };
 
   // 跳转到分析页面
   const handleAnalysisNavigation = (exam: Exam) => {
-    console.log("🚀 跳转到分析页面:", { exam });
-    console.log("📊 考试数据详情:", {
-      id: exam.id,
-      title: exam.title,
-      date: exam.date,
-      type: exam.type,
-    });
-
-    // 使用考试标题作为主要筛选条件，因为grade_data表使用exam_title字段
     const params = new URLSearchParams({
       examId: exam.id,
       examTitle: exam.title,
       examDate: exam.date,
       examType: exam.type,
-      // 添加考试标题作为筛选依据
       filterByTitle: "true",
     });
 
     const fullUrl = `/analysis/${exam.id}?${params.toString()}`;
-
-    console.log("🔗 完整URL:", fullUrl);
-    console.log("🔗 URL参数字符串:", params.toString());
-    console.log("🔗 即将跳转到:", fullUrl);
-
-    // 直接跳转，不使用setTimeout
     navigate(fullUrl);
 
     toast.success("正在跳转到分析...", {
@@ -417,26 +348,7 @@ const ExamManagementCenter: React.FC = () => {
 
     switch (action) {
       case "delete":
-        try {
-          const success = await Promise.all(
-            selectedExams.map((examId) => deleteExam(examId))
-          );
-
-          if (success.every((s) => s)) {
-            setExams((prev) =>
-              prev.filter((e) => !selectedExams.includes(e.id))
-            );
-            setStatistics((prev) => ({
-              ...prev,
-              total: prev.total - selectedExams.length,
-            }));
-            setSelectedExams([]);
-            toast.success(`成功删除${selectedExams.length}个考试`);
-          }
-        } catch (error) {
-          console.error("批量删除失败:", error);
-          toast.error("批量删除失败");
-        }
+        setIsBatchDeleteConfirmOpen(true);
         break;
       case "export":
         try {
@@ -509,29 +421,50 @@ const ExamManagementCenter: React.FC = () => {
     }
   };
 
+  const handleConfirmBatchDelete = async () => {
+    setIsBatchDeleteConfirmOpen(false);
+    try {
+      const results = await Promise.allSettled(
+        selectedExams.map((examId) => deleteExam(examId))
+      );
+      const succeeded = results
+        .map((r, i) =>
+          r.status === "fulfilled" && r.value ? selectedExams[i] : null
+        )
+        .filter(Boolean) as string[];
+      const failedCount = results.length - succeeded.length;
+
+      if (succeeded.length > 0) {
+        setExams((prev) => prev.filter((e) => !succeeded.includes(e.id)));
+        setStatistics((prev) => ({
+          ...prev,
+          total: prev.total - succeeded.length,
+        }));
+        setSelectedExams((prev) =>
+          prev.filter((id) => !succeeded.includes(id))
+        );
+        toast.success(
+          `成功删除${succeeded.length}个考试${failedCount > 0 ? `，${failedCount}个失败` : ""}`
+        );
+      } else {
+        toast.error("批量删除失败");
+      }
+    } catch (error) {
+      toast.error("批量删除失败");
+    }
+  };
+
   // 快速操作
   const handleQuickAction = async (exam: Exam, action: string) => {
     switch (action) {
       case "edit":
-        // 填充表单数据用于编辑
-        setEditingExamId(exam.id);
-        setExamForm({
-          title: exam.title,
-          description: exam.description,
-          type: exam.type,
-          subjects: exam.subjects,
-          date: exam.date,
-          startTime: exam.startTime,
-          endTime: exam.endTime,
-          totalScore: exam.totalScore,
-          passingScore: exam.passingScore,
-          classes: exam.classes,
-          status: exam.status,
+        setEditingExam({
+          ...exam,
+          createdBy: exam.createdBy ?? "系统",
+          tags: exam.tags ?? [],
+          participantCount: exam.participantCount ?? 0,
         });
         setIsCreateDialogOpen(true);
-        toast.success(`准备编辑考试: ${exam.title}`, {
-          description: "表单已填充现有数据，可直接修改",
-        });
         break;
       case "duplicate":
         try {
@@ -550,18 +483,16 @@ const ExamManagementCenter: React.FC = () => {
         }
         break;
 
-      case "warning-analysis":
-        {
-          // 跳转到预警分析，带上考试筛选条件
-          const queryParams = new URLSearchParams();
-          queryParams.set("exam", exam.title);
-          if (exam.date) queryParams.set("date", exam.date);
-          queryParams.set("from", "exam-management");
-          navigate(`/warning-analysis?${queryParams.toString()}`);
-          toast.info(`正在跳转到预警分析，筛选条件: ${exam.title}`);
-          break;
-        }
+      case "warning-analysis": {
+        // 跳转到预警分析，带上考试筛选条件
+        const queryParams = new URLSearchParams();
+        queryParams.set("exam", exam.title);
+        if (exam.date) queryParams.set("date", exam.date);
+        queryParams.set("from", "exam-management");
+        navigate(`/warning-analysis?${queryParams.toString()}`);
+        toast.info(`正在跳转到预警分析，筛选条件: ${exam.title}`);
         break;
+      }
       case "grade-report": {
         const params = new URLSearchParams();
         params.set("exam", exam.title);
@@ -573,7 +504,6 @@ const ExamManagementCenter: React.FC = () => {
         try {
           const success = await deleteExam(exam.id);
           if (success) {
-            console.log("🔄 删除成功，重新加载数据...");
             await reloadAfterDelete();
             toast.success(`考试"${exam.title}"删除成功`);
           }
@@ -837,10 +767,6 @@ const ExamManagementCenter: React.FC = () => {
                         onClick={() => handleQuickAction(exam, "view")}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="text-2xl">
-                            {examTypes.find((t) => t.name === exam.type)
-                              ?.emoji || "📝"}
-                          </div>
                           <div>
                             <h4 className="font-medium text-gray-800">
                               {exam.title}
@@ -893,248 +819,18 @@ const ExamManagementCenter: React.FC = () => {
           </Tabs>
         </motion.div>
 
-        {/* 创建考试对话框 */}
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-bold text-gray-900">
-                {editingExamId ? "编辑考试" : "创建新考试"}
-              </DialogTitle>
-              <DialogDescription className="text-gray-500">
-                {editingExamId
-                  ? "修改考试信息，更新后将立即生效"
-                  : "填写考试的基本信息，创建后可以继续完善详细设置"}
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="grid gap-6 py-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="title"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    考试标题 <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="title"
-                    value={examForm.title}
-                    onChange={(e) =>
-                      setExamForm((prev) => ({
-                        ...prev,
-                        title: e.target.value,
-                      }))
-                    }
-                    placeholder="例：期中数学考试"
-                    className="border-gray-200 focus:border-[#B9FF66] focus:ring-[#B9FF66]"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="type"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    考试类型 <span className="text-red-500">*</span>
-                  </Label>
-                  <Select
-                    value={examForm.type}
-                    onValueChange={(value) =>
-                      setExamForm((prev) => ({ ...prev, type: value }))
-                    }
-                  >
-                    <SelectTrigger className="border-gray-200">
-                      <SelectValue placeholder="选择考试类型" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {examTypes.map((type) => (
-                        <SelectItem key={type.id} value={type.name}>
-                          <div className="flex items-center gap-2">
-                            <span>{type.emoji}</span>
-                            <span>{type.name}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label
-                  htmlFor="description"
-                  className="text-sm font-medium text-gray-700"
-                >
-                  考试描述
-                </Label>
-                <Textarea
-                  id="description"
-                  value={examForm.description}
-                  onChange={(e) =>
-                    setExamForm((prev) => ({
-                      ...prev,
-                      description: e.target.value,
-                    }))
-                  }
-                  placeholder="简要描述考试内容和要求..."
-                  rows={3}
-                  className="border-gray-200 focus:border-[#B9FF66] focus:ring-[#B9FF66]"
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="date"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    考试日期 <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={examForm.date}
-                    onChange={(e) =>
-                      setExamForm((prev) => ({ ...prev, date: e.target.value }))
-                    }
-                    className="border-gray-200 focus:border-[#B9FF66] focus:ring-[#B9FF66]"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="startTime"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    开始时间
-                  </Label>
-                  <Input
-                    id="startTime"
-                    type="time"
-                    value={examForm.startTime}
-                    onChange={(e) =>
-                      setExamForm((prev) => ({
-                        ...prev,
-                        startTime: e.target.value,
-                      }))
-                    }
-                    className="border-gray-200 focus:border-[#B9FF66] focus:ring-[#B9FF66]"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="endTime"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    结束时间
-                  </Label>
-                  <Input
-                    id="endTime"
-                    type="time"
-                    value={examForm.endTime}
-                    onChange={(e) =>
-                      setExamForm((prev) => ({
-                        ...prev,
-                        endTime: e.target.value,
-                      }))
-                    }
-                    className="border-gray-200 focus:border-[#B9FF66] focus:ring-[#B9FF66]"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="totalScore"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    总分
-                  </Label>
-                  <Input
-                    id="totalScore"
-                    type="number"
-                    value={examForm.totalScore}
-                    onChange={(e) =>
-                      setExamForm((prev) => ({
-                        ...prev,
-                        totalScore: Number(e.target.value),
-                      }))
-                    }
-                    min="1"
-                    className="border-gray-200 focus:border-[#B9FF66] focus:ring-[#B9FF66]"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="passingScore"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    及格分
-                  </Label>
-                  <Input
-                    id="passingScore"
-                    type="number"
-                    value={examForm.passingScore}
-                    onChange={(e) =>
-                      setExamForm((prev) => ({
-                        ...prev,
-                        passingScore: Number(e.target.value),
-                      }))
-                    }
-                    min="1"
-                    className="border-gray-200 focus:border-[#B9FF66] focus:ring-[#B9FF66]"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <DialogFooter className="pt-6 border-t border-gray-200">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsCreateDialogOpen(false);
-                  setEditingExamId(null);
-                  setExamForm({
-                    title: "",
-                    description: "",
-                    type: "",
-                    subjects: [],
-                    date: "",
-                    startTime: "",
-                    endTime: "",
-                    totalScore: 100,
-                    passingScore: 60,
-                    classes: [],
-                    status: "draft",
-                  });
-                }}
-                className="hover:shadow-md transition-all duration-200"
-              >
-                取消
-              </Button>
-              <Button
-                onClick={handleCreateExam}
-                disabled={!examForm.title || !examForm.type || !examForm.date}
-                className="bg-[#B9FF66] text-black hover:bg-[#A3E85A] hover:shadow-lg transition-all duration-200 disabled:opacity-50"
-              >
-                {editingExamId ? (
-                  <>
-                    <Edit className="h-4 w-4 mr-2" />
-                    更新考试
-                  </>
-                ) : (
-                  <>
-                    <Plus className="h-4 w-4 mr-2" />
-                    创建考试
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {/* 创建/编辑考试对话框 */}
+        <ExamDialog
+          open={isCreateDialogOpen}
+          onOpenChange={(open) => {
+            setIsCreateDialogOpen(open);
+            if (!open) setEditingExam(null);
+          }}
+          exam={editingExam}
+          examTypes={examTypes}
+          academicTerms={academicTerms}
+          onSave={handleSaveExam}
+        />
 
         {/* 科目总分设置对话框 */}
         {selectedExamForScoreConfig && (
@@ -1174,11 +870,7 @@ const ExamManagementCenter: React.FC = () => {
           >
             <DialogContent className="max-w-lg rounded-xl">
               <DialogHeader>
-                <DialogTitle className="text-xl font-bold flex items-center gap-2">
-                  <span>
-                    {examTypes.find((t) => t.name === viewingExam.type)
-                      ?.emoji ?? "📝"}
-                  </span>
+                <DialogTitle className="text-xl font-bold">
                   {viewingExam.title}
                 </DialogTitle>
                 <DialogDescription>考试详细信息</DialogDescription>
@@ -1246,6 +938,32 @@ const ExamManagementCenter: React.FC = () => {
           </Dialog>
         )}
       </div>
+
+      {/* 批量删除确认对话框 */}
+      <Dialog
+        open={isBatchDeleteConfirmOpen}
+        onOpenChange={setIsBatchDeleteConfirmOpen}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>确认批量删除</DialogTitle>
+            <DialogDescription>
+              确定要删除选中的 {selectedExams.length} 个考试吗？此操作不可撤销。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsBatchDeleteConfirmOpen(false)}
+            >
+              取消
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmBatchDelete}>
+              确认删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -120,7 +120,6 @@ const DraggableMetricItem: React.FC<{
         <div className="flex-1 min-w-0">
           {/* 指标标题和图标 */}
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-lg">{metric.icon}</span>
             <h4 className="font-bold text-[#191A23] text-sm truncate">
               {metric.displayName}
             </h4>

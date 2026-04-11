@@ -75,17 +75,13 @@ export class GradeDataService {
     return GradeDataService.instance;
   }
 
-  private constructor() {
-    console.log("[GradeDataService] 服务初始化");
-  }
+  private constructor() {}
 
   /**
    * 获取成绩列表
    */
   async getGrades(filter?: GradeFilter): Promise<Grade[]> {
     try {
-      console.log("[GradeDataService] 获取成绩列表，筛选条件:", filter);
-
       // 转换筛选条件格式
       const dataFilter = {
         studentId: filter?.studentId,
@@ -108,9 +104,6 @@ export class GradeDataService {
         return [];
       }
 
-      console.log(
-        `[GradeDataService] 获取到 ${response.data.length} 条成绩记录`
-      );
       return response.data;
     } catch (error) {
       console.error("[GradeDataService] getGrades 异常:", error);
@@ -124,8 +117,6 @@ export class GradeDataService {
    */
   async getGradeById(gradeId: string): Promise<Grade | null> {
     try {
-      console.log("[GradeDataService] 获取成绩详情:", gradeId);
-
       const response = await getDataGateway().getGrades({ gradeId, limit: 1 });
 
       if (response.error) {
@@ -147,8 +138,6 @@ export class GradeDataService {
    */
   async createGrade(gradeData: CreateGradeInput): Promise<Grade | null> {
     try {
-      console.log("[GradeDataService] 创建成绩记录:", gradeData.student_id);
-
       const newGrade = await getDataGateway().createGrade({
         student_id: gradeData.student_id,
         exam_id: gradeData.exam_id,
@@ -163,8 +152,6 @@ export class GradeDataService {
       });
 
       toast.success("成绩记录创建成功");
-      console.log("[GradeDataService] 成绩记录创建成功:", newGrade.id);
-
       return newGrade;
     } catch (error) {
       console.error("[GradeDataService] 创建成绩记录失败:", error);
@@ -181,8 +168,6 @@ export class GradeDataService {
     gradeData: UpdateGradeInput
   ): Promise<Grade | null> {
     try {
-      console.log("[GradeDataService] 更新成绩记录:", gradeId);
-
       const updatedGrade = await getDataGateway().updateGrade(gradeId, {
         ...gradeData,
         grade_level: gradeData.score
@@ -192,8 +177,6 @@ export class GradeDataService {
       });
 
       toast.success("成绩记录更新成功");
-      console.log("[GradeDataService] 成绩记录更新成功:", gradeId);
-
       return updatedGrade;
     } catch (error) {
       console.error("[GradeDataService] 更新成绩记录失败:", error);
@@ -207,13 +190,10 @@ export class GradeDataService {
    */
   async deleteGrade(gradeId: string): Promise<boolean> {
     try {
-      console.log("[GradeDataService] 删除成绩记录:", gradeId);
-
       const success = await getDataGateway().deleteGrade(gradeId);
 
       if (success) {
         toast.success("成绩记录删除成功");
-        console.log("[GradeDataService] 成绩记录删除成功:", gradeId);
       } else {
         toast.error("删除成绩记录失败");
       }
@@ -231,8 +211,6 @@ export class GradeDataService {
    */
   async batchCreateGrades(grades: CreateGradeInput[]): Promise<Grade[]> {
     try {
-      console.log("[GradeDataService] 批量创建成绩记录:", grades.length);
-
       const enrichedGrades = grades.map((grade) => ({
         ...grade,
         grade_level: grade.grade_level || this.calculateGradeLevel(grade.score),
@@ -246,8 +224,6 @@ export class GradeDataService {
       );
 
       toast.success(`成功创建${results.length}条成绩记录`);
-      console.log("[GradeDataService] 批量创建成功");
-
       return results;
     } catch (error) {
       console.error("[GradeDataService] 批量创建成绩记录失败:", error);
@@ -263,8 +239,6 @@ export class GradeDataService {
     filter?: GradeFilter
   ): Promise<GradeStatistics | null> {
     try {
-      console.log("[GradeDataService] 获取成绩统计");
-
       // 获取成绩数据
       const grades = await this.getGrades(filter);
       if (grades.length === 0) {
@@ -300,7 +274,6 @@ export class GradeDataService {
         subjectStats,
       };
 
-      console.log("[GradeDataService] 统计数据计算完成");
       return statistics;
     } catch (error) {
       console.error("[GradeDataService] 获取成绩统计失败:", error);
@@ -324,8 +297,6 @@ export class GradeDataService {
     }>
   > {
     try {
-      console.log("[GradeDataService] 获取学生成绩趋势:", studentId);
-
       const grades = await this.getGrades({
         studentId,
         subjectCode,
@@ -345,7 +316,6 @@ export class GradeDataService {
             new Date(a.examDate).getTime() - new Date(b.examDate).getTime()
         );
 
-      console.log(`[GradeDataService] 获取到${trendData.length}个趋势数据点`);
       return trendData;
     } catch (error) {
       console.error("[GradeDataService] 获取成绩趋势失败:", error);
@@ -420,8 +390,6 @@ export class GradeDataService {
    */
   async getAverageScore(): Promise<number> {
     try {
-      console.log("[GradeDataService] 计算平均分数");
-
       // 获取所有成绩数据
       const grades = await this.getGrades({});
 
@@ -443,7 +411,6 @@ export class GradeDataService {
       const average =
         totalScores.reduce((sum, score) => sum + score, 0) / totalScores.length;
 
-      console.log("[GradeDataService] 平均分数计算完成:", average.toFixed(2));
       return average;
     } catch (error) {
       console.error("[GradeDataService] 计算平均分数失败:", error);

@@ -460,13 +460,7 @@ function StudentDetailView({
                       key={subject}
                       className={isTotalScore ? "bg-blue-50 font-semibold" : ""}
                     >
-                      <TableCell className="font-medium">
-                        {isTotalScore && "📊 "}
-                        {subject}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {safeToFixed(data.entry_score, 1)}
-                      </TableCell>
+                      <TableCell className="font-medium">{subject}</TableCell>
                       <TableCell className="text-right">
                         {safeToFixed(data.exit_score, 1)}
                       </TableCell>
@@ -523,13 +517,7 @@ function StudentDetailView({
                       key={subject}
                       className={isTotalScore ? "bg-blue-50 font-semibold" : ""}
                     >
-                      <TableCell className="font-medium">
-                        {isTotalScore && "📊 "}
-                        {subject}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant="outline">{data.entry_level}</Badge>
-                      </TableCell>
+                      <TableCell className="font-medium">{subject}</TableCell>
                       <TableCell className="text-right">
                         <Badge variant="outline">{data.exit_level}</Badge>
                       </TableCell>

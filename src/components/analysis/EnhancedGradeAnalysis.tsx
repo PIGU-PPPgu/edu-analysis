@@ -71,8 +71,6 @@ const useGradeData = (examId?: string, classFilter?: string) => {
   return useQuery({
     queryKey: ["gradeData", examId, classFilter],
     queryFn: async () => {
-      console.log("[调试] 开始查询grade_data...", { examId, classFilter });
-
       let query = supabase
         .from("grade_data")
         .select("*")
@@ -87,8 +85,6 @@ const useGradeData = (examId?: string, classFilter?: string) => {
       }
 
       const { data, error } = await query;
-
-      console.log("[调试] 查询结果:", { data, error, count: data?.length });
 
       if (error) {
         console.error("[调试] 查询错误:", error);

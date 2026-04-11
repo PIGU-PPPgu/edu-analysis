@@ -182,10 +182,11 @@ export function getValueAtPercentile(
 ): number {
   if (allValues.length === 0) return 0;
 
-  const sortedValues = [...allValues].sort((a, b) => b - a); // 降序
-  const index = Math.floor(percentile * allValues.length);
+  // 升序排列，与 calculatePercentile 保持一致（百分位越高对应分数越高）
+  const sortedValues = [...allValues].sort((a, b) => a - b);
+  const index = Math.round(percentile * (sortedValues.length - 1));
 
-  return sortedValues[Math.min(index, sortedValues.length - 1)];
+  return sortedValues[Math.min(Math.max(index, 0), sortedValues.length - 1)];
 }
 
 /**
@@ -201,12 +202,12 @@ export function calculateRank(
 ): number {
   if (allValues.length === 0) return 0;
 
-  const sortedValues = [...allValues].sort((a, b) =>
-    descending ? b - a : a - b
-  );
-  const rank = sortedValues.findIndex((v) => v === value) + 1;
+  // 竞争排名：并列时取最高排名（1224 而非 1234）
+  const betterCount = allValues.filter((v) =>
+    descending ? v > value : v < value
+  ).length;
 
-  return rank;
+  return betterCount + 1;
 }
 
 /**

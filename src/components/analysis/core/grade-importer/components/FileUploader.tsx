@@ -314,8 +314,6 @@ const FileUploader: React.FC<FileUploaderProps> = ({
 
       //  尝试AI智能解析增强
       try {
-        console.log("[FileUploader]  尝试AI智能解析增强...");
-
         // 确保AI配置已初始化
         await initDefaultAIConfig(false);
 
@@ -341,9 +339,6 @@ const FileUploader: React.FC<FileUploaderProps> = ({
             },
           };
 
-          console.log(
-            `[FileUploader]  AI解析成功，置信度: ${aiResult.metadata.confidence}`
-          );
           toast.success(
             `AI智能解析完成！置信度: ${Math.round((aiResult.metadata.confidence || 0) * 100)}%`
           );

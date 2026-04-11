@@ -114,15 +114,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
       }
 
       const loadedReport = data[0].report_data as AnalysisReport;
-      console.log("📋 报告加载成功:", {
-        examId: loadedReport.metadata.examId,
-        reportType: loadedReport.metadata.reportType,
-        hasAdvancedAnalysis: !!loadedReport.advancedAnalysis,
-        hasGradeFlow: !!loadedReport.advancedAnalysis?.gradeFlow,
-        hasCorrelations: !!loadedReport.advancedAnalysis?.correlations,
-        correlationsHasData:
-          !!loadedReport.advancedAnalysis?.correlations?.chartData,
-      });
       setReport(loadedReport);
     } catch (err) {
       console.error("加载报告失败:", err);
@@ -248,8 +239,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
         reactDomCode = await reactDomResp.text();
         propTypesCode = await propTypesResp.text();
         rechartsCode = await rechartsResp.text();
-
-        console.log("✅ 库文件加载完成（本地，含PropTypes）");
       } catch (err) {
         console.error("库文件加载失败:", err);
         toast.error("库文件加载失败，请确保public/libs目录存在");
@@ -275,11 +264,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
       });
 
       // 先进行全局清理 - 移除所有可能重复的BoxPlot和API-SBI元素
-      console.log("🧹 开始全局清理重复图表元素...");
-
       // 1. 更彻底地查找和清理所有BoxPlot相关内容
-      console.log("🔍 开始查找BoxPlot容器...");
-
       // 方法1: 通过SVG特征查找
       const allSvgs = clonedContent.querySelectorAll("svg");
       let boxPlotContainers = new Set<HTMLElement>();
@@ -359,11 +344,9 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
           container.querySelector('[data-offline-chart="true"]') ||
           container.querySelector('[id^="offline-"]');
         if (hasOfflineChart) {
-          console.log("  ⚠️ 跳过BoxPlot容器（包含离线图表）");
           return;
         }
 
-        console.log("  清理BoxPlot容器 " + boxPlotIndex);
         // 保存容器引用用于后续渲染
         container.setAttribute("data-boxplot-container", String(boxPlotIndex));
         container.setAttribute("data-chart-type", "boxplot");
@@ -385,8 +368,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
       });
 
       // 2. 更彻底地查找和清理API-SBI的四象限卡片区域
-      console.log("🔍 开始查找API-SBI四象限卡片...");
-
       // 方法1: 查找包含所有四个象限的容器
       const allDivs = clonedContent.querySelectorAll("div");
       let apiSbiQuadrantContainers = new Set<HTMLElement>();
@@ -411,7 +392,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
           hasQuadrant4,
         ].filter(Boolean).length;
         if (quadrantCount >= 3) {
-          console.log("  找到包含四象限的容器，象限数:", quadrantCount);
           apiSbiQuadrantContainers.add(el as HTMLElement);
         }
       });
@@ -438,7 +418,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
           (style.includes("background-color") || style.includes("border"));
 
         if (isQuadrantCard) {
-          console.log("  找到单个象限卡片:", text.substring(0, 30));
           // 直接移除单个卡片
           div.remove();
         }
@@ -451,11 +430,9 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
           container.querySelector("[data-offline-chart]") ||
           container.querySelector('[id^="offline-"]')
         ) {
-          console.log("  ⚠️ 跳过四象限容器（包含离线图表）");
           return;
         }
 
-        console.log("  清理四象限容器");
         // 查找容器内的所有象限卡片并移除
         const cards = container.querySelectorAll("div");
         let removedCount = 0;
@@ -483,8 +460,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
             removedCount++;
           }
         });
-
-        console.log("    移除了 " + removedCount + " 个象限卡片");
       });
 
       // 【重要】首先处理带有 data-offline-chart 属性的容器
@@ -496,41 +471,21 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
         reportContentRef.current?.querySelectorAll(
           '[data-offline-chart="true"]'
         );
-      console.log(
-        "🔍 原始DOM中的离线图表容器数量:",
-        originalOfflineContainers?.length || 0
-      );
-
       // 调试：检查是否有offline-开头的ID
       const offlineIdContainers =
         clonedContent.querySelectorAll('[id^="offline-"]');
-      console.log(
-        "🔍 克隆内容中offline-开头ID的元素数量:",
-        offlineIdContainers.length
-      );
       offlineIdContainers.forEach((el) => {
-        console.log(
-          "   - ID:",
-          el.getAttribute("id"),
-          "| data-chart-type:",
-          el.getAttribute("data-chart-type")
-        );
+        void el; // 保留迭代以便后续扩展
       });
 
       const offlineChartContainers = clonedContent.querySelectorAll(
         '[data-offline-chart="true"]'
       );
-      console.log(
-        "🎯 找到 " + offlineChartContainers.length + " 个离线图表容器"
-      );
-
       const processedContainerIds = new Set<string>();
 
       offlineChartContainers.forEach((container) => {
         const chartType = container.getAttribute("data-chart-type");
         const containerId = container.getAttribute("id");
-
-        console.log(`📊 处理离线图表: ${chartType} (${containerId})`);
 
         // 清空容器，准备重新渲染
         container.innerHTML =
@@ -585,7 +540,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
           combinedText.includes("成绩统计分布") ||
           combinedText.includes("BoxPlot")
         ) {
-          console.log("⏭️ 跳过BoxPlot（已在前面处理）");
           return; // 跳过这个容器
         } else if (
           precedingTitle.includes("分数段人数分布") &&
@@ -629,7 +583,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
         } else if (precedingTitle.includes("多维度排名与综合指标分析")) {
           // 多维度排名容器不应该被清空，它包含了多个子组件
           chartType = "multi-dimension-container";
-          console.log("🏆 识别到多维度排名与综合指标分析容器，跳过清空处理");
         }
 
         // 为目标容器添加唯一ID和类型标记
@@ -637,10 +590,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
         targetParent.setAttribute("data-chart-index", String(chartIndex));
         targetParent.setAttribute("data-chart-type", chartType);
         targetParent.setAttribute("data-debug-title", precedingTitle); // 用于调试
-
-        console.log(
-          `📍 图表 ${chartIndex}: ${chartType} | 标题: "${precedingTitle}"`
-        );
 
         // 分类处理：
         // 1. 复杂D3图表 - 保留静态快照
@@ -654,7 +603,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
             "width: 100%; min-height: 600px; padding: 20px; text-align: center; color: #999;";
           placeholder.innerHTML = "正在加载API-SBI散点图...";
           targetParent.appendChild(placeholder);
-          console.log("✓ API-SBI散点图已标记为重新渲染");
         } else if (
           chartType !== "grade-flow-sankey" &&
           chartType !== "correlation-heatmap" &&
@@ -669,8 +617,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
       });
 
       // 离线图表容器已在前面优先处理，这里不再重复
-
-      console.log(`✅ 报告内容克隆完成，找到 ${chartIndex} 个图表容器`);
 
       // 展开所有Collapsible组件（使数据表格在HTML中可见）
       const collapsibleContents = clonedContent.querySelectorAll(
@@ -915,13 +861,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
 
     // 页面加载完成后重新渲染所有图表
     window.addEventListener('DOMContentLoaded', () => {
-      console.log('✅ 报告已加载，开始渲染交互式图表');
-      console.log('📊 数据快照:', {
-        考试: reportData.metadata.examTitle,
-        学生数: reportData.metadata.dataSnapshot.totalStudents,
-        生成时间: reportData.metadata.generatedAt
-      });
-
       const React = window.React;
       const ReactDOM = window.ReactDOM;
       const Recharts = window.Recharts;
@@ -955,17 +894,12 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
       // ========== BoxPlot完全重新渲染 ==========
       // BoxPlot的SVG在cloneNode时内容丢失，需要完全重新创建
       function renderBoxPlotFromScratch(containerId, data) {
-        console.log('🎨 开始渲染BoxPlot - 容器ID:', containerId);
-        console.log('🎨 数据:', data?.length + '个科目');
-
         const container = document.getElementById(containerId);
         if (!container) {
           console.error('❌ BoxPlot容器未找到! ID:', containerId);
           // 尝试查找所有可能的容器
           const allContainers = document.querySelectorAll('[data-chart-type="boxplot"]');
-          console.log('🔍 找到的所有BoxPlot容器:', allContainers.length);
           allContainers.forEach((c, i) => {
-            console.log('  容器' + i + ': ID=' + c.id + ', data-chart-index=' + c.getAttribute('data-chart-index'));
           });
           return;
         }
@@ -974,9 +908,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
           console.warn('⚠️ 数据未找到或为空');
           return;
         }
-
-        console.log('✅ 找到容器，当前内容长度:', container.innerHTML.length);
-        console.log('✅ 容器当前子元素数量:', container.childElementCount);
 
         // 渲染前的最终清理 - 确保移除所有可能的旧内容
         // 1. 移除所有包含BoxPlot特征的元素
@@ -1288,17 +1219,10 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
         mainWrapper.appendChild(description);
 
         // 最终确认
-        console.log('✅ BoxPlot渲染完成！');
-        console.log('  - 容器ID:', containerId);
-        console.log('  - 科目数量:', data.length);
-        console.log('  - 最终子元素数量:', container.childElementCount);
-        console.log('  - 主包装器已添加:', mainWrapper !== null);
       }
 
       // ========== 旧的BoxPlot恢复函数（已废弃） ==========
       function restoreBoxPlotInteraction(containerId, boxPlotData) {
-        console.log('🔧 开始为BoxPlot添加交互:', containerId);
-
         const container = document.getElementById(containerId);
         if (!container) {
           console.warn('⚠️ BoxPlot容器未找到:', containerId);
@@ -1310,8 +1234,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
           console.warn('⚠️ BoxPlot SVG未找到');
           return;
         }
-
-        console.log('✓ 找到SVG，开始添加tooltip');
 
         // 创建浮动tooltip容器
         const tooltipDiv = document.createElement('div');
@@ -1332,8 +1254,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
 
         // 查找所有科目的箱体（绿色矩形）
         const boxRects = Array.from(svg.querySelectorAll('rect[fill="#B9FF66"]'));
-        console.log('📊 找到', boxRects.length, '个箱体');
-
         if (boxRects.length === 0 || !boxPlotData) {
           console.warn('⚠️ 未找到箱体或数据');
           return;
@@ -1414,7 +1334,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
           svg.appendChild(trigger);
         });
 
-        console.log('✅ BoxPlot交互已添加: ' + boxRects.length + '个科目');
       }
 
       // 辅助函数：渲染箱线图（简化版，已弃用）
@@ -1659,8 +1578,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
 
       // 渲染API-SBI散点图（完整版，包含标题、参考线、象限着色和四象限解读）
       function renderAPISBIScatterChart(containerId, data) {
-        console.log('🎨 重新渲染API-SBI散点图:', containerId, data?.length + '个数据点');
-
         if (!data || data.length === 0) return;
 
         const container = document.getElementById(containerId);
@@ -1670,8 +1587,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
         }
 
         // 渲染前的最终清理 - 确保移除所有四象限卡片
-        console.log('🧹 清理API-SBI容器内的旧内容...');
-
         // 1. 移除所有可能的四象限卡片
         const allElements = container.querySelectorAll('*');
         let removedCount = 0;
@@ -1695,7 +1610,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
         });
 
         if (removedCount > 0) {
-          console.log('  移除了 ' + removedCount + ' 个旧元素');
         }
 
         // 2. 完全清空容器
@@ -2081,21 +1995,16 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
       let renderedCount = 0;
       let skippedCount = 0;
 
-      console.log('📊 找到 ' + allContainers.length + ' 个图表容器需要处理');
-
       allContainers.forEach((container) => {
         try {
           const containerId = container.getAttribute('id');
           const chartType = container.getAttribute('data-chart-type');
           const chartIndex = container.getAttribute('data-chart-index') || container.getAttribute('data-boxplot-container');
 
-          console.log('🎨 处理图表:', chartType, '| 容器ID:', containerId);
-
           switch (chartType) {
             case 'boxplot':
               // BoxPlot需要完全重新渲染（SVG内容在克隆时丢失）
               if (reportData.basicAnalysis?.scoreDistribution?.rawData?.boxPlotData) {
-                console.log('📦 渲染BoxPlot - 容器ID:', containerId);
                 // 容器已经在克隆阶段清空，直接渲染
                 renderBoxPlotFromScratch(containerId, reportData.basicAnalysis.scoreDistribution.rawData.boxPlotData);
                 renderedCount++;
@@ -2140,36 +2049,27 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
               break;
 
             case 'rank-distribution':
-              console.log('📊 尝试渲染排名分布图 - 容器ID:', containerId);
-              console.log('   数据存在:', !!reportData.advancedAnalysis?.rankings?.rawData?.rankDistributionData);
               if (reportData.advancedAnalysis?.rankings?.rawData?.rankDistributionData) {
                 renderRankDistributionChart(containerId, reportData.advancedAnalysis.rankings.rawData.rankDistributionData);
                 renderedCount++;
-                console.log('   ✅ 排名分布图渲染成功');
               } else {
                 console.warn('   ⚠️ 排名分布数据未找到');
               }
               break;
 
             case 'sbi-radar':
-              console.log('📐 尝试渲染SBI雷达图 - 容器ID:', containerId);
-              console.log('   数据存在:', !!reportData.advancedAnalysis?.rankings?.rawData?.sbiRadarData);
               if (reportData.advancedAnalysis?.rankings?.rawData?.sbiRadarData) {
                 renderSBIRadarChart(containerId, reportData.advancedAnalysis.rankings.rawData.sbiRadarData, reportData.advancedAnalysis.rankings.rawData.avgSBI);
                 renderedCount++;
-                console.log('   ✅ SBI雷达图渲染成功');
               } else {
                 console.warn('   ⚠️ SBI雷达图数据未找到');
               }
               break;
 
             case 'api-sbi-scatter':
-              console.log('📈 尝试渲染API-SBI散点图 - 容器ID:', containerId);
-              console.log('   数据存在:', !!reportData.advancedAnalysis?.rankings?.rawData?.apiSbiScatterData);
               if (reportData.advancedAnalysis?.rankings?.rawData?.apiSbiScatterData) {
                 renderAPISBIScatterChart(containerId, reportData.advancedAnalysis.rankings.rawData.apiSbiScatterData);
                 renderedCount++;
-                console.log('   ✅ API-SBI散点图渲染成功');
               } else {
                 console.warn('   ⚠️ API-SBI数据未找到');
               }
@@ -2178,7 +2078,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
             case 'grade-flow-sankey':
             case 'correlation-heatmap':
               // 复杂图表(使用D3.js)，跳过重新渲染，保留静态快照
-              console.log('⚠️ 跳过复杂图表:', chartType);
               skippedCount++;
               break;
 
@@ -2193,8 +2092,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
         }
       });
 
-      console.log(\`✅ 已渲染 \${renderedCount} 个交互式图表，跳过 \${skippedCount} 个复杂图表\`);
-
       // 添加页脚信息
       const footer = document.createElement('div');
       footer.style.cssText = 'text-align: center; padding: 30px 0; margin-top: 50px; border-top: 2px solid #eee; color: #999; font-size: 0.85rem;';
@@ -2206,7 +2103,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({ examId, onClose }) => {
       \`;
       document.body.appendChild(footer);
 
-      console.log('✅ 离线报告初始化完成');
     });
   </script>
 </body>

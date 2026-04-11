@@ -7,7 +7,7 @@ const Footer: React.FC = () => {
         <div className="w-full max-w-[1121px] max-md:max-w-full">
           <div className="flex w-full items-center gap-[40px_155px] flex-wrap max-md:max-w-full">
             <div className="aspect-[6.21] w-[180px] self-stretch shrink-0 my-auto flex items-center">
-              <h2 className="text-white text-2xl font-bold">Positivus</h2>
+              <h2 className="text-white text-2xl font-bold">IntelliClass</h2>
             </div>
             <nav className="self-stretch flex min-w-60 gap-10 text-lg text-white font-normal underline flex-wrap my-auto max-md:max-w-full">
               <a
@@ -81,7 +81,7 @@ const Footer: React.FC = () => {
           <div className="border min-h-px w-full border-white border-solid" />
 
           <div className="flex gap-10 flex-wrap mt-[50px] max-md:max-w-full max-md:mt-10">
-            <div>© 2025 Positivus. 保留所有权利.</div>
+            <div>© 2025 IntelliClass. 保留所有权利.</div>
             <a
               href="/privacy"
               className="underline hover:text-[#B9FF66] transition-colors"

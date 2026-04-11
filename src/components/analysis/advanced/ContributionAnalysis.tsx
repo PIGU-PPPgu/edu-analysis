@@ -142,7 +142,8 @@ const ContributionAnalysis: React.FC<ContributionAnalysisProps> = ({
 
       const score = Number(record.score);
       const classAverage = classSubjectStat.average;
-      const contribution = ((score - classAverage) / classAverage) * 100;
+      const contribution =
+        classAverage > 0 ? ((score - classAverage) / classAverage) * 100 : 0;
 
       // 计算排名和百分位
       const sortedScores = classSubjectStat.students
@@ -246,6 +247,7 @@ const ContributionAnalysis: React.FC<ContributionAnalysisProps> = ({
   }, [filteredStudents]);
 
   const handleExportData = () => {
+    if (filteredStudents.length === 0) return;
     const exportData = filteredStudents.map((student) => ({
       学号: student.student_id,
       姓名: student.name,

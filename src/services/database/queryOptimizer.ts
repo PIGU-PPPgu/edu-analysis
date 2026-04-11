@@ -193,12 +193,6 @@ export class DatabaseQueryOptimizer {
     if (this.queryMetrics.length > 1000) {
       this.queryMetrics.shift();
     }
-
-    if (this.config.enableLogging) {
-      console.log(
-        `🔍 [QueryOptimizer] ${metric.queryId}: ${metric.executionTime.toFixed(2)}ms ${metric.cached ? "(cached)" : ""}`
-      );
-    }
   }
 
   /**
@@ -317,9 +311,6 @@ export class DatabaseQueryOptimizer {
    */
   clearCache(): void {
     this.queryCache.clear();
-    if (this.config.enableLogging) {
-      console.log("🗑️ [QueryOptimizer] 缓存已清空");
-    }
   }
 
   /**

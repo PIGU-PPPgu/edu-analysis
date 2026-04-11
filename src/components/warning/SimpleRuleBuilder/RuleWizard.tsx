@@ -465,7 +465,7 @@ const RuleWizard: React.FC<RuleWizardProps> = ({
       <Card className="border-2 border-gray-200">
         <CardHeader className="bg-gray-50">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">{scenario.icon}</span>
+            <div className="w-8 h-8 rounded bg-gray-400" />
             <div>
               <CardTitle className="text-lg font-bold text-[#191A23]">
                 {scenario.name}

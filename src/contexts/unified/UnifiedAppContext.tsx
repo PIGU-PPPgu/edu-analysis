@@ -173,7 +173,6 @@ const StateAggregator: React.FC<{
   const resetApp = useCallback(() => {
     setInitialized(false);
     // 这里可以添加重置各模块状态的逻辑
-    console.log("🔄 重置应用状态");
   }, []);
 
   // 稳定化模块状态获取函数
@@ -212,16 +211,6 @@ const StateAggregator: React.FC<{
 
       uiModule.setGlobalLoading({ progress: 100, message: "初始化完成" });
       setInitialized(true);
-
-      if (config.enableDevTools) {
-        console.log("🚀 UnifiedAppContext 初始化成功", {
-          version,
-          buildTime,
-          enabledModules: Object.entries(config.modules)
-            .filter(([, cfg]) => cfg.enabled)
-            .map(([name]) => name),
-        });
-      }
     } catch (error) {
       console.error("❌ UnifiedAppContext 初始化失败:", error);
       uiModule.addNotification({
@@ -372,11 +361,6 @@ const StateAggregator: React.FC<{
     () => ({
       logState: () => {
         console.group("🔍 UnifiedAppContext State");
-        console.log("Auth:", state.auth);
-        console.log("Grade:", state.grade);
-        console.log("Filter:", state.filter);
-        console.log("UI:", state.ui);
-        console.log("Meta:", { initialized, version, buildTime });
         console.groupEnd();
       },
       exportState: () => {
@@ -411,7 +395,6 @@ const StateAggregator: React.FC<{
       importState: (stateJson: string) => {
         try {
           const importedData = JSON.parse(stateJson);
-          console.log("📥 导入状态:", importedData);
           // 这里可以实现状态导入逻辑
         } catch (error) {
           console.error("❌ 导入状态失败:", error);

@@ -155,8 +155,9 @@ function convertWideToLongFormat(wideData: any[]): any[] {
 
       // 如果是计算出的总分且没有等级，可以根据分数估算等级
       if (isCalculated && !totalGrade && effectiveTotalScore) {
-        // 简单的等级估算逻辑（可以根据实际需要调整）
-        const scorePercent = effectiveTotalScore / 700; // 假设满分700
+        // 从数据中推断满分（取所有学生总分的最大值，或使用 total_max_score 字段）
+        const maxPossibleScore = student.total_max_score || 750;
+        const scorePercent = effectiveTotalScore / maxPossibleScore;
         if (scorePercent >= 0.85) totalGrade = "A+";
         else if (scorePercent >= 0.8) totalGrade = "A";
         else if (scorePercent >= 0.75) totalGrade = "B+";

@@ -827,6 +827,10 @@ const ClassManagement: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar />
+      {/* 维护横幅 */}
+      <div className="bg-red-600 text-white text-center py-3 px-4 font-semibold text-sm tracking-wide">
+        🚧 仍在开发维护中，暂不可用
+      </div>
       <main className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-800 dark:text-white">

@@ -391,8 +391,8 @@ export interface GlobalAIConfig {
 }
 
 const DEFAULT_GLOBAL_CONFIG: GlobalAIConfig = {
-  defaultProvider: "openai",
-  defaultModel: "gpt-4o-mini",
+  defaultProvider: "doubao",
+  defaultModel: import.meta.env.VITE_DOUBAO_MODEL || "doubao-seed-2.0-pro",
   defaultTemperature: 0.7,
   defaultMaxTokens: 2000,
   fallbackProviders: [],
@@ -439,7 +439,9 @@ export function getApiBaseURL(providerId: string): string {
     openrouter: "https://openrouter.ai/api/v1",
     deepseek: "https://api.deepseek.com/v1",
     xai: "https://api.x.ai/v1",
-    doubao: "https://ark.cn-beijing.volces.com/api/v3",
+    doubao:
+      import.meta.env.VITE_DOUBAO_BASE_URL ||
+      "https://ark.cn-beijing.volces.com/api/coding/v3",
     moonshot: "https://api.moonshot.cn/v1",
     baidu: "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop",
     zhipu: "https://open.bigmodel.cn/api/paas/v4",

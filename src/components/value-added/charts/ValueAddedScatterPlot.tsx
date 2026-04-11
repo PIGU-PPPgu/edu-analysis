@@ -333,7 +333,7 @@ export function ValueAddedScatterPlot({
 
             <Card className="p-4 bg-blue-50 border-blue-200">
               <div className="text-xs text-blue-700 font-medium">
-                Q2: 低进高出 ✨
+                Q2: 低进高出
               </div>
               <div className="text-2xl font-bold text-blue-700">
                 {quadrants.q2}
@@ -353,7 +353,7 @@ export function ValueAddedScatterPlot({
 
             <Card className="p-4 bg-red-50 border-red-200">
               <div className="text-xs text-red-700 font-medium">
-                Q4: 高进低出 ⚠️
+                Q4: 高进低出
               </div>
               <div className="text-2xl font-bold text-red-700">
                 {quadrants.q4}
@@ -368,7 +368,7 @@ export function ValueAddedScatterPlot({
             {bestCases.length > 0 && (
               <Card className="p-4 bg-blue-50">
                 <h4 className="font-bold text-blue-800 mb-2 flex items-center gap-2">
-                  ✨ 增值典范
+                  增值典范
                 </h4>
                 <ul className="space-y-2 text-sm">
                   {bestCases.map((item, i) => (
@@ -387,7 +387,7 @@ export function ValueAddedScatterPlot({
             {concernCases.length > 0 && (
               <Card className="p-4 bg-red-50">
                 <h4 className="font-bold text-red-800 mb-2 flex items-center gap-2">
-                  ⚠️ 需要关注
+                  需要关注
                 </h4>
                 <ul className="space-y-2 text-sm">
                   {concernCases.map((item, i) => (

@@ -90,28 +90,35 @@ export const ExamDialog: React.FC<ExamDialogProps> = ({
 
   // 加载可用班级列表
   useEffect(() => {
-    if (open) {
-      const loadClasses = async () => {
-        try {
-          const { data, error } = await supabase
-            .from("class_info")
-            .select("class_name")
-            .order("class_name");
+    if (!open) return;
+    let cancelled = false;
 
-          if (!error && data) {
-            setAvailableClasses(data.map((c) => c.class_name));
-          } else {
-            console.error("加载班级列表失败:", error);
-            setAvailableClasses([]);
-          }
-        } catch (error) {
+    const loadClasses = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("class_info")
+          .select("class_name")
+          .order("class_name");
+
+        if (cancelled) return;
+        if (!error && data) {
+          setAvailableClasses(data.map((c) => c.class_name));
+        } else {
+          console.error("加载班级列表失败:", error);
+          setAvailableClasses([]);
+        }
+      } catch (error) {
+        if (!cancelled) {
           console.error("加载班级列表时出错:", error);
           setAvailableClasses([]);
         }
-      };
+      }
+    };
 
-      loadClasses();
-    }
+    loadClasses();
+    return () => {
+      cancelled = true;
+    };
   }, [open]);
 
   // 初始化表单数据
@@ -201,9 +208,12 @@ export const ExamDialog: React.FC<ExamDialogProps> = ({
   };
 
   // 处理表单提交
-  const handleSubmit = () => {
+  const handleSubmit = (statusOverride?: ExamFormData["status"]) => {
+    const dataToSave = statusOverride
+      ? { ...formData, status: statusOverride }
+      : formData;
     if (validateForm()) {
-      onSave(formData);
+      onSave(dataToSave);
     }
   };
 
@@ -330,7 +340,10 @@ export const ExamDialog: React.FC<ExamDialogProps> = ({
                     {examTypes.map((type) => (
                       <SelectItem key={type.id} value={type.name}>
                         <div className="flex items-center gap-2">
-                          <span>{type.emoji}</span>
+                          <span
+                            className="inline-block w-2.5 h-2.5 rounded-sm"
+                            style={{ background: type.color }}
+                          />
                           {type.name}
                         </div>
                       </SelectItem>
@@ -603,16 +616,13 @@ export const ExamDialog: React.FC<ExamDialogProps> = ({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => {
-                  updateField("status", "draft");
-                  handleSubmit();
-                }}
+                onClick={() => handleSubmit("draft")}
                 disabled={isLoading}
               >
                 保存草稿
               </Button>
             )}
-            <Button onClick={handleSubmit} disabled={isLoading}>
+            <Button onClick={() => handleSubmit()} disabled={isLoading}>
               {isLoading ? "保存中..." : isEditMode ? "保存修改" : "创建考试"}
             </Button>
           </div>

@@ -82,8 +82,6 @@ const ImportProcessorWithDataFlow: React.FC<
    */
   useEffect(() => {
     if (validData && validData.length > 0 && !taskCreatedRef.current) {
-      console.log("[DataFlowAdapter] 创建导入任务");
-
       createImportTask({
         type: TaskType.GRADE_IMPORT,
         data: validData,
@@ -112,7 +110,6 @@ const ImportProcessorWithDataFlow: React.FC<
       // 检查是否有可恢复的任务
       setTimeout(() => {
         if (hasResumableCheckpoint()) {
-          console.log("[DataFlowAdapter] 检测到可恢复任务,显示提示");
           setShowResumePrompt(true);
         }
       }, 100);
@@ -137,7 +134,6 @@ const ImportProcessorWithDataFlow: React.FC<
       return;
     }
 
-    console.log("[DataFlowAdapter] 开始从检查点恢复", resumeInfo);
     setResumeData(resumeInfo);
     setResumeMode(true);
     setShowResumePrompt(false);
@@ -151,7 +147,6 @@ const ImportProcessorWithDataFlow: React.FC<
    * 处理放弃恢复(重新开始)
    */
   const handleDiscardResume = useCallback(() => {
-    console.log("[DataFlowAdapter] 用户选择重新开始,清除检查点");
     setShowResumePrompt(false);
     setResumeMode(false);
     setResumeData(null);
@@ -164,8 +159,6 @@ const ImportProcessorWithDataFlow: React.FC<
    */
   const handleImportComplete = useCallback(
     (result: ImportResult) => {
-      console.log("[DataFlowAdapter] 导入完成，同步结果到DataFlow");
-
       // 更新最终进度
       if (taskId) {
         updateProgress({

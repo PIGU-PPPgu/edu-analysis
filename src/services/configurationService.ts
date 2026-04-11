@@ -124,7 +124,6 @@ async function ensureUniqueName(baseName: string): Promise<string> {
       .maybeSingle(); // ✅ 使用 maybeSingle 允许不存在的情况
 
     if (!duplicate) {
-      console.log(`配置名称重复，自动重命名为: ${newName}`);
       return newName;
     }
 

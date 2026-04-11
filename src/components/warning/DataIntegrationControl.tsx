@@ -254,7 +254,7 @@ const DataIntegrationControl: React.FC<DataIntegrationControlProps> = ({
               <TrendingUp className="h-4 w-4 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
               <div className="text-xs text-green-800 space-y-1">
                 <p>
-                  <strong>⚡ 性能优化说明:</strong>
+                  <strong>性能优化说明:</strong>
                 </p>
                 <p>• 快速模式：仅分析前20名学生，大幅缩短执行时间</p>
                 <p>• 批量并行：每批5个学生并行处理，提升处理效率</p>

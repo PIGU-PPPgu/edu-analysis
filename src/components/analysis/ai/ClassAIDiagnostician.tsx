@@ -147,15 +147,6 @@ const ClassAIDiagnostician: React.FC<ClassAIDiagnosticianProps> = ({
   };
 
   // 调试信息
-  console.log(" ClassAIDiagnostician 渲染状态:", {
-    hasGradeData: !!gradeData && gradeData.length > 0,
-    gradeDataCount: gradeData?.length || 0,
-    isAnalyzing,
-    hasAnalysisResult: !!analysisResult,
-    analysisError,
-    aiStatus,
-  });
-
   const startAIDiagnosis = async () => {
     if (!gradeData || gradeData.length === 0) {
       setAnalysisError("需要成绩数据才能进行AI诊断");
@@ -182,7 +173,6 @@ const ClassAIDiagnostician: React.FC<ClassAIDiagnosticianProps> = ({
       }
 
       const result = await aiService.analyzeClass(gradeData);
-      console.log(" AI诊断成功，结果:", result);
       setAnalysisResult(result);
 
       // 保存结果到缓存

@@ -411,7 +411,7 @@ export function ValueAddedMainDashboard() {
                 我知道了
               </Button>
               <span className="text-xs text-gray-500 ml-auto">
-                💡 提示：预计需要30分钟完成首次配置
+                提示：预计需要30分钟完成首次配置
               </span>
             </div>
           </CardContent>

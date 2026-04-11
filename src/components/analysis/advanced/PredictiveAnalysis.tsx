@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Card,
   CardContent,
@@ -27,7 +27,6 @@ import {
   BookOpen,
   LineChart,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface PredictionData {
@@ -96,6 +95,49 @@ const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
     }
   };
 
+  // 将宽表格式的 gradeData 行转换为长表格式（每科一行）
+  const expandWideRowToLong = (row: Record<string, unknown>) => {
+    const subjectFields: Record<string, string> = {
+      chinese: "语文",
+      math: "数学",
+      english: "英语",
+      physics: "物理",
+      chemistry: "化学",
+      biology: "生物",
+      politics: "政治",
+      history: "历史",
+      geography: "地理",
+    };
+    const rows: Record<string, unknown>[] = [];
+    for (const [field, label] of Object.entries(subjectFields)) {
+      const score = row[`${field}_score`];
+      if (score != null && Number(score) > 0) {
+        rows.push({
+          score: Number(score),
+          subject: label,
+          exam_date: row.exam_date,
+          exam_type: row.exam_type,
+          difficulty_level: "medium",
+        });
+      }
+    }
+    // 如果没有科目分数，退回到总分
+    if (
+      rows.length === 0 &&
+      row.total_score != null &&
+      Number(row.total_score) > 0
+    ) {
+      rows.push({
+        score: Number(row.total_score),
+        subject: "总分",
+        exam_date: row.exam_date,
+        exam_type: row.exam_type,
+        difficulty_level: "medium",
+      });
+    }
+    return rows;
+  };
+
   // 增强时间序列分析算法 - 提升预测准确率到85%
   const analyzeSingleStudent = async (
     studentId: string
@@ -104,48 +146,49 @@ const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
       const student = allStudents.find((s) => s.student_id === studentId);
       if (!student) return null;
 
-      // 获取历史成绩数据（增加更多上下文信息）
-      const { data: grades } = await supabase
-        .from("grade_data")
-        .select(
-          `
-          *,
-          exams!inner(exam_date, exam_type, difficulty_level)
-        `
-        )
-        .eq("student_id", studentId)
-        .order("exams.exam_date", { ascending: true });
+      // 从 prop 数据中筛选该学生的记录，转换为长表格式
+      const studentRows = gradeData.filter((r) => r.student_id === studentId);
+      const grades = studentRows.flatMap((row) =>
+        expandWideRowToLong(row).map((r) => ({
+          ...r,
+          exams: {
+            exam_date: row.exam_date,
+            exam_type: row.exam_type,
+            difficulty_level: "medium",
+          },
+        }))
+      );
 
-      if (!grades || grades.length < 3) {
+      if (grades.length < 3) {
         // 提高最低数据要求
         return null;
       }
 
       // 数据预处理和时间序列构建
       const processedGrades = preprocessGradeData(grades)!;
-      const timeSeriesData = buildTimeSeriesData(processedGrades)!;
+      const timeSeriesData = buildTimeSeriesData(processedGrades);
 
       // 计算当前平均分（加权平均，近期成绩权重更高）
-      const currentAverage = calculateWeightedAverage(timeSeriesData)!;
+      const currentAverage = calculateWeightedAverage(timeSeriesData);
 
       // 按科目分组进行高级时间序列分析
-      const subjectTimeSeriesMap = groupBySubject(timeSeriesData)!;
+      const subjectTimeSeriesMap = groupBySubject(timeSeriesData);
 
       // 生成增强预测分数（集成多种预测模型）
-      const predictedScores = (await generateEnhancedPredictions(
+      const predictedScores = await generateEnhancedPredictions(
         subjectTimeSeriesMap,
         timeframe
-      ))!;
+      );
 
       // 增强趋势分析（使用移动平均和回归分析）
-      const trendDirection = analyzeTrendDirection(timeSeriesData)!;
+      const trendDirection = analyzeTrendDirection(timeSeriesData);
 
       // 多因子风险评估
       const riskLevel = assessMultiFactorRisk(
         timeSeriesData,
         trendDirection,
         currentAverage
-      )!;
+      );
 
       // 智能建议生成（基于ML分析结果）
       const recommendations = generateIntelligentRecommendations(
@@ -154,13 +197,13 @@ const PredictiveAnalysis: React.FC<PredictiveAnalysisProps> = ({
         riskLevel,
         currentAverage,
         predictedScores
-      )!;
+      );
 
       // 优势和劣势识别（基于多维度分析）
       const { strengths, weaknesses } = identifyStrengthsAndWeaknesses(
         subjectTimeSeriesMap,
         predictedScores
-      )!;
+      );
 
       return {
         studentId,

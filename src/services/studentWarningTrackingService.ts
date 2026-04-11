@@ -76,8 +76,8 @@ export interface TrackingNote {
 export interface WarningListFilter {
   status?: "active" | "resolved" | "dismissed";
   severity?: "low" | "medium" | "high";
-  className?: string;
-  examTitles?: string[]; // 新增：考试标题筛选
+  classNames?: string[]; // 支持多班级筛选
+  examTitles?: string[];
   dateRange?: {
     start: string;
     end: string;
@@ -98,9 +98,6 @@ export async function getWarningRecords(
   hasMore: boolean;
 }> {
   try {
-    console.log("📋 获取预警记录列表...");
-
-    // 尝试从数据库查询
     let query = supabase.from("warning_records").select(`
         *,
         students:student_id (
@@ -109,20 +106,26 @@ export async function getWarningRecords(
         )
       `);
 
-    // 应用过滤条件
     if (filter?.status) {
       query = query.eq("status", filter.status);
     }
-    if (filter?.searchTerm) {
-      // 这里简化处理，实际应该在数据库层面进行全文搜索
-      // query = query.or(`students.name.ilike.%${filter.searchTerm}%,students.class_name.ilike.%${filter.searchTerm}%`);
+
+    // 班级筛选：通过 grade_data 找到对应班级的学生 ID
+    if (filter?.classNames && filter.classNames.length > 0) {
+      const { data: classStudents } = await supabase
+        .from("grade_data")
+        .select("student_id")
+        .in("class_name", filter.classNames);
+      if (classStudents && classStudents.length > 0) {
+        const ids = [...new Set(classStudents.map((s) => s.student_id))];
+        query = query.in("student_id", ids);
+      } else {
+        return { records: [], total: 0, hasMore: false };
+      }
     }
 
-    // 🆕 考试筛选：只返回参与了指定考试的学生的预警记录
+    // 考试筛选：只返回参与了指定考试的学生的预警记录
     if (filter?.examTitles && filter.examTitles.length > 0) {
-      console.log("📊 应用考试筛选到预警记录:", filter.examTitles);
-
-      // 首先查询参与了指定考试的学生ID列表
       const { data: examStudents, error: examError } = await supabase
         .from("grade_data")
         .select("student_id")
@@ -134,13 +137,8 @@ export async function getWarningRecords(
         const participantStudentIds = [
           ...new Set(examStudents.map((s) => s.student_id)),
         ];
-        console.log(
-          `🎯 找到${participantStudentIds.length}名参与指定考试的学生，应用到预警记录筛选`
-        );
         query = query.in("student_id", participantStudentIds);
       } else {
-        // 如果没有学生参与指定考试，返回空结果
-        console.log("🔍 指定考试无学生参与，返回空预警记录");
         return { records: [], total: 0, hasMore: false };
       }
     }
@@ -155,7 +153,6 @@ export async function getWarningRecords(
     }
 
     if (!data || data.length === 0) {
-      console.log("数据库无数据");
       return { records: [], total: 0, hasMore: false };
     }
 
@@ -194,8 +191,6 @@ export async function getStudentWarningProfile(
   studentId: string
 ): Promise<StudentWarningProfile | null> {
   try {
-    console.log(`📊 获取学生${studentId}的预警档案...`);
-
     // 尝试从数据库获取数据
     const { data: student, error: studentError } = await supabase
       .from("students")
@@ -258,8 +253,6 @@ export async function resolveWarning(
   userId: string
 ): Promise<boolean> {
   try {
-    console.log(`🔧 ${action}预警记录: ${warningId}`);
-
     const { error } = await supabase
       .from("warning_records")
       .update({
@@ -290,8 +283,6 @@ export async function undoWarningAction(
   userId: string
 ): Promise<boolean> {
   try {
-    console.log(`↩️ 撤销预警操作: ${warningId}`);
-
     const { error } = await supabase
       .from("warning_records")
       .update({
@@ -414,8 +405,6 @@ export async function getStudentFollowUpPriority(
   limit: number = 20
 ): Promise<any[]> {
   try {
-    console.log("🎯 获取重点跟进学生列表...");
-
     // 基于真实数据计算学生跟进优先级
     const { data: riskTrends, error: riskError } = await supabase
       .from("student_risk_trends")
@@ -430,7 +419,6 @@ export async function getStudentFollowUpPriority(
     }
 
     if (!riskTrends || riskTrends.length === 0) {
-      console.log("风险趋势视图无数据，使用基础查询");
       return await getFallbackPriorityStudents(limit);
     }
 
@@ -513,10 +501,6 @@ export async function getStudentFollowUpPriority(
       .sort((a, b) => b.riskScore - a.riskScore)
       .slice(0, limit);
 
-    console.log(
-      `✅ 成功获取${sortedStudents.length}名重点跟进学生`,
-      sortedStudents
-    );
     return sortedStudents;
   } catch (error) {
     console.error("获取优先级学生列表失败:", error);
@@ -529,8 +513,6 @@ export async function getStudentFollowUpPriority(
  */
 async function getFallbackPriorityStudents(limit: number): Promise<any[]> {
   try {
-    console.log("🔄 使用备用查询获取重点跟进学生...");
-
     // 查询有活跃预警的学生
     const { data: warnings, error } = await supabase
       .from("warning_records")
@@ -551,7 +533,6 @@ async function getFallbackPriorityStudents(limit: number): Promise<any[]> {
     }
 
     if (!warnings || warnings.length === 0) {
-      console.log("暂无活跃预警记录");
       return [];
     }
 
@@ -632,7 +613,6 @@ async function getFallbackPriorityStudents(limit: number): Promise<any[]> {
       .sort((a, b) => b.riskScore - a.riskScore)
       .slice(0, limit);
 
-    console.log(`✅ 备用查询成功获取${result.length}名重点跟进学生`, result);
     return result;
   } catch (error) {
     console.error("备用查询失败:", error);

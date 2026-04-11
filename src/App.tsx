@@ -22,6 +22,8 @@ import { PageLoadingFallback } from "./components/ui/loading-fallback";
 // 🚀 Master-Frontend: 组件懒加载优化
 // 公开页面 - 立即加载
 import ModernHomepage from "./pages/ModernHomepage";
+import LandingPage from "./pages/LandingPage";
+import EducationalLandingPage2 from "./components/ui/educational-landing-page2";
 import Login from "./pages/Login";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ICPNotice from "./pages/ICPNotice";
@@ -259,6 +261,11 @@ function App() {
                         <Routes>
                           {/* 公开路由 */}
                           <Route path="/" element={<ModernHomepage />} />
+                          <Route path="/landing" element={<LandingPage />} />
+                          <Route
+                            path="/landing2"
+                            element={<EducationalLandingPage2 />}
+                          />
                           <Route path="/login" element={<Login />} />
                           <Route path="/privacy" element={<PrivacyPolicy />} />
                           <Route path="/icp-notice" element={<ICPNotice />} />
@@ -384,15 +391,15 @@ function App() {
                                 path="/admin"
                                 element={<AdminDashboard />}
                               />
+                              <Route
+                                path="/ai-settings"
+                                element={<AISettings />}
+                              />
                             </Route>
 
                             <Route
                               path="/student-profile/:studentId"
                               element={<StudentProfile />}
-                            />
-                            <Route
-                              path="/ai-settings"
-                              element={<AISettings />}
                             />
 
                             <Route

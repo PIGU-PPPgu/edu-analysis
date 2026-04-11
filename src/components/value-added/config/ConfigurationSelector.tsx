@@ -442,7 +442,7 @@ export function ConfigurationSelector({
               />
               {newConfigName && (
                 <div className="text-xs text-muted-foreground">
-                  💡 提示：使用易于识别的名称，方便后续选择
+                  提示：使用易于识别的名称，方便后续选择
                 </div>
               )}
             </div>

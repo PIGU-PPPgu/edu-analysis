@@ -34,9 +34,7 @@ export class DomainServiceManager {
     return DomainServiceManager.instance;
   }
 
-  private constructor() {
-    console.log("[DomainServiceManager] 业务服务管理器初始化");
-  }
+  private constructor() {}
 
   // 获取考试服务
   get exam() {
@@ -99,15 +97,11 @@ export class DomainServiceManager {
 
   // 清理所有服务的缓存
   async clearAllCaches(): Promise<void> {
-    console.log("[DomainServiceManager] 清理所有服务缓存");
-
     try {
       // 通过DataGateway清理缓存（所有服务共享同一个DataGateway）
       const { getDataGateway } = await import("@/services/data");
       const gateway = getDataGateway();
       await gateway.clearCache();
-
-      console.log("[DomainServiceManager] 所有缓存已清理");
     } catch (error) {
       console.error("[DomainServiceManager] 清理缓存失败:", error);
     }

@@ -261,11 +261,6 @@ const UserFriendlyDataMapper: React.FC<UserFriendlyDataMapperProps> = ({
 
   // 处理快速修复
   const handleQuickFix = (updatedMapping: MappingConfig, actionId: string) => {
-    console.log("[UserFriendlyDataMapper] 应用快速修复:", {
-      actionId,
-      updatedMapping,
-    });
-
     // 更新映射配置
     setWorkingMapping(updatedMapping);
 

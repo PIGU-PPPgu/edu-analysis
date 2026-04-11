@@ -37,17 +37,13 @@ export class ExamDataService {
     return ExamDataService.instance;
   }
 
-  private constructor() {
-    console.log("[ExamDataService] 服务初始化");
-  }
+  private constructor() {}
 
   /**
    * 获取考试列表
    */
   async getExams(filter?: ExamFilter): Promise<Exam[]> {
     try {
-      console.log("[ExamDataService] 获取考试列表，筛选条件:", filter);
-
       // 转换筛选条件格式
       const dataFilter = {
         ...filter,
@@ -66,15 +62,12 @@ export class ExamDataService {
       const response = await getDataGateway().getExams(dataFilter);
 
       if (response.error) {
-        console.error("[ExamDataService] 获取考试列表失败:", response.error);
         toast.error("获取考试列表失败");
         return [];
       }
 
-      console.log(`[ExamDataService] 获取到 ${response.data.length} 个考试`);
       return response.data;
     } catch (error) {
-      console.error("[ExamDataService] getExams 异常:", error);
       toast.error("获取考试列表失败");
       return [];
     }
@@ -85,19 +78,15 @@ export class ExamDataService {
    */
   async getExamById(examId: string): Promise<Exam | null> {
     try {
-      console.log("[ExamDataService] 获取考试详情:", examId);
-
       const response = await getDataGateway().getExams({ examId, limit: 1 });
 
       if (response.error) {
-        console.error("[ExamDataService] 获取考试详情失败:", response.error);
         toast.error("获取考试详情失败");
         return null;
       }
 
       return response.data[0] || null;
     } catch (error) {
-      console.error("[ExamDataService] getExamById 异常:", error);
       toast.error("获取考试详情失败");
       return null;
     }
@@ -106,10 +95,11 @@ export class ExamDataService {
   /**
    * 创建考试
    */
-  async createExam(examData: CreateExamInput): Promise<Exam | null> {
+  async createExam(
+    examData: CreateExamInput,
+    silent = false
+  ): Promise<Exam | null> {
     try {
-      console.log("[ExamDataService] 创建考试:", examData.title);
-
       const newExam = await getDataGateway().createExam({
         title: examData.title,
         type: examData.type,
@@ -127,12 +117,10 @@ export class ExamDataService {
         updated_at: new Date().toISOString(),
       });
 
-      toast.success("考试创建成功");
-      console.log("[ExamDataService] 考试创建成功:", newExam.id);
+      if (!silent) toast.success("考试创建成功");
 
       return newExam;
     } catch (error) {
-      console.error("[ExamDataService] 创建考试失败:", error);
       toast.error("创建考试失败");
       return null;
     }
@@ -146,19 +134,15 @@ export class ExamDataService {
     examData: UpdateExamInput
   ): Promise<Exam | null> {
     try {
-      console.log("[ExamDataService] 更新考试:", examId);
-
       const updatedExam = await getDataGateway().updateExam(examId, {
         ...examData,
         updated_at: new Date().toISOString(),
       });
 
       toast.success("考试更新成功");
-      console.log("[ExamDataService] 考试更新成功:", examId);
 
       return updatedExam;
     } catch (error) {
-      console.error("[ExamDataService] 更新考试失败:", error);
       toast.error("更新考试失败");
       return null;
     }
@@ -169,20 +153,16 @@ export class ExamDataService {
    */
   async deleteExam(examId: string): Promise<boolean> {
     try {
-      console.log("[ExamDataService] 删除考试:", examId);
-
       const success = await getDataGateway().deleteExam(examId);
 
       if (success) {
         toast.success("考试删除成功");
-        console.log("[ExamDataService] 考试删除成功:", examId);
       } else {
         toast.error("删除考试失败");
       }
 
       return success;
     } catch (error) {
-      console.error("[ExamDataService] 删除考试失败:", error);
       toast.error("删除考试失败");
       return false;
     }
@@ -193,8 +173,6 @@ export class ExamDataService {
    */
   async deleteExams(examIds: string[]): Promise<boolean> {
     try {
-      console.log("[ExamDataService] 批量删除考试:", examIds.length);
-
       // 使用批量操作
       await getDataGateway().batchOperation(
         "delete",
@@ -202,11 +180,9 @@ export class ExamDataService {
       );
 
       toast.success(`成功删除${examIds.length}个考试`);
-      console.log("[ExamDataService] 批量删除成功");
 
       return true;
     } catch (error) {
-      console.error("[ExamDataService] 批量删除考试失败:", error);
       toast.error("批量删除考试失败");
       return false;
     }
@@ -217,8 +193,6 @@ export class ExamDataService {
    */
   async duplicateExam(examId: string): Promise<Exam | null> {
     try {
-      console.log("[ExamDataService] 复制考试:", examId);
-
       // 先获取原考试数据
       const originalExam = await this.getExamById(examId);
       if (!originalExam) {
@@ -227,29 +201,30 @@ export class ExamDataService {
       }
 
       // 创建副本
-      const duplicatedExam = await this.createExam({
-        title: `${originalExam.title} (副本)`,
-        type: originalExam.type,
-        date: originalExam.date,
-        subject: originalExam.subject,
-        description: originalExam.description,
-        start_time: originalExam.start_time,
-        end_time: originalExam.end_time,
-        total_score: originalExam.total_score,
-        passing_score: originalExam.passing_score,
-        classes: originalExam.classes,
-        status: "draft",
-        tags: originalExam.tags,
-      });
+      const duplicatedExam = await this.createExam(
+        {
+          title: `${originalExam.title} (副本)`,
+          type: originalExam.type,
+          date: originalExam.date,
+          subject: originalExam.subject,
+          description: originalExam.description,
+          start_time: originalExam.start_time,
+          end_time: originalExam.end_time,
+          total_score: originalExam.total_score,
+          passing_score: originalExam.passing_score,
+          classes: originalExam.classes,
+          status: "draft",
+          tags: originalExam.tags,
+        },
+        true
+      ); // silent=true: suppress "创建成功" toast, show "复制成功" below
 
       if (duplicatedExam) {
         toast.success("考试复制成功");
-        console.log("[ExamDataService] 考试复制成功");
       }
 
       return duplicatedExam;
     } catch (error) {
-      console.error("[ExamDataService] 复制考试失败:", error);
       toast.error("复制考试失败");
       return null;
     }
@@ -260,12 +235,9 @@ export class ExamDataService {
    */
   async getExamStatistics(examId: string): Promise<ExamStatistics | null> {
     try {
-      console.log("[ExamDataService] 获取考试统计:", examId);
-
       const stats = await getDataGateway().getStatistics("exam", examId);
 
       if (!stats || !stats.exam) {
-        console.warn("[ExamDataService] 未找到考试统计数据");
         return null;
       }
 
@@ -290,10 +262,8 @@ export class ExamDataService {
         totalScore: stats.exam.total_score || 100,
       };
 
-      console.log("[ExamDataService] 统计数据计算完成");
       return examStats;
     } catch (error) {
-      console.error("[ExamDataService] 获取考试统计失败:", error);
       return null;
     }
   }
@@ -303,12 +273,9 @@ export class ExamDataService {
    */
   async getExamParticipantCount(examId: string): Promise<number> {
     try {
-      console.log("[ExamDataService] 获取考试参与人数:", examId);
-
       const stats = await getDataGateway().getStatistics("exam", examId);
       return stats?.participantCount || 0;
     } catch (error) {
-      console.error("[ExamDataService] 获取参与人数失败:", error);
       return 0;
     }
   }

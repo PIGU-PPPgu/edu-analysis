@@ -105,7 +105,6 @@ const ConditionNodeComponent: React.FC<{
         return (
           <div className="p-3">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-lg">{metric?.icon || "📊"}</span>
               <span className="font-bold text-sm text-[#191A23]">
                 {metric?.displayName || "未知指标"}
               </span>
@@ -595,7 +594,7 @@ const RuleCanvas: React.FC<RuleCanvasProps> = ({
           {Object.keys(state.nodes).length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center">
-                <div className="text-6xl mb-4">🎯</div>
+                <div className="w-12 h-12 bg-gray-200 rounded-full mx-auto mb-4" />
                 <h3 className="text-lg font-bold text-[#191A23] mb-2">
                   开始构建预警规则
                 </h3>
@@ -626,7 +625,7 @@ const RuleCanvas: React.FC<RuleCanvasProps> = ({
           {isDragging && (
             <div className="absolute inset-0 bg-[#B9FF66]/20 border-4 border-dashed border-[#B9FF66] flex items-center justify-center">
               <div className="text-center">
-                <div className="text-4xl mb-2">📌</div>
+                <div className="w-10 h-10 bg-[#B9FF66] rounded-lg mx-auto mb-2" />
                 <p className="text-lg font-bold text-[#191A23]">
                   释放以添加指标
                 </p>

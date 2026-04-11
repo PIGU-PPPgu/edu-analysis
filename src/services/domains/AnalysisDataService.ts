@@ -154,9 +154,7 @@ export class AnalysisDataService {
     return AnalysisDataService.instance;
   }
 
-  private constructor() {
-    console.log("[AnalysisDataService] 服务初始化");
-  }
+  private constructor() {}
 
   /**
    * 性能分析
@@ -165,8 +163,6 @@ export class AnalysisDataService {
     filter?: AnalysisFilter
   ): Promise<PerformanceAnalysis | null> {
     try {
-      console.log("[AnalysisDataService] 执行性能分析");
-
       // 获取成绩数据
       const gradeResponse = await getDataGateway().getGrades({
         dateRange: filter?.dateRange,
@@ -203,7 +199,6 @@ export class AnalysisDataService {
         scoreDistribution,
       };
 
-      console.log("[AnalysisDataService] 性能分析完成");
       return analysis;
     } catch (error) {
       console.error("[AnalysisDataService] 性能分析失败:", error);
@@ -217,8 +212,6 @@ export class AnalysisDataService {
    */
   async trendAnalysis(filter?: AnalysisFilter): Promise<TrendAnalysis | null> {
     try {
-      console.log("[AnalysisDataService] 执行趋势分析");
-
       // 获取时间序列的成绩数据
       const gradeResponse = await getDataGateway().getGrades({
         dateRange: filter?.dateRange,
@@ -251,7 +244,6 @@ export class AnalysisDataService {
         subjectTrends,
       };
 
-      console.log("[AnalysisDataService] 趋势分析完成");
       return analysis;
     } catch (error) {
       console.error("[AnalysisDataService] 趋势分析失败:", error);
@@ -268,8 +260,6 @@ export class AnalysisDataService {
     filter?: AnalysisFilter
   ): Promise<ComparisonAnalysis | null> {
     try {
-      console.log(`[AnalysisDataService] 执行${type}对比分析`);
-
       // 根据对比类型获取相应数据
       let items: any[] = [];
 
@@ -307,7 +297,6 @@ export class AnalysisDataService {
         insights,
       };
 
-      console.log("[AnalysisDataService] 对比分析完成");
       return analysis;
     } catch (error) {
       console.error("[AnalysisDataService] 对比分析失败:", error);
@@ -323,8 +312,6 @@ export class AnalysisDataService {
     filter?: AnalysisFilter
   ): Promise<DistributionAnalysis | null> {
     try {
-      console.log("[AnalysisDataService] 执行分布分析");
-
       const gradeResponse = await getDataGateway().getGrades({
         dateRange: filter?.dateRange,
         limit: 10000,
@@ -358,7 +345,6 @@ export class AnalysisDataService {
         outliers,
       };
 
-      console.log("[AnalysisDataService] 分布分析完成");
       return analysis;
     } catch (error) {
       console.error("[AnalysisDataService] 分布分析失败:", error);
@@ -374,8 +360,6 @@ export class AnalysisDataService {
     filter?: AnalysisFilter
   ): Promise<PredictiveAnalysis | null> {
     try {
-      console.log("[AnalysisDataService] 执行预测分析");
-
       // 获取历史成绩数据
       const gradeResponse = await getDataGateway().getGrades({
         dateRange: filter?.dateRange,
@@ -403,7 +387,6 @@ export class AnalysisDataService {
         classPerformanceForecast,
       };
 
-      console.log("[AnalysisDataService] 预测分析完成");
       return analysis;
     } catch (error) {
       console.error("[AnalysisDataService] 预测分析失败:", error);
@@ -419,8 +402,6 @@ export class AnalysisDataService {
     filter?: AnalysisFilter
   ): Promise<AnomalyDetection | null> {
     try {
-      console.log("[AnalysisDataService] 执行异常检测");
-
       const gradeResponse = await getDataGateway().getGrades({
         dateRange: filter?.dateRange,
         limit: 10000,
@@ -444,7 +425,6 @@ export class AnalysisDataService {
         performancePatterns,
       };
 
-      console.log("[AnalysisDataService] 异常检测完成");
       return detection;
     } catch (error) {
       console.error("[AnalysisDataService] 异常检测失败:", error);
@@ -756,7 +736,6 @@ export class AnalysisDataService {
     try {
       // 这里应该从数据库获取真实的活动记录
       // 暂时返回空数组，避免显示模拟数据
-      console.log("[AnalysisDataService] 获取最近活动记录");
       return [];
     } catch (error) {
       console.error("[AnalysisDataService] 获取最近活动失败:", error);

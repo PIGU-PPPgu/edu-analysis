@@ -140,8 +140,6 @@ async function getTotalStudents(): Promise<number> {
 // 辅助函数：获取有预警的学生
 async function getStudentsWithWarnings(filter?: WarningFilter): Promise<any[]> {
   try {
-    console.log("🔍 getStudentsWithWarnings - 筛选条件:", filter);
-
     // 构建查询条件
     let statusFilter = ["active", "resolved", "dismissed"];
     if (filter?.warningStatus && filter.warningStatus.length > 0) {
@@ -165,13 +163,26 @@ async function getStudentsWithWarnings(filter?: WarningFilter): Promise<any[]> {
 
     // 应用班级筛选
     if (filter?.classNames && filter.classNames.length > 0) {
-      console.log("📚 应用班级筛选:", filter.classNames);
       query = query.in("students.class_name", filter.classNames);
+    } else if (filter?.gradeLevel && filter.gradeLevel.length > 0) {
+      // 年级筛选：先查出该年级所有班级，再筛选
+      const gradeLevelFilter = filter.gradeLevel
+        .map((g) => `class_name.ilike.${g}%`)
+        .join(",");
+      const { data: classData } = await supabase
+        .from("students")
+        .select("class_name")
+        .or(gradeLevelFilter);
+      if (classData && classData.length > 0) {
+        const classNames = [
+          ...new Set(classData.map((c) => c.class_name).filter(Boolean)),
+        ];
+        query = query.in("students.class_name", classNames);
+      }
     }
 
     // 如果有考试筛选，需要额外查询grade_data表来过滤
     if (filter?.examTitles && filter.examTitles.length > 0) {
-      console.log("📊 应用考试筛选:", filter.examTitles);
       // 先从grade_data表获取符合考试条件的学生ID
       const { data: gradeData, error: gradeError } = await supabase
         .from("grade_data")
@@ -182,14 +193,8 @@ async function getStudentsWithWarnings(filter?: WarningFilter): Promise<any[]> {
         const studentIdsFromGrades = [
           ...new Set(gradeData.map((g) => g.student_id)),
         ];
-        console.log(
-          "📊 从考试筛选获得的学生ID:",
-          studentIdsFromGrades.length,
-          "个"
-        );
         query = query.in("student_id", studentIdsFromGrades);
       } else {
-        console.warn("⚠️ 考试筛选未找到匹配学生，返回空结果");
         return [];
       }
     }
@@ -200,12 +205,6 @@ async function getStudentsWithWarnings(filter?: WarningFilter): Promise<any[]> {
       console.error("获取预警学生失败:", error);
       return [];
     }
-
-    console.log(
-      "✅ getStudentsWithWarnings - 查询结果:",
-      data?.length,
-      "条记录"
-    );
 
     // 去重并返回学生信息
     const uniqueStudents = [];
@@ -223,11 +222,6 @@ async function getStudentsWithWarnings(filter?: WarningFilter): Promise<any[]> {
       }
     }
 
-    console.log(
-      "✅ getStudentsWithWarnings - 最终返回:",
-      uniqueStudents.length,
-      "个唯一学生"
-    );
     return uniqueStudents;
   } catch (error) {
     console.error("获取预警学生失败:", error);
@@ -250,10 +244,10 @@ async function getPendingIssues(filter?: WarningFilter): Promise<any[]> {
       .in("status", statusFilter)
       .order("created_at", { ascending: false });
 
-    // 应用时间范围筛选
-    if (filter?.timeRange && filter.timeRange !== "semester") {
+    // 应用时间范围筛选（semester = 近180天）
+    if (filter?.timeRange) {
       const now = new Date();
-      let startDate: Date;
+      let startDate: Date | undefined;
 
       switch (filter.timeRange) {
         case "month":
@@ -262,21 +256,26 @@ async function getPendingIssues(filter?: WarningFilter): Promise<any[]> {
         case "quarter":
           startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
           break;
+        case "semester":
+          startDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+          break;
         case "year":
           startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
           break;
         case "custom":
           if (filter.startDate) {
-            startDate = new Date(filter.startDate);
-            query = query.gte("created_at", startDate.toISOString());
+            query = query.gte(
+              "created_at",
+              new Date(filter.startDate).toISOString()
+            );
           }
           if (filter.endDate) {
-            const endDate = new Date(filter.endDate);
-            query = query.lte("created_at", endDate.toISOString());
+            query = query.lte(
+              "created_at",
+              new Date(filter.endDate).toISOString()
+            );
           }
           break;
-        default:
-          startDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000); // 默认半年
       }
 
       if (filter.timeRange !== "custom" && startDate) {
@@ -375,6 +374,7 @@ export interface WarningFilter {
   examTypes?: string[];
   classNames?: string[]; // 新增：班级筛选
   examTitles?: string[]; // 新增：具体考试筛选
+  gradeLevel?: string[]; // 新增：年级筛选（如 ["高一", "高二"]）
   mixedAnalysis?: boolean;
   analysisMode?: "student" | "exam" | "subject";
   startDate?: string;
@@ -403,8 +403,6 @@ export async function getWarningStatistics(
 async function getWarningStatisticsRealtime(
   filter?: WarningFilter
 ): Promise<WarningStatistics> {
-  console.log("🚀 [新架构] 基于原始数据实时计算预警统计", filter);
-
   try {
     // 1. 构建成绩数据查询 - 使用grade_data表（宽表格式）
     let gradesQuery = supabase.from("grade_data").select(`
@@ -428,19 +426,33 @@ async function getWarningStatisticsRealtime(
 
     // 2. 应用筛选条件到原始数据（这是关键优势）
     if (filter?.classNames && filter.classNames.length > 0) {
-      console.log("📚 [新架构] 筛选班级:", filter.classNames);
       gradesQuery = gradesQuery.in("class_name", filter.classNames);
     }
 
+    // 年级筛选：通过 class_name 前缀匹配（如 "高一" 匹配 "高一1班"）
+    if (
+      filter?.gradeLevel &&
+      filter.gradeLevel.length > 0 &&
+      !(filter?.classNames && filter.classNames.length > 0)
+    ) {
+      const gradeLevelFilter = filter.gradeLevel
+        .map((g) => `class_name.ilike.${g}%`)
+        .join(",");
+      gradesQuery = (gradesQuery as any).or(gradeLevelFilter);
+    }
+
     if (filter?.examTitles && filter.examTitles.length > 0) {
-      console.log("📊 [新架构] 筛选考试:", filter.examTitles);
       gradesQuery = gradesQuery.in("exam_title", filter.examTitles);
     }
 
-    // 时间范围筛选
-    if (filter?.timeRange && filter.timeRange !== "semester") {
+    if (filter?.examTypes && filter.examTypes.length > 0) {
+      gradesQuery = gradesQuery.in("exam_type", filter.examTypes);
+    }
+
+    // 时间范围筛选（semester = 近180天）
+    if (filter?.timeRange) {
       const now = new Date();
-      let startDate: Date;
+      let startDate: Date | undefined;
 
       switch (filter.timeRange) {
         case "month":
@@ -449,27 +461,26 @@ async function getWarningStatisticsRealtime(
         case "quarter":
           startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
           break;
+        case "semester":
+          startDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+          break;
         case "year":
           startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
           break;
         case "custom":
           if (filter.startDate) {
-            startDate = new Date(filter.startDate);
             gradesQuery = gradesQuery.gte(
               "exam_date",
-              startDate.toISOString().split("T")[0]
+              new Date(filter.startDate).toISOString().split("T")[0]
             );
           }
           if (filter.endDate) {
-            const endDate = new Date(filter.endDate);
             gradesQuery = gradesQuery.lte(
               "exam_date",
-              endDate.toISOString().split("T")[0]
+              new Date(filter.endDate).toISOString().split("T")[0]
             );
           }
           break;
-        default:
-          startDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
       }
 
       if (filter.timeRange !== "custom" && startDate) {
@@ -487,20 +498,8 @@ async function getWarningStatisticsRealtime(
       throw gradesError;
     }
 
-    console.log(
-      "✅ [新架构] 获取到成绩数据:",
-      gradesData?.length || 0,
-      "条记录"
-    );
-
     // 3. 基于真实数据实时计算预警指标
     const result = analyzeWarningsFromGrades(gradesData || []);
-
-    console.log("🎯 [新架构] 预警统计完成:", {
-      totalStudents: result.totalStudents,
-      warningStudents: result.warningStudents,
-      warningRatio: result.warningRatio,
-    });
 
     return result;
   } catch (error) {
@@ -512,12 +511,6 @@ async function getWarningStatisticsRealtime(
 
 // 📊 基于成绩数据实时分析预警情况（宽表格式）
 function analyzeWarningsFromGrades(gradesData: any[]): WarningStatistics {
-  console.log(
-    "🔍 [新架构] 开始分析预警情况...",
-    gradesData.length,
-    "条考试记录"
-  );
-
   // 按学生分组数据（一个学生可能有多次考试记录）
   const studentData = new Map<
     string,
@@ -535,13 +528,7 @@ function analyzeWarningsFromGrades(gradesData: any[]): WarningStatistics {
       // 构建备用键：姓名+班级
       if (record.name && record.class_name) {
         studentKey = `${record.name}_${record.class_name}`;
-        console.log(`⚠️ [新架构] 使用备用键分组学生: ${studentKey}`);
       } else {
-        console.warn(`⚠️ [新架构] 跳过无效记录，缺少关键信息:`, {
-          student_id: record.student_id,
-          name: record.name,
-          class_name: record.class_name,
-        });
         return; // 跳过无效记录
       }
     }
@@ -560,16 +547,6 @@ function analyzeWarningsFromGrades(gradesData: any[]): WarningStatistics {
   });
 
   const students = Array.from(studentData.values());
-  console.log("👥 [新架构] 分析学生数:", students.length);
-
-  // 统计数据质量
-  const studentsWithId = students.filter((s) => s.studentInfo.student_id);
-  const studentsWithoutId = students.length - studentsWithId.length;
-  if (studentsWithoutId > 0) {
-    console.warn(
-      `⚠️ [新架构] 发现 ${studentsWithoutId} 名学生缺少student_id，使用姓名+班级分组`
-    );
-  }
 
   // 计算各种预警指标
   let warningStudents = 0;
@@ -799,12 +776,6 @@ function analyzeWarningsFromGrades(gradesData: any[]): WarningStatistics {
     commonRiskFactors,
   };
 
-  console.log("✅ [新架构] 预警分析完成:", {
-    students: result.totalStudents,
-    warnings: result.warningStudents,
-    ratio: result.warningRatio + "%",
-  });
-
   return result;
 }
 
@@ -812,8 +783,6 @@ function analyzeWarningsFromGrades(gradesData: any[]): WarningStatistics {
 async function getWarningStatisticsLegacy(
   filter?: WarningFilter
 ): Promise<WarningStatistics> {
-  console.log("📚 [旧架构] 使用预警记录表计算统计");
-
   return warningAnalysisCache.getWarningStats(async () => {
     try {
       // 获取带有完整关联数据的预警记录
@@ -842,10 +811,10 @@ async function getWarningStatisticsLegacy(
         .in("status", statusFilter)
         .order("created_at", { ascending: false });
 
-      // 应用时间范围筛选
-      if (filter?.timeRange && filter.timeRange !== "semester") {
+      // 应用时间范围筛选（semester = 近180天）
+      if (filter?.timeRange) {
         const now = new Date();
-        let startDate: Date;
+        let startDate: Date | undefined;
 
         switch (filter.timeRange) {
           case "month":
@@ -854,21 +823,26 @@ async function getWarningStatisticsLegacy(
           case "quarter":
             startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
             break;
+          case "semester":
+            startDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+            break;
           case "year":
             startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
             break;
           case "custom":
             if (filter.startDate) {
-              startDate = new Date(filter.startDate);
-              query = query.gte("created_at", startDate.toISOString());
+              query = query.gte(
+                "created_at",
+                new Date(filter.startDate).toISOString()
+              );
             }
             if (filter.endDate) {
-              const endDate = new Date(filter.endDate);
-              query = query.lte("created_at", endDate.toISOString());
+              query = query.lte(
+                "created_at",
+                new Date(filter.endDate).toISOString()
+              );
             }
             break;
-          default:
-            startDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
         }
 
         if (filter.timeRange !== "custom" && startDate) {
@@ -878,13 +852,11 @@ async function getWarningStatisticsLegacy(
 
       // 应用班级筛选
       if (filter?.classNames && filter.classNames.length > 0) {
-        console.log("📚 主查询应用班级筛选:", filter.classNames);
         query = query.in("students.class_name", filter.classNames);
       }
 
       // 如果有考试筛选，需要额外查询grade_data表来过滤学生ID
       if (filter?.examTitles && filter.examTitles.length > 0) {
-        console.log("📊 主查询应用考试筛选:", filter.examTitles);
         // 先从grade_data表获取符合考试条件的学生ID
         const { data: gradeData, error: gradeError } = await supabase
           .from("grade_data")
@@ -895,14 +867,8 @@ async function getWarningStatisticsLegacy(
           const studentIdsFromGrades = [
             ...new Set(gradeData.map((g) => g.student_id)),
           ];
-          console.log(
-            "📊 主查询从考试筛选获得的学生ID:",
-            studentIdsFromGrades.length,
-            "个"
-          );
           query = query.in("student_id", studentIdsFromGrades);
         } else {
-          console.warn("⚠️ 主查询考试筛选未找到匹配学生，返回空结果");
           // 如果没有找到匹配的学生，设置一个不可能存在的条件，返回空结果
           query = query.eq(
             "student_id",
@@ -1456,10 +1422,10 @@ export async function getWarningRecords(
       query = query.in("status", filter.warningStatus);
     }
 
-    // 应用时间范围筛选
-    if (filter?.timeRange && filter.timeRange !== "semester") {
+    // 应用时间范围筛选（semester = 近180天）
+    if (filter?.timeRange) {
       const now = new Date();
-      let startDate: Date;
+      let startDate: Date | undefined;
 
       switch (filter.timeRange) {
         case "month":
@@ -1468,21 +1434,26 @@ export async function getWarningRecords(
         case "quarter":
           startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
           break;
+        case "semester":
+          startDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+          break;
         case "year":
           startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
           break;
         case "custom":
           if (filter.startDate) {
-            startDate = new Date(filter.startDate);
-            query = query.gte("created_at", startDate.toISOString());
+            query = query.gte(
+              "created_at",
+              new Date(filter.startDate).toISOString()
+            );
           }
           if (filter.endDate) {
-            const endDate = new Date(filter.endDate);
-            query = query.lte("created_at", endDate.toISOString());
+            query = query.lte(
+              "created_at",
+              new Date(filter.endDate).toISOString()
+            );
           }
           break;
-        default:
-          startDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
       }
 
       if (filter.timeRange !== "custom" && startDate) {

@@ -130,7 +130,10 @@ const ExamStatsTab: React.FC<ExamStatsTabProps> = ({
                   className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-lg">{type.emoji}</span>
+                    <span
+                      className="inline-block w-3 h-3 rounded-sm"
+                      style={{ background: type.color }}
+                    />
                     <span className="font-medium">{type.name}</span>
                   </div>
                   <Badge variant="outline">

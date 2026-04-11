@@ -97,11 +97,6 @@ export class EnhancedAITagsService {
     failed: Array<{ studentId: string; error: string }>;
     skipped: Array<{ studentId: string; reason: string }>;
   }> {
-    console.log(
-      "🎯 [AI标签] 开始为新学生批量生成AI标签，学生数量:",
-      newStudentIds.length
-    );
-
     const result = {
       successful: [] as Array<{ studentId: string; tags: EnhancedAITags }>,
       failed: [] as Array<{ studentId: string; error: string }>,
@@ -113,10 +108,6 @@ export class EnhancedAITagsService {
     // 分批处理，避免同时请求过多AI API
     for (let i = 0; i < newStudentIds.length; i += batchSize) {
       const batch = newStudentIds.slice(i, i + batchSize);
-      console.log(
-        `📦 [AI标签] 处理批次 ${Math.floor(i / batchSize) + 1}/${Math.ceil(newStudentIds.length / batchSize)}, 学生数: ${batch.length}`
-      );
-
       // 并行处理当前批次
       const batchPromises = batch.map(async (studentId) => {
         try {
@@ -136,7 +127,6 @@ export class EnhancedAITagsService {
           await this.saveAITags(studentId, aiTags);
 
           result.successful.push({ studentId, tags: aiTags });
-          console.log(`✅ [AI标签] 成功生成标签: ${profile.studentName}`);
         } catch (error) {
           console.error(`❌ [AI标签] 生成失败: ${studentId}`, error);
           result.failed.push({
@@ -154,13 +144,6 @@ export class EnhancedAITagsService {
       }
     }
 
-    console.log("🎯 [AI标签] 批量生成完成:", {
-      总数: newStudentIds.length,
-      成功: result.successful.length,
-      失败: result.failed.length,
-      跳过: result.skipped.length,
-    });
-
     return result;
   }
 
@@ -171,8 +154,6 @@ export class EnhancedAITagsService {
   async analyzeStudentLearningProfile(
     studentId: string
   ): Promise<StudentLearningProfile> {
-    console.log("🔍 [AI标签] 分析学生学习档案:", studentId);
-
     // 1. 获取学生基本信息
     const { data: studentInfo, error: studentError } = await supabase
       .from("students")
@@ -246,8 +227,6 @@ export class EnhancedAITagsService {
         },
       };
     }
-
-    console.log(`📊 [AI标签] 找到 ${gradeRecords.length} 条考试记录`);
 
     // 3. 进行深度分析
     const gradeAnalysis = this.analyzeGradeData(gradeRecords);
@@ -620,8 +599,6 @@ export class EnhancedAITagsService {
     profile: StudentLearningProfile,
     config: AITagsGenerationConfig
   ): Promise<EnhancedAITags> {
-    console.log("🧠 [AI标签] 生成增强AI标签:", profile.studentName);
-
     // 构建增强的分析上下文
     const analysisContext = this.buildEnhancedAnalysisContext(profile);
 

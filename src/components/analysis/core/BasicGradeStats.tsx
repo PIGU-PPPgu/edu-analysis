@@ -72,7 +72,9 @@ export const BasicGradeStats: React.FC<BasicGradeStatsProps> = ({
       };
     }
 
-    const totalStudents = gradeData.length;
+    const totalStudents = new Set(
+      gradeData.map((r) => r.student_id || r.studentId)
+    ).size;
     const averageScore =
       validScores.reduce((sum, score) => sum + score, 0) / validScores.length;
     const maxScore = Math.max(...validScores);

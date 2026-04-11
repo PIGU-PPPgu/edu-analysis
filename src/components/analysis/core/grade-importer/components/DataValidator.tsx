@@ -463,8 +463,6 @@ const DataValidator: React.FC<DataValidatorProps> = ({
 
     if (isWideTable && mappingConfig.headerAnalysis) {
       // 宽表格转长表格处理
-      console.log("[数据验证] 检测到宽表格，开始转换为长表格格式");
-
       const allRecords: any[] = [];
 
       data.forEach((row, index) => {
@@ -509,14 +507,9 @@ const DataValidator: React.FC<DataValidatorProps> = ({
         }
       });
 
-      console.log(
-        `[数据验证] 宽表转长表完成: ${data.length}行 → ${allRecords.length}条记录`
-      );
       return allRecords;
     } else {
       // 普通表格处理（原有逻辑）
-      console.log("[数据验证] 使用普通表格映射模式");
-
       return data.map((row, index) => {
         const mappedRow: any = { _rowIndex: index + 1 };
 
@@ -1276,13 +1269,6 @@ const DataValidator: React.FC<DataValidatorProps> = ({
                     // 如果启用跳过无效行，则过滤掉有错误的行
                     // 否则保留所有行（包括有错误的行）
                     return validationConfig.skipInvalidRows ? !hasErrors : true;
-                  });
-
-                  console.log("确认验证结果 - 传递数据:", {
-                    originalCount: previewData.length,
-                    validCount: validData.length,
-                    errorCount: validationResult.errors.length,
-                    skipInvalidRows: validationConfig.skipInvalidRows,
                   });
 
                   // 立即传递数据，不需要等待缓存

@@ -86,30 +86,36 @@ export const DiagnosticBadge: React.FC<DiagnosticBadgeProps> = ({
 };
 
 // 诊断逻辑：根据增值指标判断学习状态
+// 优先使用 zScoreChange（标准化，跨科目/跨考试可比），回退到 improvementScore
 export function diagnoseStudent(metric: ValueAddedMetrics): DiagnosisStatus {
-  const { improvementScore, targetExam } = metric;
-  const currentScore = targetExam.score;
+  const { zScoreChange, improvementScore, targetExam } = metric;
 
-  // 高分线（假设满分的80%以上为高分）
-  const isHighScore = currentScore >= 400; // 可根据实际满分调整
+  // 用 Z 分差判断进退步（阈值：±0.3 SD 为显著变化）
+  // 若无 Z 分则回退到原始分差（仅同科目同满分时有意义）
+  const delta = zScoreChange ?? null;
 
-  // 分类逻辑
-  if (improvementScore > 20) {
-    // 大幅进步
-    return "steady_improvement";
-  } else if (improvementScore > 5) {
-    // 小幅进步
-    return "fluctuating_improvement";
-  } else if (Math.abs(improvementScore) <= 5) {
-    // 持平
-    return isHighScore ? "high_stagnation" : "fluctuating_improvement";
-  } else if (improvementScore > -20) {
-    // 小幅退步
-    return "fluctuating_decline";
-  } else {
-    // 大幅退步
+  if (delta !== null) {
+    // 高分停滞：Z 分已在均值以上（>0.5 SD）且变化幅度极小
+    const isHighZ =
+      (targetExam?.score ?? 0) > 0 && delta !== null
+        ? (metric.level ?? 0) >= 4 // level 4+ 对应 B+ 及以上
+        : false;
+
+    if (delta > 0.3) return "steady_improvement";
+    if (delta > 0.05) return "fluctuating_improvement";
+    if (Math.abs(delta) <= 0.05)
+      return isHighZ ? "high_stagnation" : "fluctuating_improvement";
+    if (delta > -0.3) return "fluctuating_decline";
     return "continuous_decline";
   }
+
+  // 回退：原始分差（仅供无 Z 分数据使用）
+  const rawDelta = improvementScore ?? 0;
+  if (rawDelta > 20) return "steady_improvement";
+  if (rawDelta > 5) return "fluctuating_improvement";
+  if (Math.abs(rawDelta) <= 5) return "fluctuating_improvement";
+  if (rawDelta > -20) return "fluctuating_decline";
+  return "continuous_decline";
 }
 
 interface LearningDiagnosisPanelProps {
@@ -228,11 +234,11 @@ const LearningDiagnosisPanel: React.FC<LearningDiagnosisPanelProps> = ({
         <div className="mt-6 text-xs text-gray-500 border-t-2 border-gray-200 pt-4">
           <p className="font-bold mb-2">诊断说明：</p>
           <ul className="list-disc list-inside space-y-1 text-gray-600">
-            <li>稳步提升：进步分数大于20分</li>
-            <li>波动提升：进步分数在5-20分之间</li>
-            <li>高分停滞：分数高位但进步幅度小于5分</li>
-            <li>波动下滑：退步分数在-5到-20分之间</li>
-            <li>持续下滑：退步分数超过20分</li>
+            <li>稳步提升：Z分变化 &gt; +0.3 SD（显著进步）</li>
+            <li>波动提升：Z分变化在 +0.05 ~ +0.3 SD 之间</li>
+            <li>高分停滞：Z分变化幅度 ≤ 0.05 SD 且处于高能力段</li>
+            <li>波动下滑：Z分变化在 -0.05 ~ -0.3 SD 之间</li>
+            <li>持续下滑：Z分变化 &lt; -0.3 SD（显著退步）</li>
           </ul>
         </div>
       </CardContent>

@@ -160,6 +160,7 @@ const WarningAnalysis = () => {
             examTypes: filterConfig.examTypes,
             classNames: filterConfig.classNames, // 新增：传递班级筛选
             examTitles: filterConfig.examTitles, // 新增：传递考试筛选
+            gradeLevel: filterConfig.gradeLevel, // 新增：传递年级筛选
             mixedAnalysis: filterConfig.mixedAnalysis,
             analysisMode: filterConfig.analysisMode,
             startDate: filterConfig.startDate,
@@ -365,6 +366,11 @@ const WarningAnalysis = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
 
+      {/* 维护横幅 */}
+      <div className="bg-red-600 text-white text-center py-3 px-4 font-semibold text-sm tracking-wide">
+        🚧 仍在开发维护中，暂不可用
+      </div>
+
       {/* 顶部标题栏 - 参考基础分析风格 */}
       <div className="border-b border-gray-200 bg-white">
         <div className="container mx-auto px-4 py-6">
@@ -547,6 +553,7 @@ const WarningAnalysis = () => {
                   isLoading={isLoading}
                   activeTab="overview"
                   hideTabList={true}
+                  filterConfig={filterConfig}
                 />
               </TabsContent>
 
@@ -557,6 +564,7 @@ const WarningAnalysis = () => {
                   isLoading={isLoading}
                   activeTab="trendAnalysis"
                   hideTabList={true}
+                  filterConfig={filterConfig}
                 />
               </TabsContent>
 
@@ -567,6 +575,7 @@ const WarningAnalysis = () => {
                   isLoading={isLoading}
                   activeTab="aiAnalysis"
                   hideTabList={true}
+                  filterConfig={filterConfig}
                 />
               </TabsContent>
 
@@ -577,6 +586,7 @@ const WarningAnalysis = () => {
                   isLoading={isLoading}
                   activeTab="tracking"
                   hideTabList={true}
+                  filterConfig={filterConfig}
                 />
               </TabsContent>
 
@@ -587,6 +597,7 @@ const WarningAnalysis = () => {
                   isLoading={isLoading}
                   activeTab="autoWarning"
                   hideTabList={true}
+                  filterConfig={filterConfig}
                 />
               </TabsContent>
             </Tabs>

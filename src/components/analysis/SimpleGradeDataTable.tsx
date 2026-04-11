@@ -215,7 +215,7 @@ export const SimpleGradeDataTable: React.FC<SimpleGradeDataTableProps> = ({
       const filteredWideData = wideFormatData.filter((student) => {
         const scores = Object.values(student.subjects)
           .map((subject: any) => subject.score)
-          .filter(Boolean);
+          .filter((s: any) => typeof s === "number" && !isNaN(s));
         if (scores.length === 0) return false;
         const avgScore =
           scores.reduce((sum, score) => sum + score, 0) / scores.length;
@@ -250,6 +250,15 @@ export const SimpleGradeDataTable: React.FC<SimpleGradeDataTableProps> = ({
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
   }, []);
+
+  // 获取所有可用的科目（用于宽格式表头）- 必须在早期返回之前调用
+  const allSubjects = useMemo(() => {
+    const subjects = new Set<string>();
+    filteredGradeData.forEach((record) => {
+      if (record.subject) subjects.add(record.subject);
+    });
+    return Array.from(subjects).sort();
+  }, [filteredGradeData]);
 
   const handleReset = useCallback(() => {
     setFilters({
@@ -359,16 +368,6 @@ export const SimpleGradeDataTable: React.FC<SimpleGradeDataTableProps> = ({
   }
 
   const { data, total, totalPages, isWideFormat } = filteredAndPaginatedData;
-
-  // 获取所有可用的科目（用于宽格式表头）
-  const allSubjects = useMemo(() => {
-    if (!isWideFormat) return [];
-    const subjects = new Set<string>();
-    filteredGradeData.forEach((record) => {
-      if (record.subject) subjects.add(record.subject);
-    });
-    return Array.from(subjects).sort();
-  }, [filteredGradeData, isWideFormat]);
 
   return (
     <Card

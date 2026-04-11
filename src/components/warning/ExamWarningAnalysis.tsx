@@ -221,7 +221,7 @@ const ExamWarningAnalysis: React.FC<ExamWarningAnalysisProps> = ({
                   <p className="text-sm text-gray-600">{insight.description}</p>
                   {insight.action && (
                     <p className="text-sm text-[#c0ff3f] font-medium mt-1">
-                      💡 建议：{insight.action}
+                      建议：{insight.action}
                     </p>
                   )}
                 </div>

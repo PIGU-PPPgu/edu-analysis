@@ -189,7 +189,7 @@ export function EnhancedClassValueAddedReport({
           <Alert>
             <Info className="h-4 w-4" />
             <AlertDescription>
-              💡 <strong>提示</strong>
+              <strong>提示</strong>
               ：请筛选科目查看各班各科增值情况，便于对比分析
             </AlertDescription>
           </Alert>
@@ -497,7 +497,7 @@ export function EnhancedClassValueAddedReport({
         <CardContent className="space-y-4">
           <div className="space-y-3">
             <div>
-              <h4 className="font-semibold text-sm mb-2">📊 如何解读增值率</h4>
+              <h4 className="font-semibold text-sm mb-2">如何解读增值率</h4>
               <ul className="text-sm space-y-1 text-muted-foreground ml-4">
                 <li>
                   • <strong style={{ color: "#B9FF66" }}>正增值（绿色）</strong>
@@ -515,9 +515,7 @@ export function EnhancedClassValueAddedReport({
             </div>
 
             <div>
-              <h4 className="font-semibold text-sm mb-2">
-                🎯 进步人数占比的意义
-              </h4>
+              <h4 className="font-semibold text-sm mb-2">进步人数占比的意义</h4>
               <ul className="text-sm space-y-1 text-muted-foreground ml-4">
                 <li>
                   • 表示班级中<strong>增值值大于 0 的学生比例</strong>
@@ -528,9 +526,7 @@ export function EnhancedClassValueAddedReport({
             </div>
 
             <div>
-              <h4 className="font-semibold text-sm mb-2">
-                💡 如何使用这份报告
-              </h4>
+              <h4 className="font-semibold text-sm mb-2">如何使用这份报告</h4>
               <ul className="text-sm space-y-1 text-muted-foreground ml-4">
                 <li>
                   1. <strong>横向对比</strong>
@@ -564,7 +560,7 @@ export function EnhancedClassValueAddedReport({
 
             <div className="pt-2 border-t">
               <p className="text-xs text-muted-foreground">
-                💭 <strong>提示</strong>：标准分为空时图表按 0
+                <strong>提示</strong>：标准分为空时图表按 0
                 展示，建议结合明细表格共同判断。增值评价是过程性评价，应结合多次考试数据综合分析。
               </p>
             </div>

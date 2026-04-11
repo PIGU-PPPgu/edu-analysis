@@ -67,7 +67,7 @@ const Testimonial: React.FC<TestimonialProps> = ({
 const Testimonials: React.FC = () => {
   const testimonialData = {
     quote:
-      '"We have been working with Positivus for the past year and have seen a significant increase in website traffic and leads as a result of their efforts. The team is professional, responsive, and truly cares about the success of our business. We highly recommend Positivus to any company looking to grow their online presence."',
+      '"我们使用 IntelliClass 已有一年，学生成绩分析效率大幅提升，增值评价报告帮助我们精准识别了每位学生的进步轨迹。团队专业、响应迅速，真正关心学校的发展。强烈推荐 IntelliClass 给每一所希望用数据驱动教学的学校。"',
     name: "John Smith",
     position: "Marketing Director at XYZ Corp",
   };

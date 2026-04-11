@@ -629,7 +629,6 @@ const RuleBuilder: React.FC<RuleBuilderProps> = ({
                 onClick={() => loadTemplate(template.id)}
               >
                 <CardContent className="p-4 text-center">
-                  <div className="text-3xl mb-2">{template.icon}</div>
                   <h3 className="font-bold text-sm text-[#191A23] mb-1">
                     {template.name}
                   </h3>
@@ -756,7 +755,7 @@ const RuleBuilder: React.FC<RuleBuilderProps> = ({
             </div>
           ) : (
             <div className="text-center py-12">
-              <div className="text-6xl mb-4">🧪</div>
+              <div className="w-12 h-12 bg-gray-200 rounded-full mx-auto mb-4" />
               <h3 className="text-lg font-bold text-[#191A23] mb-2">
                 尚未测试规则
               </h3>

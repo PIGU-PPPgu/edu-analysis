@@ -270,12 +270,6 @@ const MappingEditor: React.FC<MappingEditorProps> = ({
   // 记录映射变更历史
   const recordMappingChange = async () => {
     // 可以在这里记录到映射历史表
-    console.log("映射变更记录:", {
-      exam_id: examId,
-      old_mapping: originalMapping,
-      new_mapping: currentMapping,
-      changed_at: new Date().toISOString(),
-    });
   };
 
   // 检查是否有变更

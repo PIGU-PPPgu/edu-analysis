@@ -912,7 +912,7 @@ export function AIAnalysisReport({
                 科目的平均增值情况，按增值从高到低排序
                 <br />
                 <strong className="text-blue-600">
-                  💡 提示：点击具体班级可查看该班学生的详细预测
+                  提示：点击具体班级可查看该班学生的详细预测
                 </strong>
               </>
             ) : (
